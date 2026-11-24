@@ -12,9 +12,11 @@ export interface TrayTimer {
   onChange(cb: () => void): () => void
 }
 
+/** 0:03:12 — with seconds, so a freshly started timer visibly runs (minutes alone stayed «0:00»). */
 const elapsed = (from: number): string => {
-  const m = Math.max(0, Math.floor((Date.now() - from) / 60000))
-  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+  const sec = Math.max(0, Math.floor((Date.now() - from) / 1000))
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${Math.floor(sec / 3600)}:${pad(Math.floor(sec / 60) % 60)}:${pad(sec % 60)}`
 }
 
 /** System tray icon with quick actions. */
@@ -35,12 +37,13 @@ export class TrayController {
       if (pending) clearTimeout(pending)
       pending = setTimeout(() => this.refresh(), 300)
     })
+    // Tooltip follows every 5 s while running; the menu itself is rebuilt each time it opens (see create()).
     setInterval(() => {
       const run = this.timer?.running()
       if (!run) return
       this.refresh()
       this.warnIfForgotten(run)
-    }, 60_000)
+    }, 5_000)
   }
 
   /** Start time of the run we already warned about (one notification per forgotten run). */
@@ -86,17 +89,22 @@ export class TrayController {
     this.tray = new Tray(image)
     this.tray.setToolTip('Vault')
     this.tray.on('click', () => this.windows.toggleMain())
+    // Windows shows a snapshot of the context menu: build it at the moment of opening, so the time is current.
+    if (process.platform !== 'darwin') this.tray.on('right-click', () => this.tray?.popUpContextMenu(this.menu()))
     this.refresh()
   }
 
   refresh(): void {
     if (!this.tray) return
-    const s = this.config.settings
     const run = this.timer?.running()
     this.tray.setToolTip(run ? `Vault · ⏱ ${run.projectTitle} ${elapsed(run.startedAt)}` : 'Vault')
+    if (process.platform === 'darwin') this.tray.setContextMenu(this.menu())
+  }
+
+  private menu(): Menu {
+    const s = this.config.settings
     const accel = s.quickAddShortcut.replace('CommandOrControl', 'Ctrl')
-    this.tray.setContextMenu(
-      Menu.buildFromTemplate([
+    return Menu.buildFromTemplate([
         { label: 'Відкрити Vault', click: () => this.windows.showMain() },
         { label: `Швидко додати    ${accel}`, click: () => this.windows.showQuickAdd() },
         { label: 'Пошук', click: () => this.windows.showMain('/?search=1') },
@@ -112,7 +120,6 @@ export class TrayController {
         { type: 'separator' },
         { label: 'Вийти', click: () => app.quit() }
       ])
-    )
   }
 
   destroy(): void {
