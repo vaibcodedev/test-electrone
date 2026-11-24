@@ -140,7 +140,7 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
         </SidebarMenuButton>
         <CollapsibleTrigger asChild>
           <SidebarMenuAction
-            className="peer-data-[active=true]/menu-button:text-sidebar-primary-foreground data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
+            className="data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
             aria-label={open ? 'Згорнути' : 'Розгорнути'}
           >
             <ChevronRight />
