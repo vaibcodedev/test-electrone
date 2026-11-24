@@ -96,7 +96,8 @@ export function SearchInput({
   autoFocus?: boolean
 }) {
   return (
-    <InputGroup className={cn('h-9', className)}>
+    // Same height as chips and sm buttons in the filter row (docs/design-system.md → Ряд фильтров).
+    <InputGroup className={cn('h-8', className)}>
       <InputGroupAddon>
         <Search />
       </InputGroupAddon>

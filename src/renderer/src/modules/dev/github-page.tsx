@@ -149,7 +149,7 @@ function IssuesTab({ force }: { force: number }) {
           ]}
         />
         <Select value={repo} onValueChange={setRepo}>
-          <SelectTrigger className="w-64">
+          <SelectTrigger size="sm" className="w-64">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
