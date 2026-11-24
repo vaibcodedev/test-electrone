@@ -153,8 +153,13 @@ export function CodeEditor({
     setFormatting(true)
     try {
       const source = view.state.doc.toString()
-      const formatted = await formatCode(source, language)
-      if (formatted !== source) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: formatted } })
+      // Format to the width the editor actually shows: with a fixed 100 a narrow pane kept wrapping lines,
+      // and «Форматувати» looked like it did nothing.
+      const columns = Math.floor(view.contentDOM.clientWidth / view.defaultCharacterWidth) - 2
+      const width = Math.min(120, Math.max(60, columns || 100))
+      const formatted = await formatCode(source, language, width)
+      if (formatted === source) toast('Код уже відформатовано')
+      else view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: formatted } })
     } catch (e) {
       toast.error(`Не вдалося відформатувати: ${String((e as Error).message ?? e).split('\n')[0]}`)
     } finally {

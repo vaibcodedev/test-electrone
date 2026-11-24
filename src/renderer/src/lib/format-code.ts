@@ -55,11 +55,11 @@ async function pluginsFor(parser: Parser): Promise<Plugin[]> {
 
 /**
  * Formats code with Prettier (standalone build: no eval, fine under the strict CSP).
- * Style matches the project: 100 columns, single quotes, no semicolons. Throws on parse errors.
+ * Style matches the project: single quotes, no semicolons; width — what the editor shows. Throws on parse errors.
  */
-export async function formatCode(code: string, language: CodeLanguage): Promise<string> {
+export async function formatCode(code: string, language: CodeLanguage, printWidth = 100): Promise<string> {
   const parser = PARSER[language]
   if (!parser) throw new Error('Форматування недоступне для цієї мови')
   const [{ format }, plugins] = await Promise.all([import('prettier/standalone'), pluginsFor(parser)])
-  return format(code, { parser, plugins, printWidth: 100, singleQuote: true, semi: false })
+  return format(code, { parser, plugins, printWidth, singleQuote: true, semi: false })
 }
