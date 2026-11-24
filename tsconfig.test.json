@@ -1,0 +1,16 @@
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
+  "include": ["tests/**/*", "vitest.config.mts", "playwright.config.ts", "src/renderer/src/**/*", "src/shared/**/*", "src/main/**/*", "src/preload/*.d.ts"],
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client", "electron-vite/node"],
+    "paths": {
+      "@/*": ["./src/renderer/src/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@main/*": ["./src/main/*"]
+    }
+  }
+}
