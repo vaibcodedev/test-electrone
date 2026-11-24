@@ -317,7 +317,7 @@ export class Container {
     const quickAdd = new QuickAddService(modulesApi, this.db)
 
     // JSON import: each module registers how to create its records (ImportService has no per-kind code).
-    const importer = new ImportService()
+    const importer = new ImportService(this.db)
     importer.register('checklist', async (data) => {
       const c = await modulesApi.checklists.importTemplate(data)
       return { created: 1, firstId: c.id }
