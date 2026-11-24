@@ -26,6 +26,7 @@ import {
   countBy,
   useEscapeToClose
 } from '../claude/editor-kit'
+import { ImportButton } from '@/components/common/import-dialog'
 
 const LIMITS = limitsOf(libraryInputSchema)
 
@@ -252,15 +253,18 @@ export function LibrariesPage() {
         title="JS-бібліотеки"
         subtitle="Що використовував, що хочеться спробувати й як це встановити."
         actions={
-          <Button
-            variant="lime"
-            onClick={async () => {
-              const created = await create.mutateAsync({ name: 'new-package', status: status ?? 'want' })
-              setOpen(created.id)
-            }}
-          >
-            <Plus /> Бібліотека
-          </Button>
+          <>
+            <ImportButton kind="library" onImported={(id) => id && setOpen(id)} />
+            <Button
+              variant="lime"
+              onClick={async () => {
+                const created = await create.mutateAsync({ name: 'new-package', status: status ?? 'want' })
+                setOpen(created.id)
+              }}
+            >
+              <Plus /> Бібліотека
+            </Button>
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-2">

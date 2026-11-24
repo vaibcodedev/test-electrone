@@ -212,5 +212,31 @@ export default function Demo() {
   const week = await call('review.get')
   console.log('dev ok: scripts', Object.keys(proj.scripts).length, 'branch', proj.git.branch, '| capture ok', saved.title, '| review sections', week.snapshot.sections.length)
 
+  // ── JSON import: one example per kind, plus a rejected payload (all-or-nothing validation)
+  const samples = {
+    checklist: { title: 'Імпорт: реліз', sections: [{ title: 'Код', items: ['Тести зелені', { text: 'Changelog', hint: 'коротко' }] }] },
+    question: { items: [{ question: 'Що таке замикання?', answer: 'Функція + лексичне оточення', group: 'technical', topic: 'JS' }] },
+    word: [{ term: 'rollout', translation: 'викатка' }],
+    snippet: [{ title: 'Імпорт: hello', language: 'typescript', code: 'console.log(1)' }],
+    template: [{ title: 'Імпорт: фолоуап', situation: 'follow_up', body: 'Hi {name}' }],
+    redflag: [{ title: 'Імпорт: без оплати', severity: 3 }],
+    idea: [{ title: 'Імпорт: ідея', description: 'опис' }],
+    bookmark: [{ title: 'Імпорт: Electron docs', url: 'https://www.electronjs.org/docs', kind: 'docs' }],
+    library: [{ name: 'imported-lib', status: 'want' }]
+  }
+  for (const [kind, payload] of Object.entries(samples)) {
+    const res = await call('importer.run', { kind, payload })
+    if (!res.created || !res.firstId) throw new Error(`import ${kind} failed ` + JSON.stringify(res))
+  }
+  let rejected = false
+  try {
+    await call('importer.run', { kind: 'word', payload: [{ term: 'ok' }, { translation: 'no term' }] })
+  } catch {
+    rejected = true
+  }
+  if (!rejected) throw new Error('import accepted an invalid payload')
+  const imported = await call('english.list', { search: 'no term' })
+  console.log('import ok:', Object.keys(samples).length, 'kinds, invalid rejected, partial words:', imported.length)
+
   console.log('seed ok; search hits:', hits.length, 'week minutes:', ov.weekMinutes)
 }

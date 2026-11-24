@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { IDEA_STATUS_LABEL } from './labels'
 import { IdeaDetail } from './idea-detail'
+import { ImportButton } from '@/components/common/import-dialog'
 
 function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
   const [title, setTitle] = useState('')
@@ -88,7 +89,11 @@ export function IdeasPage() {
 
   return (
     <Page>
-      <PageHeader title="Ідеї" subtitle="Записуйте все, що спадає на думку. Дозрілу ідею — однією кнопкою в дошку.">
+      <PageHeader
+        title="Ідеї"
+        subtitle="Записуйте все, що спадає на думку. Дозрілу ідею — однією кнопкою в дошку."
+        actions={<ImportButton kind="idea" onImported={(id) => id && setOpen(id)} />}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
             allLabel="Усі"

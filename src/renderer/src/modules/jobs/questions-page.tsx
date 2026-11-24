@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL } from './j2-labels'
 import { QuestionCategoryFilter, QuestionCategoryPicker } from './question-category'
 import { TopicPicker } from './j2-topic-picker'
+import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
 const NONE = '__none__'
 const LIMITS = limitsOf(questionInputSchema)
@@ -235,6 +236,14 @@ export function QuestionsPage() {
         subtitle="Записуйте питання з реальних співбесід і свої найкращі відповіді — тренажер нагадає повторити."
         actions={
           <>
+            <CopyJsonButton
+              what="Питання"
+              disabled={!list.items.length}
+              getData={() =>
+                list.items.map((q) => ({ question: q.question, answer: q.answer, category: q.category, topic: q.topic, difficulty: q.difficulty, lang: q.lang }))
+              }
+            />
+            <ImportButton kind="question" onImported={(id) => id && setOpen(id)} />
             <Button variant="soft" onClick={add}>
               <Plus /> Питання
             </Button>

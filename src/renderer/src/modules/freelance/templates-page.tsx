@@ -53,6 +53,7 @@ import {
   useEscapeToClose
 } from '../claude/editor-kit'
 import { fillTemplate, pct, SITUATION_LABEL, templateVariables } from './g2-labels'
+import { ImportButton } from '@/components/common/import-dialog'
 
 const TPL_L = limitsOf(templateInputSchema)
 const SITUATION_OPTIONS = TEMPLATE_SITUATIONS.map((s) => ({ value: s, label: SITUATION_LABEL[s] }))
@@ -262,14 +263,17 @@ export function TemplatesPage() {
         title="Шаблони"
         subtitle="Готові відповіді для різних ситуацій. Позначайте шаблон у відгуку — статистика покаже, який приводить до контрактів."
         actions={
-          <Button
-            variant="lime"
-            onClick={() =>
-              create.mutate({ title: 'Новий шаблон', situation: situation ?? 'proposal' })
-            }
-          >
-            <Plus /> Шаблон
-          </Button>
+          <>
+            <ImportButton kind="template" onImported={(id) => id && setOpen(id)} />
+            <Button
+              variant="lime"
+              onClick={() =>
+                create.mutate({ title: 'Новий шаблон', situation: situation ?? 'proposal' })
+              }
+            >
+              <Plus /> Шаблон
+            </Button>
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-2">

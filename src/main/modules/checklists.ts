@@ -10,7 +10,8 @@ import {
   instantiateSchema,
   type Checklist,
   type ChecklistItem,
-  type ChecklistKind
+  type ChecklistKind,
+  checklistImportSchema
 } from '@shared/domain/checklists'
 import { checklistItems, checklists } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
@@ -211,6 +212,25 @@ export class ChecklistsModule {
           .where(eq(checklistItems.checklistId, idArg.parse(id)))
           .run()
         repo.touch(id)
+      },
+      importTemplate: async (json) => {
+        const data = checklistImportSchema.parse(json)
+        const created = this.m.db.tx(() => {
+          const c = repo.insert({ title: data.title, description: data.description, kind: 'template', templateId: null, projectId: null })
+          let position = 1
+          for (const section of data.sections) {
+            for (const raw of section.items) {
+              const it = typeof raw === 'string' ? { text: raw, hint: '' } : raw
+              this.db
+                .insert(checklistItems)
+                .values({ id: newId(), checklistId: c.id, text: it.text, hint: it.hint, section: section.title, done: false, doneAt: null, position: position++ })
+                .run()
+            }
+          }
+          return c
+        })
+        this.reindex(created.id)
+        return this.one(created.id)
       },
       addItem: async (input) => {
         const data = checklistItemInputSchema.parse(input)

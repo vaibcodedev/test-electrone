@@ -17,14 +17,17 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, GripVertical, Plus, RotateCcw, Rocket, Trash2 } from 'lucide-react'
+import { ArrowLeft, GripVertical, Plus, RotateCcw, Rocket, Trash2, X } from 'lucide-react'
 import { checklistInputSchema, checklistItemInputSchema, type ChecklistItem, type ChecklistPatch } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
+import { api } from '@/lib/api'
+import { toast } from 'sonner'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState, SegmentBar } from '@/components/common/page'
 import { EntityAside, InlineTitle } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
+import { CopyJsonButton } from '@/components/common/import-dialog'
 import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
 import { Badge } from '@/components/ui/badge'
@@ -226,6 +229,44 @@ function AddItem({
   )
 }
 
+/**
+ * Section heading, renamable in place. Renaming «Без розділу» moves those items into a real section.
+ * Saves on blur / Enter; Esc restores.
+ */
+function SectionTitle({ checklistId, section, items }: { checklistId: string; section: string; items: ChecklistItem[] }) {
+  const [value, setValue] = useState(section)
+  useEffect(() => setValue(section), [section])
+  const commit = async (): Promise<void> => {
+    const next = value.trim()
+    if (next === section) return
+    try {
+      await Promise.all(items.map((it) => api.checklists.updateItem({ id: it.id, patch: { section: next } })))
+      invalidateAll()
+      toast.success(next ? `Розділ «${next}»` : 'Пункти без розділу')
+    } catch (e) {
+      toast.error((e as Error).message)
+      setValue(section)
+    }
+  }
+  return (
+    <Input
+      value={value}
+      placeholder={NO_SECTION}
+      aria-label={`Назва розділу ${section || NO_SECTION}`}
+      title="Натисніть, щоб перейменувати розділ"
+      maxLength={ITEM_LIMITS.section}
+      data-checklist={checklistId}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => void commit()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') setValue(section)
+      }}
+      className="font-display h-auto max-w-sm border-transparent bg-transparent px-1 py-0.5 text-[19px] placeholder:text-foreground hover:border-input focus-visible:bg-foreground/[0.04]"
+    />
+  )
+}
+
 export function ChecklistPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -251,6 +292,8 @@ export function ChecklistPage() {
   // Local order for instant drag feedback; follows server data otherwise.
   const [items, setItems] = useState<ChecklistItem[]>([])
   useEffect(() => setItems(data?.items ?? []), [data?.items])
+  const [draftSections, setDraftSections] = useState<string[]>([])
+  const [sectionName, setSectionName] = useState('')
   const groups = useMemo(() => groupBySection(items), [items])
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -323,6 +366,17 @@ export function ChecklistPage() {
                 <Rocket /> Запустити прогін
               </Button>
             )}
+            <CopyJsonButton
+              what="Чек-лист"
+              getData={() => ({
+                title: data.title,
+                description: data.description,
+                sections: groups.map(([section, list]) => ({
+                  title: section,
+                  items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
+                }))
+              })}
+            />
             <PinButtons entity={{ type: 'checklist', id }} />
             <Confirm
               title="Видалити чек-лист?"
@@ -379,7 +433,7 @@ export function ChecklistPage() {
                 return (
                   <section key={section || NO_SECTION}>
                     <div className="mb-1.5 flex items-baseline justify-between px-2">
-                      <h2 className="font-display text-[19px]">{section || NO_SECTION}</h2>
+                      <SectionTitle checklistId={id} section={section} items={list} />
                       {isRun && (
                         <span className="text-caption text-muted-foreground tabular-nums">
                           {sectionDone}/{list.length}
@@ -399,9 +453,52 @@ export function ChecklistPage() {
           </SortableContext>
         </DndContext>
 
-        <div className="mt-6">
-          <AddItem checklistId={id} sections={groups.map(([s]) => s).filter(Boolean)} />
-        </div>
+        {/* Empty checklist: a field for the first item. New sections: «+ Розділ» → an empty section with its own adder. */}
+        {groups.length === 0 && draftSections.length === 0 && (
+          <div className="mt-6">
+            <AddItem checklistId={id} section="" />
+          </div>
+        )}
+        {draftSections
+          .filter((name) => !groups.some(([s]) => s === name))
+          .map((name) => (
+            <section key={`draft-${name}`} className="mt-7">
+              <div className="mb-1.5 flex items-center justify-between px-2">
+                <h2 className="font-display text-[19px]">{name}</h2>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Прибрати розділ ${name}`}
+                  onClick={() => setDraftSections((d) => d.filter((x) => x !== name))}
+                >
+                  <X />
+                </Button>
+              </div>
+              <AddItem checklistId={id} section={name} />
+            </section>
+          ))}
+        <form
+          className="mt-6 flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const name = sectionName.trim()
+            if (!name) return
+            if (!groups.some(([s]) => s === name) && !draftSections.includes(name)) setDraftSections((d) => [...d, name])
+            setSectionName('')
+          }}
+        >
+          <Input
+            value={sectionName}
+            maxLength={ITEM_LIMITS.section}
+            onChange={(e) => setSectionName(e.target.value)}
+            placeholder="Назва нового розділу, напр. «Перед релізом»"
+            className="max-w-sm"
+            aria-label="Назва нового розділу"
+          />
+          <Button type="submit" variant="subtle" disabled={!sectionName.trim()}>
+            <Plus /> Розділ
+          </Button>
+        </form>
       </div>
 
       <aside

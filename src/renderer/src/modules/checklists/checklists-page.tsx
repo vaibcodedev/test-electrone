@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { ArrowUpRight, ListChecks, Plus, Rocket } from 'lucide-react'
+import { ArrowUpRight, FileJson, ListChecks, Plus, Rocket } from 'lucide-react'
 import type { Checklist } from '@shared/domain/checklists'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtRelative, plural } from '@/lib/format'
@@ -20,6 +20,7 @@ import { Item } from '@/components/ui/item'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { LaunchDialog } from './launch-dialog'
+import { ImportDialog } from '@/components/common/import-dialog'
 
 type Tab = 'template' | 'run'
 
@@ -75,7 +76,8 @@ function RunCard({ item }: { item: Checklist }) {
       asChild
       className={cn(
         'group min-h-[150px] flex-col flex-nowrap items-stretch justify-between rounded-3xl p-5 text-left',
-        complete ? 'bg-lime text-lime-foreground' : 'bg-ink text-ink-foreground'
+        // Own hover: Item's default hover tint turned the ink card grey while the text stayed ink-coloured.
+        complete ? 'bg-lime text-lime-foreground hover:bg-lime/90' : 'bg-ink text-ink-foreground hover:bg-ink/90'
       )}
     >
       <button type="button" onClick={() => navigate(`/checklists/${item.id}`)}>
@@ -106,6 +108,7 @@ function RunCard({ item }: { item: Checklist }) {
 }
 
 export function ChecklistsPage() {
+  const [importOpen, setImportOpen] = useState(false)
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'runs' ? 'run' : 'template'
   const [search, setSearch] = useState('')
@@ -130,12 +133,17 @@ export function ChecklistsPage() {
         title="Чек-листи"
         subtitle="Шаблони для повторюваних процесів: запуск магазину, деплой, SEO. Кожен запуск — окремий прогін із галочками."
         actions={
-          <Button
-            variant="lime"
-            onClick={() => create.mutate({ title: 'Новий чек-лист', kind: 'template' })}
-          >
-            <Plus /> Шаблон
-          </Button>
+          <>
+            <Button variant="soft" onClick={() => setImportOpen(true)}>
+              <FileJson /> Імпорт з JSON
+            </Button>
+            <Button
+              variant="lime"
+              onClick={() => create.mutate({ title: 'Новий чек-лист', kind: 'template' })}
+            >
+              <Plus /> Шаблон
+            </Button>
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-3">
@@ -181,6 +189,12 @@ export function ChecklistsPage() {
         )}
       </PageBody>
       <LaunchDialog template={launch} open={!!launch} onOpenChange={(o) => !o && setLaunch(null)} />
+      <ImportDialog
+        kind="checklist"
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={(id) => id && navigate(`/checklists/${id}`)}
+      />
     </Page>
   )
 }

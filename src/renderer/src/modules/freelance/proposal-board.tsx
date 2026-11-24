@@ -82,7 +82,7 @@ function DropZone({
       className={cn(
         'flex flex-col gap-2 rounded-2xl transition-colors',
         compact ? 'min-h-14 p-2' : 'min-h-24 flex-1 p-1',
-        isOver && 'bg-lime-soft ring-2 ring-ring/60',
+        isOver && 'bg-lime-soft ring-2 ring-inset ring-ring/60',
         className
       )}
     >

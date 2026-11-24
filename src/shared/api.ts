@@ -101,6 +101,7 @@ import type {
   RunningScript
 } from './domain/dev'
 import type { ReviewNotesInput, WeeklyReview } from './domain/review'
+import type { ImportKind, ImportResult } from './domain/import'
 import type {
   Application,
   ApplicationDetails,
@@ -301,6 +302,11 @@ export interface PaymentsApi {
   remove(id: string): Promise<void>
 }
 
+/** Bulk import from JSON (see shared/domain/import IMPORT_DEFS). */
+export interface ImporterApi {
+  run(args: { kind: ImportKind; payload: unknown }): Promise<ImportResult>
+}
+
 export interface ChecklistsApi {
   list(args?: { kind?: ChecklistKind; search?: string; tagId?: string }): Promise<Checklist[]>
   get(id: string): Promise<ChecklistDetails | null>
@@ -315,6 +321,8 @@ export interface ChecklistsApi {
   updateItem(args: { id: string; patch: ChecklistItemPatch }): Promise<ChecklistItem>
   removeItem(id: string): Promise<void>
   reorderItems(args: { checklistId: string; ids: string[] }): Promise<void>
+  /** Creates a template from JSON (checklistImportSchema) in one transaction. */
+  importTemplate(json: unknown): Promise<Checklist>
 }
 
 export type FixesApi = CrudApi<Fix, FixInput, FixPatch, FixListQuery>
@@ -641,6 +649,7 @@ export interface Api {
   settings: SettingsApi
   updates: UpdatesApi
   app: AppApi
+  importer: ImporterApi
 }
 
 export type ApiNamespace = keyof Api

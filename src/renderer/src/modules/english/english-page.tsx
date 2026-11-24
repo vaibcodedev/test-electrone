@@ -17,6 +17,7 @@ import { Progress } from '@/components/ui/progress'
 import { AddWordForm } from './add-word-form'
 import { WordDetail } from './word-detail'
 import { KIND_LABEL, STAGE_LABEL } from './labels'
+import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
 const STAGE_COLOR: Record<WordStage, string> = {
   new: 'bg-muted-foreground/50',
@@ -105,6 +106,23 @@ export function EnglishPage() {
         }
         actions={
           <div className="flex items-center gap-3">
+            <CopyJsonButton
+              what="Слова"
+              disabled={!list.items.length}
+              getData={() =>
+                list.items.map((w) => ({
+                  term: w.term,
+                  translation: w.translation,
+                  kind: w.kind,
+                  transcription: w.transcription,
+                  example: w.example,
+                  exampleTranslation: w.exampleTranslation,
+                  context: w.context,
+                  notes: w.notes
+                }))
+              }
+            />
+            <ImportButton kind="word" onImported={(id) => id && setOpen(id)} />
             {stats && stats.streakDays > 0 && (
               <Badge variant="soft" className="h-8 px-3 text-caption font-normal">
                 <Flame className="size-4! text-warn" />

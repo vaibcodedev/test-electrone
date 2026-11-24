@@ -17,6 +17,7 @@ import { EventBus } from './core/event-bus'
 import { EntityRegistry } from './core/registry'
 import { DbContext } from './db/client'
 import { SearchIndex } from './services/search-index'
+import { createEach, ImportService } from './services/import-service'
 import { TagService } from './services/tag-service'
 import { LinkService } from './services/link-service'
 import { PinService } from './services/pin-service'
@@ -304,10 +305,26 @@ export class Container {
       }
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)
+
+    // JSON import: each module registers how to create its records (ImportService has no per-kind code).
+    const importer = new ImportService()
+    importer.register('checklist', async (data) => {
+      const c = await modulesApi.checklists.importTemplate(data)
+      return { created: 1, firstId: c.id }
+    })
+    importer.register('question', createEach(modulesApi.jobs.createQuestion))
+    importer.register('word', createEach(modulesApi.english.create))
+    importer.register('snippet', createEach(modulesApi.snippets.create))
+    importer.register('template', createEach(modulesApi.templates.create))
+    importer.register('redflag', createEach(modulesApi.redflags.create))
+    importer.register('idea', createEach(modulesApi.ideas.create))
+    importer.register('bookmark', createEach(modulesApi.bookmarks.create))
+    importer.register('library', createEach(modulesApi.libraries.create))
     const refArg = entityRefSchema
 
     return {
       ...modulesApi,
+      importer: { run: async (args) => importer.run(args) },
       tags: {
         list: async () => this.tags.list(),
         create: async (input) => this.tags.create(input),

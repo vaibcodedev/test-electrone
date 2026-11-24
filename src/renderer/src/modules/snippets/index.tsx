@@ -26,6 +26,7 @@ import {
   countBy,
   useEscapeToClose
 } from '../claude/editor-kit'
+import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
 const LANGUAGE_LABEL: Record<SnippetLanguage, string> = {
   typescript: 'TypeScript',
@@ -232,15 +233,23 @@ export function SnippetsPage() {
         title="Сніпети"
         subtitle="GraphQL-запити Hydrogen, хуки, конфіги — знайти й скопіювати за пару секунд."
         actions={
-          <Button
-            variant="lime"
-            onClick={async () => {
-              const created = await create.mutateAsync({ title: 'Новий сніпет', language: language ?? 'typescript' })
-              setOpen(created.id)
-            }}
-          >
-            <Plus /> Сніпет
-          </Button>
+          <>
+            <CopyJsonButton
+              what="Сніпети"
+              disabled={!list.items.length}
+              getData={() => list.items.map((s) => ({ title: s.title, language: s.language, description: s.description, code: s.code }))}
+            />
+            <ImportButton kind="snippet" onImported={(id) => id && setOpen(id)} />
+            <Button
+              variant="lime"
+              onClick={async () => {
+                const created = await create.mutateAsync({ title: 'Новий сніпет', language: language ?? 'typescript' })
+                setOpen(created.id)
+              }}
+            >
+              <Plus /> Сніпет
+            </Button>
+          </>
         }
       >
         <SearchInput

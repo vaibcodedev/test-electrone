@@ -46,6 +46,7 @@ import {
   countBy,
   useEscapeToClose
 } from '../claude/editor-kit'
+import { ImportButton } from '@/components/common/import-dialog'
 
 const LIMITS = limitsOf(bookmarkInputSchema)
 
@@ -226,19 +227,22 @@ export function BookmarksPage() {
         title="Закладки"
         subtitle="Статті, відео й курси: що прочитати, що читаю, що вже прочитано."
         actions={
-          <Button
-            variant="lime"
-            onClick={async () => {
-              const created = await create.mutateAsync({
-                title: 'Нова закладка',
-                kind: kind ?? 'article',
-                status: status ?? 'queue'
-              })
-              setOpen(created.id)
-            }}
-          >
-            <Plus /> Закладка
-          </Button>
+          <>
+            <ImportButton kind="bookmark" onImported={(id) => id && setOpen(id)} />
+            <Button
+              variant="lime"
+              onClick={async () => {
+                const created = await create.mutateAsync({
+                  title: 'Нова закладка',
+                  kind: kind ?? 'article',
+                  status: status ?? 'queue'
+                })
+                setOpen(created.id)
+              }}
+            >
+              <Plus /> Закладка
+            </Button>
+          </>
         }
       >
         <div className="flex flex-wrap items-center gap-2">

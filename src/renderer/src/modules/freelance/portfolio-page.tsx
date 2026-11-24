@@ -169,7 +169,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
       <EditorStack>
         <div {...props}>
           {c.coverPath ? (
-            <Card className={cn('overflow-hidden p-0', isOver && 'ring-2 ring-ring')}>
+            <Card className={cn('overflow-hidden p-0', isOver && 'ring-2 ring-inset ring-ring')}>
               <img src={fileUrl(c.coverPath)} alt="" className="max-h-72 w-full object-cover" />
             </Card>
           ) : (
@@ -284,7 +284,7 @@ export function PortfolioPage() {
                     onKeyDown={(e) => e.key === 'Enter' && setOpen(c.id)}
                     className={cn(
                       'cursor-pointer gap-0 overflow-hidden py-0 transition-shadow hover:ring-1 hover:ring-border',
-                      c.id === open && 'ring-2 ring-ring'
+                      c.id === open && 'outline-2 -outline-offset-2 outline-chart-1'
                     )}
                   >
                     <div className="aspect-[16/10] bg-card">

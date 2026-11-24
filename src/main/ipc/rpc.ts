@@ -102,7 +102,8 @@ const NS_TYPES: Partial<Record<keyof Api, EntityType[]>> = {
   credits: ['proposal'],
   goals: ['proposal'],
   finance: ['project'],
-  jobs: ['application', 'company', 'question', 'event']
+  jobs: ['application', 'company', 'question', 'event'],
+  importer: ['checklist', 'question', 'word', 'snippet', 'template', 'redflag', 'idea', 'bookmark', 'library']
 }
 const READ_METHODS =
   /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|resumes|questions|question|topics|practiceQueue|practiceExtra|runs|logs|repos|issues|commits|pickFolder|scan)$/

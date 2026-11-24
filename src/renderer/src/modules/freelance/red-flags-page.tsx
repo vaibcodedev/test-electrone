@@ -23,6 +23,7 @@ import {
 } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, Block, EditorStack, useEscapeToClose } from '../claude/editor-kit'
 import { SEVERITY_LABEL } from './g2-labels'
+import { ImportButton } from '@/components/common/import-dialog'
 
 const TITLE_MAX = limitsOf(redFlagInputSchema).title
 
@@ -126,9 +127,12 @@ export function RedFlagsPage() {
         title="Червоні прапорці"
         subtitle="Яких клієнтів і вакансій краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці."
         actions={
-          <Button variant="lime" onClick={() => create.mutate({ title: 'Новий прапорець' })}>
-            <Plus /> Прапорець
-          </Button>
+          <>
+            <ImportButton kind="redflag" onImported={(id) => id && setOpen(id)} />
+            <Button variant="lime" onClick={() => create.mutate({ title: 'Новий прапорець' })}>
+              <Plus /> Прапорець
+            </Button>
+          </>
         }
       >
         <SearchInput

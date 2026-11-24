@@ -61,7 +61,7 @@ function CoverField({ item }: { item: UiComponent }) {
       <SectionLabel>Скриншот або GIF</SectionLabel>
       <div {...props}>
         {item.coverPath ? (
-          <Card className={cn('relative gap-0 overflow-hidden bg-card py-0', isOver && 'ring-2 ring-ring')}>
+          <Card className={cn('relative gap-0 overflow-hidden bg-card py-0', isOver && 'ring-2 ring-inset ring-ring')}>
             <img src={fileUrl(item.coverPath)} alt="" className="max-h-48 w-full object-cover" />
             <Tooltip>
               <TooltipTrigger asChild>
