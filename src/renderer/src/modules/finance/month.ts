@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import { format } from 'date-fns'
-import { LOCALE } from '@/lib/format'
+import { LOCALE, capitalize } from '@/lib/format'
 
 /** "yyyy-mm" of the current local month. */
 export function currentMonth(): string {
@@ -21,7 +21,6 @@ export function monthRange(month: string): [number, number] {
   return [new Date(y, m - 1, 1).getTime(), new Date(y, m, 1).getTime() - 1]
 }
 
-const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** "Ноябрь 2026" */
 export function monthLabel(month: string): string {

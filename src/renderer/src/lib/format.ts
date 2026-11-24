@@ -139,3 +139,21 @@ export function fmtReplyTime(hours: number): string {
 export function fmtPercent(value: number): string {
   return `${value.toLocaleString('uk-UA', { maximumFractionDigits: 1 })}%`
 }
+
+/** «листопад 2026» → «Листопад 2026». */
+export function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/** Whole days since a moment (null when there is none). */
+export function daysSince(ts: number | null, now: number): number | null {
+  if (!ts) return null
+  return Math.max(0, Math.floor((now - ts) / 86_400_000))
+}
+
+/** Spaced repetition ease factor in words (english words, interview questions). */
+export function easeLabel(ease: number): string {
+  if (ease >= 2.45) return 'легко'
+  if (ease >= 2.0) return 'середньо'
+  return 'важко'
+}

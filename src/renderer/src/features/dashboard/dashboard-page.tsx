@@ -8,7 +8,7 @@ import type { DueCard } from '@shared/domain/boards'
 import type { CalendarItem } from '@shared/domain/calendar'
 import type { QuickAddTarget } from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
-import { LOCALE, fmtMinutes, fmtRelative, plural } from '@/lib/format'
+import { LOCALE, fmtMinutes, fmtRelative, plural, capitalize } from '@/lib/format'
 import { useUi } from '@/stores/ui-store'
 import { EntityRow } from '@/components/common/entity-link'
 import { SegmentBar } from '@/components/common/page'
@@ -22,7 +22,6 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 
-const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
 const PRIORITY_DOT: Record<string, string> = {
   urgent: 'bg-destructive',

@@ -75,10 +75,7 @@ export const QUESTION_CATEGORY_LABEL: Record<QuestionCategory, string> = {
   other: 'Інше'
 }
 
-export function daysSince(ts: number | null, now: number): number | null {
-  if (!ts) return null
-  return Math.max(0, Math.floor((now - ts) / 86_400_000))
-}
+export { daysSince } from '@/lib/format'
 
 export function agoLabel(days: number | null): string {
   if (days === null) return 'не надіслано'

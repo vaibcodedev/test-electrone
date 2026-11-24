@@ -5,7 +5,7 @@ import { limitsOf } from '@/lib/limits'
 const LIMITS = limitsOf(wordInputSchema)
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
-import { fmtDateTime, fmtDay } from '@/lib/format'
+import { fmtDateTime, fmtDay, easeLabel } from '@/lib/format'
 import { DetailPane, EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { Field, Segmented } from '@/components/common/page'
 import { Input } from '@/components/ui/input'
@@ -49,11 +49,6 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
 }
 
 /** SM-2 ease (1.3…2.5+) as a word: how hard the word is for you. */
-function easeLabel(ease: number): string {
-  if (ease >= 2.45) return 'легко'
-  if (ease >= 2.0) return 'середньо'
-  return 'важко'
-}
 
 export function WordDetail({ word, onClose }: { word: Word; onClose: () => void }) {
   const update = useApiMutation('english', 'update', { silent: false })

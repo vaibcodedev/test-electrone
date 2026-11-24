@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Clipboard, Image, Plus, X } from 'lucide-react'
+import { Clipboard, Image, Palette, Plus, X } from 'lucide-react'
 import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -12,10 +12,10 @@ import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from
 import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { ButtonGroup } from '@/components/ui/button-group'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Card } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { DesignDetail } from './design-detail'
 import {
@@ -31,6 +31,87 @@ import {
 
 function isMedia(f: File): boolean {
   return isImageFile(f) || f.type.startsWith('video/')
+}
+
+/** Hex → [r, g, b]. */
+function rgb(hex: string): [number, number, number] {
+  const h = hex.replace('#', '')
+  const n = parseInt(h.length === 3 ? h.replace(/./g, (c) => c + c) : h.slice(0, 6), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/** Drops near-duplicates (two limes, five greys looked like a bug): keeps colours at least ~50 apart. */
+function distinctColors(palette: string[], max = 16): string[] {
+  const kept: string[] = []
+  for (const c of palette) {
+    const [r, g, b] = rgb(c)
+    const close = kept.some((k) => {
+      const [r2, g2, b2] = rgb(k)
+      return Math.hypot(r - r2, g - g2, b - b2) < 50
+    })
+    if (!close) kept.push(c)
+    if (kept.length >= max) break
+  }
+  return kept
+}
+
+/** «Колір» filter in the filter row: a button like «Мітка», swatches in a popover, the chosen one on the button. */
+function ColorFilter({
+  palette,
+  value,
+  onChange
+}: {
+  palette: string[]
+  value: string | undefined
+  onChange: (color: string | undefined) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const colors = useMemo(() => distinctColors(palette), [palette])
+  if (!colors.length) return null
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <ButtonGroup>
+        <PopoverTrigger asChild>
+          <Button variant={value ? 'default' : 'soft'} size="sm">
+            {value ? <span className="size-3.5 rounded-full ring-1 ring-current/30" style={{ background: value }} /> : <Palette />}
+            Колір
+          </Button>
+        </PopoverTrigger>
+        {value && (
+          <Button variant="default" size="icon-sm" aria-label="Скинути колір" onClick={() => onChange(undefined)}>
+            <X />
+          </Button>
+        )}
+      </ButtonGroup>
+      <PopoverContent align="start" className="w-auto rounded-2xl p-3">
+        <div className="mb-2 text-caption text-muted-foreground">Дизайни, де є цей колір</div>
+        <ToggleGroup
+          type="single"
+          spacing={1}
+          value={value ?? ''}
+          onValueChange={(v) => {
+            onChange(v || undefined)
+            setOpen(false)
+          }}
+          aria-label="Фільтр за кольором"
+          className="grid grid-cols-8 gap-1.5"
+        >
+          {colors.map((c) => (
+            <ToggleGroupItem
+              key={c}
+              value={c}
+              size="xs"
+              title={c}
+              aria-label={c}
+              className="size-8 min-w-8 p-0 hover:bg-transparent on:bg-transparent on:ring-2 on:ring-foreground on:ring-offset-2 on:ring-offset-popover"
+            >
+              <span className="size-7 rounded-full ring-1 ring-border transition-transform hover:scale-110" style={{ background: c }} />
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export function DesignsPage() {
@@ -62,8 +143,8 @@ export function DesignsPage() {
       items={list.items}
       loading={list.isLoading}
       getKey={(d) => d.id}
-      minColumnWidth={open ? 180 : 240}
-      rowHeight={open ? 150 : 200}
+      minColumnWidth={open ? 180 : 220}
+      rowHeight={open ? 190 : 230}
       gap={12}
       hasMore={list.hasMore}
       loadingMore={list.loadingMore}
@@ -80,16 +161,17 @@ export function DesignsPage() {
           )}
         >
           <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block aspect-[4/3] w-full rounded-[18px] object-cover object-top" />
-          <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-            <Badge variant="ink" className="max-w-full truncate">
-              {designTitle(d)}
-            </Badge>
+          <div className="flex min-w-0 items-center gap-2 px-1.5 pt-2 pb-0.5">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-caption font-medium">{designTitle(d)}</div>
+              <div className="truncate text-meta text-muted-foreground">{KIND_LABEL[d.kind]}</div>
+            </div>
             {d.colors.length > 0 && (
-              <Badge variant="ink" className="shrink-0 gap-0.5 px-1.5">
+              <span className="flex shrink-0 -space-x-1" aria-hidden>
                 {d.colors.slice(0, 4).map((c) => (
-                  <span key={c} className="size-2.5 rounded-full" style={{ background: c }} />
+                  <span key={c} className="size-3 rounded-full ring-2 ring-surface" style={{ background: c }} />
                 ))}
-              </Badge>
+              </span>
             )}
           </div>
         </Card>
@@ -120,13 +202,13 @@ export function DesignsPage() {
               ))}
               <Button
                 variant="outline"
-                className="h-auto w-40 shrink-0 flex-col gap-2 rounded-3xl border-dashed font-normal text-muted-foreground hover:text-foreground"
+                className="h-auto w-32 shrink-0 flex-col gap-1.5 rounded-3xl border-dashed text-caption font-normal text-muted-foreground hover:text-foreground"
                 onClick={async () => {
                   const b = await createBoard.mutateAsync({ title: 'Нова добірка' })
                   navigate(`/designs/boards/${b.id}`)
                 }}
               >
-                <span className="grid size-9 place-items-center rounded-full bg-surface">
+                <span className="grid size-7 place-items-center rounded-full bg-surface">
                   <Plus />
                 </span>
                 Нова добірка
@@ -142,42 +224,8 @@ export function DesignsPage() {
               onChange={setKind}
             />
             <TagFilter value={tagId} onChange={setTagId} />
+            <ColorFilter palette={palette} value={color} onChange={setColor} />
           </div>
-          {palette.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-caption font-medium text-muted-foreground">Колір</span>
-              <ToggleGroup
-                type="single"
-                spacing={1}
-                value={color ?? ''}
-                onValueChange={(v) => setColor(v || undefined)}
-                aria-label="Фільтр за кольором"
-              >
-                {palette.slice(0, 28).map((c) => (
-                  <ToggleGroupItem
-                    key={c}
-                    value={c}
-                    size="xs"
-                    title={c}
-                    aria-label={c}
-                    className="size-7 min-w-7 p-0 hover:bg-transparent on:bg-transparent on:ring-2 on:ring-foreground on:ring-offset-2 on:ring-offset-card"
-                  >
-                    <span className="size-6 rounded-full ring-1 ring-border transition-transform hover:scale-110" style={{ background: c }} />
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              {color && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xs" aria-label="Скинути колір" onClick={() => setColor(undefined)}>
-                      <X />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Скинути колір</TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          )}
         </PageHeader>
         <PageBody className="flex min-h-0 flex-col">
           {!list.isLoading && list.items.length === 0 ? (

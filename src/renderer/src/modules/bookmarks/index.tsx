@@ -26,7 +26,7 @@ import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { fmtDate, fmtRelative, hostOf, mdPreview } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, isLikelyUrl } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -84,7 +84,7 @@ const KIND_ICON: Record<BookmarkKind, LucideIcon> = {
   other: BookmarkIcon
 }
 
-const isUrl = (v: string): boolean => /^https?:\/\//i.test(v)
+const isUrl = (v: string): boolean => !!v.trim() && isLikelyUrl(v)
 
 function ProgressSlider({ value, onSave }: { value: number; onSave: (value: number) => void }) {
   const [draft, setDraft] = useAutosave(value, onSave, 400)

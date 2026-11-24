@@ -1,4 +1,4 @@
-// Temporary audit: records with only their required fields — how lists and detail panes look.
+// UI audit: records with only their required fields → screenshots of lists and detail panes (are sparse records readable and clear?). Usage: npm run build; node scripts/audit-sparse.mjs <outDir> [dark|light]
 import { _electron as electron } from 'playwright-core'
 import { mkdtempSync, mkdirSync } from 'fs'
 import { tmpdir } from 'os'

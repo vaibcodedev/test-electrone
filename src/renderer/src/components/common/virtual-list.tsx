@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import { Spinner } from '@/components/ui/spinner'
@@ -169,19 +169,25 @@ export function VirtualGrid<T>({
   /** First page is loading: skeleton rows/cards of the real size instead of an empty state. */
   loading?: boolean
 } & InfiniteProps) {
-  const parentRef = useRef<HTMLDivElement>(null)
+  const parentRef = useRef<HTMLDivElement | null>(null)
+  // The scroll container appears only after the first page (a skeleton is shown before): a plain ref +
+  // effect ran while it was missing and never observed it, so every grid stayed at the initial 3 columns.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
+  const setParent = useCallback((el: HTMLDivElement | null) => {
+    parentRef.current = el
+    setScrollEl(el)
+  }, [])
   const [columns, setColumns] = useState(3)
 
   useEffect(() => {
-    const el = parentRef.current
-    if (!el) return
+    if (!scrollEl) return
     const ro = new ResizeObserver(([entry]) => {
       const width = entry.contentRect.width
       setColumns(Math.max(1, Math.floor((width + gap) / (minColumnWidth + gap))))
     })
-    ro.observe(el)
+    ro.observe(scrollEl)
     return () => ro.disconnect()
-  }, [gap, minColumnWidth])
+  }, [scrollEl, gap, minColumnWidth])
 
   const rows = Math.ceil(items.length / columns)
   const showEnd = !hasMore && items.length >= END_NOTE_FROM
@@ -221,7 +227,7 @@ export function VirtualGrid<T>({
   if (!items.length && !hasMore) return <div className={cn('min-h-0 flex-1 overflow-y-auto', className)}>{empty}</div>
 
   return (
-    <div ref={parentRef} className={cn('min-h-0 flex-1 overflow-y-auto', className)}>
+    <div ref={setParent} className={cn('min-h-0 flex-1 overflow-x-hidden overflow-y-auto', className)}>
       <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
         {virtualRows.map((row) => {
           const start = row.index * columns

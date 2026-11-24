@@ -132,9 +132,9 @@ export function MoodboardTile({ board }: { board: Moodboard }) {
   return (
     <Card
       {...clickableCard(() => navigate(`/designs/boards/${board.id}`))}
-      className="tile w-56 shrink-0 gap-2 p-2 text-left"
+      className="tile w-44 shrink-0 gap-1.5 p-1.5 text-left"
     >
-      <div className="grid aspect-[4/3] grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl">
+      <div className="grid aspect-[16/9] grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
         {cells.map((p, i) =>
           p ? (
             <DesignMedia key={i} path={p} className="size-full object-cover" />
@@ -143,8 +143,8 @@ export function MoodboardTile({ board }: { board: Moodboard }) {
           )
         )}
       </div>
-      <div className="flex items-center justify-between px-2 pb-1">
-        <span className="truncate text-body font-medium">{board.title}</span>
+      <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5">
+        <span className="truncate text-caption font-medium">{board.title}</span>
         <span className="text-caption text-muted-foreground tabular-nums">{board.itemCount}</span>
       </div>
     </Card>

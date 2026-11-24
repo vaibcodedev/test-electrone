@@ -1,4 +1,4 @@
-// Temporary audit: extreme data + every route → elements that spill out or get cut mid-word.
+// UI audit: extreme data (500-char titles, unbroken words, huge sums) on every route → prints elements that spill out of their box or get cut mid-word, saves screenshots. Usage: npm run build; node scripts/audit-overflow.mjs <outDir> [dark|light]
 import { _electron as electron } from 'playwright-core'
 import { mkdtempSync, mkdirSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'

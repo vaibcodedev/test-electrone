@@ -5,7 +5,7 @@ import { QUESTION_CATEGORIES, questionInputSchema, type InterviewQuestion, type 
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAutosave } from '@/hooks/use-autosave'
-import { fmtDateTime, fmtDay } from '@/lib/format'
+import { fmtDateTime, fmtDay, easeLabel } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
@@ -56,11 +56,6 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
 }
 
 /** SM-2 ease (1.3…2.5+) as a word: how hard the question is for you. */
-function easeLabel(ease: number): string {
-  if (ease >= 2.45) return 'легко'
-  if (ease >= 2.0) return 'середньо'
-  return 'важко'
-}
 
 function QuestionDetail({ question, topics, onClose }: { question: InterviewQuestion; topics: string[]; onClose: () => void }) {
   const update = useApiMutation('jobs', 'updateQuestion')

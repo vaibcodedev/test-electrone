@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
 import { LIBRARY_STATUSES, libraryInputSchema, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, isLikelyUrl } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
@@ -45,9 +45,7 @@ const STATUS_DOT: Record<LibraryStatus, string> = {
   dropped: 'bg-muted-foreground'
 }
 
-function isUrl(value: string): boolean {
-  return /^https?:\/\//i.test(value)
-}
+const isUrl = (value: string): boolean => !!value.trim() && isLikelyUrl(value)
 
 /** Opens npm / GitHub / docs in the system browser. */
 function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {

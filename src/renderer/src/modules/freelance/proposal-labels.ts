@@ -70,7 +70,4 @@ export const PLATFORM_COLORS = [
 
 export const DAY_MS = 86_400_000
 
-export function daysSince(ts: number | null, now: number): number | null {
-  if (!ts) return null
-  return Math.max(0, Math.floor((now - ts) / DAY_MS))
-}
+export { daysSince } from '@/lib/format'

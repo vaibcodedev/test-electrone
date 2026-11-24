@@ -13,7 +13,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { KEEP_PERIOD, useApi } from '@/lib/query'
-import { LOCALE } from '@/lib/format'
+import { LOCALE, capitalize } from '@/lib/format'
 import { useUi } from '@/stores/ui-store'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { Page, Segmented } from '@/components/common/page'
@@ -28,9 +28,6 @@ import { MonthView, WeekView } from './views'
 type View = 'month' | 'week'
 const WEEK = { weekStartsOn: 1 as const, locale: LOCALE }
 
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
 
 export function CalendarPage() {
   const navigate = useNavigate()
