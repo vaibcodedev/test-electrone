@@ -167,7 +167,7 @@ export function QuickAddDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="rounded-3xl p-5 sm:max-w-[600px]" showCloseButton={false}>
-        <DialogTitle className="font-display text-xl">Швидко додати</DialogTitle>
+        <DialogTitle className="font-display text-heading">Швидко додати</DialogTitle>
         <QuickAddForm key={target ?? 'default'} initialTarget={target} onDone={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
@@ -194,7 +194,7 @@ export function QuickAddWindow() {
           <Avatar className="size-7">
             <AvatarFallback className="bg-lime text-caption font-semibold text-lime-foreground">V</AvatarFallback>
           </Avatar>
-          <span className="font-display text-[18px]">Швидко додати</span>
+          <span className="font-display text-heading">Швидко додати</span>
         </div>
         <div className="no-drag">
           <QuickAddForm key={key} initialTarget={target} onDone={() => void api.app.closeQuickAdd()} />

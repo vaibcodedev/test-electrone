@@ -29,8 +29,9 @@ const api = async (method, url, body, headers = {}) => {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', ...headers },
     body
   })
-  if (!res.ok && res.status !== 404) throw new Error(`${method} ${url}: ${res.status} ${await res.text()}`)
-  return res.status === 204 || res.status === 404 ? null : res.json()
+  // 404/422 = "no such thing" (GitHub answers 422 for an unknown commit sha).
+  if (!res.ok && res.status !== 404 && res.status !== 422) throw new Error(`${method} ${url}: ${res.status} ${await res.text()}`)
+  return res.status === 204 || res.status === 404 || res.status === 422 ? null : res.json()
 }
 
 // The tag must point at the code that was built: the exact local commit, and it has to be on GitHub.

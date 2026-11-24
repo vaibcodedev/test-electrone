@@ -150,7 +150,7 @@ export function ReviewPage() {
             <div className="stagger mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
                 <Card key={g.grade} className={cn('gap-1 rounded-2xl px-3 py-3', g.tile)}>
-                  <div className="font-display text-[26px] leading-none">{results[g.grade]}</div>
+                  <div className="font-display text-headline leading-none">{results[g.grade]}</div>
                   <div className="text-caption">{g.label}</div>
                 </Card>
               ))}

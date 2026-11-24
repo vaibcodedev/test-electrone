@@ -387,7 +387,7 @@ function Editor({
             onChange={setTitle}
             maxLength={PROPOSAL_L.jobTitle}
             placeholder="Назва вакансії"
-            className="text-[24px]"
+            className="text-headline"
           />
 
           <div className="mt-5 grid grid-cols-2 gap-4">

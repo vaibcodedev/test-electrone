@@ -75,7 +75,7 @@ function NewVersionDialog({
     >
       <DialogContent className="rounded-3xl sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Нова версія резюме</DialogTitle>
+          <DialogTitle className="font-display text-heading">Нова версія резюме</DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -135,7 +135,7 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
     // Inset ring: an outer ring got clipped by the scrolling list (docs/design-system.md → selection rings).
     <Card className={cn(resume.isCurrent && 'ring-2 ring-chart-1 ring-inset')}>
       <CardHeader>
-        <CardTitle className="font-display flex items-center gap-2 text-[18px] font-normal text-foreground">
+        <CardTitle className="font-display flex items-center gap-2 text-heading font-normal text-foreground">
           {resume.title}
           {resume.isCurrent && <Badge variant="success">поточна</Badge>}
         </CardTitle>

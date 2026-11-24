@@ -201,7 +201,7 @@ export function PracticePage() {
             <div className="stagger mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
                 <Card key={g.grade} className={cn('gap-1 rounded-2xl px-3 py-3', g.tile)}>
-                  <div className="font-display text-[26px] leading-none">{results[g.grade]}</div>
+                  <div className="font-display text-headline leading-none">{results[g.grade]}</div>
                   <div className="text-caption">{g.label}</div>
                 </Card>
               ))}
@@ -235,7 +235,7 @@ export function PracticePage() {
                   {LANG_LABEL[current.lang]}
                 </Badge>
               </div>
-              <div className="font-display max-w-2xl text-[30px] leading-tight text-balance">{current.question}</div>
+              <div className="font-display max-w-2xl text-headline leading-tight text-balance">{current.question}</div>
               {revealed ? (
                 <div className="selectable mt-2 w-full animate-enter text-left">
                   {current.answer.trim() ? (

@@ -195,7 +195,7 @@ function CreatePlatformForm({ onDone }: { onDone: () => void }) {
       }}
     >
       <DialogHeader>
-        <DialogTitle className="font-display text-xl">Нова платформа</DialogTitle>
+        <DialogTitle className="font-display text-heading">Нова платформа</DialogTitle>
         <DialogDescription>
           Кожна платформа має свої відгуки, контракти, комісію й статистику.
         </DialogDescription>

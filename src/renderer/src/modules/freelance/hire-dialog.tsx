@@ -64,7 +64,7 @@ export function HireDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Оформити контракт</DialogTitle>
+          <DialogTitle className="font-display text-heading">Оформити контракт</DialogTitle>
           <DialogDescription>
             Клієнт і проєкт з’являться в «Клієнтах й контрактах»
             {proposal.clientName ? ` — ${proposal.clientName}` : ''}. Відгук перейде в статус

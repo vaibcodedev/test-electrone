@@ -51,7 +51,7 @@ function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> 
               <ArrowUpRight className="opacity-0 transition-opacity group-hover:opacity-100" />
             </span>
             <span>
-              <span className="font-display block text-[28px] leading-none tabular-nums">{n}</span>
+              <span className="font-display block text-headline leading-none tabular-nums">{n}</span>
               <span className={cn('mt-1 block text-body font-medium', inverted ? 'text-ink-muted' : 'text-muted-foreground')}>
                 {s.label}
               </span>

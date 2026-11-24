@@ -48,7 +48,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
             defaultValue={board.name}
             aria-label="Назва майданчика"
             maxLength={LIMITS.name}
-            className="font-display h-10 max-w-xs bg-transparent text-[18px]"
+            className="font-display h-10 max-w-xs bg-transparent text-heading"
             onBlur={(e) => e.target.value.trim() && e.target.value !== board.name && save({ name: e.target.value.trim() })}
           />
           <div className="ml-auto flex items-center gap-2">

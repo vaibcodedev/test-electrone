@@ -148,7 +148,7 @@ function SubscriptionsSection({ month }: { month: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-[20px] text-foreground">
+        <CardTitle className="font-display text-heading text-foreground">
           Підписки на {monthName(month)}
         </CardTitle>
         <CardDescription>
@@ -310,7 +310,7 @@ function ExpensesSection({ month }: { month: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-display text-[20px] text-foreground">
+        <CardTitle className="font-display text-heading text-foreground">
           Витрати за {monthName(month)}
         </CardTitle>
         <CardDescription>

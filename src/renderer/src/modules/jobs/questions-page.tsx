@@ -126,7 +126,7 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
           placeholder="Питання"
           aria-label="Питання"
           maxLength={LIMITS.question}
-          className="font-display min-h-0 rounded-none border-0 bg-transparent p-0 text-[24px] leading-tight shadow-none focus-visible:bg-transparent focus-visible:ring-0"
+          className="font-display min-h-0 rounded-none border-0 bg-transparent p-0 text-headline leading-tight shadow-none focus-visible:bg-transparent focus-visible:ring-0"
         />
         <div className="grid grid-cols-2 gap-4">
           <Field className="gap-2">

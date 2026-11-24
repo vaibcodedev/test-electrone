@@ -214,7 +214,7 @@ export function EnglishPage() {
                   <ListItem active={active} onClick={() => setOpen(active ? null : w.id)}>
                     {/* Term + kind on top, translation, the work sentence it came from, then stage and due. */}
                     <div className="flex items-baseline gap-2">
-                      <span className="font-display min-w-0 truncate text-[19px] leading-tight">{w.term}</span>
+                      <span className="font-display min-w-0 truncate text-heading leading-tight">{w.term}</span>
                       {w.transcription && (
                         <span className={cn('truncate text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                           {w.transcription}

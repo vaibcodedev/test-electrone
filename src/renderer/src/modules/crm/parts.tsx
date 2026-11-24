@@ -98,7 +98,7 @@ export function StatTile({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="font-display text-[28px] leading-none tabular-nums">{value}</div>
+        <div className="font-display text-headline leading-none tabular-nums">{value}</div>
         {hint && (
           <div
             className={cn(
@@ -136,7 +136,7 @@ export function Section({
     <section className={cn('flex flex-col gap-3', className)}>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-[20px]">{title}</h2>
+          <h2 className="font-display text-heading">{title}</h2>
           {hint && <p className="mt-0.5 text-caption text-muted-foreground">{hint}</p>}
         </div>
         {action}

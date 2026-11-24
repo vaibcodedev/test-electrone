@@ -437,7 +437,7 @@ export function ProjectPage() {
               value={title}
               onChange={setTitle}
               maxLength={PROJECT_L.title}
-              className="text-[40px]"
+              className="text-title"
             />
             <div className="flex shrink-0 items-center gap-2 pt-2">
               <EditToggle mode={mode} />

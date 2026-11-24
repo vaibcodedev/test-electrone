@@ -35,7 +35,7 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
                           role="button"
                           onClick={() => onOpenCard(c.id)}
                           onKeyDown={(e) => e.key === 'Enter' && onOpenCard(c.id)}
-                          className="border-border hover:bg-accent"
+                          className="border-border hover:bg-(--tile-hover)"
                         >
                           <TableCell className="w-6 pl-4">
                             <span

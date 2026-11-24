@@ -140,7 +140,7 @@ function Editor({
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <SheetTitle className="sr-only">{a.title}</SheetTitle>
         <SheetDescription className="sr-only">Редагування вакансії</SheetDescription>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Посада" className="text-[24px]" maxLength={LIMITS.title} />
+        <InlineTitle value={title} onChange={setTitle} placeholder="Посада" className="text-headline" maxLength={LIMITS.title} />
 
         <div className="mt-5 grid grid-cols-2 gap-4">
           <Field label="Компанія" className="col-span-2">

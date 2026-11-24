@@ -18,7 +18,7 @@ export function ShortcutsDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl sm:max-w-[720px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Гарячі клавіші</DialogTitle>
+          <DialogTitle className="font-display text-stat-sm">Гарячі клавіші</DialogTitle>
           <DialogDescription>Працюють, коли курсор не в полі введення. Глобальну клавішу можна змінити в налаштуваннях.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 sm:grid-cols-2">

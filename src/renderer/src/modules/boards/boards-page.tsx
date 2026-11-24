@@ -33,7 +33,7 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Нова дошка</DialogTitle>
+          <DialogTitle className="font-display text-heading">Нова дошка</DialogTitle>
           <DialogDescription>Колонки «Беклог → У роботі → Ревʼю → Готово» створяться самі, їх можна змінити.</DialogDescription>
         </DialogHeader>
         <form
@@ -64,7 +64,7 @@ function BoardTile({ board }: { board: BoardSummary }) {
   return (
     <Card
       className={cn(
-        'group relative min-h-[188px] gap-0 p-5 transition-colors focus-within:ring-[3px] focus-within:ring-ring/40 hover:bg-accent',
+        'group relative min-h-[188px] gap-0 p-5 transition-colors focus-within:ring-[3px] focus-within:ring-ring/40 hover:bg-(--tile-hover)',
         board.archived && 'opacity-55'
       )}
     >

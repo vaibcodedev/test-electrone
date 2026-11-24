@@ -305,7 +305,7 @@ export function EnumSelect<T extends string>({
     <Select value={value} onValueChange={(v) => onChange(v as T)}>
       <SelectTrigger
         aria-label={ariaLabel}
-        className={cn('w-full rounded-xl border-transparent bg-surface shadow-none dark:bg-surface dark:hover:bg-accent', className)}
+        className={cn('w-full', className)}
       >
         <SelectValue />
       </SelectTrigger>

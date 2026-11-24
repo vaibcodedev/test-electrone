@@ -166,7 +166,7 @@ function CardEditor({
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <SheetTitle className="sr-only">{card.title}</SheetTitle>
         <SheetDescription className="sr-only">Редагування картки</SheetDescription>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Назва картки" maxLength={LIMITS.title} className="text-[24px]" />
+        <InlineTitle value={title} onChange={setTitle} placeholder="Назва картки" maxLength={LIMITS.title} className="text-headline" />
 
         <div className="mt-5 grid grid-cols-2 gap-4">
           <Field label="Колонка">

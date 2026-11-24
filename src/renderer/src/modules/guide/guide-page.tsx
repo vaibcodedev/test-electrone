@@ -1102,7 +1102,7 @@ export function GuidePage() {
               <Card key={s.id} id={s.id} className="scroll-mt-2">
                 <CardContent className="flex flex-col gap-4">
                   <div className="flex items-center justify-between gap-4">
-                    <h2 className="font-display flex items-center gap-3 text-[24px] leading-tight">
+                    <h2 className="font-display flex items-center gap-3 text-headline leading-tight">
                       <span className="grid size-10 place-items-center rounded-full bg-card">
                         <s.icon className="size-5" />
                       </span>

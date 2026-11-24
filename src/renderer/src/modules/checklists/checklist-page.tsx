@@ -262,7 +262,7 @@ function SectionTitle({ checklistId, section, items }: { checklistId: string; se
         if (e.key === 'Enter') e.currentTarget.blur()
         if (e.key === 'Escape') setValue(section)
       }}
-      className="font-display h-auto max-w-sm border-transparent bg-transparent px-1 py-0.5 text-[19px] placeholder:text-foreground hover:border-input focus-visible:bg-foreground/[0.04]"
+      className="font-display h-auto max-w-sm border-transparent bg-transparent px-1 py-0.5 text-heading placeholder:text-foreground hover:border-input focus-visible:bg-foreground/[0.04]"
     />
   )
 }
@@ -347,7 +347,7 @@ export function ChecklistPage() {
             <Badge variant={isRun ? 'ink' : 'soft'} className="mb-2">
               {isRun ? 'Прогін' : 'Шаблон'}
             </Badge>
-            <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="text-[38px]" />
+            <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="text-title" />
           </div>
           <div className="flex shrink-0 items-center gap-2 pt-7">
             {isRun ? (
@@ -399,7 +399,7 @@ export function ChecklistPage() {
                 : 'bg-ink text-ink-foreground'
             )}
           >
-            <span className="font-display text-[40px] leading-none tabular-nums">
+            <span className="font-display text-title leading-none tabular-nums">
               {done}
               <span className="opacity-50">/{items.length}</span>
             </span>
@@ -464,7 +464,7 @@ export function ChecklistPage() {
           .map((name) => (
             <section key={`draft-${name}`} className="mt-7">
               <div className="mb-1.5 flex items-center justify-between px-2">
-                <h2 className="font-display text-[19px]">{name}</h2>
+                <h2 className="font-display text-heading">{name}</h2>
                 <Button
                   variant="ghost"
                   size="icon-sm"

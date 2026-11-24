@@ -39,7 +39,7 @@ export function TagChip({
     <Badge
       variant="soft"
       onClick={onClick}
-      className={cn('h-6 gap-1.5 text-foreground', onClick && 'cursor-pointer hover:bg-accent', onRemove && 'pr-1', className)}
+      className={cn('h-6 gap-1.5 text-foreground', onClick && 'cursor-pointer hover:bg-foreground/[0.1]', onRemove && 'pr-1', className)}
     >
       <span className="size-1.5 rounded-full" style={{ background: tag.color ?? 'var(--muted-foreground)' }} />
       {tag.name}

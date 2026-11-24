@@ -200,7 +200,7 @@ export function CalculatorPage() {
                 <CardTitle className="text-ink-muted">Ставка за годину</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
-                <div className="font-display text-[56px] leading-none tabular-nums">
+                <div className="font-display text-display leading-none tabular-nums">
                   {usd(r.hourlyRate)}
                 </div>
                 <div className="text-body text-ink-muted">
@@ -253,7 +253,7 @@ export function CalculatorPage() {
                   />
                 </div>
                 <div className="pb-1">
-                  <div className="font-display text-[28px] leading-none tabular-nums">
+                  <div className="font-display text-headline leading-none tabular-nums">
                     {usd(r.hourlyRate * fixedHours)}
                   </div>
                   <div className="mt-1 text-caption text-muted-foreground">

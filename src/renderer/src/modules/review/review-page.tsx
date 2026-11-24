@@ -100,7 +100,7 @@ function SectionCard({ section }: { section: WeekSection }) {
         {section.metrics.map((m) => (
           <div key={m.key} className="flex flex-col gap-1.5 rounded-2xl bg-card p-3">
             <span className="text-caption text-muted-foreground">{m.label}</span>
-            <span className="font-display text-[26px] leading-none tabular-nums">{fmtValue(m, m.value)}</span>
+            <span className="font-display text-headline leading-none tabular-nums">{fmtValue(m, m.value)}</span>
             <Delta m={m} />
           </div>
         ))}
@@ -116,19 +116,19 @@ function MoneyCard({ money }: { money: WeekSnapshot['money'] }) {
         <CardHeader>
           <CardTitle>На руки</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-[28px] leading-none">{moneyText(money.net)}</CardContent>
+        <CardContent className="font-display text-headline leading-none">{moneyText(money.net)}</CardContent>
       </Card>
       <Card>
         <CardHeader>
           <CardTitle>Витрати</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-[28px] leading-none">{moneyText(money.expenses)}</CardContent>
+        <CardContent className="font-display text-headline leading-none">{moneyText(money.expenses)}</CardContent>
       </Card>
       <Card className="bg-ink text-ink-foreground">
         <CardHeader>
           <CardTitle className="text-ink-muted">Прибуток за тиждень</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-[28px] leading-none">{moneyText(money.profit)}</CardContent>
+        <CardContent className="font-display text-headline leading-none">{moneyText(money.profit)}</CardContent>
       </Card>
     </div>
   )
@@ -246,7 +246,7 @@ export function ReviewPage() {
         ) : (
           <div className="stagger grid grid-cols-12 gap-3">
             <div className="col-span-12 pb-2">
-              <h2 className="font-display max-w-[28ch] text-[36px] leading-[1.08] text-balance">{title}</h2>
+              <h2 className="font-display max-w-[28ch] text-title leading-[1.08] text-balance">{title}</h2>
             </div>
 
             {snapshot.sections.map((s) => (

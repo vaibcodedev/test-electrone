@@ -43,11 +43,11 @@ function Overview() {
       <StatTile
         tone="ink"
         label="Оплачено цього місяця"
-        value={<span className="text-[24px]">{moneyMap(data.paidThisMonth)}</span>}
+        value={<span className="text-headline">{moneyMap(data.paidThisMonth)}</span>}
       />
       <StatTile
         label="Очікується до оплати"
-        value={<span className="text-[24px]">{moneyMap(data.outstanding)}</span>}
+        value={<span className="text-headline">{moneyMap(data.outstanding)}</span>}
         hint={
           data.overduePayments
             ? `${data.overduePayments} ${plural(data.overduePayments, ['прострочена', 'прострочені', 'прострочено'])}`
@@ -90,7 +90,7 @@ function ClientCard({ client }: { client: ClientSummary }) {
           <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
         <ItemContent className="gap-1">
-          <ItemTitle className="w-full truncate text-[16px]">{client.name}</ItemTitle>
+          <ItemTitle className="w-full truncate text-lead">{client.name}</ItemTitle>
           <ItemDescription className="truncate text-caption">
             {client.company || CLIENT_STATUS_LABEL[client.status]} ·{' '}
             {BILLING_LABEL[client.defaultBilling]}
@@ -215,7 +215,7 @@ export function ProjectRow({
       <button
         type="button"
         onClick={() => navigate(`/projects/${project.id}`)}
-        className="grid min-h-[76px] w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_120px] items-center gap-6 px-5 py-4 text-left transition-colors hover:bg-accent"
+        className="grid min-h-[76px] w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_120px] items-center gap-6 px-5 py-4 text-left transition-colors hover:bg-(--tile-hover)"
       >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-3">

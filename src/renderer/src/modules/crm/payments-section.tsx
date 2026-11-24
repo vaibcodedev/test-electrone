@@ -138,7 +138,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
   const remove = useApiMutation('payments', 'remove')
   return (
     <TableRow className={cn('group', payment.overdue && 'bg-destructive/5')}>
-      <TableCell className="font-display text-[18px] tabular-nums">
+      <TableCell className="font-display text-heading tabular-nums">
         {fmtMoney(payment.amount, payment.currency)}
       </TableCell>
       <TableCell className="max-w-0 truncate">

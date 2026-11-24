@@ -118,7 +118,7 @@ export function ClientPage() {
                 value={name}
                 onChange={setName}
                 maxLength={CLIENT_L.name}
-                className="text-[36px]"
+                className="text-title"
               />
               <div className="mt-2 flex flex-wrap gap-2">
                 <Choice

@@ -124,7 +124,7 @@ function AddDesignsDialog({
     >
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-[880px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Додати в «{board.title}»</DialogTitle>
+          <DialogTitle className="font-display text-heading">Додати в «{board.title}»</DialogTitle>
           <DialogDescription>Позначте дизайни з галереї — вони стануть у кінець добірки.</DialogDescription>
         </DialogHeader>
         <SearchInput value={search} onChange={setSearch} autoFocus />

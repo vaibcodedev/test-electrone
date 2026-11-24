@@ -125,7 +125,7 @@ function Editor({ item }: { item: UiComponent }) {
           </TooltipTrigger>
           <TooltipContent>До всіх компонентів</TooltipContent>
         </Tooltip>
-        <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="min-w-0 flex-1 text-[24px]" />
+        <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="min-w-0 flex-1 text-headline" />
         <Segmented<ComponentLanguage>
           size="xs"
           value={item.language}

@@ -46,7 +46,7 @@ function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void
             onClick={() => void copyText(c, `${c} скопійовано`)}
           >
             <span className="size-10 rounded-xl ring-1 ring-border" style={{ background: c }} />
-            <span className="font-mono text-[10.5px] font-normal text-muted-foreground">{c}</span>
+            <span className="font-mono text-meta font-normal text-muted-foreground">{c}</span>
           </Button>
         ))}
         {!colors.length && <span className="text-caption text-muted-foreground">Визначається…</span>}

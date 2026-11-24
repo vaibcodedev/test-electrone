@@ -83,7 +83,12 @@
   --text-caption: 0.78125rem; /* 12.5px — descriptions, hints, secondary lines */
   --text-body: 0.84375rem; /* 13.5px — body, list titles, buttons, card titles */
   --text-lead: 0.9375rem; /* 15px — emphasized titles inside panels */
+  --text-heading: 1.1875rem; /* 19px — headings inside cards/panels, column and section titles */
+  --text-heading--line-height: 1.25;
   --text-stat-sm: 1.375rem; /* 22px — small stat numbers */
+  --text-headline: 1.75rem; /* 28px — record and hero headlines, big card numbers */
+  --text-headline--line-height: 1.1;
+  --text-headline--letter-spacing: -0.03em;
   --text-stat: 2.125rem; /* 34px — stat tiles */
   --text-display: 3.25rem;
   --text-display--line-height: 0.98;

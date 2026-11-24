@@ -210,7 +210,7 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
     <Card role="button" tabIndex={0} onClick={onOpen} onKeyDown={keys} aria-current={active || undefined} className={cn(base, 'gap-3 py-4')}>
       <CardHeader className="gap-1 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="font-display min-w-0 flex-1 truncate text-[20px] leading-tight">{lib.name}</span>
+          <span className="font-display min-w-0 flex-1 truncate text-heading leading-tight">{lib.name}</span>
           <StatusLabel status={lib.status} muted={muted} />
         </div>
         <div className={cn('min-h-5 truncate text-caption', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>

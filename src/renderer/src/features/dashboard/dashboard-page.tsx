@@ -250,7 +250,7 @@ function EnglishTile({ due, word }: { due: number; word: { id: string; term: str
             className="flex-col items-start gap-1 text-left whitespace-normal no-underline"
             onClick={() => navigate(ENTITY_META.word.route(word.id))}
           >
-            <span className="font-display text-[26px] leading-tight">{word.term}</span>
+            <span className="font-display text-headline leading-tight">{word.term}</span>
             <span className="text-body font-normal text-muted-foreground">{word.translation}</span>
           </Button>
         ) : (

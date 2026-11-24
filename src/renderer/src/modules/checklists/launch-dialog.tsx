@@ -53,7 +53,7 @@ export function LaunchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Запустити прогін</DialogTitle>
+          <DialogTitle className="font-display text-heading">Запустити прогін</DialogTitle>
           <DialogDescription>
             Створюється копія шаблону, у якій можна позначати пункти. Шаблон не змінюється.
           </DialogDescription>

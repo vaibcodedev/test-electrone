@@ -39,7 +39,7 @@ function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boo
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-6 sm:max-w-[480px]">
-        <SheetTitle className="font-display text-xl">Про дошку</SheetTitle>
+        <SheetTitle className="font-display text-heading">Про дошку</SheetTitle>
         <SheetDescription className="text-caption">Опис, мітки, звʼязки й файли.</SheetDescription>
         <div className="mt-5 flex flex-col gap-6">
           <MarkdownField

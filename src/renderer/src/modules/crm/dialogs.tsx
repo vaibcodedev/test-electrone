@@ -57,7 +57,7 @@ function FormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">{title}</DialogTitle>
+          <DialogTitle className="font-display text-heading">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <form

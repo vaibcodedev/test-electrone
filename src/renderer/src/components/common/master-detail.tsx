@@ -93,7 +93,7 @@ export function InlineTitle({
   const readOnly = useReadOnly()
   if (readOnly) {
     return (
-      <h2 className={cn('font-display text-[28px] leading-[1.1] [overflow-wrap:anywhere]', !value && 'text-muted-foreground/60', className)}>
+      <h2 className={cn('font-display text-headline leading-[1.1] [overflow-wrap:anywhere]', !value && 'text-muted-foreground/60', className)}>
         {value || placeholder}
       </h2>
     )
@@ -112,7 +112,7 @@ export function InlineTitle({
         onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
         onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
         className={cn(
-          'font-display min-h-0 cursor-text rounded-xl border-0 bg-transparent py-1 pr-9 pl-2 text-[28px] leading-[1.1] shadow-none transition-colors placeholder:text-muted-foreground/50 hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-0',
+          'font-display min-h-0 cursor-text rounded-xl border-0 bg-transparent py-1 pr-9 pl-2 text-headline leading-[1.1] shadow-none transition-colors placeholder:text-muted-foreground/50 hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-0',
           className
         )}
       />

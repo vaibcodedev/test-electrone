@@ -278,7 +278,7 @@ export function GithubPage() {
           <span className="flex items-center gap-2">
             <Avatar className="size-5">
               {status.avatarUrl && <AvatarImage src={status.avatarUrl} alt="" />}
-              <AvatarFallback className="text-[10px]">{status.login?.slice(0, 1).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="text-meta">{status.login?.slice(0, 1).toUpperCase()}</AvatarFallback>
             </Avatar>
             {status.name ? `${status.name} · ` : ''}@{status.login}
             {status.rateRemaining !== null && <Badge variant="soft">запитів залишилося: {status.rateRemaining}</Badge>}

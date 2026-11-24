@@ -150,7 +150,7 @@ export function EventDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl p-6 sm:max-w-[540px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">{event ? 'Подія' : 'Нова подія'}</DialogTitle>
+          <DialogTitle className="font-display text-heading">{event ? 'Подія' : 'Нова подія'}</DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
