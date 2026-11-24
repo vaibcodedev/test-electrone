@@ -122,6 +122,6 @@ src/renderer/
 - `npm run dev` — разработка; `npm run typecheck`; `npm run build:win` — установщик в `dist/`
 - `npm run db:generate` — миграция из схемы
 - `npm test` — unit-тесты (vitest, `tests/unit`, ~6 с); `npm run test:e2e` — сборка + e2e на собранном приложении (`tests/e2e`, ~1,5 мин); `npm run test:e2e:only` — без пересборки
-- `node scripts/audit-overflow.mjs <dir>` — аудит переполнений на данных-монстрах (длинные названия, слова без пробелов, огромные суммы) по всем экранам; `node scripts/audit-sparse.mjs <dir>` — скриншоты записей только с обязательными полями. Запускать после крупных UI-правок (нужен `npm run build`)
+- `node scripts/snap-all.mjs <dir>` — скриншоты всех состояний (списки, карточки обычные/почти пустые/огромные, формы создания, режим правки, пустая база; обе темы); `node scripts/snap-extension.mjs <dir>` — попап и настройки расширения во всех состояниях; `node scripts/audit-overflow.mjs <dir>` и `audit-empty.mjs` — автоматический поиск переполнений и пустых/зависших экранов. Данные для них — `scripts/fixtures.mjs`. Запускать после крупных UI-правок (нужен `npm run build`); порядок работы — `docs/quality-pass.md`
 - Найденный, но не исправленный баг фиксируется тестом с `it.fails` / `test.fail(!process.env.SHOW_BUGS, …)`; исправил — сними пометку
 - `npm run snap -- <dir> / /ideas` — скриншоты собранного приложения (`SNAP_SEED=1` — демо-данные, `SNAP_THEME=dark`)
