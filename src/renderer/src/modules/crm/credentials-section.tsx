@@ -5,6 +5,7 @@ import { credentialInputSchema, type Credential, type CredentialInput } from '@s
 import { useApiMutation } from '@/lib/query'
 import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
 import { api } from '@/lib/api'
+import { hostOf } from '@/lib/format'
 import { copyText } from '@/components/common/copy-button'
 import { Confirm } from '@/components/common/confirm'
 import { Field } from '@/components/common/page'
@@ -13,14 +14,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Section } from './parts'
 import { Card } from '@/components/ui/card'
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle
-} from '@/components/ui/item'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 type Owner = { projectId: string } | { clientId: string }
@@ -162,10 +155,22 @@ function IconAction({
   )
 }
 
+/** One value cell (Логін / Пароль): label on top, monospace value, its actions on the right. */
+function SecretCell({ label, value, children }: { label: string; value: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2 rounded-xl bg-card px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="text-meta text-muted-foreground">{label}</div>
+        <div className="selectable truncate font-mono text-body">{value}</div>
+      </div>
+      <div className="flex shrink-0 items-center">{children}</div>
+    </div>
+  )
+}
+
 /**
- * Credential row: name (+ link) on top, then a small definition grid with muted labels —
- * Логін / Пароль / Нотатка — so it's always clear what each value is. Copy and show/hide are
- * inline icon buttons next to their value; empty values show «—».
+ * Credential card, password-manager style: key chip + name + host on top, then Логін / Пароль cells
+ * with copy and show/hide right next to the value. Empty cells aren't drawn («—» looked like data).
  */
 function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
   const [secret, setSecret] = useState<string | null>(null)
@@ -174,108 +179,87 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
 
   const reveal = async (): Promise<string | null> => {
     try {
-      const s = await api.credentials.reveal(item.id)
-      return s
+      return await api.credentials.reveal(item.id)
     } catch (e) {
       toast.error((e as Error).message)
       return null
     }
   }
 
-  if (editing)
-    return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
+  if (editing) return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
 
+  const host = item.url ? hostOf(item.url) : ''
+  const empty = !item.login && !item.hasSecret
   return (
-    <Item variant="muted" size="sm" className="group items-start">
-      <ItemMedia variant="icon" className="size-9 bg-card">
-        <KeyRound />
-      </ItemMedia>
-      <ItemContent className="min-w-0 gap-2">
-        <ItemTitle className="w-full min-w-0 text-body font-semibold">
-          <span className="truncate">{item.label}</span>
+    <Card className="group gap-3 bg-surface p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground/[0.07] text-muted-foreground">
+          <KeyRound className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-body font-semibold">{item.label}</div>
+          {host && <div className="truncate text-meta text-muted-foreground">{host}</div>}
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5">
           {item.url && (
             <IconAction
-              label={`Відкрити ${item.url}`}
-              className="text-muted-foreground"
-              onClick={() =>
-                api.app.openExternal(item.url).catch((e: Error) => toast.error(e.message))
-              }
+              label={`Відкрити ${host}`}
+              onClick={() => api.app.openExternal(item.url).catch((e: Error) => toast.error(e.message))}
             >
               <ExternalLink />
             </IconAction>
           )}
-        </ItemTitle>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 text-caption">
-          <dt className="text-muted-foreground">Логін</dt>
-          <dd className="flex min-w-0 items-center gap-1">
-            {item.login ? (
-              <>
-                <span className="selectable truncate font-mono">{item.login}</span>
-                <IconAction
-                  label="Скопіювати логін"
-                  onClick={() => void copyText(item.login, 'Логін скопійовано')}
-                >
-                  <Copy />
-                </IconAction>
-              </>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </dd>
-          <dt className="text-muted-foreground">Пароль</dt>
-          <dd className="flex min-w-0 items-center gap-1">
-            {item.hasSecret ? (
-              <>
-                <span className="selectable truncate font-mono">{secret ?? '••••••••'}</span>
-                <IconAction
-                  label={secret ? 'Сховати пароль' : 'Показати пароль'}
-                  onClick={async () => setSecret(secret ? null : await reveal())}
-                >
-                  {secret ? <EyeOff /> : <Eye />}
-                </IconAction>
-                <IconAction
-                  label="Скопіювати пароль"
-                  onClick={async () => {
-                    const s = secret ?? (await reveal())
-                    if (s !== null) await copyText(s, 'Пароль скопійовано')
-                  }}
-                >
-                  <Copy />
-                </IconAction>
-              </>
-            ) : (
-              <span className="text-muted-foreground">—</span>
-            )}
-          </dd>
-          {item.notes && (
-            <>
-              <dt className="self-start text-muted-foreground">Нотатка</dt>
-              <dd className="line-clamp-2 min-w-0 text-muted-foreground">{item.notes}</dd>
-            </>
+          <span data-edit-only className="flex items-center gap-0.5">
+            <IconAction label="Змінити" onClick={() => setEditing(true)}>
+              <Pencil />
+            </IconAction>
+            <Confirm
+              title={`Видалити доступ «${item.label}»?`}
+              description="Пароль буде видалено без можливості відновлення."
+              onConfirm={() => remove.mutate(item.id)}
+            >
+              {/* Confirm wraps its trigger with asChild: the tooltip trigger can't sit in between. */}
+              <Button variant="ghost" size="icon-xs" aria-label="Видалити" className="hover:text-destructive">
+                <Trash2 />
+              </Button>
+            </Confirm>
+          </span>
+        </div>
+      </div>
+      {empty ? (
+        <p className="text-caption text-muted-foreground">Логін і пароль ще не додано — «Редагувати» → олівець.</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {item.login && (
+            <SecretCell label="Логін" value={item.login}>
+              <IconAction label="Скопіювати логін" onClick={() => void copyText(item.login, 'Логін скопійовано')}>
+                <Copy />
+              </IconAction>
+            </SecretCell>
           )}
-        </dl>
-      </ItemContent>
-      <ItemActions data-edit-only>
-        <IconAction label="Змінити" onClick={() => setEditing(true)}>
-          <Pencil />
-        </IconAction>
-        <Confirm
-          title={`Видалити доступ «${item.label}»?`}
-          description="Пароль буде видалено без можливості відновлення."
-          onConfirm={() => remove.mutate(item.id)}
-        >
-          {/* Confirm wraps its trigger with asChild: the tooltip trigger can't sit in between. */}
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Видалити"
-            className="hover:text-destructive"
-          >
-            <Trash2 />
-          </Button>
-        </Confirm>
-      </ItemActions>
-    </Item>
+          {item.hasSecret && (
+            <SecretCell label="Пароль" value={secret ?? '••••••••••'}>
+              <IconAction
+                label={secret ? 'Сховати пароль' : 'Показати пароль'}
+                onClick={async () => setSecret(secret ? null : await reveal())}
+              >
+                {secret ? <EyeOff /> : <Eye />}
+              </IconAction>
+              <IconAction
+                label="Скопіювати пароль"
+                onClick={async () => {
+                  const s = secret ?? (await reveal())
+                  if (s !== null) await copyText(s, 'Пароль скопійовано')
+                }}
+              >
+                <Copy />
+              </IconAction>
+            </SecretCell>
+          )}
+        </div>
+      )}
+      {item.notes && <p className="line-clamp-2 text-caption text-muted-foreground">{item.notes}</p>}
+    </Card>
   )
 }
 
@@ -295,11 +279,11 @@ export function CredentialsSection({ items, owner }: { items: Credential[]; owne
     >
       {adding && <CredentialForm owner={owner} onDone={() => setAdding(false)} />}
       {items.length > 0 && (
-        <ItemGroup className="gap-2">
+        <div className="flex flex-col gap-2">
           {items.map((c) => (
             <CredentialRow key={c.id} item={c} owner={owner} />
           ))}
-        </ItemGroup>
+        </div>
       )}
       {!items.length && !adding && (
         <p className="text-body text-muted-foreground">
