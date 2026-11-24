@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { MoneyValue } from '@/components/common/money-value'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -78,7 +79,7 @@ function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }) {
   const owed = (
     <Money
       label={p.billing === 'fixed' ? 'Залишилося отримати' : 'Очікується'}
-      value={m(p.outstandingAmount)}
+      value={<MoneyValue amount={p.outstandingAmount} currency={p.currency} />}
       hint={overdue ? <span className="text-warn">є прострочені оплати</span> : undefined}
     />
   )
@@ -88,8 +89,8 @@ function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }) {
     case 'hourly':
       cells = (
         <>
-          <Money label="Зароблено" value={m(p.earnedAmount)} hint={`${m(p.rate)}/год`} />
-          <Money label="Оплачено" value={m(p.paidAmount)} />
+          <Money label="Зароблено" value={<MoneyValue amount={p.earnedAmount} currency={p.currency} />} hint={`${m(p.rate)}/год`} />
+          <Money label="Оплачено" value={<MoneyValue amount={p.paidAmount} currency={p.currency} />} />
           {owed}
           <Money
             label="Години"
@@ -112,8 +113,8 @@ function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }) {
     case 'fixed':
       cells = (
         <>
-          <Money label="Вартість проєкту" value={m(p.fixedPrice)} />
-          <Money label="Оплачено" value={m(p.paidAmount)} />
+          <Money label="Вартість проєкту" value={<MoneyValue amount={p.fixedPrice} currency={p.currency} />} />
+          <Money label="Оплачено" value={<MoneyValue amount={p.paidAmount} currency={p.currency} />} />
           {owed}
           {rateCell}
         </>
@@ -140,7 +141,7 @@ function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }) {
             value={`${m(p.fixedPrice)}/міс`}
             hint={`${p.retainerMonths} ${plural(p.retainerMonths, ['місяць', 'місяці', 'місяців'])}`}
           />
-          <Money label="Оплачено" value={m(p.paidAmount)} />
+          <Money label="Оплачено" value={<MoneyValue amount={p.paidAmount} currency={p.currency} />} />
           {owed}
           {rateCell}
         </>

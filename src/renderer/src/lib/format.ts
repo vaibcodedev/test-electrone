@@ -49,6 +49,23 @@ export function fmtMoney(amount: number, currency: string): string {
   }
 }
 
+/** Amounts from 100 000 up are shortened for stat tiles: «250 тис. USD», «55 млн USD», «5,9 млн EUR». */
+export const COMPACT_FROM = 100_000
+
+export function fmtMoneyCompact(amount: number, currency: string): string {
+  if (Math.abs(amount) < COMPACT_FROM) return fmtMoney(amount, currency)
+  try {
+    return new Intl.NumberFormat('uk-UA', {
+      style: 'currency',
+      currency,
+      notation: 'compact',
+      maximumFractionDigits: 1
+    }).format(amount)
+  } catch {
+    return fmtMoney(amount, currency)
+  }
+}
+
 export function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} Б`
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} КБ`

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { MoneyValue } from '@/components/common/money-value'
 import { Link, useLocation } from 'react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
@@ -36,23 +37,30 @@ export function MoneyLines({
   value,
   className,
   emptyLabel = '—',
-  sign = false
+  sign = false,
+  compact = false
 }: {
   value: MoneyByCurrency | undefined
   className?: string
   emptyLabel?: string
   sign?: boolean
+  /** Stat tiles: shorten big sums («55 млн USD»), exact amount in a tooltip. */
+  compact?: boolean
 }) {
   const entries = moneyEntries(value)
   if (!entries.length) return <span className={className}>{emptyLabel}</span>
   return (
-    <span className={cn('flex flex-col', className)}>
-      {entries.map(([c, v]) => (
-        <span key={c} className="tabular-nums">
-          {sign && v > 0 ? '+' : ''}
-          {fmtMoney(v, c)}
-        </span>
-      ))}
+    <span className={cn('flex min-w-0 flex-col', className)}>
+      {entries.map(([c, v]) =>
+        compact ? (
+          <MoneyValue key={c} amount={v} currency={c} sign={sign} />
+        ) : (
+          <span key={c} className="tabular-nums">
+            {sign && v > 0 ? '+' : ''}
+            {fmtMoney(v, c)}
+          </span>
+        )
+      )}
     </span>
   )
 }
@@ -129,7 +137,7 @@ export function StatTile({
         <CardTitle className={cn(ink && 'text-ink-muted')}>{title}</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
-        <MoneyLines value={value} className="font-display text-[26px] leading-tight" />
+        <MoneyLines value={value} compact className="font-display text-stat-sm leading-tight" />
         {hint && (
           <div className={cn('text-caption', ink ? 'text-ink-muted' : 'text-muted-foreground')}>
             {hint}
