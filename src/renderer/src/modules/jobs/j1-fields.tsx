@@ -1,10 +1,10 @@
 import { useEffect, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
 import { Building2, Check, ChevronsUpDown, ExternalLink, Plus, X } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
-import { api } from '@/lib/api'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -112,7 +112,7 @@ export function LinkInput({
   strict?: boolean
 }) {
   const [draft, setDraft] = useAutosave(value, (v) => {
-    if (!strict || isLikelyUrl(v)) onSave(v.trim())
+    if (!strict || isLikelyUrl(v)) onSave(strict ? normalizeUrl(v) : v.trim())
   })
   const valid = /^https?:\/\//i.test(draft)
   const bad = strict && !isLikelyUrl(draft)
@@ -131,7 +131,7 @@ export function LinkInput({
       />
       {valid && (
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити посилання" onClick={() => void api.app.openExternal(draft)}>
+          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити посилання" onClick={() => void openUrl(draft)}>
             <ExternalLink />
           </InputGroupButton>
         </InputGroupAddon>
@@ -192,7 +192,7 @@ export function CompanyCombobox({
           >
             <span className="flex min-w-0 items-center gap-2">
               <Building2 className="shrink-0 opacity-60" />
-              <span className="truncate">{label || 'Компанія'}</span>
+              <span className="truncate">{label || (readOnly ? '—' : 'Компанія')}</span>
             </span>
             <ChevronsUpDown className="opacity-50" />
           </Button>

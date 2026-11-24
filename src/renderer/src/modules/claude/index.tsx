@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { Check, Copy, ExternalLink, Plus, Sparkles, ThumbsUp } from 'lucide-react'
 import { CLAUDE_KINDS, claudeInputSchema, type ClaudeItem, type ClaudeKind, type ClaudePatch } from '@shared/domain/claude'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { api } from '@/lib/api'
 import { fmtRelative, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -159,7 +159,7 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
           maxLength={LIMITS.url}
           trailing={(draft) =>
             /^https?:\/\//i.test(draft) && (
-              <Button variant="soft" size="icon" aria-label="Відкрити посилання" onClick={() => api.app.openExternal(draft)}>
+              <Button variant="soft" size="icon" aria-label="Відкрити посилання" onClick={() => openUrl(draft)}>
                 <ExternalLink />
               </Button>
             )

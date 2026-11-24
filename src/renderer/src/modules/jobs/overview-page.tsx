@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router'
+import { openUrl } from '@/lib/open-url'
 import { format } from 'date-fns'
 import { ArrowRight, BellRing, ExternalLink, Flame, Settings2 } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DailyBoard } from '@shared/domain/jobs'
 import { useApi, useApiMutation } from '@/lib/query'
-import { api } from '@/lib/api'
 import { LOCALE, fmtDay, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -55,7 +55,7 @@ function TodayRow({ board }: { board: DailyBoard }) {
         {board.url && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Відкрити ${board.name}`} onClick={() => api.app.openExternal(board.url)}>
+              <Button variant="ghost" size="icon-sm" aria-label={`Відкрити ${board.name}`} onClick={() => openUrl(board.url)}>
                 <ExternalLink />
               </Button>
             </TooltipTrigger>

@@ -1,4 +1,5 @@
 import { useState, type RefObject } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -101,7 +102,7 @@ function NicheCombobox({ value, onChange }: { value: string; onChange: (v: strin
             readOnly && 'pointer-events-none bg-transparent px-0 shadow-none disabled:opacity-100 [&>svg:last-child]:hidden'
           )}
         >
-          {value || 'Next.js, верстка, боти…'}
+          {value || (readOnly ? '—' : 'Next.js, верстка, боти…')}
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -619,7 +620,7 @@ function LinkInput({ value, onSave }: { value: string; onSave: (v: string) => vo
               size="icon-xs"
               className="rounded-full"
               aria-label="Відкрити вакансію"
-              onClick={() => void api.app.openExternal(draft)}
+              onClick={() => void openUrl(draft)}
             >
               <ExternalLink />
             </InputGroupButton>

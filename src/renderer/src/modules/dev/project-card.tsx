@@ -1,6 +1,6 @@
 import { ChevronDown, Code2, ExternalLink, FolderOpen, GitBranch, Play, Square, Star, TerminalSquare, Zap } from 'lucide-react'
+import { openUrl } from '@/lib/open-url'
 import type { DevProject } from '@shared/domain/dev'
-import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -71,7 +71,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             <span className="text-caption text-muted-foreground">Не git-репозиторій, package.json не знайдено</span>
           )}
           {p.githubRepo && (
-            <Button variant="link" size="xs" className="h-6 px-0 text-meta text-muted-foreground" onClick={() => api.app.openExternal(`https://github.com/${p.githubRepo}`)}>
+            <Button variant="link" size="xs" className="h-6 px-0 text-meta text-muted-foreground" onClick={() => openUrl(`https://github.com/${p.githubRepo}`)}>
               {p.githubRepo}
             </Button>
           )}
@@ -154,7 +154,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
           {url && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="ghost" onClick={() => api.app.openExternal(url)}>
+                <Button size="sm" variant="ghost" onClick={() => openUrl(url)}>
                   <ExternalLink /> {url.replace(/^https?:\/\//, '')}
                 </Button>
               </TooltipTrigger>

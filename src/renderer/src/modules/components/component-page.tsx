@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Clipboard, Code2, Columns2, ExternalLink, ImagePlus, Monitor, Trash2, X } from 'lucide-react'
 import {
@@ -12,7 +13,6 @@ import {
 } from '@shared/domain/components'
 import type { FileSource } from '@shared/domain/designs'
 import { useApi, useApiMutation } from '@/lib/query'
-import { api } from '@/lib/api'
 import { fileUrl, isImageFile } from '@/lib/files'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
@@ -214,7 +214,7 @@ function Editor({ item }: { item: UiComponent }) {
               {/^https?:\/\//i.test(sourceUrl) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="soft" size="icon" className="bg-card" aria-label="Відкрити джерело" onClick={() => api.app.openExternal(sourceUrl)}>
+                    <Button variant="soft" size="icon" className="bg-card" aria-label="Відкрити джерело" onClick={() => openUrl(sourceUrl)}>
                       <ExternalLink />
                     </Button>
                   </TooltipTrigger>

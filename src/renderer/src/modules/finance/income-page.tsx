@@ -88,13 +88,16 @@ export function IncomePage() {
                       <TableCell className="text-muted-foreground tabular-nums">
                         {fmtDate(r.paidAt, 'd MMM')}
                       </TableCell>
-                      <TableCell className="max-w-[260px]">
+                      {/* The flexible column: takes the spare width, long titles end with «…» (Таблицы in the design system). */}
+                      <TableCell className="w-full max-w-0">
                         <Button
                           asChild
                           variant="link"
-                          className="h-auto max-w-full justify-start truncate font-medium no-underline hover:underline"
+                          className="h-auto max-w-full justify-start font-medium no-underline hover:underline"
                         >
-                          <Link to={`/projects/${r.projectId}`}>{r.projectTitle}</Link>
+                          <Link to={`/projects/${r.projectId}`} title={r.projectTitle}>
+                            <span className="truncate">{r.projectTitle}</span>
+                          </Link>
                         </Button>
                       </TableCell>
                       <TableCell className="max-w-[180px] truncate">

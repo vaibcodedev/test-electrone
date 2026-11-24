@@ -44,7 +44,7 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
           >
             <span className="flex min-w-0 items-center gap-2">
               <Folder />
-              <span className="truncate">{value || 'Без теки'}</span>
+              <span className="truncate">{value || (readOnly ? '—' : 'Без теки')}</span>
             </span>
             <ChevronsUpDown className="opacity-50" />
           </Button>

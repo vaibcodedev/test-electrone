@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { fmtPercent } from '@/lib/format'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -9,7 +10,6 @@ import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
 
 const LIMITS = limitsOf(jobBoardInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
-import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { TAG_COLORS } from '@/components/common/tags'
@@ -85,7 +85,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
               />
               {board.url && (
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити" onClick={() => api.app.openExternal(board.url)}>
+                  <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити" onClick={() => openUrl(board.url)}>
                     <ExternalLink />
                   </InputGroupButton>
                 </InputGroupAddon>

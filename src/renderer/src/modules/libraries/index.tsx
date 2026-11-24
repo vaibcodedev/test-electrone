@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
 import { LIBRARY_STATUSES, libraryInputSchema, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
@@ -67,7 +67,7 @@ function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
           className={cn('h-7 px-2.5 font-normal', onInk ? 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/20' : 'bg-card')}
           onClick={(e) => {
             e.stopPropagation()
-            void api.app.openExternal(l.url)
+            void openUrl(l.url)
           }}
         >
           <l.icon />

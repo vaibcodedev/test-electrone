@@ -47,7 +47,7 @@ export const CardTile = forwardRef<
             className={cn('mt-[5px] size-2 shrink-0 rounded-full', PRIORITY_DOT[card.priority])}
           />
         )}
-        <span className={cn('min-w-0 flex-1 text-body leading-snug', done && 'text-muted-foreground line-through')}>
+        <span className={cn('line-clamp-4 min-w-0 flex-1 text-body leading-snug [overflow-wrap:anywhere]', done && 'text-muted-foreground line-through')}>
           {card.title}
         </span>
       </div>

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
 import { GitCommitHorizontal, GitPullRequest, Lock, MessageSquare, CircleDot, RefreshCw, Star, Unplug } from 'lucide-react'
 import type { GithubIssue } from '@shared/domain/dev'
-import { api } from '@/lib/api'
 import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
 import { LOCALE, fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -50,7 +50,7 @@ function ReposTab({ force }: { force: number }) {
         </TableHeader>
         <TableBody>
           {list.map((r) => (
-            <TableRow key={r.fullName} className="cursor-pointer" onClick={() => api.app.openExternal(r.url)}>
+            <TableRow key={r.fullName} className="cursor-pointer" onClick={() => openUrl(r.url)}>
               <TableCell className="max-w-[360px]">
                 <div className="flex items-center gap-1.5 font-medium">
                   {r.fullName}
@@ -99,7 +99,7 @@ type IssueKind = 'issue' | 'pr'
 function IssueRow({ issue: i }: { issue: GithubIssue }) {
   return (
     <Item asChild size="sm" variant="muted" className="cursor-pointer">
-      <button type="button" className="w-full text-left" onClick={() => api.app.openExternal(i.url)}>
+      <button type="button" className="w-full text-left" onClick={() => openUrl(i.url)}>
         <ItemMedia variant="icon" className="bg-card">
           {i.isPullRequest ? <GitPullRequest /> : <CircleDot className="text-success" />}
         </ItemMedia>
@@ -215,7 +215,7 @@ function CommitsTab({ force }: { force: number }) {
             <ItemGroup className="gap-1">
               {list.map((c) => (
                 <Item key={`${c.repo}:${c.sha}`} asChild size="xs" variant="muted" className="cursor-pointer">
-                  <button type="button" className="w-full text-left" onClick={() => api.app.openExternal(c.url)}>
+                  <button type="button" className="w-full text-left" onClick={() => openUrl(c.url)}>
                     <ItemMedia>
                       <GitCommitHorizontal className="size-4 text-muted-foreground" />
                     </ItemMedia>

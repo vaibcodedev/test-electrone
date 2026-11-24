@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MoneyValue } from '@/components/common/money-value'
 import { useLocation, useNavigate } from 'react-router'
 import { AlertTriangle, ArchiveRestore, ArrowRight, BellRing, Plus, Target } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
@@ -130,7 +131,7 @@ export function FreelanceOverviewPage() {
               {netEntries.length ? (
                 netEntries.map(([cur, v]) => (
                   <div key={cur} className="font-display text-stat leading-none tabular-nums">
-                    {fmtMoney(v, cur)}
+                    <MoneyValue amount={v} currency={cur} />
                   </div>
                 ))
               ) : (

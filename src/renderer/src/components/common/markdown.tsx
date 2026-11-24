@@ -1,10 +1,10 @@
 import { useState, type ComponentProps } from 'react'
+import { openUrl } from '@/lib/open-url'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { Eye, Image as ImageIcon, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from './detail-mode'
 import { Textarea } from '@/components/ui/textarea'
@@ -74,7 +74,7 @@ export function Markdown({ source, className }: { source: string; className?: st
               href={href}
               onClick={(e) => {
                 e.preventDefault()
-                if (href && /^(https?|mailto):/i.test(href)) void api.app.openExternal(href)
+                if (href && /^(https?|mailto):/i.test(href)) void openUrl(href)
               }}
             >
               {children}
@@ -120,7 +120,7 @@ export function MarkdownField({
   if (viewMode) {
     if (!value.trim()) return null
     return (
-      <div className={cn('flex flex-col gap-2', className)}>
+      <div data-has-content className={cn('flex flex-col gap-2', className)}>
         {label && <FieldLabel>{label}</FieldLabel>}
         <Markdown source={value} />
       </div>

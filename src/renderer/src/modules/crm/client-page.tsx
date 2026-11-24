@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
+import { MoneyValue } from '@/components/common/money-value'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Copy, ExternalLink, Mail, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,7 +14,6 @@ import {
 import { useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import { api } from '@/lib/api'
 import { fmtHours, fmtMoney } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState, Field } from '@/components/common/page'
@@ -94,7 +95,7 @@ export function ClientPage() {
   }
 
   const open = (url: string): void => {
-    api.app.openExternal(url).catch((e: Error) => toast.error(e.message))
+    openUrl(url).catch((e: Error) => toast.error(e.message))
   }
 
   return (
@@ -196,10 +197,10 @@ export function ClientPage() {
               value={`${c.activeProjectCount}/${c.projectCount}`}
               hint="активні / усього"
             />
-            <StatTile label="Оплачено" value={fmtMoney(c.paidTotal, c.currency)} />
+            <StatTile label="Оплачено" value={<MoneyValue amount={c.paidTotal} currency={c.currency} />} />
             <StatTile
               label="Очікується"
-              value={fmtMoney(c.outstandingTotal, c.currency)}
+              value={<MoneyValue amount={c.outstandingTotal} currency={c.currency} />}
               tone={c.outstandingTotal > 0 ? 'lime' : 'surface'}
             />
             {c.defaultBilling === 'hourly' ? (

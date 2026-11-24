@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
+import { MoneyLines } from '@/modules/finance/parts'
 import { useNavigate, useSearchParams } from 'react-router'
 import { addDays, format, startOfWeek } from 'date-fns'
 import { ArchiveRestore, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Minus, NotebookPen } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
-import type { MoneyByCurrency } from '@shared/domain/finance'
 import type { WeekMetric, WeekSection, WeekSnapshot } from '@shared/domain/review'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { LOCALE, fmtDay, fmtMinutes, fmtMoney, plural } from '@/lib/format'
@@ -39,12 +39,6 @@ function fmtValue(m: Pick<WeekMetric, 'unit'>, v: number): string {
   if (m.unit === 'minutes') return fmtMinutes(v)
   if (m.unit === 'percent') return `${v}%`
   return String(v)
-}
-
-function moneyText(map: MoneyByCurrency): string {
-  const entries = Object.entries(map).filter(([, v]) => v)
-  if (!entries.length) return '—'
-  return entries.map(([c, v]) => fmtMoney(v ?? 0, c as Currency)).join(' · ')
 }
 
 /** «12 задач, 1 040 $ на руки, 3 собеседования» — a one-line story of the week. */
@@ -116,19 +110,19 @@ function MoneyCard({ money }: { money: WeekSnapshot['money'] }) {
         <CardHeader>
           <CardTitle>На руки</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-headline leading-none">{moneyText(money.net)}</CardContent>
+        <CardContent className="font-display text-headline leading-none"><MoneyLines value={money.net} compact /></CardContent>
       </Card>
       <Card>
         <CardHeader>
           <CardTitle>Витрати</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-headline leading-none">{moneyText(money.expenses)}</CardContent>
+        <CardContent className="font-display text-headline leading-none"><MoneyLines value={money.expenses} compact /></CardContent>
       </Card>
       <Card className="bg-ink text-ink-foreground">
         <CardHeader>
           <CardTitle className="text-ink-muted">Прибуток за тиждень</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-headline leading-none">{moneyText(money.profit)}</CardContent>
+        <CardContent className="font-display text-headline leading-none"><MoneyLines value={money.profit} compact /></CardContent>
       </Card>
     </div>
   )

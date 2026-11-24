@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { BriefcaseBusiness, ClipboardCopy, ExternalLink, ImagePlus, Plus } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { caseInputSchema, type CasePatch, type PortfolioCase } from '@shared/domain/freelance'
@@ -7,7 +8,6 @@ import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { countLabel } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
-import { api } from '@/lib/api'
 import { fileUrl, isImageFile } from '@/lib/files'
 import { cn } from '@/lib/utils'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
@@ -139,7 +139,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
                   size="icon"
                   className="shrink-0"
                   aria-label="Відкрити"
-                  onClick={() => void api.app.openExternal(c.url)}
+                  onClick={() => void openUrl(c.url)}
                 >
                   <ExternalLink />
                 </Button>

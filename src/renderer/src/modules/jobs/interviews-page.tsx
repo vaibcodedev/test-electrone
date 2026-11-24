@@ -1,10 +1,10 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
 import { format, isToday, isTomorrow } from 'date-fns'
 import { CalendarDays, CalendarPlus, ExternalLink, Video } from 'lucide-react'
 import type { StageWithApplication } from '@shared/domain/jobs'
 import { useApi } from '@/lib/query'
-import { api } from '@/lib/api'
 import { fmtDate, LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -60,7 +60,7 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
         {!past && isLink && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="soft" size="icon-sm" className="bg-card" aria-label="Відкрити посилання" onClick={() => void api.app.openExternal(stage.location)}>
+              <Button variant="soft" size="icon-sm" className="bg-card" aria-label="Відкрити посилання" onClick={() => void openUrl(stage.location)}>
                 <Video />
               </Button>
             </TooltipTrigger>

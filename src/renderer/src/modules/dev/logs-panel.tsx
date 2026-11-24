@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { ExternalLink, Square, Trash2 } from 'lucide-react'
 import type { DevProject, RunningScript } from '@shared/domain/dev'
-import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,7 +45,7 @@ export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects:
         </Tabs>
         {run && <Badge variant={STATUS[run.status].variant}>{STATUS[run.status].label}{run.exitCode !== null ? ` · ${run.exitCode}` : ''}</Badge>}
         {run?.url && (
-          <Button size="sm" variant="soft" onClick={() => api.app.openExternal(run.url!)}>
+          <Button size="sm" variant="soft" onClick={() => openUrl(run.url!)}>
             <ExternalLink /> {run.url.replace(/^https?:\/\//, '')}
           </Button>
         )}

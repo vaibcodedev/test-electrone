@@ -1,7 +1,7 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { ExternalLink, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
-import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
@@ -70,7 +70,7 @@ export function GithubGuide() {
           <li key={s}>{s}</li>
         ))}
       </ol>
-      <Button variant="subtle" className="self-start" onClick={() => api.app.openExternal(NEW_TOKEN_URL)}>
+      <Button variant="subtle" className="self-start" onClick={() => openUrl(NEW_TOKEN_URL)}>
         <ExternalLink /> Створити токен на GitHub
       </Button>
       <GithubTokenField />

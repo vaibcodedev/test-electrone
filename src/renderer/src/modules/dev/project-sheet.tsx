@@ -1,4 +1,5 @@
 import { ExternalLink, FolderOpen, Play, Square, Trash2 } from 'lucide-react'
+import { openUrl } from '@/lib/open-url'
 import { devProjectInputSchema, type DevProject, type Editor } from '@shared/domain/dev'
 import { limitsOf } from '@/lib/limits'
 import { api } from '@/lib/api'
@@ -97,7 +98,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
           />
           {repo && repoOk(repo) && (
             <InputGroupAddon align="inline-end">
-              <InputGroupButton size="icon-xs" aria-label="Відкрити на GitHub" onClick={() => api.app.openExternal(`https://github.com/${repo}`)}>
+              <InputGroupButton size="icon-xs" aria-label="Відкрити на GitHub" onClick={() => openUrl(`https://github.com/${repo}`)}>
                 <ExternalLink />
               </InputGroupButton>
             </InputGroupAddon>

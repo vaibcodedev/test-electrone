@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { MoneyLines } from '@/modules/finance/parts'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ArrowUpRight, Briefcase, CalendarDays, Plus, UserRound } from 'lucide-react'
 import {
@@ -25,7 +26,6 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { BILLING_LABEL, CLIENT_STATUS_LABEL, PROJECT_STATUS_LABEL } from './labels'
 import { Meter, StatTile } from './parts'
-import { moneyMap } from './money'
 import { ClientDialog, ProjectDialog } from './dialogs'
 import { AvoidBadge, PlatformBadge, usePlatforms } from './platform-fields'
 
@@ -43,11 +43,11 @@ function Overview() {
       <StatTile
         tone="ink"
         label="Оплачено цього місяця"
-        value={<span className="text-headline">{moneyMap(data.paidThisMonth)}</span>}
+        value={<MoneyLines value={data.paidThisMonth} compact className="text-headline" />}
       />
       <StatTile
         label="Очікується до оплати"
-        value={<span className="text-headline">{moneyMap(data.outstanding)}</span>}
+        value={<MoneyLines value={data.outstanding} compact className="text-headline" />}
         hint={
           data.overduePayments
             ? `${data.overduePayments} ${plural(data.overduePayments, ['прострочена', 'прострочені', 'прострочено'])}`
@@ -78,9 +78,9 @@ function ClientCard({ client }: { client: ClientSummary }) {
     <Item
       asChild
       variant="muted"
-      className="group min-h-[168px] flex-col items-stretch justify-between rounded-3xl p-5"
+      className="group min-h-[168px] min-w-0 flex-col items-stretch justify-between rounded-3xl p-5"
     >
-      <button type="button" onClick={() => navigate(`/clients/${client.id}`)} className="text-left">
+      <button type="button" onClick={() => navigate(`/clients/${client.id}`)} className="min-w-0 text-left">
         <div className="flex items-start justify-between gap-3">
           <Avatar className="size-10">
             <AvatarFallback className="bg-card text-lead font-semibold">

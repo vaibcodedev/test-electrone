@@ -6,6 +6,7 @@
  * Key the detail by entity id so pending edits flush to the right record when switching items.
  */
 import { useId, useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { normalizeUrl } from '@/lib/open-url'
 import { X } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Input } from '@/components/ui/input'
@@ -75,17 +76,27 @@ export function AutoMarkdown({
   onSave,
   placeholder,
   minHeight,
-  label
+  label,
+  maxLength
 }: {
   value: string
   onSave: (value: string) => void
   placeholder?: string
   minHeight?: string
   label?: string
+  /** From the schema (limitsOf): typing past it is impossible, so autosave never gets rejected. */
+  maxLength?: number
 }) {
   const [draft, setDraft] = useAutosave(value, onSave, 800)
   return (
-    <MarkdownField value={draft} onChange={setDraft} placeholder={placeholder} minHeight={minHeight} label={label} />
+    <MarkdownField
+      value={draft}
+      onChange={setDraft}
+      placeholder={placeholder}
+      minHeight={minHeight}
+      label={label}
+      maxLength={maxLength}
+    />
   )
 }
 
@@ -96,7 +107,8 @@ export function AutoCode({
   language,
   lineNumbers,
   minHeight,
-  placeholder
+  placeholder,
+  maxLength
 }: {
   value: string
   onSave: (value: string) => void
@@ -104,6 +116,7 @@ export function AutoCode({
   lineNumbers?: boolean
   minHeight?: string
   placeholder?: string
+  maxLength?: number
 }) {
   const [draft, setDraft] = useAutosave(value, onSave, 800)
   return (
@@ -114,6 +127,7 @@ export function AutoCode({
       lineNumbers={lineNumbers}
       minHeight={minHeight}
       placeholder={placeholder}
+      maxLength={maxLength}
       className="rounded-xl"
     />
   )
@@ -215,7 +229,7 @@ export function UrlBlock({
 }) {
   const id = useId()
   const [draft, setDraft] = useAutosave(value, (v) => {
-    if (isLikelyUrl(v)) onSave(v.trim())
+    if (isLikelyUrl(v)) onSave(normalizeUrl(v))
   })
   const invalid = !isLikelyUrl(draft)
   return (

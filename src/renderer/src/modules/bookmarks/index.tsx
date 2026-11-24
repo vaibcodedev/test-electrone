@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import {
   BookOpen,
   Bookmark as BookmarkIcon,
@@ -23,7 +24,6 @@ import {
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { api } from '@/lib/api'
 import { fmtDate, fmtRelative, hostOf, mdPreview } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { limitsOf } from '@/lib/limits'
@@ -145,7 +145,7 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
       }}
       headerExtra={
         isUrl(item.url) && (
-          <Button variant="lime" size="sm" onClick={() => api.app.openExternal(item.url)}>
+          <Button variant="lime" size="sm" onClick={() => openUrl(item.url)}>
             <ExternalLink /> Відкрити
           </Button>
         )

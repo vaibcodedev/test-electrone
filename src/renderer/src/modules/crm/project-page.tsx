@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { MoneyValue } from '@/components/common/money-value'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react'
@@ -16,7 +17,6 @@ import { NumberInput } from '@/components/common/number-input'
 import { EditToggle, RecordMode, useReadOnly, useRecordMode } from '@/components/common/detail-mode'
 import { ProjectTermsView } from './client-aside'
 import { isLikelyUrl, limitsOf, rangesOf, URL_ERROR } from '@/lib/limits'
-import { api } from '@/lib/api'
 import { fmtHours, fmtMoney, plural } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState, Field } from '@/components/common/page'
@@ -50,7 +50,8 @@ function Money({ label, value, hint }: { label: string; value: ReactNode; hint?:
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-caption text-muted-foreground">{label}</span>
-      <span className="font-display truncate text-stat-sm leading-tight tabular-nums">{value}</span>
+      {/* Wraps at spaces instead of «100 млн U…»: four columns get narrow on a small window. */}
+      <span className="font-display text-stat-sm leading-tight tabular-nums [overflow-wrap:anywhere]">{value}</span>
       {hint && <span className="text-caption text-muted-foreground">{hint}</span>}
     </div>
   )
@@ -68,7 +69,10 @@ function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }) {
       label="Фактична ставка"
       value={
         p.trackedMinutes > 0 && p.effectiveRate ? (
-          `${m(p.effectiveRate)}/год`
+          <>
+            <MoneyValue amount={p.effectiveRate} currency={p.currency} />
+            /год
+          </>
         ) : (
           <span className="font-sans text-body text-muted-foreground">ще немає годин</span>
         )
@@ -225,7 +229,7 @@ export function UrlField({
         <Button
           variant="link"
           className="w-fit max-w-full justify-start truncate"
-          onClick={() => api.app.openExternal(value).catch((e: Error) => toast.error(e.message))}
+          onClick={() => openUrl(value).catch((e: Error) => toast.error(e.message))}
         >
           <span className="truncate">{value.replace(/^https?:\/\//, '')}</span>
           <ExternalLink />
@@ -247,7 +251,7 @@ export function UrlField({
             const v = e.target.value.trim()
             if (!isLikelyUrl(v)) return setBad(true)
             setBad(false)
-            if (v !== value) onSave(v)
+            if (normalizeUrl(v) !== value) onSave(normalizeUrl(v))
           }}
         />
         {value && (
@@ -255,7 +259,7 @@ export function UrlField({
             variant="soft"
             size="icon"
             aria-label={`Відкрити ${value}`}
-            onClick={() => api.app.openExternal(value).catch((e: Error) => toast.error(e.message))}
+            onClick={() => openUrl(value).catch((e: Error) => toast.error(e.message))}
           >
             <ExternalLink />
           </Button>

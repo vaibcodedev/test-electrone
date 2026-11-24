@@ -495,6 +495,15 @@
   }
 }
 
+/* A record with nothing but its title, while reading: say what to do instead of a blank pane. Content =
+   rendered markdown, a filled field value, code, an image. */
+[data-empty-hint] {
+  display: none;
+}
+[data-detail-mode='view'] [data-detail-body]:not(:has([data-has-content], [data-view]:not([data-empty]), .cm-editor, img)) > [data-empty-hint] {
+  display: block;
+}
+
 /* Unlayered on purpose: these must beat Tailwind utilities (display/padding) inside fields. */
 /* ── Record view mode (DetailPane data-detail-mode="view"): read, don't edit ── */
 /* Empty fields disappear instead of showing empty boxes. */

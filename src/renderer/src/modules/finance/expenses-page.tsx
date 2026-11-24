@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { ExternalLink, Pencil, Plus, Receipt, Trash2 } from 'lucide-react'
 import type {
   Expense,
@@ -9,7 +10,6 @@ import type {
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { draftToNumber, numberToDraft } from '../crm/money'
-import { api } from '@/lib/api'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
@@ -187,18 +187,14 @@ function SubscriptionsSection({ month }: { month: string }) {
                   <TableCell>
                     <PaidCell row={r} month={month} />
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {r.title}
-                    {r.period === 'yearly' && (
-                      <Badge variant="soft" className="ml-2">
-                        раз на рік
-                      </Badge>
-                    )}
-                    {!r.active && (
-                      <Badge variant="outline" className="ml-2">
-                        вимкнена
-                      </Badge>
-                    )}
+                  <TableCell className="w-full max-w-0 font-medium">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="truncate" title={r.title}>
+                        {r.title}
+                      </span>
+                      {r.period === 'yearly' && <Badge variant="soft">раз на рік</Badge>}
+                      {!r.active && <Badge variant="outline">вимкнена</Badge>}
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground tabular-nums">
                     {fmtDate(r.dueAt, 'd MMM')}
@@ -214,7 +210,7 @@ function SubscriptionsSection({ month }: { month: string }) {
                       {r.url && (
                         <IconAction
                           label="Відкрити сайт"
-                          onClick={() => void api.app.openExternal(r.url)}
+                          onClick={() => void openUrl(r.url)}
                         >
                           <ExternalLink />
                         </IconAction>
@@ -358,13 +354,13 @@ function ExpensesSection({ month }: { month: string }) {
                     <TableCell className="text-muted-foreground tabular-nums">
                       {fmtDate(e.at, 'd MMM')}
                     </TableCell>
-                    <TableCell className="font-medium">
-                      {e.title}
-                      {e.subscriptionId && (
-                        <Badge variant="soft" className="ml-2">
-                          підписка
-                        </Badge>
-                      )}
+                    <TableCell className="w-full max-w-0 font-medium">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate" title={e.title}>
+                          {e.title}
+                        </span>
+                        {e.subscriptionId && <Badge variant="soft">підписка</Badge>}
+                      </div>
                       {e.note && (
                         <div className="truncate text-caption font-normal text-muted-foreground">
                           {e.note}

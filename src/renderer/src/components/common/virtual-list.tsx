@@ -236,8 +236,10 @@ export function VirtualGrid<T>({
             >
               {row.index < rows ? (
                 slice.map((item, i) => (
-                  <div key={getKey(item)} {...entering(start + i, getKey(item))}>
-                    {renderItem(item, start + i)}
+                  // min-w-0: a grid item never grows past its column (a long unbroken word used to push a card
+                  // wider than the window); the card itself decides how to truncate.
+                  <div key={getKey(item)} className="min-w-0">
+                    <div {...entering(start + i, getKey(item))}>{renderItem(item, start + i)}</div>
                   </div>
                 ))
               ) : (

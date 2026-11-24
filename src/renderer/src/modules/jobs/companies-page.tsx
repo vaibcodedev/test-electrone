@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
 import { Building2, ExternalLink, Plus, Star } from 'lucide-react'
 import { companyInputSchema, type Company, type CompanyPatch } from '@shared/domain/jobs'
@@ -9,7 +10,6 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { countLabel } from '@/lib/format'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { api } from '@/lib/api'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -100,7 +100,7 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
   const [name, setName] = useAutosave(c.name, (v) => v.trim() && patch({ name: v.trim() }))
   const [contacts, setContacts] = useAutosave(c.contacts, (contacts) => patch({ contacts }))
   const [notes, setNotes] = useAutosave(c.notes, (notes) => patch({ notes }))
-  const open = (url: string): void => void api.app.openExternal(url)
+  const open = (url: string): void => void openUrl(url)
 
   return (
     <DetailPane

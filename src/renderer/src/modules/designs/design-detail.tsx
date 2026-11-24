@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { ExternalLink, RefreshCw, Replace } from 'lucide-react'
 import { toast } from 'sonner'
 import { DESIGN_KINDS, designInputSchema, type Design, type DesignPatch } from '@shared/domain/designs'
 import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
-import { api } from '@/lib/api'
 import { extractPalette, fileUrl, toFileSources } from '@/lib/files'
 import { useAutosave } from '@/hooks/use-autosave'
 import { DetailPane, EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
@@ -153,7 +153,7 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
             {/^https?:\/\//i.test(sourceUrl) && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="soft" size="icon" aria-label="Відкрити оригінал" onClick={() => api.app.openExternal(sourceUrl)}>
+                  <Button variant="soft" size="icon" aria-label="Відкрити оригінал" onClick={() => openUrl(sourceUrl)}>
                     <ExternalLink />
                   </Button>
                 </TooltipTrigger>

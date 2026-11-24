@@ -1,4 +1,6 @@
 import { useCallback, useEffect, type ReactNode } from 'react'
+import { MAX } from '@shared/domain/limits'
+import { Kbd } from '@/components/ui/kbd'
 import { useSearchParams } from 'react-router'
 import { Pencil, Trash2, X } from 'lucide-react'
 import type { EntityRef, Tag } from '@shared/domain/common'
@@ -81,7 +83,7 @@ export function InlineTitle({
   onChange,
   placeholder = 'Без назви',
   className,
-  maxLength = 200
+  maxLength = MAX.title
 }: {
   value: string
   onChange: (value: string) => void
@@ -93,7 +95,11 @@ export function InlineTitle({
   const readOnly = useReadOnly()
   if (readOnly) {
     return (
-      <h2 className={cn('font-display text-headline leading-[1.1] [overflow-wrap:anywhere]', !value && 'text-muted-foreground/60', className)}>
+      // A 500-character title used to fill the whole screen: 4 lines while reading, all of it when editing.
+      <h2
+        title={value || undefined}
+        className={cn('font-display text-headline line-clamp-4 leading-[1.1] [overflow-wrap:anywhere]', !value && 'text-muted-foreground/60', className)}
+      >
         {value || placeholder}
       </h2>
     )
@@ -207,7 +213,13 @@ export function DetailPane({
       </div>
       <Separator />
       <div className="flex min-h-0 flex-1">
-        <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div data-detail-body className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
+          {children}
+          {/* Shown by CSS only in view mode when the body holds no filled field (globals.css → «only a title»). */}
+          <p data-empty-hint className="mt-4 text-body text-muted-foreground">
+            Тут поки лише назва. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб додати опис і подробиці.
+          </p>
+        </div>
         {aside && (
           <>
             <Separator orientation="vertical" />

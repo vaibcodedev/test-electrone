@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { openUrl } from '@/lib/open-url'
 import { Copy, ExternalLink, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { credentialInputSchema, type Credential, type CredentialInput } from '@shared/domain/crm'
@@ -204,7 +205,7 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
           {item.url && (
             <IconAction
               label={`Відкрити ${host}`}
-              onClick={() => api.app.openExternal(item.url).catch((e: Error) => toast.error(e.message))}
+              onClick={() => openUrl(item.url).catch((e: Error) => toast.error(e.message))}
             >
               <ExternalLink />
             </IconAction>

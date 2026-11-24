@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { EditorState } from '@codemirror/state'
 import CodeMirror, { EditorView, Prec, keymap, type Extension, type ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -127,7 +128,8 @@ export function CodeEditor({
   className,
   placeholder,
   lineNumbers = true,
-  autoFocus
+  autoFocus,
+  maxLength
 }: {
   value: string
   onChange?: (value: string) => void
@@ -139,6 +141,8 @@ export function CodeEditor({
   placeholder?: string
   lineNumbers?: boolean
   autoFocus?: boolean
+  /** Same as an input's maxLength: edits that would exceed it are dropped (the server would reject them). */
+  maxLength?: number
 }) {
   const viewMode = useReadOnly()
   const readOnly = readOnlyProp || viewMode
@@ -176,9 +180,10 @@ export function CodeEditor({
       ...languageExtension(language),
       baseTheme,
       EditorView.lineWrapping,
-      Prec.high(keymap.of([{ key: 'Shift-Alt-f', run: () => (void formatRef.current(), true) }]))
+      Prec.high(keymap.of([{ key: 'Shift-Alt-f', run: () => (void formatRef.current(), true) }])),
+      ...(maxLength ? [EditorState.changeFilter.of((tr) => tr.newDoc.length <= maxLength)] : [])
     ],
-    [language]
+    [language, maxLength]
   )
 
   // Re-measure once web fonts are in: gutter and line heights depend on the mono font.
