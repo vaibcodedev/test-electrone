@@ -58,7 +58,7 @@ export class Container {
   readonly paths = new AppPaths()
   readonly config = new ConfigStore(this.paths.configFile)
   readonly bus = new EventBus()
-  readonly db = new DbContext(this.paths.dbFile, this.paths.migrationsDir)
+  readonly db = new DbContext(this.paths.dbFile, this.paths.migrationsDir, this.paths.backupsDir, app.getVersion())
   readonly registry = new EntityRegistry(this.db)
   readonly search = new SearchIndex(this.db, this.registry)
   readonly tags = new TagService(this.db, this.registry)

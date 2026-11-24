@@ -7,13 +7,15 @@ import {
   type QuestionCategory,
   type QuestionPatch
 } from '@shared/domain/jobs'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDay } from '@/lib/format'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagFilter } from '@/components/common/tags'
+import { VirtualList } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -190,12 +192,15 @@ export function QuestionsPage() {
   const [topic, setTopic] = useState<string | undefined>()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
-  const { data: all = [] } = useApi('jobs', 'questions', { search: search.trim() || undefined, tagId })
+  const term = useDebounced(search.trim())
+  const base = { search: term || undefined, tagId }
+  // Full list only feeds the category counters and the open question; the column pages from the server.
+  const { data: all = [], isLoading } = useApi('jobs', 'questions', base)
+  const list = useInfiniteApi('jobs', 'questions', { ...base, category, topic })
   const { data: topics = [] } = useApi('jobs', 'topics')
   const { data: due = [] } = useApi('jobs', 'practiceQueue', { limit: 200 })
   const create = useApiMutation('jobs', 'createQuestion')
 
-  const list = all.filter((q) => (!category || q.category === category) && (!topic || q.topic === topic))
   const current = all.find((q) => q.id === open) ?? null
 
   const add = (): void => {
@@ -251,33 +256,42 @@ export function QuestionsPage() {
         <MasterDetail
           listSize="38%"
           list={
-            list.length === 0 ? (
-              <EmptyState
-                icon={MessageCircleQuestion}
-                title={all.length ? 'Ничего не найдено' : 'Банк вопросов пуст'}
-                hint="Добавь вопрос, который задали на собеседовании, и свой ответ на него."
-                action={<Button onClick={add}>Добавить вопрос</Button>}
-              />
-            ) : (
-              <div className="flex min-h-0 flex-col gap-1.5 overflow-y-auto pr-1">
-                {list.map((q) => {
-                  const isDue = q.dueAt <= Date.now()
-                  const active = q.id === open
-                  return (
-                    <ListItem key={q.id} active={active} onClick={() => setOpen(active ? null : q.id)}>
-                      <div className="line-clamp-2 text-[13.5px] font-medium">{q.question}</div>
-                      <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] ${active ? 'text-ink-muted' : 'text-muted-foreground'}`}>
-                        <span>{QUESTION_CATEGORY_LABEL[q.category]}</span>
-                        {q.topic && <span>· {q.topic}</span>}
-                        <span>· {LANG_LABEL[q.lang]}</span>
-                        {!q.answer.trim() && <span className={active ? 'text-ink-accent' : 'text-warn'}>· без ответа</span>}
-                        {isDue && <span className={active ? 'text-ink-accent' : 'text-success'}>· повторить</span>}
-                      </div>
-                    </ListItem>
-                  )
-                })}
-              </div>
-            )
+            <VirtualList
+              className="pr-1"
+              items={list.items}
+              getKey={(q) => q.id}
+              estimateSize={72}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={
+                !list.isLoading &&
+                !isLoading && (
+                  <EmptyState
+                    icon={MessageCircleQuestion}
+                    title={all.length ? 'Ничего не найдено' : 'Банк вопросов пуст'}
+                    hint="Добавь вопрос, который задали на собеседовании, и свой ответ на него."
+                    action={<Button onClick={add}>Добавить вопрос</Button>}
+                  />
+                )
+              }
+              renderItem={(q) => {
+                const isDue = q.dueAt <= Date.now()
+                const active = q.id === open
+                return (
+                  <ListItem active={active} onClick={() => setOpen(active ? null : q.id)}>
+                    <div className="line-clamp-2 text-[13.5px] font-medium">{q.question}</div>
+                    <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] ${active ? 'text-ink-muted' : 'text-muted-foreground'}`}>
+                      <span>{QUESTION_CATEGORY_LABEL[q.category]}</span>
+                      {q.topic && <span>· {q.topic}</span>}
+                      <span>· {LANG_LABEL[q.lang]}</span>
+                      {!q.answer.trim() && <span className={active ? 'text-ink-accent' : 'text-warn'}>· без ответа</span>}
+                      {isDue && <span className={active ? 'text-ink-accent' : 'text-success'}>· повторить</span>}
+                    </div>
+                  </ListItem>
+                )
+              }}
+            />
           }
           detail={current ? <QuestionDetail key={current.id} question={current} topics={topics} onClose={() => setOpen(null)} /> : null}
         />

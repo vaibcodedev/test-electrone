@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router'
 import { Plus, Tags, Trash2 } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
 import { EmptyState, Field, Page, PageBody, PageHeader } from '@/components/common/page'
+import { VirtualList } from '@/components/common/virtual-list'
 import { EntityRow } from '@/components/common/entity-link'
 import { TAG_COLORS } from '@/components/common/tags'
 import { Confirm } from '@/components/common/confirm'
@@ -168,11 +169,15 @@ export function TagsPage() {
                   <div className="flex flex-col gap-1">
                     <span className="text-[12.5px] font-medium text-muted-foreground">Помечено</span>
                     {entities.length ? (
-                      <div className="-mx-2.5 flex flex-col">
-                        {entities.map((e) => (
-                          <EntityRow key={`${e.type}:${e.id}`} item={e} />
-                        ))}
-                      </div>
+                      // Height follows the content up to 60vh, then scrolls; rows are virtualized.
+                      <VirtualList
+                        className="-mx-2.5 max-h-[60vh] flex-none"
+                        items={entities}
+                        getKey={(e) => `${e.type}:${e.id}`}
+                        estimateSize={40}
+                        gap={0}
+                        renderItem={(e) => <EntityRow item={e} />}
+                      />
                     ) : (
                       <p className="text-[12.5px] text-muted-foreground">
                         Добавьте эту метку к идее, сниппету или дизайну — запись появится здесь.

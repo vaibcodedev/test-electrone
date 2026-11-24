@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { CodeXml, Plus } from 'lucide-react'
 import { SNIPPET_LANGUAGES, type Snippet, type SnippetLanguage, type SnippetPatch } from '@shared/domain/snippets'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -151,13 +153,16 @@ export function SnippetsPage() {
   const [language, setLanguage] = useState<SnippetLanguage | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
-  const { data: all = [], isLoading } = useApi('snippets', 'list', { search: search || undefined, tagId })
+  const q = useDebounced(search.trim())
+  const base = { search: q || undefined, tagId }
+  // Full list only feeds the language chips; the rendered grid is paged + virtualized.
+  const { data: all = [] } = useApi('snippets', 'list', base)
+  const list = useInfiniteApi('snippets', 'list', { ...base, language })
   const { data: openItem } = useApi('snippets', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('snippets', 'create')
 
   const counts = useMemo(() => countBy(all, (s) => s.language), [all])
   const used = SNIPPET_LANGUAGES.filter((l) => counts[l])
-  const items = language ? all.filter((s) => s.language === language) : all
 
   return (
     <Page>
@@ -200,24 +205,33 @@ export function SnippetsPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-              {!isLoading && items.length === 0 && (
-                <EmptyState
-                  icon={CodeXml}
-                  title={search || tagId || language ? 'Ничего не нашлось' : 'Сниппетов пока нет'}
-                  hint={
-                    search || tagId || language
-                      ? 'Поиск идёт и по коду — попробуйте имя функции или поле запроса.'
-                      : 'Сохраните кусок кода, который пишете уже не в первый раз.'
-                  }
-                />
+            <VirtualGrid
+              className="-mx-1 px-1"
+              items={list.items}
+              getKey={(s) => s.id}
+              minColumnWidth={openId ? 10_000 : 380}
+              rowHeight={openId ? 84 : 230}
+              gap={8}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              renderItem={(s) => (
+                <SnippetCard item={s} active={s.id === openId} compact={!!openId} onOpen={() => setOpen(s.id)} />
               )}
-              <div className={cn('grid gap-2', openId ? 'grid-cols-1' : 'grid-cols-2 2xl:grid-cols-3')}>
-                {items.map((s) => (
-                  <SnippetCard key={s.id} item={s} active={s.id === openId} compact={!!openId} onOpen={() => setOpen(s.id)} />
-                ))}
-              </div>
-            </div>
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={CodeXml}
+                    title={search || tagId || language ? 'Ничего не нашлось' : 'Сниппетов пока нет'}
+                    hint={
+                      search || tagId || language
+                        ? 'Поиск идёт и по коду — попробуйте имя функции или поле запроса.'
+                        : 'Сохраните кусок кода, который пишете уже не в первый раз.'
+                    }
+                  />
+                )
+              }
+            />
           }
           detail={openId && openItem ? <SnippetDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} /> : null}
         />

@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Bug, CircleCheck, CircleDot, Plus } from 'lucide-react'
 import type { Fix, FixPatch } from '@shared/domain/fixes'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
 import { fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -106,12 +108,15 @@ export function FixesPage() {
   const [tagId, setTagId] = useState<string | undefined>()
   const [resolved, setResolved] = useState<ResolvedFilter | undefined>()
   const [openId, setOpen] = useOpenParam()
-  const { data: all = [], isLoading } = useApi('fixes', 'list', { search: search || undefined, tagId })
+  const q = useDebounced(search.trim())
+  const base = { search: q || undefined, tagId }
+  // Full list only feeds the chip counters; the rendered list is paged + virtualized.
+  const { data: all = [] } = useApi('fixes', 'list', base)
+  const list = useInfiniteApi('fixes', 'list', { ...base, resolved: resolved ? resolved === 'resolved' : undefined })
   const { data: openItem } = useApi('fixes', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('fixes', 'create')
 
   const openCount = all.filter((f) => !f.resolved).length
-  const items = resolved ? all.filter((f) => (resolved === 'resolved' ? f.resolved : !f.resolved)) : all
 
   return (
     <Page>
@@ -149,9 +154,15 @@ export function FixesPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1">
-              {!isLoading && items.length === 0 && (
-                <EmptyState
+            <VirtualList
+              className="-mx-1 px-1"
+              items={list.items}
+              getKey={(x) => x.id}
+              estimateSize={96}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={!list.isLoading && (<EmptyState
                   icon={Bug}
                   title={search || tagId || resolved ? 'Ничего не нашлось' : 'Ошибок пока нет'}
                   hint={
@@ -159,13 +170,12 @@ export function FixesPage() {
                       ? 'Вставьте кусок текста ошибки в поиск — он ищет и по решениям.'
                       : 'Запишите следующую ошибку вместе с решением, и поиск найдёт её через полгода.'
                   }
-                />
-              )}
-              {items.map((f) => {
+                />)}
+              renderItem={(f) => {
                 const active = f.id === openId
                 const line = firstLine(f.errorText)
                 return (
-                  <ListItem key={f.id} active={active} onClick={() => setOpen(f.id)}>
+                  <ListItem active={active} onClick={() => setOpen(f.id)}>
                     <div className="flex items-start gap-3">
                       <span
                         className={cn(
@@ -201,8 +211,8 @@ export function FixesPage() {
                     </div>
                   </ListItem>
                 )
-              })}
-            </div>
+              }}
+            />
           }
           detail={openId && openItem ? <FixDetail key={openItem.id} fix={openItem} onClose={() => setOpen(null)} /> : null}
         />

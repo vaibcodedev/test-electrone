@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Check, Copy, ExternalLink, Plus, Sparkles, ThumbsUp } from 'lucide-react'
 import { CLAUDE_KINDS, type ClaudeItem, type ClaudeKind, type ClaudePatch } from '@shared/domain/claude'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
 import { fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -165,12 +167,15 @@ export function ClaudePage() {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
-  const { data: all = [], isLoading } = useApi('claude', 'list', { search: search || undefined, tagId })
+  const q = useDebounced(search.trim())
+  const base = { search: q || undefined, tagId }
+  // Full list only feeds the chip counters; the rendered list is paged + virtualized.
+  const { data: all = [] } = useApi('claude', 'list', base)
+  const list = useInfiniteApi('claude', 'list', { ...base, kind })
   const create = useApiMutation('claude', 'create')
   const copyPrompt = useCopyPrompt()
 
   const counts = useMemo(() => countBy(all, (i) => i.kind), [all])
-  const items = kind ? all.filter((i) => i.kind === kind) : all
   const { data: openItem } = useApi('claude', 'get', openId ?? '', { enabled: !!openId })
 
   const newKind: ClaudeKind = kind ?? 'note'
@@ -208,23 +213,32 @@ export function ClaudePage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1">
-              {!isLoading && items.length === 0 && (
-                <EmptyState
-                  icon={Sparkles}
-                  title={search || tagId ? 'Ничего не нашлось' : 'Здесь пока пусто'}
-                  hint={
-                    search || tagId
-                      ? 'Попробуйте другое слово или снимите фильтр.'
-                      : 'Сохраняйте промты, которые сработали, и заметки по работе с Claude.'
-                  }
-                />
-              )}
-              {items.map((i) => {
+            <VirtualList
+              className="-mx-1 px-1"
+              items={list.items}
+              getKey={(i) => i.id}
+              estimateSize={92}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={Sparkles}
+                    title={search || tagId || kind ? 'Ничего не нашлось' : 'Здесь пока пусто'}
+                    hint={
+                      search || tagId || kind
+                        ? 'Попробуйте другое слово или снимите фильтр.'
+                        : 'Сохраняйте промты, которые сработали, и заметки по работе с Claude.'
+                    }
+                  />
+                )
+              }
+              renderItem={(i) => {
                 const active = i.id === openId
                 const isPrompt = i.kind === 'prompt'
                 return (
-                  <div key={i.id} className="relative">
+                  <div className="relative">
                     <ListItem active={active} onClick={() => setOpen(i.id)} className={cn(isPrompt && 'pr-14')}>
                       <div className={cn('mb-0.5 text-[11.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {KIND_SINGLE[i.kind]}
@@ -257,8 +271,8 @@ export function ClaudePage() {
                     )}
                   </div>
                 )
-              })}
-            </div>
+              }}
+            />
           }
           detail={openId && openItem ? <ClaudeDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} /> : null}
         />

@@ -3,81 +3,116 @@ import { BadgeCheck, Star } from 'lucide-react'
 import type { Proposal } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { fmtDate, fmtMoney } from '@/lib/format'
+import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { daysSince, PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL } from './proposal-labels'
 
-/** Proposals as a table (shadcn Table); rows open the editor. */
+/** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
+const COL = {
+  status: 'w-32',
+  niche: 'w-[15%]',
+  bid: 'w-28',
+  credits: 'w-24',
+  client: 'w-[18%]',
+  sent: 'w-32'
+} as const
+
+/**
+ * Proposals as a table (shadcn Table), virtualized: a header table plus one fixed-layout table
+ * per visible row. Rows open the editor; Enter works from the keyboard.
+ */
 export function ProposalList({
   proposals,
   currency,
   activeId,
-  onOpen
+  onOpen,
+  loading,
+  hasMore,
+  loadingMore,
+  onLoadMore
 }: {
   proposals: Proposal[]
   currency: Currency
   activeId: string | null
   onOpen: (id: string) => void
+  loading?: boolean
+  hasMore?: boolean
+  loadingMore?: boolean
+  onLoadMore?: () => void
 }) {
   const [now] = useState(() => Date.now())
   return (
-    <div className="overflow-hidden rounded-2xl ring-1 ring-border">
-      <Table>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl ring-1 ring-border">
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="pl-4">Вакансия</TableHead>
-            <TableHead>Статус</TableHead>
-            <TableHead>Тип</TableHead>
-            <TableHead className="text-right">Ставка</TableHead>
-            <TableHead className="text-right">Коннекты</TableHead>
-            <TableHead>Клиент</TableHead>
-            <TableHead className="pr-4 text-right">Отправлен</TableHead>
+            <TableHead className={COL.status}>Статус</TableHead>
+            <TableHead className={COL.niche}>Тип</TableHead>
+            <TableHead className={cn(COL.bid, 'text-right')}>Ставка</TableHead>
+            <TableHead className={cn(COL.credits, 'text-right')}>Коннекты</TableHead>
+            <TableHead className={COL.client}>Клиент</TableHead>
+            <TableHead className={cn(COL.sent, 'pr-4 text-right')}>Отправлен</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
-          {proposals.map((p) => {
-            const days = daysSince(p.sentAt, now)
-            return (
-              <TableRow
-                key={p.id}
-                tabIndex={0}
-                aria-selected={activeId === p.id}
-                onClick={() => onOpen(p.id)}
-                onKeyDown={(e) => e.key === 'Enter' && onOpen(p.id)}
-                className={cn('cursor-pointer', activeId === p.id && 'bg-surface')}
-              >
-                <TableCell className="max-w-[320px] pl-4">
-                  <div className="flex items-center gap-1.5">
-                    {p.starred && <Star className="size-3.5 shrink-0 fill-warn text-warn" />}
-                    <span className="truncate font-medium">{p.jobTitle}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={PROPOSAL_STATUS_BADGE[p.status]}>{PROPOSAL_STATUS_LABEL[p.status]}</Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{p.niche || '—'}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {p.bidAmount ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/ч' : ''}` : '—'}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {p.credits}
-                  {p.boostCredits > 0 && <span className="text-muted-foreground">+{p.boostCredits}</span>}
-                </TableCell>
-                <TableCell>
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate">{p.clientName || '—'}</span>
-                    {p.paymentVerified && <BadgeCheck className="size-3.5 shrink-0 text-success" aria-label="Оплата верифицирована" />}
-                  </span>
-                </TableCell>
-                <TableCell className="pr-4 text-right text-muted-foreground tabular-nums">
-                  {p.sentAt ? (days !== null && days < 7 ? `${days} дн. назад` : fmtDate(p.sentAt, 'd MMM')) : '—'}
-                </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
       </Table>
+      <VirtualList
+        items={proposals}
+        getKey={(p) => p.id}
+        estimateSize={45}
+        gap={0}
+        hasMore={hasMore}
+        loadingMore={loadingMore}
+        onLoadMore={onLoadMore}
+        empty={
+          !loading && <div className="py-10 text-center text-[13px] text-muted-foreground">Под фильтр ничего не попало.</div>
+        }
+        renderItem={(p) => {
+          const days = daysSince(p.sentAt, now)
+          return (
+            <Table className="table-fixed">
+              <TableBody>
+                <TableRow
+                  tabIndex={0}
+                  aria-selected={activeId === p.id}
+                  onClick={() => onOpen(p.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && onOpen(p.id)}
+                  className={cn('cursor-pointer border-b!', activeId === p.id && 'bg-surface')}
+                >
+                  <TableCell className="pl-4">
+                    <div className="flex items-center gap-1.5">
+                      {p.starred && <Star className="size-3.5 shrink-0 fill-warn text-warn" />}
+                      <span className="truncate font-medium">{p.jobTitle}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className={COL.status}>
+                    <Badge variant={PROPOSAL_STATUS_BADGE[p.status]}>{PROPOSAL_STATUS_LABEL[p.status]}</Badge>
+                  </TableCell>
+                  <TableCell className={cn(COL.niche, 'truncate text-muted-foreground')}>{p.niche || '—'}</TableCell>
+                  <TableCell className={cn(COL.bid, 'truncate text-right tabular-nums')}>
+                    {p.bidAmount ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/ч' : ''}` : '—'}
+                  </TableCell>
+                  <TableCell className={cn(COL.credits, 'text-right tabular-nums')}>
+                    {p.credits}
+                    {p.boostCredits > 0 && <span className="text-muted-foreground">+{p.boostCredits}</span>}
+                  </TableCell>
+                  <TableCell className={COL.client}>
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate">{p.clientName || '—'}</span>
+                      {p.paymentVerified && <BadgeCheck className="size-3.5 shrink-0 text-success" aria-label="Оплата верифицирована" />}
+                    </span>
+                  </TableCell>
+                  <TableCell className={cn(COL.sent, 'pr-4 text-right text-muted-foreground tabular-nums')}>
+                    {p.sentAt ? (days !== null && days < 7 ? `${days} дн. назад` : fmtDate(p.sentAt, 'd MMM')) : '—'}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          )
+        }}
+      />
     </div>
   )
 }

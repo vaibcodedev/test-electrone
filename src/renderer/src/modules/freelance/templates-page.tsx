@@ -6,7 +6,9 @@ import {
   type TemplatePatch,
   type TemplateSituation
 } from '@shared/domain/freelance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -239,13 +241,12 @@ export function TemplatesPage() {
   const [open, setOpen] = useOpenParam()
   const [situation, setSituation] = useState<TemplateSituation | undefined>()
   const [search, setSearch] = useState('')
+  const term = useDebounced(search.trim())
+  // Full list feeds the situation counters and the open template; the column pages from the server.
   const { data: all = [] } = useApi('templates', 'list', {})
-  const { data: list = [] } = useApi('templates', 'list', {
-    situation,
-    search: search || undefined
-  })
+  const list = useInfiniteApi('templates', 'list', { situation, search: term || undefined })
   const create = useApiMutation('templates', 'create', { onSuccess: (t) => setOpen(t.id) })
-  const current = list.find((t) => t.id === open) ?? all.find((t) => t.id === open)
+  const current = all.find((t) => t.id === open)
 
   const counts = all.reduce<Partial<Record<TemplateSituation, number>>>((acc, t) => {
     acc[t.situation] = (acc[t.situation] ?? 0) + 1
@@ -286,42 +287,51 @@ export function TemplatesPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            list.length === 0 ? (
-              <EmptyState
-                icon={MessageSquareQuote}
-                title={search ? 'Ничего не нашлось' : 'Шаблонов пока нет'}
-                hint="Сохраните удачный отклик или ответ клиенту, чтобы не писать его заново."
-              />
-            ) : (
-              <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
-                {list.map((t) => (
-                  <ListItem key={t.id} active={t.id === open} onClick={() => setOpen(t.id)}>
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11.5px] opacity-60">
-                          {SITUATION_LABEL[t.situation]}
-                        </div>
-                        <div className="truncate text-[13.5px] font-medium">{t.title}</div>
-                        {t.situation === 'small_talk' ? (
-                          <div className="mt-1 flex items-center gap-1.5 text-[12px] opacity-70">
-                            <span className="truncate">{t.trigger || '—'}</span>
-                            <ArrowRight className="size-3 shrink-0" />
-                            <span className="truncate">{t.body || '—'}</span>
-                          </div>
-                        ) : (
-                          <div className="mt-1 line-clamp-2 text-[12px] opacity-70">{t.body}</div>
-                        )}
+            <VirtualList
+              className="pr-1"
+              items={list.items}
+              getKey={(t) => t.id}
+              estimateSize={84}
+              gap={8}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={MessageSquareQuote}
+                    title={search ? 'Ничего не нашлось' : 'Шаблонов пока нет'}
+                    hint="Сохраните удачный отклик или ответ клиенту, чтобы не писать его заново."
+                  />
+                )
+              }
+              renderItem={(t) => (
+                <ListItem active={t.id === open} onClick={() => setOpen(t.id)}>
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11.5px] opacity-60">
+                        {SITUATION_LABEL[t.situation]}
                       </div>
-                      {t.usedIn > 0 && (
-                        <Badge variant={t.id === open ? 'lime' : 'soft'} className={cn('shrink-0')}>
-                          {pct((t.hired / t.usedIn) * 100)}
-                        </Badge>
+                      <div className="truncate text-[13.5px] font-medium">{t.title}</div>
+                      {t.situation === 'small_talk' ? (
+                        <div className="mt-1 flex items-center gap-1.5 text-[12px] opacity-70">
+                          <span className="truncate">{t.trigger || '—'}</span>
+                          <ArrowRight className="size-3 shrink-0" />
+                          <span className="truncate">{t.body || '—'}</span>
+                        </div>
+                      ) : (
+                        <div className="mt-1 line-clamp-2 text-[12px] opacity-70">{t.body}</div>
                       )}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            )
+                    {t.usedIn > 0 && (
+                      <Badge variant={t.id === open ? 'lime' : 'soft'} className={cn('shrink-0')}>
+                        {pct((t.hired / t.usedIn) * 100)}
+                      </Badge>
+                    )}
+                  </div>
+                </ListItem>
+              )}
+            />
           }
           detail={
             current ? (

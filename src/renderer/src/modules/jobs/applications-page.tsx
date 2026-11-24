@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { BellRing, FileUser, Kanban, List, Plus } from 'lucide-react'
 import type { Application } from '@shared/domain/jobs'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
 import { useUi } from '@/stores/ui-store'
 import { plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -128,12 +129,11 @@ export function ApplicationsPage() {
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
   const { data: companies = [] } = useApi('jobs', 'companies')
   const { data: resumes = [] } = useApi('jobs', 'resumes')
-  const { data: all = [], isLoading } = useApi('jobs', 'list', {
-    search: search.trim() || undefined,
-    companyId: companyId ?? undefined,
-    resumeId: resumeId ?? undefined,
-    tagId
-  })
+  const q = useDebounced(search.trim())
+  const base = { search: q || undefined, companyId: companyId ?? undefined, resumeId: resumeId ?? undefined, tagId }
+  // Kanban needs every card (and the board chips count them); the list view pages through the server.
+  const { data: all = [], isLoading } = useApi('jobs', 'list', base)
+  const paged = useInfiniteApi('jobs', 'list', { ...base, boardId })
 
   const boardChips = useMemo(() => {
     const counts = new Map<string, number>()
@@ -203,9 +203,16 @@ export function ApplicationsPage() {
           ) : view === 'kanban' ? (
             <ApplicationBoard applications={list} boards={boards} onOpen={setOpenId} />
           ) : (
-            <div className="h-full overflow-y-auto">
-              <ApplicationList applications={list} boards={boards} activeId={openId} onOpen={setOpenId} />
-            </div>
+            <ApplicationList
+              applications={paged.items}
+              boards={boards}
+              activeId={openId}
+              onOpen={setOpenId}
+              loading={paged.isLoading}
+              hasMore={paged.hasMore}
+              loadingMore={paged.loadingMore}
+              onLoadMore={paged.loadMore}
+            />
           )}
         </div>
       </div>

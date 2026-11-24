@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Component, Plus } from 'lucide-react'
 import type { UiComponent } from '@shared/domain/components'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
 import { fileUrl } from '@/lib/files'
 import { EmptyState, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { LivePreview } from '@/components/common/live-preview'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -51,7 +53,9 @@ export function ComponentsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
-  const { data: items = [], isLoading } = useApi('components', 'list', { search: search || undefined, tagId })
+  const q = useDebounced(search.trim())
+  // Paged + virtualized: live-preview iframes are heavy, so only visible tiles are mounted.
+  const list = useInfiniteApi('components', 'list', { search: q || undefined, tagId }, 60)
   const create = useApiMutation('components', 'create')
 
   const createNew = async (): Promise<void> => {
@@ -75,28 +79,35 @@ export function ComponentsPage() {
           <TagFilter value={tagId} onChange={setTagId} />
         </div>
       </PageHeader>
-      <PageBody>
-        {!isLoading && items.length === 0 ? (
-          <EmptyState
-            icon={Component}
-            title={search || tagId ? 'Ничего не найдено' : 'Компонентов пока нет'}
-            hint="Сохраните кнопку, карточку или целый блок — превью соберётся прямо в приложении."
-            action={
-              !search &&
-              !tagId && (
-                <Button variant="lime" onClick={() => void createNew()}>
-                  <Plus /> Создать первый
-                </Button>
-              )
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {items.map((c) => (
-              <ComponentTile key={c.id} item={c} onOpen={() => navigate(`/components/${c.id}`)} />
-            ))}
-          </div>
-        )}
+      <PageBody className="flex min-h-0 flex-col">
+        <VirtualGrid
+          items={list.items}
+          getKey={(c) => c.id}
+          minColumnWidth={260}
+          rowHeight={300}
+          gap={12}
+          hasMore={list.hasMore}
+          loadingMore={list.loadingMore}
+          onLoadMore={list.loadMore}
+          renderItem={(c) => <ComponentTile item={c} onOpen={() => navigate(`/components/${c.id}`)} />}
+          empty={
+            !list.isLoading && (
+              <EmptyState
+                icon={Component}
+                title={search || tagId ? 'Ничего не найдено' : 'Компонентов пока нет'}
+                hint="Сохраните кнопку, карточку или целый блок — превью соберётся прямо в приложении."
+                action={
+                  !search &&
+                  !tagId && (
+                    <Button variant="lime" onClick={() => void createNew()}>
+                      <Plus /> Создать первый
+                    </Button>
+                  )
+                }
+              />
+            )
+          }
+        />
       </PageBody>
     </Page>
   )

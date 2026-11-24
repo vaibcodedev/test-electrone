@@ -5,11 +5,12 @@ import { fmtDay, fmtRelative } from '@/lib/format'
 import { ENTITY_ICON } from '@/app/navigation'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
+import { VirtualList } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item'
 
 export function TrashPage() {
-  const { data: items = [] } = useApi('trash', 'list')
+  const { data: items = [], isLoading } = useApi('trash', 'list')
   const restore = useApiMutation('trash', 'restore', { successMessage: 'Восстановлено' })
   const purge = useApiMutation('trash', 'purge', { successMessage: 'Удалено навсегда' })
   const empty = useApiMutation('trash', 'empty', { successMessage: 'Корзина очищена' })
@@ -34,49 +35,50 @@ export function TrashPage() {
           )
         }
       />
-      <PageBody>
-        {items.length === 0 ? (
-          <EmptyState icon={Trash2} title="Корзина пуста" hint="Всё, что вы удаляете, попадает сюда на 30 дней." />
-        ) : (
-          <ItemGroup className="gap-2">
-            {items.map((item) => {
-              const Icon = ENTITY_ICON[item.type]
-              return (
-                <Item key={`${item.type}:${item.id}`} variant="muted" size="sm">
-                  <ItemMedia variant="icon" className="size-9 bg-card">
-                    <Icon />
-                  </ItemMedia>
-                  <ItemContent className="min-w-0">
-                    <ItemTitle className="w-full truncate text-[13.5px]">{item.title}</ItemTitle>
-                    <ItemDescription className="text-[12px]">
-                      {ENTITY_META[item.type].label} · удалено {fmtRelative(item.deletedAt)} · исчезнет {fmtDay(item.purgeAt)}
-                    </ItemDescription>
-                  </ItemContent>
-                  <ItemActions>
-                    <Button variant="ghost" size="sm" onClick={() => restore.mutate({ type: item.type, id: item.id })}>
-                      <RotateCcw /> Восстановить
-                    </Button>
-                    <Confirm
-                      title="Удалить навсегда?"
-                      description={`«${item.title}» будет удалено без возможности восстановления.`}
-                      onConfirm={() => purge.mutate({ type: item.type, id: item.id })}
+      <PageBody className="flex min-h-0 flex-col">
+        <VirtualList
+          items={items}
+          getKey={(item) => `${item.type}:${item.id}`}
+          estimateSize={60}
+          gap={8}
+          empty={!isLoading && <EmptyState icon={Trash2} title="Корзина пуста" hint="Всё, что вы удаляете, попадает сюда на 30 дней." />}
+          renderItem={(item) => {
+            const Icon = ENTITY_ICON[item.type]
+            return (
+              <Item variant="muted" size="sm">
+                <ItemMedia variant="icon" className="size-9 bg-card">
+                  <Icon />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle className="w-full truncate text-[13.5px]">{item.title}</ItemTitle>
+                  <ItemDescription className="text-[12px]">
+                    {ENTITY_META[item.type].label} · удалено {fmtRelative(item.deletedAt)} · исчезнет {fmtDay(item.purgeAt)}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Button variant="ghost" size="sm" onClick={() => restore.mutate({ type: item.type, id: item.id })}>
+                    <RotateCcw /> Восстановить
+                  </Button>
+                  <Confirm
+                    title="Удалить навсегда?"
+                    description={`«${item.title}» будет удалено без возможности восстановления.`}
+                    onConfirm={() => purge.mutate({ type: item.type, id: item.id })}
+                  >
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Удалить навсегда"
+                      title="Удалить навсегда"
+                      className="hover:text-destructive"
                     >
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Удалить навсегда"
-                        title="Удалить навсегда"
-                        className="hover:text-destructive"
-                      >
-                        <Trash2 />
-                      </Button>
-                    </Confirm>
-                  </ItemActions>
-                </Item>
-              )
-            })}
-          </ItemGroup>
-        )}
+                      <Trash2 />
+                    </Button>
+                  </Confirm>
+                </ItemActions>
+              </Item>
+            )
+          }}
+        />
       </PageBody>
     </Page>
   )

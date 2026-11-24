@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Brain, Flame, Languages } from 'lucide-react'
 import { WORD_KINDS, WORD_STAGES, type WordKind, type WordStage } from '@shared/domain/english'
-import { useApi } from '@/lib/query'
+import { useApi, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { fmtDay, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { EmptyState, FilterChips, Page, PageHeader, SearchInput } from '@/components/common/page'
@@ -73,12 +75,8 @@ export function EnglishPage() {
 
   const { data: stats } = useApi('english', 'stats')
   const { data: all = [] } = useApi('english', 'list')
-  const { data: words = [], isLoading } = useApi('english', 'list', {
-    search: search.trim() || undefined,
-    stage,
-    kind,
-    tagId
-  })
+  const q = useDebounced(search.trim())
+  const list = useInfiniteApi('english', 'list', { search: q || undefined, stage, kind, tagId })
   const { data: openWord } = useApi('english', 'get', open ?? '', { enabled: !!open })
 
   const nextDue = useMemo(() => {
@@ -139,48 +137,54 @@ export function EnglishPage() {
         <MasterDetail
           listSize="36%"
           list={
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              {!isLoading && words.length === 0 ? (
-                <EmptyState
-                  icon={Languages}
-                  title={all.length ? 'Ничего не подошло под фильтр' : 'Словарь пуст'}
-                  hint={
-                    all.length
-                      ? 'Сбросьте стадию, тип или метку.'
-                      : 'Добавьте слово из рабочей переписки в форме выше — оно сразу попадёт в повторение.'
-                  }
-                />
-              ) : (
-                <ul className={cn('grid gap-1.5', !open && 'grid-cols-2 xl:grid-cols-3')}>
-                  {words.map((w) => {
-                    const active = w.id === open
-                    return (
-                      <li key={w.id}>
-                        <ListItem active={active} onClick={() => setOpen(active ? null : w.id)}>
-                          <div className="flex items-baseline gap-2">
-                            <span className="font-display truncate text-[18px]">{w.term}</span>
-                            {w.transcription && (
-                              <span className={cn('truncate text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                                {w.transcription}
-                              </span>
-                            )}
-                          </div>
-                          <div className={cn('mt-0.5 truncate text-[13px]', active ? 'text-ink-foreground/80' : 'text-muted-foreground')}>
-                            {w.translation || 'без перевода'}
-                          </div>
-                          <div className="mt-2 flex items-center gap-2">
-                            <Badge variant={active ? 'lime' : STAGE_BADGE[w.stage]}>{STAGE_LABEL[w.stage]}</Badge>
-                            <span className={cn('text-[11.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                              {w.dueAt <= Date.now() ? 'пора повторить' : `повтор ${fmtDay(w.dueAt)}`}
-                            </span>
-                          </div>
-                        </ListItem>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
+            <VirtualGrid
+              className="pr-1"
+              items={list.items}
+              getKey={(w) => w.id}
+              minColumnWidth={open ? 10_000 : 260}
+              rowHeight={96}
+              gap={6}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={Languages}
+                    title={all.length ? 'Ничего не подошло под фильтр' : 'Словарь пуст'}
+                    hint={
+                      all.length
+                        ? 'Сбросьте стадию, тип или метку.'
+                        : 'Добавьте слово из рабочей переписки в форме выше — оно сразу попадёт в повторение.'
+                    }
+                  />
+                )
+              }
+              renderItem={(w) => {
+                const active = w.id === open
+                return (
+                  <ListItem active={active} onClick={() => setOpen(active ? null : w.id)}>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-display truncate text-[18px]">{w.term}</span>
+                      {w.transcription && (
+                        <span className={cn('truncate text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                          {w.transcription}
+                        </span>
+                      )}
+                    </div>
+                    <div className={cn('mt-0.5 truncate text-[13px]', active ? 'text-ink-foreground/80' : 'text-muted-foreground')}>
+                      {w.translation || 'без перевода'}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant={active ? 'lime' : STAGE_BADGE[w.stage]}>{STAGE_LABEL[w.stage]}</Badge>
+                      <span className={cn('text-[11.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        {w.dueAt <= Date.now() ? 'пора повторить' : `повтор ${fmtDay(w.dueAt)}`}
+                      </span>
+                    </div>
+                  </ListItem>
+                )
+              }}
+            />
           }
           detail={open && openWord ? <WordDetail key={openWord.id} word={openWord} onClose={() => setOpen(null)} /> : null}
         />

@@ -19,7 +19,9 @@ import {
   type BookmarkPatch,
   type BookmarkStatus
 } from '@shared/domain/bookmarks'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
 import { fmtDate, hostOf } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -201,14 +203,17 @@ export function BookmarksPage() {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
-  const { data: all = [], isLoading } = useApi('bookmarks', 'list', { search: search || undefined, tagId })
+  const q = useDebounced(search.trim())
+  const base = { search: q || undefined, tagId }
+  // Full list only feeds the chip counters; the rendered list is paged + virtualized.
+  const { data: all = [] } = useApi('bookmarks', 'list', base)
+  const list = useInfiniteApi('bookmarks', 'list', { ...base, kind, status })
   const { data: openItem } = useApi('bookmarks', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('bookmarks', 'create')
 
   const byKind = kind ? all.filter((b) => b.kind === kind) : all
   const statusCounts = useMemo(() => countBy(byKind, (b) => b.status), [byKind])
   const kindCounts = useMemo(() => countBy(all, (b) => b.kind), [all])
-  const items = status ? byKind.filter((b) => b.status === status) : byKind
   const usedKinds = BOOKMARK_KINDS.filter((k) => kindCounts[k])
 
   return (
@@ -256,9 +261,15 @@ export function BookmarksPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1">
-              {!isLoading && items.length === 0 && (
-                <EmptyState
+            <VirtualList
+              className="-mx-1 px-1"
+              items={list.items}
+              getKey={(x) => x.id}
+              estimateSize={88}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={!list.isLoading && (<EmptyState
                   icon={BookmarkIcon}
                   title={search || tagId || status || kind ? 'Ничего не нашлось' : 'Закладок пока нет'}
                   hint={
@@ -266,13 +277,12 @@ export function BookmarksPage() {
                       ? 'Снимите фильтры или поищите по сайту.'
                       : 'Сохраните статью или курс на потом — ссылку можно добавить и через быстрое добавление.'
                   }
-                />
-              )}
-              {items.map((b) => {
+                />)}
+              renderItem={(b) => {
                 const active = b.id === openId
                 const Icon = KIND_ICON[b.kind]
                 return (
-                  <ListItem key={b.id} active={active} onClick={() => setOpen(b.id)}>
+                  <ListItem active={active} onClick={() => setOpen(b.id)}>
                     <div className="flex items-center gap-3">
                       <ItemMedia
                         variant="icon"
@@ -315,8 +325,8 @@ export function BookmarksPage() {
                     {!active && !openId && <TagList tags={b.tags} className="mt-2 pl-12" />}
                   </ListItem>
                 )
-              })}
-            </div>
+              }}
+            />
           }
           detail={openId && openItem ? <BookmarkDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} /> : null}
         />

@@ -2,7 +2,9 @@
 import { useState } from 'react'
 import { NotebookPen, Plus } from 'lucide-react'
 import type { Note, NotePatch } from '@shared/domain/notes'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
 import { fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -75,8 +77,9 @@ export function NotesPage() {
   const [folder, setFolder] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
   const { data: folders = [] } = useApi('notes', 'folders')
-  const { data: items = [], isLoading } = useApi('notes', 'list', {
-    search: search || undefined,
+  const q = useDebounced(search.trim())
+  const list = useInfiniteApi('notes', 'list', {
+    search: q || undefined,
     tagId,
     folder: folder === undefined ? undefined : folder === NO_FOLDER ? '' : folder
   })
@@ -127,9 +130,15 @@ export function NotesPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-1">
-              {!isLoading && items.length === 0 && (
-                <EmptyState
+            <VirtualList
+              className="-mx-1 px-1"
+              items={list.items}
+              getKey={(x) => x.id}
+              estimateSize={84}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={!list.isLoading && (<EmptyState
                   icon={NotebookPen}
                   title={filtered ? 'Ничего не нашлось' : 'Заметок пока нет'}
                   hint={
@@ -137,13 +146,12 @@ export function NotesPage() {
                       ? 'Поиск идёт по названию и тексту заметок.'
                       : 'Создайте первую заметку — разложить по папкам можно потом.'
                   }
-                />
-              )}
-              {items.map((n) => {
+                />)}
+              renderItem={(n) => {
                 const active = n.id === openId
                 const text = excerpt(n.body)
                 return (
-                  <ListItem key={n.id} active={active} onClick={() => setOpen(n.id)}>
+                  <ListItem active={active} onClick={() => setOpen(n.id)}>
                     <div className="truncate text-[13.5px] font-medium">{n.title}</div>
                     {text && (
                       <div className={cn('mt-1 line-clamp-2 text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
@@ -163,8 +171,8 @@ export function NotesPage() {
                     </div>
                   </ListItem>
                 )
-              })}
-            </div>
+              }}
+            />
           }
           detail={openItem ? <NoteDetail note={openItem} onClose={() => setOpen(null)} /> : null}
         />

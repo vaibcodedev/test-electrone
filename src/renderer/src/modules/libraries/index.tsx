@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
 import { LIBRARY_STATUSES, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -197,12 +199,15 @@ export function LibrariesPage() {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
-  const { data: all = [], isLoading } = useApi('libraries', 'list', { search: search || undefined, tagId })
+  const q = useDebounced(search.trim())
+  const base = { search: q || undefined, tagId }
+  // Full list only feeds the status chips; the rendered grid is paged + virtualized.
+  const { data: all = [] } = useApi('libraries', 'list', base)
+  const list = useInfiniteApi('libraries', 'list', { ...base, status })
   const { data: openItem } = useApi('libraries', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('libraries', 'create')
 
   const counts = useMemo(() => countBy(all, (l) => l.status), [all])
-  const items = status ? all.filter((l) => l.status === status) : all
 
   return (
     <Page>
@@ -237,24 +242,31 @@ export function LibrariesPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
-              {!isLoading && items.length === 0 && (
-                <EmptyState
-                  icon={Package}
-                  title={search || tagId || status ? 'Ничего не нашлось' : 'Список пуст'}
-                  hint={
-                    search || tagId || status
-                      ? 'Снимите фильтр или поищите по задаче: «формы», «анимации».'
-                      : 'Добавьте пакет, который понравился, с командой установки и ссылками.'
-                  }
-                />
-              )}
-              <div className={cn('grid gap-2', openId ? 'grid-cols-1' : 'grid-cols-2 xl:grid-cols-3')}>
-                {items.map((l) => (
-                  <LibraryCard key={l.id} lib={l} active={l.id === openId} compact={!!openId} onOpen={() => setOpen(l.id)} />
-                ))}
-              </div>
-            </div>
+            <VirtualGrid
+              className="-mx-1 px-1"
+              items={list.items}
+              getKey={(l) => l.id}
+              minColumnWidth={openId ? 10_000 : 300}
+              rowHeight={openId ? 90 : 210}
+              gap={8}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              renderItem={(l) => <LibraryCard lib={l} active={l.id === openId} compact={!!openId} onOpen={() => setOpen(l.id)} />}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={Package}
+                    title={search || tagId || status ? 'Ничего не нашлось' : 'Список пуст'}
+                    hint={
+                      search || tagId || status
+                        ? 'Снимите фильтр или поищите по задаче: «формы», «анимации».'
+                        : 'Добавьте пакет, который понравился, с командой установки и ссылками.'
+                    }
+                  />
+                )
+              }
+            />
           }
           listSize="30%"
           detail={openId && openItem ? <LibraryDetail key={openItem.id} lib={openItem} onClose={() => setOpen(null)} /> : null}

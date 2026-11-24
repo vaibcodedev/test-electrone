@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Clipboard, Image, Plus, X } from 'lucide-react'
 import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { isImageFile } from '@/lib/files'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -39,7 +41,8 @@ export function DesignsPage() {
   const [color, setColor] = useState<string | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
 
-  const { data: designs = [], isLoading } = useApi('designs', 'list', { search: search || undefined, kind, color, tagId })
+  const q = useDebounced(search.trim())
+  const list = useInfiniteApi('designs', 'list', { search: q || undefined, kind, color, tagId }, 60)
   const { data: palette = [] } = useApi('designs', 'palette')
   const { data: boards = [] } = useApi('moodboards', 'list')
   const createBoard = useApiMutation('moodboards', 'create')
@@ -52,19 +55,28 @@ export function DesignsPage() {
 
   const filtered = !!(search || kind || color || tagId)
 
+  /** Uniform 4:3 thumbnails (object-cover) so rows can be virtualized; the full image is in the detail pane. */
   const gallery = (
-    <div className={cn('gap-3 [column-fill:_balance]', open ? 'columns-2' : 'columns-[240px]')}>
-      {designs.map((d) => (
+    <VirtualGrid
+      className="pr-1"
+      items={list.items}
+      getKey={(d) => d.id}
+      minColumnWidth={open ? 180 : 240}
+      rowHeight={open ? 150 : 200}
+      gap={12}
+      hasMore={list.hasMore}
+      loadingMore={list.loadingMore}
+      onLoadMore={list.loadMore}
+      renderItem={(d) => (
         <Card
-          key={d.id}
           {...clickableCard(() => setOpen(d.id === open ? null : d.id))}
           aria-pressed={d.id === open}
           className={cn(
-            'group relative mb-3 block w-full cursor-pointer gap-0 break-inside-avoid overflow-hidden py-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+            'group relative block w-full cursor-pointer gap-0 overflow-hidden py-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
             d.id === open && 'ring-2 ring-ring ring-offset-2 ring-offset-card'
           )}
         >
-          <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block w-full" />
+          <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block aspect-[4/3] w-full object-cover object-top" />
           <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
             <Badge variant="ink" className="max-w-full truncate">
               {designTitle(d)}
@@ -78,8 +90,8 @@ export function DesignsPage() {
             )}
           </div>
         </Card>
-      ))}
-    </div>
+      )}
+    />
   )
 
   return (
@@ -165,7 +177,7 @@ export function DesignsPage() {
           )}
         </PageHeader>
         <PageBody className="flex min-h-0 flex-col">
-          {!isLoading && designs.length === 0 ? (
+          {!list.isLoading && list.items.length === 0 ? (
             <EmptyState
               icon={Image}
               title={filtered ? 'По этим фильтрам ничего нет' : 'Галерея пуста'}
@@ -178,7 +190,7 @@ export function DesignsPage() {
           ) : (
             <MasterDetail
               listSize="38%"
-              list={<div className="min-h-0 flex-1 overflow-y-auto pr-1">{gallery}</div>}
+              list={gallery}
               detail={open ? <DesignDetail id={open} onClose={() => setOpen(null)} /> : null}
             />
           )}

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, nativeTheme } from 'electron'
+import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { Container } from './container'
@@ -8,6 +9,12 @@ import { handleAppProtocol, handleFileProtocol, registerSchemes } from './system
 import { applyAutostart, launchedHidden } from './system/autostart'
 
 const APP_ID = 'dev.vault.app'
+
+// `npm run dev` must never touch the real data of the installed app (Windows paths are case-insensitive,
+// so %APPDATA%/vault and %APPDATA%/Vault are the same folder). Tests pass their own --user-data-dir.
+if (!app.isPackaged && !process.argv.some((a) => a.startsWith('--user-data-dir'))) {
+  app.setPath('userData', join(app.getPath('appData'), 'vault-dev'))
+}
 
 setupLogging()
 registerSchemes()
