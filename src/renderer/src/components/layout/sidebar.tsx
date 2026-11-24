@@ -26,6 +26,7 @@ import {
   SidebarSeparator
 } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { UpdateBanner } from './update-banner'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -243,6 +244,7 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
+        <UpdateBanner />
         <SidebarFooter className="flex-row gap-1 border-t border-sidebar-border p-2">
           {[
             { to: GUIDE.path, icon: GUIDE.icon, label: GUIDE.label },

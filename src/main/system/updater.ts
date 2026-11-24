@@ -17,6 +17,12 @@ export class Updater {
     private readonly bus: EventBus,
     private readonly config: ConfigStore
   ) {
+    // Screenshot tests only (scripts/snap.mjs): show the update plate without a real release.
+    const fake = process.env.VAULT_SNAP_UPDATE
+    if (fake) {
+      this.status = JSON.parse(fake) as UpdateStatus
+      return
+    }
     if (!app.isPackaged) {
       this.status = { state: 'disabled', reason: 'Оновлення працюють лише в зібраній версії' }
       return
