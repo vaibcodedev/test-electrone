@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ArrowUpRight, Briefcase, CalendarDays, Plus, UserRound } from 'lucide-react'
 import {
@@ -7,19 +7,20 @@ import {
   type ProjectStatus,
   type ProjectSummary
 } from '@shared/domain/crm'
-import { useApi } from '@/lib/query'
-import { fmtDay, fmtHours, fmtMinutes, fmtMoney, plural } from '@/lib/format'
+import { useApi, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid, VirtualList } from '@/components/common/virtual-list'
+import { countLabel, fmtDay, fmtHours, fmtMinutes, fmtMoney, plural } from '@/lib/format'
 import {
   EmptyState,
   FilterChips,
   Page,
-  PageBody,
   PageHeader,
   SearchInput
 } from '@/components/common/page'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
+import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { BILLING_LABEL, CLIENT_STATUS_LABEL, PROJECT_STATUS_LABEL } from './labels'
@@ -271,39 +272,25 @@ export function ClientsPage() {
   const platforms = usePlatforms()
   const [clientOpen, setClientOpen] = useState(false)
   const [projectOpen, setProjectOpen] = useState(false)
-  const { data: clients = [] } = useApi('clients', 'list')
-  const { data: allProjects = [] } = useApi('projects', 'list', {
-    status,
-    search: search || undefined
-  })
-  const projects = useMemo(
-    () =>
-      !platformId
-        ? allProjects
-        : platformId === DIRECT
-          ? allProjects.filter((p) => !p.platformId)
-          : allProjects.filter((p) => p.platformId === platformId),
-    [allProjects, platformId]
-  )
-
-  const filteredClients = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const byPlatform = !platformId
-      ? clients
-      : platformId === DIRECT
-        ? clients.filter((c) => !c.platformId)
-        : clients.filter((c) => c.platformId === platformId)
-    if (!q) return byPlatform
-    return byPlatform.filter((c) =>
-      `${c.name} ${c.company} ${c.email} ${c.country}`.toLowerCase().includes(q)
-    )
-  }, [clients, search, platformId])
+  // Search and filters run on the server; both lists load in pages of 100 and are virtualized.
+  const q = useDebounced(search.trim())
+  const platform = platformId === DIRECT ? 'direct' : platformId
+  const clientList = useInfiniteApi('clients', 'list', { search: q || undefined, platformId: platform })
+  const projectList = useInfiniteApi('projects', 'list', { status, search: q || undefined, platformId: platform })
+  const clients = clientList.items
+  const projects = projectList.items
 
   return (
     <Page>
       <PageHeader
         title="Клієнти й контракти"
-        subtitle="Контакти, доступи, оплати — фіксована ціна, ретейнер чи погодинно."
+        subtitle={
+          tab === 'clients' && clients.length
+            ? `${countLabel(clients.length, clientList.hasMore, ['клієнт', 'клієнти', 'клієнтів'])} · контакти, доступи, оплати`
+            : tab === 'projects' && projects.length
+              ? `${countLabel(projects.length, projectList.hasMore, ['проєкт', 'проєкти', 'проєктів'])} · фіксована ціна, ретейнер чи погодинно`
+              : 'Контакти, доступи, оплати — фіксована ціна, ретейнер чи погодинно.'
+        }
         actions={
           <>
             <Button variant="soft" onClick={() => setClientOpen(true)}>
@@ -319,12 +306,8 @@ export function ClientsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <FilterChips<Tab>
             options={[
-              { value: 'clients', label: 'Клієнти', count: clients.length },
-              {
-                value: 'projects',
-                label: 'Проєкти',
-                count: tab === 'projects' ? projects.length : undefined
-              }
+              { value: 'clients', label: 'Клієнти', count: clientList.hasMore ? undefined : clients.length },
+              { value: 'projects', label: 'Проєкти', count: projectList.hasMore ? undefined : projects.length }
             ]}
             value={tab}
             onChange={(v) =>
@@ -358,47 +341,61 @@ export function ClientsPage() {
           )}
         </div>
       </PageHeader>
-      <PageBody>
+      <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
         {tab === 'clients' ? (
-          filteredClients.length ? (
-            <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-              {filteredClients.map((c) => (
-                <ClientCard key={c.id} client={c} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={UserRound}
-              title={search ? 'Нікого не знайдено' : 'Клієнтів поки немає'}
-              hint="Додайте клієнта — до нього прив’яжуться проєкти, доступи й оплати."
-              action={
-                !search && (
-                  <Button variant="lime" onClick={() => setClientOpen(true)}>
-                    <Plus /> Додати клієнта
-                  </Button>
-                )
-              }
-            />
-          )
-        ) : projects.length ? (
-          <ItemGroup className="gap-2">
-            {projects.map((p) => (
-              <ProjectRow key={p.id} project={p} />
-            ))}
-          </ItemGroup>
+          <VirtualGrid
+            items={clients}
+            getKey={(c) => c.id}
+            minColumnWidth={260}
+            rowHeight={200}
+            hasMore={clientList.hasMore}
+            loadingMore={clientList.loadingMore}
+            onLoadMore={clientList.loadMore}
+            renderItem={(c) => <ClientCard client={c} />}
+            empty={
+              !clientList.isLoading && (
+                <EmptyState
+                  icon={UserRound}
+                  title={search || platformId ? 'Нікого не знайдено' : 'Клієнтів поки немає'}
+                  hint="Додайте клієнта — до нього прив’яжуться проєкти, доступи й оплати."
+                  action={
+                    !search && (
+                      <Button variant="lime" onClick={() => setClientOpen(true)}>
+                        <Plus /> Додати клієнта
+                      </Button>
+                    )
+                  }
+                />
+              )
+            }
+          />
         ) : (
-          <EmptyState
-            icon={Briefcase}
-            title={search || status ? 'Проєктів не знайдено' : 'Проєктів поки немає'}
-            hint="Проєкт зберігає оплати, доступи, посилання на стенди й облік часу."
-            action={
-              <Button variant="lime" onClick={() => setProjectOpen(true)}>
-                <Plus /> Створити проєкт
-              </Button>
+          <VirtualList
+            items={projects}
+            getKey={(p) => p.id}
+            estimateSize={88}
+            gap={8}
+            hasMore={projectList.hasMore}
+            loadingMore={projectList.loadingMore}
+            onLoadMore={projectList.loadMore}
+            renderItem={(p) => <ProjectRow project={p} />}
+            empty={
+              !projectList.isLoading && (
+                <EmptyState
+                  icon={Briefcase}
+                  title={search || status || platformId ? 'Проєктів не знайдено' : 'Проєктів поки немає'}
+                  hint="Проєкт зберігає оплати, доступи, посилання на стенди й облік часу."
+                  action={
+                    <Button variant="lime" onClick={() => setProjectOpen(true)}>
+                      <Plus /> Створити проєкт
+                    </Button>
+                  }
+                />
+              )
             }
           />
         )}
-      </PageBody>
+      </div>
       <ClientDialog open={clientOpen} onOpenChange={setClientOpen} />
       <ProjectDialog open={projectOpen} onOpenChange={setProjectOpen} />
     </Page>

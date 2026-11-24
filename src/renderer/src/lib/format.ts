@@ -97,3 +97,8 @@ export function mdPreview(md: string): string {
     .replace(/\s+/g, ' ')
     .trim()
 }
+
+/** Header count for paged lists: exact once everything is loaded, «100+ …» while more pages remain. */
+export function countLabel(n: number, hasMore: boolean, forms: [string, string, string]): string {
+  return hasMore ? `${n}+ ${forms[2]}` : `${n} ${plural(n, forms)}`
+}

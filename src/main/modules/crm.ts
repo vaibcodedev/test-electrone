@@ -6,6 +6,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or } from 'dr
 import { z } from 'zod'
 import type { ClientsApi, CredentialsApi, PaymentsApi, ProjectsApi, TimeApi } from '@shared/api'
 import {
+  clientListQuerySchema,
   clientInputSchema,
   clientPatchSchema,
   credentialInputSchema,
@@ -32,6 +33,7 @@ import {
   type RunningTimer,
   type TimeEntry
 } from '@shared/domain/crm'
+import { pageSchema } from '@shared/domain/common'
 import { clients, credentials, payments, platforms, projects, timeEntries } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
@@ -323,8 +325,20 @@ export class CrmModule {
       return c
     }
     return {
-      list: async () =>
-        this.summarizeClients(repo.listWhere([], [asc(clients.status), asc(clients.name)])),
+      list: async (query) => {
+        const q = clientListQuerySchema.extend(pageSchema.shape).parse(query ?? {})
+        return this.summarizeClients(
+          repo.listWhere(
+            [
+              repo.matches(q.search, [clients.name, clients.company, clients.email, clients.country]),
+              q.platformId === 'direct' ? isNull(clients.platformId) : q.platformId ? eq(clients.platformId, q.platformId) : undefined
+            ],
+            [asc(clients.status), asc(clients.name)],
+            q.limit,
+            q.offset
+          )
+        )
+      },
       get: async (id) => {
         const c = repo.get(idArg.parse(id))
         return c ? this.summarizeClients([c])[0] : null
@@ -360,15 +374,20 @@ export class CrmModule {
     const one = (id: string): ProjectSummary => this.summarizeProjects([repo.getOrThrow(id)])[0]
     return {
       list: async (query) => {
-        const q = projectListQuerySchema.parse(query ?? {})
+        const q = projectListQuerySchema.extend(pageSchema.shape).parse(query ?? {})
         return this.summarizeProjects(
-          repo.listWhere([
-            q.clientId ? eq(projects.clientId, q.clientId) : undefined,
-            q.status ? eq(projects.status, q.status) : undefined,
-            q.platformId ? eq(projects.platformId, q.platformId) : undefined,
-            repo.hasTag(q.tagId),
-            repo.matches(q.search, [projects.title, projects.description])
-          ])
+          repo.listWhere(
+            [
+              q.clientId ? eq(projects.clientId, q.clientId) : undefined,
+              q.status ? eq(projects.status, q.status) : undefined,
+              q.platformId === 'direct' ? isNull(projects.platformId) : q.platformId ? eq(projects.platformId, q.platformId) : undefined,
+              repo.hasTag(q.tagId),
+              repo.matches(q.search, [projects.title, projects.description])
+            ],
+            undefined,
+            q.limit,
+            q.offset
+          )
         )
       },
       get: async (id) => {

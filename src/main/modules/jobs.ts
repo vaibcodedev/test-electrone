@@ -688,6 +688,19 @@ export class JobsModule {
 
   /* ───────── API ───────── */
 
+  /** Company with the same name, compared trimmed and case-insensitively (in JS: SQLite lower() is ASCII-only). */
+  private companyByName(name: string): ReturnType<typeof this.companyRepo.get> {
+    const key = name.trim().toLocaleLowerCase('uk')
+    if (!key) return null
+    const hit = this.db
+      .select({ id: companies.id, name: companies.name })
+      .from(companies)
+      .where(isNull(companies.deletedAt))
+      .all()
+      .find((c) => c.name.trim().toLocaleLowerCase('uk') === key)
+    return hit ? this.companyRepo.get(hit.id) : null
+  }
+
   api(): JobsApi {
     const apps = this.appRepo
     const qs = this.questionRepo
@@ -942,13 +955,19 @@ export class JobsModule {
 
       /* companies */
       companies: async (query) => {
-        const q = z.object({ search: z.string().max(200).optional() }).parse(query ?? {})
+        const q = z.object({ search: z.string().max(200).optional() }).extend(pageSchema.shape).parse(query ?? {})
         return companyWithCounts(
           cos.listWhere(
             [cos.matches(q.search, [companies.name, companies.stack, companies.notes])],
-            [asc(companies.name)]
+            [asc(companies.name)],
+            q.limit,
+            q.offset
           )
         )
+      },
+      findCompany: async (name) => {
+        const row = this.companyByName(z.string().max(200).parse(name))
+        return row ? companyWithCounts([row])[0] : null
       },
       company: async (id) => {
         const c = cos.get(idArg.parse(id))
@@ -956,6 +975,9 @@ export class JobsModule {
       },
       createCompany: async (input) => {
         const [data, tagIds] = splitTags(companyInputSchema.parse(input))
+        // Same name (case-insensitive, trimmed) → the existing company, never a duplicate.
+        const existing = this.companyByName(data.name)
+        if (existing) return companyWithCounts([existing])[0]
         return companyWithCounts([cos.insert(data, tagIds)])[0]
       },
       updateCompany: async (args) => {

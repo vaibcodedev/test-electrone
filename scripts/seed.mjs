@@ -180,6 +180,12 @@ export default function Demo() {
   const js = await call('jobs.stats')
   const jo = await call('jobs.overview')
   const resumes = await call('jobs.resumes')
+  // Companies are unique by name (case-insensitive): a second create returns the same record.
+  const coA = await call('jobs.createCompany', { name: 'Dedupe Test Co' })
+  const coB = await call('jobs.createCompany', { name: '  dedupe test co ' })
+  if (coA.id !== coB.id) throw new Error('company dedupe failed')
+  const pageOne = await call('jobs.companies', { limit: 1, offset: 0 })
+  if (pageOne.length !== 1) throw new Error('companies paging failed')
   console.log('jobs ok: applied', js.totals.applied, 'interviews', js.totals.interview, 'upcoming', jo.upcoming.length, 'resume sent', resumes[0].sent)
 
   // ── dev projects, capture bridge, weekly review

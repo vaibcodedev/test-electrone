@@ -27,12 +27,17 @@ function addInterval(ts: number, rec: Recurrence, n: number): number {
     case 'weekly':
       d.setDate(d.getDate() + 7 * n)
       break
+    // Clamp to the month's last day: «31 січня щомісяця» → 28/29 лютого, not 3 березня; 29 лютого yearly → 28.
     case 'monthly':
-      d.setMonth(d.getMonth() + n)
+    case 'yearly': {
+      const day = d.getDate()
+      d.setDate(1)
+      if (rec === 'monthly') d.setMonth(d.getMonth() + n)
+      else d.setFullYear(d.getFullYear() + n)
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+      d.setDate(Math.min(day, last))
       break
-    case 'yearly':
-      d.setFullYear(d.getFullYear() + n)
-      break
+    }
     default:
       return ts
   }

@@ -1,5 +1,6 @@
-import { and, asc, eq, inArray, max, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, max, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { pageSchema } from '@shared/domain/common'
 import type { ChecklistsApi } from '@shared/api'
 import {
   CHECKLIST_KINDS,
@@ -145,14 +146,32 @@ export class ChecklistsModule {
             search: z.string().max(200).optional(),
             tagId: idArg.optional()
           })
+          .extend(pageSchema.shape)
           .parse(args ?? {})
         return this.withCounts(
-          repo.listWhere([
-            q.kind ? eq(checklists.kind, q.kind) : undefined,
-            repo.hasTag(q.tagId),
-            repo.matches(q.search, [checklists.title, checklists.description])
-          ])
+          repo.listWhere(
+            [
+              q.kind ? eq(checklists.kind, q.kind) : undefined,
+              repo.hasTag(q.tagId),
+              repo.matches(q.search, [checklists.title, checklists.description])
+            ],
+            undefined,
+            q.limit,
+            q.offset
+          )
         )
+      },
+      counts: async () => {
+        const rows = this.db
+          .select({ kind: checklists.kind, n: count() })
+          .from(checklists)
+          .where(isNull(checklists.deletedAt))
+          .groupBy(checklists.kind)
+          .all()
+        return {
+          template: rows.find((r) => r.kind === 'template')?.n ?? 0,
+          run: rows.find((r) => r.kind === 'run')?.n ?? 0
+        }
       },
       get: async (id) => {
         const c = repo.get(idArg.parse(id))

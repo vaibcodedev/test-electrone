@@ -1,8 +1,9 @@
-import { and, eq, isNotNull, isNull, lt } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lt, desc, count as sqlCount } from 'drizzle-orm'
 import type { EntityRef } from '@shared/domain/common'
 import type { TrashItem } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
-import { isDraft, type AnyRow, type EntityRegistry } from '../core/registry'
+import { hasTraces } from '../core/traces'
+import { isDraft, type AnyRow, type EntityRegistry, type EntityDescriptor } from '../core/registry'
 import { DAY_MS, now, NotFoundError } from '../core/util'
 import type { TagService } from './tag-service'
 import type { LinkService } from './link-service'
@@ -25,6 +26,50 @@ export class TrashService {
       search: SearchIndex
     }
   ) {}
+
+  /** Number of items in the trash (header «Очистити кошик» count without loading every page). */
+  count(): number {
+    let n = 0
+    for (const d of this.registry.all()) {
+      n += this.ctx.orm.select({ n: sqlCount() }).from(d.table).where(isNotNull(d.table.deletedAt)).get()?.n ?? 0
+    }
+    return n
+  }
+
+  /**
+   * Paged across all entity tables, newest deletion first. Each table contributes at most offset+limit
+   * (id, deletedAt) pairs via SQL; full rows are loaded only for the requested page.
+   */
+  page(limit?: number, offset = 0): TrashItem[] {
+    if (!limit) return this.list().slice(offset)
+    const want = offset + limit
+    const keys: { d: EntityDescriptor; id: string; deletedAt: number }[] = []
+    for (const d of this.registry.all()) {
+      const rows = this.ctx.orm
+        .select({ id: d.table.id, deletedAt: d.table.deletedAt })
+        .from(d.table)
+        .where(isNotNull(d.table.deletedAt))
+        .orderBy(desc(d.table.deletedAt))
+        .limit(want)
+        .all() as { id: string; deletedAt: number }[]
+      for (const r of rows) keys.push({ d, id: r.id, deletedAt: r.deletedAt })
+    }
+    keys.sort((a, b) => b.deletedAt - a.deletedAt)
+    const items: TrashItem[] = []
+    for (const k of keys.slice(offset, want)) {
+      const row = this.registry.findRow({ type: k.d.type, id: k.id }, { withDeleted: true })
+      if (!row) continue
+      items.push({
+        type: k.d.type,
+        id: row.id,
+        ...k.d.summary(row),
+        updatedAt: row.updatedAt,
+        deletedAt: row.deletedAt!,
+        purgeAt: row.deletedAt! + TRASH_TTL_MS
+      })
+    }
+    return items
+  }
 
   list(): TrashItem[] {
     const items: TrashItem[] = []
@@ -95,7 +140,7 @@ export class TrashService {
   discardDraft(ref: EntityRef): boolean {
     const d = this.registry.get(ref.type)
     const row = this.registry.findRow(ref)
-    if (!row || !isDraft(d, row)) return false
+    if (!row || !isDraft(d, row) || hasTraces(this.ctx.orm, ref)) return false
     this.purge(ref)
     return true
   }
@@ -112,7 +157,7 @@ export class TrashService {
         .where(and(isNull(d.table.deletedAt), eq(d.table.createdAt, d.table.updatedAt), lt(d.table.createdAt, cutoff)))
         .all() as AnyRow[]
       for (const r of rows) {
-        if (!isDraft(d, r)) continue
+        if (!isDraft(d, r) || hasTraces(this.ctx.orm, { type: d.type, id: r.id })) continue
         this.purge({ type: d.type, id: r.id })
         count++
       }

@@ -5,7 +5,10 @@ import { companyInputSchema, type Company, type CompanyPatch } from '@shared/dom
 import { limitsOf } from '@/lib/limits'
 
 const LIMITS = limitsOf(companyInputSchema)
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { countLabel } from '@/lib/format'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
@@ -168,8 +171,13 @@ export function CompaniesPage() {
   const [search, setSearch] = useState('')
   const [name, setName] = useState('')
   const [openId, setOpenId] = useOpenParam()
-  const { data: list = [], isLoading } = useApi('jobs', 'companies', { search: search.trim() || undefined })
+  const debounced = useDebounced(search.trim())
+  // Paged on the server (100 per page) + virtualized; search runs on the server too.
+  const list = useInfiniteApi('jobs', 'companies', { search: debounced || undefined })
   const { data: current } = useApi('jobs', 'company', openId ?? '', { enabled: !!openId })
+  // Same name already exists → offer to open it instead of creating a duplicate (server dedupes too).
+  const typed = useDebounced(name.trim(), 200)
+  const { data: existing } = useApi('jobs', 'findCompany', typed, { enabled: typed.length > 0 })
   const create = useApiMutation('jobs', 'createCompany', {
     onSuccess: (c) => {
       setName('')
@@ -177,62 +185,106 @@ export function CompaniesPage() {
     }
   })
   const submit = (): void => {
-    if (name.trim()) create.mutate({ name: name.trim() })
+    if (!name.trim()) return
+    if (existing) {
+      setName('')
+      setOpenId(existing.id)
+      return
+    }
+    create.mutate({ name: name.trim() })
   }
 
   const listPane = (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <InputGroup>
-        <InputGroupInput
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="Нова компанія…"
-          maxLength={LIMITS.name}
-        />
-        <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Додати компанію" disabled={!name.trim()} onClick={submit}>
-            <Plus />
-          </InputGroupButton>
-        </InputGroupAddon>
-      </InputGroup>
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pb-4">
-        {list.map((c) => (
-          <ListItem key={c.id} active={c.id === openId} onClick={() => setOpenId(c.id)}>
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-body font-medium">{c.name}</span>
-              {c.rating > 0 && (
-                <span className="flex items-center gap-0.5 text-caption opacity-70">
-                  <Star className="size-3" />
-                  {c.rating}
-                </span>
-              )}
-            </div>
-            <div className="mt-0.5 flex gap-2 text-caption opacity-65">
-              <span className="truncate">{c.stack || c.location || 'Без опису'}</span>
-              {c.applicationCount > 0 && (
-                <span className="ml-auto shrink-0 tabular-nums">
-                  {c.activeCount > 0 ? `${c.activeCount} активн.` : `${c.applicationCount} відг.`}
-                </span>
-              )}
-            </div>
-          </ListItem>
-        ))}
-        {!isLoading && list.length === 0 && (
-          <EmptyState
-            icon={Building2}
-            title={search ? 'Нічого не знайдено' : 'Компаній поки немає'}
-            hint={search ? undefined : 'Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці.'}
-            className="py-8"
+      <div className="flex flex-col gap-1">
+        <InputGroup>
+          <InputGroupInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="Нова компанія…"
+            maxLength={LIMITS.name}
+            aria-label="Назва нової компанії"
           />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Додати компанію" disabled={!name.trim()} onClick={submit}>
+              <Plus />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
+        {existing && name.trim() && (
+          <p className="flex items-center gap-2 px-3 text-caption text-muted-foreground">
+            Вже є: <span className="font-medium text-foreground">{existing.name}</span>
+            <Button
+              variant="link"
+              size="xs"
+              className="text-caption"
+              onClick={() => {
+                setName('')
+                setOpenId(existing.id)
+              }}
+            >
+              Відкрити
+            </Button>
+          </p>
         )}
       </div>
+      <VirtualList
+        className="pb-4"
+        items={list.items}
+        getKey={(c) => c.id}
+        estimateSize={64}
+        hasMore={list.hasMore}
+        loadingMore={list.loadingMore}
+        onLoadMore={list.loadMore}
+        empty={
+          !list.isLoading && (
+            <EmptyState
+              icon={Building2}
+              title={search ? 'Нічого не знайдено' : 'Компаній поки немає'}
+              hint={search ? undefined : 'Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці.'}
+              className="py-8"
+            />
+          )
+        }
+        renderItem={(c) => {
+          // Meta only when there is something real to say — no «Без опису» filler.
+          const meta = [c.stack, c.location].filter(Boolean).join(' · ')
+          const apps = c.applicationCount > 0 ? (c.activeCount > 0 ? `${c.activeCount} активн.` : `${c.applicationCount} відг.`) : ''
+          return (
+            <ListItem active={c.id === openId} onClick={() => setOpenId(c.id)}>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-body font-medium">{c.name}</span>
+                {c.rating > 0 && (
+                  <span className="flex shrink-0 items-center gap-0.5 text-caption opacity-70">
+                    <Star className="size-3" />
+                    {c.rating}
+                  </span>
+                )}
+              </div>
+              {(meta || apps) && (
+                <div className="mt-0.5 flex min-w-0 gap-2 text-caption opacity-65">
+                  <span className="min-w-0 truncate">{meta}</span>
+                  {apps && <span className="ml-auto shrink-0 tabular-nums">{apps}</span>}
+                </div>
+              )}
+            </ListItem>
+          )
+        }}
+      />
     </div>
   )
 
   return (
     <Page>
-      <PageHeader title="Компанії" subtitle="Відгуки, стек, контакти HR та історія відгуків щодо кожної компанії.">
+      <PageHeader
+        title="Компанії"
+        subtitle={
+          list.items.length
+            ? `${countLabel(list.items.length, list.hasMore, ['компанія', 'компанії', 'компаній'])} · відгуки, стек, контакти HR та історія відгуків`
+            : 'Відгуки, стек, контакти HR та історія відгуків щодо кожної компанії.'
+        }
+      >
         <SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" className="w-72" />
       </PageHeader>
       <div className="flex min-h-0 flex-1 px-8 pb-6">

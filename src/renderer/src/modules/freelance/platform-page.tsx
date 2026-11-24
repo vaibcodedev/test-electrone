@@ -1,7 +1,7 @@
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { Archive, ArchiveRestore, Handshake } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { Button } from '@/components/ui/button'
 import { fmtMoney } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +29,10 @@ type Tab = 'proposals' | 'contracts' | 'credits' | 'stats' | 'settings'
 
 function ContractsTab({ platform }: { platform: Platform }) {
   const navigate = useNavigate()
-  const { data: projects = [], isLoading } = useApi('projects', 'list', { platformId: platform.id })
+  // Paged table: 100 contracts at a time, «Показати ще» below.
+  const page = useInfiniteApi('projects', 'list', { platformId: platform.id })
+  const projects = page.items
+  const isLoading = page.isLoading
   if (!isLoading && projects.length === 0) {
     return (
       <EmptyState
@@ -83,6 +86,13 @@ function ContractsTab({ platform }: { platform: Platform }) {
           ))}
         </TableBody>
       </Table>
+      {page.hasMore && (
+        <div className="flex justify-center border-t border-border p-2">
+          <Button variant="subtle" size="sm" disabled={page.loadingMore} onClick={page.loadMore}>
+            {page.loadingMore ? 'Завантажую…' : 'Показати ще'}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

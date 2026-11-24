@@ -7,6 +7,7 @@ import { dirname } from 'path'
 import { log, logFilePath } from './core/logger'
 import { statSync } from 'fs'
 import { z } from 'zod'
+import { pageSchema } from '@shared/domain/common'
 import type { Api } from '@shared/api'
 import { entityRefSchema } from '@shared/domain/common'
 import { EXPORT_FORMATS, PIN_KINDS, searchQuerySchema, settingsPatchSchema } from '@shared/domain/system'
@@ -189,7 +190,13 @@ export class Container {
     this.registerCalendarFeeds()
     this.trash.purgeExpired()
     this.trash.purgeStaleDrafts()
-    setInterval(() => this.trash.purgeExpired(), 6 * 3600_000)
+    setInterval(() => {
+      try {
+        this.trash.purgeExpired()
+      } catch (e) {
+        log.error('[trash] purge failed', e)
+      }
+    }, 6 * 3600_000)
   }
 
   /** One calendar for everything: subscriptions, interviews (→ vacancy), application follow-ups. */
@@ -365,7 +372,11 @@ export class Container {
         recent: async (limit) => this.dashboard.recent(z.number().int().min(1).max(50).optional().parse(limit))
       },
       trash: {
-        list: async () => this.trash.list(),
+        list: async (args) => {
+          const p = pageSchema.parse(args ?? {})
+          return this.trash.page(p.limit, p.offset)
+        },
+        count: async () => this.trash.count(),
         restore: async (ref) => {
           this.trash.restore(refArg.parse(ref))
           this.bus.dataChanged('all')
@@ -383,6 +394,12 @@ export class Container {
         remove: async (id) => this.attachments.remove(idArg.parse(id)),
         open: async (id) => this.attachments.open(idArg.parse(id)),
         reveal: async (id) => this.attachments.reveal(idArg.parse(id)),
+        // storage.resolve() throws for anything outside <data>/files, so only stored files can be opened.
+        openPath: async (path) => {
+          const abs = this.files.resolve(z.string().min(1).max(1000).parse(path))
+          const err = await shell.openPath(abs)
+          if (err) throw new Error(err)
+        },
         clipboardHasImage: async () => this.files.clipboardHasImage()
       },
       backup: {

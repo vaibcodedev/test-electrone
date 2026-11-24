@@ -88,16 +88,28 @@ export function githubRepoOf(remote: string | null): string {
   return m ? `${m[1]}/${m[2]}` : ''
 }
 
+/** Short cache: lists refresh after every mutation; three git processes per project each time is too much. */
+const gitCache = new Map<string, { at: number; out: string | null }>()
+const GIT_TTL_MS = 15_000
+
 async function git(path: string, args: string[]): Promise<string | null> {
+  const key = `${path}|${args.join(' ')}`
+  const hit = gitCache.get(key)
+  if (hit && Date.now() - hit.at < GIT_TTL_MS) return hit.out
+  let out: string | null = null
   try {
-    const { stdout } = await execFileAsync('git', ['-C', path, ...args], {
-      timeout: 4000,
-      windowsHide: true
-    })
-    return stdout
+    // A scanned folder may come from an untrusted archive: its .git/config must not run commands.
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=', '-C', path, ...args],
+      { timeout: 4000, windowsHide: true }
+    )
+    out = stdout
   } catch {
-    return null
+    out = null
   }
+  gitCache.set(key, { at: Date.now(), out })
+  return out
 }
 
 export async function gitInfo(path: string): Promise<GitInfo | null> {
@@ -291,6 +303,8 @@ export class DevProjectsModule {
       lines: []
     }
     this.runs.set(run.runId, run)
+    // On Windows the script runs through a shell: only plain script names (package.json keys).
+    if (!/^[\w:.@/-]+$/.test(script)) throw new UserError(`Назва скрипта «${script}» містить недозволені символи`)
     this.push(run, `$ ${pm} run ${script}\n`, 'sys')
     const child = spawn(pm, ['run', script], {
       cwd: p.path,
@@ -338,7 +352,10 @@ export class DevProjectsModule {
       void shell.openPath(p.path)
       return
     }
-    const quoted = `"${p.path.replace(/"/g, '')}"`
+    // Editors/terminals start through a shell: refuse paths a shell could interpret ($(…), %VAR%, &…).
+    if (/["%^&|<>$`!\r\n]/.test(p.path))
+      throw new UserError('Шлях до папки містить спецсимволи (" % ^ & | < > $ ` !) — перейменуйте папку, щоб відкрити її звідси.')
+    const quoted = `"${p.path}"`
     const launch = (cmd: string, args: string[], onFail?: () => void): void => {
       const child = spawn(cmd, args, {
         shell: true,

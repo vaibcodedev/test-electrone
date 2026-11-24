@@ -1,6 +1,6 @@
 import { pageSchema } from '@shared/domain/common'
 /** Visual modules: UI components (code + live preview + cover) and design references with moodboards. */
-import { and, asc, eq, inArray, isNull, max } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, max, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { ComponentsApi, DesignsApi, MoodboardsApi } from '@shared/api'
 import {
@@ -158,6 +158,25 @@ export class MediaModule {
 
   /* ───────── designs ───────── */
 
+  /** Connections that already have vault_color_near (the connection is replaced on backup restore). */
+  private readonly colorFnOn = new WeakSet<object>()
+
+  /** SQL function: 1 when any colour in the JSON array is within ~90 of the target (same colour family). */
+  private ensureColorFn(): void {
+    const db = this.m.db.sqlite
+    if (this.colorFnOn.has(db)) return
+    db.function('vault_color_near', { deterministic: true }, (json: unknown, target: unknown) => {
+      if (typeof json !== 'string' || typeof target !== 'string') return 0
+      try {
+        const colors = JSON.parse(json) as unknown
+        return Array.isArray(colors) && colors.some((c) => typeof c === 'string' && colorDistance(c, target) < 90) ? 1 : 0
+      } catch {
+        return 0
+      }
+    })
+    this.colorFnOn.add(db)
+  }
+
   designsApi(): DesignsApi {
     const repo = this.designRepo
     return {
@@ -173,18 +192,20 @@ export class MediaModule {
                 .where(eq(moodboardItems.moodboardId, q.moodboardId))
             )
           : undefined
-        let list = repo.listWhere([
-          q.kind ? eq(designs.kind, q.kind) : undefined,
-          inBoard,
-          repo.hasTag(q.tagId),
-          repo.matches(q.search, [designs.title, designs.notes, designs.sourceUrl])
-        ])
-        if (q.color) {
-          const target = q.color
-          list = list.filter((d) => d.colors.some((c) => colorDistance(c, target) < 90))
-        }
-        const start = page.offset ?? 0
-        return page.limit ? list.slice(start, start + page.limit) : list.slice(start)
+        // Colour match runs in SQL (registered function), so LIMIT/OFFSET page correctly.
+        if (q.color) this.ensureColorFn()
+        return repo.listWhere(
+          [
+            q.kind ? eq(designs.kind, q.kind) : undefined,
+            inBoard,
+            repo.hasTag(q.tagId),
+            repo.matches(q.search, [designs.title, designs.notes, designs.sourceUrl]),
+            q.color ? sql`vault_color_near(${designs.colors}, ${q.color}) = 1` : undefined
+          ],
+          undefined,
+          page.limit,
+          page.offset
+        )
       },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {

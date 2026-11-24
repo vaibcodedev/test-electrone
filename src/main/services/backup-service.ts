@@ -9,7 +9,9 @@ import {
   statSync,
   writeFileSync
 } from 'fs'
-import { dirname, join, relative, sep } from 'path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'path'
+import Database from 'better-sqlite3'
+import { log } from '../core/logger'
 import type { AsyncZippable } from 'fflate'
 import { unzipAsync, zipAsync } from '../core/zip'
 import type { BackupEntry } from '@shared/domain/system'
@@ -157,27 +159,77 @@ export class BackupService {
     if (!manifestRaw || !archive['vault.db']) throw new UserError('Це не файл бекапу Vault')
     const manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as Manifest
     if (manifest.format !== 'vault-backup') throw new UserError('Невідомий формат бекапу')
+    // A backup from a newer Vault may carry migrations this version doesn't know.
+    if (manifest.appVersion && compareVersions(manifest.appVersion, app.getVersion()) > 0)
+      throw new UserError(`Бекап зроблено новішою версією Vault (${manifest.appVersion}). Спершу оновіть застосунок.`)
+
+    // Check the database inside the archive before touching current data.
+    const stamp = Date.now()
+    const candidate = join(this.paths.tmpDir, `restore-${stamp}.db`)
+    mkdirSync(this.paths.tmpDir, { recursive: true })
+    writeFileSync(candidate, archive['vault.db'])
+    try {
+      const probe = new Database(candidate, { readonly: true, fileMustExist: true })
+      const ok = probe.pragma('quick_check', { simple: true })
+      probe.close()
+      if (ok !== 'ok') throw new Error(String(ok))
+    } catch (e) {
+      rmSync(candidate, { force: true })
+      throw new UserError(`База в бекапі пошкоджена: ${(e as Error).message}`)
+    }
+
+    // Archive entries are untrusted: only plain relative paths that stay inside files/ (zip-slip incl. «..\»).
+    const files: [string, Uint8Array][] = []
+    for (const [name, bytes] of Object.entries(archive)) {
+      if (!name.startsWith('files/') || name.endsWith('/')) continue
+      const parts = name.slice('files/'.length).split(/[\/]/)
+      if (parts.some((p) => p === '' || p === '.' || p === '..' || p.includes(':'))) {
+        log.warn(`[backup] skipped unsafe entry: ${name}`)
+        continue
+      }
+      const abs = resolve(this.paths.filesDir, ...parts)
+      const back = relative(this.paths.filesDir, abs)
+      if (!back || back.startsWith('..') || isAbsolute(back)) {
+        log.warn(`[backup] skipped entry outside files: ${name}`)
+        continue
+      }
+      files.push([abs, bytes])
+    }
 
     await this.create({ saveAs: false, label: 'pre-restore' })
 
-    const oldFiles = join(this.paths.tmpDir, `files-before-restore-${Date.now()}`)
+    // Swap with rollback: if anything fails, the current DB and files come back exactly as they were.
+    const oldDb = join(this.paths.tmpDir, `db-before-restore-${stamp}.db`)
+    const oldFiles = join(this.paths.tmpDir, `files-before-restore-${stamp}`)
     this.ctx.close()
     try {
-      for (const suffix of ['', '-wal', '-shm']) rmSync(this.paths.dbFile + suffix, { force: true })
-      writeFileSync(this.paths.dbFile, archive['vault.db'])
+      for (const suffix of ['-wal', '-shm']) rmSync(this.paths.dbFile + suffix, { force: true })
+      if (existsSync(this.paths.dbFile)) renameSync(this.paths.dbFile, oldDb)
+      renameSync(candidate, this.paths.dbFile)
       if (existsSync(this.paths.filesDir)) renameSync(this.paths.filesDir, oldFiles)
       mkdirSync(this.paths.filesDir, { recursive: true })
-      for (const [name, bytes] of Object.entries(archive)) {
-        if (!name.startsWith('files/') || name.endsWith('/')) continue
-        const rel = name.slice('files/'.length)
-        if (rel.split('/').includes('..')) continue
-        const abs = join(this.paths.filesDir, rel)
+      for (const [abs, bytes] of files) {
         mkdirSync(dirname(abs), { recursive: true })
         writeFileSync(abs, bytes)
       }
-    } finally {
+      this.ctx.open() // runs migrations on the restored DB
+    } catch (e) {
+      log.error('[backup] restore failed, rolling back', e)
+      try {
+        this.ctx.close()
+      } catch {
+        /* not open */
+      }
+      rmSync(this.paths.dbFile, { force: true })
+      if (existsSync(oldDb)) renameSync(oldDb, this.paths.dbFile)
+      if (existsSync(oldFiles)) {
+        rmSync(this.paths.filesDir, { recursive: true, force: true })
+        renameSync(oldFiles, this.paths.filesDir)
+      }
       this.ctx.open()
+      throw new UserError(`Не вдалося відновити бекап: ${(e as Error).message}. Поточні дані залишилися як були.`)
     }
+    rmSync(oldDb, { force: true })
     rmSync(oldFiles, { recursive: true, force: true })
     this.search.rebuild()
     this.bus.dataChanged('all')
@@ -191,7 +243,7 @@ export class BackupService {
       const s = this.config.settings
       const last = this.config.lastBackupAt ?? 0
       if (!s.autoBackup || now() - last < DAY_MS) return
-      this.create({ saveAs: false }).catch((e) => console.error('[backup]', e))
+      this.create({ saveAs: false }).catch((e) => log.error('[backup] auto backup failed', e))
     }
     setTimeout(check, 20_000)
     this.timer = setInterval(check, 60 * 60_000)
@@ -204,4 +256,22 @@ export class BackupService {
   private parent(): BrowserWindow {
     return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
   }
+}
+
+/** -1 / 0 / 1 for versions like «0.1.0-beta.6»: prerelease < release, beta.10 > beta.9. */
+function compareVersions(a: string, b: string): number {
+  const parse = (v: string): [number[], string] => {
+    const [core, pre = ''] = v.split('-')
+    return [core.split('.').map((n) => Number(n) || 0), pre]
+  }
+  const [ac, ap] = parse(a)
+  const [bc, bp] = parse(b)
+  for (let i = 0; i < 3; i++) if ((ac[i] ?? 0) !== (bc[i] ?? 0)) return (ac[i] ?? 0) > (bc[i] ?? 0) ? 1 : -1
+  if (ap === bp) return 0
+  if (!ap) return 1
+  if (!bp) return -1
+  const an = Number(ap.split('.').pop())
+  const bn = Number(bp.split('.').pop())
+  if (Number.isNaN(an) || Number.isNaN(bn)) return ap > bp ? 1 : -1
+  return an === bn ? 0 : an > bn ? 1 : -1
 }

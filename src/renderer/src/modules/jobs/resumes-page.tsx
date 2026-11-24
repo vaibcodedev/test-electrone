@@ -6,6 +6,7 @@ import { limitsOf } from '@/lib/limits'
 
 const LIMITS = limitsOf(resumeInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
+import { api } from '@/lib/api'
 import { fileUrl, toFileSources } from '@/lib/files'
 import { fmtBytes, fmtDateTime, fmtDay } from '@/lib/format'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
@@ -301,8 +302,21 @@ export function ResumesPage() {
           <DialogHeader>
             <DialogTitle>{preview?.title}</DialogTitle>
           </DialogHeader>
-          {preview?.filePath && (
+          {/* Only PDFs are shown inline; any other file opens in its own app (never rendered as a page here). */}
+          {preview?.filePath && /\.pdf$/i.test(preview.fileName ?? preview.filePath) ? (
             <iframe title={preview.fileName} src={fileUrl(preview.filePath)} className="min-h-0 w-full flex-1 rounded-2xl border-0 bg-white" />
+          ) : (
+            preview?.filePath && (
+              <EmptyState
+                title="Перегляд доступний лише для PDF"
+                hint="Інші формати відкриваються в програмі за замовчуванням."
+                action={
+                  <Button variant="subtle" onClick={() => void api.files.openPath(preview.filePath!)}>
+                    Відкрити файл
+                  </Button>
+                }
+              />
+            )
           )}
         </DialogContent>
       </Dialog>

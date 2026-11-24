@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Flag, Plus } from 'lucide-react'
 import { redFlagInputSchema, type RedFlag, type RedFlagPatch } from '@shared/domain/freelance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualList } from '@/components/common/virtual-list'
+import { countLabel } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -117,15 +120,20 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
 export function RedFlagsPage() {
   const [open, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
-  const { data: list = [] } = useApi('redflags', 'list', { search: search || undefined })
+  const q = useDebounced(search.trim())
+  const list = useInfiniteApi('redflags', 'list', { search: q || undefined })
   const create = useApiMutation('redflags', 'create', { onSuccess: (f) => setOpen(f.id) })
-  const current = list.find((f) => f.id === open)
+  const { data: current } = useApi('redflags', 'get', open ?? '', { enabled: !!open })
 
   return (
     <Page>
       <PageHeader
         title="Червоні прапорці"
-        subtitle="Яких клієнтів і вакансій краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці."
+        subtitle={
+          list.items.length
+            ? `${countLabel(list.items.length, list.hasMore, ['прапорець', 'прапорці', 'прапорців'])} · яких клієнтів і вакансій краще оминати`
+            : 'Яких клієнтів і вакансій краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці.'
+        }
         actions={
           <>
             <ImportButton kind="redflag" onImported={(id) => id && setOpen(id)} />
@@ -145,32 +153,38 @@ export function RedFlagsPage() {
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
-            list.length === 0 ? (
-              <EmptyState
-                icon={Flag}
-                title="Прапорців немає"
-                hint="Запишіть ознаку проблемного клієнта, щойно на неї натрапите."
-              />
-            ) : (
-              <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">
-                {list.map((f) => (
-                  <ListItem key={f.id} active={f.id === open} onClick={() => setOpen(f.id)}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-body font-medium">{f.title}</div>
-                        {f.signs && (
-                          <div className="mt-1 line-clamp-2 text-caption opacity-70">{f.signs}</div>
-                        )}
-                      </div>
-                      <SeverityBadge severity={f.severity} />
+            <VirtualList
+              className="pr-1"
+              items={list.items}
+              getKey={(f) => f.id}
+              estimateSize={76}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={Flag}
+                    title={search ? 'Нічого не знайдено' : 'Прапорців немає'}
+                    hint={search ? undefined : 'Запишіть ознаку проблемного клієнта, щойно на неї натрапите.'}
+                  />
+                )
+              }
+              renderItem={(f) => (
+                <ListItem active={f.id === open} onClick={() => setOpen(f.id)}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-body font-medium">{f.title}</div>
+                      {f.signs && <div className="mt-1 line-clamp-2 text-caption opacity-70">{f.signs}</div>}
                     </div>
-                  </ListItem>
-                ))}
-              </div>
-            )
+                    <SeverityBadge severity={f.severity} />
+                  </div>
+                </ListItem>
+              )}
+            />
           }
           detail={
-            current ? (
+            current && current.id === open ? (
               <FlagDetail key={current.id} flag={current} onClose={() => setOpen(null)} />
             ) : null
           }

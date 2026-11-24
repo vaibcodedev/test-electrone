@@ -1,3 +1,4 @@
+import { log } from '../core/logger'
 import { app, Notification, net } from 'electron'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
 import { randomBytes, timingSafeEqual } from 'crypto'
@@ -59,7 +60,7 @@ export class CaptureServer {
     if (!s.captureEnabled || this.server) return
     this.server = createServer((req, res) => void this.handle(req, res))
     this.server.on('error', (e) => {
-      console.error('[capture]', e)
+      log.error('[capture]', e)
       this.listening = false
     })
     this.server.listen(s.capturePort, '127.0.0.1', () => {

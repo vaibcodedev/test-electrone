@@ -6,6 +6,7 @@ import type { DbContext } from '../db/client'
 import { entityTags } from '../db/schema'
 import type { TagService } from '../services/tag-service'
 import type { SearchIndex } from '../services/search-index'
+import { hasTraces } from './traces'
 import { isDraft, type AnyRow, type EntityDescriptor } from './registry'
 import { defined, likePattern, newId, now, NotFoundError } from './util'
 
@@ -90,6 +91,8 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
       .orderBy(...orderBy)
       .$dynamic()
     if (limit) q = q.limit(limit)
+    // SQLite needs a LIMIT for OFFSET: -1 = "no limit".
+    else if (offset) q = q.limit(-1)
     if (offset) q = q.offset(offset)
     return this.hydrate(q.all() as TRow[])
   }
@@ -130,7 +133,7 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
             .orderBy(desc(this.table.createdAt))
             .limit(50)
             .all() as TRow[]
-        ).find((r) => isDraft(this.descriptor, r))
+        ).find((r) => isDraft(this.descriptor, r) && !hasTraces(this.deps.ctx.orm, { type: this.type, id: r.id }))
         if (existing) {
           const reused = this.db
             .update(this.table)

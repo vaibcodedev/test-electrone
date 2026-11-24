@@ -1,3 +1,4 @@
+import { log } from '../core/logger'
 import { Notification } from 'electron'
 import { eq } from 'drizzle-orm'
 import { ENTITY_META } from '@shared/entity-types'
@@ -46,7 +47,7 @@ export class ReminderService {
     try {
       this.tick()
     } catch (e) {
-      console.error('[reminders]', e)
+      log.error('[reminders]', e)
     }
   }
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeTheme } from 'electron'
+import { app, BrowserWindow, nativeTheme, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -29,6 +29,11 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     electronApp.setAppUserModelId(APP_ID)
     app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+
+    // Deny every web permission except the few the UI uses (camera, mic, location, USB… are never needed).
+    const ALLOWED_PERMISSIONS = new Set(['clipboard-read', 'clipboard-sanitized-write', 'notifications', 'fullscreen'])
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(ALLOWED_PERMISSIONS.has(permission)))
+    session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
 
     const c = new Container(icon)
     container = c

@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type KeyboardEvent } from 'react
 import { useNavigate } from 'react-router'
 import { Building2, Check, ChevronsUpDown, ExternalLink, Plus, X } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
 import { api } from '@/lib/api'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
@@ -161,9 +162,12 @@ export function CompanyCombobox({
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const { data: list = [] } = useApi('jobs', 'companies', undefined)
+  // Server search, 30 at a time (the companies list can grow without bound).
+  const debounced = useDebounced(query.trim())
+  const { data: list = [] } = useApi('jobs', 'companies', { search: debounced || undefined, limit: 30 }, { enabled: open })
+  const { data: selected } = useApi('jobs', 'company', value.companyId ?? '', { enabled: !!value.companyId })
   const create = useApiMutation('jobs', 'createCompany')
-  const current = value.companyId ? list.find((c) => c.id === value.companyId) : undefined
+  const current = selected ?? (value.companyId ? list.find((c) => c.id === value.companyId) : undefined)
   const label = current?.name ?? value.companyName
   const q = query.trim()
   const exact = list.some((c) => c.name.toLowerCase() === q.toLowerCase())

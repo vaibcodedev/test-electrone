@@ -63,7 +63,8 @@ import type {
   RunningTimer,
   TimeEntry,
   TimeEntryInput,
-  TimeEntryPatch
+  TimeEntryPatch,
+  ClientListQuery
 } from './domain/crm'
 import type {
   Checklist,
@@ -266,7 +267,7 @@ export interface SnippetsApi extends CrudApi<Snippet, SnippetInput, SnippetPatch
   markCopied(id: string): Promise<void>
 }
 
-export interface ClientsApi extends CrudApi<ClientSummary, ClientInput, ClientPatch> {
+export interface ClientsApi extends CrudApi<ClientSummary, ClientInput, ClientPatch, ClientListQuery> {
   details(id: string): Promise<ClientDetails | null>
 }
 
@@ -308,7 +309,9 @@ export interface ImporterApi {
 }
 
 export interface ChecklistsApi {
-  list(args?: { kind?: ChecklistKind; search?: string; tagId?: string }): Promise<Checklist[]>
+  list(args?: { kind?: ChecklistKind; search?: string; tagId?: string } & PageQuery): Promise<Checklist[]>
+  /** Number of templates and runs (for the tab chips). */
+  counts(): Promise<{ template: number; run: number }>
   get(id: string): Promise<ChecklistDetails | null>
   create(input: ChecklistInput): Promise<Checklist>
   update(args: { id: string; patch: ChecklistPatch }): Promise<Checklist>
@@ -443,7 +446,9 @@ export interface JobsApi {
   /** Finished or past stages, newest first (interview history). */
   pastStages(limit?: number): Promise<StageWithApplication[]>
 
-  companies(query?: { search?: string }): Promise<Company[]>
+  companies(query?: { search?: string } & PageQuery): Promise<Company[]>
+  /** Company with this name (case-insensitive), if it exists — for «Вже є: Відкрити». */
+  findCompany(name: string): Promise<Company | null>
   company(id: string): Promise<Company | null>
   createCompany(input: CompanyInput): Promise<Company>
   updateCompany(args: { id: string; patch: CompanyPatch }): Promise<Company>
@@ -547,7 +552,8 @@ export interface SearchApi {
 }
 
 export interface TrashApi {
-  list(): Promise<TrashItem[]>
+  list(args?: PageQuery): Promise<TrashItem[]>
+  count(): Promise<number>
   restore(ref: EntityRef): Promise<void>
   purge(ref: EntityRef): Promise<void>
   empty(): Promise<number>
@@ -561,6 +567,8 @@ export interface FilesApi {
   remove(id: string): Promise<void>
   open(id: string): Promise<void>
   reveal(id: string): Promise<void>
+  /** Opens a stored file (relative path under <data>/files) in its default app. */
+  openPath(path: string): Promise<void>
   /** True if the system clipboard currently holds an image. */
   clipboardHasImage(): Promise<boolean>
 }

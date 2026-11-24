@@ -40,7 +40,15 @@ export function handleFileProtocol(storage: FileStorage): void {
       const { pathname } = new URL(request.url)
       const abs = storage.resolve(decodeURIComponent(pathname.replace(/^\/+/, '')))
       const res = await net.fetch(pathToFileURL(abs).toString())
-      return withHeaders(res, { ...CORS, 'Cache-Control': 'max-age=31536000, immutable' })
+      // User files are data, never code: anything except PDF (Chromium's viewer needs scripts) gets a CSP
+      // sandbox, so an imported .html/.svg can't run scripts in the vault-file:// origin.
+      const isPdf = /\.pdf$/i.test(abs)
+      return withHeaders(res, {
+        ...CORS,
+        'Cache-Control': 'max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+        ...(isPdf ? {} : { 'Content-Security-Policy': "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self'" })
+      })
     } catch {
       return new Response('Not found', { status: 404 })
     }

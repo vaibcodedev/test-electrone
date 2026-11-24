@@ -120,9 +120,18 @@ export const projectPatchSchema = patchOf(projectInputSchema)
 export type ProjectInput = z.input<typeof projectInputSchema>
 export type ProjectPatch = z.input<typeof projectPatchSchema>
 
+/** Platform filter: an id, or 'direct' = no platform (прямі замовлення). */
+const platformFilter = z.union([idSchema, z.literal('direct')]).optional()
+
+export const clientListQuerySchema = z.object({
+  search: z.string().max(200).optional(),
+  platformId: platformFilter
+})
+export type ClientListQuery = z.infer<typeof clientListQuerySchema>
+
 export const projectListQuerySchema = z.object({
   clientId: idSchema.optional(),
-  platformId: idSchema.optional(),
+  platformId: platformFilter,
   status: z.enum(PROJECT_STATUSES).optional(),
   search: z.string().max(200).optional(),
   tagId: idSchema.optional()

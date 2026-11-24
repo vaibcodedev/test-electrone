@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { BriefcaseBusiness, ClipboardCopy, ExternalLink, ImagePlus, Plus } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { caseInputSchema, type CasePatch, type PortfolioCase } from '@shared/domain/freelance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid } from '@/components/common/virtual-list'
+import { countLabel } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { api } from '@/lib/api'
 import { fileUrl, isImageFile } from '@/lib/files'
@@ -229,17 +232,23 @@ export function PortfolioPage() {
   const [open, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
   const [niche, setNiche] = useState<string | undefined>()
-  const { data: all = [] } = useApi('cases', 'list', {})
-  const { data: list = [] } = useApi('cases', 'list', { search: search || undefined, niche })
+  // Niche chips come from a capped sample; the grid itself is paged on the server and virtualized.
+  const { data: sample = [] } = useApi('cases', 'list', { limit: 500 })
+  const q = useDebounced(search.trim())
+  const list = useInfiniteApi('cases', 'list', { search: q || undefined, niche })
   const create = useApiMutation('cases', 'create', { onSuccess: (c) => setOpen(c.id) })
-  const current = list.find((c) => c.id === open) ?? all.find((c) => c.id === open)
-  const niches = [...new Set(all.map((c) => c.niche).filter(Boolean))]
+  const { data: current } = useApi('cases', 'get', open ?? '', { enabled: !!open })
+  const niches = [...new Set(sample.map((c) => c.niche).filter(Boolean))]
 
   return (
     <Page>
       <PageHeader
         title="Портфоліо"
-        subtitle="Кейси: завдання, що зроблено, результат, скриншоти й готовий англійський текст для профілю та відгуків."
+        subtitle={
+          list.items.length
+            ? `${countLabel(list.items.length, list.hasMore, ['кейс', 'кейси', 'кейсів'])} · завдання, результат, скриншоти й англійський текст для відгуків`
+            : 'Кейси: завдання, що зроблено, результат, скриншоти й готовий англійський текст для профілю та відгуків.'
+        }
         actions={
           <Button variant="lime" onClick={() => create.mutate({ title: 'Новий кейс' })}>
             <Plus /> Кейс
@@ -267,53 +276,57 @@ export function PortfolioPage() {
         <MasterDetail
           listSize="38%"
           list={
-            list.length === 0 ? (
-              <EmptyState
-                icon={BriefcaseBusiness}
-                title="Кейсів поки немає"
-                hint="Додайте завершений проєкт — знадобиться для відгуків і профілю."
-              />
-            ) : (
-              <div className="grid min-h-0 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] content-start gap-3 overflow-y-auto pr-1">
-                {list.map((c) => (
-                  <Card
-                    key={c.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setOpen(c.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && setOpen(c.id)}
-                    className={cn(
-                      'cursor-pointer gap-0 overflow-hidden py-0 transition-shadow hover:ring-1 hover:ring-border',
-                      c.id === open && 'outline-2 -outline-offset-2 outline-chart-1'
-                    )}
-                  >
-                    <div className="aspect-[16/10] bg-card">
-                      {c.coverPath ? (
-                        <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover" />
-                      ) : (
-                        <div className="grid size-full place-items-center text-muted-foreground">
-                          <BriefcaseBusiness className="size-6" />
-                        </div>
-                      )}
-                    </div>
-                    <CardContent className="flex flex-col gap-1.5 px-4 py-3">
-                      <div className="truncate text-body font-medium">{c.title}</div>
-                      <div className="flex flex-wrap gap-1">
-                        {c.niche && <Badge variant="soft">{c.niche}</Badge>}
-                        {c.stack && (
-                          <span className="truncate text-meta text-muted-foreground">
-                            {c.stack}
-                          </span>
-                        )}
+            <VirtualGrid
+              className="pr-1"
+              items={list.items}
+              getKey={(c) => c.id}
+              minColumnWidth={220}
+              rowHeight={230}
+              hasMore={list.hasMore}
+              loadingMore={list.loadingMore}
+              onLoadMore={list.loadMore}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={BriefcaseBusiness}
+                    title={search || niche ? 'Нічого не знайдено' : 'Кейсів поки немає'}
+                    hint={search || niche ? undefined : 'Додайте завершений проєкт — знадобиться для відгуків і профілю.'}
+                  />
+                )
+              }
+              renderItem={(c) => (
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpen(c.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && setOpen(c.id)}
+                  className={cn(
+                    'cursor-pointer gap-0 overflow-hidden py-0 transition-shadow hover:ring-1 hover:ring-border',
+                    c.id === open && 'outline-2 -outline-offset-2 outline-chart-1'
+                  )}
+                >
+                  <div className="aspect-[16/10] bg-card">
+                    {c.coverPath ? (
+                      <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover" />
+                    ) : (
+                      <div className="grid size-full place-items-center text-muted-foreground">
+                        <BriefcaseBusiness className="size-6" />
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )
+                    )}
+                  </div>
+                  <CardContent className="flex flex-col gap-1.5 px-4 py-3">
+                    <div className="truncate text-body font-medium">{c.title}</div>
+                    <div className="flex min-w-0 flex-wrap gap-1">
+                      {c.niche && <Badge variant="soft">{c.niche}</Badge>}
+                      {c.stack && <span className="min-w-0 truncate text-meta text-muted-foreground">{c.stack}</span>}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            />
           }
           detail={
-            current ? (
+            current && current.id === open ? (
               <CaseDetail key={current.id} c={current} onClose={() => setOpen(null)} />
             ) : null
           }

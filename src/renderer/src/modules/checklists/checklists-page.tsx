@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ArrowUpRight, FileJson, ListChecks, Plus, Rocket } from 'lucide-react'
 import type { Checklist } from '@shared/domain/checklists'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useDebounced } from '@/hooks/use-debounced'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { fmtRelative, plural } from '@/lib/format'
 import {
   EmptyState,
   FilterChips,
   Page,
-  PageBody,
   PageHeader,
   SearchInput,
   SegmentBar
@@ -53,7 +54,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
         )}
         <TagList tags={item.tags} className="mt-2" />
         <Button
-          variant="default"
+          variant="subtle"
           size="sm"
           className="mt-4"
           onClick={(e) => {
@@ -115,17 +116,14 @@ export function ChecklistsPage() {
   const [tagId, setTagId] = useState<string | undefined>()
   const [launch, setLaunch] = useState<{ id: string; title: string } | null>(null)
   const navigate = useNavigate()
-  const { data: list = [] } = useApi('checklists', 'list', {
-    kind: tab,
-    search: search || undefined,
-    tagId
-  })
-  const { data: counts } = useApi('checklists', 'list')
+  const q = useDebounced(search.trim())
+  const page = useInfiniteApi('checklists', 'list', { kind: tab, search: q || undefined, tagId })
+  const { data: counts } = useApi('checklists', 'counts')
   const create = useApiMutation('checklists', 'create', {
     onSuccess: (c) => navigate(`/checklists/${c.id}`)
   })
-  const templates = counts?.filter((c) => c.kind === 'template').length
-  const runs = counts?.filter((c) => c.kind === 'run').length
+  const templates = counts?.template
+  const runs = counts?.run
 
   return (
     <Page>
@@ -159,35 +157,39 @@ export function ChecklistsPage() {
           <TagFilter value={tagId} onChange={setTagId} />
         </div>
       </PageHeader>
-      <PageBody>
-        {list.length === 0 ? (
-          <EmptyState
-            icon={ListChecks}
-            title={tab === 'template' ? 'Шаблонів немає' : 'Прогонів поки немає'}
-            hint={
-              tab === 'template'
-                ? 'Створіть шаблон — список кроків, який ви повторюєте від проєкту до проєкту.'
-                : 'Відкрийте шаблон і натисніть «Запустити» — зʼявиться прогін, у якому можна ставити галочки.'
-            }
-          />
-        ) : tab === 'template' ? (
-          <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {list.map((c) => (
-              <TemplateCard
-                key={c.id}
-                item={c}
-                onLaunch={() => setLaunch({ id: c.id, title: c.title })}
+      <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
+        <VirtualGrid
+          items={page.items}
+          getKey={(c) => c.id}
+          minColumnWidth={260}
+          rowHeight={tab === 'template' ? 200 : 160}
+          hasMore={page.hasMore}
+          loadingMore={page.loadingMore}
+          onLoadMore={page.loadMore}
+          renderItem={(c) =>
+            tab === 'template' ? (
+              <TemplateCard item={c} onLaunch={() => setLaunch({ id: c.id, title: c.title })} />
+            ) : (
+              <RunCard item={c} />
+            )
+          }
+          empty={
+            !page.isLoading && (
+              <EmptyState
+                icon={ListChecks}
+                title={search || tagId ? 'Нічого не знайдено' : tab === 'template' ? 'Шаблонів немає' : 'Прогонів поки немає'}
+                hint={
+                  search || tagId
+                    ? undefined
+                    : tab === 'template'
+                      ? 'Створіть шаблон — список кроків, який ви повторюєте від проєкту до проєкту.'
+                      : 'Відкрийте шаблон і натисніть «Запустити» — зʼявиться прогін, у якому можна ставити галочки.'
+                }
               />
-            ))}
-          </div>
-        ) : (
-          <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {list.map((c) => (
-              <RunCard key={c.id} item={c} />
-            ))}
-          </div>
-        )}
-      </PageBody>
+            )
+          }
+        />
+      </div>
       <LaunchDialog template={launch} open={!!launch} onOpenChange={(o) => !o && setLaunch(null)} />
       <ImportDialog
         kind="checklist"
