@@ -1,5 +1,4 @@
 import { useState, type RefObject } from 'react'
-import { openUrl } from '@/lib/open-url'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -8,7 +7,6 @@ import {
   BadgeCheck,
   Check,
   ChevronsUpDown,
-  ExternalLink,
   FileText,
   Handshake,
   Trash2,
@@ -32,8 +30,9 @@ import {
   useRecordMode,
   type DetailMode
 } from '@/components/common/detail-mode'
-import { isLikelyUrl, limitsOf, rangesOf, URL_ERROR } from '@/lib/limits'
-import { NumberField } from '../crm/number-field'
+import { limitsOf, rangesOf } from '@/lib/limits'
+import { NumberField } from '@/components/common/number-field'
+import { LinkInput, TextField } from '@/components/common/text-field'
 import { CountryCombobox } from '../crm/country-combobox'
 import { api } from '@/lib/api'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -42,7 +41,6 @@ import { cn } from '@/lib/utils'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Toggle } from '@/components/ui/toggle'
@@ -59,12 +57,6 @@ import {
   CommandList
 } from '@/components/ui/command'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput
-} from '@/components/ui/input-group'
 import { Field, SegmentBar, Segmented } from '@/components/common/page'
 import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
@@ -140,32 +132,6 @@ function NicheCombobox({ value, onChange }: { value: string; onChange: (v: strin
         </Command>
       </PopoverContent>
     </Popover>
-  )
-}
-
-function TextField({
-  label,
-  value,
-  onSave,
-  placeholder,
-  maxLength
-}: {
-  label: string
-  value: string
-  onSave: (v: string) => void
-  placeholder?: string
-  maxLength?: number
-}) {
-  const [draft, setDraft] = useAutosave(value, onSave)
-  return (
-    <Field label={label}>
-      <Input
-        value={draft}
-        maxLength={maxLength}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder={placeholder}
-      />
-    </Field>
   )
 }
 
@@ -413,7 +379,13 @@ function Editor({
                 placeholder="Не надіслано"
               />
             </Field>
-            <LinkInput value={p.jobUrl} onSave={(jobUrl) => patch({ jobUrl })} />
+            <LinkInput
+              label="Посилання на вакансію"
+              value={p.jobUrl}
+              onSave={(jobUrl) => patch({ jobUrl })}
+              maxLength={PROPOSAL_L.jobUrl}
+              openLabel="Відкрити вакансію"
+            />
           </div>
 
           <Separator className="my-6" />
@@ -595,41 +567,6 @@ function Editor({
         {hireOpen && <HireDialog open onOpenChange={setHireOpen} proposal={p} platform={platform} />}
       </div>
     </RecordMode>
-  )
-}
-
-/** Job link: an invalid non-empty value is shown as an error and never saved. */
-function LinkInput({ value, onSave }: { value: string; onSave: (v: string) => void }) {
-  const [draft, setDraft] = useAutosave(value, (v) => {
-    if (isLikelyUrl(v)) onSave(v.trim())
-  })
-  const bad = !isLikelyUrl(draft)
-  const valid = !bad && /^https?:\/\//i.test(draft)
-  return (
-    <Field label="Посилання на вакансію" error={bad ? URL_ERROR : undefined}>
-      <InputGroup>
-        <InputGroupInput
-          type="url"
-          value={draft}
-          maxLength={PROPOSAL_L.jobUrl}
-          aria-invalid={bad || undefined}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="https://…"
-        />
-        {valid && (
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              size="icon-xs"
-              className="rounded-full"
-              aria-label="Відкрити вакансію"
-              onClick={() => void openUrl(draft)}
-            >
-              <ExternalLink />
-            </InputGroupButton>
-          </InputGroupAddon>
-        )}
-      </InputGroup>
-    </Field>
   )
 }
 

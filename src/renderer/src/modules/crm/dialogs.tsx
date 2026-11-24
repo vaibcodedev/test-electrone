@@ -21,7 +21,7 @@ import { BILLING_INFO, DUE_BEFORE_START } from './labels'
 import { BillingPicker, Choice } from './parts'
 import { amountPatch } from './money'
 import { ClientPlatformFields, FeeField, PlatformSelect, usePlatforms } from './platform-fields'
-import { useInvalidFields } from './number-field'
+import { useInvalidFields } from '@/components/common/number-field'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)

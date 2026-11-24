@@ -1,96 +1,15 @@
 import { useState } from 'react'
-import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
 import { Building2, Check, ChevronsUpDown, ExternalLink, Plus, X } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
-import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Field } from '@/components/common/page'
-import { FieldError } from '@/components/ui/field'
-import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
 import { MAX } from '@shared/domain/limits'
-
-/** Text field with autosave and a label. */
-export function TextField({
-  label,
-  value,
-  onSave,
-  placeholder,
-  className,
-  maxLength
-}: {
-  label: string
-  value: string
-  onSave: (v: string) => void
-  placeholder?: string
-  className?: string
-  /** From the schema via limitsOf(): the input stops where the server would reject. */
-  maxLength?: number
-}) {
-  const [draft, setDraft] = useAutosave(value, onSave)
-  return (
-    <Field label={label} className={className}>
-      <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} maxLength={maxLength} />
-    </Field>
-  )
-}
-
-/**
- * URL input with an «open in browser» button. Typing is never blocked; a value that doesn't look
- * like a link shows URL_ERROR under the field and is not saved (docs/design-system.md → Формы).
- */
-export function LinkInput({
-  value,
-  onSave,
-  placeholder = 'https://…',
-  maxLength = 2000,
-  strict = true
-}: {
-  value: string
-  onSave: (v: string) => void
-  placeholder?: string
-  maxLength?: number
-  /** false: links or plain text are both fine (e.g. "call link or office address"). */
-  strict?: boolean
-}) {
-  const [draft, setDraft] = useAutosave(value, (v) => {
-    if (!strict || isLikelyUrl(v)) onSave(strict ? normalizeUrl(v) : v.trim())
-  })
-  const valid = /^https?:\/\//i.test(draft)
-  const bad = strict && !isLikelyUrl(draft)
-  return (
-    <>
-    <InputGroup>
-      <InputGroupInput
-        type={strict ? 'url' : 'text'}
-        inputMode={strict ? 'url' : undefined}
-        spellCheck={false}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        aria-invalid={bad || undefined}
-      />
-      {valid && (
-        <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити посилання" onClick={() => void openUrl(draft)}>
-            <ExternalLink />
-          </InputGroupButton>
-        </InputGroupAddon>
-      )}
-    </InputGroup>
-    {bad && <FieldError className="text-caption">{URL_ERROR}</FieldError>}
-    </>
-  )
-}
 
 export interface CompanyValue {
   companyId: string | null

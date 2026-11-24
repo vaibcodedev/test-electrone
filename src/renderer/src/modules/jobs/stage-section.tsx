@@ -23,7 +23,7 @@ import { Confirm } from '@/components/common/confirm'
 import { Choice } from '../crm/parts'
 import { NumberInput } from '@/components/common/number-input'
 import { DUE_BEFORE_START } from '../crm/labels'
-import { LinkInput, TextField } from './j1-fields'
+import { LinkInput, TextField } from '@/components/common/text-field'
 import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, whenLabel } from './j1-labels'
 
 const KIND_OPTIONS = STAGE_KINDS.map((k) => ({ value: k, label: STAGE_KIND_LABEL[k] }))

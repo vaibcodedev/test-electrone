@@ -30,7 +30,7 @@ import {
   useOpenParam
 } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
-import { LinkInput, TextField } from './j1-fields'
+import { LinkInput, TextField } from '@/components/common/text-field'
 import { APP_STATUS_LABEL, CLOSED_APP_STATUSES, salaryLabel } from './j1-labels'
 import { AskedQuestions } from './application-questions'
 

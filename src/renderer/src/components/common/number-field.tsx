@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Field } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode'
 import {
@@ -23,9 +23,12 @@ function rangeText(min: number | undefined, max: number | undefined, unit?: stri
  * Number field with the schema range (rangesOf): typing is filtered (digits only for integers,
  * no leading zeros), an out-of-range value shows «Від … до …» under the field and is never saved.
  * Commits on blur / Enter, so it works both for autosaving pages and for dialog state.
+ * Units go into the input as an addon (`$ % ★`), not into the label (docs/design-system.md → Формы).
  */
 export function NumberField({
+  id,
   label,
+  hint,
   value,
   onCommit,
   min,
@@ -37,7 +40,11 @@ export function NumberField({
   className,
   onValidityChange
 }: {
+  /** Ties the label to the input (click on the label focuses it). */
+  id?: string
   label: string
+  /** Quiet explanation under the input (hidden while the value is out of range). */
+  hint?: ReactNode
   value: number | null | undefined
   onCommit: (value: number | null) => void
   min?: number
@@ -106,11 +113,14 @@ export function NumberField({
   return (
     <Field
       label={label}
+      htmlFor={id}
       className={className}
+      hint={hint}
       error={invalid ? rangeText(min, max, unit) : undefined}
     >
       <InputGroup>
         <InputGroupInput
+          id={id}
           inputMode={integer ? 'numeric' : 'decimal'}
           step={step}
           value={text}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NumberInput } from '@/components/common/number-input'
+import { NumberField } from '@/components/common/number-field'
 import { calculateRate, type RateCalcInput } from '@shared/domain/finance'
 import { useApi } from '@/lib/query'
 import { fmtMoney } from '@/lib/format'
@@ -34,46 +34,8 @@ function load(): { input: RateCalcInput; saved: boolean } {
   return { input: DEFAULTS, saved: false }
 }
 
-function NumberField({
-  id,
-  label,
-  hint,
-  value,
-  onChange,
-  suffix,
-  min = 0,
-  max,
-  integer
-}: {
-  id: string
-  label: string
-  hint?: string
-  value: number
-  onChange: (n: number) => void
-  suffix?: string
-  min?: number
-  max?: number
-  integer?: boolean
-}) {
-  return (
-    <Field className="gap-2">
-      <FieldLabel htmlFor={id}>
-        {label}
-        {suffix ? `, ${suffix}` : ''}
-      </FieldLabel>
-      {/* Draft text while typing (clear «1», type «20»); clamped to the schema range on blur. */}
-      <NumberInput
-        id={id}
-        min={min}
-        max={max}
-        integer={integer}
-        value={Number.isFinite(value) ? value : null}
-        onChange={(v) => onChange(v ?? min)}
-      />
-      {hint && <FieldDescription className="text-caption">{hint}</FieldDescription>}
-    </Field>
-  )
-}
+/** Stored numbers may come from an older version: anything broken shows as an empty field. */
+const shown = (n: number): number | null => (Number.isFinite(n) ? n : null)
 
 export function CalculatorPage() {
   const [{ input: initial, saved }] = useState(load)
@@ -114,17 +76,18 @@ export function CalculatorPage() {
               <NumberField
                 id="rc-target"
                 label="Хочу на руки за місяць"
-                suffix="$"
-                value={input.targetNet}
-                onChange={(n) => set('targetNet', n)}
+                unit="$"
+                value={shown(input.targetNet)}
+                onCommit={(n) => set('targetNet', n ?? 0)}
+                min={0}
                 max={10_000_000}
               />
               <div className="grid grid-cols-2 gap-3">
                 <NumberField
                   id="rc-hours"
                   label="Годин на тиждень"
-                  value={input.hoursPerWeek}
-                  onChange={(n) => set('hoursPerWeek', n)}
+                  value={shown(input.hoursPerWeek)}
+                  onCommit={(n) => set('hoursPerWeek', n ?? 1)}
                   min={1}
                   max={100}
                   integer
@@ -132,8 +95,9 @@ export function CalculatorPage() {
                 <NumberField
                   id="rc-vac"
                   label="Тижнів відпочинку на рік"
-                  value={input.vacationWeeks}
-                  onChange={(n) => set('vacationWeeks', n)}
+                  value={shown(input.vacationWeeks)}
+                  onCommit={(n) => set('vacationWeeks', n ?? 0)}
+                  min={0}
                   max={30}
                   integer
                 />
@@ -156,39 +120,43 @@ export function CalculatorPage() {
                 <NumberField
                   id="rc-fee"
                   label="Комісія платформи"
-                  suffix="%"
-                  value={input.feePercent}
-                  onChange={(n) => set('feePercent', n)}
+                  unit="%"
+                  value={shown(input.feePercent)}
+                  onCommit={(n) => set('feePercent', n ?? 0)}
+                  min={0}
                   max={100}
                 />
                 <NumberField
                   id="rc-wd"
                   label="Комісія виведення"
-                  suffix="%"
-                  value={input.withdrawalFeePercent}
-                  onChange={(n) => set('withdrawalFeePercent', n)}
+                  unit="%"
+                  value={shown(input.withdrawalFeePercent)}
+                  onCommit={(n) => set('withdrawalFeePercent', n ?? 0)}
+                  min={0}
                   max={100}
                 />
                 <NumberField
                   id="rc-tax"
                   label="Податок"
-                  suffix="%"
-                  value={input.taxPercent}
-                  onChange={(n) => set('taxPercent', n)}
+                  unit="%"
+                  value={shown(input.taxPercent)}
+                  onCommit={(n) => set('taxPercent', n ?? 0)}
+                  min={0}
                   max={100}
                 />
               </div>
               <NumberField
                 id="rc-exp"
                 label="Витрати на місяць"
-                suffix="$"
+                unit="$"
                 hint={
                   subsUsd !== undefined
                     ? `Підписки в розділі «Фінанси»: ${usd(subsUsd)} на місяць`
                     : undefined
                 }
-                value={input.monthlyExpenses}
-                onChange={(n) => set('monthlyExpenses', n)}
+                value={shown(input.monthlyExpenses)}
+                onCommit={(n) => set('monthlyExpenses', n ?? 0)}
+                min={0}
                 max={10_000_000}
               />
             </CardContent>
@@ -245,8 +213,8 @@ export function CalculatorPage() {
                   <NumberField
                     id="rc-fixed"
                     label="Оцінка, годин"
-                    value={fixedHours}
-                    onChange={setFixedHours}
+                    value={shown(fixedHours)}
+                    onCommit={(n) => setFixedHours(n ?? 1)}
                     min={1}
                     max={10_000}
                     integer

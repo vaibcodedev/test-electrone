@@ -11,7 +11,7 @@ import {
 import type { Platform } from '@shared/domain/freelance'
 import { useApi } from '@/lib/query'
 import { rangesOf } from '@/lib/limits'
-import { NumberField } from './number-field'
+import { NumberField } from '@/components/common/number-field'
 import { CountryCombobox } from './country-combobox'
 import { fmtMoney } from '@/lib/format'
 import { Field } from '@/components/common/page'
