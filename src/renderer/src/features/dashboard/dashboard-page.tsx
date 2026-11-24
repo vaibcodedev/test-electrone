@@ -358,7 +358,7 @@ export function DashboardPage() {
 
   return (
     <div className="h-full overflow-y-auto p-6">
-      <div className="grid animate-rise grid-cols-12 gap-3">
+      <div className="stagger grid grid-cols-12 gap-3">
         <GuideHint />
         <TodayCard cards={data.today.cards} overdue={data.today.overdue} />
         <Agenda items={data.today.agenda} />

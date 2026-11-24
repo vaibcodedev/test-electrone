@@ -124,7 +124,7 @@ export function JobsOverviewPage() {
         }
       />
       <PageBody>
-        <div className="grid animate-rise grid-cols-12 gap-3">
+        <div className="stagger grid grid-cols-12 gap-3">
           <Card className="col-span-5">
             <CardHeader>
               <CardTitle>Сегодня, {format(new Date(), 'd MMMM', { locale: LOCALE })}</CardTitle>

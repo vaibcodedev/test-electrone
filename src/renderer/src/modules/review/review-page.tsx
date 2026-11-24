@@ -5,7 +5,7 @@ import { ArchiveRestore, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Minus, N
 import type { Currency } from '@shared/domain/crm'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import type { WeekMetric, WeekSection, WeekSnapshot } from '@shared/domain/review'
-import { useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { LOCALE, fmtDay, fmtMinutes, fmtMoney, plural } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
@@ -208,7 +208,7 @@ export function ReviewPage() {
   const navigate = useNavigate()
   const week = params.get('week') ?? currentWeekKey()
   const isCurrent = week === currentWeekKey()
-  const { data, isLoading } = useApi('review', 'get', isCurrent ? {} : { weekStart: week })
+  const { data, isLoading } = useApi('review', 'get', isCurrent ? {} : { weekStart: week }, KEEP_PERIOD)
   const setWeek = (key: string): void => setParams(key === currentWeekKey() ? {} : { week: key }, { replace: true })
   const shift = (days: number): void => setWeek(toKey(addDays(parseKey(week), days)))
   const snapshot = data?.snapshot
@@ -244,7 +244,7 @@ export function ReviewPage() {
             <Skeleton className="col-span-6 h-48 rounded-3xl" />
           </div>
         ) : (
-          <div className="grid animate-rise grid-cols-12 gap-3">
+          <div className="stagger grid grid-cols-12 gap-3">
             <div className="col-span-12 pb-2">
               <h2 className="font-display max-w-[28ch] text-[36px] leading-[1.08] text-balance">{title}</h2>
             </div>

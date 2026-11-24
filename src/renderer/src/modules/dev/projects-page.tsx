@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useMainEvent } from '@/hooks/use-main-events'
-import { EmptyState, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
@@ -20,6 +20,7 @@ export function DevProjectsPage() {
   const { data: runs = [] } = useApi('devProjects', 'runs')
   const [openId, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
+  const [only, setOnly] = useState<'favorite' | 'running' | undefined>()
   const [scan, setScan] = useState<ScanResult | null>(null)
 
   // Process started/stopped/url detected → refresh cards and run tabs.
@@ -28,9 +29,15 @@ export function DevProjectsPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return projects
-    return projects.filter((p) => [p.name, p.path, p.framework ?? '', p.githubRepo].some((v) => v.toLowerCase().includes(q)))
-  }, [projects, search])
+    return projects.filter(
+      (p) =>
+        (only !== 'favorite' || p.favorite) &&
+        (only !== 'running' || p.running.length > 0) &&
+        (!q || [p.name, p.path, p.framework ?? '', p.githubRepo].some((v) => v.toLowerCase().includes(q)))
+    )
+  }, [projects, search, only])
+  const favorites = projects.filter((p) => p.favorite).length
+  const runningCount = projects.filter((p) => p.running.length > 0).length
 
   const addFolder = async (): Promise<void> => {
     const path = await api.devProjects.pickFolder()
@@ -73,9 +80,16 @@ export function DevProjectsPage() {
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState title="Ничего не найдено" hint="Поиск идёт по названию, пути, фреймворку и репозиторию." />
+        <EmptyState
+          title={only === 'favorite' && !search ? 'Избранных пока нет' : 'Ничего не найдено'}
+          hint={
+            only === 'favorite' && !search
+              ? 'Нажмите звёздочку на карточке проекта — он появится здесь.'
+              : 'Поиск идёт по названию, пути, фреймворку и репозиторию.'
+          }
+        />
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3">
+        <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3">
           {filtered.map((p) => (
             <ProjectCard key={p.id} project={p} onOpen={() => setOpen(p.id)} />
           ))}
@@ -100,7 +114,20 @@ export function DevProjectsPage() {
           </>
         }
       >
-        {projects.length > 0 && <SearchInput value={search} onChange={setSearch} placeholder="Найти проект" className="max-w-sm" />}
+        {projects.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <FilterChips
+              allLabel="Все"
+              value={only}
+              onChange={setOnly}
+              options={[
+                { value: 'favorite', label: 'Избранные', count: favorites },
+                { value: 'running', label: 'Запущенные', count: runningCount }
+              ]}
+            />
+            <SearchInput value={search} onChange={setSearch} placeholder="Найти проект" className="ml-auto max-w-sm" />
+          </div>
+        )}
       </PageHeader>
 
       {runs.length > 0 ? (

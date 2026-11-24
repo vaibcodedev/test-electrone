@@ -6,7 +6,7 @@ import { fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ButtonGroup } from '@/components/ui/button-group'
+import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { Card, CardContent, CardHeader, CardTitle, CardAction, CardDescription } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -32,7 +32,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
   const scripts = Object.keys(p.scripts)
 
   return (
-    <Card className={cn('gap-3', !p.exists && 'opacity-60')}>
+    <Card className={cn('h-full gap-3', !p.exists && 'opacity-60')}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lead text-foreground">
           {running.length > 0 && <span className="size-2 shrink-0 animate-pulse rounded-full bg-lime" aria-label="запущен" />}
@@ -49,13 +49,13 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             pressed={p.favorite}
             onPressedChange={(favorite) => update.mutate({ id: p.id, patch: { favorite } })}
             aria-label="Избранное"
-            className="size-8 min-w-8 rounded-full p-0 data-[state=on]:bg-lime data-[state=on]:text-lime-foreground"
+            className="size-8 min-w-8 rounded-full p-0 text-muted-foreground on:bg-transparent on:text-warn"
           >
-            <Star />
+            <Star className={cn(p.favorite && 'fill-current')} />
           </Toggle>
         </CardAction>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {p.framework && <Badge variant="ink">{p.framework}</Badge>}
           {p.packageManager && <Badge variant="outline">{p.packageManager}</Badge>}
@@ -67,6 +67,9 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
           {!!p.git?.dirty && <Badge variant="warn">{p.git.dirty} изм.</Badge>}
           {!!p.git?.ahead && <Badge variant="info">↑{p.git.ahead}</Badge>}
           {!!p.git?.behind && <Badge variant="info">↓{p.git.behind}</Badge>}
+          {!p.framework && !p.packageManager && !p.git && (
+            <span className="text-caption text-muted-foreground">Не git-репозиторий, package.json не найден</span>
+          )}
           {p.githubRepo && (
             <Button variant="link" size="xs" className="h-6 px-0 text-meta text-muted-foreground" onClick={() => api.app.openExternal(`https://github.com/${p.githubRepo}`)}>
               {p.githubRepo}
@@ -78,14 +81,16 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             <span className="text-foreground">{p.git.lastCommit.message}</span> · {fmtRelative(p.git.lastCommit.at)}
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
           <ButtonGroup>
-            <Button size="sm" disabled={!p.exists} onClick={() => open.mutate({ projectId: p.id, target: p.editor })}>
+            {/* Card actions stay neutral (subtle): the only lime on this screen is "Добавить папку". */}
+            <Button size="sm" variant="subtle" disabled={!p.exists} onClick={() => open.mutate({ projectId: p.id, target: p.editor })}>
               <Code2 /> {EDITOR_LABEL[p.editor]}
             </Button>
+            <ButtonGroupSeparator className="bg-foreground/10" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon-sm" disabled={!p.exists} aria-label="Открыть в…">
+                <Button size="icon-sm" variant="subtle" disabled={!p.exists} aria-label="Открыть в…">
                   <ChevronDown />
                 </Button>
               </DropdownMenuTrigger>
@@ -112,8 +117,8 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             </Button>
           ) : (
             main && (
-              <Button size="sm" variant="default" disabled={!p.exists || run.isPending} onClick={() => run.mutate({ projectId: p.id, script: main })}>
-                <Play /> {main}
+              <Button size="sm" variant="subtle" disabled={!p.exists || run.isPending} onClick={() => run.mutate({ projectId: p.id, script: main })}>
+                <Play className="text-success" /> {main}
               </Button>
             )
           )}
@@ -121,7 +126,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
           {scripts.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="soft" className="bg-card" disabled={!p.exists}>
+                <Button size="sm" variant="subtle" disabled={!p.exists}>
                   Скрипты <ChevronDown />
                 </Button>
               </DropdownMenuTrigger>

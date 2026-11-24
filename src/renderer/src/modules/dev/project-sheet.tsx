@@ -141,7 +141,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
           onClose()
         }}
       >
-        <Button variant="ghost" className="self-start text-destructive hover:text-destructive">
+        <Button variant="ghost" className="-ml-3 self-start text-muted-foreground hover:text-destructive">
           <Trash2 /> Убрать из Vault
         </Button>
       </Confirm>

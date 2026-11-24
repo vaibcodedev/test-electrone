@@ -10,18 +10,16 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { dayKey, itemColor, SOURCE_LABEL } from './items'
+import { dayKey, itemColor, SOURCE_LABEL, timeOnDay } from './items'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
 /** Lines a month cell can show; when there are more items, the last line becomes "+N". */
 const MAX_IN_CELL = 3
 
-function timeLabel(item: CalendarItem): string {
-  return item.allDay ? '' : format(item.startAt, 'HH:mm')
-}
 
 /** A single item inside a month cell. */
-function ItemChip({ item, onOpen }: { item: CalendarItem; onOpen: (item: CalendarItem) => void }) {
+function ItemChip({ item, day, onOpen }: { item: CalendarItem; day: Date; onOpen: (item: CalendarItem) => void }) {
+  const time = timeOnDay(item, day).short
   return (
     <Button
       variant="ghost"
@@ -37,7 +35,7 @@ function ItemChip({ item, onOpen }: { item: CalendarItem; onOpen: (item: Calenda
       )}
     >
       <span className="h-3 w-1 shrink-0 rounded-full" style={{ background: itemColor(item) }} />
-      {timeLabel(item) && <span className="shrink-0 text-muted-foreground tabular-nums">{timeLabel(item)}</span>}
+      {time && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
       <span className="truncate">{item.title}</span>
     </Button>
   )
@@ -71,7 +69,7 @@ function MoreItems({
         <div className="px-1.5 pb-1.5 text-caption font-semibold capitalize">{format(day, 'EEEE, d MMMM', { locale: LOCALE })}</div>
         <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
           {items.map((item) => (
-            <ItemChip key={item.key} item={item} onOpen={onOpen} />
+            <ItemChip key={item.key} item={item} day={day} onOpen={onOpen} />
           ))}
         </div>
       </PopoverContent>
@@ -151,7 +149,7 @@ export function MonthView({
                 return (
                   <>
                     {shown.map((item) => (
-                      <ItemChip key={item.key} item={item} onOpen={onItemClick} />
+                      <ItemChip key={item.key} item={item} day={day} onOpen={onItemClick} />
                     ))}
                     {rest > 0 && <MoreItems day={day} items={items} count={rest} onOpen={onItemClick} />}
                   </>
@@ -208,8 +206,7 @@ export function WeekView({
                   style={{ boxShadow: `inset 3px 0 0 ${itemColor(item)}` }}
                 >
                   <span className={cn('text-meta tabular-nums', today ? 'text-ink-muted' : 'text-muted-foreground')}>
-                    {item.allDay ? SOURCE_LABEL[item.source] : format(item.startAt, 'HH:mm')}
-                    {item.endAt && !item.allDay ? `–${format(item.endAt, 'HH:mm')}` : ''}
+                    {timeOnDay(item, day).long}
                   </span>
                   <span className={cn('text-caption leading-snug', item.done && 'line-through opacity-60')}>{item.title}</span>
                 </Button>

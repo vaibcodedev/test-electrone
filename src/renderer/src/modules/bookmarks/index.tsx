@@ -106,7 +106,7 @@ function Rating({ value, onChange }: { value: number; onChange: (value: number) 
           value={String(n)}
           aria-label={`${n} из 5`}
           title={`${n} из 5`}
-          className="size-8 min-w-8 px-0 data-[state=on]:bg-transparent"
+          className="size-8 min-w-8 px-0 on:bg-transparent"
         >
           <Star className={cn(n <= value ? 'fill-lime text-foreground' : 'text-muted-foreground')} />
         </ToggleGroupItem>
@@ -286,7 +286,7 @@ export function BookmarksPage() {
                     <div className="flex items-center gap-3">
                       <ItemMedia
                         variant="icon"
-                        className={cn('size-9', active ? 'bg-ink-foreground/10 text-ink-accent' : 'bg-card')}
+                        className={cn('size-9', active ? 'bg-ink-foreground/10 text-ink-foreground' : 'bg-card')}
                       >
                         <Icon />
                       </ItemMedia>
@@ -316,8 +316,11 @@ export function BookmarksPage() {
                           value={b.progress}
                           aria-label="Прогресс"
                           className={cn(
-                            'h-1.5 w-16 shrink-0 [&>[data-slot=progress-indicator]]:bg-lime',
-                            active ? 'bg-ink-foreground/15' : 'bg-card'
+                            // chart-1 is contrast-checked against surfaces; on an ink row the bar uses ink colours.
+                            'h-1.5 w-16 shrink-0',
+                            active
+                              ? 'bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-ink-foreground'
+                              : 'bg-card [&>[data-slot=progress-indicator]]:bg-chart-1'
                           )}
                         />
                       )}

@@ -12,7 +12,7 @@ import {
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
 import type { CalendarItem } from '@shared/domain/calendar'
-import { useApi } from '@/lib/query'
+import { KEEP_PERIOD, useApi } from '@/lib/query'
 import { LOCALE } from '@/lib/format'
 import { useUi } from '@/stores/ui-store'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -45,7 +45,7 @@ export function CalendarPage() {
     return { from: startOfWeek(startOfMonth(cursor), WEEK), to: endOfWeek(endOfMonth(cursor), WEEK) }
   }, [cursor, view])
 
-  const { data: items = [] } = useApi('events', 'feed', { from: from.getTime(), to: to.getTime() })
+  const { data: items = [] } = useApi('events', 'feed', { from: from.getTime(), to: to.getTime() }, KEEP_PERIOD)
   const { data: openEvent } = useApi('events', 'get', open ?? '', { enabled: !!open })
   const byDay = useMemo(() => groupByDay(items), [items])
 

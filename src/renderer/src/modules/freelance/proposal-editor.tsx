@@ -292,7 +292,7 @@ function Editor({ proposal: p, platform, onClose }: { proposal: Proposal; platfo
               pressed={p.starred}
               onPressedChange={(starred) => patch({ starred })}
               aria-label="Сильный отклик"
-              className="size-8 min-w-8 rounded-full bg-surface p-0 data-[state=on]:bg-warn/15 data-[state=on]:text-warn"
+              className="size-8 min-w-8 rounded-full bg-surface p-0 on:bg-warn/15 on:text-warn"
             >
               <Star className={cn(p.starred && 'fill-current')} />
             </Toggle>

@@ -10,7 +10,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Progress } from '@/components/ui/progress'
-import { Field as UiField, FieldError, FieldLabel } from '@/components/ui/field'
+import { Field as UiField, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Kbd as UiKbd } from '@/components/ui/kbd'
 
 /** Page title block: big display type, optional subtitle and actions on the right. */
@@ -227,7 +227,7 @@ export function SegmentBar({
           className={cn(
             'h-1.5 flex-1 bg-current/15',
             tone === 'lime'
-              ? '[&>[data-slot=progress-indicator]]:bg-lime'
+              ? '[&>[data-slot=progress-indicator]]:bg-chart-1'
               : '[&>[data-slot=progress-indicator]]:bg-lime-foreground'
           )}
         />
@@ -242,7 +242,9 @@ export function Field({
   children,
   className,
   htmlFor,
-  error
+  error,
+  hint,
+  count
 }: {
   label: string
   children: ReactNode
@@ -250,12 +252,31 @@ export function Field({
   htmlFor?: string
   /** Shown under the control in the destructive colour; the label stays the same. */
   error?: ReactNode
+  /** Quiet explanation under the control (hidden while there is an error). */
+  hint?: ReactNode
+  /** Character counter: appears next to the label once 80% of the limit is used. */
+  count?: { length: number; max?: number }
 }) {
+  const near = count?.max ? count.length >= count.max * 0.8 : false
   return (
     <UiField className={cn('min-w-0 gap-2', className)} data-invalid={error ? true : undefined}>
-      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+      <div className="flex items-baseline justify-between gap-3">
+        <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+        {near && count?.max && (
+          <span
+            className={cn('text-meta tabular-nums', count.length >= count.max ? 'text-warn' : 'text-muted-foreground')}
+            aria-live="polite"
+          >
+            {count.length} / {count.max}
+          </span>
+        )}
+      </div>
       {children}
-      {error && <FieldError className="text-caption">{error}</FieldError>}
+      {error ? (
+        <FieldError className="text-caption">{error}</FieldError>
+      ) : (
+        hint && <FieldDescription className="text-caption">{hint}</FieldDescription>
+      )}
     </UiField>
   )
 }

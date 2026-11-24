@@ -6,7 +6,7 @@ import type {
   Subscription,
   SubscriptionMonthRow
 } from '@shared/domain/finance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -119,7 +119,7 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
 }
 
 function SubscriptionsSection({ month }: { month: string }) {
-  const { data: rows } = useApi('finance', 'subscriptionMonth', { month })
+  const { data: rows } = useApi('finance', 'subscriptionMonth', { month }, KEEP_PERIOD)
   const { data: all = [] } = useApi('finance', 'subscriptions')
   const remove = useApiMutation('finance', 'removeSubscription', {
     successMessage: 'Подписка удалена'
@@ -279,7 +279,7 @@ function SubscriptionsSection({ month }: { month: string }) {
 
 function ExpensesSection({ month }: { month: string }) {
   const [from, to] = monthRange(month)
-  const { data: rows } = useApi('finance', 'expenses', { from, to })
+  const { data: rows } = useApi('finance', 'expenses', { from, to }, KEEP_PERIOD)
   const remove = useApiMutation('finance', 'removeExpense', { successMessage: 'Расход удалён' })
   const [editing, setEditing] = useState<Expense | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)

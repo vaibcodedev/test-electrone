@@ -132,7 +132,7 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
             <ChevronRight />
           </SidebarMenuAction>
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <SidebarMenuSub className="mr-0 gap-0.5 pr-0">
             {hub.platforms &&
               platformList.map((p) => {
@@ -181,6 +181,7 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
 export function AppSidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const trashBump = useUi((s) => s.trashBump)
   const setHubOpen = useUi((s) => s.setHubOpen)
   const current = hubOf(pathname)
 
@@ -233,7 +234,12 @@ export function AppSidebar() {
                   aria-label={b.label}
                   onClick={() => navigate(b.to)}
                 >
-                  <b.icon />
+                  {/* Trash icon replays a short "received" motion each time something is deleted. */}
+                  {b.to === '/trash' && trashBump > 0 ? (
+                    <b.icon key={trashBump} className="animate-trash-bump text-foreground" />
+                  ) : (
+                    <b.icon />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>{b.label}</TooltipContent>

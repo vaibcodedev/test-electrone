@@ -117,7 +117,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
                   key={c}
                   value={c}
                   aria-label={c}
-                  className="size-6 min-w-6 rounded-full p-0 ring-offset-2 ring-offset-surface data-[state=on]:ring-2 data-[state=on]:ring-foreground"
+                  className="size-6 min-w-6 rounded-full p-0 ring-offset-2 ring-offset-surface on:ring-2 on:ring-foreground"
                   style={{ background: c }}
                 />
               ))}

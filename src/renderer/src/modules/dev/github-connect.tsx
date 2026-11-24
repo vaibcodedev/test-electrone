@@ -4,7 +4,9 @@ import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { Button } from '@/components/ui/button'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { Field } from '@/components/common/page'
+import { cn } from '@/lib/utils'
 
 const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new'
 
@@ -26,27 +28,36 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
       setToken('')
     }
   })
+  const submit = (): void => {
+    if (token.trim()) save.mutate({ token: token.trim() })
+  }
   return (
-    <div className="flex flex-col gap-2">
-      <InputGroup className={compact ? 'bg-card' : undefined}>
-        <InputGroupAddon>
-          <KeyRound />
-        </InputGroupAddon>
-        <InputGroupInput
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="github_pat_…"
-          onKeyDown={(e) => e.key === 'Enter' && token.trim() && save.mutate({ token: token.trim() })}
-        />
-        <InputGroupAddon align="inline-end">
-          <InputGroupButton size="xs" variant="default" disabled={!token.trim() || save.isPending} onClick={() => save.mutate({ token: token.trim() })}>
-            Подключить
-          </InputGroupButton>
-        </InputGroupAddon>
-      </InputGroup>
-      <p className="text-caption text-muted-foreground">Токен хранится зашифрованным ключом Windows и используется только для чтения.</p>
-    </div>
+    <Field
+      label="Токен GitHub"
+      htmlFor="github-token"
+      hint="Хранится зашифрованным ключом Windows и используется только для чтения."
+    >
+      <div className="flex items-center gap-2">
+        {/* bg-card: the field sits on a surface card, so it needs its own fill to read as an input. */}
+        <InputGroup className={cn('flex-1 bg-card', compact && 'h-9')}>
+          <InputGroupAddon>
+            <KeyRound />
+          </InputGroupAddon>
+          <InputGroupInput
+            id="github-token"
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Вставьте токен github_pat_…"
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+          />
+        </InputGroup>
+        <Button variant="lime" disabled={!token.trim() || save.isPending} onClick={submit}>
+          Подключить
+        </Button>
+      </div>
+    </Field>
   )
 }
 
@@ -59,7 +70,7 @@ export function GithubGuide() {
           <li key={s}>{s}</li>
         ))}
       </ol>
-      <Button variant="soft" className="self-start" onClick={() => api.app.openExternal(NEW_TOKEN_URL)}>
+      <Button variant="subtle" className="self-start" onClick={() => api.app.openExternal(NEW_TOKEN_URL)}>
         <ExternalLink /> Создать токен на GitHub
       </Button>
       <GithubTokenField />

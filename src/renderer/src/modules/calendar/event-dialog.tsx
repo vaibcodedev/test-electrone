@@ -269,7 +269,7 @@ export function EventDialog({
                   key={c}
                   value={c}
                   aria-label={c === DEFAULT_COLOR ? 'По умолчанию' : c}
-                  className="size-7 min-w-7 rounded-full p-0 ring-offset-2 ring-offset-card hover:opacity-90 data-[state=on]:ring-2 data-[state=on]:ring-foreground"
+                  className="size-7 min-w-7 rounded-full p-0 ring-offset-2 ring-offset-card hover:opacity-90 on:ring-2 on:ring-foreground"
                   style={{ background: c === DEFAULT_COLOR ? 'var(--lime)' : c }}
                 />
               ))}

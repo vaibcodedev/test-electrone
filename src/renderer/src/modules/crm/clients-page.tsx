@@ -44,7 +44,7 @@ function Overview() {
   const { data } = useApi('projects', 'overview')
   if (!data) return <div className="grid h-[118px] grid-cols-4 gap-3" />
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="stagger grid grid-cols-4 gap-3">
       <StatTile
         tone="ink"
         label="Оплачено в этом месяце"
@@ -336,7 +336,7 @@ export function ClientsPage() {
       <PageBody>
         {tab === 'clients' ? (
           filteredClients.length ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+            <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
               {filteredClients.map((c) => (
                 <ClientCard key={c.id} client={c} />
               ))}

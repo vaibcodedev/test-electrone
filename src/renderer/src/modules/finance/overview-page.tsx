@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { CircleAlert, Landmark, Receipt } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
 import type { MoneyByCurrency } from '@shared/domain/finance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { fmtDay, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
@@ -141,7 +141,7 @@ function YearChart() {
 
 /** Subscriptions due this month that aren't marked paid yet. */
 function UnpaidSubscriptions({ month }: { month: string }) {
-  const { data: rows = [] } = useApi('finance', 'subscriptionMonth', { month })
+  const { data: rows = [] } = useApi('finance', 'subscriptionMonth', { month }, KEEP_PERIOD)
   const setPaid = useApiMutation('finance', 'setSubscriptionPaid', {
     successMessage: 'Отмечено оплаченным'
   })
@@ -154,9 +154,8 @@ function UnpaidSubscriptions({ month }: { month: string }) {
         <CardTitle>Не оплачено в {monthName(month)}</CardTitle>
         <CardAction>
           <Button
-            variant="ghost"
+            variant="subtle"
             size="xs"
-            className="text-muted-foreground"
             onClick={() => navigate(`/finance/expenses?month=${month}`)}
           >
             Все подписки
@@ -214,9 +213,8 @@ function PlatformBalances() {
         <CardDescription>Заработано после комиссии минус выведено</CardDescription>
         <CardAction>
           <Button
-            variant="ghost"
+            variant="subtle"
             size="xs"
-            className="text-muted-foreground"
             onClick={() => navigate('/finance/withdrawals')}
           >
             Выводы
@@ -257,7 +255,7 @@ function PlatformBalances() {
 }
 
 function ExpensesByCategory({ month }: { month: string }) {
-  const { data } = useApi('finance', 'month', { month })
+  const { data } = useApi('finance', 'month', { month }, KEEP_PERIOD)
   const rows = data?.expensesByCategory ?? []
   const maxByCurrency = new Map<Currency, number>()
   for (const r of rows)
@@ -293,7 +291,7 @@ function ExpensesByCategory({ month }: { month: string }) {
 
 export function FinanceOverviewPage() {
   const [month, setMonth] = useMonth()
-  const { data: report } = useApi('finance', 'month', { month })
+  const { data: report } = useApi('finance', 'month', { month }, KEEP_PERIOD)
   const subsLeft = report ? report.subscriptionsDue - report.subscriptionsPaid : 0
   const expensesTotal: MoneyByCurrency = { ...(report?.expenses ?? {}) }
   for (const [c, v] of moneyEntries(report?.creditPurchases))
@@ -310,14 +308,14 @@ export function FinanceOverviewPage() {
       </PageHeader>
       <PageBody>
         {!report ? (
-          <div className="grid grid-cols-5 gap-3">
+          <div className="stagger grid grid-cols-5 gap-3">
             {Array.from({ length: 5 }, (_, i) => (
               <Skeleton key={i} className="h-32 rounded-3xl" />
             ))}
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-5 gap-3">
+            <div className="stagger grid grid-cols-5 gap-3">
               <StatTile title="Получено" value={report.gross} hint="оплаты по контрактам" />
               <StatTile title="Комиссии платформ" value={report.fees} />
               <StatTile title="На руки" value={report.net} hint="после комиссий" />

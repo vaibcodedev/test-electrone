@@ -1,6 +1,6 @@
 import { useCallback, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
-import { Trash2, X } from 'lucide-react'
+import { Pencil, Trash2, X } from 'lucide-react'
 import type { EntityRef, Tag } from '@shared/domain/common'
 import { fmtDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useUi } from '@/stores/ui-store'
 import { PinButtons } from './pin-buttons'
 import { TagPicker } from './tags'
 import { LinksPanel } from './links-panel'
@@ -81,18 +82,28 @@ export function InlineTitle({
   placeholder?: string
   className?: string
 }) {
+  // Editable-in-place affordance: tint + pencil on hover, tint while editing. Without it a borderless
+  // title reads as static text (docs/design-system.md → Формы).
   return (
-    <Textarea
-      rows={1}
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
-      onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
-      className={cn(
-        'font-display min-h-0 rounded-none border-0 bg-transparent p-0 text-[28px] leading-[1.1] shadow-none placeholder:text-muted-foreground/50 focus-visible:bg-transparent focus-visible:ring-0',
-        className
-      )}
-    />
+    <div className="group/title relative -mx-2">
+      <Textarea
+        rows={1}
+        value={value}
+        placeholder={placeholder}
+        title="Нажмите, чтобы изменить"
+        aria-label="Название"
+        onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
+        onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+        className={cn(
+          'font-display min-h-0 cursor-text rounded-xl border-0 bg-transparent py-1 pr-9 pl-2 text-[28px] leading-[1.1] shadow-none transition-colors placeholder:text-muted-foreground/50 hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-0',
+          className
+        )}
+      />
+      <Pencil
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 group-focus-within/title:opacity-0"
+      />
+    </div>
   )
 }
 
@@ -114,15 +125,34 @@ export function DetailPane({
   aside?: ReactNode
   className?: string
 }) {
+  const leaving = useUi((s) => !!s.leaving[entity.id])
+  const setLeaving = useUi((s) => s.setLeaving)
+  // "В корзину": the pane and the list row fade out first, then the record is removed.
+  const remove = onDelete
+    ? (): void => {
+        setLeaving(entity.id, true)
+        setTimeout(() => {
+          onDelete()
+          setTimeout(() => setLeaving(entity.id, false), 400)
+        }, 200)
+      }
+    : undefined
   return (
-    <Card className={cn('min-h-0 flex-1 gap-0 overflow-hidden bg-card py-0 ring-1 ring-border', className)}>
+    // Visible edge + soft shadow + enter motion: the pane reads as a layer above the list, not part of it.
+    <Card
+      className={cn(
+        'min-h-0 flex-1 animate-pane gap-0 overflow-hidden bg-card py-0 shadow-[0_12px_40px_-16px_rgb(0_0_0/0.35)] ring-1 ring-foreground/12',
+        leaving && 'pointer-events-none animate-leave',
+        className
+      )}
+    >
       <div className="flex items-center gap-2 px-4 py-2.5">
         <PinButtons entity={entity} />
         <div className="flex-1">{headerExtra}</div>
-        {onDelete && (
+        {remove && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="В корзину" onClick={onDelete}>
+              <Button variant="ghost" size="icon-sm" aria-label="В корзину" onClick={remove}>
                 <Trash2 />
               </Button>
             </TooltipTrigger>

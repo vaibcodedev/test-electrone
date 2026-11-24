@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router'
 import { TrendingUp } from 'lucide-react'
 import type { MoneyByCurrency } from '@shared/domain/finance'
-import { useApi } from '@/lib/query'
+import { KEEP_PERIOD, useApi } from '@/lib/query'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,7 @@ import { monthRange, useMonth } from './month'
 export function IncomePage() {
   const [month, setMonth] = useMonth()
   const [from, to] = monthRange(month)
-  const { data: rows } = useApi('finance', 'income', { from, to })
+  const { data: rows } = useApi('finance', 'income', { from, to }, KEEP_PERIOD)
   const navigate = useNavigate()
 
   const totals = {

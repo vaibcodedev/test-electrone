@@ -29,7 +29,7 @@ const KNOWLEDGE_TYPES = new Set<EntityType>(SECTIONS.map((s) => s.type))
 function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> }) {
   const navigate = useNavigate()
   return (
-    <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
+    <div className="stagger grid grid-cols-3 gap-3 xl:grid-cols-6">
       {SECTIONS.map((s, i) => {
         const Icon = ENTITY_ICON[s.type]
         const n = counts[s.type] ?? 0
@@ -170,7 +170,7 @@ export function KnowledgeOverviewPage() {
       <PageBody>
         <div className="flex flex-col gap-3">
           <SectionCards counts={counts} />
-          <div className="grid grid-cols-12 gap-3">
+          <div className="stagger grid grid-cols-12 gap-3">
             <ListCard title="Недавнее" className="col-span-6">
               {recent.length ? (
                 <div className="-mx-2.5 flex flex-col">

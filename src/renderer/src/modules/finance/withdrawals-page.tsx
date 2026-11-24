@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowDownToLine, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { MoneyByCurrency, Withdrawal } from '@shared/domain/finance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
@@ -26,7 +26,7 @@ import { monthRange, useMonth } from './month'
 export function WithdrawalsPage() {
   const [month, setMonth] = useMonth()
   const [from, to] = monthRange(month)
-  const { data: rows } = useApi('finance', 'withdrawals', { from, to })
+  const { data: rows } = useApi('finance', 'withdrawals', { from, to }, KEEP_PERIOD)
   const { data: platformList = [] } = useApi('platforms', 'list', { includeArchived: true })
   const remove = useApiMutation('finance', 'removeWithdrawal', { successMessage: 'Вывод удалён' })
   const [editing, setEditing] = useState<Withdrawal | null>(null)

@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL } from './labels'
 
 type Form = Pick<
@@ -29,13 +30,26 @@ function toForm(w: Word): Form {
   }
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+/** One SRS fact in plain words; the tooltip explains what it means and how it changes. */
+function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <Card className="gap-0.5 rounded-2xl px-3 py-2.5">
-      <div className="text-meta text-muted-foreground">{label}</div>
-      <div className="text-lead font-medium tabular-nums">{value}</div>
-    </Card>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Card className="cursor-help gap-0.5 rounded-2xl px-3 py-2.5" tabIndex={0}>
+          <div className="text-meta text-muted-foreground">{label}</div>
+          <div className="text-lead font-medium tabular-nums">{value}</div>
+        </Card>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-60">{hint}</TooltipContent>
+    </Tooltip>
   )
+}
+
+/** SM-2 ease (1.3…2.5+) as a word: how hard the word is for you. */
+function easeLabel(ease: number): string {
+  if (ease >= 2.45) return 'легко'
+  if (ease >= 2.0) return 'средне'
+  return 'трудно'
 }
 
 export function WordDetail({ word, onClose }: { word: Word; onClose: () => void }) {
@@ -70,14 +84,29 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
           <section className="flex flex-col gap-2">
             <SectionLabel>Повторение</SectionLabel>
             <div className="grid grid-cols-2 gap-1.5">
-              <Stat label="Следующее" value={fmtDay(word.dueAt) || '—'} />
-              <Stat label="Интервал" value={`${Math.round(word.intervalDays)} дн.`} />
-              <Stat label="Повторений" value={String(word.repetitions)} />
-              <Stat label="Забывал" value={String(word.lapses)} />
-              <Stat label="Лёгкость" value={word.ease.toFixed(2)} />
-              <Stat label="Последний" value={word.lastReviewedAt ? fmtDay(word.lastReviewedAt) : '—'} />
+              <Stat
+                label="Повторить"
+                value={fmtDay(word.dueAt) || '—'}
+                hint={`Когда слово снова появится в тренировке: ${fmtDateTime(word.dueAt)}.`}
+              />
+              <Stat
+                label="Пауза"
+                value={word.intervalDays < 1 ? 'меньше дня' : `${Math.round(word.intervalDays)} дн.`}
+                hint="Сколько дней между повторами сейчас. Вспомнили — пауза растёт, забыли — снова короткая."
+              />
+              <Stat label="Вспомнил подряд" value={String(word.repetitions)} hint="Сколько раз подряд вы вспомнили слово без ошибки." />
+              <Stat label="Забывал" value={String(word.lapses)} hint="Сколько раз слово забылось и вернулось в начало." />
+              <Stat
+                label="Даётся"
+                value={easeLabel(word.ease)}
+                hint="Насколько легко даётся слово по вашим ответам. Чем труднее, тем чаще оно будет попадаться."
+              />
+              <Stat
+                label="Последний раз"
+                value={word.lastReviewedAt ? fmtDay(word.lastReviewedAt) : 'ещё не было'}
+                hint="Когда вы последний раз повторяли это слово."
+              />
             </div>
-            <p className="text-meta text-muted-foreground">Повтор: {fmtDateTime(word.dueAt)}</p>
           </section>
         </EntityAside>
       }

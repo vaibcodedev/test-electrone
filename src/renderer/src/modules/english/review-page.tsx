@@ -14,13 +14,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { plural } from '@/lib/format'
 
-const GRADES: { grade: ReviewGrade; label: string; hint: string; cls: string; tile: string }[] = [
-  { grade: 0, label: 'Забыл', hint: '10 мин', cls: 'bg-destructive/12 text-destructive hover:bg-destructive/20', tile: 'bg-destructive/12 text-destructive' },
-  { grade: 1, label: 'Трудно', hint: 'скоро', cls: 'bg-warn/15 text-warn hover:bg-warn/25', tile: 'bg-warn/15 text-warn' },
-  { grade: 2, label: 'Хорошо', hint: 'по плану', cls: '', tile: '' },
-  { grade: 3, label: 'Легко', hint: 'надолго', cls: '', tile: 'bg-lime text-lime-foreground' }
+/** Four equal neutral buttons; only the label colour carries the meaning (no single loud one). */
+const GRADES: { grade: ReviewGrade; label: string; hint: string; text: string; hover: string; tile: string }[] = [
+  { grade: 0, label: 'Не вспомнил', hint: 'покажу ещё раз', text: 'text-destructive', hover: 'hover:bg-destructive/12', tile: 'bg-destructive/12 text-destructive' },
+  { grade: 1, label: 'С трудом', hint: 'повторим скоро', text: 'text-warn', hover: 'hover:bg-warn/15', tile: 'bg-warn/15 text-warn' },
+  { grade: 2, label: 'Вспомнил', hint: 'по плану', text: 'text-foreground', hover: 'hover:bg-accent', tile: '' },
+  { grade: 3, label: 'Легко', hint: 'не скоро', text: 'text-success', hover: 'hover:bg-success/15', tile: 'bg-success/15 text-success' }
 ]
-const GRADE_VARIANT: Record<ReviewGrade, 'soft' | 'lime'> = { 0: 'soft', 1: 'soft', 2: 'soft', 3: 'lime' }
 
 /** Focused flashcard session. Words graded «Забыл» return at the end of the same session. */
 export function ReviewPage() {
@@ -99,7 +99,7 @@ export function ReviewPage() {
             </Button>
           </div>
         ) : finished ? (
-          <div className="flex w-full max-w-lg flex-col items-center text-center">
+          <div className="flex w-full max-w-lg animate-enter flex-col items-center text-center">
             <Avatar className="size-16">
               <AvatarFallback className="bg-lime text-lime-foreground">
                 <PartyPopper className="size-7" />
@@ -109,7 +109,7 @@ export function ReviewPage() {
             <p className="mt-2 text-body text-muted-foreground">
               {uniqueTotal} {plural(uniqueTotal, ['слово', 'слова', 'слов'])}, ответов: {done}
             </p>
-            <div className="mt-6 grid w-full grid-cols-4 gap-2">
+            <div className="stagger mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
                 <Card key={g.grade} className={cn('gap-1 rounded-2xl px-3 py-3', g.tile)}>
                   <div className="font-display text-[26px] leading-none">{results[g.grade]}</div>
@@ -122,61 +122,74 @@ export function ReviewPage() {
             </Button>
           </div>
         ) : current ? (
-          <div className="flex w-full max-w-2xl flex-col gap-5">
+          // Keyed by word: every next card enters with the same short motion.
+          <div key={`${current.id}:${index}`} className="flex w-full max-w-2xl animate-enter flex-col gap-4">
             <Card
               onClick={() => setRevealed(true)}
               className={cn(
-                'min-h-[340px] cursor-pointer items-center justify-center rounded-[28px] px-10 py-12 text-center transition-colors',
-                revealed ? 'cursor-default' : 'bg-ink text-ink-foreground'
+                // Long words and sentences wrap inside the card instead of running off it.
+                'min-h-[340px] items-center justify-center gap-3 rounded-[28px] px-10 py-12 text-center ring-1 ring-foreground/8 [overflow-wrap:anywhere]',
+                !revealed && 'cursor-pointer'
               )}
             >
               {current.context && (
-                <Badge variant="soft" className={cn('text-caption font-normal', revealed ? 'bg-card text-muted-foreground' : 'bg-ink-foreground/8 text-ink-muted')}>
+                <Badge variant="soft" className="max-w-full text-caption font-normal text-muted-foreground">
                   {current.context}
                 </Badge>
               )}
-              <div className="font-display text-display">{current.term}</div>
-              {current.transcription && (
-                <div className={cn('text-lead', revealed ? 'text-muted-foreground' : 'text-ink-muted')}>{current.transcription}</div>
-              )}
+              <div className="font-display max-w-full text-display">{current.term}</div>
+              {current.transcription && <div className="text-lead text-muted-foreground">{current.transcription}</div>}
               {revealed ? (
-                <div className="selectable mt-4 flex animate-rise flex-col items-center gap-3">
+                <div className="selectable mt-3 flex max-w-xl animate-enter flex-col items-center gap-2.5">
                   <div className="text-stat-sm font-medium">{current.translation || '—'}</div>
-                  {current.example && <div className="max-w-xl text-lead italic">«{current.example}»</div>}
-                  {current.exampleTranslation && (
-                    <div className="max-w-xl text-body text-muted-foreground">{current.exampleTranslation}</div>
-                  )}
+                  {current.example && <div className="text-lead text-foreground/85 italic">«{current.example}»</div>}
+                  {current.exampleTranslation && <div className="text-body text-muted-foreground">{current.exampleTranslation}</div>}
                 </div>
               ) : (
-                <Button
-                  variant="lime"
-                  className="mt-6"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setRevealed(true)
-                  }}
-                >
-                  Показать ответ <Kbd className="bg-lime-foreground/10 text-lime-foreground ring-0">Пробел</Kbd>
-                </Button>
+                <div className="mt-5 flex flex-col items-center gap-2.5">
+                  <Button
+                    variant="lime"
+                    size="lg"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setRevealed(true)
+                    }}
+                  >
+                    Показать ответ
+                  </Button>
+                  <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+                    или <Kbd>Пробел</Kbd>
+                  </span>
+                </div>
               )}
             </Card>
-            <div className={cn('grid grid-cols-4 gap-2 transition-opacity', !revealed && 'pointer-events-none opacity-30')}>
-              {GRADES.map((g) => (
-                <Button
-                  key={g.grade}
-                  variant={GRADE_VARIANT[g.grade]}
-                  disabled={!revealed || busy}
-                  onClick={() => void grade(g.grade)}
-                  className={cn('h-16 flex-col gap-0.5 rounded-2xl text-lead', g.cls)}
-                >
-                  <span>{g.label}</span>
-                  <span className="flex items-center gap-1.5 text-meta font-normal opacity-70">
-                    <Kbd className="h-4 min-w-4 bg-transparent text-current ring-current/30">{g.grade + 1}</Kbd>
-                    {g.hint}
-                  </span>
-                </Button>
-              ))}
-            </div>
+            {revealed ? (
+              <div className="flex animate-enter flex-col gap-2">
+                <div className="text-center text-body font-medium">Как вы вспомнили перевод?</div>
+                <div className="grid grid-cols-4 gap-2">
+                {GRADES.map((g) => (
+                  <Button
+                    key={g.grade}
+                    variant="soft"
+                    disabled={busy}
+                    onClick={() => void grade(g.grade)}
+                    className={cn('h-16 flex-col gap-1 rounded-2xl bg-surface', g.hover)}
+                  >
+                    <span className={cn('text-lead font-semibold', g.text)}>{g.label}</span>
+                    <span className="flex items-center gap-1.5 text-meta font-normal text-muted-foreground">
+                      <Kbd className="h-4 min-w-4">{g.grade + 1}</Kbd>
+                      {g.hint}
+                    </span>
+                  </Button>
+                ))}
+                </div>
+              </div>
+            ) : (
+              // Same height as the grade row, so nothing jumps when the answer opens.
+              <div className="flex h-16 items-center justify-center rounded-2xl border border-dashed border-foreground/12 text-caption text-muted-foreground">
+                Вспомните перевод, откройте ответ и оцените, насколько легко он дался
+              </div>
+            )}
           </div>
         ) : null}
       </div>

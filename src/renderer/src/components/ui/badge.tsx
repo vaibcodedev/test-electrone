@@ -10,7 +10,8 @@ const badgeVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground',
         lime: 'bg-lime text-lime-foreground',
-        soft: 'bg-surface text-foreground',
+        // Tint, not a fill: a surface-coloured badge vanished on surface cards.
+        soft: 'bg-foreground/7 text-foreground',
         outline: 'border border-input text-foreground',
         ink: 'bg-ink text-ink-foreground',
         warn: 'bg-warn/15 text-warn',

@@ -1,4 +1,5 @@
 import {
+  keepPreviousData,
   QueryClient,
   useInfiniteQuery,
   useMutation,
@@ -9,6 +10,8 @@ import {
 import { toast } from 'sonner'
 import type { ApiNamespace } from '@shared/api'
 import { call, type ArgOf, type MethodOf, type ResultOf } from './api'
+import { useUi } from '@/stores/ui-store'
+import { flushAllAutosaves } from '@/hooks/use-autosave'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +38,13 @@ export function invalidateAll(): void {
   }, 40)
 }
 
+/**
+ * For queries keyed by a period (month, week, date range): keep showing the previous period until the
+ * next one arrives, so cards don't collapse and jump on every switch. Do NOT use for record editors —
+ * an editor could briefly receive another record's data and autosave it.
+ */
+export const KEEP_PERIOD = { placeholderData: keepPreviousData } as const
+
 /** useQuery bound to an API method: `useApi('ideas', 'list', { status })`. */
 export function useApi<N extends ApiNamespace, M extends MethodOf<N>>(
   ns: N,
@@ -60,9 +70,14 @@ export function useApiMutation<N extends ApiNamespace, M extends MethodOf<N>>(
 ) {
   const { successMessage, silent, onSuccess, onError, ...rest } = options ?? {}
   return useMutation<ResultOf<N, M>, Error, ArgOf<N, M>>({
-    mutationFn: (arg) => call(ns, method, arg),
+    mutationFn: (arg) => {
+      // Pending edits of the open editor go first (IPC keeps order), so the new record is the newest one.
+      if (String(method).startsWith('create')) flushAllAutosaves()
+      return call(ns, method, arg)
+    },
     onSuccess: (...args) => {
       invalidateAll()
+      if (method === 'remove') useUi.getState().bumpTrash()
       if (successMessage) toast.success(successMessage)
       return onSuccess?.(...args)
     },
@@ -89,7 +104,10 @@ export function useInfiniteApi<N extends ApiNamespace, M extends MethodOf<N>>(
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
       call(ns, method, { ...query, limit: pageSize, offset: pageParam } as ArgOf<N, M>) as Promise<unknown[]>,
-    getNextPageParam: (lastPage: unknown[], pages) => (lastPage.length === pageSize ? pages.length * pageSize : undefined)
+    getNextPageParam: (lastPage: unknown[], pages) => (lastPage.length === pageSize ? pages.length * pageSize : undefined),
+    // Switching a filter/search keeps the current rows until the new ones arrive: no empty-state flash.
+    // Safe here (lists, not editors).
+    placeholderData: keepPreviousData
   })
   type Item = ResultOf<N, M> extends (infer I)[] ? I : never
   const items = (result.data?.pages.flat() ?? []) as Item[]

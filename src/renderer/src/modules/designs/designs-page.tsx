@@ -72,11 +72,13 @@ export function DesignsPage() {
           {...clickableCard(() => setOpen(d.id === open ? null : d.id))}
           aria-pressed={d.id === open}
           className={cn(
-            'group relative block w-full cursor-pointer gap-0 overflow-hidden py-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
-            d.id === open && 'ring-2 ring-ring ring-offset-2 ring-offset-card'
+            // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
+            // Selection is an inset outline — an outer ring would be clipped by the scrolling grid.
+            'group relative block w-full cursor-pointer gap-0 overflow-hidden bg-surface p-1.5 text-left outline-none transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/60',
+            d.id === open && 'bg-accent outline-2 -outline-offset-2 outline-ring'
           )}
         >
-          <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block aspect-[4/3] w-full object-cover object-top" />
+          <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block aspect-[4/3] w-full rounded-[18px] object-cover object-top" />
           <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
             <Badge variant="ink" className="max-w-full truncate">
               {designTitle(d)}
@@ -111,7 +113,7 @@ export function DesignsPage() {
           }
         >
           {(boards.length > 0 || !filtered) && (
-            <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1">
+            <div className="-mx-1 flex gap-2.5 overflow-x-auto overflow-y-hidden px-1 pb-1">
               {boards.map((b) => (
                 <MoodboardTile key={b.id} board={b} />
               ))}
@@ -157,7 +159,7 @@ export function DesignsPage() {
                     size="xs"
                     title={c}
                     aria-label={c}
-                    className="size-7 min-w-7 p-0 hover:bg-transparent data-[state=on]:bg-transparent data-[state=on]:ring-2 data-[state=on]:ring-foreground data-[state=on]:ring-offset-2 data-[state=on]:ring-offset-card"
+                    className="size-7 min-w-7 p-0 hover:bg-transparent on:bg-transparent on:ring-2 on:ring-foreground on:ring-offset-2 on:ring-offset-card"
                   >
                     <span className="size-6 rounded-full ring-1 ring-border transition-transform hover:scale-110" style={{ background: c }} />
                   </ToggleGroupItem>

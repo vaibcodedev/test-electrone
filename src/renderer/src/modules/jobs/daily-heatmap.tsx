@@ -60,7 +60,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
         <Stat label="Лучшая серия" value={`${best} ${plural(best, ['день', 'дня', 'дней'])}`} />
       </div>
 
-      <div className="flex flex-col gap-2 overflow-x-auto">
+      <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden">
         <div className="grid items-end gap-x-2.5" style={{ gridTemplateColumns: cols }}>
           <span />
           {weeks.map((w) => (

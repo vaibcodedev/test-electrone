@@ -23,6 +23,12 @@ interface UiState {
   /** Expanded hubs in the sidebar. */
   openHubs: Record<string, boolean>
   setHubOpen: (id: string, open: boolean) => void
+  /** Increments when something goes to the trash: the sidebar trash icon plays a short "received" motion. */
+  trashBump: number
+  bumpTrash: () => void
+  /** Ids playing the leave animation right before they are removed (list rows, detail pane). */
+  leaving: Record<string, true>
+  setLeaving: (id: string, on: boolean) => void
 }
 
 export const useUi = create<UiState>()(
@@ -43,7 +49,17 @@ export const useUi = create<UiState>()(
       platformDialogOpen: false,
       setPlatformDialogOpen: (platformDialogOpen) => set({ platformDialogOpen }),
       openHubs: { work: true, freelance: true },
-      setHubOpen: (id, open) => set((s) => ({ openHubs: { ...s.openHubs, [id]: open } }))
+      setHubOpen: (id, open) => set((s) => ({ openHubs: { ...s.openHubs, [id]: open } })),
+      trashBump: 0,
+      bumpTrash: () => set((s) => ({ trashBump: s.trashBump + 1 })),
+      leaving: {},
+      setLeaving: (id, on) =>
+        set((s) => {
+          const leaving = { ...s.leaving }
+          if (on) leaving[id] = true
+          else delete leaving[id]
+          return { leaving }
+        })
     }),
     {
       name: 'vault-ui',

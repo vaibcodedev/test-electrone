@@ -170,7 +170,7 @@ export function Meter({
         'h-1.5 bg-foreground/10',
         ratio > 1
           ? '[&>[data-slot=progress-indicator]]:bg-warn'
-          : '[&>[data-slot=progress-indicator]]:bg-lime',
+          : '[&>[data-slot=progress-indicator]]:bg-chart-1',
         className
       )}
     />

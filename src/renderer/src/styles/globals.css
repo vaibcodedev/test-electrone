@@ -4,6 +4,10 @@
 @import '@fontsource-variable/jetbrains-mono';
 @import './code.css';
 
+/* "Selected" state of shadcn Toggle / ToggleGroupItem. Radix Tooltip (asChild) overwrites data-state on its
+   trigger with "closed", so a Toggle inside a tooltip never matched data-[state=on]; aria-pressed survives. */
+@custom-variant on (&:is([data-state='on'], [aria-pressed='true']));
+
 @custom-variant dark (&:is(.dark *));
 
 /*
@@ -83,7 +87,66 @@
   --text-title--line-height: 1;
   --text-title--letter-spacing: -0.035em;
 
-  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  /* Motion (docs/design-system.md → Движение): one soft ease-out, short durations, nothing bounces. */
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rise: rise 0.42s var(--ease-soft) backwards;
+  --animate-enter: enter 0.32s var(--ease-soft) backwards;
+  --animate-page: page 0.24s var(--ease-soft) backwards;
+  --animate-pane: pane 0.28s var(--ease-soft) backwards;
+
+  --animate-leave: leave 0.22s var(--ease-soft) forwards;
+  --animate-trash-bump: trash-bump 0.55s var(--ease-soft);
+
+  @keyframes leave {
+    to {
+      opacity: 0;
+      transform: translateX(-10px) scale(0.97);
+    }
+  }
+  @keyframes trash-bump {
+    0% {
+      transform: none;
+    }
+    30% {
+      transform: scale(1.22) rotate(-10deg);
+    }
+    60% {
+      transform: scale(0.95) rotate(6deg);
+    }
+    100% {
+      transform: none;
+    }
+  }
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes page {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pane {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 
   @keyframes rise {
     from {
@@ -182,6 +245,16 @@
   --success: #6fdc84;
 }
 
+/* Children appear one after another (cards in a grid, tiles on an overview). sibling-index() is native in
+   Chromium 138+, so no JS; the delay is capped so long grids don't wait. */
+@utility stagger {
+  & > * {
+    /* backwards: affects only the start, so transforms (dnd-kit, hover, active) stay free afterwards. */
+    animation: enter 0.34s var(--ease-soft) backwards;
+    animation-delay: calc(min(sibling-index() - 1, 10) * 40ms);
+  }
+}
+
 /* Display type: tight tracking, medium weight — headlines carry the personality. */
 @utility font-display {
   font-weight: 520;
@@ -262,15 +335,19 @@
   ::-webkit-scrollbar-corner {
     background: transparent;
   }
+  /* Clamped previews must be able to wrap a long unbroken word, otherwise the ellipsis never appears. */
+  [class*='line-clamp-'] {
+    overflow-wrap: anywhere;
+  }
+  /* Reserve the scrollbar lane in every vertical scroll area, so content doesn't jump when a scrollbar
+     appears or disappears (e.g. a sheet whose content grows). Matches Tailwind's overflow classes. */
+  [class*='overflow-y-auto'],
+  [class*='overflow-auto'],
+  [data-slot='sheet-content'] {
+    scrollbar-gutter: stable;
+  }
   ::-webkit-scrollbar-track {
     background: transparent;
-  }
-  /* Auto-growing textareas (field-sizing: content) must never show a scrollbar. */
-  textarea {
-    scrollbar-width: none;
-  }
-  textarea::-webkit-scrollbar {
-    display: none;
   }
   @media (prefers-reduced-motion: reduce) {
     *,

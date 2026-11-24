@@ -45,6 +45,16 @@ const KIND_SINGLE: Record<ClaudeKind, string> = {
   prompt: 'Промт'
 }
 
+/** What each kind is for — shown under the type picker so the choice is obvious. */
+const KIND_HINT: Record<ClaudeKind, string> = {
+  note: 'Мысль или наблюдение о работе с Claude.',
+  branch: 'Ветка работы: задача, git-ветка или сессия Claude — где остановились и что дальше.',
+  skill: 'Скил Claude Code: что умеет, когда вызывать, как установить.',
+  plugin: 'Плагин или MCP-сервер: зачем нужен и как подключить.',
+  guide: 'Пошаговая инструкция, которую стоит повторить.',
+  prompt: 'Промт, который можно скопировать одной кнопкой; отметьте, если он работает.'
+}
+
 const NEW_TITLE: Record<ClaudeKind, string> = {
   note: 'Новая заметка',
   branch: 'Новая ветка',
@@ -127,6 +137,7 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
               value={item.kind}
               onChange={(kind) => save({ kind })}
             />
+            <p className="mt-2 text-caption text-muted-foreground">{KIND_HINT[item.kind]}</p>
           </Block>
         </EntityAside>
       }
@@ -242,7 +253,7 @@ export function ClaudePage() {
                     <ListItem active={active} onClick={() => setOpen(i.id)} className={cn(isPrompt && 'pr-14')}>
                       <div className={cn('mb-0.5 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {KIND_SINGLE[i.kind]}
-                        {i.works && <span className={cn('ml-1.5', active ? 'text-ink-accent' : 'text-success')}>● работает</span>}
+                        {isPrompt && i.works && <span className={cn('ml-1.5', active ? 'text-ink-accent' : 'text-success')}>● работает</span>}
                       </div>
                       <div className="truncate text-body font-medium">{i.title}</div>
                       {i.summary && (

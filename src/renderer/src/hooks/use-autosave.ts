@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+/** Flushers of every mounted autosave field. */
+const flushers = new Set<() => void>()
+
+/**
+ * Saves all pending edits right now. Called before creating a record: otherwise the editor that
+ * closes after the create would save later and jump above the new record in "recently changed" lists.
+ */
+export function flushAllAutosaves(): void {
+  for (const f of flushers) f()
+}
+
 /**
  * Local editable copy of a server value that saves itself after the user stops typing.
  * - `value` is the server state; when it changes (other window/refetch) and there are no
@@ -29,7 +40,13 @@ export function useAutosave<T>(value: T, save: (next: T) => void, delay = 600): 
     }
   }, [])
 
-  useEffect(() => flush, [flush])
+  useEffect(() => {
+    flushers.add(flush)
+    return () => {
+      flushers.delete(flush)
+      flush()
+    }
+  }, [flush])
 
   const update = useCallback(
     (next: T) => {

@@ -100,6 +100,9 @@ export function NotesPage() {
           <Button
             variant="lime"
             onClick={async () => {
+              // An untouched blank note already exists → open it instead of piling up empty ones.
+              const blank = list.items.find((n) => n.title === 'Новая заметка' && !n.body.trim())
+              if (blank) return setOpen(blank.id)
               const created = await create.mutateAsync({
                 title: 'Новая заметка',
                 folder: folder && folder !== NO_FOLDER ? folder : ''

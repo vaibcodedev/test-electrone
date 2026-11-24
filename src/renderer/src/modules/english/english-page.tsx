@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Brain, Flame, Languages } from 'lucide-react'
+import { Brain, Flame, Languages, X } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
 import { WORD_KINDS, WORD_STAGES, type WordKind, type WordStage } from '@shared/domain/english'
 import { useApi, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -15,13 +16,13 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { AddWordForm } from './add-word-form'
 import { WordDetail } from './word-detail'
-import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL } from './labels'
+import { KIND_LABEL, STAGE_LABEL } from './labels'
 
 const STAGE_COLOR: Record<WordStage, string> = {
   new: 'bg-muted-foreground/50',
   learning: 'bg-warn',
   review: 'bg-info',
-  mastered: 'bg-lime'
+  mastered: 'bg-chart-1'
 }
 
 /** Full static class strings (Tailwind can't see interpolated class names). */
@@ -29,7 +30,7 @@ const STAGE_INDICATOR: Record<WordStage, string> = {
   new: '[&>[data-slot=progress-indicator]]:bg-muted-foreground/50',
   learning: '[&>[data-slot=progress-indicator]]:bg-warn',
   review: '[&>[data-slot=progress-indicator]]:bg-info',
-  mastered: '[&>[data-slot=progress-indicator]]:bg-lime'
+  mastered: '[&>[data-slot=progress-indicator]]:bg-chart-1'
 }
 
 /** Stage distribution: one shadcn Progress segment per stage (width ∝ count) + Badge legend. */
@@ -72,6 +73,13 @@ export function EnglishPage() {
   const [stage, setStage] = useState<WordStage | undefined>()
   const [kind, setKind] = useState<WordKind | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
+  const filtered = !!(search || stage || kind || tagId)
+  const resetFilters = (): void => {
+    setSearch('')
+    setStage(undefined)
+    setKind(undefined)
+    setTagId(undefined)
+  }
 
   const { data: stats } = useApi('english', 'stats')
   const { data: all = [] } = useApi('english', 'list')
@@ -114,8 +122,10 @@ export function EnglishPage() {
           </div>
         }
       >
-        {stats && <StageBar byStage={stats.byStage} total={stats.total} />}
-        <AddWordForm />
+        {/* Hidden for an empty dictionary: an empty bar and four zeros say nothing the chips below don't. */}
+        {stats && stats.total > 0 && <StageBar byStage={stats.byStage} total={stats.total} />}
+        {/* A new word is always "new" and may not match the active filters: show it instead of hiding it. */}
+        <AddWordForm onAdded={resetFilters} />
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput value={search} onChange={setSearch} placeholder="Слово, перевод, пример" className="w-64" />
           <FilterChips
@@ -124,12 +134,18 @@ export function EnglishPage() {
             value={stage}
             onChange={setStage}
           />
+          <Separator orientation="vertical" className="mx-1 h-6" />
           <FilterChips
             options={WORD_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
             value={kind}
             onChange={(k) => setKind(k === kind ? undefined : k)}
           />
           <TagFilter value={tagId} onChange={setTagId} />
+          {filtered && (
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={resetFilters}>
+              <X /> Сбросить
+            </Button>
+          )}
         </div>
       </PageHeader>
 
@@ -154,8 +170,15 @@ export function EnglishPage() {
                     title={all.length ? 'Ничего не подошло под фильтр' : 'Словарь пуст'}
                     hint={
                       all.length
-                        ? 'Сбросьте стадию, тип или метку.'
+                        ? 'Слова есть, но фильтры их скрывают.'
                         : 'Добавьте слово из рабочей переписки в форме выше — оно сразу попадёт в повторение.'
+                    }
+                    action={
+                      all.length && filtered ? (
+                        <Button variant="subtle" onClick={resetFilters}>
+                          <X /> Сбросить фильтры
+                        </Button>
+                      ) : undefined
                     }
                   />
                 )
@@ -164,22 +187,38 @@ export function EnglishPage() {
                 const active = w.id === open
                 return (
                   <ListItem active={active} onClick={() => setOpen(active ? null : w.id)}>
+                    {/* Term + kind on top, translation, the work sentence it came from, then stage and due. */}
                     <div className="flex items-baseline gap-2">
-                      <span className="font-display truncate text-[18px]">{w.term}</span>
+                      <span className="font-display min-w-0 truncate text-[19px] leading-tight">{w.term}</span>
                       {w.transcription && (
                         <span className={cn('truncate text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                           {w.transcription}
                         </span>
                       )}
+                      <span className={cn('ml-auto shrink-0 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        {KIND_LABEL[w.kind]}
+                      </span>
                     </div>
-                    <div className={cn('mt-0.5 truncate text-body', active ? 'text-ink-foreground/80' : 'text-muted-foreground')}>
+                    <div className={cn('mt-0.5 truncate text-body', active ? 'text-ink-foreground/85' : 'text-foreground/85')}>
                       {w.translation || 'без перевода'}
                     </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Badge variant={active ? 'lime' : STAGE_BADGE[w.stage]}>{STAGE_LABEL[w.stage]}</Badge>
-                      <span className={cn('text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                        {w.dueAt <= Date.now() ? 'пора повторить' : `повтор ${fmtDay(w.dueAt)}`}
+                    {w.example && (
+                      <div className={cn('mt-1.5 truncate text-caption italic', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        «{w.example}»
+                      </div>
+                    )}
+                    <div className={cn('mt-2.5 flex items-center gap-3 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <span className="flex items-center gap-1.5">
+                        <span className={cn('size-2 rounded-full', STAGE_COLOR[w.stage])} />
+                        {STAGE_LABEL[w.stage]}
                       </span>
+                      {w.dueAt <= Date.now() ? (
+                        <Badge variant={active ? 'ink' : 'warn'} className={cn(active && 'bg-ink-foreground/12 text-ink-foreground')}>
+                          <Brain /> пора повторить
+                        </Badge>
+                      ) : (
+                        <span>повтор {fmtDay(w.dueAt)}</span>
+                      )}
                     </div>
                   </ListItem>
                 )

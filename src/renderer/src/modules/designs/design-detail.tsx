@@ -104,8 +104,8 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
       }
     >
       <div className="flex flex-col gap-5">
-        <Card className="group relative gap-0 overflow-hidden py-0">
-          <DesignMedia path={design.imagePath} className="max-h-[60vh] w-full object-contain" />
+        <Card className="group relative gap-0 overflow-hidden bg-surface p-2">
+          <DesignMedia path={design.imagePath} className="max-h-[60vh] w-full rounded-2xl object-contain" />
           <input
             ref={fileInput}
             type="file"

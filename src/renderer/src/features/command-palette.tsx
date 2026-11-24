@@ -100,8 +100,15 @@ export function CommandPalette() {
           const Icon = ENTITY_ICON[type]
           return (
             <CommandGroup key={type} heading={ENTITY_META[type].plural}>
-              {list.map((h) => (
-                <CommandItem key={`${h.type}:${h.id}`} value={`${h.type}:${h.id}`} onSelect={() => go(ENTITY_META[h.type].route(h.id))}>
+              {list.map((h, i) => (
+                // New results fade in one after another; results that stay between keystrokes don't re-animate.
+                <CommandItem
+                  key={`${h.type}:${h.id}`}
+                  value={`${h.type}:${h.id}`}
+                  onSelect={() => go(ENTITY_META[h.type].route(h.id))}
+                  className="animate-enter"
+                  style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
+                >
                   <Icon />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{h.title}</div>

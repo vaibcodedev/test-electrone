@@ -285,7 +285,7 @@ export function GoalsPage() {
             hint="Например: 10 откликов в неделю или $3000 на руки в месяц."
           />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+          <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
             {progress.map((g) => {
               const goal = goals.find((x) => x.id === g.id)
               return (

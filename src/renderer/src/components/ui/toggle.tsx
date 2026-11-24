@@ -9,7 +9,7 @@ import { Toggle as TogglePrimitive } from "radix-ui"
  * Variants:
  *  - default: quiet icon/text toggle
  *  - chip:    filter pill, selected = lime (reference: "Wrong size" chips)
- *  - segment: segmented control item, selected = ink pill (use inside ToggleGroup variant="segment")
+ *  - segment: segmented control item, selected = raised neutral pill (card in light, lifted grey in dark)
  *  - outline
  */
 const toggleVariants = cva(
@@ -18,12 +18,12 @@ const toggleVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-transparent text-muted-foreground hover:bg-surface hover:text-foreground data-[state=on]:bg-surface data-[state=on]:text-foreground",
-        chip: "bg-surface font-normal text-foreground hover:bg-accent data-[state=on]:bg-lime data-[state=on]:font-medium data-[state=on]:text-lime-foreground",
+          "bg-transparent text-muted-foreground hover:bg-surface hover:text-foreground on:bg-surface on:text-foreground",
+        chip: "bg-surface font-normal text-foreground hover:bg-accent on:bg-lime on:font-medium on:text-lime-foreground",
         segment:
-          "font-normal text-muted-foreground hover:text-foreground data-[state=on]:bg-ink data-[state=on]:font-medium data-[state=on]:text-ink-foreground",
+          "font-normal text-muted-foreground hover:text-foreground on:bg-card on:font-medium on:text-foreground on:shadow-sm dark:on:bg-foreground/12",
         outline:
-          "border border-input bg-transparent hover:bg-surface data-[state=on]:border-transparent data-[state=on]:bg-ink data-[state=on]:text-ink-foreground",
+          "border border-input bg-transparent hover:bg-surface on:border-transparent on:bg-ink on:text-ink-foreground",
       },
       size: {
         default: "h-9 min-w-9 px-3.5",

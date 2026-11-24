@@ -50,3 +50,29 @@ export function groupByDay(items: CalendarItem[]): Map<string, CalendarItem[]> {
   }
   return map
 }
+
+const hm = (ts: number): string => {
+  const d = new Date(ts)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/**
+ * Time label for an item as seen on a given day. A multi-day event shows its start time on the first day,
+ * "до 09:00" on the last day and nothing on the days in between (it runs all day there).
+ * `short` fits a month cell, `long` is for the week view.
+ */
+export function timeOnDay(item: CalendarItem, day: Date): { short: string; long: string } {
+  if (item.allDay) return { short: '', long: SOURCE_LABEL[item.source] }
+  const key = dayKey(day)
+  const startsToday = dayKey(item.startAt) === key
+  const end = item.endAt && item.endAt > item.startAt ? item.endAt : null
+  const endsToday = end !== null && dayKey(end) === key
+  if (startsToday) {
+    if (end === null) return { short: hm(item.startAt), long: hm(item.startAt) }
+    return endsToday
+      ? { short: hm(item.startAt), long: `${hm(item.startAt)}–${hm(end)}` }
+      : { short: hm(item.startAt), long: `с ${hm(item.startAt)}` }
+  }
+  if (endsToday) return { short: `до ${hm(end)}`, long: `до ${hm(end)}` }
+  return { short: '', long: 'весь день' }
+}

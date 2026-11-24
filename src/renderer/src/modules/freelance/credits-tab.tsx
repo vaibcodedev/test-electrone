@@ -54,7 +54,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-3 gap-3 xl:grid-cols-6">
+      <div className="stagger grid grid-cols-3 gap-3 xl:grid-cols-6">
         <Stat accent label="Баланс" value={String(s?.balance ?? 0)} hint={name} />
         <Stat label="Куплено" value={String(s?.purchased ?? 0)} hint={`за ${money(s?.moneySpent)}`} />
         <Stat label="Потрачено" value={String(s?.spent ?? 0)} hint="на отклики с бустом" />

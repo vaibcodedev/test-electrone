@@ -159,7 +159,7 @@ export function TagsPage() {
                           value={c}
                           aria-label={c}
                           size="sm"
-                          className="size-8 min-w-8 p-0 data-[state=on]:bg-transparent data-[state=on]:ring-2 data-[state=on]:ring-foreground"
+                          className="size-8 min-w-8 p-0 on:bg-transparent on:ring-2 on:ring-foreground"
                         >
                           <span className="size-5 rounded-full" style={{ background: c }} />
                         </ToggleGroupItem>

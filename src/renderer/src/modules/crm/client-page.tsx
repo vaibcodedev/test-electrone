@@ -124,7 +124,7 @@ export function ClientPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-4 gap-3">
+        <div className="stagger mt-6 grid grid-cols-4 gap-3">
           <StatTile
             tone="ink"
             label="Проекты"

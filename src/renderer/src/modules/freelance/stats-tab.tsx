@@ -122,7 +122,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
         <EmptyState title="За этот период откликов нет" hint="Статистика появится, когда вы отправите несколько откликов." />
       ) : (
         <>
-          <div className="grid grid-cols-12 gap-3">
+          <div className="stagger grid grid-cols-12 gap-3">
             <Card className="col-span-5">
               <CardHeader>
                 <CardTitle>Воронка</CardTitle>

@@ -36,7 +36,7 @@ function extractText(node: unknown): string {
 /** Renders GitHub-flavoured markdown with highlighted code blocks; links open in the system browser. */
 export function Markdown({ source, className }: { source: string; className?: string }) {
   return (
-    <div className={cn('prose-vault', className)}>
+    <div className={cn('prose-vault [overflow-wrap:anywhere]', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}

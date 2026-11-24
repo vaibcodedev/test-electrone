@@ -144,7 +144,7 @@ function AddDesignsDialog({
                     key={d.id}
                     value={d.id}
                     aria-label={designTitle(d)}
-                    className="relative aspect-[4/3] h-auto w-full overflow-hidden rounded-xl bg-surface p-0 data-[state=on]:bg-surface data-[state=on]:ring-2 data-[state=on]:ring-ring data-[state=on]:ring-offset-2 data-[state=on]:ring-offset-card"
+                    className="relative aspect-[4/3] h-auto w-full overflow-hidden rounded-xl bg-surface p-0 on:bg-surface on:ring-2 on:ring-ring on:ring-offset-2 on:ring-offset-card"
                   >
                     <DesignMedia path={d.imagePath} className="size-full object-cover" />
                     {on && (
@@ -246,7 +246,7 @@ function Board({ board }: { board: MoodboardDetails }) {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="О чём эта подборка: стиль, настроение, для какого проекта"
                 aria-label="Описание подборки"
-                className="mt-2 h-8 rounded-none border-0 bg-transparent px-0 text-body text-muted-foreground focus-visible:bg-transparent focus-visible:ring-0"
+                className="mt-2 -mx-2 h-8 w-[calc(100%+1rem)] rounded-lg border-0 bg-transparent px-2 text-body text-muted-foreground transition-colors hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-0"
               />
               <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} className="mt-3" />
             </div>

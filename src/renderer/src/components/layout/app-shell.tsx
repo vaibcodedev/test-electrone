@@ -1,5 +1,6 @@
 import { useCallback, Suspense, type CSSProperties } from 'react'
-import { Outlet, useNavigate } from 'react-router'
+import { Outlet, useLocation, useNavigate } from 'react-router'
+import { PageSkeleton } from '@/components/common/page-skeleton'
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
 import { AppSidebar } from './sidebar'
 import { Button } from '@/components/ui/button'
@@ -63,6 +64,7 @@ function TitleBar() {
 
 /** Window layout: custom title bar on the sage frame, sidebar, and the main paper panel. */
 export function AppShell() {
+  const { pathname } = useLocation()
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
   useMainEventsBridge()
   // Background messages from main (e.g. «команда code не найдена»).
@@ -84,9 +86,12 @@ export function AppShell() {
       >
         <AppSidebar />
         <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          <Suspense fallback={<div className="p-8 text-muted-foreground">Загрузка…</div>}>
-            <Outlet />
-          </Suspense>
+          {/* Keyed by path: every page enters with the same short fade-up. */}
+          <div key={pathname} className="flex min-h-0 flex-1 animate-page flex-col">
+            <Suspense fallback={<PageSkeleton />}>
+              <Outlet />
+            </Suspense>
+          </div>
         </main>
       </SidebarProvider>
       <CommandPalette />

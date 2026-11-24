@@ -1,7 +1,43 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import { Spinner } from '@/components/ui/spinner'
+import { useUi } from '@/stores/ui-store'
+
+/**
+ * Entrance motion for list rows: rows that mount right after the list's leading items change
+ * (first load, new search, another filter) fade up one after another; rows that mount later
+ * while scrolling appear instantly, so scrolling never feels sluggish.
+ */
+const ENTER_WINDOW_MS = 600
+/** Lists shorter than this don't need an "end of list" note. */
+const END_NOTE_FROM = 20
+
+function ListEnd({ loading, total }: { loading: boolean; total: number }) {
+  return (
+    <div className="col-span-full flex items-center justify-center gap-2 py-4 text-caption text-muted-foreground">
+      {loading ? (
+        <>
+          <Spinner /> Загружаю ещё…
+        </>
+      ) : (
+        <>Это все записи · {total}</>
+      )}
+    </div>
+  )
+}
+function useEntering(signature: string): (index: number, key: string) => { className?: string; style?: CSSProperties } {
+  const [state, setState] = useState(() => ({ signature, since: performance.now() }))
+  if (state.signature !== signature) setState({ signature, since: performance.now() })
+  // Rows being sent to the trash (see DetailPane) play the leave animation.
+  const leaving = useUi((s) => s.leaving)
+  return (index, key) =>
+    leaving[key]
+      ? { className: 'pointer-events-none animate-leave' }
+      : index < 16 && performance.now() - state.since < ENTER_WINDOW_MS
+        ? { className: 'animate-enter', style: { animationDelay: `${Math.min(index, 12) * 28}ms` } }
+        : {}
+}
 
 interface InfiniteProps {
   /** More pages can be loaded. */
@@ -40,7 +76,10 @@ export function VirtualList<T>({
   empty?: ReactNode
 } & InfiniteProps) {
   const parentRef = useRef<HTMLDivElement>(null)
-  const count = items.length + (hasMore ? 1 : 0)
+  // Last row: "loading more" while pages remain, "that's all · N" once a long list is complete.
+  const showEnd = !hasMore && items.length >= END_NOTE_FROM
+  const count = items.length + (hasMore || showEnd ? 1 : 0)
+  const entering = useEntering(items.slice(0, 12).map((it, i) => getKey(it, i)).join('|'))
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns mutable functions by design
   const virtualizer = useVirtualizer({
     count,
@@ -71,11 +110,10 @@ export function VirtualList<T>({
             style={{ transform: `translateY(${row.start}px)` }}
           >
             {row.index < items.length ? (
-              renderItem(items[row.index], row.index)
+              // Inner wrapper animates: the outer one is positioned with transform by the virtualizer.
+              <div {...entering(row.index, getKey(items[row.index], row.index))}>{renderItem(items[row.index], row.index)}</div>
             ) : (
-              <div className="flex items-center justify-center gap-2 py-4 text-caption text-muted-foreground">
-                <Spinner /> Загружаю ещё…
-              </div>
+              <ListEnd loading={!!hasMore} total={items.length} />
             )}
           </div>
         ))}
@@ -126,7 +164,9 @@ export function VirtualGrid<T>({
   }, [gap, minColumnWidth])
 
   const rows = Math.ceil(items.length / columns)
-  const count = rows + (hasMore ? 1 : 0)
+  const showEnd = !hasMore && items.length >= END_NOTE_FROM
+  const count = rows + (hasMore || showEnd ? 1 : 0)
+  const entering = useEntering(items.slice(0, 12).map((it) => getKey(it)).join('|'))
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns mutable functions by design
   const virtualizer = useVirtualizer({
     count,
@@ -159,11 +199,13 @@ export function VirtualGrid<T>({
               style={{ transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap }}
             >
               {row.index < rows ? (
-                slice.map((item, i) => <div key={getKey(item)}>{renderItem(item, start + i)}</div>)
+                slice.map((item, i) => (
+                  <div key={getKey(item)} {...entering(start + i, getKey(item))}>
+                    {renderItem(item, start + i)}
+                  </div>
+                ))
               ) : (
-                <div className="col-span-full flex items-center justify-center gap-2 py-4 text-caption text-muted-foreground">
-                  <Spinner /> Загружаю ещё…
-                </div>
+                <ListEnd loading={!!hasMore} total={items.length} />
               )}
             </div>
           )

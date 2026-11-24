@@ -33,7 +33,7 @@ export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects:
     <div className="flex h-full min-h-0 flex-col gap-2 px-8 pt-2 pb-4">
       <div className="flex items-center gap-2">
         <Tabs value={active ?? ''} onValueChange={setActive} className="min-w-0 flex-1">
-          <TabsList className="max-w-full justify-start overflow-x-auto">
+          <TabsList className="max-w-full justify-start overflow-x-auto overflow-y-hidden">
             {runs.map((r) => (
               <TabsTrigger key={r.runId} value={r.runId} className="gap-1.5">
                 {r.status === 'running' && <span className="size-1.5 animate-pulse rounded-full bg-lime" />}

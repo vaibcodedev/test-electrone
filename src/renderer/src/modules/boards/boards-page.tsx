@@ -127,7 +127,7 @@ export function BoardsPage() {
             }
           />
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+          <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
             {boards.map((b) => (
               <BoardTile key={b.id} board={b} />
             ))}

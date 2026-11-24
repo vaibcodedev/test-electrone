@@ -43,7 +43,7 @@ function Stars({ value, onChange }: { value: number; onChange: (v: number) => vo
           key={n}
           value={String(n)}
           aria-label={`${n} из 5`}
-          className="size-8 min-w-8 px-0 data-[state=on]:bg-transparent"
+          className="size-8 min-w-8 px-0 on:bg-transparent"
         >
           <Star className={cn('size-4', n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')} />
         </ToggleGroupItem>

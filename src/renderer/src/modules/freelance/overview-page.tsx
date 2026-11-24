@@ -109,7 +109,7 @@ export function FreelanceOverviewPage() {
         ))}
       />
       <PageBody>
-        <div className="grid grid-cols-12 gap-3">
+        <div className="stagger grid grid-cols-12 gap-3">
           {/* Money and contracts */}
           <Card className="col-span-4 bg-ink text-ink-foreground">
             <CardHeader>

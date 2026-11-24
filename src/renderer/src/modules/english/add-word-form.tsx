@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 const EMPTY = { term: '', translation: '', example: '', context: '' }
 
 /** Inline capture (shadcn Input + Button in a surface row): four fields, Enter anywhere saves. */
-export function AddWordForm() {
+/** `onAdded` lets the page clear filters that would hide the new word. */
+export function AddWordForm({ onAdded }: { onAdded?: () => void }) {
   const [form, setForm] = useState(EMPTY)
   const termRef = useRef<HTMLInputElement>(null)
   const create = useApiMutation('english', 'create', { successMessage: 'Слово добавлено' })
@@ -17,6 +18,7 @@ export function AddWordForm() {
     create.mutate(form, {
       onSuccess: () => {
         setForm(EMPTY)
+        onAdded?.()
         termRef.current?.focus()
       }
     })
@@ -41,10 +43,10 @@ export function AddWordForm() {
         submit()
       }}
     >
-      <Input ref={termRef} aria-label="Слово или фраза" placeholder="Слово или фраза" className="bg-card" {...field('term')} />
-      <Input aria-label="Перевод" placeholder="Перевод" className="bg-card" {...field('translation')} />
-      <Input aria-label="Пример из работы" placeholder="Пример из работы" className="bg-card" {...field('example')} />
-      <Input aria-label="Где встретил" placeholder="Где встретил" className="bg-card" {...field('context')} />
+      <Input ref={termRef} aria-label="Слово или фраза" placeholder="Слово, напр. rollout" className="bg-card" {...field('term')} />
+      <Input aria-label="Перевод" placeholder="Перевод: выкатка" className="bg-card" {...field('translation')} />
+      <Input aria-label="Предложение, где встретилось слово" title="Предложение из переписки или кода, где встретилось слово" placeholder="Предложение: We'll do a staged rollout" className="bg-card" {...field('example')} />
+      <Input aria-label="Источник" title="Где встретилось: чат, код-ревью, созвон" placeholder="Источник: Slack, ревью…" className="bg-card" {...field('context')} />
       <Button type="submit" variant="lime" disabled={!form.term.trim() || create.isPending}>
         <Plus /> Добавить
       </Button>

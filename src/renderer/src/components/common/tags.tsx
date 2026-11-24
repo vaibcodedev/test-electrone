@@ -97,15 +97,21 @@ export function TagPicker({
   }
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-1', className)}>
+    <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
+      {/* Editable tags are full-size controls (h-8, body text): the picker is a form field, not a meta badge. */}
       {value.map((t) => (
-        <TagChip key={t.id} tag={t} onRemove={() => toggle(t.id)} />
+        <TagChip key={t.id} tag={t} onRemove={() => toggle(t.id)} className="h-8 px-3 text-body" />
       ))}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="xs" className="h-6 border-dashed text-muted-foreground">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-dashed text-muted-foreground hover:text-foreground"
+            aria-label={value.length ? 'Добавить метку' : undefined}
+          >
             {value.length ? <Plus /> : <TagIcon />}
-            {value.length ? '' : 'Метки'}
+            {value.length ? '' : 'Добавить метку'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 rounded-2xl p-0" align="start">

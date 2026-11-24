@@ -159,8 +159,9 @@ export function FinanceNav() {
           variant="ghost"
           className={cn(
             'font-normal text-muted-foreground hover:bg-transparent hover:text-foreground',
+            // Same as a selected segment (docs/design-system.md → Переключатели): raised neutral, not inverted.
             pathname === l.to &&
-              'bg-ink font-medium text-ink-foreground hover:bg-ink hover:text-ink-foreground'
+              'bg-card font-medium text-foreground shadow-sm hover:bg-card dark:bg-foreground/12 dark:hover:bg-foreground/12'
           )}
         >
           <Link to={{ pathname: l.to, search }}>{l.label}</Link>
