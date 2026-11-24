@@ -60,3 +60,5 @@ publish:
   owner: vaibcodedev
   repo: test-electrone
   releaseType: prerelease
+  # Betas read beta.yml (installed 0.1.0-beta.N asks for the "beta" channel). From 1.0.0: remove this line.
+  channel: beta
