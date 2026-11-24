@@ -161,6 +161,7 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
           value={form.answer}
           onChange={(v) => set('answer', v)}
           placeholder="Структура: суть → приклад із досвіду → результат. Можна англійською."
+          maxLength={LIMITS.answer}
         />
         <div className="grid grid-cols-2 gap-4">
           <Field className="gap-2">

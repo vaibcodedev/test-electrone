@@ -171,6 +171,7 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
           onSave={(content) => save({ content })}
           placeholder={isPrompt ? 'Вставте промт, який спрацював…' : 'Пишіть у Markdown: заголовки, списки, ```код```'}
           minHeight="280px"
+          maxLength={LIMITS.content}
         />
       </EditorStack>
     </DetailPane>

@@ -67,6 +67,7 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
           value={note.body}
           onSave={(body) => save({ body })}
           placeholder="Пишіть у Markdown: списки, посилання, ```код```"
+          maxLength={LIMITS.body}
           minHeight="320px"
         />
       </EditorStack>

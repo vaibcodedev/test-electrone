@@ -167,6 +167,7 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
           value={lib.notes}
           onSave={(notes) => save({ notes })}
           placeholder="Як підключав, підводні камені, приклад використання"
+          maxLength={LIMITS.notes}
         />
       </EditorStack>
     </DetailPane>

@@ -198,18 +198,21 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           label="Завдання клієнта"
           value={c.problem}
           onSave={(problem) => save({ problem })}
+          maxLength={CASE_L.problem}
           minHeight="100px"
         />
         <AutoMarkdown
           label="Що зробив"
           value={c.whatDone}
           onSave={(whatDone) => save({ whatDone })}
+          maxLength={CASE_L.whatDone}
           minHeight="140px"
         />
         <AutoMarkdown
           label="Результат"
           value={c.result}
           onSave={(result) => save({ result })}
+          maxLength={CASE_L.result}
           minHeight="100px"
           placeholder="Цифри: швидкість, конверсія, терміни"
         />

@@ -102,6 +102,7 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
           onChange={setBody}
           label="Опис"
           placeholder="Опишіть ідею: навіщо, для кого, перші кроки…"
+          maxLength={LIMITS.body}
           minHeight="280px"
         />
       </div>

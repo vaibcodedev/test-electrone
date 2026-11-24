@@ -28,7 +28,8 @@ import { AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-ki
 import { SEVERITY_LABEL } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
 
-const TITLE_MAX = limitsOf(redFlagInputSchema).title
+const FLAG_L = limitsOf(redFlagInputSchema)
+const TITLE_MAX = FLAG_L.title
 
 const SEVERITY_VARIANT: Record<number, 'soft' | 'warn' | 'destructive'> = {
   1: 'soft',
@@ -102,6 +103,7 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
           value={flag.signs}
           onSave={(signs) => save({ signs })}
           placeholder="Ознаки в описі вакансії, профілі чи листуванні"
+          maxLength={FLAG_L.signs}
           minHeight="120px"
         />
         <AutoMarkdown
@@ -109,6 +111,7 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
           value={flag.action}
           onSave={(action) => save({ action })}
           placeholder="Пропустити, поставити питання, підняти ціну…"
+          maxLength={FLAG_L.action}
           minHeight="120px"
         />
       </EditorStack>

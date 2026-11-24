@@ -156,7 +156,7 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           maxLength={LIMITS.contacts}
         />
       </Field>
-      <MarkdownField label="Нотатки: процес, враження, що питають" value={notes} onChange={setNotes} className="mt-4" minHeight="120px" />
+      <MarkdownField label="Нотатки: процес, враження, що питають" value={notes} onChange={setNotes} className="mt-4" minHeight="120px" maxLength={LIMITS.notes} />
 
       <Separator className="my-6" />
       <CompanyApplications companyId={c.id} />

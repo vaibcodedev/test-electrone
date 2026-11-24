@@ -4,7 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { addDays, format, startOfWeek } from 'date-fns'
 import { ArchiveRestore, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Minus, NotebookPen } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
-import type { WeekMetric, WeekSection, WeekSnapshot } from '@shared/domain/review'
+import { reviewNotesSchema, type WeekMetric, type WeekSection, type WeekSnapshot } from '@shared/domain/review'
+import { limitsOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { LOCALE, fmtDay, fmtMinutes, fmtMoney, plural } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -22,6 +23,7 @@ import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
+const NOTES_L = limitsOf(reviewNotesSchema)
 const toKey = (d: Date): string => format(d, 'yyyy-MM-dd')
 const currentWeekKey = (): string => toKey(startOfWeek(new Date(), { weekStartsOn: 1 }))
 const parseKey = (key: string): Date => new Date(`${key}T00:00:00`)
@@ -141,6 +143,7 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
             value={s}
             onChange={setS}
             placeholder="Що спрацювало? Що заважало? Що робити інакше?"
+            maxLength={NOTES_L.summary}
             minHeight="160px"
           />
         </CardContent>
@@ -152,6 +155,7 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
             value={p}
             onChange={setP}
             placeholder="- [ ] 10 відгуків на Djinni&#10;- [ ] Доробити редизайн Bloom"
+            maxLength={NOTES_L.plan}
             minHeight="160px"
           />
         </CardContent>

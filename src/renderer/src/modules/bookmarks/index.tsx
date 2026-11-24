@@ -204,6 +204,7 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
           value={item.notes}
           onSave={(notes) => save({ notes })}
           placeholder="Головні думки, цитати, що застосувати"
+          maxLength={LIMITS.notes}
         />
       </EditorStack>
     </DetailPane>

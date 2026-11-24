@@ -84,6 +84,7 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
             lineNumbers={false}
             minHeight="90px"
             placeholder="Вставте повідомлення або стек помилки"
+            maxLength={LIMITS.errorText}
           />
         </Block>
         <AutoMarkdown
@@ -91,6 +92,7 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           value={fix.cause}
           onSave={(cause) => save({ cause })}
           placeholder="Чому так сталося"
+          maxLength={LIMITS.cause}
           minHeight="100px"
         />
         <AutoMarkdown
@@ -98,6 +100,7 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           value={fix.solution}
           onSave={(solution) => save({ solution })}
           placeholder="Кроки, команди, код виправлення"
+          maxLength={LIMITS.solution}
           minHeight="180px"
         />
       </EditorStack>

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { Archive, ArchiveRestore, Info, MoreHorizontal, SquareKanban, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Board, BoardPatch } from '@shared/domain/boards'
+import { boardInputSchema, type Board, type BoardPatch } from '@shared/domain/boards'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useUi } from '@/stores/ui-store'
@@ -47,6 +48,7 @@ function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boo
             value={description}
             onChange={setDescription}
             placeholder="Мета, посилання, домовленості…"
+            maxLength={limitsOf(boardInputSchema).description}
             minHeight="160px"
           />
           <section className="flex flex-col gap-2">

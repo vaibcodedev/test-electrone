@@ -138,7 +138,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
         )}
       </section>
 
-      <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Як запускати, змінні оточення, доступи до стендів…" minHeight="120px" />
+      <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Як запускати, змінні оточення, доступи до стендів…" minHeight="120px" maxLength={LIMITS.notes} />
 
       <Field label="Додано">
         <Input readOnly value={new Date(p.createdAt).toLocaleString('uk-UA')} />

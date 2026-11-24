@@ -546,6 +546,7 @@ function Editor({
               value={cover}
               onChange={setCover}
               placeholder="Cover letter…"
+              maxLength={PROPOSAL_L.coverLetter}
               minHeight="200px"
             />
             <div className="flex gap-2" data-edit-only>
@@ -563,6 +564,7 @@ function Editor({
               value={description}
               onChange={setDescription}
               placeholder="Скопіюйте опис завдання"
+              maxLength={PROPOSAL_L.jobDescription}
               minHeight="120px"
             />
             <Field label="Нотатки" count={{ length: notes.length, max: PROPOSAL_L.notes }}>

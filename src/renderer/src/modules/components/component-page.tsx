@@ -162,6 +162,7 @@ function Editor({ item }: { item: UiComponent }) {
               onChange={setCode}
               language={item.language}
               minHeight={editorHeight}
+              maxLength={LIMITS.code}
               maxHeight={editorHeight}
               className="flex-1"
             />

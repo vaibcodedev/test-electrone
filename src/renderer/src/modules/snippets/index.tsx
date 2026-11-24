@@ -121,6 +121,7 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
             language={item.language}
             minHeight="320px"
             placeholder="Вставте код…"
+            maxLength={LIMITS.code}
           />
           <LanguageSuggestion
             code={item.code}
