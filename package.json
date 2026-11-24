@@ -1,6 +1,6 @@
 {
   "name": "vault",
-  "version": "0.1.0-beta.21",
+  "version": "0.1.0-beta.22",
   "description": "Vault — личная база знаний разработчика",
   "main": "./out/main/index.js",
   "author": "Baron",
