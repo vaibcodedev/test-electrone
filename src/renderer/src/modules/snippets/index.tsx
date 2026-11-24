@@ -4,12 +4,23 @@ import { SNIPPET_LANGUAGES, type Snippet, type SnippetLanguage, type SnippetPatc
 import { useApi, useApiMutation } from '@/lib/query'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton } from '@/components/common/copy-button'
 import { CodeBlock } from '@/components/common/code'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
-import { AutoCode, AutoTextarea, AutoTitle, Block, PillSelect, countBy, useEscapeToClose } from '../claude/editor-kit'
+import {
+  AutoCode,
+  AutoTextarea,
+  AutoTitle,
+  Block,
+  EditorStack,
+  EnumSelect,
+  countBy,
+  useEscapeToClose
+} from '../claude/editor-kit'
 
 const LANGUAGE_LABEL: Record<SnippetLanguage, string> = {
   typescript: 'TypeScript',
@@ -45,7 +56,11 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
       headerExtra={
         <div className="flex items-center gap-2">
           <CopyButton text={item.code} label="Скопировать код" variant="lime" onCopied={() => markCopied.mutate(item.id)} />
-          {item.copyCount > 0 && <span className="text-[12px] text-muted-foreground">скопирован {item.copyCount} раз</span>}
+          {item.copyCount > 0 && (
+            <Badge variant="soft" className="font-normal text-muted-foreground">
+              скопирован {item.copyCount} раз
+            </Badge>
+          )}
         </div>
       }
       aside={
@@ -57,36 +72,36 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
           updatedAt={item.updatedAt}
           files={false}
         >
-          <section className="flex flex-col gap-2">
-            <h3 className="text-[12px] text-muted-foreground">Язык</h3>
-            <PillSelect
-              size="xs"
+          <Block label="Язык">
+            <EnumSelect
+              ariaLabel="Язык"
               options={SNIPPET_LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_LABEL[l] }))}
               value={item.language}
               onChange={(language) => save({ language })}
             />
-          </section>
+          </Block>
         </EntityAside>
       }
     >
-      <div className="flex flex-col gap-5">
+      <EditorStack>
         <AutoTitle value={item.title} onSave={(title) => save({ title })} />
-        <AutoTextarea
-          value={item.description}
-          onSave={(description) => save({ description })}
-          placeholder="Где применяется, на что обратить внимание"
-          className="min-h-10"
-        />
+        <Block label="Описание">
+          <AutoTextarea
+            value={item.description}
+            onSave={(description) => save({ description })}
+            placeholder="Где применяется, на что обратить внимание"
+          />
+        </Block>
         <Block label="Код">
           <AutoCode
             value={item.code}
             onSave={(code) => save({ code })}
             language={item.language}
-            minHeight="340px"
+            minHeight="320px"
             placeholder="Вставьте код…"
           />
         </Block>
-      </div>
+      </EditorStack>
     </DetailPane>
   )
 }
@@ -94,18 +109,18 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
 function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active: boolean; compact: boolean; onOpen: () => void }) {
   const markCopied = useApiMutation('snippets', 'markCopied', { silent: true })
   return (
-    <div
-      role="button"
+    <Card
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && onOpen()}
+      aria-current={active || undefined}
       className={cn(
-        'group flex cursor-pointer flex-col gap-3 rounded-3xl p-4 transition-colors',
-        active ? 'bg-ink text-ink-foreground' : 'bg-surface hover:bg-accent'
+        'cursor-pointer gap-3 py-4 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+        active ? 'bg-ink text-ink-foreground' : 'hover:bg-accent'
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="min-w-0 flex-1">
+      <CardHeader className="grid-cols-[1fr_auto] items-start gap-3 px-4">
+        <div className="min-w-0">
           <div className="truncate text-[14px] font-medium">{item.title}</div>
           <div className={cn('mt-0.5 truncate text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
             {LANGUAGE_LABEL[item.language]}
@@ -118,10 +133,16 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
           className={cn(!active && 'bg-card')}
           onCopied={() => markCopied.mutate(item.id)}
         />
-      </div>
-      {!compact && item.code.trim() && <CodeBlock code={item.code} language={item.language} maxLines={6} className="text-[11.5px]" />}
-      {!compact && <TagList tags={item.tags} />}
-    </div>
+      </CardHeader>
+      {!compact && (item.code.trim() || item.tags.length > 0) && (
+        <CardContent className="flex flex-col gap-3 px-4">
+          {item.code.trim() && (
+            <CodeBlock code={item.code} language={item.language} maxLines={6} className="rounded-xl text-[11.5px]" />
+          )}
+          <TagList tags={item.tags} />
+        </CardContent>
+      )}
+    </Card>
   )
 }
 

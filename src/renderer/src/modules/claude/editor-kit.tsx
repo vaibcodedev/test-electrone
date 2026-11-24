@@ -1,18 +1,27 @@
 /**
- * Small autosaving field primitives shared by the text-knowledge modules
- * (Claude, snippets, libraries, fixes, bookmarks). Each field keeps a local draft
- * and saves itself after typing stops (see useAutosave). Key the detail by entity id
- * so pending edits flush to the right record when switching items.
+ * Autosaving field primitives shared by the text-knowledge modules
+ * (Claude, snippets, libraries, fixes, bookmarks). All built on shadcn
+ * (Field/FieldLabel, Input, Textarea, Select, ToggleGroup) + common MarkdownField/CodeEditor.
+ * Each field keeps a local draft and saves itself after typing stops (useAutosave).
+ * Key the detail by entity id so pending edits flush to the right record when switching items.
  */
-import type { ComponentProps, ReactNode } from 'react'
+import { useId, type ComponentProps, type ReactNode } from 'react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { CodeEditor, type CodeLanguage } from '@/components/common/code'
 import { cn } from '@/lib/utils'
+
+/** Vertical rhythm for editor bodies: one gap everywhere. */
+export function EditorStack({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('flex flex-col gap-5', className)}>{children}</div>
+}
 
 export function AutoTitle({
   value,
@@ -36,30 +45,46 @@ export function AutoInput({
   return <Input value={draft} onChange={(e) => setDraft(e.target.value)} {...props} />
 }
 
+/** Auto-growing textarea (no resize handle — field-sizing: content). */
 export function AutoTextarea({
   value,
   onSave,
+  className,
   ...props
 }: { value: string; onSave: (value: string) => void } & Omit<ComponentProps<typeof Textarea>, 'value' | 'onChange'>) {
   const [draft, setDraft] = useAutosave(value, onSave)
-  return <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} {...props} />
+  return (
+    <Textarea
+      rows={1}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      className={cn('min-h-9 px-3 py-2', className)}
+      {...props}
+    />
+  )
 }
 
+/** Markdown with its own label row (Текст / Просмотр switch sits next to the label, never over text). */
 export function AutoMarkdown({
   value,
   onSave,
   placeholder,
-  minHeight
+  minHeight,
+  label
 }: {
   value: string
   onSave: (value: string) => void
   placeholder?: string
   minHeight?: string
+  label?: string
 }) {
   const [draft, setDraft] = useAutosave(value, onSave, 800)
-  return <MarkdownField value={draft} onChange={setDraft} placeholder={placeholder} minHeight={minHeight} />
+  return (
+    <MarkdownField value={draft} onChange={setDraft} placeholder={placeholder} minHeight={minHeight} label={label} />
+  )
 }
 
+/** Code editor (CodeMirror — shadcn has no code editor), framed like the other fields. */
 export function AutoCode({
   value,
   onSave,
@@ -84,21 +109,52 @@ export function AutoCode({
       lineNumbers={lineNumbers}
       minHeight={minHeight}
       placeholder={placeholder}
+      className="rounded-xl"
     />
   )
 }
 
-/** Labelled block inside a detail pane. */
-export function Block({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+/** Labelled field (shadcn Field + FieldLabel). Optional hint under the control. */
+export function Block({
+  label,
+  hint,
+  children,
+  className
+}: {
+  label: string
+  hint?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
   return (
-    <section className={cn('flex flex-col gap-2', className)}>
-      <h3 className="text-[12px] text-muted-foreground">{label}</h3>
+    <Field className={cn('gap-2', className)}>
+      <FieldLabel>{label}</FieldLabel>
       {children}
-    </section>
+      {hint && <FieldDescription className="text-[12px]">{hint}</FieldDescription>}
+    </Field>
   )
 }
 
-/** Single-select pill group for enum fields (status, kind, language). */
+/** Labelled autosaving text input in one line. */
+export function InputField({
+  label,
+  value,
+  onSave,
+  ...props
+}: { label: string; value: string; onSave: (value: string) => void } & Omit<
+  ComponentProps<typeof Input>,
+  'value' | 'onChange'
+>) {
+  const id = useId()
+  return (
+    <Field className="gap-2">
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <AutoInput id={id} value={value} onSave={onSave} {...props} />
+    </Field>
+  )
+}
+
+/** Single-select pill group for short enums (shadcn ToggleGroup, chip variant; can't be cleared). */
 export function PillSelect<T extends string>({
   options,
   value,
@@ -111,23 +167,53 @@ export function PillSelect<T extends string>({
   size?: 'sm' | 'xs'
 }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <ToggleGroup
+      type="single"
+      variant="chip"
+      size={size}
+      spacing={1}
+      value={value}
+      onValueChange={(v) => v && onChange(v as T)}
+    >
       {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-          className={cn(
-            'rounded-full transition-colors',
-            size === 'sm' ? 'h-8 px-3 text-[12.5px]' : 'h-6 px-2.5 text-[11.5px]',
-            value === o.value ? 'bg-ink font-medium text-ink-foreground' : 'bg-surface hover:bg-accent'
-          )}
-        >
+        <ToggleGroupItem key={o.value} value={o.value}>
           {o.label}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
+  )
+}
+
+/** Dropdown for longer enums (shadcn Select). */
+export function EnumSelect<T extends string>({
+  options,
+  value,
+  onChange,
+  className,
+  ariaLabel
+}: {
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (value: T) => void
+  className?: string
+  ariaLabel?: string
+}) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as T)}>
+      <SelectTrigger
+        aria-label={ariaLabel}
+        className={cn('w-full rounded-xl border-transparent bg-surface shadow-none dark:bg-surface dark:hover:bg-accent', className)}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 

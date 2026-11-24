@@ -7,6 +7,7 @@ import { EmptyState, FilterChips, Page, PageHeader, SearchInput } from '@/compon
 import { ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { cn } from '@/lib/utils'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { IDEA_STATUS_LABEL } from './labels'
 import { IdeaDetail } from './idea-detail'
 
@@ -15,7 +16,6 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
   const create = useApiMutation('ideas', 'create', { onSuccess: (idea) => onCreated(idea.id) })
   return (
     <form
-      className="flex items-center gap-2 rounded-2xl bg-surface p-1.5 pl-4 focus-within:ring-[3px] focus-within:ring-ring/25"
       onSubmit={(e) => {
         e.preventDefault()
         if (!title.trim()) return
@@ -23,20 +23,21 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
         setTitle('')
       }}
     >
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Новая идея…"
-        className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
-      />
-      <button
-        type="submit"
-        disabled={!title.trim()}
-        className="grid size-8 place-items-center rounded-full bg-ink text-lime disabled:opacity-40"
-        aria-label="Добавить идею"
-      >
-        <Plus className="size-4" />
-      </button>
+      <InputGroup className="h-11 pr-1">
+        <InputGroupInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Новая идея…" className="pl-4 text-[13.5px]" />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            type="submit"
+            size="icon-sm"
+            variant="default"
+            className="rounded-full"
+            disabled={!title.trim()}
+            aria-label="Добавить идею"
+          >
+            <Plus />
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
     </form>
   )
 }
@@ -47,7 +48,7 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
       <div className="flex items-start gap-2">
         <span className="min-w-0 flex-1 text-[13.5px] leading-snug font-medium">{idea.title}</span>
         {idea.impact > 0 && (
-          <span className={cn('shrink-0 text-[10px] tracking-widest', active ? 'text-lime' : 'text-muted-foreground')}>
+          <span className={cn('shrink-0 text-[10px] tracking-widest', active ? 'text-ink-accent' : 'text-muted-foreground')}>
             {'●'.repeat(idea.impact)}
           </span>
         )}

@@ -6,29 +6,45 @@ import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { extractPalette, fileUrl, toFileSources } from '@/lib/files'
 import { useAutosave } from '@/hooks/use-autosave'
-import { DetailPane, EntityAside, InlineTitle } from '@/components/common/master-detail'
+import { DetailPane, EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { Field, FilterChips } from '@/components/common/page'
 import { copyText } from '@/components/common/copy-button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddToMoodboard, DesignMedia, KIND_LABEL } from './shared'
 
 function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void }) {
   return (
     <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[12px] text-muted-foreground">Палитра — клик копирует цвет</h3>
-        <button type="button" onClick={onRecalc} className="text-muted-foreground hover:text-foreground" title="Пересчитать палитру">
-          <RefreshCw className="size-3.5" />
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
+      <SectionLabel
+        action={
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-xs" aria-label="Пересчитать палитру" onClick={onRecalc}>
+                <RefreshCw />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Пересчитать палитру</TooltipContent>
+          </Tooltip>
+        }
+      >
+        Палитра — клик копирует
+      </SectionLabel>
+      <div className="flex flex-wrap gap-1">
         {colors.map((c) => (
-          <button key={c} type="button" onClick={() => void copyText(c, `${c} скопирован`)} className="group flex flex-col items-center gap-1">
-            <span className="size-11 rounded-2xl ring-1 ring-border transition-transform group-hover:scale-105" style={{ background: c }} />
-            <span className="font-mono text-[10.5px] text-muted-foreground">{c}</span>
-          </button>
+          <Button
+            key={c}
+            variant="ghost"
+            className="h-auto flex-col gap-1 rounded-2xl px-1.5 py-1.5"
+            aria-label={`Скопировать ${c}`}
+            onClick={() => void copyText(c, `${c} скопирован`)}
+          >
+            <span className="size-10 rounded-xl ring-1 ring-border" style={{ background: c }} />
+            <span className="font-mono text-[10.5px] font-normal text-muted-foreground">{c}</span>
+          </Button>
         ))}
         {!colors.length && <span className="text-[12px] text-muted-foreground">Определяется…</span>}
       </div>
@@ -88,7 +104,7 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
       }
     >
       <div className="flex flex-col gap-5">
-        <div className="group relative overflow-hidden rounded-2xl bg-surface">
+        <Card className="group relative gap-0 overflow-hidden py-0">
           <DesignMedia path={design.imagePath} className="max-h-[60vh] w-full object-contain" />
           <input
             ref={fileInput}
@@ -104,25 +120,32 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
           <Button
             variant="soft"
             size="sm"
-            className="absolute right-3 bottom-3 opacity-0 shadow-sm group-hover:opacity-100"
+            className="absolute right-3 bottom-3 bg-card opacity-0 shadow-sm group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
             onClick={() => fileInput.current?.click()}
           >
             <Replace /> Заменить
           </Button>
-        </div>
+        </Card>
         <InlineTitle value={title} onChange={setTitle} placeholder="Название или сайт" />
-        <FilterChips
-          options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
-          value={design.kind}
-          onChange={(kind) => kind && save({ kind })}
-        />
+        <Field label="Тип">
+          <FilterChips
+            options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+            value={design.kind}
+            onChange={(kind) => kind && save({ kind })}
+          />
+        </Field>
         <Field label="Оригинал">
           <div className="flex gap-1.5">
             <Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" />
             {/^https?:\/\//i.test(sourceUrl) && (
-              <Button variant="soft" size="icon" title="Открыть оригинал" onClick={() => api.app.openExternal(sourceUrl)}>
-                <ExternalLink />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="soft" size="icon" aria-label="Открыть оригинал" onClick={() => api.app.openExternal(sourceUrl)}>
+                    <ExternalLink />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Открыть оригинал</TooltipContent>
+              </Tooltip>
             )}
           </div>
         </Field>

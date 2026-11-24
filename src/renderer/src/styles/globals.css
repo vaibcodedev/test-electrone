@@ -40,12 +40,27 @@
   --color-ink: var(--ink);
   --color-ink-foreground: var(--ink-foreground);
   --color-ink-muted: var(--ink-muted);
+  --color-ink-accent: var(--ink-accent);
   --color-lime: var(--lime);
   --color-lime-foreground: var(--lime-foreground);
   --color-lime-soft: var(--lime-soft);
   --color-warn: var(--warn);
   --color-info: var(--info);
   --color-success: var(--success);
+
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--ink);
+  --color-sidebar-primary-foreground: var(--ink-foreground);
+  --color-sidebar-accent: var(--surface);
+  --color-sidebar-accent-foreground: var(--foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
+  --color-chart-1: var(--chart-bar);
+  --color-chart-2: var(--info);
+  --color-chart-3: var(--warn);
+  --color-chart-4: var(--success);
+  --color-chart-5: var(--muted-foreground);
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -62,6 +77,22 @@
   --text-title--letter-spacing: -0.035em;
 
   --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+
+  --color-sidebar-accent: var(--sidebar-accent);
+
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+
+  --color-sidebar-primary: var(--sidebar-primary);
+
+  --color-sidebar-foreground: var(--sidebar-foreground);
+
+  --color-sidebar: var(--sidebar);
   @keyframes rise {
     from {
       opacity: 0;
@@ -100,45 +131,60 @@
   --ink: #14160f;
   --ink-foreground: #eef1e6;
   --ink-muted: #8f9587;
+  /* Accent used ON ink surfaces: lime on dark ink (light theme), deep olive on light ink (dark theme). */
+  --ink-accent: #d4f542;
+  /* Single-series chart marks — validated ≥3:1 against --surface (dataviz validator). */
+  --chart-bar: #6b8c00;
   --lime: #d4f542;
   --lime-foreground: #14160f;
   --lime-soft: #eef8c4;
   --warn: #e8930c;
   --info: #6f7ff0;
   --success: #3d9a4f;
+  --sidebar: hsl(0 0% 98%);
+  --sidebar-foreground: hsl(240 5.3% 26.1%);
+  --sidebar-primary: hsl(240 5.9% 10%);
+  --sidebar-primary-foreground: hsl(0 0% 98%);
+  --sidebar-accent: hsl(240 4.8% 95.9%);
+  --sidebar-accent-foreground: hsl(240 5.9% 10%);
+  --sidebar-border: hsl(220 13% 91%);
+  --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
 .dark {
-  --frame: #0c0d0b;
-  --background: #0c0d0b;
-  --foreground: #eceee6;
-  --card: #161814;
-  --card-foreground: #eceee6;
-  --surface: #1f221c;
-  --popover: #1b1d18;
-  --popover-foreground: #eceee6;
+  /* Neutral graphite (no green cast), lifted surfaces so panels read as layers, lime stays the only colour. */
+  --frame: #0e0f11;
+  --background: #0e0f11;
+  --foreground: #f3f4f1;
+  --card: #18191c;
+  --card-foreground: #f3f4f1;
+  --surface: #232428;
+  --popover: #202125;
+  --popover-foreground: #f3f4f1;
   --primary: #d4f542;
   --primary-foreground: #14160f;
-  --secondary: #23261f;
-  --secondary-foreground: #eceee6;
-  --muted: #23261f;
-  --muted-foreground: #8e9388;
-  --accent: #262a22;
-  --accent-foreground: #eceee6;
-  --destructive: #f0545b;
-  --border: rgb(236 238 230 / 0.08);
-  --input: rgb(236 238 230 / 0.13);
-  --ring: #c3e62c;
+  --secondary: #2a2b30;
+  --secondary-foreground: #f3f4f1;
+  --muted: #2a2b30;
+  --muted-foreground: #a1a3aa;
+  --accent: #2d2e33;
+  --accent-foreground: #f3f4f1;
+  --destructive: #ff5c63;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.12);
+  --ring: #d4f542;
 
-  --ink: #2c3125;
-  --ink-foreground: #f1f4e8;
-  --ink-muted: #a3a99a;
-  --lime: #d4f542;
+  --ink: #f3f4f1;
+  --ink-foreground: #16171a;
+  --ink-muted: #6b6e76;
+  --ink-accent: #5d7a00;
+  --chart-bar: #d8f74a;
+  --lime: #d8f74a;
   --lime-foreground: #14160f;
-  --lime-soft: #2b3312;
-  --warn: #f5a524;
-  --info: #8b98ff;
-  --success: #5cc46f;
+  --lime-soft: #2f3517;
+  --warn: #ffb547;
+  --info: #9aa6ff;
+  --success: #6fdc84;
 }
 
 /* Display type: tight tracking, medium weight — headlines carry the personality. */
@@ -174,6 +220,26 @@
   ::selection {
     background: color-mix(in oklab, var(--lime) 70%, transparent);
     color: var(--lime-foreground);
+  }
+  /* Tailwind v4 dropped pointer cursors on buttons — every clickable thing gets one back. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab'],
+  [role='option'],
+  [role='menuitem'],
+  [role='menuitemcheckbox'],
+  [role='menuitemradio'],
+  [role='checkbox'],
+  [role='radio'],
+  [role='switch'],
+  [role='slider'],
+  [data-slot='select-trigger'],
+  [data-slot='toggle'],
+  [data-slot='toggle-group-item'],
+  a[href],
+  label[for],
+  summary {
+    cursor: pointer;
   }
   :focus-visible {
     outline: 2px solid var(--ring);

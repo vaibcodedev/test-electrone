@@ -33,9 +33,37 @@ export const PROJECT_STATUS_BADGE: Record<
 }
 
 export const BILLING_LABEL: Record<BillingType, string> = {
-  hourly: 'Почасово',
-  fixed: 'Фикс',
-  retainer: 'Абонемент'
+  fixed: 'Фикс за проект',
+  hourly: 'Почасовая',
+  retainer: 'Абонемент',
+  none: 'Без оплаты'
+}
+
+/** Copy for the billing picker and the amount field that follows the chosen type. */
+export const BILLING_INFO: Record<
+  BillingType,
+  { title: string; description: string; amountLabel: string | null }
+> = {
+  fixed: {
+    title: 'Фикс за проект',
+    description: 'Одна цена, оплата этапами',
+    amountLabel: 'Стоимость проекта'
+  },
+  hourly: {
+    title: 'Почасовая',
+    description: 'Часы × ставка',
+    amountLabel: 'Ставка в час'
+  },
+  retainer: {
+    title: 'Абонемент',
+    description: 'Фиксированная сумма в месяц',
+    amountLabel: 'Абонемент в месяц'
+  },
+  none: {
+    title: 'Без оплаты',
+    description: 'Свой проект, только учёт времени',
+    amountLabel: null
+  }
 }
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {

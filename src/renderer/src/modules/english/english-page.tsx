@@ -10,35 +10,53 @@ import { ListItem, MasterDetail, useOpenParam } from '@/components/common/master
 import { TagFilter } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { AddWordForm } from './add-word-form'
 import { WordDetail } from './word-detail'
 import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL } from './labels'
 
 const STAGE_COLOR: Record<WordStage, string> = {
-  new: 'bg-ink-muted/50',
+  new: 'bg-muted-foreground/50',
   learning: 'bg-warn',
   review: 'bg-info',
   mastered: 'bg-lime'
 }
 
-/** Stage distribution as one segmented bar with a legend. */
+/** Full static class strings (Tailwind can't see interpolated class names). */
+const STAGE_INDICATOR: Record<WordStage, string> = {
+  new: '[&>[data-slot=progress-indicator]]:bg-muted-foreground/50',
+  learning: '[&>[data-slot=progress-indicator]]:bg-warn',
+  review: '[&>[data-slot=progress-indicator]]:bg-info',
+  mastered: '[&>[data-slot=progress-indicator]]:bg-lime'
+}
+
+/** Stage distribution: one shadcn Progress segment per stage (width ∝ count) + Badge legend. */
 function StageBar({ byStage, total }: { byStage: Record<WordStage, number>; total: number }) {
   return (
     <div className="flex min-w-[280px] flex-col gap-2">
-      <div className="flex h-2 gap-1">
-        {WORD_STAGES.map((s) =>
-          byStage[s] ? (
-            <div key={s} className={cn('h-full rounded-full', STAGE_COLOR[s])} style={{ flexGrow: byStage[s] }} title={STAGE_LABEL[s]} />
-          ) : null
+      <div className="flex gap-1">
+        {total ? (
+          WORD_STAGES.map((s) =>
+            byStage[s] ? (
+              <Progress
+                key={s}
+                value={100}
+                title={STAGE_LABEL[s]}
+                className={cn('h-2 bg-transparent', STAGE_INDICATOR[s])}
+                style={{ flexGrow: byStage[s] }}
+              />
+            ) : null
+          )
+        ) : (
+          <Progress value={0} className="h-2 flex-1 bg-surface" />
         )}
-        {!total && <div className="h-full flex-1 rounded-full bg-surface" />}
       </div>
-      <div className="flex gap-3 text-[11.5px] text-muted-foreground">
+      <div className="flex flex-wrap gap-1.5">
         {WORD_STAGES.map((s) => (
-          <span key={s} className="flex items-center gap-1.5">
+          <Badge key={s} variant="soft" className="font-normal text-muted-foreground">
             <span className={cn('size-1.5 rounded-full', STAGE_COLOR[s])} />
             {STAGE_LABEL[s]} <span className="text-foreground tabular-nums">{byStage[s]}</span>
-          </span>
+          </Badge>
         ))}
       </div>
     </div>
@@ -82,10 +100,10 @@ export function EnglishPage() {
         actions={
           <div className="flex items-center gap-3">
             {stats && stats.streakDays > 0 && (
-              <span className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-[12.5px]">
-                <Flame className="size-4 text-warn" />
+              <Badge variant="soft" className="h-8 px-3 text-[12.5px] font-normal">
+                <Flame className="size-4! text-warn" />
                 {stats.streakDays} {plural(stats.streakDays, ['день', 'дня', 'дней'])} подряд
-              </span>
+              </Badge>
             )}
             <div className="flex flex-col items-end">
               <Button variant="lime" size="lg" disabled={!due} onClick={() => navigate('/english/review')}>
@@ -119,7 +137,7 @@ export function EnglishPage() {
 
       <div className="flex min-h-0 flex-1 px-8 pb-6">
         <MasterDetail
-          listWidth="w-[400px]"
+          listSize="36%"
           list={
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               {!isLoading && words.length === 0 ? (

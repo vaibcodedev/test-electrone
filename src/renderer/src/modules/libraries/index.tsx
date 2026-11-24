@@ -5,11 +5,23 @@ import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { EmptyState, Field, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton } from '@/components/common/copy-button'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
-import { AutoInput, AutoMarkdown, AutoTextarea, AutoTitle, Block, PillSelect, countBy, useEscapeToClose } from '../claude/editor-kit'
+import {
+  AutoMarkdown,
+  AutoTextarea,
+  AutoTitle,
+  Block,
+  EditorStack,
+  InputField,
+  PillSelect,
+  countBy,
+  useEscapeToClose
+} from '../claude/editor-kit'
 
 const STATUS_LABEL: Record<LibraryStatus, string> = {
   used: 'Использую',
@@ -32,7 +44,7 @@ function isUrl(value: string): boolean {
 }
 
 /** Opens npm / GitHub / docs in the system browser. */
-function LinkButtons({ lib, onDark }: { lib: Library; onDark?: boolean }) {
+function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
   const links = [
     { url: lib.npmUrl, label: 'npm', icon: Package },
     { url: lib.githubUrl, label: 'GitHub', icon: GitBranch },
@@ -42,40 +54,38 @@ function LinkButtons({ lib, onDark }: { lib: Library; onDark?: boolean }) {
   return (
     <div className="flex flex-wrap gap-1">
       {links.map((l) => (
-        <button
+        <Button
           key={l.label}
-          type="button"
+          variant="soft"
+          size="xs"
+          className={cn('h-7 px-2.5 font-normal', onInk ? 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/20' : 'bg-card')}
           onClick={(e) => {
             e.stopPropagation()
             void api.app.openExternal(l.url)
           }}
-          className={cn(
-            'inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[12px] transition-colors',
-            onDark ? 'bg-white/10 hover:bg-white/20' : 'bg-card hover:bg-accent'
-          )}
         >
-          <l.icon className="size-3.5" />
+          <l.icon />
           {l.label}
-        </button>
+        </Button>
       ))}
     </div>
   )
 }
 
-function InstallPill({ cmd, onDark }: { cmd: string; onDark?: boolean }) {
+/** Install command as a read-only shadcn InputGroup with copy. */
+function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
   if (!cmd.trim()) return null
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-full py-1 pr-1 pl-3.5 font-mono text-[12px]',
-        onDark ? 'bg-white/8' : 'bg-[var(--code-bg)] text-[var(--code-fg)]'
-      )}
+    <InputGroup
       onClick={(e) => e.stopPropagation()}
+      className={cn('h-8 font-mono', onInk ? 'bg-ink-foreground/8 text-ink-foreground' : 'bg-card')}
     >
-      <span className="text-lime">$</span>
-      <span className="selectable min-w-0 flex-1 truncate">{cmd}</span>
-      <CopyButton text={cmd} variant="ghost" size="xs" className="text-inherit hover:bg-white/10" />
-    </div>
+      <InputGroupAddon className={cn('font-mono', onInk ? 'text-ink-accent' : 'text-muted-foreground')}>$</InputGroupAddon>
+      <InputGroupInput readOnly value={cmd} aria-label="Команда установки" className="font-mono text-[12px]" />
+      <InputGroupAddon align="inline-end">
+        <CopyButton text={cmd} variant="ghost" size="xs" className="size-6 rounded-full text-inherit" />
+      </InputGroupAddon>
+    </InputGroup>
   )
 }
 
@@ -106,14 +116,15 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
         />
       }
     >
-      <div className="flex flex-col gap-5">
+      <EditorStack>
         <AutoTitle value={lib.name} onSave={(name) => save({ name })} placeholder="Название пакета" />
-        <AutoTextarea
-          value={lib.purpose}
-          onSave={(purpose) => save({ purpose })}
-          placeholder="Для чего она: формы, анимации, слайдеры…"
-          className="min-h-10"
-        />
+        <Block label="Для чего">
+          <AutoTextarea
+            value={lib.purpose}
+            onSave={(purpose) => save({ purpose })}
+            placeholder="Формы, анимации, слайдеры…"
+          />
+        </Block>
         <Block label="Статус">
           <PillSelect
             options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
@@ -121,71 +132,63 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
             onChange={(status) => save({ status })}
           />
         </Block>
-        <Field label="Команда установки">
-          <AutoInput
-            value={lib.installCmd}
-            onSave={(installCmd) => save({ installCmd })}
-            placeholder={`npm i ${lib.name}`}
-            className="font-mono"
-          />
-        </Field>
+        <InputField
+          label="Команда установки"
+          value={lib.installCmd}
+          onSave={(installCmd) => save({ installCmd })}
+          placeholder={`npm i ${lib.name}`}
+          className="font-mono"
+        />
         <div className="grid grid-cols-3 gap-3">
-          <Field label="npm">
-            <AutoInput value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} placeholder="https://npmjs.com/package/…" />
-          </Field>
-          <Field label="GitHub">
-            <AutoInput value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} placeholder="https://github.com/…" />
-          </Field>
-          <Field label="Документация">
-            <AutoInput value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} placeholder="https://…" />
-          </Field>
+          <InputField label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} placeholder="https://npmjs.com/package/…" />
+          <InputField label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} placeholder="https://github.com/…" />
+          <InputField label="Документация" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} placeholder="https://…" />
         </div>
-        <Block label="Заметки">
-          <AutoMarkdown
-            value={lib.notes}
-            onSave={(notes) => save({ notes })}
-            placeholder="Как подключал, подводные камни, пример использования"
-          />
-        </Block>
-      </div>
+        <AutoMarkdown
+          label="Заметки"
+          value={lib.notes}
+          onSave={(notes) => save({ notes })}
+          placeholder="Как подключал, подводные камни, пример использования"
+        />
+      </EditorStack>
     </DetailPane>
   )
 }
 
 function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: boolean; compact: boolean; onOpen: () => void }) {
   return (
-    <div
-      role="button"
+    <Card
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && onOpen()}
+      aria-current={active || undefined}
       className={cn(
-        'flex cursor-pointer flex-col gap-3 rounded-3xl p-4 transition-colors',
-        active ? 'bg-ink text-ink-foreground' : 'bg-surface hover:bg-accent'
+        'cursor-pointer gap-3 py-4 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+        active ? 'bg-ink text-ink-foreground' : 'hover:bg-accent'
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display truncate text-[20px] leading-tight">{lib.name}</div>
-          <div className={cn('mt-1 flex items-center gap-1.5 text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-            <span className={cn('size-1.5 rounded-full', STATUS_DOT[lib.status])} />
-            {STATUS_LABEL[lib.status]}
-          </div>
+      <CardHeader className="gap-1 px-4">
+        <div className="font-display truncate text-[20px] leading-tight">{lib.name}</div>
+        <div className={cn('flex items-center gap-1.5 text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+          <span className={cn('size-1.5 rounded-full', STATUS_DOT[lib.status])} />
+          {STATUS_LABEL[lib.status]}
         </div>
-      </div>
-      {lib.purpose && (
-        <p className={cn('line-clamp-2 text-[13px]', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>{lib.purpose}</p>
+      </CardHeader>
+      {(lib.purpose || (!compact && lib.installCmd.trim())) && (
+        <CardContent className="flex flex-col gap-3 px-4">
+          {lib.purpose && (
+            <p className={cn('line-clamp-2 text-[13px]', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>{lib.purpose}</p>
+          )}
+          {!compact && <InstallCommand cmd={lib.installCmd} onInk={active} />}
+        </CardContent>
       )}
       {!compact && (
-        <>
-          <InstallPill cmd={lib.installCmd} onDark={active} />
-          <div className="mt-auto flex items-end justify-between gap-2">
-            <TagList tags={lib.tags} max={3} />
-            <LinkButtons lib={lib} onDark={active} />
-          </div>
-        </>
+        <CardFooter className="mt-auto items-end justify-between gap-2 px-4">
+          <TagList tags={lib.tags} max={3} />
+          <LinkButtons lib={lib} onInk={active} />
+        </CardFooter>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -253,7 +256,7 @@ export function LibrariesPage() {
               </div>
             </div>
           }
-          listWidth="w-[320px]"
+          listSize="30%"
           detail={openId && openItem ? <LibraryDetail key={openItem.id} lib={openItem} onClose={() => setOpen(null)} /> : null}
         />
       </PageBody>

@@ -10,9 +10,22 @@ import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from
 import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { DesignDetail } from './design-detail'
-import { DesignMedia, DropOverlay, MoodboardTile, PickImagesButton, designTitle, KIND_LABEL, useImportImages } from './shared'
+import {
+  DesignMedia,
+  DropOverlay,
+  MoodboardTile,
+  PickImagesButton,
+  clickableCard,
+  designTitle,
+  KIND_LABEL,
+  useImportImages
+} from './shared'
 
 function isMedia(f: File): boolean {
   return isImageFile(f) || f.type.startsWith('video/')
@@ -42,31 +55,35 @@ export function DesignsPage() {
   const gallery = (
     <div className={cn('gap-3 [column-fill:_balance]', open ? 'columns-2' : 'columns-[240px]')}>
       {designs.map((d) => (
-        <button
+        <Card
           key={d.id}
-          type="button"
-          onClick={() => setOpen(d.id === open ? null : d.id)}
+          {...clickableCard(() => setOpen(d.id === open ? null : d.id))}
+          aria-pressed={d.id === open}
           className={cn(
-            'group relative mb-3 block w-full break-inside-avoid overflow-hidden rounded-2xl bg-surface text-left',
+            'group relative mb-3 block w-full cursor-pointer gap-0 break-inside-avoid overflow-hidden py-0 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
             d.id === open && 'ring-2 ring-ring ring-offset-2 ring-offset-card'
           )}
         >
           <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block w-full" />
-          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/60 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
-            <span className="truncate text-[12.5px] font-medium text-white">{designTitle(d)}</span>
-            <span className="flex shrink-0 gap-0.5">
-              {d.colors.slice(0, 4).map((c) => (
-                <span key={c} className="size-3 rounded-full ring-1 ring-white/50" style={{ background: c }} />
-              ))}
-            </span>
+          <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            <Badge variant="ink" className="max-w-full truncate">
+              {designTitle(d)}
+            </Badge>
+            {d.colors.length > 0 && (
+              <Badge variant="ink" className="shrink-0 gap-0.5 px-1.5">
+                {d.colors.slice(0, 4).map((c) => (
+                  <span key={c} className="size-2.5 rounded-full" style={{ background: c }} />
+                ))}
+              </Badge>
+            )}
           </div>
-        </button>
+        </Card>
       ))}
     </div>
   )
 
   return (
-    <Page className="relative" >
+    <Page className="relative">
       <div {...props} className="flex min-h-0 flex-1 flex-col">
         <DropOverlay show={isOver} />
         <PageHeader
@@ -86,19 +103,19 @@ export function DesignsPage() {
               {boards.map((b) => (
                 <MoodboardTile key={b.id} board={b} />
               ))}
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                className="h-auto w-40 shrink-0 flex-col gap-2 rounded-3xl border-dashed font-normal text-muted-foreground hover:text-foreground"
                 onClick={async () => {
                   const b = await createBoard.mutateAsync({ title: 'Новая подборка' })
                   navigate(`/designs/boards/${b.id}`)
                 }}
-                className="flex w-40 shrink-0 flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-input text-[13px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               >
                 <span className="grid size-9 place-items-center rounded-full bg-surface">
-                  <Plus className="size-4" />
+                  <Plus />
                 </span>
                 Новая подборка
-              </button>
+              </Button>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
@@ -113,24 +130,36 @@ export function DesignsPage() {
           </div>
           {palette.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[12px] text-muted-foreground">Цвет</span>
-              {palette.slice(0, 28).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  title={c}
-                  onClick={() => setColor(color === c ? undefined : c)}
-                  className={cn(
-                    'size-6 rounded-full ring-1 ring-border transition-transform hover:scale-110',
-                    color === c && 'ring-2 ring-foreground ring-offset-2 ring-offset-card'
-                  )}
-                  style={{ background: c }}
-                />
-              ))}
+              <span className="mr-1 text-[12.5px] font-medium text-muted-foreground">Цвет</span>
+              <ToggleGroup
+                type="single"
+                spacing={1}
+                value={color ?? ''}
+                onValueChange={(v) => setColor(v || undefined)}
+                aria-label="Фильтр по цвету"
+              >
+                {palette.slice(0, 28).map((c) => (
+                  <ToggleGroupItem
+                    key={c}
+                    value={c}
+                    size="xs"
+                    title={c}
+                    aria-label={c}
+                    className="size-7 min-w-7 p-0 hover:bg-transparent data-[state=on]:bg-transparent data-[state=on]:ring-2 data-[state=on]:ring-foreground data-[state=on]:ring-offset-2 data-[state=on]:ring-offset-card"
+                  >
+                    <span className="size-6 rounded-full ring-1 ring-border transition-transform hover:scale-110" style={{ background: c }} />
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
               {color && (
-                <button type="button" onClick={() => setColor(undefined)} className="ml-1 text-muted-foreground hover:text-foreground" title="Сбросить цвет">
-                  <X className="size-4" />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-xs" aria-label="Сбросить цвет" onClick={() => setColor(undefined)}>
+                      <X />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Сбросить цвет</TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}
@@ -148,7 +177,7 @@ export function DesignsPage() {
             />
           ) : (
             <MasterDetail
-              listWidth="w-[400px]"
+              listSize="38%"
               list={<div className="min-h-0 flex-1 overflow-y-auto pr-1">{gallery}</div>}
               detail={open ? <DesignDetail id={open} onClose={() => setOpen(null)} /> : null}
             />

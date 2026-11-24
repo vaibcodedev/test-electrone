@@ -12,6 +12,9 @@ import {
   CommandList
 } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 
 export const TAG_COLORS = ['#d4f542', '#7c8cf8', '#f5a524', '#f06b6b', '#3fbf9b', '#c98af0', '#5aa9f0', '#9a9f93']
 
@@ -27,30 +30,28 @@ export function TagChip({
   className?: string
 }) {
   return (
-    <span
+    <Badge
+      variant="soft"
       onClick={onClick}
-      className={cn(
-        'inline-flex h-6 items-center gap-1.5 rounded-full bg-surface pr-2 pl-2 text-[11.5px] font-medium text-foreground',
-        onClick && 'cursor-pointer hover:bg-accent',
-        className
-      )}
+      className={cn('h-6 gap-1.5 text-foreground', onClick && 'cursor-pointer hover:bg-accent', onRemove && 'pr-1', className)}
     >
       <span className="size-1.5 rounded-full" style={{ background: tag.color ?? 'var(--muted-foreground)' }} />
       {tag.name}
       {onRemove && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="size-4 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()
             onRemove()
           }}
-          className="-mr-0.5 text-muted-foreground hover:text-foreground"
           aria-label={`Убрать метку ${tag.name}`}
         >
           <X className="size-3" />
-        </button>
+        </Button>
       )}
-    </span>
+    </Badge>
   )
 }
 
@@ -97,19 +98,16 @@ export function TagPicker({
       ))}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="inline-flex h-6 items-center gap-1 rounded-full border border-dashed border-input px-2 text-[11.5px] text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-          >
-            {value.length ? <Plus className="size-3" /> : <TagIcon className="size-3" />}
+          <Button variant="outline" size="xs" className="h-6 border-dashed text-muted-foreground">
+            {value.length ? <Plus /> : <TagIcon />}
             {value.length ? '' : 'Метки'}
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 rounded-2xl p-0" align="start">
           <Command>
             <CommandInput placeholder="Найти или создать…" value={query} onValueChange={setQuery} />
             <CommandList>
-              <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">Нет меток</CommandEmpty>
+              <CommandEmpty>Нет меток</CommandEmpty>
               <CommandGroup>
                 {all.map((t) => (
                   <CommandItem key={t.id} value={t.name} onSelect={() => toggle(t.id)}>
@@ -151,32 +149,24 @@ export function TagFilter({ value, onChange }: { value: string | undefined; onCh
   if (!all.length) return null
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px]',
-            current ? 'bg-ink text-ink-foreground' : 'bg-surface hover:bg-accent'
-          )}
-        >
-          <TagIcon className="size-3.5" />
-          {current ? current.name : 'Метка'}
-          {current && (
-            <X
-              className="size-3.5 opacity-70 hover:opacity-100"
-              onClick={(e) => {
-                e.stopPropagation()
-                onChange(undefined)
-              }}
-            />
-          )}
-        </button>
-      </PopoverTrigger>
+      <ButtonGroup>
+        <PopoverTrigger asChild>
+          <Button variant={current ? 'default' : 'soft'} size="sm">
+            <TagIcon />
+            {current ? current.name : 'Метка'}
+          </Button>
+        </PopoverTrigger>
+        {current && (
+          <Button variant="default" size="icon-sm" aria-label="Сбросить метку" onClick={() => onChange(undefined)}>
+            <X />
+          </Button>
+        )}
+      </ButtonGroup>
       <PopoverContent className="w-56 rounded-2xl p-0" align="start">
         <Command>
           <CommandInput placeholder="Метка…" />
           <CommandList>
-            <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">Не найдено</CommandEmpty>
+            <CommandEmpty>Не найдено</CommandEmpty>
             <CommandGroup>
               {all.map((t) => (
                 <CommandItem

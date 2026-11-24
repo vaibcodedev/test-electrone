@@ -25,10 +25,23 @@ import { fmtDate, hostOf } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Button } from '@/components/ui/button'
+import { Slider } from '@/components/ui/slider'
+import { Progress } from '@/components/ui/progress'
+import { ItemMedia } from '@/components/ui/item'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
-import { AutoInput, AutoMarkdown, AutoTitle, Block, PillSelect, countBy, useEscapeToClose } from '../claude/editor-kit'
+import {
+  AutoMarkdown,
+  AutoTitle,
+  Block,
+  EditorStack,
+  InputField,
+  PillSelect,
+  countBy,
+  useEscapeToClose
+} from '../claude/editor-kit'
 
 const STATUS_LABEL: Record<BookmarkStatus, string> = {
   queue: 'Прочитать',
@@ -60,16 +73,15 @@ const isUrl = (v: string): boolean => /^https?:\/\//i.test(v)
 function ProgressSlider({ value, onSave }: { value: number; onSave: (value: number) => void }) {
   const [draft, setDraft] = useAutosave(value, onSave, 400)
   return (
-    <div className="flex items-center gap-3">
-      <input
-        type="range"
+    <div className="flex h-9 items-center gap-3">
+      <Slider
         min={0}
         max={100}
         step={5}
-        value={draft}
-        onChange={(e) => setDraft(Number(e.target.value))}
-        className="h-2 flex-1 cursor-pointer accent-[var(--lime)]"
+        value={[draft]}
+        onValueChange={([v]) => setDraft(v)}
         aria-label="Прогресс"
+        className="flex-1 [&_[data-slot=slider-range]]:bg-lime [&_[data-slot=slider-thumb]]:border-lime-foreground/40"
       />
       <span className="w-10 text-right text-[13px] tabular-nums">{draft}%</span>
     </div>
@@ -78,21 +90,26 @@ function ProgressSlider({ value, onSave }: { value: number; onSave: (value: numb
 
 function Rating({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return (
-    <div className="flex gap-0.5" role="radiogroup" aria-label="Оценка">
+    <ToggleGroup
+      type="single"
+      size="sm"
+      spacing={0.5}
+      aria-label="Оценка"
+      value={value ? String(value) : ''}
+      onValueChange={(v) => onChange(v ? Number(v) : 0)}
+    >
       {[1, 2, 3, 4, 5].map((n) => (
-        <button
+        <ToggleGroupItem
           key={n}
-          type="button"
-          role="radio"
-          aria-checked={value === n}
+          value={String(n)}
+          aria-label={`${n} из 5`}
           title={`${n} из 5`}
-          onClick={() => onChange(value === n ? 0 : n)}
-          className="grid size-8 place-items-center rounded-full hover:bg-surface"
+          className="size-8 min-w-8 px-0 data-[state=on]:bg-transparent"
         >
-          <Star className={cn('size-4', n <= value ? 'fill-[var(--lime)] text-foreground' : 'text-muted-foreground')} />
-        </button>
+          <Star className={cn(n <= value ? 'fill-lime text-foreground' : 'text-muted-foreground')} />
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   )
 }
 
@@ -126,26 +143,23 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
           createdAt={item.createdAt}
           updatedAt={item.updatedAt}
         >
-          <section className="flex flex-col gap-2">
-            <h3 className="text-[12px] text-muted-foreground">Тип</h3>
+          <Block label="Тип">
             <PillSelect
               size="xs"
               options={BOOKMARK_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
               value={item.kind}
               onChange={(kind) => save({ kind })}
             />
-          </section>
+          </Block>
           {item.finishedAt && (
             <p className="text-[12px] text-muted-foreground">Закончил {fmtDate(item.finishedAt)}</p>
           )}
         </EntityAside>
       }
     >
-      <div className="flex flex-col gap-5">
+      <EditorStack>
         <AutoTitle value={item.title} onSave={(title) => save({ title })} />
-        <Block label="Ссылка">
-          <AutoInput value={item.url} onSave={(url) => save({ url })} placeholder="https://…" />
-        </Block>
+        <InputField label="Ссылка" value={item.url} onSave={(url) => save({ url })} placeholder="https://…" />
         <Block label="Статус">
           <PillSelect
             options={BOOKMARK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
@@ -170,14 +184,13 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
             <Rating value={item.rating} onChange={(rating) => save({ rating })} />
           </Block>
         </div>
-        <Block label="Заметки">
-          <AutoMarkdown
-            value={item.notes}
-            onSave={(notes) => save({ notes })}
-            placeholder="Главные мысли, цитаты, что применить"
-          />
-        </Block>
-      </div>
+        <AutoMarkdown
+          label="Заметки"
+          value={item.notes}
+          onSave={(notes) => save({ notes })}
+          placeholder="Главные мысли, цитаты, что применить"
+        />
+      </EditorStack>
     </DetailPane>
   )
 }
@@ -261,14 +274,12 @@ export function BookmarksPage() {
                 return (
                   <ListItem key={b.id} active={active} onClick={() => setOpen(b.id)}>
                     <div className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          'grid size-9 shrink-0 place-items-center rounded-full',
-                          active ? 'bg-white/10 text-lime' : 'bg-card'
-                        )}
+                      <ItemMedia
+                        variant="icon"
+                        className={cn('size-9', active ? 'bg-ink-foreground/10 text-ink-accent' : 'bg-card')}
                       >
-                        <Icon className="size-4" />
-                      </span>
+                        <Icon />
+                      </ItemMedia>
                       <div className="min-w-0 flex-1">
                         <div
                           className={cn(
@@ -291,9 +302,14 @@ export function BookmarksPage() {
                         </div>
                       </div>
                       {b.status !== 'queue' && b.status !== 'dropped' && (
-                        <span className={cn('h-1.5 w-16 shrink-0 overflow-hidden rounded-full', active ? 'bg-white/15' : 'bg-card')}>
-                          <span className="block h-full rounded-full bg-lime" style={{ width: `${b.progress}%` }} />
-                        </span>
+                        <Progress
+                          value={b.progress}
+                          aria-label="Прогресс"
+                          className={cn(
+                            'h-1.5 w-16 shrink-0 [&>[data-slot=progress-indicator]]:bg-lime',
+                            active ? 'bg-ink-foreground/15' : 'bg-card'
+                          )}
+                        />
                       )}
                     </div>
                     {!active && !openId && <TagList tags={b.tags} className="mt-2 pl-12" />}

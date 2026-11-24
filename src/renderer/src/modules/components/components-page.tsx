@@ -8,14 +8,18 @@ import { EmptyState, Page, PageBody, PageHeader, SearchInput } from '@/component
 import { TagFilter, TagList } from '@/components/common/tags'
 import { LivePreview } from '@/components/common/live-preview'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { STARTER } from './starter'
 
 function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void }) {
   return (
-    <button
-      type="button"
+    <Card
+      role="button"
+      tabIndex={0}
       onClick={onOpen}
-      className="group flex flex-col overflow-hidden rounded-3xl bg-surface text-left transition-shadow hover:ring-1 hover:ring-border"
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
+      className="group cursor-pointer gap-0 overflow-hidden py-0 text-left transition-shadow outline-none hover:ring-1 hover:ring-border focus-visible:ring-[3px] focus-visible:ring-ring/40"
     >
       <div className="relative h-48 overflow-hidden bg-card">
         {item.coverPath ? (
@@ -30,16 +34,16 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
             <Component className="size-8" />
           </div>
         )}
-        <span className="absolute top-3 right-3 rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-medium text-ink-foreground uppercase">
+        <Badge variant="ink" className="absolute top-3 right-3 uppercase">
           {item.language}
-        </span>
+        </Badge>
       </div>
-      <div className="flex flex-col gap-2 p-4">
+      <CardContent className="flex flex-col gap-2 p-4">
         <div className="truncate text-[14px] font-medium">{item.title}</div>
         {item.description && <div className="line-clamp-2 text-[12.5px] text-muted-foreground">{item.description}</div>}
         <TagList tags={item.tags} />
-      </div>
-    </button>
+      </CardContent>
+    </Card>
   )
 }
 

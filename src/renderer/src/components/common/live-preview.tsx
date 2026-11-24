@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
 
 export type PreviewLanguage = 'tsx' | 'jsx' | 'html'
 export type PreviewBg = 'light' | 'dark' | 'grid'
@@ -58,16 +59,10 @@ export function LivePreview({
         className="min-h-0 w-full flex-1 border-0 bg-white"
       />
       {status && (
-        <div
-          className={cn(
-            'absolute top-2 left-2 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium',
-            status.ok ? 'bg-lime text-lime-foreground' : 'bg-destructive text-white'
-          )}
-          title={status.error}
-        >
-          {status.ok ? <CheckCircle2 className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
+        <Badge variant={status.ok ? 'lime' : 'destructive'} className="absolute top-2 left-2" title={status.error}>
+          {status.ok ? <CheckCircle2 /> : <AlertTriangle />}
           {status.ok ? 'Рендерится' : 'Ошибка'}
-        </div>
+        </Badge>
       )}
     </div>
   )

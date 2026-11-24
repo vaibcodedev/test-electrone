@@ -6,10 +6,19 @@ import { fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { EmptyState, Field, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { Toggle } from '@/components/ui/toggle'
+import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
-import { AutoCode, AutoInput, AutoMarkdown, AutoTitle, Block, useEscapeToClose } from '../claude/editor-kit'
+import {
+  AutoCode,
+  AutoMarkdown,
+  AutoTitle,
+  Block,
+  EditorStack,
+  InputField,
+  useEscapeToClose
+} from '../claude/editor-kit'
 
 type ResolvedFilter = 'open' | 'resolved'
 
@@ -33,18 +42,16 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
         onClose()
       }}
       headerExtra={
-        <button
-          type="button"
-          onClick={() => save({ resolved: !fix.resolved })}
-          aria-pressed={fix.resolved}
-          className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors',
-            fix.resolved ? 'bg-lime font-medium text-lime-foreground' : 'bg-surface text-foreground hover:bg-accent'
-          )}
+        <Toggle
+          size="sm"
+          variant="chip"
+          pressed={fix.resolved}
+          onPressedChange={(resolved) => save({ resolved })}
+          aria-label="Решено"
         >
-          {fix.resolved ? <CircleCheck className="size-4" /> : <CircleDot className="size-4" />}
+          {fix.resolved ? <CircleCheck /> : <CircleDot />}
           {fix.resolved ? 'Решено' : 'Ещё не решено'}
-        </button>
+        </Toggle>
       }
       aside={
         <EntityAside
@@ -54,17 +61,16 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           createdAt={fix.createdAt}
           updatedAt={fix.updatedAt}
         >
-          <Field label="Где случилось">
-            <AutoInput
-              value={fix.context}
-              onSave={(context) => save({ context })}
-              placeholder="Hydrogen, Vite, Electron…"
-            />
-          </Field>
+          <InputField
+            label="Где случилось"
+            value={fix.context}
+            onSave={(context) => save({ context })}
+            placeholder="Hydrogen, Vite, Electron…"
+          />
         </EntityAside>
       }
     >
-      <div className="flex flex-col gap-5">
+      <EditorStack>
         <AutoTitle value={fix.title} onSave={(title) => save({ title })} placeholder="Что сломалось" />
         <Block label="Текст ошибки">
           <AutoCode
@@ -76,18 +82,21 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
             placeholder="Вставьте сообщение или стек ошибки"
           />
         </Block>
-        <Block label="Причина">
-          <AutoMarkdown value={fix.cause} onSave={(cause) => save({ cause })} placeholder="Почему так вышло" minHeight="100px" />
-        </Block>
-        <Block label="Как исправил">
-          <AutoMarkdown
-            value={fix.solution}
-            onSave={(solution) => save({ solution })}
-            placeholder="Шаги, команды, код исправления"
-            minHeight="200px"
-          />
-        </Block>
-      </div>
+        <AutoMarkdown
+          label="Причина"
+          value={fix.cause}
+          onSave={(cause) => save({ cause })}
+          placeholder="Почему так вышло"
+          minHeight="100px"
+        />
+        <AutoMarkdown
+          label="Как исправил"
+          value={fix.solution}
+          onSave={(solution) => save({ solution })}
+          placeholder="Шаги, команды, код исправления"
+          minHeight="180px"
+        />
+      </EditorStack>
     </DetailPane>
   )
 }

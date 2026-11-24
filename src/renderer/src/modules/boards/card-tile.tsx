@@ -5,23 +5,22 @@ import type { Card } from '@shared/domain/boards'
 import { fmtDay } from '@/lib/format'
 import { TagList } from '@/components/common/tags'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Card as UiCard } from '@/components/ui/card'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { hasTime, isOverdue } from './use-card-param'
 
 export function DueChip({ dueAt, done, className }: { dueAt: number; done: boolean; className?: string }) {
   const late = isOverdue(dueAt, done)
   return (
-    <span
-      className={cn(
-        'inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-medium',
-        late ? 'bg-destructive/12 text-destructive' : done ? 'bg-success/15 text-success' : 'bg-card text-muted-foreground',
-        className
-      )}
+    <Badge
+      variant={late ? 'destructive' : done ? 'success' : 'outline'}
+      className={cn('h-5 px-2 text-[11px]', !late && !done && 'text-muted-foreground', className)}
     >
-      <CalendarClock className="size-3" />
+      <CalendarClock />
       {fmtDay(dueAt)}
       {hasTime(dueAt) && ` ${format(dueAt, 'HH:mm')}`}
-    </span>
+    </Badge>
   )
 }
 
@@ -31,11 +30,11 @@ export const CardTile = forwardRef<
   HTMLAttributes<HTMLDivElement> & { card: Card; done: boolean; dragging?: boolean; overlay?: boolean }
 >(function CardTile({ card, done, dragging, overlay, className, ...rest }, ref) {
   return (
-    <div
+    <UiCard
       ref={ref}
       {...rest}
       className={cn(
-        'cursor-grab rounded-2xl bg-card p-3 text-left shadow-[0_1px_0_rgb(0_0_0/0.04)] ring-1 ring-border transition-shadow select-none hover:ring-foreground/15 active:cursor-grabbing',
+        'cursor-grab gap-0 rounded-2xl bg-card p-3 text-left shadow-[0_1px_0_rgb(0_0_0/0.04)] ring-1 ring-border transition-shadow select-none hover:ring-foreground/15 active:cursor-grabbing',
         dragging && 'opacity-35',
         overlay && 'rotate-[1.5deg] shadow-xl ring-foreground/20',
         className
@@ -57,18 +56,16 @@ export const CardTile = forwardRef<
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {card.dueAt && <DueChip dueAt={card.dueAt} done={done} />}
           {card.checklistTotal > 0 && (
-            <span
-              className={cn(
-                'inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] font-medium',
-                card.checklistDone === card.checklistTotal ? 'bg-lime text-lime-foreground' : 'bg-surface text-muted-foreground'
-              )}
+            <Badge
+              variant={card.checklistDone === card.checklistTotal ? 'lime' : 'soft'}
+              className={cn('h-5 px-2 text-[11px]', card.checklistDone !== card.checklistTotal && 'text-muted-foreground')}
             >
-              <ListChecks className="size-3" />
+              <ListChecks />
               {card.checklistDone}/{card.checklistTotal}
-            </span>
+            </Badge>
           )}
         </div>
       )}
-    </div>
+    </UiCard>
   )
 })

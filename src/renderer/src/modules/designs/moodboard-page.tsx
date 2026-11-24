@@ -23,48 +23,74 @@ import { PinButtons } from '@/components/common/pin-buttons'
 import { TagPicker } from '@/components/common/tags'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { DesignMedia, DropOverlay, PickImagesButton, designTitle, useImportImages } from './shared'
 
 function SortableDesign({ design, onRemove, onOpen }: { design: Design; onRemove: () => void; onOpen: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: design.id })
   return (
-    <div
+    <Card
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        'group relative aspect-[4/3] cursor-grab overflow-hidden rounded-2xl bg-surface active:cursor-grabbing',
+        'group relative aspect-[4/3] cursor-grab gap-0 overflow-hidden py-0 active:cursor-grabbing',
         isDragging && 'z-10 opacity-80 shadow-2xl ring-2 ring-ring'
       )}
       {...attributes}
       {...listeners}
     >
       <DesignMedia path={design.imagePath} alt={designTitle(design)} className="size-full object-cover" />
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/60 to-transparent p-2.5 opacity-0 transition-opacity group-hover:opacity-100">
-        <span className="truncate text-[12px] font-medium text-white">{designTitle(design)}</span>
+      <div className="absolute inset-x-2 bottom-2 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+        <Badge variant="ink" className="max-w-full truncate">
+          {designTitle(design)}
+        </Badge>
         <span className="flex gap-1">
-          <button
-            type="button"
-            title="Открыть"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onOpen}
-            className="grid size-7 place-items-center rounded-full bg-white/90 text-black hover:bg-white"
-          >
-            <ArrowUpRight className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            title="Убрать из подборки"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onRemove}
-            className="grid size-7 place-items-center rounded-full bg-white/90 text-black hover:bg-white"
-          >
-            <X className="size-3.5" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="soft"
+                size="icon-xs"
+                aria-label="Открыть"
+                className="bg-card hover:bg-card"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onOpen}
+              >
+                <ArrowUpRight />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Открыть</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="soft"
+                size="icon-xs"
+                aria-label="Убрать из подборки"
+                className="bg-card hover:bg-card hover:text-destructive"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onRemove}
+              >
+                <X />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Убрать из подборки</TooltipContent>
+          </Tooltip>
         </span>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -85,14 +111,6 @@ function AddDesignsDialog({
   const inBoard = useMemo(() => new Set(board.designs.map((d) => d.id)), [board.designs])
   const candidates = all.filter((d) => !inBoard.has(d.id))
 
-  const toggle = (id: string): void =>
-    setSelected((s) => {
-      const next = new Set(s)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-
   return (
     <Dialog
       open={open}
@@ -102,38 +120,45 @@ function AddDesignsDialog({
       }}
     >
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-[880px]">
-        <DialogTitle className="font-display text-xl">Добавить в «{board.title}»</DialogTitle>
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">Добавить в «{board.title}»</DialogTitle>
+          <DialogDescription>Отметьте дизайны из галереи — они встанут в конец подборки.</DialogDescription>
+        </DialogHeader>
         <SearchInput value={search} onChange={setSearch} autoFocus />
         <div className="min-h-0 flex-1 overflow-y-auto">
           {candidates.length === 0 ? (
-            <p className="py-10 text-center text-[13px] text-muted-foreground">Все дизайны уже в подборке или ничего не найдено.</p>
+            <EmptyState icon={Image} title="Нечего добавить" hint="Все дизайны уже в подборке или ничего не найдено." />
           ) : (
-            <div className="grid grid-cols-4 gap-2">
+            <ToggleGroup
+              type="multiple"
+              spacing={2}
+              value={[...selected]}
+              onValueChange={(v) => setSelected(new Set(v))}
+              className="grid w-full grid-cols-4 p-1"
+              aria-label="Дизайны"
+            >
               {candidates.map((d) => {
                 const on = selected.has(d.id)
                 return (
-                  <button
+                  <ToggleGroupItem
                     key={d.id}
-                    type="button"
-                    onClick={() => toggle(d.id)}
-                    className={cn(
-                      'relative aspect-[4/3] overflow-hidden rounded-xl bg-surface',
-                      on && 'ring-2 ring-ring ring-offset-2 ring-offset-card'
-                    )}
+                    value={d.id}
+                    aria-label={designTitle(d)}
+                    className="relative aspect-[4/3] h-auto w-full overflow-hidden rounded-xl bg-surface p-0 data-[state=on]:bg-surface data-[state=on]:ring-2 data-[state=on]:ring-ring data-[state=on]:ring-offset-2 data-[state=on]:ring-offset-card"
                   >
                     <DesignMedia path={d.imagePath} className="size-full object-cover" />
                     {on && (
-                      <span className="absolute top-2 right-2 grid size-6 place-items-center rounded-full bg-lime text-lime-foreground">
-                        <Check className="size-3.5" />
-                      </span>
+                      <Badge variant="lime" className="absolute top-2 right-2 size-6 p-0">
+                        <Check />
+                      </Badge>
                     )}
-                  </button>
+                  </ToggleGroupItem>
                 )
               })}
-            </div>
+            </ToggleGroup>
           )}
         </div>
-        <div className="flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Отмена
           </Button>
@@ -148,7 +173,7 @@ function AddDesignsDialog({
           >
             Добавить {selected.size || ''}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -208,7 +233,7 @@ function Board({ board }: { board: MoodboardDetails }) {
                 navigate('/designs')
               }}
             >
-              <Button variant="ghost" size="icon-sm" title="Удалить подборку">
+              <Button variant="ghost" size="icon-sm" aria-label="Удалить подборку">
                 <Trash2 />
               </Button>
             </Confirm>
@@ -216,11 +241,12 @@ function Board({ board }: { board: MoodboardDetails }) {
           <div className="flex items-end justify-between gap-6">
             <div className="min-w-0 flex-1">
               <InlineTitle value={title} onChange={setTitle} className="text-title" />
-              <input
+              <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="О чём эта подборка: стиль, настроение, для какого проекта"
-                className="mt-2 w-full bg-transparent text-[13px] text-muted-foreground outline-none placeholder:text-muted-foreground/60"
+                aria-label="Описание подборки"
+                className="mt-2 h-8 rounded-none border-0 bg-transparent px-0 text-[13px] text-muted-foreground focus-visible:bg-transparent focus-visible:ring-0"
               />
               <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} className="mt-3" />
             </div>

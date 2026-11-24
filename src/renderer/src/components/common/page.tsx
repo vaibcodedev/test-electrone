@@ -1,7 +1,17 @@
+/**
+ * Page-level building blocks. Everything here is a thin composition of shadcn components
+ * (Empty, InputGroup, ToggleGroup, Progress, Field, Kbd) — no hand-made controls.
+ */
 import type { ReactNode } from 'react'
 import { Search, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Progress } from '@/components/ui/progress'
+import { Field as UiField, FieldLabel } from '@/components/ui/field'
+import { Kbd as UiKbd } from '@/components/ui/kbd'
 
 /** Page title block: big display type, optional subtitle and actions on the right. */
 export function PageHeader({
@@ -21,7 +31,7 @@ export function PageHeader({
     <header className={cn('flex flex-col gap-4 px-8 pt-7 pb-5', className)}>
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
-          <h1 className="font-display text-title max-w-[16ch] text-balance">{title}</h1>
+          <h1 className="font-display text-title max-w-[18ch] text-balance">{title}</h1>
           {subtitle && <div className="mt-2 text-[13px] text-muted-foreground">{subtitle}</div>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2 pt-1">{actions}</div>}
@@ -40,7 +50,7 @@ export function Page({ children, className }: { children: ReactNode; className?:
   return <div className={cn('flex h-full min-h-0 flex-col', className)}>{children}</div>
 }
 
-/** Empty states tell the user what to do next, in one line, with the action right there. */
+/** Empty state (shadcn Empty): says what to do next, with the action right there. */
 export function EmptyState({
   icon: Icon,
   title,
@@ -55,19 +65,22 @@ export function EmptyState({
   className?: string
 }) {
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-3 px-6 py-16 text-center', className)}>
-      {Icon && (
-        <div className="grid size-14 place-items-center rounded-full bg-surface">
-          <Icon className="size-6 text-muted-foreground" />
-        </div>
-      )}
-      <div className="text-[15px] font-medium">{title}</div>
-      {hint && <div className="max-w-sm text-[13px] text-muted-foreground">{hint}</div>}
-      {action}
-    </div>
+    <Empty className={cn('py-14', className)}>
+      <EmptyHeader>
+        {Icon && (
+          <EmptyMedia variant="icon" className="size-14 rounded-full bg-surface">
+            <Icon className="size-6 text-muted-foreground" />
+          </EmptyMedia>
+        )}
+        <EmptyTitle className="text-[15px] font-medium">{title}</EmptyTitle>
+        {hint && <EmptyDescription className="text-[13px]">{hint}</EmptyDescription>}
+      </EmptyHeader>
+      {action && <EmptyContent>{action}</EmptyContent>}
+    </Empty>
   )
 }
 
+/** Search field (shadcn InputGroup) with clear button and Esc to clear. */
 export function SearchInput({
   value,
   onChange,
@@ -82,19 +95,15 @@ export function SearchInput({
   autoFocus?: boolean
 }) {
   return (
-    <label
-      className={cn(
-        'flex h-9 items-center gap-2 rounded-full bg-surface px-3.5 text-[13px] focus-within:ring-[3px] focus-within:ring-ring/25',
-        className
-      )}
-    >
-      <Search className="size-4 shrink-0 text-muted-foreground" />
-      <input
+    <InputGroup className={cn('h-9', className)}>
+      <InputGroupAddon>
+        <Search />
+      </InputGroupAddon>
+      <InputGroupInput
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/80"
         onKeyDown={(e) => {
           if (e.key === 'Escape' && value) {
             e.stopPropagation()
@@ -103,11 +112,13 @@ export function SearchInput({
         }}
       />
       {value && (
-        <button type="button" onClick={() => onChange('')} className="text-muted-foreground hover:text-foreground">
-          <X className="size-3.5" />
-        </button>
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Очистить" onClick={() => onChange('')}>
+            <X />
+          </InputGroupButton>
+        </InputGroupAddon>
       )}
-    </label>
+    </InputGroup>
   )
 }
 
@@ -117,48 +128,80 @@ export interface ChipOption<T extends string> {
   count?: number
 }
 
-/** Pill filter chips (selected = lime). Pass `allLabel` to include a "show all" chip. */
+const ALL = '__all__'
+
+/** Pill filter chips (shadcn ToggleGroup, variant "chip": selected = lime). `allLabel` adds a "show all" chip. */
 export function FilterChips<T extends string>({
   options,
   value,
   onChange,
   allLabel,
-  className
+  className,
+  size = 'sm'
 }: {
   options: ChipOption<T>[]
   value: T | undefined
   onChange: (value: T | undefined) => void
   allLabel?: string
   className?: string
+  size?: 'sm' | 'xs' | 'default'
 }) {
-  const chip = (active: boolean): string =>
-    cn(
-      'inline-flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[13px] whitespace-nowrap transition-colors',
-      active ? 'bg-lime text-lime-foreground font-medium' : 'bg-surface text-foreground hover:bg-accent'
-    )
   return (
-    <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      {allLabel && (
-        <button type="button" className={chip(value === undefined)} onClick={() => onChange(undefined)}>
-          {allLabel}
-        </button>
-      )}
+    <ToggleGroup
+      type="single"
+      variant="chip"
+      size={size}
+      value={value ?? (allLabel ? ALL : '')}
+      onValueChange={(v) => {
+        if (!v) return allLabel ? onChange(undefined) : onChange(undefined)
+        onChange(v === ALL ? undefined : (v as T))
+      }}
+      className={className}
+    >
+      {allLabel && <ToggleGroupItem value={ALL}>{allLabel}</ToggleGroupItem>}
       {options.map((o) => (
-        <button
-          type="button"
-          key={o.value}
-          className={chip(value === o.value)}
-          onClick={() => onChange(value === o.value && allLabel ? undefined : o.value)}
-        >
+        <ToggleGroupItem key={o.value} value={o.value}>
           {o.label}
           {o.count !== undefined && <span className="tabular-nums opacity-55">{o.count}</span>}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   )
 }
 
-/** Segmented progress bar (from the reference "Active order" card). */
+/** Segmented control (shadcn ToggleGroup, variant "segment"): exactly one option is always selected. */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  className,
+  size = 'sm'
+}: {
+  options: { value: T; label: ReactNode; title?: string }[]
+  value: T
+  onChange: (value: T) => void
+  className?: string
+  size?: 'sm' | 'xs' | 'default'
+}) {
+  return (
+    <ToggleGroup
+      type="single"
+      variant="segment"
+      size={size}
+      value={value}
+      onValueChange={(v) => v && onChange(v as T)}
+      className={className}
+    >
+      {options.map((o) => (
+        <ToggleGroupItem key={o.value} value={o.value} title={o.title} aria-label={o.title}>
+          {o.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  )
+}
+
+/** Segmented progress (reference "Active order" bar) built from shadcn Progress segments. */
 export function SegmentBar({
   value,
   total,
@@ -175,39 +218,43 @@ export function SegmentBar({
   const ratio = total ? Math.min(1, value / total) : 0
   return (
     <div className={cn('flex gap-1', className)} role="progressbar" aria-valuenow={value} aria-valuemax={total}>
-      {Array.from({ length: segments }, (_, i) => {
-        const fill = Math.max(0, Math.min(1, ratio * segments - i))
-        return (
-          <div key={i} className="h-1.5 flex-1 overflow-hidden rounded-full bg-current/15">
-            <div
-              className={cn('h-full rounded-full', tone === 'lime' ? 'bg-lime' : 'bg-ink dark:bg-ink-foreground')}
-              style={{ width: `${fill * 100}%` }}
-            />
-          </div>
-        )
-      })}
+      {Array.from({ length: segments }, (_, i) => (
+        <Progress
+          key={i}
+          value={Math.max(0, Math.min(1, ratio * segments - i)) * 100}
+          aria-hidden
+          className={cn(
+            'h-1.5 flex-1 bg-current/15',
+            tone === 'lime'
+              ? '[&>[data-slot=progress-indicator]]:bg-lime'
+              : '[&>[data-slot=progress-indicator]]:bg-lime-foreground'
+          )}
+        />
+      ))}
     </div>
   )
 }
 
-export function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
+/** Labelled form field (shadcn Field + FieldLabel). */
+export function Field({
+  label,
+  children,
+  className,
+  htmlFor
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+  htmlFor?: string
+}) {
   return (
-    <label className={cn('flex flex-col gap-1.5', className)}>
-      <span className="text-[12px] text-muted-foreground">{label}</span>
+    <UiField className={cn('gap-2', className)}>
+      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
       {children}
-    </label>
+    </UiField>
   )
 }
 
 export function Kbd({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <kbd
-      className={cn(
-        'inline-flex h-5 min-w-5 items-center justify-center rounded-md border border-border bg-card px-1 font-sans text-[11px] text-muted-foreground',
-        className
-      )}
-    >
-      {children}
-    </kbd>
-  )
+  return <UiKbd className={className}>{children}</UiKbd>
 }

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 
 const EMPTY = { term: '', translation: '', example: '', context: '' }
 
-/** Inline capture: four fields in one row, Enter anywhere saves. */
+/** Inline capture (shadcn Input + Button in a surface row): four fields, Enter anywhere saves. */
 export function AddWordForm() {
   const [form, setForm] = useState(EMPTY)
   const termRef = useRef<HTMLInputElement>(null)
@@ -41,10 +41,10 @@ export function AddWordForm() {
         submit()
       }}
     >
-      <Input ref={termRef} placeholder="Слово или фраза" className="bg-card" {...field('term')} />
-      <Input placeholder="Перевод" className="bg-card" {...field('translation')} />
-      <Input placeholder="Пример из работы" className="bg-card" {...field('example')} />
-      <Input placeholder="Где встретил" className="bg-card" {...field('context')} />
+      <Input ref={termRef} aria-label="Слово или фраза" placeholder="Слово или фраза" className="bg-card" {...field('term')} />
+      <Input aria-label="Перевод" placeholder="Перевод" className="bg-card" {...field('translation')} />
+      <Input aria-label="Пример из работы" placeholder="Пример из работы" className="bg-card" {...field('example')} />
+      <Input aria-label="Где встретил" placeholder="Где встретил" className="bg-card" {...field('context')} />
       <Button type="submit" variant="lime" disabled={!form.term.trim() || create.isPending}>
         <Plus /> Добавить
       </Button>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Clipboard, Code2, Columns2, ExternalLink, ImagePlus, Monitor, Trash2, X } from 'lucide-react'
 import {
@@ -15,15 +15,20 @@ import { api } from '@/lib/api'
 import { fileUrl, isImageFile } from '@/lib/files'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
-import { EmptyState, Field } from '@/components/common/page'
+import { EmptyState, Field, Segmented } from '@/components/common/page'
 import { CodeEditor } from '@/components/common/code'
 import { LivePreview } from '@/components/common/live-preview'
-import { EntityAside, InlineTitle } from '@/components/common/master-detail'
+import { EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Empty, EmptyDescription, EmptyMedia } from '@/components/ui/empty'
+import { Separator } from '@/components/ui/separator'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { PREVIEW_IMPORTS } from './starter'
 
@@ -35,35 +40,6 @@ const LAYOUTS: { value: Layout; label: string; icon: typeof Code2 }[] = [
   { value: 'split', label: 'Код и превью', icon: Columns2 },
   { value: 'preview', label: 'Только превью', icon: Monitor }
 ]
-
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange
-}: {
-  value: T
-  options: { value: T; label: ReactNode; title?: string }[]
-  onChange: (v: T) => void
-}) {
-  return (
-    <div className="flex rounded-full bg-surface p-0.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          title={o.title}
-          onClick={() => onChange(o.value)}
-          className={cn(
-            'flex h-7 items-center gap-1 rounded-full px-2.5 text-[12px] transition-colors',
-            value === o.value ? 'bg-ink text-ink-foreground' : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 /** Screenshot / GIF of the component: drop, paste (Ctrl+V) or take from clipboard. */
 function CoverField({ item }: { item: UiComponent }) {
@@ -77,31 +53,33 @@ function CoverField({ item }: { item: UiComponent }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-[12px] text-muted-foreground">Скриншот или GIF</h3>
-      <div
-        {...props}
-        className={cn(
-          'relative overflow-hidden rounded-2xl border border-dashed border-input transition-colors',
-          isOver && 'border-ring bg-lime-soft'
-        )}
-      >
+      <SectionLabel>Скриншот или GIF</SectionLabel>
+      <div {...props}>
         {item.coverPath ? (
-          <>
+          <Card className={cn('relative gap-0 overflow-hidden bg-card py-0', isOver && 'ring-2 ring-ring')}>
             <img src={fileUrl(item.coverPath)} alt="" className="max-h-48 w-full object-cover" />
-            <button
-              type="button"
-              onClick={() => removeCover.mutate(item.id)}
-              className="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-ink/80 text-ink-foreground hover:bg-ink"
-              title="Убрать обложку"
-            >
-              <X className="size-3.5" />
-            </button>
-          </>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="soft"
+                  size="icon-xs"
+                  aria-label="Убрать обложку"
+                  className="absolute top-2 right-2 bg-card/90 hover:bg-card"
+                  onClick={() => removeCover.mutate(item.id)}
+                >
+                  <X />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Убрать обложку</TooltipContent>
+            </Tooltip>
+          </Card>
         ) : (
-          <div className="flex flex-col items-center gap-1 px-3 py-6 text-center text-[12px] text-muted-foreground">
-            <ImagePlus className="size-5" />
-            Перетащите картинку или нажмите Ctrl+V
-          </div>
+          <Empty className={cn('gap-2 border border-dashed border-input p-5 md:p-5', isOver && 'border-ring bg-lime-soft')}>
+            <EmptyMedia variant="icon" className="size-9 rounded-full bg-card">
+              <ImagePlus className="size-4 text-muted-foreground" />
+            </EmptyMedia>
+            <EmptyDescription className="text-[12px]">Перетащите картинку или нажмите Ctrl+V</EmptyDescription>
+          </Empty>
         )}
       </div>
       <Button
@@ -133,11 +111,17 @@ function Editor({ item }: { item: UiComponent }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 border-b border-border px-6 py-3">
-        <Button variant="ghost" size="icon-sm" onClick={() => navigate('/components')} title="Ко всем компонентам">
-          <ArrowLeft />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Ко всем компонентам" onClick={() => navigate('/components')}>
+              <ArrowLeft />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Ко всем компонентам</TooltipContent>
+        </Tooltip>
         <InlineTitle value={title} onChange={setTitle} className="min-w-0 flex-1 text-[24px]" />
         <Segmented<ComponentLanguage>
+          size="xs"
           value={item.language}
           onChange={(language) => save({ language })}
           options={COMPONENT_LANGUAGES.map((l) => ({ value: l, label: l.toUpperCase() }))}
@@ -145,7 +129,8 @@ function Editor({ item }: { item: UiComponent }) {
         <Segmented<Layout>
           value={layout}
           onChange={setLayout}
-          options={LAYOUTS.map((l) => ({ value: l.value, title: l.label, label: <l.icon className="size-3.5" /> }))}
+          size="xs"
+          options={LAYOUTS.map((l) => ({ value: l.value, title: l.label, label: <l.icon /> }))}
         />
         <PinButtons entity={{ type: 'component', id: item.id }} />
         <Confirm
@@ -157,7 +142,7 @@ function Editor({ item }: { item: UiComponent }) {
             navigate('/components')
           }}
         >
-          <Button variant="ghost" size="icon-sm" title="В корзину">
+          <Button variant="ghost" size="icon-sm" aria-label="В корзину">
             <Trash2 />
           </Button>
         </Confirm>
@@ -179,8 +164,9 @@ function Editor({ item }: { item: UiComponent }) {
         {layout !== 'code' && (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-muted-foreground">Живое превью</span>
+              <span className="text-[12.5px] font-medium text-muted-foreground">Живое превью</span>
               <Segmented<PreviewBackground>
+                size="xs"
                 value={item.previewBg}
                 onChange={(previewBg) => save({ previewBg })}
                 options={PREVIEW_BACKGROUNDS.map((b) => ({ value: b, label: BG_LABEL[b] }))}
@@ -190,13 +176,13 @@ function Editor({ item }: { item: UiComponent }) {
           </div>
         )}
 
-        <aside className="flex w-[280px] shrink-0 flex-col gap-6 overflow-y-auto rounded-2xl bg-surface/60 p-4">
+        <Card className="w-[280px] shrink-0 gap-6 overflow-y-auto px-4 py-4">
           <Field label="Описание">
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Где используется, какие пропсы"
-              className="bg-card"
+              className="min-h-20 bg-card"
             />
           </Field>
           <Field label="Источник">
@@ -208,20 +194,26 @@ function Editor({ item }: { item: UiComponent }) {
                 className="bg-card"
               />
               {/^https?:\/\//i.test(sourceUrl) && (
-                <Button variant="soft" size="icon" title="Открыть" onClick={() => api.app.openExternal(sourceUrl)}>
-                  <ExternalLink />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="soft" size="icon" className="bg-card" aria-label="Открыть источник" onClick={() => api.app.openExternal(sourceUrl)}>
+                      <ExternalLink />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Открыть источник</TooltipContent>
+                </Tooltip>
               )}
             </div>
           </Field>
           <CoverField item={item} />
-          <section className="flex flex-col gap-1.5">
-            <h3 className="text-[12px] text-muted-foreground">Доступно в превью</h3>
+          <Separator />
+          <section className="flex flex-col gap-2">
+            <SectionLabel>Доступно в превью</SectionLabel>
             <div className="flex flex-wrap gap-1">
               {PREVIEW_IMPORTS.map((m) => (
-                <code key={m} className="rounded-md bg-card px-1.5 py-0.5 font-mono text-[11px]">
+                <Badge key={m} variant="outline" className="bg-card font-mono text-[11px] font-normal">
                   {m}
-                </code>
+                </Badge>
               ))}
             </div>
             <p className="text-[11.5px] leading-relaxed text-muted-foreground">
@@ -237,7 +229,7 @@ function Editor({ item }: { item: UiComponent }) {
             updatedAt={item.updatedAt}
             files={false}
           />
-        </aside>
+        </Card>
       </div>
     </div>
   )

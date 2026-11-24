@@ -3,26 +3,38 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  BILLING_TYPES,
   CURRENCIES,
   PROJECT_STATUSES,
+  type BillingType,
   type ProjectPatch,
   type ProjectSummary
 } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
-import { fmtHours, fmtMoney, fromLocalInput, toLocalInput } from '@/lib/format'
+import { fmtHours, fmtMoney, plural } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState, Field } from '@/components/common/page'
-import { EntityAside, InlineTitle } from '@/components/common/master-detail'
+import { EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
 import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
+import { DatePicker } from '@/components/common/date-picker'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { BILLING_LABEL, PROJECT_STATUS_LABEL } from './labels'
-import { Choice, Meter, Section } from './parts'
-import { numberOrZero } from './money'
+import { Separator } from '@/components/ui/separator'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator
+} from '@/components/ui/breadcrumb'
+import { cn } from '@/lib/utils'
+import { BILLING_INFO, PROJECT_STATUS_LABEL } from './labels'
+import { BillingPicker, Choice, Meter, Section } from './parts'
+import { amountPatch, numberOrZero } from './money'
 import { TimeSection } from './time-section'
 import { PaymentsSection } from './payments-section'
 import { CredentialsSection } from './credentials-section'
@@ -30,28 +42,117 @@ import { CredentialsSection } from './credentials-section'
 function Money({
   label,
   value,
-  tone
+  tone,
+  hint
 }: {
   label: string
   value: ReactNode
   tone?: 'lime' | 'warn'
+  hint?: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[12px] text-muted-foreground">{label}</span>
       <span
-        className={
-          tone === 'lime'
-            ? 'font-display w-fit rounded-xl bg-lime px-2 text-[28px] leading-tight text-lime-foreground tabular-nums'
-            : tone === 'warn'
-              ? 'font-display text-[28px] leading-tight text-warn tabular-nums'
-              : 'font-display text-[28px] leading-tight tabular-nums'
-        }
+        className={cn(
+          'font-display w-fit text-[28px] leading-tight tabular-nums',
+          tone === 'lime' && 'rounded-xl bg-lime px-2 text-lime-foreground',
+          tone === 'warn' && 'text-warn'
+        )}
       >
         {value}
       </span>
+      {hint && <span className="text-[12px] text-muted-foreground">{hint}</span>}
     </div>
   )
+}
+
+/** Money header that speaks the language of the billing type. */
+function MoneyHeader({ p }: { p: ProjectSummary }) {
+  const m = (n: number): string => fmtMoney(n, p.currency)
+  const rate = p.effectiveRate ? `${m(p.effectiveRate)} / ч` : '—'
+  const hours = (
+    <div className="flex flex-col gap-1">
+      <span className="text-[12px] text-muted-foreground">Часы</span>
+      <span className="font-display text-[28px] leading-tight tabular-nums">
+        {fmtHours(p.trackedMinutes)}
+        {p.budgetHours > 0 && (
+          <span className="text-[16px] text-muted-foreground"> / {p.budgetHours} ч</span>
+        )}
+      </span>
+      {p.budgetHours > 0 && <Meter value={p.trackedMinutes / 60} max={p.budgetHours} />}
+    </div>
+  )
+  let cells: ReactNode
+  switch (p.billing) {
+    case 'hourly':
+      cells = (
+        <>
+          <Money label="Заработано" value={m(p.earnedAmount)} hint={`${m(p.rate)} / ч`} />
+          <Money label="Оплачено" value={m(p.paidAmount)} tone="lime" />
+          <Money
+            label="Ожидается"
+            value={m(p.outstandingAmount)}
+            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
+          />
+          {hours}
+        </>
+      )
+      break
+    case 'fixed':
+      cells = (
+        <>
+          <Money label="Стоимость проекта" value={m(p.fixedPrice)} />
+          <div className="flex flex-col gap-1">
+            <Money label="Оплачено" value={m(p.paidAmount)} tone="lime" />
+            {p.fixedPrice > 0 && <Meter value={p.paidAmount} max={p.fixedPrice} />}
+          </div>
+          <Money
+            label="Осталось получить"
+            value={m(p.outstandingAmount)}
+            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
+          />
+          <Money
+            label="Фактическая ставка"
+            value={rate}
+            hint={`${fmtHours(p.trackedMinutes)} учтено`}
+          />
+        </>
+      )
+      break
+    case 'retainer':
+      cells = (
+        <>
+          <Money
+            label="Абонемент"
+            value={m(p.fixedPrice)}
+            hint={`в месяц · ${p.retainerMonths} ${plural(p.retainerMonths, ['месяц', 'месяца', 'месяцев'])}`}
+          />
+          <Money label="Оплачено" value={m(p.paidAmount)} tone="lime" />
+          <Money
+            label="Ожидается"
+            value={m(p.outstandingAmount)}
+            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
+          />
+          <Money
+            label="Фактическая ставка"
+            value={rate}
+            hint={`${fmtHours(p.trackedMinutes)} учтено`}
+          />
+        </>
+      )
+      break
+    default:
+      cells = (
+        <>
+          {hours}
+          <div className="col-span-3 self-center text-[13px] text-muted-foreground">
+            Проект без оплаты — ведётся только учёт времени.
+          </div>
+        </>
+      )
+  }
+  return <Card className="mt-6 grid grid-cols-4 gap-6 p-6">{cells}</Card>
 }
 
 const LINK_FIELDS: {
@@ -78,7 +179,7 @@ function UrlField({
 }) {
   return (
     <Field label={label}>
-      <div className="flex gap-1">
+      <ButtonGroup className="w-full">
         <Input
           defaultValue={value}
           placeholder={placeholder}
@@ -88,82 +189,78 @@ function UrlField({
           <Button
             variant="soft"
             size="icon"
-            title={`Открыть ${value}`}
+            aria-label={`Открыть ${value}`}
             onClick={() => api.app.openExternal(value).catch((e: Error) => toast.error(e.message))}
           >
             <ExternalLink />
           </Button>
         )}
-      </div>
+      </ButtonGroup>
     </Field>
   )
 }
 
-function Settings({
-  project,
-  patch
-}: {
-  project: ProjectSummary
-  patch: (p: ProjectPatch) => void
-}) {
+function Terms({ project, patch }: { project: ProjectSummary; patch: (p: ProjectPatch) => void }) {
+  const info = BILLING_INFO[project.billing]
+  const amount = project.billing === 'hourly' ? project.rate : project.fixedPrice
   return (
     <section className="flex flex-col gap-3">
-      <h3 className="text-[12px] text-muted-foreground">Условия</h3>
-      <Field label="Оплата">
-        <Choice
-          value={project.billing}
-          onChange={(v) => v && patch({ billing: v })}
-          options={BILLING_TYPES.map((b) => ({ value: b, label: BILLING_LABEL[b] }))}
-        />
-      </Field>
+      <SectionLabel>Условия оплаты</SectionLabel>
+      <BillingPicker
+        compact
+        value={project.billing}
+        onChange={(billing: BillingType) => patch({ billing, ...amountPatch(billing, amount) })}
+      />
       <div className="grid grid-cols-2 gap-2">
-        {project.billing === 'fixed' ? (
-          <Field label="Стоимость">
+        {info.amountLabel && (
+          <Field label={info.amountLabel} key={`amount-${project.billing}`}>
             <Input
               inputMode="decimal"
-              defaultValue={project.fixedPrice || ''}
-              onBlur={(e) => patch({ fixedPrice: numberOrZero(e.target.value) })}
-            />
-          </Field>
-        ) : (
-          <Field label="Ставка/час">
-            <Input
-              inputMode="decimal"
-              defaultValue={project.rate || ''}
-              onBlur={(e) => patch({ rate: numberOrZero(e.target.value) })}
+              defaultValue={amount || ''}
+              onBlur={(e) =>
+                patch(
+                  project.billing === 'hourly'
+                    ? { rate: numberOrZero(e.target.value) }
+                    : { fixedPrice: numberOrZero(e.target.value) }
+                )
+              }
             />
           </Field>
         )}
-        <Field label="Валюта">
-          <Choice
-            value={project.currency}
-            onChange={(v) => v && patch({ currency: v })}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          />
-        </Field>
-        <Field label="Бюджет, ч">
-          <Input
-            inputMode="decimal"
-            defaultValue={project.budgetHours || ''}
-            placeholder="—"
-            onBlur={(e) => patch({ budgetHours: numberOrZero(e.target.value) })}
-          />
-        </Field>
-        <Field label="Начало">
-          <Input
-            type="date"
-            defaultValue={toLocalInput(project.startAt, false)}
-            onBlur={(e) => patch({ startAt: fromLocalInput(e.target.value) })}
-          />
-        </Field>
-        <Field label="Дедлайн" className="col-span-2">
-          <Input
-            type="date"
-            defaultValue={toLocalInput(project.dueAt, false)}
-            onBlur={(e) => patch({ dueAt: fromLocalInput(e.target.value) })}
-          />
-        </Field>
+        {project.billing !== 'none' && (
+          <Field label="Валюта">
+            <Choice
+              value={project.currency}
+              onChange={(v) => v && patch({ currency: v })}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
+          </Field>
+        )}
+        {project.billing === 'hourly' && (
+          <Field label="Бюджет, ч">
+            <Input
+              inputMode="decimal"
+              defaultValue={project.budgetHours || ''}
+              placeholder="—"
+              onBlur={(e) => patch({ budgetHours: numberOrZero(e.target.value) })}
+            />
+          </Field>
+        )}
       </div>
+      <Field label={project.billing === 'retainer' ? 'Абонемент с' : 'Начало'}>
+        <DatePicker
+          value={project.startAt}
+          onChange={(startAt) => patch({ startAt })}
+          placeholder="Не указано"
+        />
+      </Field>
+      <Field label={project.billing === 'retainer' ? 'До' : 'Дедлайн'}>
+        <DatePicker
+          value={project.dueAt}
+          onChange={(dueAt) => patch({ dueAt })}
+          placeholder="Без срока"
+        />
+      </Field>
     </section>
   )
 }
@@ -199,25 +296,42 @@ export function ProjectPage() {
     )
   }
 
+  const hourly = p.billing === 'hourly'
+  const time = (
+    <TimeSection
+      projectId={p.id}
+      entries={data.timeEntries}
+      rate={p.rate}
+      currency={p.currency}
+      hourly={hourly}
+      secondary={!hourly}
+    />
+  )
+
   return (
     <div className="flex h-full min-h-0">
       <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={p.id}>
-        <div className="mb-4 flex items-center gap-3 text-[12.5px] text-muted-foreground">
-          <Link
-            to="/clients?tab=projects"
-            className="flex items-center gap-1 hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" /> Проекты
-          </Link>
-          {data.client && (
-            <>
-              <span>/</span>
-              <Link to={`/clients/${data.client.id}`} className="hover:text-foreground">
-                {data.client.name}
-              </Link>
-            </>
-          )}
-        </div>
+        <Breadcrumb className="mb-4">
+          <BreadcrumbList className="text-[12.5px]">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/clients?tab=projects" className="flex items-center gap-1">
+                  <ArrowLeft className="size-3.5" /> Проекты
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            {data.client && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to={`/clients/${data.client.id}`}>{data.client.name}</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
 
         <div className="flex items-start gap-4">
           <InlineTitle value={title} onChange={setTitle} className="text-[40px]" />
@@ -228,7 +342,7 @@ export function ProjectPage() {
               description="Проект уйдёт в корзину на 30 дней вместе с часами и оплатами."
               onConfirm={() => remove.mutate(id)}
             >
-              <Button variant="ghost" size="icon-sm" title="В корзину">
+              <Button variant="ghost" size="icon-sm" aria-label="В корзину">
                 <Trash2 />
               </Button>
             </Confirm>
@@ -251,35 +365,21 @@ export function ProjectPage() {
           />
         </div>
 
-        <div className="mt-6 grid grid-cols-4 gap-6 rounded-3xl bg-surface p-6">
-          <Money label="Заработано" value={fmtMoney(p.earnedAmount, p.currency)} />
-          <Money label="Оплачено" value={fmtMoney(p.paidAmount, p.currency)} tone="lime" />
-          <Money
-            label="Ожидается"
-            value={fmtMoney(p.outstandingAmount, p.currency)}
-            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
-          />
-          <div className="flex flex-col gap-1">
-            <span className="text-[12px] text-muted-foreground">Часы</span>
-            <span className="font-display text-[28px] leading-tight tabular-nums">
-              {fmtHours(p.trackedMinutes)}
-              {p.budgetHours > 0 && (
-                <span className="text-[16px] text-muted-foreground"> / {p.budgetHours} ч</span>
-              )}
-            </span>
-            {p.budgetHours > 0 && <Meter value={p.trackedMinutes / 60} max={p.budgetHours} />}
-          </div>
-        </div>
+        <MoneyHeader p={p} />
 
         <div className="mt-8 flex flex-col gap-10">
-          <TimeSection
-            projectId={p.id}
-            entries={data.timeEntries}
-            rate={p.rate}
-            currency={p.currency}
-            hourly={p.billing === 'hourly'}
-          />
-          <PaymentsSection projectId={p.id} currency={p.currency} payments={data.payments} />
+          {hourly && time}
+          {p.billing !== 'none' && (
+            <PaymentsSection
+              projectId={p.id}
+              currency={p.currency}
+              payments={data.payments}
+              billing={p.billing}
+              price={p.fixedPrice}
+              paid={p.paidAmount}
+            />
+          )}
+          {!hourly && time}
           <CredentialsSection items={data.credentials} owner={{ projectId: p.id }} />
           <Section title="Описание">
             <MarkdownField
@@ -296,9 +396,10 @@ export function ProjectPage() {
         key={`aside-${p.id}`}
       >
         <div className="flex flex-col gap-6">
-          <Settings project={p} patch={patch} />
+          <Terms project={p} patch={patch} />
+          <Separator />
           <section className="flex flex-col gap-3">
-            <h3 className="text-[12px] text-muted-foreground">Ссылки</h3>
+            <SectionLabel>Ссылки</SectionLabel>
             {LINK_FIELDS.map((f) => (
               <UrlField
                 key={f.key}
@@ -309,6 +410,7 @@ export function ProjectPage() {
               />
             ))}
           </section>
+          <Separator />
           <EntityAside
             entity={{ type: 'project', id: p.id }}
             tags={p.tags}

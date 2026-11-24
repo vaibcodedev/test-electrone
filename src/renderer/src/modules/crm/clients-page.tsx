@@ -18,8 +18,10 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { TagList } from '@/components/common/tags'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { cn } from '@/lib/utils'
 import {
   BILLING_LABEL,
@@ -33,6 +35,7 @@ import { ClientDialog, ProjectDialog } from './dialogs'
 
 type Tab = 'clients' | 'projects'
 
+/** Money is the main metric; hours are secondary (most work isn't hourly). */
 function Overview() {
   const { data } = useApi('projects', 'overview')
   if (!data) return <div className="grid h-[118px] grid-cols-4 gap-3" />
@@ -40,11 +43,6 @@ function Overview() {
     <div className="grid grid-cols-4 gap-3">
       <StatTile
         tone="ink"
-        label="Часы за месяц"
-        value={fmtHours(data.monthMinutes)}
-        hint={`${fmtMinutes(data.weekMinutes)} на этой неделе`}
-      />
-      <StatTile
         label="Оплачено в этом месяце"
         value={<span className="text-[24px]">{moneyMap(data.paidThisMonth)}</span>}
       />
@@ -60,12 +58,16 @@ function Overview() {
       <StatTile
         label="Проекты в работе"
         value={data.activeProjects}
-        tone={data.overduePayments ? 'surface' : 'surface'}
         hint={plural(data.activeProjects, [
           'активный проект',
           'активных проекта',
           'активных проектов'
         ])}
+      />
+      <StatTile
+        label="Учёт времени за месяц"
+        value={fmtHours(data.monthMinutes)}
+        hint={`${fmtMinutes(data.weekMinutes)} на этой неделе`}
       />
     </div>
   )
@@ -74,39 +76,85 @@ function Overview() {
 function ClientCard({ client }: { client: ClientSummary }) {
   const navigate = useNavigate()
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/clients/${client.id}`)}
-      className="group flex min-h-[168px] flex-col justify-between rounded-3xl bg-surface p-5 text-left transition-colors hover:bg-accent"
+    <Item
+      asChild
+      variant="muted"
+      className="group min-h-[168px] flex-col items-stretch justify-between rounded-3xl p-5"
     >
-      <div className="flex items-start justify-between gap-3">
-        <span className="grid size-10 place-items-center rounded-full bg-card text-[14px] font-semibold">
-          {client.name.slice(0, 1).toUpperCase()}
-        </span>
-        <span className="grid size-8 place-items-center rounded-full bg-card opacity-0 transition-opacity group-hover:opacity-100">
-          <ArrowUpRight className="size-4" />
-        </span>
-      </div>
-      <div>
-        <div className="truncate text-[16px] font-medium">{client.name}</div>
-        <div className="truncate text-[12.5px] text-muted-foreground">
-          {client.company || CLIENT_STATUS_LABEL[client.status]}
+      <button type="button" onClick={() => navigate(`/clients/${client.id}`)} className="text-left">
+        <div className="flex items-start justify-between gap-3">
+          <Avatar className="size-10">
+            <AvatarFallback className="bg-card text-[14px] font-semibold">
+              {client.name.slice(0, 1).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
-          <span>
-            {client.activeProjectCount}/{client.projectCount}{' '}
-            {plural(client.projectCount, ['проект', 'проекта', 'проектов'])}
-          </span>
-          <span>{fmtHours(client.trackedMinutes)}</span>
-          <span className="text-foreground">{fmtMoney(client.paidTotal, client.currency)}</span>
-          {client.outstandingTotal > 0 && (
-            <span className="text-warn">
-              ждём {fmtMoney(client.outstandingTotal, client.currency)}
+        <ItemContent className="gap-1">
+          <ItemTitle className="w-full truncate text-[16px]">{client.name}</ItemTitle>
+          <ItemDescription className="truncate text-[12.5px]">
+            {client.company || CLIENT_STATUS_LABEL[client.status]} ·{' '}
+            {BILLING_LABEL[client.defaultBilling]}
+          </ItemDescription>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+            <span>
+              {client.activeProjectCount}/{client.projectCount}{' '}
+              {plural(client.projectCount, ['проект', 'проекта', 'проектов'])}
             </span>
-          )}
+            <span className="text-foreground">{fmtMoney(client.paidTotal, client.currency)}</span>
+            {client.outstandingTotal > 0 && (
+              <span className="text-warn">
+                ждём {fmtMoney(client.outstandingTotal, client.currency)}
+              </span>
+            )}
+            {client.defaultBilling === 'hourly' && <span>{fmtHours(client.trackedMinutes)}</span>}
+          </div>
+        </ItemContent>
+      </button>
+    </Item>
+  )
+}
+
+/** The progress metric that matters for each billing type. */
+function BillingProgress({ project: p }: { project: ProjectSummary }) {
+  if (p.billing === 'hourly') {
+    return (
+      <>
+        <div className="flex justify-between text-[12px]">
+          <span>{fmtHours(p.trackedMinutes)}</span>
+          {p.budgetHours > 0 && <span className="text-muted-foreground">из {p.budgetHours} ч</span>}
+        </div>
+        {p.budgetHours > 0 && (
+          <Meter value={p.trackedMinutes / 60} max={p.budgetHours} className="mt-1.5" />
+        )}
+      </>
+    )
+  }
+  if (p.billing === 'fixed') {
+    return (
+      <>
+        <div className="flex justify-between text-[12px]">
+          <span>
+            оплачено {p.fixedPrice ? Math.round((p.paidAmount / p.fixedPrice) * 100) : 0}%
+          </span>
+          <span className="text-muted-foreground">{fmtMoney(p.fixedPrice, p.currency)}</span>
+        </div>
+        {p.fixedPrice > 0 && <Meter value={p.paidAmount} max={p.fixedPrice} className="mt-1.5" />}
+      </>
+    )
+  }
+  if (p.billing === 'retainer') {
+    return (
+      <div className="text-[12px]">
+        {fmtMoney(p.fixedPrice, p.currency)} <span className="text-muted-foreground">/ мес</span>
+        <div className="text-muted-foreground">
+          {p.retainerMonths} {plural(p.retainerMonths, ['месяц', 'месяца', 'месяцев'])}
         </div>
       </div>
-    </button>
+    )
+  }
+  return (
+    <div className="text-[12px] text-muted-foreground">{fmtHours(p.trackedMinutes)} учтено</div>
   )
 }
 
@@ -118,63 +166,61 @@ export function ProjectRow({
   showClient?: boolean
 }) {
   const navigate = useNavigate()
-  const overdue = project.dueAt && project.dueAt < Date.now() && project.status === 'active'
+  const [today] = useState(() => Date.now())
+  const overdue = project.dueAt !== null && project.dueAt < today && project.status === 'active'
+  const paid = project.billing !== 'none'
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/projects/${project.id}`)}
-      className="grid w-full grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_100px] items-center gap-5 rounded-2xl bg-surface px-5 py-3.5 text-left transition-colors hover:bg-accent"
-    >
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-[14px] font-medium">{project.title}</span>
-          <Badge variant={PROJECT_STATUS_BADGE[project.status]}>
-            {PROJECT_STATUS_LABEL[project.status]}
-          </Badge>
-        </div>
-        <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
-          {showClient && (project.clientName ?? 'Без клиента')}
-          {showClient && ' · '}
-          {BILLING_LABEL[project.billing]}
-        </div>
-        <TagList tags={project.tags} max={3} className="mt-1.5" />
-      </div>
-      <div className="min-w-0">
-        <div className="flex justify-between text-[12px]">
-          <span>{fmtHours(project.trackedMinutes)}</span>
-          {project.budgetHours > 0 && (
-            <span className="text-muted-foreground">из {project.budgetHours} ч</span>
-          )}
-        </div>
-        {project.budgetHours > 0 && (
-          <Meter value={project.trackedMinutes / 60} max={project.budgetHours} className="mt-1.5" />
-        )}
-      </div>
-      <div className="min-w-0 text-[12px] leading-relaxed">
-        <div>
-          <span className="text-muted-foreground">Заработано </span>
-          {fmtMoney(project.earnedAmount, project.currency)}
-        </div>
-        <div>
-          <span className="text-muted-foreground">Оплачено </span>
-          {fmtMoney(project.paidAmount, project.currency)}
-          {project.outstandingAmount > 0 && (
-            <span className="text-warn">
-              {' '}
-              · долг {fmtMoney(project.outstandingAmount, project.currency)}
-            </span>
-          )}
-        </div>
-      </div>
-      <div
-        className={cn(
-          'text-right text-[12px]',
-          overdue ? 'text-destructive' : 'text-muted-foreground'
-        )}
+    <Item asChild variant="muted" size="sm">
+      <button
+        type="button"
+        onClick={() => navigate(`/projects/${project.id}`)}
+        className="grid w-full grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_100px] items-center gap-5 px-5 py-3.5 text-left"
       >
-        {project.dueAt ? `до ${fmtDay(project.dueAt)}` : '—'}
-      </div>
-    </button>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-[14px] font-medium">{project.title}</span>
+            <Badge variant={PROJECT_STATUS_BADGE[project.status]}>
+              {PROJECT_STATUS_LABEL[project.status]}
+            </Badge>
+          </div>
+          <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
+            {showClient && `${project.clientName ?? 'Без клиента'} · `}
+            {BILLING_LABEL[project.billing]}
+          </div>
+          <TagList tags={project.tags} max={3} className="mt-1.5" />
+        </div>
+        <div className="min-w-0">
+          <BillingProgress project={project} />
+        </div>
+        <div className="min-w-0 text-[12px] leading-relaxed">
+          {paid ? (
+            <>
+              <div>
+                <span className="text-muted-foreground">Оплачено </span>
+                {fmtMoney(project.paidAmount, project.currency)}
+              </div>
+              {project.outstandingAmount > 0 ? (
+                <div className="text-warn">
+                  ждём {fmtMoney(project.outstandingAmount, project.currency)}
+                </div>
+              ) : (
+                <div className="text-muted-foreground">долгов нет</div>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground">без оплаты</span>
+          )}
+        </div>
+        <div
+          className={cn(
+            'text-right text-[12px]',
+            overdue ? 'text-destructive' : 'text-muted-foreground'
+          )}
+        >
+          {project.dueAt ? `до ${fmtDay(project.dueAt)}` : '—'}
+        </div>
+      </button>
+    </Item>
   )
 }
 
@@ -201,7 +247,7 @@ export function ClientsPage() {
     <Page>
       <PageHeader
         title="Клиенты и проекты"
-        subtitle="Контакты, доступы, учёт часов и оплат в одном месте."
+        subtitle="Контакты, доступы, оплаты — фикс, абонемент или почасово."
         actions={
           <>
             <Button variant="soft" onClick={() => setClientOpen(true)}>
@@ -257,7 +303,7 @@ export function ClientsPage() {
             <EmptyState
               icon={UserRound}
               title={search ? 'Никого не нашли' : 'Клиентов пока нет'}
-              hint="Добавьте клиента — к нему привяжутся проекты, доступы, часы и оплаты."
+              hint="Добавьте клиента — к нему привяжутся проекты, доступы и оплаты."
               action={
                 !search && (
                   <Button variant="lime" onClick={() => setClientOpen(true)}>
@@ -268,16 +314,16 @@ export function ClientsPage() {
             />
           )
         ) : projects.length ? (
-          <div className="flex flex-col gap-2">
+          <ItemGroup className="gap-2">
             {projects.map((p) => (
               <ProjectRow key={p.id} project={p} />
             ))}
-          </div>
+          </ItemGroup>
         ) : (
           <EmptyState
             icon={Briefcase}
             title={search || status ? 'Проектов не найдено' : 'Проектов пока нет'}
-            hint="Проект хранит часы, оплаты, доступы и ссылки на стенды."
+            hint="Проект хранит оплаты, доступы, ссылки на стенды и учёт времени."
             action={
               <Button variant="lime" onClick={() => setProjectOpen(true)}>
                 <Plus /> Создать проект

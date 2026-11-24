@@ -6,10 +6,9 @@ import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { DetailPane, EntityAside, InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
-import { Field } from '@/components/common/page'
+import { Field, Segmented } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
 import { IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
 
 /** Editor for a single idea. Keyed by id by the parent so autosave flushes on switch. */
@@ -65,7 +64,7 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
         >
           <Field label="Статус">
             <Select value={idea.status} onValueChange={(v) => patch({ status: v as IdeaStatus })}>
-              <SelectTrigger className="w-full rounded-xl">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -77,26 +76,19 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
               </SelectContent>
             </Select>
           </Field>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[12px] text-muted-foreground">Важность</span>
-            <div className="flex gap-1">
-              {[0, 1, 2, 3].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  title={IMPACT_LABEL[n]}
-                  onClick={() => patch({ impact: n })}
-                  className={cn(
-                    'h-8 flex-1 rounded-full text-[12px] transition-colors',
-                    idea.impact === n ? 'bg-ink text-ink-foreground' : 'bg-surface hover:bg-accent'
-                  )}
-                >
-                  {n === 0 ? '—' : '●'.repeat(n)}
-                </button>
-              ))}
-            </div>
+          <Field label="Важность">
+            <Segmented
+              className="w-full [&>*]:flex-1"
+              value={String(idea.impact)}
+              onChange={(v) => patch({ impact: Number(v) })}
+              options={[0, 1, 2, 3].map((n) => ({
+                value: String(n),
+                label: n === 0 ? '—' : '●'.repeat(n),
+                title: IMPACT_LABEL[n]
+              }))}
+            />
             <span className="text-[11.5px] text-muted-foreground">{IMPACT_LABEL[idea.impact]}</span>
-          </div>
+          </Field>
         </EntityAside>
       }
     >
@@ -105,6 +97,7 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
         <MarkdownField
           value={body}
           onChange={setBody}
+          label="Описание"
           placeholder="Опишите идею: зачем, для кого, первые шаги…"
           minHeight="280px"
         />

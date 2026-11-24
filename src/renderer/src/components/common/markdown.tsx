@@ -5,7 +5,8 @@ import rehypeHighlight from 'rehype-highlight'
 import { Eye, Pencil } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
-import { CodeEditor } from './code'
+import { Textarea } from '@/components/ui/textarea'
+import { Segmented } from './page'
 import { CopyButton } from './copy-button'
 
 function Pre(props: ComponentProps<'pre'>) {
@@ -60,14 +61,18 @@ export function Markdown({ source, className }: { source: string; className?: st
   )
 }
 
-/** Markdown field with edit/preview toggle. Starts in preview when there is content. */
+/**
+ * Markdown field: shadcn Textarea for writing (regular font, auto-grows) + rendered preview.
+ * Mode switch is a shadcn ToggleGroup above the content, never on top of the text.
+ */
 export function MarkdownField({
   value,
   onChange,
-  placeholder = 'Пишите в Markdown…',
-  minHeight = '220px',
+  placeholder = 'Пишите в Markdown: **жирный**, списки, ```код```',
+  minHeight = '160px',
   className,
-  defaultMode
+  defaultMode,
+  label
 }: {
   value: string
   onChange: (value: string) => void
@@ -75,51 +80,43 @@ export function MarkdownField({
   minHeight?: string
   className?: string
   defaultMode?: 'edit' | 'preview'
+  label?: string
 }) {
   const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? (value.trim() ? 'preview' : 'edit'))
   return (
-    <div className={cn('relative', className)}>
-      <div className="absolute top-2 right-2 z-10 flex rounded-full bg-card/90 p-0.5 shadow-sm backdrop-blur">
-        {(
-          [
-            ['edit', Pencil, 'Редактировать'],
-            ['preview', Eye, 'Просмотр']
-          ] as const
-        ).map(([m, Icon, label]) => (
-          <button
-            key={m}
-            type="button"
-            title={label}
-            onClick={() => setMode(m)}
-            className={cn(
-              'grid size-7 place-items-center rounded-full transition-colors',
-              mode === m ? 'bg-ink text-ink-foreground' : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <Icon className="size-3.5" />
-          </button>
-        ))}
+    <div className={cn('flex flex-col gap-2', className)}>
+      <div className="flex items-center justify-between gap-2">
+        {label ? <span className="text-[12.5px] font-medium text-muted-foreground">{label}</span> : <span />}
+        <Segmented
+          size="xs"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'edit', label: <><Pencil /> Текст</> },
+            { value: 'preview', label: <><Eye /> Просмотр</> }
+          ]}
+        />
       </div>
       {mode === 'edit' ? (
-        <CodeEditor
+        <Textarea
           value={value}
-          onChange={onChange}
-          language="markdown"
-          lineNumbers={false}
-          minHeight={minHeight}
+          onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           autoFocus={!value}
+          style={{ minHeight }}
+          className="px-4 py-3 text-[14px] leading-relaxed"
         />
       ) : (
         <div
-          className="min-h-24 cursor-text rounded-2xl bg-surface p-5 pr-20"
+          className="cursor-text rounded-xl bg-surface px-5 py-4"
+          style={{ minHeight: `calc(${minHeight} / 2)` }}
           onDoubleClick={() => setMode('edit')}
           title="Двойной клик — редактировать"
         >
           {value.trim() ? (
             <Markdown source={value} />
           ) : (
-            <span className="text-[13px] text-muted-foreground">{placeholder}</span>
+            <span className="text-[13px] text-muted-foreground">Пусто. Переключитесь на «Текст», чтобы написать.</span>
           )}
         </div>
       )}

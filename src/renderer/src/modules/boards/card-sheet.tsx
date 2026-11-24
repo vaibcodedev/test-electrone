@@ -4,13 +4,15 @@ import { toast } from 'sonner'
 import { PRIORITIES, type BoardColumn, type CardDetails, type CardPatch, type ChecklistEntry, type Priority } from '@shared/domain/boards'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
-import { fmtDateTime, fromLocalInput, toLocalInput } from '@/lib/format'
+import { fmtDateTime } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { InlineTitle } from '@/components/common/master-detail'
+import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import { DatePicker } from '@/components/common/date-picker'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownField } from '@/components/common/markdown'
 import { Field, SegmentBar } from '@/components/common/page'
 import { TagPicker } from '@/components/common/tags'
@@ -29,21 +31,26 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
       <Checkbox
         checked={entry.done}
         onCheckedChange={(done) => update.mutate({ id: entry.id, done: !!done })}
-        className="rounded-md data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground"
+        aria-label={entry.text}
       />
-      <input
+      <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className={cn('min-w-0 flex-1 bg-transparent text-[13px] outline-none', entry.done && 'text-muted-foreground line-through')}
+        aria-label="Текст пункта"
+        className={cn(
+          'h-8 min-w-0 flex-1 bg-transparent px-1 focus-visible:bg-card',
+          entry.done && 'text-muted-foreground line-through'
+        )}
       />
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={() => remove.mutate(entry.id)}
         className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
         aria-label="Удалить пункт"
       >
-        <X className="size-3.5" />
-      </button>
+        <X />
+      </Button>
     </li>
   )
 }
@@ -54,13 +61,18 @@ function Checklist({ card }: { card: CardDetails }) {
   const done = card.checklist.filter((c) => c.done).length
   return (
     <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[13px] font-medium">Чек-лист</h3>
-        {card.checklist.length > 0 && (
-          <span className="text-[12px] text-muted-foreground tabular-nums">
-            {done}/{card.checklist.length}
-          </span>
-        )}
+      <div>
+        <SectionLabel
+          action={
+            card.checklist.length > 0 && (
+              <span className="text-[12px] text-muted-foreground tabular-nums">
+                {done}/{card.checklist.length}
+              </span>
+            )
+          }
+        >
+          Чек-лист
+        </SectionLabel>
       </div>
       {card.checklist.length > 0 && <SegmentBar value={done} total={card.checklist.length} segments={card.checklist.length > 8 ? 8 : card.checklist.length} />}
       <ul className="-mx-2 flex flex-col">
@@ -105,22 +117,32 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
         <span className="flex-1 truncate text-[12px] text-muted-foreground">
           {card.boardTitle} · {card.columnTitle}
         </span>
-        <Button variant="ghost" size="icon-sm" title="В корзину" onClick={() => remove.mutate(card.id)}>
-          <Trash2 />
-        </Button>
-        <Button variant="ghost" size="icon-sm" title="Закрыть" onClick={onClose}>
-          <X />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="В корзину" onClick={() => remove.mutate(card.id)}>
+              <Trash2 />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>В корзину</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" onClick={onClose}>
+              <X />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Закрыть · Esc</TooltipContent>
+        </Tooltip>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <SheetTitle className="sr-only">{card.title}</SheetTitle>
         <SheetDescription className="sr-only">Редактирование карточки</SheetDescription>
         <InlineTitle value={title} onChange={setTitle} placeholder="Название карточки" className="text-[24px]" />
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-2 gap-4">
           <Field label="Колонка">
             <Select value={card.columnId} onValueChange={(columnId) => patch({ columnId })}>
-              <SelectTrigger className="w-full rounded-xl">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -134,7 +156,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
           </Field>
           <Field label="Приоритет">
             <Select value={card.priority} onValueChange={(v) => patch({ priority: v as Priority })}>
-              <SelectTrigger className="w-full rounded-xl">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -148,28 +170,23 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
             </Select>
           </Field>
           <Field label="Дедлайн" className="col-span-2">
-            <div className="flex gap-2">
-              <Input
-                type="datetime-local"
-                value={toLocalInput(card.dueAt)}
-                onChange={(e) => patch({ dueAt: fromLocalInput(e.target.value) })}
-              />
-              {card.dueAt && (
-                <Button variant="soft" size="icon" title="Убрать дедлайн" onClick={() => patch({ dueAt: null })}>
-                  <X />
-                </Button>
-              )}
-            </div>
+            <DatePicker withTime value={card.dueAt} onChange={(dueAt) => patch({ dueAt })} placeholder="Без дедлайна" />
           </Field>
         </div>
 
         <section className="mt-5 flex flex-col gap-2">
-          <h3 className="text-[12px] text-muted-foreground">Метки</h3>
+          <SectionLabel>Метки</SectionLabel>
           <TagPicker value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
         </section>
 
         <section className="mt-5">
-          <MarkdownField value={description} onChange={setDescription} placeholder="Описание, ссылки, детали…" minHeight="160px" />
+          <MarkdownField
+            label="Описание"
+            value={description}
+            onChange={setDescription}
+            placeholder="Описание, ссылки, детали…"
+            minHeight="160px"
+          />
         </section>
 
         <div className="mt-6">

@@ -16,9 +16,11 @@ import { useApi } from '@/lib/query'
 import { LOCALE } from '@/lib/format'
 import { useUi } from '@/stores/ui-store'
 import { useHotkey } from '@/hooks/use-hotkey'
-import { FilterChips, Page } from '@/components/common/page'
+import { Page, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import { EventDialog } from './event-dialog'
 import { groupByDay, itemColor, SOURCE_LABEL } from './items'
 import { MonthView, WeekView } from './views'
@@ -69,16 +71,16 @@ export function CalendarPage() {
       <header className="flex items-end justify-between gap-6 px-8 pt-7 pb-5">
         <div>
           <h1 className="font-display text-title">{title}</h1>
-          <div className="mt-2 flex items-center gap-3 text-[12px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
             {legend.length ? (
               legend.map((s) => (
-                <span key={s} className="flex items-center gap-1.5">
+                <Badge key={s} variant="soft" className="font-normal text-muted-foreground">
                   <span
                     className="size-2 rounded-full"
                     style={{ background: itemColor({ source: s, color: null } as CalendarItem) }}
                   />
                   {SOURCE_LABEL[s]}
-                </span>
+                </Badge>
               ))
             ) : (
               <span>События, дедлайны карточек, оплаты и сроки проектов — в одном месте.</span>
@@ -86,25 +88,25 @@ export function CalendarPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <FilterChips<View>
+          <Segmented<View>
             options={[
               { value: 'month', label: 'Месяц' },
               { value: 'week', label: 'Неделя' }
             ]}
             value={view}
-            onChange={(v) => v && setView('calendar', v)}
+            onChange={(v) => setView('calendar', v)}
           />
-          <div className="flex items-center gap-1 rounded-full bg-surface p-0.5">
-            <Button variant="ghost" size="icon-sm" onClick={() => step(-1)} aria-label="Назад">
+          <ButtonGroup>
+            <Button variant="soft" size="icon-sm" onClick={() => step(-1)} aria-label="Назад (←)">
               <ChevronLeft />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
+            <Button variant="soft" size="sm" onClick={() => setCursor(new Date())} title="Сегодня (T)">
               Сегодня
             </Button>
-            <Button variant="ghost" size="icon-sm" onClick={() => step(1)} aria-label="Вперёд">
+            <Button variant="soft" size="icon-sm" onClick={() => step(1)} aria-label="Вперёд (→)">
               <ChevronRight />
             </Button>
-          </div>
+          </ButtonGroup>
           <Button variant="lime" onClick={() => setNewDate(new Date())}>
             <Plus /> Событие
           </Button>

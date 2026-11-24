@@ -280,6 +280,7 @@ export const clients = sqliteTable('clients', {
   notes: text().notNull().default(''),
   status: text().notNull().default('active'),
   currency: text().notNull().default('USD'),
+  defaultBilling: text().notNull().default('fixed'),
   defaultRate: real().notNull().default(0)
 })
 

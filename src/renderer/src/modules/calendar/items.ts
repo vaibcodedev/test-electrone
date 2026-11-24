@@ -4,7 +4,7 @@ const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
   event: 'var(--lime)',
   card: 'var(--info)',
   payment: 'var(--warn)',
-  project: '#c98af0'
+  project: 'var(--success)'
 }
 
 export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {

@@ -13,6 +13,8 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 
 /** Column title with rename / "done column" toggle / delete (with choice where cards go). */
 export function ColumnHeader({ column, count, columns }: { column: BoardColumn; count: number; columns: BoardColumn[] }) {
@@ -33,7 +35,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
   return (
     <div className="flex h-9 items-center gap-2 px-2">
       {editing ? (
-        <input
+        <Input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -45,33 +47,36 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
               setEditing(false)
             }
           }}
-          className="h-7 min-w-0 flex-1 rounded-lg bg-card px-2 text-[13px] font-medium outline-none ring-1 ring-ring/40"
+          aria-label="Название колонки"
+          className="h-7 min-w-0 flex-1 rounded-lg bg-card px-2 text-[13px] font-medium"
         />
       ) : (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onDoubleClick={() => setEditing(true)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left text-[13px] font-medium"
+          className="min-w-0 flex-1 justify-start gap-2 px-1 text-[13px] hover:bg-transparent"
           title="Двойной клик — переименовать"
         >
           {column.isDone && (
-            <span className="grid size-4 place-items-center rounded-full bg-lime text-lime-foreground">
+            <Badge variant="lime" className="size-4 p-0" aria-label="Колонка готовых">
               <Check className="size-2.5" />
-            </span>
+            </Badge>
           )}
           <span className="truncate">{column.title}</span>
           <span className="text-[12px] font-normal text-muted-foreground tabular-nums">{count}</span>
-        </button>
+        </Button>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 text-muted-foreground hover:bg-card hover:text-foreground"
             aria-label="Меню колонки"
           >
-            <MoreHorizontal className="size-4" />
-          </button>
+            <MoreHorizontal />
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 rounded-2xl">
           <DropdownMenuItem onSelect={() => setEditing(true)}>
@@ -102,7 +107,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
           </DialogHeader>
           {count > 0 && others.length > 0 && (
             <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger className="w-full rounded-xl">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Куда перенести карточки" />
               </SelectTrigger>
               <SelectContent>

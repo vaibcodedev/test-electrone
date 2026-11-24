@@ -8,15 +8,19 @@ import { invalidateAll, useApi } from '@/lib/query'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { Kbd, SegmentBar } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { plural } from '@/lib/format'
 
-const GRADES: { grade: ReviewGrade; label: string; hint: string; cls: string }[] = [
-  { grade: 0, label: 'Забыл', hint: '10 мин', cls: 'bg-destructive/12 text-destructive hover:bg-destructive/20' },
-  { grade: 1, label: 'Трудно', hint: 'скоро', cls: 'bg-warn/15 text-warn hover:bg-warn/25' },
-  { grade: 2, label: 'Хорошо', hint: 'по плану', cls: 'bg-surface hover:bg-accent' },
-  { grade: 3, label: 'Легко', hint: 'надолго', cls: 'bg-lime text-lime-foreground hover:brightness-95' }
+const GRADES: { grade: ReviewGrade; label: string; hint: string; cls: string; tile: string }[] = [
+  { grade: 0, label: 'Забыл', hint: '10 мин', cls: 'bg-destructive/12 text-destructive hover:bg-destructive/20', tile: 'bg-destructive/12 text-destructive' },
+  { grade: 1, label: 'Трудно', hint: 'скоро', cls: 'bg-warn/15 text-warn hover:bg-warn/25', tile: 'bg-warn/15 text-warn' },
+  { grade: 2, label: 'Хорошо', hint: 'по плану', cls: '', tile: '' },
+  { grade: 3, label: 'Легко', hint: 'надолго', cls: '', tile: 'bg-lime text-lime-foreground' }
 ]
+const GRADE_VARIANT: Record<ReviewGrade, 'soft' | 'lime'> = { 0: 'soft', 1: 'soft', 2: 'soft', 3: 'lime' }
 
 /** Focused flashcard session. Words graded «Забыл» return at the end of the same session. */
 export function ReviewPage() {
@@ -96,19 +100,21 @@ export function ReviewPage() {
           </div>
         ) : finished ? (
           <div className="flex w-full max-w-lg flex-col items-center text-center">
-            <span className="grid size-16 place-items-center rounded-full bg-lime text-lime-foreground">
-              <PartyPopper className="size-7" />
-            </span>
+            <Avatar className="size-16">
+              <AvatarFallback className="bg-lime text-lime-foreground">
+                <PartyPopper className="size-7" />
+              </AvatarFallback>
+            </Avatar>
             <div className="font-display text-title mt-5">Сессия завершена</div>
             <p className="mt-2 text-[13px] text-muted-foreground">
               {uniqueTotal} {plural(uniqueTotal, ['слово', 'слова', 'слов'])}, ответов: {done}
             </p>
             <div className="mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
-                <div key={g.grade} className={cn('rounded-2xl px-3 py-3', g.cls)}>
+                <Card key={g.grade} className={cn('gap-1 rounded-2xl px-3 py-3', g.tile)}>
                   <div className="font-display text-[26px] leading-none">{results[g.grade]}</div>
-                  <div className="mt-1 text-[12px]">{g.label}</div>
-                </div>
+                  <div className="text-[12px]">{g.label}</div>
+                </Card>
               ))}
             </div>
             <Button className="mt-6" onClick={exit}>
@@ -117,25 +123,24 @@ export function ReviewPage() {
           </div>
         ) : current ? (
           <div className="flex w-full max-w-2xl flex-col gap-5">
-            <button
-              type="button"
+            <Card
               onClick={() => setRevealed(true)}
               className={cn(
-                'flex min-h-[340px] flex-col items-center justify-center rounded-[28px] px-10 py-12 text-center transition-colors',
-                revealed ? 'bg-surface' : 'ink-card rounded-[28px]'
+                'min-h-[340px] cursor-pointer items-center justify-center rounded-[28px] px-10 py-12 text-center transition-colors',
+                revealed ? 'cursor-default' : 'bg-ink text-ink-foreground'
               )}
             >
               {current.context && (
-                <span className={cn('mb-4 rounded-full px-3 py-1 text-[12px]', revealed ? 'bg-card text-muted-foreground' : 'bg-white/8 text-ink-muted')}>
+                <Badge variant="soft" className={cn('text-[12px] font-normal', revealed ? 'bg-card text-muted-foreground' : 'bg-ink-foreground/8 text-ink-muted')}>
                   {current.context}
-                </span>
+                </Badge>
               )}
               <div className="font-display text-display">{current.term}</div>
               {current.transcription && (
-                <div className={cn('mt-2 text-[14px]', revealed ? 'text-muted-foreground' : 'text-ink-muted')}>{current.transcription}</div>
+                <div className={cn('text-[14px]', revealed ? 'text-muted-foreground' : 'text-ink-muted')}>{current.transcription}</div>
               )}
               {revealed ? (
-                <div className="selectable mt-6 flex animate-rise flex-col items-center gap-3">
+                <div className="selectable mt-4 flex animate-rise flex-col items-center gap-3">
                   <div className="text-[22px] font-medium">{current.translation || '—'}</div>
                   {current.example && <div className="max-w-xl text-[15px] italic">«{current.example}»</div>}
                   {current.exampleTranslation && (
@@ -143,25 +148,33 @@ export function ReviewPage() {
                   )}
                 </div>
               ) : (
-                <div className="mt-8 flex items-center gap-2 text-[12.5px] text-ink-muted">
-                  Нажмите или <Kbd className="border-white/15 bg-white/8 text-ink-foreground">Пробел</Kbd>, чтобы проверить себя
-                </div>
+                <Button
+                  variant="lime"
+                  className="mt-6"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setRevealed(true)
+                  }}
+                >
+                  Показать ответ <Kbd className="bg-lime-foreground/10 text-lime-foreground ring-0">Пробел</Kbd>
+                </Button>
               )}
-            </button>
+            </Card>
             <div className={cn('grid grid-cols-4 gap-2 transition-opacity', !revealed && 'pointer-events-none opacity-30')}>
               {GRADES.map((g) => (
-                <button
+                <Button
                   key={g.grade}
-                  type="button"
+                  variant={GRADE_VARIANT[g.grade]}
                   disabled={!revealed || busy}
                   onClick={() => void grade(g.grade)}
-                  className={cn('flex h-16 flex-col items-center justify-center rounded-2xl text-[14px] font-medium transition-colors', g.cls)}
+                  className={cn('h-16 flex-col gap-0.5 rounded-2xl text-[14px]', g.cls)}
                 >
                   <span>{g.label}</span>
-                  <span className="text-[11px] font-normal opacity-70">
-                    {g.grade + 1} · {g.hint}
+                  <span className="flex items-center gap-1.5 text-[11px] font-normal opacity-70">
+                    <Kbd className="h-4 min-w-4 bg-transparent text-current ring-current/30">{g.grade + 1}</Kbd>
+                    {g.hint}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
           </div>

@@ -5,6 +5,12 @@ import type { EntityRef, Tag } from '@shared/domain/common'
 import { fmtDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Item } from '@/components/ui/item'
+import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { PinButtons } from './pin-buttons'
 import { TagPicker } from './tags'
 import { LinksPanel } from './links-panel'
@@ -32,29 +38,38 @@ export function useOpenParam(): [string | null, (id: string | null) => void] {
 }
 
 /**
- * Two-pane layout: list on the left, detail editor on the right (Lemon-AI style columns).
- * The detail pane appears only when something is open.
+ * Two-pane layout (shadcn Resizable): list on the left, detail editor on the right.
+ * The detail pane appears only when something is open; the divider can be dragged.
  */
 export function MasterDetail({
   list,
   detail,
-  listWidth = 'w-[380px]',
+  listSize = '34%',
   className
 }: {
   list: ReactNode
   detail: ReactNode | null
+  /** Default width of the list pane when detail is open. */
+  listSize?: string
+  /** @deprecated kept for compatibility; use listSize. */
   listWidth?: string
   className?: string
 }) {
+  if (!detail) return <div className={cn('flex min-h-0 flex-1 flex-col', className)}>{list}</div>
   return (
-    <div className={cn('flex min-h-0 flex-1 gap-3', className)}>
-      <div className={cn('flex min-h-0 flex-col', detail ? cn(listWidth, 'shrink-0') : 'flex-1')}>{list}</div>
-      {detail && <div className="flex min-h-0 min-w-0 flex-1 flex-col">{detail}</div>}
-    </div>
+    <ResizablePanelGroup orientation="horizontal" className={cn('min-h-0 flex-1', className)}>
+      <ResizablePanel defaultSize={listSize} minSize="240px" maxSize="60%" className="flex min-h-0 flex-col pr-1.5">
+        {list}
+      </ResizablePanel>
+      <ResizableHandle className="bg-transparent hover:bg-border" />
+      <ResizablePanel minSize="420px" className="flex min-h-0 min-w-0 flex-col pl-1.5">
+        {detail}
+      </ResizablePanel>
+    </ResizablePanelGroup>
   )
 }
 
-/** Big borderless title input for editors. */
+/** Big borderless title (shadcn Textarea, auto-growing). */
 export function InlineTitle({
   value,
   onChange,
@@ -67,20 +82,21 @@ export function InlineTitle({
   className?: string
 }) {
   return (
-    <textarea
+    <Textarea
       rows={1}
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
+      onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
       className={cn(
-        'font-display w-full resize-none bg-transparent text-[28px] leading-[1.08] outline-none [field-sizing:content] placeholder:text-muted-foreground/50',
+        'font-display min-h-0 rounded-none border-0 bg-transparent p-0 text-[28px] leading-[1.1] shadow-none placeholder:text-muted-foreground/50 focus-visible:bg-transparent focus-visible:ring-0',
         className
       )}
     />
   )
 }
 
-/** Detail pane chrome: header with close/pin/delete, scrollable body, optional aside. */
+/** Detail pane chrome (shadcn Card): header with pin/delete/close, scrollable body, optional aside. */
 export function DetailPane({
   entity,
   onClose,
@@ -99,23 +115,49 @@ export function DetailPane({
   className?: string
 }) {
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-border', className)}>
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+    <Card className={cn('min-h-0 flex-1 gap-0 overflow-hidden bg-card py-0 ring-1 ring-border', className)}>
+      <div className="flex items-center gap-2 px-4 py-2.5">
         <PinButtons entity={entity} />
         <div className="flex-1">{headerExtra}</div>
         {onDelete && (
-          <Button variant="ghost" size="icon-sm" title="В корзину" onClick={onDelete}>
-            <Trash2 />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="В корзину" onClick={onDelete}>
+                <Trash2 />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>В корзину</TooltipContent>
+          </Tooltip>
         )}
-        <Button variant="ghost" size="icon-sm" title="Закрыть (Esc)" onClick={onClose}>
-          <X />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" onClick={onClose}>
+              <X />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Закрыть · Esc</TooltipContent>
+        </Tooltip>
       </div>
+      <Separator />
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        {aside && <aside className="w-64 shrink-0 overflow-y-auto border-l border-border px-4 py-5">{aside}</aside>}
+        {aside && (
+          <>
+            <Separator orientation="vertical" />
+            <aside className="w-64 shrink-0 overflow-y-auto px-4 py-5">{aside}</aside>
+          </>
+        )}
       </div>
+    </Card>
+  )
+}
+
+/** Section title used in asides and editors. */
+export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="flex min-h-6 items-center justify-between gap-2">
+      <h3 className="text-[12.5px] font-medium text-muted-foreground">{children}</h3>
+      {action}
     </div>
   )
 }
@@ -143,7 +185,7 @@ export function EntityAside({
       {children}
       {tags && onTagsChange && (
         <section className="flex flex-col gap-2">
-          <h3 className="text-[12px] text-muted-foreground">Метки</h3>
+          <SectionLabel>Метки</SectionLabel>
           <TagPicker value={tags} onChange={onTagsChange} />
         </section>
       )}
@@ -159,7 +201,7 @@ export function EntityAside({
   )
 }
 
-/** Selectable list row used by master lists. */
+/** Selectable list row for master lists (shadcn Item; selected = ink like the reference). */
 export function ListItem({
   active,
   onClick,
@@ -172,17 +214,10 @@ export function ListItem({
   className?: string
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'w-full rounded-2xl px-4 py-3 text-left transition-colors',
-        active ? 'bg-ink text-ink-foreground' : 'bg-surface hover:bg-accent',
-        className
-      )}
-      data-active={active || undefined}
-    >
-      {children}
-    </button>
+    <Item asChild variant={active ? 'active' : 'muted'} size="sm" className={cn('w-full text-left', className)}>
+      <button type="button" onClick={onClick} data-active={active || undefined} aria-current={active || undefined}>
+        <div className="w-full min-w-0">{children}</div>
+      </button>
+    </Item>
   )
 }

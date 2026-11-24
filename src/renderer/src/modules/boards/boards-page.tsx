@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { ArrowUpRight, Plus, SquareKanban } from 'lucide-react'
 import type { BoardSummary } from '@shared/domain/boards'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 
 function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate()
@@ -32,7 +34,7 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           <DialogDescription>Колонки «Бэклог → В работе → Ревью → Готово» создадутся сами, их можно поменять.</DialogDescription>
         </DialogHeader>
         <form
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault()
             if (title.trim()) create.mutate({ title: title.trim(), description })
@@ -56,32 +58,32 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 }
 
 function BoardTile({ board }: { board: BoardSummary }) {
-  const navigate = useNavigate()
   const open = board.cardCount - board.doneCount
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/boards/${board.id}`)}
+    <Card
       className={cn(
-        'group flex min-h-[188px] flex-col rounded-3xl bg-surface p-5 text-left transition-colors hover:bg-accent',
+        'group relative min-h-[188px] gap-0 p-5 transition-colors focus-within:ring-[3px] focus-within:ring-ring/40 hover:bg-accent',
         board.archived && 'opacity-55'
       )}
     >
+      <Link to={`/boards/${board.id}`} className="absolute inset-0 rounded-3xl outline-none" aria-label={board.title} />
       <div className="flex items-start justify-between gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-card">
           <ArrowUpRight className="size-4 transition-transform group-hover:rotate-45" />
         </span>
-        {board.overdueCount > 0 && (
-          <span className="rounded-full bg-destructive/12 px-2.5 py-0.5 text-[11.5px] font-medium text-destructive">
-            {board.overdueCount} просрочено
-          </span>
-        )}
-        {board.archived && <span className="rounded-full bg-card px-2.5 py-0.5 text-[11.5px]">Архив</span>}
+        <div className="flex gap-1">
+          {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} просрочено</Badge>}
+          {board.archived && <Badge variant="outline">Архив</Badge>}
+        </div>
       </div>
-      <div className="font-display mt-4 line-clamp-2 text-[22px] leading-tight">{board.title}</div>
-      {board.description && <p className="mt-1 line-clamp-2 text-[12.5px] text-muted-foreground">{board.description}</p>}
+      <CardTitle className="font-display mt-4 line-clamp-2 text-[22px] leading-tight font-normal text-foreground">
+        {board.title}
+      </CardTitle>
+      {board.description && (
+        <CardDescription className="mt-1 line-clamp-2 text-[12.5px]">{board.description}</CardDescription>
+      )}
       <div className="mt-auto pt-4">
-        {board.tags.length > 0 && <TagList tags={board.tags} max={3} className="mb-3" />}
+        {board.tags.length > 0 && <TagList tags={board.tags} max={3} className="relative mb-3" />}
         <SegmentBar value={board.doneCount} total={Math.max(board.cardCount, 1)} segments={5} />
         <div className="mt-1.5 flex justify-between text-[11.5px] text-muted-foreground">
           <span>
@@ -92,7 +94,7 @@ function BoardTile({ board }: { board: BoardSummary }) {
           <span>{fmtRelative(board.updatedAt)}</span>
         </div>
       </div>
-    </button>
+    </Card>
   )
 }
 

@@ -15,6 +15,9 @@ import {
 } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Item } from '@/components/ui/item'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { LaunchDialog } from './launch-dialog'
 
@@ -23,17 +26,19 @@ type Tab = 'template' | 'run'
 function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => void }) {
   const navigate = useNavigate()
   return (
-    <div
+    <Card
       role="button"
       tabIndex={0}
       onClick={() => navigate(`/checklists/${item.id}`)}
       onKeyDown={(e) => e.key === 'Enter' && navigate(`/checklists/${item.id}`)}
-      className="group flex min-h-[190px] cursor-pointer flex-col justify-between rounded-3xl bg-surface p-5 transition-colors hover:bg-accent"
+      className="group min-h-[190px] cursor-pointer justify-between gap-0 p-5 transition-colors hover:bg-accent"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="grid size-10 place-items-center rounded-full bg-card">
-          <ListChecks className="size-4" />
-        </span>
+        <Avatar className="size-10">
+          <AvatarFallback className="bg-card">
+            <ListChecks className="size-4" />
+          </AvatarFallback>
+        </Avatar>
         <span className="text-[12px] text-muted-foreground tabular-nums">
           {item.total} {plural(item.total, ['пункт', 'пункта', 'пунктов'])}
         </span>
@@ -58,7 +63,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
           <Rocket /> Запустить
         </Button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -66,36 +71,37 @@ function RunCard({ item }: { item: Checklist }) {
   const navigate = useNavigate()
   const complete = item.total > 0 && item.done === item.total
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/checklists/${item.id}`)}
+    <Item
+      asChild
       className={cn(
-        'group flex min-h-[150px] flex-col justify-between rounded-3xl p-5 text-left transition-colors',
+        'group min-h-[150px] flex-col flex-nowrap items-stretch justify-between rounded-3xl p-5 text-left',
         complete ? 'bg-lime text-lime-foreground' : 'bg-ink text-ink-foreground'
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <span className={cn('text-[12px]', complete ? 'opacity-70' : 'text-ink-muted')}>
-          {complete ? 'Готово' : 'В процессе'} · {fmtRelative(item.updatedAt)}
-        </span>
-        <ArrowUpRight className="size-4 opacity-60 transition-transform group-hover:rotate-45" />
-      </div>
-      <div>
-        <div className="truncate text-[16px] font-medium">{item.title}</div>
-        <div className="mt-3 flex items-center gap-3">
-          <SegmentBar
-            value={item.done}
-            total={Math.max(1, item.total)}
-            segments={Math.min(8, Math.max(3, item.total))}
-            tone={complete ? 'ink' : 'lime'}
-            className="flex-1"
-          />
-          <span className="text-[12px] tabular-nums">
-            {item.done}/{item.total}
+      <button type="button" onClick={() => navigate(`/checklists/${item.id}`)}>
+        <div className="flex items-start justify-between gap-3">
+          <span className={cn('text-[12px]', complete ? 'opacity-70' : 'text-ink-muted')}>
+            {complete ? 'Готово' : 'В процессе'} · {fmtRelative(item.updatedAt)}
           </span>
+          <ArrowUpRight className="size-4 opacity-60 transition-transform group-hover:rotate-45" />
         </div>
-      </div>
-    </button>
+        <div>
+          <div className="truncate text-[16px] font-medium">{item.title}</div>
+          <div className="mt-3 flex items-center gap-3">
+            <SegmentBar
+              value={item.done}
+              total={Math.max(1, item.total)}
+              segments={Math.min(8, Math.max(3, item.total))}
+              tone={complete ? 'ink' : 'lime'}
+              className="flex-1"
+            />
+            <span className="text-[12px] tabular-nums">
+              {item.done}/{item.total}
+            </span>
+          </div>
+        </div>
+      </button>
+    </Item>
   )
 }
 

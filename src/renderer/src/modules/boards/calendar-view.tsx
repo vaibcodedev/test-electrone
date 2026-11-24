@@ -74,27 +74,28 @@ export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenC
               <span
                 className={cn(
                   'grid size-6 place-items-center rounded-full text-[12px] tabular-nums',
-                  isToday(day) ? 'bg-ink font-medium text-lime' : !isSameMonth(day, month) && 'text-muted-foreground'
+                  isToday(day) ? 'bg-ink font-medium text-ink-accent' : !isSameMonth(day, month) && 'text-muted-foreground'
                 )}
               >
                 {format(day, 'd')}
               </span>
               <div className="flex min-h-0 flex-col gap-1 overflow-y-auto">
                 {list.map((c) => (
-                  <button
+                  <Button
                     key={c.id}
-                    type="button"
+                    variant="ghost"
+                    size="xs"
                     onClick={() => onOpenCard(c.id)}
                     title={c.title}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg bg-card px-1.5 py-1 text-left text-[11.5px] hover:ring-1 hover:ring-border',
+                      'h-auto w-full justify-start gap-1.5 rounded-lg bg-card px-1.5 py-1 text-left text-[11.5px] font-normal hover:bg-card hover:ring-1 hover:ring-border',
                       c.columnIsDone && 'text-muted-foreground line-through',
                       isOverdue(c.dueAt, c.columnIsDone) && 'text-destructive'
                     )}
                   >
                     <span className={cn('size-1.5 shrink-0 rounded-full', PRIORITY_DOT[c.priority])} />
                     <span className="truncate">{c.title}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>

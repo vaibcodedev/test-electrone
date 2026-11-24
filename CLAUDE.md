@@ -22,7 +22,8 @@
    - L — модули расширяют `SoftRepository`, не ломая базовое поведение.
    - I — узкие интерфейсы API на модуль (`IdeasApi`, `CardsApi`…), общий `CrudApi` только там, где он подходит.
    - D — renderer и main зависят от контракта `src/shared/api.ts`; зависимости в main передаются через конструктор (`src/main/container.ts` — composition root), никаких глобалов.
-4. Проверка перед сдачей: `npm run typecheck` и `npx electron-vite build` без ошибок; визуальная проверка скриншотами (`npm run snap`).
+4. **UI только из shadcn.** Любой элемент интерфейса собирается из компонентов shadcn (`src/renderer/src/components/ui`). Нужного компонента нет — сначала ищи его в реестре и добавляй через `npx shadcn@latest add <name>`, документацию сверяй в Context7. Самописный компонент допустим, только если в shadcn нет аналога (например, колонки канбана или сетка месяца в календаре), и даже тогда он собирается из shadcn-примитивов (`Card`, `Button`, `Badge`…). `<button>`/`<a>` допустимы только как дочерний элемент shadcn-компонента с `asChild`. Запрещены «голые» `<button>`, `<select>`, `<input type="checkbox|radio|range|date">`, самодельные чипы, табы, тогглы, прогресс-бары, модалки и тултипы — для них есть `Button`, `Select`, `Checkbox`, `RadioGroup`, `Slider`, `Calendar` + `Popover`, `ToggleGroup`, `Tabs`, `Switch`, `Progress`, `Dialog`/`Sheet`, `Tooltip`. Стиль меняется темой (CSS-переменные в `globals.css`) и вариантами `cva` внутри `components/ui`, а не обходом shadcn.
+5. Проверка перед сдачей: `npm run typecheck` и `npx electron-vite build` без ошибок; визуальная проверка скриншотами (`npm run snap`).
 
 ## Коммиты
 
@@ -43,6 +44,18 @@
 - `perf` — производительность
 
 Область по желанию: `feat(boards): add column reorder`. Подробности — в теле коммита после пустой строки. Один коммит — одно логическое изменение.
+
+## Версии и релизы
+
+SemVer с пререлизами. Сейчас этап **beta**: версии `0.1.0-beta.N`.
+
+- Версию поднимаю я сам после каждого завершённого блока изменений (без отдельной просьбы):
+  - исправления и доработки на бете → `npm run version:beta` (0.1.0-beta.1 → 0.1.0-beta.2);
+  - стабильный выпуск беты → `npm version 0.1.0`; дальше `npm run version:patch` (баги) / `npm run version:minor` (новые фичи);
+  - 1.0.0 — когда всё стабильно; тогда в `electron-builder.yml` `releaseType: release`.
+- `npm version` сам делает коммит `build: release <версия>` и тег `v<версия>` (настроено в `.npmrc`).
+- Беты публикуются как GitHub pre-release в канал `beta`; установленная бета сама получает следующие беты.
+- После поднятия версии — `npm run build:win` (или `npm run release:win` для публикации).
 
 ## Стек
 
@@ -75,6 +88,7 @@ src/renderer/
 
 - Данные в renderer — только через `useApi(ns, method, arg)` / `useApiMutation(ns, method)`; после любой мутации обновляются все активные запросы.
 - Выбранная запись модуля — в URL `?open=<id>` (`useOpenParam`), чтобы поиск/связи открывали её напрямую.
+- **Миграции проверять глазами.** Если drizzle-kit сгенерировал пересоздание таблицы (`__new_…` + `DROP TABLE`) для таблицы, на которую ссылаются FK с `ON DELETE CASCADE`, — НЕЛЬЗЯ: в транзакции `PRAGMA foreign_keys=OFF` не работает и дочерние строки удалятся. Меняй схему только аддитивно (`ADD COLUMN`), дефолты задавай в приложении.
 - Каждая новая сущность: таблица в `db/schema`, `npm run db:generate`, дескриптор в модуле, регистрация в `container.ts`, маршрут в `ENTITY_META`.
 - Файлы — только в `<data>/files`, в БД относительный путь; в renderer — `fileUrl(path)` (`vault-file://`).
 - Безопасность: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, строгий CSP, внешние ссылки только через `api.app.openExternal`, пароли через `safeStorage`.

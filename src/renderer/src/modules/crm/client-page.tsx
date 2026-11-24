@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, ExternalLink, Mail, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { CLIENT_STATUSES, CURRENCIES, type ClientPatch } from '@shared/domain/crm'
+import { CLIENT_STATUSES, CURRENCIES, type BillingType, type ClientPatch } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fmtHours, fmtMoney } from '@/lib/format'
@@ -14,8 +14,11 @@ import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CLIENT_STATUS_LABEL } from './labels'
-import { Choice, Section, StatTile } from './parts'
+import { BILLING_INFO, CLIENT_STATUS_LABEL } from './labels'
+import { BillingPicker, Choice, Section, StatTile } from './parts'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
+import { SectionLabel } from '@/components/common/master-detail'
 import { numberOrZero } from './money'
 import { ProjectRow } from './clients-page'
 import { ProjectDialog } from './dialogs'
@@ -73,9 +76,11 @@ export function ClientPage() {
           <ArrowLeft className="size-3.5" /> Клиенты
         </Link>
         <div className="flex items-start gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-full bg-lime text-[22px] font-semibold text-lime-foreground">
-            {c.name.slice(0, 1).toUpperCase()}
-          </span>
+          <Avatar className="size-14 shrink-0">
+            <AvatarFallback className="bg-lime text-[22px] font-semibold text-lime-foreground">
+              {c.name.slice(0, 1).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
           <div className="min-w-0 flex-1">
             <InlineTitle value={name} onChange={setName} className="text-[36px]" />
             <div className="mt-2 flex flex-wrap gap-2">
@@ -104,7 +109,7 @@ export function ClientPage() {
               description="Клиент уйдёт в корзину на 30 дней. Проекты останутся без клиента."
               onConfirm={() => remove.mutate(id)}
             >
-              <Button variant="ghost" size="icon-sm" title="В корзину">
+              <Button variant="ghost" size="icon-sm" aria-label="В корзину">
                 <Trash2 />
               </Button>
             </Confirm>
@@ -118,13 +123,29 @@ export function ClientPage() {
             value={`${c.activeProjectCount}/${c.projectCount}`}
             hint="активные / всего"
           />
-          <StatTile label="Часы" value={fmtHours(c.trackedMinutes)} />
           <StatTile label="Оплачено" value={fmtMoney(c.paidTotal, c.currency)} />
           <StatTile
             label="Ожидается"
             value={fmtMoney(c.outstandingTotal, c.currency)}
             tone={c.outstandingTotal > 0 ? 'lime' : 'surface'}
           />
+          {c.defaultBilling === 'hourly' ? (
+            <StatTile
+              label="Часы"
+              value={fmtHours(c.trackedMinutes)}
+              hint={`${fmtMoney(c.defaultRate, c.currency)} / ч`}
+            />
+          ) : (
+            <StatTile
+              label="Как работаете"
+              value={<span className="text-[22px]">{BILLING_INFO[c.defaultBilling].title}</span>}
+              hint={
+                BILLING_INFO[c.defaultBilling].amountLabel && c.defaultRate > 0
+                  ? `${BILLING_INFO[c.defaultBilling].amountLabel}: ${fmtMoney(c.defaultRate, c.currency)}`
+                  : `${fmtHours(c.trackedMinutes)} учтено`
+              }
+            />
+          )}
         </div>
 
         <div className="mt-8 flex flex-col gap-10">
@@ -163,7 +184,7 @@ export function ClientPage() {
       >
         <div className="flex flex-col gap-6">
           <section className="flex flex-col gap-3">
-            <h3 className="text-[12px] text-muted-foreground">Контакты</h3>
+            <SectionLabel>Контакты</SectionLabel>
             {CONTACT_FIELDS.map((f) => (
               <Field key={f.key} label={f.label}>
                 <Input
@@ -175,6 +196,15 @@ export function ClientPage() {
                 />
               </Field>
             ))}
+          </section>
+          <Separator />
+          <section className="flex flex-col gap-3">
+            <SectionLabel>Как обычно работаете</SectionLabel>
+            <BillingPicker
+              compact
+              value={c.defaultBilling}
+              onChange={(defaultBilling: BillingType) => patch({ defaultBilling })}
+            />
             <div className="grid grid-cols-2 gap-2">
               <Field label="Валюта">
                 <Choice
@@ -183,15 +213,28 @@ export function ClientPage() {
                   options={CURRENCIES.map((x) => ({ value: x, label: x }))}
                 />
               </Field>
-              <Field label="Ставка/час">
-                <Input
-                  inputMode="decimal"
-                  defaultValue={c.defaultRate || ''}
-                  onBlur={(e) => patch({ defaultRate: numberOrZero(e.target.value) })}
-                />
-              </Field>
+              {BILLING_INFO[c.defaultBilling].amountLabel && (
+                <Field
+                  key={`rate-${c.defaultBilling}`}
+                  label={
+                    c.defaultBilling === 'fixed'
+                      ? 'Обычный бюджет'
+                      : BILLING_INFO[c.defaultBilling].amountLabel!
+                  }
+                >
+                  <Input
+                    inputMode="decimal"
+                    defaultValue={c.defaultRate || ''}
+                    onBlur={(e) => patch({ defaultRate: numberOrZero(e.target.value) })}
+                  />
+                </Field>
+              )}
             </div>
+            <p className="text-[11.5px] text-muted-foreground">
+              Новые проекты клиента заполнятся этими условиями.
+            </p>
           </section>
+          <Separator />
           <EntityAside
             entity={{ type: 'client', id: c.id }}
             tags={c.tags}

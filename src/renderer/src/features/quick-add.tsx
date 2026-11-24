@@ -8,8 +8,11 @@ import { invalidateAll } from '@/lib/query'
 import { ENTITY_ICON } from '@/app/navigation'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useUi } from '@/stores/ui-store'
-import { Kbd } from '@/components/common/page'
-import { cn } from '@/lib/utils'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
+import { Spinner } from '@/components/ui/spinner'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 const TARGET_LABEL: Record<QuickAddTarget, string> = {
   idea: 'Идея',
@@ -78,33 +81,32 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-1.5">
+      <ToggleGroup
+        type="single"
+        variant="chip"
+        size="sm"
+        value={target}
+        onValueChange={(v) => v && setTarget(v as QuickAddTarget)}
+        aria-label="Куда добавить"
+      >
         {QUICK_ADD_TARGETS.map((t) => {
           const Icon = ENTITY_ICON[TARGET_TYPE[t]]
           return (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTarget(t)}
-              className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors',
-                target === t ? 'bg-ink text-ink-foreground' : 'bg-surface hover:bg-accent'
-              )}
-            >
-              <Icon className={cn('size-3.5', target === t && 'text-lime')} />
+            <ToggleGroupItem key={t} value={t}>
+              <Icon />
               {TARGET_LABEL[t]}
-            </button>
+            </ToggleGroupItem>
           )
         })}
-      </div>
-      <div className="flex items-end gap-2 rounded-2xl bg-surface p-2 pl-4 focus-within:ring-[3px] focus-within:ring-ring/25">
-        <textarea
+      </ToggleGroup>
+      <InputGroup className="rounded-2xl">
+        <InputGroupTextarea
           ref={ref}
           value={text}
           rows={2}
           onChange={(e) => setText(e.target.value)}
           placeholder={PLACEHOLDER[target]}
-          className="max-h-40 min-h-12 flex-1 resize-none bg-transparent py-2 text-[15px] outline-none [field-sizing:content] placeholder:text-muted-foreground"
+          className="max-h-40 min-h-12 px-4 text-[15px]"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -118,25 +120,32 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
             }
           }}
         />
-        <button
-          type="button"
-          disabled={!text.trim() || saving}
-          onClick={() => void submit()}
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-ink text-lime transition-opacity disabled:opacity-40"
-          aria-label="Сохранить"
-        >
-          <ArrowUp className="size-5" />
-        </button>
-      </div>
-      <div className="flex items-center gap-3 text-[11.5px] text-muted-foreground">
-        <span className="flex items-center gap-1">
+        <InputGroupAddon align="inline-end" className="self-end pb-2">
+          <InputGroupButton
+            size="icon-sm"
+            variant="default"
+            className="size-10 rounded-full"
+            disabled={!text.trim() || saving}
+            onClick={() => void submit()}
+            aria-label="Сохранить"
+          >
+            {saving ? <Spinner /> : <ArrowUp className="size-5" />}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+      <div className="flex flex-wrap items-center gap-3 text-[11.5px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
           <Kbd>Enter</Kbd> сохранить
         </span>
-        <span className="flex items-center gap-1">
-          <Kbd>Tab</Kbd> тип
+        <span className="flex items-center gap-1.5">
+          <Kbd>Tab</Kbd> сменить тип
         </span>
-        <span className="flex items-center gap-1">
-          <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> новая строка
+        <span className="flex items-center gap-1.5">
+          <KbdGroup>
+            <Kbd>Shift</Kbd>
+            <Kbd>Enter</Kbd>
+          </KbdGroup>
+          новая строка
         </span>
       </div>
     </div>
@@ -146,12 +155,13 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
 /** In-app version (sidebar "+" and command palette). */
 export function QuickAddDialog() {
   const open = useUi((s) => s.quickAddOpen)
+  const target = useUi((s) => s.quickAddTarget)
   const setOpen = useUi((s) => s.setQuickAddOpen)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="rounded-3xl p-5 sm:max-w-[600px]" showCloseButton={false}>
         <DialogTitle className="font-display text-xl">Быстро добавить</DialogTitle>
-        <QuickAddForm onDone={() => setOpen(false)} />
+        <QuickAddForm key={target ?? 'default'} initialTarget={target} onDone={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   )
@@ -174,7 +184,9 @@ export function QuickAddWindow() {
     <div className="h-screen p-3">
       <div className="drag flex h-full flex-col rounded-[26px] bg-card p-5 shadow-2xl ring-1 ring-border">
         <div className="mb-3 flex items-center gap-2">
-          <span className="grid size-7 place-items-center rounded-full bg-lime text-[12px] font-semibold text-lime-foreground">V</span>
+          <Avatar className="size-7">
+            <AvatarFallback className="bg-lime text-[12px] font-semibold text-lime-foreground">V</AvatarFallback>
+          </Avatar>
           <span className="font-display text-[18px]">Быстро добавить</span>
         </div>
         <div className="no-drag">

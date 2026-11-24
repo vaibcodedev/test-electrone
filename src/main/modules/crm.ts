@@ -52,6 +52,18 @@ const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   cancelled: 'Отменён'
 }
 
+const round2 = (n: number): number => Math.round(n * 100) / 100
+
+/** Months a retainer has been billed: every started calendar month from start until due/now. */
+export function monthsBilled(start: number, due: number | null, status: string, at = Date.now()): number {
+  if (status === 'lead') return 0
+  const end = Math.min(at, due ?? at)
+  if (end < start) return 0
+  const a = new Date(start)
+  const b = new Date(end)
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + 1
+}
+
 const minutesBetween = (a: number, b: number): number => Math.max(0, Math.round((b - a) / 60_000))
 
 export class CrmModule {
@@ -83,6 +95,7 @@ export class CrmModule {
       ...r,
       status: r.status as ClientStatus,
       currency: r.currency as Currency,
+      defaultBilling: r.defaultBilling as BillingType,
       tags
     }))
     this.projectRepo = new SoftRepository(m.repo, project, (r, tags) => ({
@@ -139,19 +152,27 @@ export class CrmModule {
       const openAmount = myPays
         .filter((x) => x.status === 'expected' || x.status === 'invoiced')
         .reduce((s, x) => s + x.amount, 0)
-      const earnedAmount =
+      const retainerMonths = p.billing === 'retainer' ? monthsBilled(p.startAt ?? p.createdAt, p.dueAt, p.status) : 0
+      const earnedAmount = round2(
         p.billing === 'hourly'
-          ? Math.round((billableMinutes / 60) * p.rate * 100) / 100
+          ? (billableMinutes / 60) * p.rate
           : p.billing === 'fixed'
             ? p.fixedPrice
-            : paidAmount + openAmount
+            : p.billing === 'retainer'
+              ? p.fixedPrice * retainerMonths
+              : 0
+      )
       const outstandingAmount =
-        p.billing === 'retainer' ? openAmount : Math.max(0, Math.round((earnedAmount - paidAmount) * 100) / 100)
+        p.billing === 'none' ? 0 : Math.max(0, round2(earnedAmount - paidAmount), round2(openAmount))
+      const effectiveRate =
+        trackedMinutes >= 30 && earnedAmount > 0 ? round2(earnedAmount / (trackedMinutes / 60)) : null
       return {
         ...p,
         clientName: p.clientId ? (clientNames.get(p.clientId) ?? null) : null,
         trackedMinutes,
         earnedAmount,
+        effectiveRate,
+        retainerMonths,
         paidAmount,
         outstandingAmount
       }

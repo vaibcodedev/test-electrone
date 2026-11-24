@@ -1,14 +1,16 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, type CSSProperties } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
-import { Sidebar } from './sidebar'
+import { AppSidebar } from './sidebar'
+import { Button } from '@/components/ui/button'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { SidebarProvider } from '@/components/ui/sidebar'
 import { CommandPalette } from '@/features/command-palette'
 import { QuickAddDialog } from '@/features/quick-add'
 import { useUi } from '@/stores/ui-store'
 import { useMainEventsBridge } from '@/hooks/use-main-events'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { ALL_NAV_ITEMS } from '@/app/navigation'
-import { Kbd } from '@/components/common/page'
 
 function TitleBar() {
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
@@ -16,33 +18,25 @@ function TitleBar() {
   return (
     <div className="drag flex h-11 shrink-0 items-center gap-2 pr-[150px] pl-[258px]">
       <div className="no-drag flex gap-1">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"
-          aria-label="Назад"
-        >
-          <ArrowLeft className="size-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate(1)}
-          className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"
-          aria-label="Вперёд"
-        >
-          <ArrowRight className="size-4" />
-        </button>
+        <Button variant="ghost" size="icon-sm" aria-label="Назад" className="text-muted-foreground hover:bg-card" onClick={() => navigate(-1)}>
+          <ArrowLeft />
+        </Button>
+        <Button variant="ghost" size="icon-sm" aria-label="Вперёд" className="text-muted-foreground hover:bg-card" onClick={() => navigate(1)}>
+          <ArrowRight />
+        </Button>
       </div>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
         onClick={() => setPaletteOpen(true)}
-        className="no-drag flex h-8 w-[min(420px,40vw)] items-center gap-2 rounded-full bg-card/70 px-3.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-card"
+        className="no-drag h-8 w-[min(420px,40vw)] justify-start gap-2 bg-card/70 px-3.5 font-normal text-muted-foreground hover:bg-card"
       >
-        <Search className="size-3.5" />
+        <Search />
         <span className="flex-1 text-left">Найти везде</span>
-        <Kbd>Ctrl</Kbd>
-        <Kbd>K</Kbd>
-      </button>
+        <KbdGroup>
+          <Kbd>Ctrl</Kbd>
+          <Kbd>K</Kbd>
+        </KbdGroup>
+      </Button>
     </div>
   )
 }
@@ -69,14 +63,17 @@ export function AppShell() {
   return (
     <div className="flex h-full flex-col bg-frame">
       <TitleBar />
-      <div className="flex min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5">
-        <Sidebar />
+      <SidebarProvider
+        className="min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5"
+        style={{ '--sidebar-width': '244px' } as CSSProperties}
+      >
+        <AppSidebar />
         <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
           <Suspense fallback={<div className="p-8 text-muted-foreground">Загрузка…</div>}>
             <Outlet />
           </Suspense>
         </main>
-      </div>
+      </SidebarProvider>
       <CommandPalette />
       <QuickAddDialog />
     </div>

@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { RECURRENCES, type CalendarEvent, type EventInput, type Recurrence } from '@shared/domain/calendar'
 import { useApiMutation } from '@/lib/query'
-import { fromLocalInput, toLocalInput } from '@/lib/format'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field } from '@/components/common/page'
+import { DatePicker } from '@/components/common/date-picker'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TAG_COLORS } from '@/components/common/tags'
-import { cn } from '@/lib/utils'
 
 const REMINDERS: { value: string; label: string }[] = [
   { value: 'none', label: 'Без напоминания' },
@@ -31,12 +32,15 @@ const RECURRENCE_LABEL: Record<Recurrence, string> = {
   yearly: 'Каждый год'
 }
 
+/** Sentinel for "default colour" in the swatch ToggleGroup (null in the API). */
+const DEFAULT_COLOR = 'default'
+
 interface FormState {
   title: string
   description: string
   allDay: boolean
-  start: string
-  end: string
+  startAt: number | null
+  endAt: number | null
   remind: string
   recurrence: Recurrence
   color: string | null
@@ -47,8 +51,8 @@ function fromEvent(e: CalendarEvent): FormState {
     title: e.title,
     description: e.description,
     allDay: e.allDay,
-    start: toLocalInput(e.startAt, !e.allDay),
-    end: toLocalInput(e.endAt, !e.allDay),
+    startAt: e.startAt,
+    endAt: e.endAt,
     remind: e.remindMinutes === null ? 'none' : String(e.remindMinutes),
     recurrence: e.recurrence,
     color: e.color
@@ -62,19 +66,21 @@ function blank(date: Date): FormState {
     title: '',
     description: '',
     allDay: false,
-    start: toLocalInput(start.getTime()),
-    end: '',
+    startAt: start.getTime(),
+    endAt: null,
     remind: '15',
     recurrence: 'none',
     color: null
   }
 }
 
-/** Switching all-day keeps the date and drops/restores the time part. */
-function convertInput(value: string, toAllDay: boolean): string {
-  if (!value) return ''
-  if (toAllDay) return value.slice(0, 10)
-  return value.length === 10 ? `${value}T10:00` : value
+/** Switching to all-day drops the time part (midnight); switching back restores 10:00. */
+function convert(ts: number | null, toAllDay: boolean): number | null {
+  if (ts === null) return null
+  const d = new Date(ts)
+  if (toAllDay) d.setHours(0, 0, 0, 0)
+  else if (d.getHours() === 0 && d.getMinutes() === 0) d.setHours(10, 0, 0, 0)
+  return d.getTime()
 }
 
 /**
@@ -102,9 +108,9 @@ export function EventDialog({
   }, [open, event, date])
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]): void => setForm((f) => ({ ...f, [key]: value }))
-  const startAt = fromLocalInput(form.start)
-  const endAt = fromLocalInput(form.end)
-  const invalid = !form.title.trim() || startAt === null || (endAt !== null && endAt < startAt)
+  const { startAt, endAt } = form
+  const endBeforeStart = endAt !== null && startAt !== null && endAt < startAt
+  const invalid = !form.title.trim() || startAt === null || endBeforeStart
 
   const save = (): void => {
     if (invalid || startAt === null) return
@@ -123,12 +129,12 @@ export function EventDialog({
     else create.mutate(input, done)
   }
 
-  const inputType = form.allDay ? 'date' : 'datetime-local'
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl p-6 sm:max-w-[520px]">
-        <DialogTitle className="font-display text-xl">{event ? 'Событие' : 'Новое событие'}</DialogTitle>
+      <DialogContent className="rounded-3xl p-6 sm:max-w-[540px]">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">{event ? 'Событие' : 'Новое событие'}</DialogTitle>
+        </DialogHeader>
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
@@ -136,33 +142,43 @@ export function EventDialog({
             save()
           }}
         >
-          <Input
-            autoFocus
-            value={form.title}
-            onChange={(e) => set('title', e.target.value)}
-            placeholder="Созвон, дедлайн, напоминание…"
-            className="h-11 text-[15px]"
-          />
-          <label className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5 text-[13px]">
-            Весь день
+          <Field label="Название" htmlFor="event-title">
+            <Input
+              id="event-title"
+              autoFocus
+              value={form.title}
+              onChange={(e) => set('title', e.target.value)}
+              placeholder="Созвон, дедлайн, напоминание…"
+              className="h-11 text-[15px]"
+            />
+          </Field>
+          <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5">
+            <Label htmlFor="event-all-day" className="text-[13px] text-foreground">
+              Весь день
+            </Label>
             <Switch
+              id="event-all-day"
               checked={form.allDay}
               onCheckedChange={(allDay) =>
-                setForm((f) => ({ ...f, allDay, start: convertInput(f.start, allDay), end: convertInput(f.end, allDay) }))
+                setForm((f) => ({ ...f, allDay, startAt: convert(f.startAt, allDay), endAt: convert(f.endAt, allDay) }))
               }
             />
-          </label>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Начало">
-              <Input type={inputType} value={form.start} onChange={(e) => set('start', e.target.value)} />
+              <DatePicker
+                value={startAt}
+                onChange={(v) => set('startAt', v)}
+                withTime={!form.allDay}
+                clearable={false}
+              />
             </Field>
-            <Field label="Конец (необязательно)">
-              <Input
-                type={inputType}
-                value={form.end}
-                min={form.start}
-                onChange={(e) => set('end', e.target.value)}
-                aria-invalid={endAt !== null && startAt !== null && endAt < startAt}
+            <Field label={endBeforeStart ? 'Конец раньше начала' : 'Конец (необязательно)'}>
+              <DatePicker
+                value={endAt}
+                onChange={(v) => set('endAt', v)}
+                withTime={!form.allDay}
+                placeholder="Не задан"
               />
             </Field>
           </div>
@@ -196,33 +212,34 @@ export function EventDialog({
               </Select>
             </Field>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[12px] text-muted-foreground">Цвет</span>
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => set('color', null)}
-                className={cn(
-                  'size-7 rounded-full bg-lime ring-offset-2 ring-offset-card',
-                  form.color === null && 'ring-2 ring-foreground'
-                )}
-                aria-label="По умолчанию"
-              />
-              {TAG_COLORS.slice(1).map((c) => (
-                <button
+          <Field label="Цвет">
+            <ToggleGroup
+              type="single"
+              value={form.color ?? DEFAULT_COLOR}
+              onValueChange={(v) => v && set('color', v === DEFAULT_COLOR ? null : v)}
+              spacing={1.5}
+            >
+              {[DEFAULT_COLOR, ...TAG_COLORS.slice(1)].map((c) => (
+                <ToggleGroupItem
                   key={c}
-                  type="button"
-                  onClick={() => set('color', c)}
-                  className={cn('size-7 rounded-full ring-offset-2 ring-offset-card', form.color === c && 'ring-2 ring-foreground')}
-                  style={{ background: c }}
-                  aria-label={c}
+                  value={c}
+                  aria-label={c === DEFAULT_COLOR ? 'По умолчанию' : c}
+                  className="size-7 min-w-7 rounded-full p-0 ring-offset-2 ring-offset-card hover:opacity-90 data-[state=on]:ring-2 data-[state=on]:ring-foreground"
+                  style={{ background: c === DEFAULT_COLOR ? 'var(--lime)' : c }}
                 />
               ))}
-            </div>
-          </div>
-          <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="Заметки, ссылка на созвон" />
-          <div className="flex items-center gap-2 pt-1">
-            {event && (
+            </ToggleGroup>
+          </Field>
+          <Field label="Заметки" htmlFor="event-notes">
+            <Textarea
+              id="event-notes"
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+              placeholder="Повестка, ссылка на созвон"
+            />
+          </Field>
+          <DialogFooter className="items-center gap-2 pt-1 sm:justify-between">
+            {event ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -230,15 +247,18 @@ export function EventDialog({
               >
                 <Trash2 /> В корзину
               </Button>
+            ) : (
+              <span />
             )}
-            <div className="flex-1" />
-            <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
-              Отмена
-            </Button>
-            <Button type="submit" variant="lime" disabled={invalid || create.isPending || update.isPending}>
-              {event ? 'Сохранить' : 'Добавить'}
-            </Button>
-          </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
+                Отмена
+              </Button>
+              <Button type="submit" variant="lime" disabled={invalid || create.isPending || update.isPending}>
+                {event ? 'Сохранить' : 'Добавить'}
+              </Button>
+            </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, Check, GripVertical, Plus, RotateCcw, Rocket, Trash2 } from 'lucide-react'
+import { ArrowLeft, GripVertical, Plus, RotateCcw, Rocket, Trash2 } from 'lucide-react'
 import type { ChecklistItem, ChecklistPatch } from '@shared/domain/checklists'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -29,6 +29,9 @@ import { Confirm } from '@/components/common/confirm'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Card } from '@/components/ui/card'
+import { SectionLabel } from '@/components/common/master-detail'
 import { cn } from '@/lib/utils'
 import { LaunchDialog } from './launch-dialog'
 
@@ -39,23 +42,6 @@ function groupBySection(items: ChecklistItem[]): [string, ChecklistItem[]][] {
   const map = new Map<string, ChecklistItem[]>()
   for (const item of items) map.set(item.section, [...(map.get(item.section) ?? []), item])
   return [...map.entries()]
-}
-
-function CheckCircle({ done, onToggle }: { done: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={done}
-      onClick={onToggle}
-      className={cn(
-        'grid size-[22px] shrink-0 place-items-center rounded-full transition-colors',
-        done ? 'bg-lime text-lime-foreground' : 'bg-card ring-1 ring-input hover:ring-foreground/40'
-      )}
-    >
-      {done && <Check className="size-3.5" strokeWidth={3} />}
-    </button>
-  )
 }
 
 function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
@@ -91,19 +77,22 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
         isDragging && 'z-10 bg-card shadow-lg ring-1 ring-border'
       )}
     >
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         {...attributes}
         {...listeners}
         className="mt-0.5 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100 active:cursor-grabbing"
         aria-label="Перетащить"
       >
-        <GripVertical className="size-4" />
-      </button>
+        <GripVertical />
+      </Button>
       {isRun ? (
-        <CheckCircle
-          done={item.done}
-          onToggle={() => update.mutate({ id: item.id, patch: { done: !item.done } })}
+        <Checkbox
+          checked={item.done}
+          onCheckedChange={(v) => update.mutate({ id: item.id, patch: { done: v === true } })}
+          aria-label={item.text}
+          className="mt-0.5 size-[22px] rounded-full border-input bg-card data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground"
         />
       ) : (
         <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
@@ -136,10 +125,10 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
             />
           </div>
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={() => setEditing(true)}
-            className="w-full text-left"
+            className="h-auto w-full flex-col items-start gap-0 rounded-lg p-0 text-left font-normal whitespace-normal hover:bg-transparent"
             title="Нажмите, чтобы изменить"
           >
             <span
@@ -153,17 +142,18 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
             {item.hint && (
               <span className="mt-0.5 block text-[12px] text-muted-foreground">{item.hint}</span>
             )}
-          </button>
+          </Button>
         )}
       </div>
-      <button
-        type="button"
-        title="Удалить пункт"
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label="Удалить пункт"
         onClick={() => remove.mutate(item.id)}
         className="mt-0.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
       >
-        <Trash2 className="size-4" />
-      </button>
+        <Trash2 />
+      </Button>
     </li>
   )
 }
@@ -199,11 +189,11 @@ function AddItem({
           section === undefined ? 'ml-2' : 'ml-[34px]'
         )}
       />
-      <input
+      <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={section === undefined ? 'Новый пункт' : 'Добавить пункт'}
-        className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-muted-foreground"
+        className="min-w-0 flex-1 border-0 bg-transparent px-1 text-[13.5px] shadow-none focus-visible:bg-transparent focus-visible:ring-0"
       />
       {section === undefined && (
         <>
@@ -331,7 +321,7 @@ export function ChecklistPage() {
               description="Он уйдёт в корзину на 30 дней."
               onConfirm={() => remove.mutate(id)}
             >
-              <Button variant="ghost" size="icon-sm" title="В корзину">
+              <Button variant="ghost" size="icon-sm" aria-label="В корзину">
                 <Trash2 />
               </Button>
             </Confirm>
@@ -339,9 +329,9 @@ export function ChecklistPage() {
         </div>
 
         {isRun && (
-          <div
+          <Card
             className={cn(
-              'mt-5 flex items-center gap-5 rounded-3xl p-5',
+              'mt-5 flex-row items-center gap-5 p-5',
               done === items.length && items.length
                 ? 'bg-lime text-lime-foreground'
                 : 'bg-ink text-ink-foreground'
@@ -361,7 +351,7 @@ export function ChecklistPage() {
             <span className="text-[13px] tabular-nums opacity-75">
               {items.length ? Math.round((done / items.length) * 100) : 0}%
             </span>
-          </div>
+          </Card>
         )}
 
         <div className="mt-5">
@@ -419,13 +409,10 @@ export function ChecklistPage() {
         >
           {isRun && data.templateId && (
             <section className="flex flex-col gap-1">
-              <h3 className="text-[12px] text-muted-foreground">Шаблон</h3>
-              <Link
-                to={`/checklists/${data.templateId}`}
-                className="text-[13px] underline-offset-4 hover:underline"
-              >
-                Открыть исходный шаблон
-              </Link>
+              <SectionLabel>Шаблон</SectionLabel>
+              <Button variant="link" size="sm" asChild className="w-fit">
+                <Link to={`/checklists/${data.templateId}`}>Открыть исходный шаблон</Link>
+              </Button>
             </section>
           )}
         </EntityAside>

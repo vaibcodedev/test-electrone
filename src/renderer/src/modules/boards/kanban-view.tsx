@@ -24,6 +24,10 @@ import { Plus } from 'lucide-react'
 import type { BoardColumn, BoardDetails, Card } from '@shared/domain/boards'
 import { useApiMutation } from '@/lib/query'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Card as UiCard } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { CardTile } from './card-tile'
 import { ColumnHeader } from './column-header'
 
@@ -62,17 +66,18 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
   const create = useApiMutation('cards', 'create')
   if (!open) {
     return (
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="flex h-9 w-full items-center gap-1.5 rounded-xl px-2 text-[12.5px] text-muted-foreground hover:bg-card hover:text-foreground"
+        className="w-full justify-start rounded-xl px-2 text-[12.5px] font-normal text-muted-foreground hover:bg-card hover:text-foreground"
       >
-        <Plus className="size-3.5" /> Карточка
-      </button>
+        <Plus /> Карточка
+      </Button>
     )
   }
   return (
-    <textarea
+    <Textarea
       autoFocus
       rows={2}
       value={title}
@@ -92,7 +97,8 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
           setOpen(false)
         }
       }}
-      className="w-full resize-none rounded-2xl bg-card p-3 text-[13px] outline-none ring-1 ring-ring/40 placeholder:text-muted-foreground"
+      aria-label="Название новой карточки"
+      className="min-h-16 rounded-2xl bg-card p-3 text-[13px] ring-1 ring-ring/40"
     />
   )
 }
@@ -112,9 +118,9 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
   return (
-    <section
+    <UiCard
       className={cn(
-        'flex max-h-full w-[288px] shrink-0 flex-col rounded-3xl bg-surface p-2 transition-colors',
+        'max-h-full w-[288px] shrink-0 gap-0 rounded-3xl p-2 transition-colors',
         isOver && 'bg-accent'
       )}
     >
@@ -132,7 +138,7 @@ function Column({
       <div className="pt-1">
         <QuickAddCard boardId={column.boardId} columnId={column.id} />
       </div>
-    </section>
+    </UiCard>
   )
 }
 
@@ -141,7 +147,7 @@ function AddColumn({ boardId }: { boardId: string }) {
   const add = useApiMutation('boards', 'addColumn')
   return (
     <form
-      className="flex h-12 w-[260px] shrink-0 items-center gap-2 rounded-3xl border border-dashed border-input px-3"
+      className="w-[260px] shrink-0"
       onSubmit={(e) => {
         e.preventDefault()
         if (!title.trim()) return
@@ -149,13 +155,24 @@ function AddColumn({ boardId }: { boardId: string }) {
         setTitle('')
       }}
     >
-      <Plus className="size-4 text-muted-foreground" />
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Новая колонка"
-        className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
-      />
+      <InputGroup className="h-12 rounded-3xl border-dashed border-input bg-transparent">
+        <InputGroupAddon>
+          <Plus />
+        </InputGroupAddon>
+        <InputGroupInput
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Новая колонка"
+          aria-label="Название новой колонки"
+        />
+        {title.trim() && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton type="submit" size="xs" variant="lime" className="rounded-full">
+              Добавить
+            </InputGroupButton>
+          </InputGroupAddon>
+        )}
+      </InputGroup>
     </form>
   )
 }

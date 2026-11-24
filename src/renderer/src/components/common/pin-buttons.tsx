@@ -2,42 +2,43 @@ import { Pin, Star } from 'lucide-react'
 import type { EntityRef } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
 import { cn } from '@/lib/utils'
+import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-/** "Pin to dashboard" + "favorite" toggles for any entity. */
+const pinCls =
+  'size-8 min-w-8 rounded-full bg-surface p-0 text-muted-foreground hover:text-foreground data-[state=on]:bg-lime data-[state=on]:text-lime-foreground'
+
+/** "Pin to dashboard" + "favorite" toggles for any entity (shadcn Toggle). */
 export function PinButtons({ entity, className }: { entity: EntityRef; className?: string }) {
   const { data } = useApi('pins', 'state', entity)
   const toggle = useApiMutation('pins', 'toggle')
-  const btn = (active: boolean): string =>
-    cn(
-      'grid size-8 place-items-center rounded-full transition-colors',
-      active ? 'bg-lime text-lime-foreground' : 'bg-surface text-muted-foreground hover:text-foreground'
-    )
   return (
     <div className={cn('flex gap-1', className)}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
-            className={btn(!!data?.pin)}
-            onClick={() => toggle.mutate({ ref: entity, kind: 'pin' })}
-            aria-pressed={!!data?.pin}
+          <Toggle
+            size="sm"
+            className={pinCls}
+            pressed={!!data?.pin}
+            onPressedChange={() => toggle.mutate({ ref: entity, kind: 'pin' })}
+            aria-label="Закрепить на главной"
           >
-            <Pin className="size-4" />
-          </button>
+            <Pin />
+          </Toggle>
         </TooltipTrigger>
         <TooltipContent>{data?.pin ? 'Открепить с главной' : 'Закрепить на главной'}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
-            className={btn(!!data?.favorite)}
-            onClick={() => toggle.mutate({ ref: entity, kind: 'favorite' })}
-            aria-pressed={!!data?.favorite}
+          <Toggle
+            size="sm"
+            className={pinCls}
+            pressed={!!data?.favorite}
+            onPressedChange={() => toggle.mutate({ ref: entity, kind: 'favorite' })}
+            aria-label="В избранное"
           >
-            <Star className="size-4" />
-          </button>
+            <Star />
+          </Toggle>
         </TooltipTrigger>
         <TooltipContent>{data?.favorite ? 'Убрать из избранного' : 'В избранное'}</TooltipContent>
       </Tooltip>

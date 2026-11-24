@@ -1,13 +1,19 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { Tags, Trash2 } from 'lucide-react'
+import { Plus, Tags, Trash2 } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
-import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
+import { EmptyState, Field, Page, PageBody, PageHeader } from '@/components/common/page'
 import { EntityRow } from '@/components/common/entity-link'
 import { TAG_COLORS } from '@/components/common/tags'
 import { Confirm } from '@/components/common/confirm'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 /** Global tags shared by all modules: rename, recolor, delete, and see everything carrying a tag. */
@@ -22,89 +28,161 @@ export function TagsPage() {
   const [name, setName] = useState('')
   const current = tags.find((t) => t.id === selected)
 
+  const submit = async (): Promise<void> => {
+    const value = name.trim()
+    if (!value) return
+    const tag = await create.mutateAsync({ name: value, color: TAG_COLORS[tags.length % TAG_COLORS.length] })
+    setName('')
+    setParams({ tag: tag.id })
+  }
+
   return (
     <Page>
-      <PageHeader title="Метки" subtitle="Общие для всех разделов: одна метка «shopify» найдёт идеи, сниппеты, дизайны и ошибки." />
-      <PageBody className="flex gap-6">
-        <div className="flex w-[340px] shrink-0 flex-col gap-3">
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (!name.trim()) return
-              create.mutate({ name: name.trim(), color: TAG_COLORS[tags.length % TAG_COLORS.length] })
-              setName('')
-            }}
-          >
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Новая метка" />
-            <Button type="submit" variant="lime" disabled={!name.trim()}>
-              Добавить
-            </Button>
-          </form>
-          <ul className="flex flex-col gap-1">
-            {tags.map((t) => (
-              <li key={t.id}>
-                <button
-                  type="button"
-                  onClick={() => setParams({ tag: t.id })}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-full px-4 py-2 text-left text-[13px]',
-                    selected === t.id ? 'bg-ink text-ink-foreground' : 'hover:bg-surface'
-                  )}
-                >
-                  <span className="size-2.5 rounded-full" style={{ background: t.color ?? 'var(--muted-foreground)' }} />
-                  <span className="flex-1">{t.name}</span>
-                  <span className="text-[12px] opacity-60 tabular-nums">{t.usage}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div className="min-w-0 flex-1">
-          {!current ? (
-            <EmptyState icon={Tags} title="Выберите метку" hint="Справа появится всё, что ей помечено, из всех разделов." />
-          ) : (
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-3">
-                <Input
-                  key={current.id}
-                  defaultValue={current.name}
-                  className="font-display h-12 max-w-sm text-xl"
-                  onBlur={(e) => e.target.value.trim() && e.target.value !== current.name && update.mutate({ id: current.id, patch: { name: e.target.value.trim() } })}
-                />
-                <div className="flex gap-1">
-                  {TAG_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => update.mutate({ id: current.id, patch: { color: c } })}
-                      className={cn('size-6 rounded-full ring-offset-2 ring-offset-card', current.color === c && 'ring-2 ring-foreground')}
-                      style={{ background: c }}
-                      aria-label={c}
-                    />
-                  ))}
-                </div>
-                <Confirm
-                  title={`Удалить метку «${current.name}»?`}
-                  description="Записи останутся, пропадёт только метка."
-                  onConfirm={() => {
-                    remove.mutate(current.id)
-                    setParams({})
-                  }}
-                >
-                  <Button variant="ghost" size="icon">
-                    <Trash2 />
-                  </Button>
-                </Confirm>
-              </div>
-              <div className="flex flex-col">
-                {entities.map((e) => (
-                  <EntityRow key={`${e.type}:${e.id}`} item={e} />
-                ))}
-                {!entities.length && <p className="text-[13px] text-muted-foreground">Этой меткой пока ничего не помечено.</p>}
-              </div>
-            </div>
-          )}
+      <PageHeader
+        title="Метки"
+        subtitle="Общие для всех разделов: одна метка «shopify» найдёт идеи, сниппеты, дизайны и ошибки."
+      />
+      <PageBody>
+        <div className="grid grid-cols-[minmax(280px,360px)_minmax(0,1fr)] items-start gap-3">
+          <Card className="gap-3">
+            <CardContent className="flex flex-col gap-3">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void submit()
+                }}
+              >
+                <InputGroup className="bg-card">
+                  <InputGroupInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Новая метка" />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="submit"
+                      variant={name.trim() ? 'lime' : 'ghost'}
+                      size="xs"
+                      className="rounded-full"
+                      disabled={!name.trim() || create.isPending}
+                    >
+                      <Plus /> Добавить
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+              </form>
+              {tags.length === 0 ? (
+                <p className="px-1 text-[12.5px] text-muted-foreground">Меток пока нет. Создайте первую выше или прямо в любой записи.</p>
+              ) : (
+                <ItemGroup className="gap-1">
+                  {tags.map((t) => {
+                    const active = selected === t.id
+                    return (
+                      <Item key={t.id} asChild size="xs" variant={active ? 'active' : 'default'} className="px-3">
+                        <button type="button" onClick={() => setParams({ tag: t.id })} aria-current={active || undefined}>
+                          <ItemMedia>
+                            <span className="size-2.5 rounded-full" style={{ background: t.color ?? 'var(--muted-foreground)' }} />
+                          </ItemMedia>
+                          <ItemContent className="min-w-0">
+                            <ItemTitle className="w-full truncate font-normal">{t.name}</ItemTitle>
+                          </ItemContent>
+                          <ItemActions>
+                            <Badge
+                              variant="soft"
+                              className={cn('tabular-nums', active && 'bg-ink-foreground/10 text-ink-foreground')}
+                            >
+                              {t.usage}
+                            </Badge>
+                          </ItemActions>
+                        </button>
+                      </Item>
+                    )
+                  })}
+                </ItemGroup>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="gap-4">
+            {!current ? (
+              <EmptyState
+                icon={Tags}
+                title="Выберите метку"
+                hint="Здесь появится всё, что ей помечено, из всех разделов."
+                className="py-10"
+              />
+            ) : (
+              <>
+                <CardHeader>
+                  <CardTitle className="font-display text-[22px] text-foreground">{current.name}</CardTitle>
+                  <CardDescription>
+                    {entities.length
+                      ? `${entities.length} ${plural(entities.length, ['запись', 'записи', 'записей'])}`
+                      : 'Пока ничем не помечено'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-5">
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+                    <Field label="Название">
+                      <Input
+                        key={current.id + current.name}
+                        defaultValue={current.name}
+                        className="bg-card"
+                        onBlur={(e) =>
+                          e.target.value.trim() &&
+                          e.target.value !== current.name &&
+                          update.mutate({ id: current.id, patch: { name: e.target.value.trim() } })
+                        }
+                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                      />
+                    </Field>
+                    <Confirm
+                      title={`Удалить метку «${current.name}»?`}
+                      description="Записи останутся, пропадёт только метка."
+                      onConfirm={() => {
+                        remove.mutate(current.id)
+                        setParams({})
+                      }}
+                    >
+                      <Button variant="ghost" className="hover:text-destructive">
+                        <Trash2 /> Удалить
+                      </Button>
+                    </Confirm>
+                  </div>
+                  <Field label="Цвет">
+                    <ToggleGroup
+                      type="single"
+                      value={current.color ?? ''}
+                      onValueChange={(c) => c && update.mutate({ id: current.id, patch: { color: c } })}
+                      spacing={1.5}
+                    >
+                      {TAG_COLORS.map((c) => (
+                        <ToggleGroupItem
+                          key={c}
+                          value={c}
+                          aria-label={c}
+                          size="sm"
+                          className="size-8 min-w-8 p-0 data-[state=on]:bg-transparent data-[state=on]:ring-2 data-[state=on]:ring-foreground"
+                        >
+                          <span className="size-5 rounded-full" style={{ background: c }} />
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </Field>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[12.5px] font-medium text-muted-foreground">Помечено</span>
+                    {entities.length ? (
+                      <div className="-mx-2.5 flex flex-col">
+                        {entities.map((e) => (
+                          <EntityRow key={`${e.type}:${e.id}`} item={e} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[12.5px] text-muted-foreground">
+                        Добавьте эту метку к идее, сниппету или дизайну — запись появится здесь.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </>
+            )}
+          </Card>
         </div>
       </PageBody>
     </Page>

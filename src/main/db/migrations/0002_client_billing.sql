@@ -1,0 +1,1 @@
+ALTER TABLE `clients` ADD `default_billing` text DEFAULT 'fixed' NOT NULL;

@@ -4,6 +4,16 @@ import { idSchema, timestampSchema, urlSchema, withTagIds, type EntityBase, type
 export const CURRENCIES = ['USD', 'EUR', 'UAH', 'PLN', 'GBP'] as const
 export type Currency = (typeof CURRENCIES)[number]
 
+/**
+ * How work is paid:
+ *  - fixed    — one price for the whole project, paid in stages (payments = этапы)
+ *  - hourly   — tracked billable hours × rate
+ *  - retainer — fixed fee per month (fixedPrice = monthly fee), from startAt
+ *  - none     — own / free project, time tracking only
+ */
+export const BILLING_TYPES = ['fixed', 'hourly', 'retainer', 'none'] as const
+export type BillingType = (typeof BILLING_TYPES)[number]
+
 /* ───────────── Clients ───────────── */
 
 export const CLIENT_STATUSES = ['lead', 'active', 'paused', 'archived'] as const
@@ -19,6 +29,9 @@ export const clientInputSchema = z.object({
   notes: z.string().max(100_000).default(''),
   status: z.enum(CLIENT_STATUSES).default('active'),
   currency: z.enum(CURRENCIES).default('USD'),
+  /** Preferred billing for new projects of this client. */
+  defaultBilling: z.enum(BILLING_TYPES).default('fixed'),
+  /** Hourly rate (hourly) or monthly fee (retainer) used as default for new projects. */
   defaultRate: z.number().min(0).max(100_000).default(0),
   ...withTagIds
 })
@@ -36,6 +49,7 @@ export interface Client extends EntityBase, WithTags {
   notes: string
   status: ClientStatus
   currency: Currency
+  defaultBilling: BillingType
   defaultRate: number
 }
 
@@ -51,16 +65,16 @@ export interface ClientSummary extends Client {
 
 export const PROJECT_STATUSES = ['lead', 'active', 'paused', 'done', 'cancelled'] as const
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
-export const BILLING_TYPES = ['hourly', 'fixed', 'retainer'] as const
-export type BillingType = (typeof BILLING_TYPES)[number]
 
 export const projectInputSchema = z.object({
   clientId: idSchema.nullable().default(null),
   title: z.string().trim().min(1).max(200),
   description: z.string().max(100_000).default(''),
   status: z.enum(PROJECT_STATUSES).default('active'),
-  billing: z.enum(BILLING_TYPES).default('hourly'),
+  billing: z.enum(BILLING_TYPES).default('fixed'),
+  /** Hourly rate — only for billing = hourly. */
   rate: z.number().min(0).max(100_000).default(0),
+  /** Project price (fixed) or monthly fee (retainer). */
   fixedPrice: z.number().min(0).max(100_000_000).default(0),
   currency: z.enum(CURRENCIES).default('USD'),
   budgetHours: z.number().min(0).max(100_000).default(0),
@@ -105,8 +119,12 @@ export interface Project extends EntityBase, WithTags {
 export interface ProjectSummary extends Project {
   clientName: string | null
   trackedMinutes: number
-  /** Value of billable work: hours × rate for hourly, fixedPrice for fixed. */
+  /** Value of the work so far: hours × rate (hourly), price (fixed), fee × months (retainer), 0 (none). */
   earnedAmount: number
+  /** Earned / tracked hours — the real hourly rate for fixed and retainer work. */
+  effectiveRate: number | null
+  /** Retainer only: number of billed months so far. */
+  retainerMonths: number
   paidAmount: number
   outstandingAmount: number
 }

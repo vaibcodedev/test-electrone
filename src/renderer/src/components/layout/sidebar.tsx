@@ -1,11 +1,24 @@
-import { NavLink, useNavigate } from 'react-router'
+import type { ReactNode } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router'
 import { Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
 import { NAV } from '@/app/navigation'
 import { useApi } from '@/lib/query'
 import { useUi } from '@/stores/ui-store'
 import { SegmentBar } from '@/components/common/page'
 import { plural } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem
+} from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 function greeting(): string {
@@ -14,6 +27,19 @@ function greeting(): string {
   if (h < 12) return 'Доброе утро'
   if (h < 18) return 'Добрый день'
   return 'Добрый вечер'
+}
+
+function NotchButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button size="icon" variant="soft" className="bg-card hover:scale-105 hover:bg-card" aria-label={label} onClick={onClick}>
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 /** Lime identity card with the notch holding quick actions — the app's signature element. */
@@ -29,35 +55,17 @@ function IdentityCard() {
   return (
     <div className="notch-card bg-lime px-4 pt-4 pb-4 text-lime-foreground">
       <div className="notch">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => setPaletteOpen(true)}
-              className="grid size-9 place-items-center rounded-full bg-card text-foreground transition-transform hover:scale-105"
-              aria-label="Поиск"
-            >
-              <Search className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Поиск везде · Ctrl K</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => setQuickAddOpen(true)}
-              className="grid size-9 place-items-center rounded-full bg-card text-foreground transition-transform hover:scale-105"
-              aria-label="Быстро добавить"
-            >
-              <Plus className="size-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Быстро добавить</TooltipContent>
-        </Tooltip>
+        <NotchButton label="Поиск везде · Ctrl K" onClick={() => setPaletteOpen(true)}>
+          <Search />
+        </NotchButton>
+        <NotchButton label="Быстро добавить · Ctrl N" onClick={() => setQuickAddOpen(true)}>
+          <Plus />
+        </NotchButton>
       </div>
       <div className="flex items-center gap-2 pr-20">
-        <span className="grid size-8 place-items-center rounded-full bg-ink text-[13px] font-semibold text-lime">V</span>
+        <Avatar className="size-8">
+          <AvatarFallback className="bg-lime-foreground text-[13px] font-semibold text-lime">V</AvatarFallback>
+        </Avatar>
         <div className="leading-tight">
           <div className="text-[13px] font-semibold">Vault</div>
           <div className="text-[11px] opacity-65">{greeting()}</div>
@@ -79,53 +87,53 @@ function IdentityCard() {
   )
 }
 
-export function Sidebar() {
+/** App navigation built on shadcn Sidebar (non-collapsible, sits under the identity card). */
+export function AppSidebar() {
   const { data: dash } = useApi('app', 'dashboard')
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const counts = dash?.counts ?? {}
+  const isActive = (path: string): boolean => (path === '/' ? pathname === '/' : pathname.startsWith(path))
+
   return (
-    <aside className="flex w-[244px] shrink-0 flex-col gap-2.5">
+    <div className="flex w-(--sidebar-width) shrink-0 flex-col gap-2.5">
       <IdentityCard />
-      <nav className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-3">
+      <Sidebar collapsible="none" className="min-h-0 flex-1 overflow-hidden rounded-3xl">
+        <SidebarContent className="gap-0 px-1 py-2">
           {NAV.map((group) => (
-            <div key={group.title} className="mb-3">
-              <div className="px-3 pb-1.5 text-[11.5px] text-muted-foreground">{group.title}</div>
-              <ul className="flex flex-col gap-0.5">
-                {group.items.map((item) => (
-                  <li key={item.path}>
-                    <NavLink
-                      to={item.path}
-                      end={item.path === '/'}
-                      className={({ isActive }) =>
-                        cn(
-                          'group flex h-9 items-center gap-2.5 rounded-full px-3 text-[13px] transition-colors',
-                          isActive ? 'bg-ink text-ink-foreground' : 'text-foreground/85 hover:bg-surface'
+            <SidebarGroup key={group.title} className="py-1">
+              <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+              <SidebarMenu className="gap-0.5">
+                {group.items.map((item) => {
+                  const active = isActive(item.path)
+                  return (
+                    <SidebarMenuItem key={item.path}>
+                      <SidebarMenuButton asChild isActive={active}>
+                        <NavLink to={item.path} end={item.path === '/'}>
+                          <item.icon className={active ? 'text-ink-accent' : 'text-muted-foreground'} />
+                          <span>{item.label}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                      {active ? (
+                        <SidebarMenuBadge>
+                          <span className="size-1.5 rounded-full bg-ink-accent" />
+                        </SidebarMenuBadge>
+                      ) : (
+                        item.countOf &&
+                        !!counts[item.countOf] && (
+                          <SidebarMenuBadge className="text-[11px] font-normal text-muted-foreground">
+                            {counts[item.countOf]}
+                          </SidebarMenuBadge>
                         )
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <item.icon className={cn('size-4', isActive ? 'text-lime' : 'text-muted-foreground')} />
-                          <span className="flex-1 truncate">{item.label}</span>
-                          {isActive ? (
-                            <span className="size-1.5 rounded-full bg-lime" />
-                          ) : (
-                            item.countOf &&
-                            !!counts[item.countOf] && (
-                              <span className="text-[11px] text-muted-foreground tabular-nums">{counts[item.countOf]}</span>
-                            )
-                          )}
-                        </>
                       )}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
           ))}
-        </div>
-        <div className="flex items-center gap-1 border-t border-border p-2">
+        </SidebarContent>
+        <SidebarFooter className="flex-row gap-1 border-t border-sidebar-border p-2">
           {[
             { to: '/tags', icon: Tags, label: 'Метки' },
             { to: '/trash', icon: Trash2, label: 'Корзина' },
@@ -133,20 +141,20 @@ export function Sidebar() {
           ].map((b) => (
             <Tooltip key={b.to}>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => navigate(b.to)}
-                  className="grid h-9 flex-1 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+                <Button
+                  variant={pathname.startsWith(b.to) ? 'soft' : 'ghost'}
+                  className="flex-1 text-muted-foreground hover:text-foreground"
                   aria-label={b.label}
+                  onClick={() => navigate(b.to)}
                 >
-                  <b.icon className="size-4" />
-                </button>
+                  <b.icon />
+                </Button>
               </TooltipTrigger>
               <TooltipContent>{b.label}</TooltipContent>
             </Tooltip>
           ))}
-        </div>
-      </nav>
-    </aside>
+        </SidebarFooter>
+      </Sidebar>
+    </div>
   )
 }

@@ -3,11 +3,12 @@ import { WORD_KINDS, type Word, type WordPatch } from '@shared/domain/english'
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime, fmtDay } from '@/lib/format'
-import { DetailPane, EntityAside, InlineTitle } from '@/components/common/master-detail'
-import { Field, FilterChips } from '@/components/common/page'
+import { DetailPane, EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import { Field, Segmented } from '@/components/common/page'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL } from './labels'
 
 type Form = Pick<
@@ -30,10 +31,10 @@ function toForm(w: Word): Form {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-surface px-3 py-2.5">
+    <Card className="gap-0.5 rounded-2xl px-3 py-2.5">
       <div className="text-[11.5px] text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-[14px] font-medium tabular-nums">{value}</div>
-    </div>
+      <div className="text-[14px] font-medium tabular-nums">{value}</div>
+    </Card>
   )
 }
 
@@ -67,7 +68,7 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
           files={false}
         >
           <section className="flex flex-col gap-2">
-            <h3 className="text-[12px] text-muted-foreground">Повторение</h3>
+            <SectionLabel>Повторение</SectionLabel>
             <div className="grid grid-cols-2 gap-1.5">
               <Stat label="Следующее" value={fmtDay(word.dueAt) || '—'} />
               <Stat label="Интервал" value={`${Math.round(word.intervalDays)} дн.`} />
@@ -85,17 +86,20 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
         <div>
           <InlineTitle value={form.term} onChange={(v) => set('term', v)} placeholder="Слово" />
           <Input
+            aria-label="Транскрипция"
             value={form.transcription}
             onChange={(e) => set('transcription', e.target.value)}
             placeholder="[транскрипция]"
             className="mt-1 h-8 max-w-xs bg-transparent px-0 text-muted-foreground focus-visible:bg-transparent focus-visible:px-3"
           />
         </div>
-        <FilterChips
-          options={WORD_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
-          value={form.kind}
-          onChange={(k) => k && set('kind', k)}
-        />
+        <Field label="Тип">
+          <Segmented
+            options={WORD_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+            value={form.kind}
+            onChange={(k) => set('kind', k)}
+          />
+        </Field>
         <Field label="Перевод">
           <Input value={form.translation} onChange={(e) => set('translation', e.target.value)} placeholder="Как это по-русски" />
         </Field>

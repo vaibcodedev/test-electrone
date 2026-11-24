@@ -1,11 +1,14 @@
 import { ListChecks } from 'lucide-react'
 import type { BoardDetails } from '@shared/domain/boards'
 import { TagList } from '@/components/common/tags'
+import { SectionLabel } from '@/components/common/master-detail'
 import { cn } from '@/lib/utils'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
+import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { DueChip } from './card-tile'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 
-/** Cards as rows, grouped by column. */
+/** Cards as table rows (shadcn Table), grouped by column. */
 export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpenCard: (id: string) => void }) {
   return (
     <div className="h-full overflow-y-auto px-8 pb-8">
@@ -13,37 +16,56 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
         {details.columns.map((col) => {
           const cards = details.cards.filter((c) => c.columnId === col.id).sort((a, b) => a.position - b.position)
           return (
-            <section key={col.id}>
-              <h2 className="mb-2 flex items-center gap-2 text-[13px] font-medium">
-                {col.title}
-                <span className="font-normal text-muted-foreground tabular-nums">{cards.length}</span>
-              </h2>
+            <section key={col.id} className="flex flex-col gap-2">
+              <SectionLabel action={<span className="text-[12px] text-muted-foreground tabular-nums">{cards.length}</span>}>
+                <span className="text-[13px] text-foreground">{col.title}</span>
+              </SectionLabel>
               {cards.length === 0 ? (
-                <p className="rounded-2xl bg-surface px-4 py-3 text-[12.5px] text-muted-foreground">Пусто</p>
+                <Empty className="items-start rounded-2xl bg-surface p-3 md:p-3">
+                  <EmptyDescription className="text-[12.5px]">Пусто</EmptyDescription>
+                </Empty>
               ) : (
-                <ul className="flex flex-col gap-1">
-                  {cards.map((c) => (
-                    <li key={c.id}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenCard(c.id)}
-                        className="grid w-full grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 rounded-2xl bg-surface px-4 py-2.5 text-left hover:bg-accent"
-                      >
-                        <span title={PRIORITY_LABEL[c.priority]} className={cn('size-2 rounded-full', PRIORITY_DOT[c.priority])} />
-                        <span className={cn('truncate text-[13px]', col.isDone && 'text-muted-foreground line-through')}>{c.title}</span>
-                        <TagList tags={c.tags} max={2} />
-                        {c.checklistTotal > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-[11.5px] text-muted-foreground tabular-nums">
-                            <ListChecks className="size-3.5" /> {c.checklistDone}/{c.checklistTotal}
-                          </span>
-                        ) : (
-                          <span />
-                        )}
-                        {c.dueAt ? <DueChip dueAt={c.dueAt} done={col.isDone} /> : <span className="w-16" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="overflow-hidden rounded-2xl bg-surface">
+                  <Table>
+                    <TableBody>
+                      {cards.map((c) => (
+                        <TableRow
+                          key={c.id}
+                          tabIndex={0}
+                          role="button"
+                          onClick={() => onOpenCard(c.id)}
+                          onKeyDown={(e) => e.key === 'Enter' && onOpenCard(c.id)}
+                          className="border-border hover:bg-accent"
+                        >
+                          <TableCell className="w-6 pl-4">
+                            <span
+                              title={PRIORITY_LABEL[c.priority]}
+                              className={cn('block size-2 rounded-full', PRIORITY_DOT[c.priority])}
+                            />
+                          </TableCell>
+                          <TableCell
+                            className={cn('w-full max-w-0 truncate text-[13px]', col.isDone && 'text-muted-foreground line-through')}
+                          >
+                            {c.title}
+                          </TableCell>
+                          <TableCell>
+                            <TagList tags={c.tags} max={2} className="flex-nowrap" />
+                          </TableCell>
+                          <TableCell className="text-[11.5px] text-muted-foreground tabular-nums">
+                            {c.checklistTotal > 0 && (
+                              <span className="inline-flex items-center gap-1">
+                                <ListChecks className="size-3.5" /> {c.checklistDone}/{c.checklistTotal}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="pr-4 text-right">
+                            {c.dueAt && <DueChip dueAt={c.dueAt} done={col.isDone} />}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </section>
           )

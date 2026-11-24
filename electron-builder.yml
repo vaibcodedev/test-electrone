@@ -48,8 +48,12 @@ linux:
 npmRebuild: false
 # Auto-updates: create a GitHub repo, set owner/repo below and publish with
 #   GH_TOKEN=... npm run release:win
+# Beta builds (x.y.z-beta.N) go out as GitHub pre-releases on the "beta" channel.
+# electron-updater automatically allows pre-releases when the installed version is a beta.
+# Switch releaseType to "release" from 1.0.0 on.
+generateUpdatesFilesForAllChannels: true
 publish:
   provider: github
   owner: your-github-name
   repo: vault
-  releaseType: release
+  releaseType: prerelease
