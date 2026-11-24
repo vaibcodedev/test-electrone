@@ -294,3 +294,36 @@ test.describe('idea → board with long titles', () => {
     })
   }
 })
+
+test.describe('quick add', () => {
+  test('a link on the first line + a long multi-line text makes a bookmark, not an error', async ({ vault }) => {
+    // ~3 000 characters: past the 500-char title limit, within quick add's own 5 000.
+    const long = Array.from({ length: 30 }, (_, i) => `Рядок ${i} ${'текст '.repeat(15)}`).join('\n')
+    const saved = await vault.rpc('app.quickAdd', { target: 'bookmark', text: `https://example.com/${uid()}\n${long}` })
+    const b = await vault.rpc('bookmarks.get', saved.id)
+    expect(b.url).toMatch(/^https:\/\/example\.com\//)
+    expect(b.title.length).toBeLessThanOrEqual(500)
+    expect(b.title).toContain('Рядок 0')
+    expect(b.notes).toContain('Рядок 29')
+  })
+
+  test('an event lands tomorrow at 10:00 local time', async ({ vault }) => {
+    const saved = await vault.rpc('app.quickAdd', { target: 'event', text: `Зустріч ${uid()}` })
+    const e = await vault.rpc('events.get', saved.id)
+    const d = new Date(e.startAt)
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes()]).toEqual([
+      tomorrow.getFullYear(),
+      tomorrow.getMonth(),
+      tomorrow.getDate(),
+      10,
+      0
+    ])
+  })
+
+  test('a word longer than the term limit is clipped instead of failing', async ({ vault }) => {
+    const saved = await vault.rpcRaw('app.quickAdd', { target: 'word', text: `${'a'.repeat(400)} — переклад` })
+    expect(saved.ok).toBe(true)
+  })
+})

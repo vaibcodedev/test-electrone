@@ -5,7 +5,7 @@ import type { EntitySummary } from '@shared/domain/common'
 import { quickAddSchema, type QuickAddInput } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { boardColumns, boards } from '../db/schema'
-import { DAY_MS, now, startOfDay, UserError } from '../core/util'
+import { addDays, now, startOfDay, UserError } from '../core/util'
 
 /**
  * Turns one line from the global quick-add window into an entity of the chosen module.
@@ -61,17 +61,26 @@ export class QuickAddService {
       case 'bookmark': {
         const isUrl = /^https?:\/\//i.test(title)
         const url = isUrl ? title : rest.match(/https?:\/\/\S+/)?.[0] ?? ''
-        const e = await this.api.bookmarks.create({ title: isUrl ? (rest || title) : title, url })
+        // A pasted link on the first line: the title is the first line of what follows (a long multi-line
+        // text used to become the title and fail the save); the text itself goes to notes.
+        const name = isUrl ? (rest.split('\n')[0].trim() || title).slice(0, MAX.title) : title
+        const e = await this.api.bookmarks.create({ title: name, url, notes: isUrl ? rest : '' })
         return { type: 'bookmark', id: e.id, title: e.title }
       }
       case 'word': {
         // "term — translation" or "term = translation" on one line also works.
         const [term, translation] = title.split(/\s+[—=-]\s+/)
-        const e = await this.api.english.create({ term: term.trim(), translation: (translation ?? rest).trim() })
+        const e = await this.api.english.create({
+          term: term.trim().slice(0, 300),
+          translation: (translation ?? rest).trim().slice(0, 1000)
+        })
         return { type: 'word', id: e.id, title: e.term }
       }
       case 'event': {
-        const start = startOfDay(now()) + DAY_MS + 10 * 3600_000
+        // Tomorrow 10:00 local — calendar days, not +24h (a DST night would shift it by an hour).
+        const tomorrow = new Date(addDays(startOfDay(now()), 1))
+        tomorrow.setHours(10, 0, 0, 0)
+        const start = tomorrow.getTime()
         const e = await this.api.events.create({ title, description: rest, startAt: start })
         return { type: 'event', id: e.id, title: e.title }
       }
