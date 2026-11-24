@@ -1,4 +1,4 @@
-import { Download, RefreshCw } from 'lucide-react'
+import { ArrowDownToLine, RefreshCw, Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useApi } from '@/lib/query'
 import { Button } from '@/components/ui/button'
@@ -7,36 +7,44 @@ import { Progress } from '@/components/ui/progress'
 
 /**
  * Update plate above the sidebar footer: visible from every screen, not only in Settings.
- * Downloading → progress; downloaded → «Перезапустити»; found but not downloaded (auto-download off) →
- * «Завантажити». Nothing for the other states, so it never takes room for nothing.
+ * An ink card (balances the lime greeting card at the top of the sidebar) with a lime icon chip:
+ * downloading → progress; downloaded → «Перезапустити й оновити»; found, auto-download off → «Завантажити».
+ * Nothing for the other states, so it never takes room for nothing.
  */
 export function UpdateBanner() {
   const { data: s } = useApi('updates', 'status')
   if (!s || (s.state !== 'downloading' && s.state !== 'ready' && s.state !== 'available')) return null
 
-  if (s.state === 'downloading')
-    return (
-      <Card className="mx-2 mb-2 gap-2 bg-sidebar-accent px-3 py-2.5" role="status">
-        <div className="flex items-center gap-2 text-caption font-medium">
-          <Download className="size-3.5 text-muted-foreground" />
-          <span className="flex-1">Завантажую оновлення</span>
-          <span className="text-muted-foreground tabular-nums">{s.percent}%</span>
-        </div>
-        <Progress value={s.percent} aria-label="Завантаження оновлення" className="h-1 bg-foreground/10 [&>[data-slot=progress-indicator]]:bg-chart-1" />
-      </Card>
-    )
-
+  const downloading = s.state === 'downloading'
   const ready = s.state === 'ready'
+  const Icon = downloading ? ArrowDownToLine : ready ? Sparkles : ArrowDownToLine
   return (
-    <Card className="mx-2 mb-2 animate-enter gap-2 bg-lime-soft px-3 py-2.5" role="status">
-      <div className="min-w-0">
-        <div className="text-caption font-semibold">{ready ? 'Оновлення готове' : 'Є оновлення'}</div>
-        <div className="truncate text-meta text-muted-foreground">Версія {s.version}</div>
+    <Card className="mx-2 mb-2 animate-enter gap-3 rounded-[22px] bg-ink p-3 text-ink-foreground" role="status">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-lime text-lime-foreground">
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-caption font-semibold">
+            {downloading ? 'Оновлення' : ready ? 'Оновлення готове' : 'Є нова версія'}
+          </div>
+          <div className="truncate text-meta text-ink-muted">
+            {downloading ? `Завантажується · ${s.percent}%` : `Vault ${s.version}`}
+          </div>
+        </div>
       </div>
-      <Button variant="lime" size="sm" className="w-full" onClick={() => void api.updates.install()}>
-        {ready ? <RefreshCw /> : <Download />}
-        {ready ? 'Перезапустити й оновити' : 'Завантажити'}
-      </Button>
+      {downloading ? (
+        <Progress
+          value={s.percent}
+          aria-label="Завантаження оновлення"
+          className="h-1.5 bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-lime"
+        />
+      ) : (
+        <Button variant="lime" size="sm" className="w-full" onClick={() => void api.updates.install()}>
+          {ready ? <RefreshCw /> : <ArrowDownToLine />}
+          {ready ? 'Перезапустити й оновити' : 'Завантажити'}
+        </Button>
+      )}
     </Card>
   )
 }
