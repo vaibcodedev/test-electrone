@@ -1,59 +1,13 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import { z, ZodError } from 'zod'
-import { uk } from 'zod/locales'
-
-// Validation messages reach the UI as toasts → Ukrainian, not «Too big: expected number to be <=…».
-z.config(uk())
-// The common cases in plain words (the stock locale says «очікується, що number буде <=…»).
-z.config({
-  customError: (issue) => {
-    const fmt = (n: unknown): string => (typeof n === 'number' ? n.toLocaleString('uk-UA') : String(n))
-    if (issue.code === 'too_big')
-      return issue.origin === 'string' ? `занадто довго — максимум ${fmt(issue.maximum)} символів` : `забагато — максимум ${fmt(issue.maximum)}`
-    if (issue.code === 'too_small')
-      return issue.origin === 'string'
-        ? Number(issue.minimum) <= 1
-          ? 'не може бути порожнім'
-          : `закоротко — мінімум ${fmt(issue.minimum)} символів`
-        : `замало — мінімум ${fmt(issue.minimum)}`
-    if (issue.code === 'invalid_format' && issue.format === 'url') return 'не схоже на посилання'
-    if (issue.code === 'invalid_format' && issue.format === 'email') return 'не схоже на пошту'
-    return undefined
-  }
-})
-
-/** Human names for fields in validation errors; unknown paths fall back to the key. */
-const FIELD_LABEL: Record<string, string> = {
-  amount: 'Сума',
-  currency: 'Валюта',
-  title: 'Назва',
-  name: 'Назва',
-  url: 'Посилання',
-  email: 'Пошта',
-  phone: 'Телефон',
-  fixedPrice: 'Вартість проєкту',
-  hourlyRate: 'Погодинна ставка',
-  rate: 'Ставка',
-  feePercent: 'Комісія',
-  budgetHours: 'Бюджет годин',
-  minutes: 'Хвилини',
-  progress: 'Прогрес',
-  rating: 'Рейтинг',
-  dueAt: 'Строк',
-  startAt: 'Початок',
-  endAt: 'Кінець',
-  credits: 'Конекти',
-  question: 'Питання',
-  answer: 'Відповідь',
-  code: 'Код',
-  body: 'Текст',
-  description: 'Опис',
-  notes: 'Нотатки'
-}
+import { ZodError } from 'zod'
+import { configureZod, describeZodError } from '@shared/zod-locale'
+// Validation messages reach the UI as toasts → Ukrainian, in plain words (shared with the renderer).
+configureZod()
 import { RPC_CHANNEL, type Api, type RpcResult } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import type { EventBus } from '../core/event-bus'
+import { NotFoundError, UserError } from '../core/util'
 import { log } from '../core/logger'
 
 /** Only our own pages may call the API (defence against a navigated/injected frame). */
@@ -65,12 +19,7 @@ function trustedSender(event: IpcMainInvokeEvent): boolean {
 }
 
 export function formatError(e: unknown): { error: string; code?: string } {
-  if (e instanceof ZodError) {
-    const first = e.issues[0]
-    const key = String(first?.path[first.path.length - 1] ?? '')
-    const field = FIELD_LABEL[key] ?? (first?.path.join('.') || 'значення')
-    return { error: `${field}: ${first?.message ?? 'некоректне значення'}`, code: 'VALIDATION' }
-  }
+  if (e instanceof ZodError) return { error: describeZodError(e), code: 'VALIDATION' }
   if (e instanceof Error) return { error: e.message, code: (e as { code?: string }).code }
   return { error: String(e) }
 }
@@ -129,10 +78,16 @@ export function registerRpc(api: Api, bus: EventBus): void {
       }
       return { ok: true, data }
     } catch (e) {
-      // Validation/user errors are expected (warn); anything else is a bug (error with stack).
-      if (e instanceof ZodError || (e as { code?: string }).code) log.warn(`[rpc] ${path}: ${(e as Error).message}`)
+      // Our own expected errors (validation, UserError, not found) are warnings; anything else — SQLite,
+      // file system, a plain Error — is a bug: logged with its stack, shown to the user in plain words.
+      const expected = e instanceof ZodError || e instanceof UserError || e instanceof NotFoundError
+      if (expected) log.warn(`[rpc] ${path}: ${(e as Error).message}`)
       else log.error(`[rpc] ${path}`, e)
-      return { ok: false, ...formatError(e) }
+      const result = formatError(e)
+      if (!expected && !/[А-яЄІЇҐєіїґ]/.test(result.error)) {
+        result.error = 'Щось пішло не так — подробиці записано в журнал (Налаштування → Журнал)'
+      }
+      return { ok: false, ...result }
     }
   })
 }

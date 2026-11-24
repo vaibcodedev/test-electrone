@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type DragEvent } from 'react'
+import { describeZodError } from '@shared/zod-locale'
 import { toast } from 'sonner'
 import { Braces, Copy, FileJson, FileUp } from 'lucide-react'
 import { IMPORT_DEFS, IMPORT_MAX_ITEMS, importPrompt, type ImportKind } from '@shared/domain/import'
@@ -33,15 +34,17 @@ function parse(kind: ImportKind, raw: string): Parsed {
   let json: unknown
   try {
     json = JSON.parse(extractJson(raw))
-  } catch (e) {
-    return { ok: false, error: `Це не схоже на JSON: ${(e as Error).message}` }
+  } catch {
+    // JSON.parse speaks English («Unexpected token…»): say what usually went wrong instead.
+    return {
+      ok: false,
+      error: 'Це не схоже на JSON. Перевірте, що скопійовано весь текст від [ або { до кінця, без пояснень навколо.'
+    }
   }
   const def = IMPORT_DEFS[kind]
   const res = def.schema.safeParse(json)
   if (!res.success) {
-    const issue = res.error.issues[0]
-    const where = issue.path.length ? issue.path.join(' → ') : 'корінь'
-    return { ok: false, error: `Не той формат (${where}): ${issue.message}` }
+    return { ok: false, error: describeZodError(res.error) }
   }
   const titles = def.preview(res.data)
   const count = Array.isArray(res.data) ? res.data.length : 1

@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  QueryCache,
   QueryClient,
   useInfiniteQuery,
   useMutation,
@@ -11,9 +12,26 @@ import { toast } from 'sonner'
 import type { ApiNamespace } from '@shared/api'
 import { call, type ArgOf, type MethodOf, type ResultOf } from './api'
 import { useUi } from '@/stores/ui-store'
+import { reportError } from './error-reporting'
 import { flushAllAutosaves } from '@/hooks/use-autosave'
 
+/**
+ * A failed read used to look like an empty list («Нічого немає»). Now every failed query says so once,
+ * with «Повторити» (refetches everything that failed), and lands in the log — no per-page code needed.
+ */
+const queryCache = new QueryCache({
+  onError: (error, query) => {
+    reportError(error, `query:${String(query.queryKey[0])}.${String(query.queryKey[1])}`)
+    toast.error('Не вдалося завантажити дані', {
+      id: 'query-error',
+      description: error instanceof Error ? error.message : String(error),
+      action: { label: 'Повторити', onClick: () => void queryClient.refetchQueries({ type: 'active', predicate: (q) => q.state.status === 'error' }) }
+    })
+  }
+})
+
 export const queryClient = new QueryClient({
+  queryCache,
   defaultOptions: {
     queries: {
       staleTime: 30_000,
@@ -28,17 +46,22 @@ export const queryClient = new QueryClient({
  * Saves every pending autosave and waits until all mutations are really done. A mutation reaches IPC a
  * microtask after mutate(), so revert/changed sent right after a plain flush ran before the last save.
  */
-export async function flushAndSettle(): Promise<void> {
+export async function flushAndSettle(): Promise<{ failed: number }> {
+  const started = Date.now()
   flushAllAutosaves()
   const cache = queryClient.getMutationCache()
-  if (queryClient.isMutating() === 0) return
-  await new Promise<void>((resolve) => {
-    const unsubscribe = cache.subscribe(() => {
-      if (queryClient.isMutating() > 0) return
-      unsubscribe()
-      resolve()
+  if (queryClient.isMutating() > 0) {
+    await new Promise<void>((resolve) => {
+      const unsubscribe = cache.subscribe(() => {
+        if (queryClient.isMutating() > 0) return
+        unsubscribe()
+        resolve()
+      })
     })
-  })
+  }
+  // Saves the server rejected since the flush (too long, out of range…): the caller must not report success.
+  const failed = cache.getAll().filter((m) => m.state.status === 'error' && m.state.submittedAt >= started - 2000).length
+  return { failed }
 }
 
 let invalidateTimer: ReturnType<typeof setTimeout> | null = null

@@ -9,12 +9,11 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { useApplyTheme } from '@/hooks/use-theme'
 import { installErrorReporting } from '@/lib/error-reporting'
-import { z } from 'zod'
-import { uk } from 'zod/locales'
+import { configureZod } from '@shared/zod-locale'
 
 installErrorReporting()
 // Validation messages in Ukrainian (import previews, client-side checks).
-z.config(uk())
+configureZod()
 
 function Root() {
   useApplyTheme()

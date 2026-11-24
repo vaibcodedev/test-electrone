@@ -46,21 +46,32 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
       snap.current = Promise.resolve(null)
       return
     }
-    snap.current = api.records.snapshot({ type, id }).catch(() => null)
+    snap.current = api.records.snapshot({ type, id }).catch(() => {
+      // Without a snapshot «Скасувати» can't revert: say so now, not silently later.
+      toast.warning('«Скасувати» зараз недоступне — зміни зберігатимуться одразу')
+      return null
+    })
   }, [editing, id, type])
 
   return useMemo<DetailMode>(() => {
     const ref = type ? { type, id } : null
     /** Pending autosaves first, then ask the server whether anything differs from the snapshot. */
+    /** Unsaved-edit failures from the last flush (server rejected a field): saving must not pretend success. */
+    let lastFailed = 0
     const hasChanges = async (): Promise<boolean> => {
       // Wait for the saves to land: otherwise «changed» is asked before the last keystrokes reach main.
-      await flushAndSettle()
+      lastFailed = (await flushAndSettle()).failed
       const s = await snap.current
       if (!ref || !s) return false
       return api.records.changed({ ref, snapshot: s }).catch(() => false)
     }
     const save = async (): Promise<void> => {
       const changed = await hasChanges()
+      if (lastFailed > 0) {
+        // The field's own error toast already said what; stay in edit mode so the text isn't lost.
+        toast.error('Не все збережено — виправте поле з помилкою й натисніть «Зберегти» ще раз')
+        return
+      }
       fresh.current = false
       setEditing(false)
       if (changed) toast.success('Збережено')
