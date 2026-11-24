@@ -21,7 +21,7 @@ const app = await electron.launch({
 const errors = []
 const win = await app.firstWindow()
 win.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
-win.on('pageerror', (e) => errors.push(String(e)))
+win.on('pageerror', (e) => errors.push(String(e.stack || e)))
 await win.setViewportSize({ width: 1440, height: 900 }).catch(() => {})
 await app.evaluate(({ BrowserWindow }) => {
   const w = BrowserWindow.getAllWindows().find((x) => x.isVisible()) ?? BrowserWindow.getAllWindows()[0]

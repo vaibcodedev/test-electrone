@@ -37,6 +37,13 @@ export default defineConfig({
         input: {
           index: resolve('src/renderer/index.html'),
           preview: resolve('src/renderer/preview.html')
+        },
+        output: {
+          // React must live in exactly one chunk: when Rolldown spread react / react-dom across shared
+          // chunks, hooks hit a null dispatcher at startup (blank window, "reading 'useContext'").
+          codeSplitting: {
+            groups: [{ name: 'react', test: /[\/]node_modules[\/](react|react-dom|scheduler)[\/]/, priority: 20 }]
+          }
         }
       }
     }
