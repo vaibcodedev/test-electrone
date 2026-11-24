@@ -1,5 +1,7 @@
 import { log } from '../core/logger'
-import { MAX } from '@shared/domain/limits'
+import { fieldMax, MAX } from '@shared/domain/limits'
+import { libraryInputSchema } from '@shared/domain/libraries'
+import { UserError } from '../core/util'
 import { formatError } from '../ipc/rpc'
 import { app, Notification, net } from 'electron'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
@@ -31,6 +33,7 @@ function hostOf(url: string): string {
 }
 
 const clip = (text: string, max: number): string => (text.length > max ? text.slice(0, max) : text)
+const PURPOSE_MAX = fieldMax(libraryInputSchema.shape.purpose)
 
 export class CaptureServer {
   private server: Server | null = null
@@ -199,7 +202,8 @@ export class CaptureServer {
       const r = await net.fetch(`https://registry.npmjs.org/${name.replace('/', '%2F')}`, { headers: { Accept: 'application/vnd.npm.install-v1+json' } })
       if (r.ok) {
         const j = (await r.json()) as { description?: string; repository?: { url?: string } }
-        purpose = j.description ?? ''
+        // npm descriptions have no length limit; the library field does.
+        purpose = clip((j.description ?? '').trim(), PURPOSE_MAX)
         if (!npmUrl) npmUrl = `https://www.npmjs.com/package/${name}`
         if (!githubUrl && j.repository?.url) githubUrl = j.repository.url.replace(/^git\+/, '').replace(/\.git$/, '').replace('git://', 'https://')
       }
@@ -215,13 +219,14 @@ export class CaptureServer {
     const tagIds = await this.tagIds(input.tags)
     const shot = this.screenshotSource(input.screenshot, 'screenshot')
     // Clip to the target section's limits: a long page title or a Ctrl+A selection must not fail the save.
-    const title = clip(input.title || hostOf(input.url), MAX.title)
+    // Trim first: a title of spaces is empty (it would fail every section's min(1)).
+    const title = clip(input.title.trim() || hostOf(input.url) || 'Без назви', MAX.title)
     const attach = async (type: EntityType, id: string): Promise<void> => {
       if (shot) await api.files.add({ ref: { type, id }, source: shot })
     }
     switch (input.target) {
       case 'design': {
-        if (!shot) throw new Error('Для дизайну потрібен скриншот')
+        if (!shot) throw new UserError('Для дизайну потрібен скриншот')
         const d = await api.designs.importImage({ source: shot, input: { title, sourceUrl: input.url, notes: input.note, tagIds } })
         return { type: 'design', id: d.id, title: d.title || title }
       }

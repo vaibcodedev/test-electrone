@@ -707,7 +707,7 @@ export class CrmModule {
   private assertWithinPrice(project: { billing: string; fixedPrice: number; currency: string }, amount: number, currency: string, exceptId?: string): void {
     if (project.billing !== 'fixed' || project.fixedPrice <= 0) return
     if (currency !== project.currency)
-      throw new Error(`Етапи фіксованого проєкту — у валюті проєкту (${project.currency}).`)
+      throw new UserError(`Етапи фіксованого проєкту — у валюті проєкту (${project.currency}).`)
     const others = this.db
       .select({ id: payments.id, amount: payments.amount, currency: payments.currency, status: payments.status })
       .from(payments)
@@ -719,7 +719,7 @@ export class CrmModule {
     const left = Math.round((project.fixedPrice - others) * 100) / 100
     if (amount > left + 0.005) {
       const fmt = (n: number): string => `${n.toLocaleString('uk-UA', { maximumFractionDigits: 2 })} ${currency}`
-      throw new Error(
+      throw new UserError(
         left > 0
           ? `Етапи перевищують вартість проєкту (${fmt(project.fixedPrice)}): можна додати щонайбільше ${fmt(left)}. Змініть суму або вартість проєкту.`
           : `Вартість проєкту (${fmt(project.fixedPrice)}) вже повністю розподілена між етапами. Збільште вартість проєкту, щоб додати етап.`

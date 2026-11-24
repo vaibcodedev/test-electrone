@@ -1,5 +1,6 @@
 import { pageSchema } from '@shared/domain/common'
-import { MAX } from '@shared/domain/limits'
+import { fieldMax, MAX } from '@shared/domain/limits'
+import { boardInputSchema } from '@shared/domain/boards'
 import { and, asc, eq, sql } from 'drizzle-orm'
 import type { IdeasApi } from '@shared/api'
 import {
@@ -17,6 +18,8 @@ import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 import type { BoardsModule } from './boards'
 
 type IdeaRow = typeof ideas.$inferSelect
+
+const BOARD_DESCRIPTION_MAX = fieldMax(boardInputSchema.shape.description)
 
 export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
   inbox: 'Вхідні',
@@ -84,7 +87,8 @@ export class IdeasModule {
           const board = this.boards.createBoard(
             {
               title: idea.title,
-              description: idea.body,
+              // A board description holds less than an idea body: the full text stays in the «Розібрати ідею» card.
+              description: idea.body.slice(0, BOARD_DESCRIPTION_MAX),
               tagIds: idea.tags.map((t) => t.id)
             },
             { ideaId: idea.id }

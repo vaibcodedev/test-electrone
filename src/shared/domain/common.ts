@@ -6,6 +6,13 @@ export const entityTypeSchema = z.enum(ENTITY_TYPES)
 /** Unix epoch milliseconds. */
 export const timestampSchema = z.number().int().nonnegative()
 export const urlSchema = z.string().trim().max(2048)
+
+/** Loose email check: something@domain.tld, no spaces. Empty counts as valid (the field is optional). */
+export function isLikelyEmail(value: string): boolean {
+  const v = value.trim()
+  return !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+export const EMAIL_ERROR = 'Не схоже на email — наприклад, name@company.com'
 export const hexColorSchema = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/)

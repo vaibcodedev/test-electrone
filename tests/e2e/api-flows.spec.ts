@@ -327,3 +327,47 @@ test.describe('quick add', () => {
     expect(saved.ok).toBe(true)
   })
 })
+
+test.describe('validation audit: internal writes and uniqueness', () => {
+  test('an idea body above the board limit converts: the board gets a clipped copy, the card the full text', async ({ vault }) => {
+    const { rpc } = vault
+    const body = `Опис ${uid()} `.repeat(3000).slice(0, 30_000)
+    const idea = await rpc('ideas.create', { title: `Велика ідея ${uid()}`, body })
+    const board = await rpc('ideas.convertToBoard', idea.id)
+    const details = await rpc('boards.details', board.id)
+    expect(details.board.description).toHaveLength(20_000)
+    expect(details.cards[0].description).toBe(body)
+  })
+
+  test('a platform name is unique case-insensitively (create and rename)', async ({ vault }) => {
+    const name = `Біржа ${uid()}`
+    const a = await vault.rpc('platforms.create', { name })
+    const dup = await vault.rpcRaw('platforms.create', { name: name.toUpperCase() })
+    expect(dup.ok).toBe(false)
+    expect(dup.error).toContain('вже є')
+    const b = await vault.rpc('platforms.create', { name: `${name} 2` })
+    const rename = await vault.rpcRaw('platforms.update', { id: b.id, patch: { name: ` ${name.toLowerCase()} ` } })
+    expect(rename.ok).toBe(false)
+    // Renaming to its own name in another case is fine.
+    const self = await vault.rpcRaw('platforms.update', { id: a.id, patch: { name: name.toUpperCase() } })
+    expect(self.ok).toBe(true)
+  })
+
+  test('a company cannot be renamed into another company', async ({ vault }) => {
+    const name = `Компанія ${uid()}`
+    await vault.rpc('jobs.createCompany', { name })
+    const other = await vault.rpc('jobs.createCompany', { name: `${name} інша` })
+    const r = await vault.rpcRaw('jobs.updateCompany', { id: other.id, patch: { name: name.toLowerCase() } })
+    expect(r.ok).toBe(false)
+    expect(r.error).toContain('вже є')
+  })
+
+  test('client email: empty or email-like only', async ({ vault }) => {
+    const bad = await vault.rpcRaw('clients.create', { name: `Клієнт ${uid()}`, email: 'anna at bloom' })
+    expect(bad.ok).toBe(false)
+    const ok = await vault.rpc('clients.create', { name: `Клієнт ${uid()}`, email: ' anna@bloom.store ' })
+    expect(ok.email).toBe('anna@bloom.store')
+    const none = await vault.rpcRaw('clients.create', { name: `Клієнт ${uid()}` })
+    expect(none.ok).toBe(true)
+  })
+})

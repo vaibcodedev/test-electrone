@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import {
+  EMAIL_ERROR,
   idSchema,
+  isLikelyEmail,
   timestampSchema,
   urlSchema,
   withTagIds,
@@ -32,7 +34,8 @@ export type ClientStatus = (typeof CLIENT_STATUSES)[number]
 export const clientInputSchema = z.object({
   name: z.string().trim().min(1).max(MAX.name),
   company: z.string().max(200).default(''),
-  email: z.string().max(320).default(''),
+  // Only new values are checked (per-field patches): an old unusual email never blocks other edits.
+  email: z.string().trim().max(320).refine(isLikelyEmail, EMAIL_ERROR).default(''),
   phone: z.string().max(100).default(''),
   messenger: z.string().max(200).default(''),
   website: urlSchema.default(''),
@@ -42,7 +45,7 @@ export const clientInputSchema = z.object({
   /** Preferred billing for new projects of this client. */
   defaultBilling: z.enum(BILLING_TYPES).default('fixed'),
   /** Hourly rate (hourly) or monthly fee (retainer) used as default for new projects. */
-  defaultRate: z.number().min(0).max(100_000).default(0),
+  defaultRate: z.number().min(0).max(100_000_000).default(0),
   /** Where the client came from (freelance platform); null = direct/unknown. */
   platformId: idSchema.nullable().default(null),
   country: z.string().max(100).default(''),

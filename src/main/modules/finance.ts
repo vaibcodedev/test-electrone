@@ -353,7 +353,8 @@ export class FinanceModule {
             id: idArg,
             month: z.string().regex(/^\d{4}-\d{2}$/),
             paid: z.boolean(),
-            amount: z.number().min(0).optional()
+            // Becomes an expense: same ceiling as expenseInputSchema.amount.
+            amount: expenseInputSchema.shape.amount.optional()
           })
           .parse(args)
         const row = this.subscriptionMonth(month).find((s) => s.id === id)

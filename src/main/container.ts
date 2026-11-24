@@ -56,6 +56,7 @@ import { TrayController } from './system/tray'
 import { ShortcutController } from './system/shortcuts'
 import { Updater } from './system/updater'
 import { applyAutostart } from './system/autostart'
+import { UserError } from './core/util'
 
 export class Container {
   readonly paths = new AppPaths()
@@ -355,7 +356,7 @@ export class Container {
         list: async (kind) => this.pins.list(z.enum(PIN_KINDS).optional().parse(kind)),
         toggle: async (args) => {
           const { ref, kind } = z.object({ ref: refArg, kind: z.enum(PIN_KINDS) }).parse(args)
-          if (!this.registry.findRow(ref)) throw new Error('Об’єкт не знайдено')
+          if (!this.registry.findRow(ref)) throw new UserError('Об’єкт не знайдено')
           return this.pins.toggle(ref, kind)
         },
         state: async (ref) => this.pins.state(refArg.parse(ref)),
@@ -426,7 +427,7 @@ export class Container {
         get: async () => this.config.settings,
         update: async (patch) => {
           const s = this.config.updateSettings(settingsPatchSchema.parse(patch))
-          if (this.shortcuts.lastError) throw new Error(this.shortcuts.lastError)
+          if (this.shortcuts.lastError) throw new UserError(this.shortcuts.lastError)
           return s
         },
         info: async () => ({
@@ -467,7 +468,7 @@ export class Container {
         },
         openExternal: async (url) => {
           const u = z.string().url().parse(url)
-          if (!/^(https?|mailto):/i.test(u)) throw new Error('Відкривати можна лише посилання http(s) і mailto')
+          if (!/^(https?|mailto):/i.test(u)) throw new UserError('Відкривати можна лише посилання http(s) і mailto')
           await shell.openExternal(u)
         },
         copyText: async (text) => clipboard.writeText(z.string().max(5_000_000).parse(text)),

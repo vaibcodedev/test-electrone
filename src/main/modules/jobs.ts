@@ -1,4 +1,5 @@
 import { pageSchema } from '@shared/domain/common'
+import { fieldMax, MAX } from '@shared/domain/limits'
 /**
  * Job search backend: job boards with a daily habit, applications pipeline, interview stages synced
  * to calendar events (both directions), companies, resume versions with upload tracking, and a
@@ -59,7 +60,7 @@ import {
 } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { addDays, DAY_MS, dayKey, newId, now, NotFoundError, startOfDay, startOfWeek } from '../core/util'
+import { addDays, DAY_MS, dayKey, newId, now, NotFoundError, startOfDay, startOfWeek, UserError } from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 import { schedule } from './english'
 import type { CalendarModule } from './calendar'
@@ -71,6 +72,7 @@ type StageRow = typeof applicationStages.$inferSelect
 
 export const STAGE_SOURCE = 'job_stage'
 export const STAGE_DEADLINE_SOURCE = 'job_stage_deadline'
+const STAGE_DURATION_MAX = fieldMax(stageInputSchema.shape.durationMin)
 
 const STATUS_LABEL: Record<ApplicationStatus, string> = {
   saved: 'Збережено',
@@ -300,7 +302,8 @@ export class JobsModule {
       }
       const existing = eventId ? this.calendar.repo.row(eventId) : undefined
       const data = {
-        title: values.title,
+        // «Етап: компанія» can outgrow an event title (both parts are long): clip, the full text is in the stage.
+        title: values.title.slice(0, MAX.title),
         description: `${title}${company ? ` — ${company}` : ''}\n${stage.location}`.trim(),
         startAt: values.startAt,
         endAt: values.endAt,
@@ -375,8 +378,9 @@ export class JobsModule {
       e.sourceType === STAGE_SOURCE
         ? {
             at: e.startAt,
+            // The calendar allows multi-day events; a stage lasts at most a day (stageInputSchema).
             durationMin: e.endAt
-              ? Math.max(15, Math.round((e.endAt - e.startAt) / 60_000))
+              ? Math.min(STAGE_DURATION_MAX, Math.max(15, Math.round((e.endAt - e.startAt) / 60_000)))
               : stage.durationMin
           }
         : { deadlineAt: e.startAt }
@@ -976,6 +980,9 @@ export class JobsModule {
       updateCompany: async (args) => {
         const { id, patch } = updateArgs(companyPatchSchema).parse(args)
         const [data, tagIds] = splitTags(patch)
+        // Renaming into another company's name (any case) would make two cards for one company.
+        const same = data.name !== undefined ? this.companyByName(data.name) : null
+        if (same && same.id !== id) throw new UserError(`Компанія «${same.name}» вже є — оберіть іншу назву`)
         return companyWithCounts([cos.patch(id, data, tagIds)])[0]
       },
       removeCompany: async (id) => cos.softDelete(idArg.parse(id)),

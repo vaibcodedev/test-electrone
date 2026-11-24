@@ -70,7 +70,8 @@ export const checklistImportSchema = z.object({
   sections: z
     .array(
       z.object({
-        title: z.string().trim().max(MAX.title).optional().default(''),
+        // Becomes item.section (MAX.name): a longer title would pass here and break the stored items.
+        title: z.string().trim().max(MAX.name).optional().default(''),
         items: z
           .array(
             z.union([

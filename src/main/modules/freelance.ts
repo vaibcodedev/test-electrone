@@ -1,5 +1,5 @@
 import { pageSchema } from '@shared/domain/common'
-import { MAX } from '@shared/domain/limits'
+import { fieldMax, MAX } from '@shared/domain/limits'
 /**
  * Freelance hub backend: platforms, proposals pipeline, bid credits ledger, message templates,
  * portfolio cases, red flags, goals and funnel statistics.
@@ -61,7 +61,7 @@ import {
   type TemplateSituation
 } from '@shared/domain/freelance'
 import { fileSourceSchema } from '@shared/domain/designs'
-import type { Currency } from '@shared/domain/crm'
+import { clientInputSchema, projectInputSchema, type Currency } from '@shared/domain/crm'
 import {
   clients,
   creditTxs,
@@ -95,6 +95,10 @@ import type { CrmModule } from './crm'
 import { FREELANCE_SEED } from './freelance-seeds'
 
 type ProposalRow = typeof proposals.$inferSelect
+
+const PROJECT_RATE_MAX = fieldMax(projectInputSchema.shape.rate)
+const PROJECT_PRICE_MAX = fieldMax(projectInputSchema.shape.fixedPrice)
+const CLIENT_RATE_MAX = fieldMax(clientInputSchema.shape.defaultRate)
 type TemplateRow = typeof messageTemplates.$inferSelect
 type CaseRow = typeof portfolioCases.$inferSelect
 type RedFlagRow = typeof redFlags.$inferSelect
@@ -254,6 +258,20 @@ export class FreelanceModule {
     return this.toPlatform(r)
   }
 
+  /**
+   * Rejects a platform name already in use (trimmed, case-insensitive for any script — in JS, since
+   * SQLite lower() folds ASCII only). Archived platforms count: they come back with their history.
+   */
+  private assertPlatformNameFree(name: string, exceptId?: string): void {
+    const key = name.trim().toLocaleLowerCase('uk')
+    const taken = this.db
+      .select({ id: platforms.id, name: platforms.name })
+      .from(platforms)
+      .all()
+      .find((p) => p.id !== exceptId && p.name.trim().toLocaleLowerCase('uk') === key)
+    if (taken) throw new UserError(`Платформа «${taken.name}» вже є — оберіть іншу назву`)
+  }
+
   platformsApi(): PlatformsApi {
     return {
       list: async (args) => {
@@ -278,6 +296,7 @@ export class FreelanceModule {
       },
       create: async (input) => {
         const data = platformInputSchema.parse(input)
+        this.assertPlatformNameFree(data.name)
         const last = this.db
           .select({ m: max(platforms.position) })
           .from(platforms)
@@ -298,6 +317,7 @@ export class FreelanceModule {
       },
       update: async (args) => {
         const { id, patch } = updateArgs(platformPatchSchema).parse(args)
+        if (patch.name !== undefined) this.assertPlatformNameFree(patch.name, id)
         const row = this.db
           .update(platforms)
           .set({ ...patch, updatedAt: now() })
@@ -426,7 +446,7 @@ export class FreelanceModule {
               status: 'active',
               currency: platform.currency,
               defaultBilling: data.billing,
-              defaultRate: data.billing === 'hourly' ? data.amount : 0,
+              defaultRate: data.billing === 'hourly' ? Math.min(data.amount, CLIENT_RATE_MAX) : 0,
               platformId: p.platformId,
               country: p.clientCountry,
               rating: p.clientRating,
@@ -443,8 +463,9 @@ export class FreelanceModule {
             description: p.jobDescription,
             status: 'active',
             billing: data.billing,
-            rate: data.billing === 'hourly' ? data.amount : 0,
-            fixedPrice: data.billing === 'fixed' ? data.amount : 0,
+            // The repo insert skips the schema: keep the values inside its ranges (hire allows 100M).
+            rate: data.billing === 'hourly' ? Math.min(data.amount, PROJECT_RATE_MAX) : 0,
+            fixedPrice: data.billing === 'fixed' ? Math.min(data.amount, PROJECT_PRICE_MAX) : 0,
             currency: platform.currency,
             budgetHours: 0,
             startAt: now(),

@@ -12,3 +12,18 @@ export const MAX = {
   /** Short labels: board columns, platforms, job boards. */
   label: 100
 } as const
+
+type Wrapped = { def?: { innerType?: Wrapped }; maxLength?: number | null; maxValue?: number | null }
+
+/**
+ * The max length (string) or max value (number) of one schema field, read through default/optional
+ * wrappers. Internal writes (idea → board, hire → client) clip to it, so a value that is valid in its
+ * own record can never fail validation in the record it is copied into.
+ */
+export function fieldMax(field: unknown): number {
+  let t = field as Wrapped
+  while (t.def?.innerType) t = t.def.innerType
+  const max = t.maxLength ?? t.maxValue
+  if (typeof max !== 'number' || !Number.isFinite(max)) throw new Error('fieldMax: the field has no upper bound')
+  return max
+}
