@@ -308,7 +308,7 @@ const SHELL_RE = /^(\$ |#!\/|(sudo|npm|npx|pnpm|yarn|bun|git|cd|ls|mkdir|rm|cp|m
 /** Unmistakable JS/TS statements; checked before shell/SQL, whose keywords can also start a line of code. */
 const JS_RE = /^\s*(import\s[^;]*\sfrom\s|import\s+['"]|export\s+(default|const|let|var|function|class|type|interface|async|\{|\*)|(const|let|var)\s+[\w{[]|(async\s+)?function\s*\w*\s*\(|class\s+\w+)/m
 /** TypeScript-only syntax: interfaces, type aliases, annotations, `as const`, generic calls. */
-const TS_RE = /\binterface\s+\w+|\btype\s+\w+\s*=|:\s*(string|number|boolean|void|unknown|any|React\.\w+|[A-Z]\w*(<[^>]*>)?)(\[\])?\s*[,)=;{|<>]|\w\?:\s|\bas\s+const\b|\w<[A-Z]\w*(\[\])?>\(/
+const TS_RE = /\binterface\s+\w+|\btype\s+\w+\s*=|:\s*(string|number|boolean|void|unknown|any|React\.\w+|[A-Z]\w*(<[^>]*>)?)(\[\])?\s*[,)=;{}|<>]|:\s*\{\s*\w+\??:\s*\w|\w\?:\s|\bas\s+const\b|\w<[A-Z]\w*(\[\])?>\(/
 const SQL_RE = /^\s*(select\s.+\sfrom\s|insert\s+into\s|update\s+\w+\s+set\s|delete\s+from\s|create\s+(table|index|view)\s|alter\s+table\s|with\s+\w+\s+as\s*\()/im
 const MD_RE = /^(#{1,6}\s+\S|[-*+]\s+\S|\d+\.\s+\S|>\s|```)/m
 const GRAPHQL_RE = /^\s*(query|mutation|subscription|fragment)\b[^{]*\{/m
@@ -345,9 +345,13 @@ export function detectLanguage(code: string): CodeLanguage | null {
   }
   if (/^\{%|\{\{[^}]+\}\}/.test(src) && /\{%\s*(if|for|assign|render|schema)\b/.test(src)) return 'liquid'
   if (/^</.test(src)) {
-    if (/^<!doctype|^<html|^<(div|section|span|p|ul|head|body|meta|link|script)[\s>]/i.test(src) && !/\bclassName=|\{[^}]*\}/.test(src)) return 'html'
+    // Braces inside <style>/<script> are CSS/JS, not JSX expressions.
+    const markup = src.replace(/<(style|script)\b[\s\S]*?<\/\1>/gi, '')
+    if (/^<!doctype|^<html|^<(div|section|span|p|ul|head|body|meta|link|script|style)[\s>]/i.test(src) && !/\bclassName=|\{[^}]*\}/.test(markup)) return 'html'
     return 'tsx'
   }
+  // Markdown with fenced code: the fence content would otherwise look like JS/bash line by line.
+  if (/^```/m.test(src)) return 'markdown'
   if (JS_RE.test(src)) {
     const jsx = /\breturn\s*\(?\s*<|<[A-Z][\w.]*[\s/>]|<\/\w+>/.test(src)
     const ts = TS_RE.test(src)

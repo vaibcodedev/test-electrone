@@ -92,9 +92,9 @@ describe('isLikelyUrl', () => {
     expect(isLikelyUrl(v)).toBe(false)
   })
 
-  // BUG: the TLD may be Cyrillic ([a-zЀ-ӿ]{2,}) but the labels before it are [\w-] (ASCII only), so every
+  // Regression (was a bug): the TLD may be Cyrillic ([a-zЀ-ӿ]{2,}) but the labels before it are [\w-] (ASCII only), so every
   // Cyrillic IDN domain is rejected as «не схоже на посилання» (src/renderer/src/lib/limits.ts isLikelyUrl).
-  it.fails('BUG: a Cyrillic IDN domain is a link (actual: https://приклад.укр → false)', () => {
+  it('a Cyrillic IDN domain is a link', () => {
     expect(isLikelyUrl('https://приклад.укр')).toBe(true)
     expect(isLikelyUrl('сайт.укр')).toBe(true)
   })

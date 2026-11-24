@@ -146,16 +146,15 @@ describe('mdPreview', () => {
   it('collapses whitespace', () => {
     expect(mdPreview('  a \n\n  b  ')).toBe('a b')
   })
-  // BUG: `_` is stripped everywhere, not only as emphasis: identifiers lose their underscores in previews
+  // Regression (was a bug): `_` is stripped everywhere, not only as emphasis: identifiers lose their underscores in previews
   // (src/renderer/src/lib/format.ts mdPreview, `.replace(/(\*\*|__|\*|_|~~|`)/g, '')`).
-  it.fails(
-    'BUG: snake_case identifiers keep their underscores (actual: «process_env» → «processenv»)',
+  it('snake_case identifiers keep their underscores',
     () => {
       expect(mdPreview('Read process_env and MAX_RETRIES')).toBe('Read process_env and MAX_RETRIES')
     }
   )
-  // BUG: same regex removes a lone `*` (multiplication) — «2 * 3» → «2 3».
-  it.fails('BUG: a lone asterisk in text survives (actual: «2 * 3 = 6» → «2 3 = 6»)', () => {
+  // Regression (was a bug): same regex removes a lone `*` (multiplication) — «2 * 3» → «2 3».
+  it('a lone asterisk in text survives', () => {
     expect(mdPreview('2 * 3 = 6')).toBe('2 * 3 = 6')
   })
 })

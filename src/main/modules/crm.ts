@@ -667,7 +667,10 @@ export class CrmModule {
         const { id, patch } = updateArgs(paymentPatchSchema).parse(args)
         const cur = this.db.select().from(payments).where(eq(payments.id, id)).get()
         if (!cur) throw new NotFoundError('Оплата', id)
-        if (patch.amount !== undefined || patch.currency !== undefined) {
+        // Re-check the budget when the stage counts again too: un-cancelling it can push past the price.
+        const status = patch.status ?? cur.status
+        const backFromCancelled = patch.status !== undefined && cur.status === 'cancelled' && status !== 'cancelled'
+        if (status !== 'cancelled' && (patch.amount !== undefined || patch.currency !== undefined || backFromCancelled)) {
           this.assertWithinPrice(
             this.projectRepo.rowOrThrow(cur.projectId),
             patch.amount ?? cur.amount,

@@ -254,13 +254,9 @@ test.describe('fixed-price project: stages within the price', () => {
     expect(r.ok).toBe(false)
   })
 
-  // BUG: crm.ts payments.update checks the price only when amount/currency change. Restoring a cancelled stage
+  // Regression (was a bug): crm.ts payments.update checks the price only when amount/currency change. Restoring a cancelled stage
   // (status: cancelled → expected) skips assertWithinPrice, so stages can exceed the project price.
   test('restoring a cancelled stage may not exceed the price', async ({ vault }) => {
-    test.fail(
-      !process.env.SHOW_BUGS,
-      'payments.update skips assertWithinPrice on a status change (crm.ts update)'
-    )
     const { rpc, rpcRaw } = vault
     const project = await rpc('projects.create', {
       title: `Фікс ${uid()}`,

@@ -54,27 +54,27 @@ describe('detectLanguage', () => {
     expect(detectLanguage('   ')).toBeNull()
   })
 
-  // BUG: an inline props type `({ x }: { x: string })` has no TS_RE marker (`: string }` — `}` is not in the
+  // Regression (was a bug): an inline props type `({ x }: { x: string })` has no TS_RE marker (`: string }` — `}` is not in the
   // follow-set `[,)=;{|<>]`), so a TSX component is suggested as JSX. code.tsx TS_RE.
-  it.fails('BUG: TSX with an inline object props type is detected as tsx (actual: jsx)', () => {
+  it('TSX with an inline object props type is detected as tsx', () => {
     expect(
       detectLanguage('export function A({ x }: { x: string }) {\n  return <div>{x}</div>\n}')
     ).toBe('tsx')
   })
 
-  // BUG: JS_RE / SHELL_RE are multiline and run before MD_RE, so lines inside a ``` fence decide the language
+  // Regression (was a bug): JS_RE / SHELL_RE are multiline and run before MD_RE, so lines inside a ``` fence decide the language
   // of the whole markdown document. A README pasted into a note is suggested as JavaScript / bash.
-  it.fails('BUG: markdown with a ```js fence is markdown (actual: javascript)', () => {
+  it('markdown with a ```js fence is markdown', () => {
     const md =
       "# Install\n\n```bash\nnpm i motion\n```\n\nThen:\n\n```js\nimport { animate } from 'motion'\n```"
     expect(detectLanguage(md)).toBe('markdown')
   })
-  it.fails('BUG: markdown with a ```bash fence is markdown (actual: bash)', () => {
+  it('markdown with a ```bash fence is markdown', () => {
     expect(detectLanguage('# Setup\n\nRun this:\n\n```bash\nnpm i\n```')).toBe('markdown')
   })
 
-  // BUG: the html branch rejects any `{…}`, so a page with inline CSS (`body{margin:0}`) becomes tsx.
-  it.fails('BUG: an HTML page with an inline <style> is html (actual: tsx)', () => {
+  // Regression (was a bug): the html branch rejects any `{…}`, so a page with inline CSS (`body{margin:0}`) becomes tsx.
+  it('an HTML page with an inline <style> is html', () => {
     const html =
       '<!doctype html>\n<html><head><style>body{margin:0}</style></head><body><p>Hi</p></body></html>'
     expect(detectLanguage(html)).toBe('html')

@@ -43,7 +43,8 @@ export function isLikelyUrl(value: string): boolean {
   // A real host: a domain with a dot (and a 2+ letter TLD), localhost or an IPv4 — «http://lol» is not a link.
   const host = /^(?:(?:https?|ftp):\/\/)?([^/?#:\s]+)(?::\d+)?(?:[/?#].*)?$/i.exec(v)?.[1]
   if (!host) return false
-  return /^([\w-]+\.)+[a-zЀ-ӿ]{2,}$/i.test(host) || host === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+  // Letters of any script: приклад.укр is a link too.
+  return /^([\p{L}\p{N}_-]+\.)+\p{L}{2,}$/u.test(host) || host === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
 }
 
 export const URL_ERROR = 'Не схоже на посилання — наприклад, https://example.com'

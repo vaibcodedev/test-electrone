@@ -88,10 +88,6 @@ test.describe('view → «Редагувати» → Esc → «Зберегти 
   test('Esc pressed while the title field still has focus asks «Зберегти зміни?»', async ({
     vault
   }) => {
-    test.fail(
-      !process.env.SHOW_BUGS,
-      'Esc inside a focused field is swallowed (use-global-shortcuts.ts isEditable)'
-    )
     const { win } = vault
     await openIdeaInEdit(vault)
     await titleField(win).fill('Змінено з фокусом')
@@ -129,14 +125,10 @@ test.describe('«Скасувати» on a record created a moment ago', () => {
     await expect.poll(() => rpc('notes.get', id)).toBeNull()
   })
 
-  // BUG: guide-page.tsx («Новий запис після «Скасувати» не створюється зовсім») and design-system.md promise that
+  // Regression (was a bug): guide-page.tsx («Новий запис після «Скасувати» не створюється зовсім») and design-system.md promise that
   // «Скасувати» removes a just-created record. useRecordMode.cancel only calls trash.discardDraft, which deletes
   // nothing for types without a `draft` descriptor (ideas, proposals, boards…) or with a non-default title.
   test('a new idea from «Нова ідея…» is not created at all', async ({ vault }) => {
-    test.fail(
-      !process.env.SHOW_BUGS,
-      'cancel() relies on discardDraft; ideas have no draft descriptor (detail-mode.tsx cancel)'
-    )
     const { win, rpc, go } = vault
     await go('/ideas')
     const title = `Нова з UI ${uid()}`

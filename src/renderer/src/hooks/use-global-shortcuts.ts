@@ -56,6 +56,25 @@ export function useGlobalShortcuts(): void {
         return
       }
 
+      // Esc while typing in a record being edited: leave the field and ask «Зберегти зміни?» — the hint
+      // on «Зберегти» promises Esc. Skipped when the field handled it itself (CodeMirror, a combobox).
+      if (
+        e.key === 'Escape' &&
+        !mod &&
+        !e.defaultPrevented &&
+        isEditable(e.target) &&
+        !overlayOpen() &&
+        (e.target as HTMLElement).closest('[data-detail-mode="edit"]')
+      ) {
+        const close = document.querySelector('[data-close-detail]')
+        if (visible(close)) {
+          e.preventDefault()
+          ;(e.target as HTMLElement).blur()
+          close.click()
+        }
+        return
+      }
+
       if (mod || e.altKey || isEditable(e.target)) return
 
       if (e.key === 'Escape' && !overlayOpen()) {

@@ -80,7 +80,7 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
           }
           // A record created a moment ago and then cancelled shouldn't stay as an empty leftover.
           if (fresh.current) {
-            const discarded = await api.trash.discardDraft(ref).catch(() => false)
+            const discarded = await api.trash.discardNew(ref).catch(() => false)
             invalidateAll()
             setEditing(false)
             if (discarded) {

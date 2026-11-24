@@ -24,7 +24,7 @@
    - D — renderer и main зависят от контракта `src/shared/api.ts`; зависимости в main передаются через конструктор (`src/main/container.ts` — composition root), никаких глобалов.
 4. **UI только из shadcn.** Любой элемент интерфейса собирается из компонентов shadcn (`src/renderer/src/components/ui`). Нужного компонента нет — сначала ищи его в реестре и добавляй через `npx shadcn@latest add <name>`, документацию сверяй в Context7. Самописный компонент допустим, только если в shadcn нет аналога (например, колонки канбана или сетка месяца в календаре), и даже тогда он собирается из shadcn-примитивов (`Card`, `Button`, `Badge`…). `<button>`/`<a>` допустимы только как дочерний элемент shadcn-компонента с `asChild`. Запрещены «голые» `<button>`, `<select>`, `<input type="checkbox|radio|range|date">`, самодельные чипы, табы, тогглы, прогресс-бары, модалки и тултипы — для них есть `Button`, `Select`, `Checkbox`, `RadioGroup`, `Slider`, `Calendar` + `Popover`, `ToggleGroup`, `Tabs`, `Switch`, `Progress`, `Dialog`/`Sheet`, `Tooltip`. Стиль меняется темой (CSS-переменные в `globals.css`) и вариантами `cva` внутри `components/ui`, а не обходом shadcn.
 5. **Гайд всегда актуален.** В конце каждого блока изменений обновляй встроенный гайд (`src/renderer/src/modules/guide/guide-page.tsx`): новые возможности, изменённое поведение, горячие клавиши, FAQ (якоря `#faq-…` не ломать). Блок не считается законченным без этого.
-6. Проверка перед сдачей: `npm run build` (typecheck + сборка) без ошибок; визуальная проверка скриншотами (`npm run snap`). Собирать только через npm-скрипты (`scripts/electron-vite.mjs`), не `npx electron-vite` напрямую: на Windows путь `c:\…` vs `C:\…` даёт две копии React и пустое окно.
+6. Проверка перед сдачей: `npm run build` (typecheck + сборка) без ошибок, `npm test` (unit) и `npm run test:e2e` (Electron + Playwright) зелёные; визуальная проверка скриншотами (`npm run snap`). Собирать только через npm-скрипты (`scripts/electron-vite.mjs`), не `npx electron-vite` напрямую: на Windows путь `c:\…` vs `C:\…` даёт две копии React и пустое окно.
 
 ## Коммиты
 
@@ -121,4 +121,6 @@ src/renderer/
 
 - `npm run dev` — разработка; `npm run typecheck`; `npm run build:win` — установщик в `dist/`
 - `npm run db:generate` — миграция из схемы
+- `npm test` — unit-тесты (vitest, `tests/unit`, ~6 с); `npm run test:e2e` — сборка + e2e на собранном приложении (`tests/e2e`, ~1,5 мин); `npm run test:e2e:only` — без пересборки
+- Найденный, но не исправленный баг фиксируется тестом с `it.fails` / `test.fail(!process.env.SHOW_BUGS, …)`; исправил — сними пометку
 - `npm run snap -- <dir> / /ideas` — скриншоты собранного приложения (`SNAP_SEED=1` — демо-данные, `SNAP_THEME=dark`)

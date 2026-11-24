@@ -156,6 +156,18 @@ export class TrashService {
     return true
   }
 
+  /**
+   * «Скасувати» on a record created a moment ago: it is removed for good with everything attached to it,
+   * whatever was typed — the user said «don't create it». Guarded to records from the last day, so a
+   * stale or wrong call can't wipe old data.
+   */
+  discardNew(ref: EntityRef): boolean {
+    const row = this.registry.findRow(ref)
+    if (!row || now() - row.createdAt > DAY_MS) return false
+    this.purge(ref)
+    return true
+  }
+
   /** Startup: drafts left over from earlier sessions (app closed with a draft open) older than an hour. */
   purgeStaleDrafts(): number {
     const cutoff = now() - 3600_000

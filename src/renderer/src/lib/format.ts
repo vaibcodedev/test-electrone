@@ -110,7 +110,11 @@ export function mdPreview(md: string): string {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
-    .replace(/(\*\*|__|\*|_|~~|`)/g, '')
+    // Paired markers only: «process_env» and «2 * 3» keep their characters.
+    .replace(/(\*\*|__|~~)(?=\S)([\s\S]*?\S)\1/g, '$2')
+    .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?!\w)/g, '$1$2')
+    .replace(/(^|[^\w])_(?=\S)([^_\n]*?\S)_(?![\w])/g, '$1$2')
+    .replace(/`([^`\n]*)`/g, '$1')
     .replace(/\s+/g, ' ')
     .trim()
 }

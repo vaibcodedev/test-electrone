@@ -396,7 +396,8 @@ export class Container {
         },
         purge: async (ref) => this.trash.purge(refArg.parse(ref)),
         empty: async () => this.trash.empty(),
-        discardDraft: async (ref) => this.trash.discardDraft(refArg.parse(ref))
+        discardDraft: async (ref) => this.trash.discardDraft(refArg.parse(ref)),
+        discardNew: async (ref) => this.trash.discardNew(refArg.parse(ref))
       },
       files: {
         list: async (ref) => this.attachments.list(refArg.parse(ref)),

@@ -572,6 +572,8 @@ export interface TrashApi {
   empty(): Promise<number>
   /** Deletes the record for good if it's still an empty draft; true when it was discarded. */
   discardDraft(ref: EntityRef): Promise<boolean>
+  /** «Скасувати» on a just-created record: delete it for good (records from the last day only). */
+  discardNew(ref: EntityRef): Promise<boolean>
 }
 
 export interface FilesApi {
