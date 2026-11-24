@@ -57,6 +57,8 @@ SemVer с пререлизами. Сейчас этап **beta**: версии `
 - `npm version` сам делает коммит `build: release <версия>` и тег `v<версия>` (настроено в `.npmrc`).
 - Беты публикуются как GitHub pre-release в канал `beta`; установленная бета сама получает следующие беты.
 - После поднятия версии — `npm run build:win` (или `npm run release:win` для публикации).
+- Публикация: `$env:GH_TOKEN = "…"; npm run release:win` (fine-grained токен на `vaibcodedev/test-electrone`, Contents: Read and write). Сборка идёт с `--publish never`, загрузку делает `scripts/publish-release.mjs`: один релиз на тег, файлы по очереди (`setup.exe`, `.blockmap`, `beta.yml`). Встроенная публикация electron-builder грузила параллельно и создавала дубли релиза.
+- Беты читают `beta.yml` (`publish.channel: beta`); с 1.0.0 убрать `channel` и поставить `releaseType: release`.
 
 ## Стек
 
