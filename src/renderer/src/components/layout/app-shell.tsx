@@ -7,6 +7,11 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { CommandPalette } from '@/features/command-palette'
 import { QuickAddDialog } from '@/features/quick-add'
+import { lazy } from 'react'
+
+const PlatformDialogHost = lazy(async () => ({
+  default: (await import('@/modules/freelance')).PlatformDialogHost
+}))
 import { useUi } from '@/stores/ui-store'
 import { useMainEventsBridge } from '@/hooks/use-main-events'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -18,10 +23,22 @@ function TitleBar() {
   return (
     <div className="drag flex h-11 shrink-0 items-center gap-2 pr-[150px] pl-[258px]">
       <div className="no-drag flex gap-1">
-        <Button variant="ghost" size="icon-sm" aria-label="Назад" className="text-muted-foreground hover:bg-card" onClick={() => navigate(-1)}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Назад"
+          className="text-muted-foreground hover:bg-card"
+          onClick={() => navigate(-1)}
+        >
           <ArrowLeft />
         </Button>
-        <Button variant="ghost" size="icon-sm" aria-label="Вперёд" className="text-muted-foreground hover:bg-card" onClick={() => navigate(1)}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Вперёд"
+          className="text-muted-foreground hover:bg-card"
+          onClick={() => navigate(1)}
+        >
           <ArrowRight />
         </Button>
       </div>
@@ -76,6 +93,9 @@ export function AppShell() {
       </SidebarProvider>
       <CommandPalette />
       <QuickAddDialog />
+      <Suspense fallback={null}>
+        <PlatformDialogHost />
+      </Suspense>
     </div>
   )
 }

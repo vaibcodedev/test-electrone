@@ -1,7 +1,10 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
-import { Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
-import { NAV } from '@/app/navigation'
+import { ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
+import type { EntityType } from '@shared/entity-types'
+import { HOME, HUBS, hubOf, type NavHub } from '@/app/navigation'
+import { cn } from '@/lib/utils'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useApi } from '@/lib/query'
 import { useUi } from '@/stores/ui-store'
 import { SegmentBar } from '@/components/common/page'
@@ -13,11 +16,14 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuBadge,
+  SidebarMenuAction,
   SidebarMenuButton,
-  SidebarMenuItem
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarSeparator
 } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -87,51 +93,122 @@ function IdentityCard() {
   )
 }
 
-/** App navigation built on shadcn Sidebar (non-collapsible, sits under the identity card). */
-export function AppSidebar() {
+function NavCount({ type }: { type?: EntityType }) {
   const { data: dash } = useApi('app', 'dashboard')
+  const n = type ? dash?.counts?.[type] : undefined
+  if (!n) return null
+  return <span className="ml-auto text-[11px] font-normal text-muted-foreground tabular-nums">{n}</span>
+}
+
+/** One collapsible hub (shadcn Collapsible + SidebarMenuSub). */
+function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
+  const navigate = useNavigate()
+  const open = useUi((s) => s.openHubs[hub.id] ?? false)
+  const setHubOpen = useUi((s) => s.setHubOpen)
+  const setPlatformDialog = useUi((s) => s.setPlatformDialogOpen)
+  const { data: platformList = [] } = useApi('platforms', 'list', undefined, { enabled: !!hub.platforms })
+  const activeHub = hubOf(pathname) === hub.id
+  const isActive = (path: string): boolean => pathname === path || pathname.startsWith(path + '/')
+
+  return (
+    <Collapsible open={open} onOpenChange={(o) => setHubOpen(hub.id, o)} asChild>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          isActive={!!hub.overview && pathname === hub.overview}
+          className={cn('font-medium', activeHub && !open && 'bg-sidebar-accent')}
+          onClick={() => {
+            if (hub.overview) navigate(hub.overview)
+            setHubOpen(hub.id, hub.overview ? true : !open)
+          }}
+        >
+          <hub.icon className={activeHub ? 'text-foreground' : 'text-muted-foreground'} />
+          <span>{hub.title}</span>
+        </SidebarMenuButton>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuAction
+            className="top-2 rounded-full transition-transform data-[state=open]:rotate-90"
+            aria-label={open ? 'Свернуть' : 'Развернуть'}
+          >
+            <ChevronRight />
+          </SidebarMenuAction>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub className="mr-0 gap-0.5 pr-0">
+            {hub.platforms &&
+              platformList.map((p) => {
+                const path = `/freelance/p/${p.id}`
+                return (
+                  <SidebarMenuSubItem key={p.id}>
+                    <SidebarMenuSubButton asChild isActive={isActive(path)}>
+                      <NavLink to={path}>
+                        <span className="size-2 shrink-0 rounded-full" style={{ background: p.color ?? 'var(--muted-foreground)' }} />
+                        <span className="truncate">{p.name}</span>
+                      </NavLink>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                )
+              })}
+            {hub.platforms && (
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild>
+                  <button type="button" className="w-full text-muted-foreground" onClick={() => setPlatformDialog(true)}>
+                    <Plus />
+                    <span>Платформа</span>
+                  </button>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            )}
+            {hub.platforms && <SidebarSeparator className="mx-1 my-1" />}
+            {hub.items.map((item) => (
+              <SidebarMenuSubItem key={item.path}>
+                <SidebarMenuSubButton asChild isActive={isActive(item.path)}>
+                  <NavLink to={item.path}>
+                    <item.icon />
+                    <span className="truncate">{item.label}</span>
+                    <NavCount type={item.countOf} />
+                  </NavLink>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
+  )
+}
+
+/** App navigation: shadcn Sidebar with collapsible hubs (one nesting level). */
+export function AppSidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const counts = dash?.counts ?? {}
-  const isActive = (path: string): boolean => (path === '/' ? pathname === '/' : pathname.startsWith(path))
+  const setHubOpen = useUi((s) => s.setHubOpen)
+  const current = hubOf(pathname)
+
+  // Opening a page from search/links expands its hub.
+  useEffect(() => {
+    if (current) setHubOpen(current, true)
+  }, [current, setHubOpen])
 
   return (
     <div className="flex w-(--sidebar-width) shrink-0 flex-col gap-2.5">
       <IdentityCard />
       <Sidebar collapsible="none" className="min-h-0 flex-1 overflow-hidden rounded-3xl">
         <SidebarContent className="gap-0 px-1 py-2">
-          {NAV.map((group) => (
-            <SidebarGroup key={group.title} className="py-1">
-              <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
-              <SidebarMenu className="gap-0.5">
-                {group.items.map((item) => {
-                  const active = isActive(item.path)
-                  return (
-                    <SidebarMenuItem key={item.path}>
-                      <SidebarMenuButton asChild isActive={active}>
-                        <NavLink to={item.path} end={item.path === '/'}>
-                          <item.icon className={active ? 'text-ink-accent' : 'text-muted-foreground'} />
-                          <span>{item.label}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                      {active ? (
-                        <SidebarMenuBadge>
-                          <span className="size-1.5 rounded-full bg-ink-accent" />
-                        </SidebarMenuBadge>
-                      ) : (
-                        item.countOf &&
-                        !!counts[item.countOf] && (
-                          <SidebarMenuBadge className="text-[11px] font-normal text-muted-foreground">
-                            {counts[item.countOf]}
-                          </SidebarMenuBadge>
-                        )
-                      )}
-                    </SidebarMenuItem>
-                  )
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
-          ))}
+          <SidebarGroup className="py-1">
+            <SidebarMenu className="gap-0.5">
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === '/'}>
+                  <NavLink to="/" end>
+                    <HOME.icon />
+                    <span>{HOME.label}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {HUBS.map((hub) => (
+                <HubGroup key={hub.id} hub={hub} pathname={pathname} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
         </SidebarContent>
         <SidebarFooter className="flex-row gap-1 border-t border-sidebar-border p-2">
           {[

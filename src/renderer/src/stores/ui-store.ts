@@ -15,6 +15,12 @@ interface UiState {
   setView: (module: string, view: string) => void
   sidebarCollapsed: boolean
   toggleSidebar: () => void
+  /** «Новая платформа» dialog (opened from the sidebar). */
+  platformDialogOpen: boolean
+  setPlatformDialogOpen: (open: boolean) => void
+  /** Expanded hubs in the sidebar. */
+  openHubs: Record<string, boolean>
+  setHubOpen: (id: string, open: boolean) => void
 }
 
 export const useUi = create<UiState>()(
@@ -29,11 +35,15 @@ export const useUi = create<UiState>()(
       views: {},
       setView: (module, view) => set((s) => ({ views: { ...s.views, [module]: view } })),
       sidebarCollapsed: false,
-      toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
+      toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      platformDialogOpen: false,
+      setPlatformDialogOpen: (platformDialogOpen) => set({ platformDialogOpen }),
+      openHubs: { work: true, freelance: true },
+      setHubOpen: (id, open) => set((s) => ({ openHubs: { ...s.openHubs, [id]: open } }))
     }),
     {
       name: 'vault-ui',
-      partialize: (s) => ({ views: s.views, sidebarCollapsed: s.sidebarCollapsed })
+      partialize: (s) => ({ views: s.views, sidebarCollapsed: s.sidebarCollapsed, openHubs: s.openHubs })
     }
   )
 )

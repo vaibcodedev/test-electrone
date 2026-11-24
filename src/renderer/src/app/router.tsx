@@ -30,6 +30,20 @@ const BookmarksPage = page(() => import('@/modules/bookmarks'), 'BookmarksPage')
 const EnglishPage = page(() => import('@/modules/english'), 'EnglishPage')
 const ReviewPage = page(() => import('@/modules/english'), 'ReviewPage')
 const CalendarPage = page(() => import('@/modules/calendar'), 'CalendarPage')
+const FreelanceOverviewPage = page(() => import('@/modules/freelance'), 'FreelanceOverviewPage')
+const PlatformPage = page(() => import('@/modules/freelance'), 'PlatformPage')
+const ProposalRedirect = page(() => import('@/modules/freelance'), 'ProposalRedirect')
+const TemplatesPage = page(() => import('@/modules/freelance'), 'TemplatesPage')
+const PortfolioPage = page(() => import('@/modules/freelance'), 'PortfolioPage')
+const RedFlagsPage = page(() => import('@/modules/freelance'), 'RedFlagsPage')
+const GoalsPage = page(() => import('@/modules/freelance'), 'GoalsPage')
+const CalculatorPage = page(() => import('@/modules/freelance'), 'CalculatorPage')
+const FinanceOverviewPage = page(() => import('@/modules/finance'), 'FinanceOverviewPage')
+const IncomePage = page(() => import('@/modules/finance'), 'IncomePage')
+const ExpensesPage = page(() => import('@/modules/finance'), 'ExpensesPage')
+const WithdrawalsPage = page(() => import('@/modules/finance'), 'WithdrawalsPage')
+const NotesPage = page(() => import('@/modules/notes'), 'NotesPage')
+const KnowledgeOverviewPage = page(() => import('@/modules/knowledge'), 'KnowledgeOverviewPage')
 const TrashPage = page(() => import('@/features/trash-page'), 'TrashPage')
 const SettingsPage = page(() => import('@/features/settings-page'), 'SettingsPage')
 const TagsPage = page(() => import('@/features/tags-page'), 'TagsPage')
@@ -62,6 +76,20 @@ export const router = createHashRouter([
       { path: 'english', element: <EnglishPage /> },
       { path: 'english/review', element: <ReviewPage /> },
       { path: 'calendar', element: <CalendarPage /> },
+      { path: 'freelance', element: <FreelanceOverviewPage /> },
+      { path: 'freelance/p/:platformId', element: <PlatformPage /> },
+      { path: 'freelance/proposal/:id', element: <ProposalRedirect /> },
+      { path: 'freelance/templates', element: <TemplatesPage /> },
+      { path: 'freelance/portfolio', element: <PortfolioPage /> },
+      { path: 'freelance/flags', element: <RedFlagsPage /> },
+      { path: 'freelance/goals', element: <GoalsPage /> },
+      { path: 'freelance/calculator', element: <CalculatorPage /> },
+      { path: 'finance', element: <FinanceOverviewPage /> },
+      { path: 'finance/income', element: <IncomePage /> },
+      { path: 'finance/expenses', element: <ExpensesPage /> },
+      { path: 'finance/withdrawals', element: <WithdrawalsPage /> },
+      { path: 'notes', element: <NotesPage /> },
+      { path: 'knowledge', element: <KnowledgeOverviewPage /> },
       { path: 'tags', element: <TagsPage /> },
       { path: 'trash', element: <TrashPage /> },
       { path: 'settings', element: <SettingsPage /> }

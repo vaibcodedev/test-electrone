@@ -1,26 +1,36 @@
 import {
   Bookmark,
   Briefcase,
+  BriefcaseBusiness,
   Bug,
+  Calculator,
   CalendarDays,
   CodeXml,
   Component,
+  Flag,
+  GraduationCap,
   House,
   Image,
+  Landmark,
   Languages,
   LayoutGrid,
+  Library,
   Lightbulb,
   ListChecks,
+  MessageSquareQuote,
+  NotebookPen,
   Package,
+  Receipt,
+  Send,
   Sparkles,
   SquareKanban,
   StickyNote,
+  Target,
+  TrendingUp,
   UserRound,
-  NotebookPen,
-  Send,
-  MessageSquareQuote,
-  BriefcaseBusiness,
-  Flag,
+  Users,
+  Wallet,
+  ArrowDownToLine,
   type LucideIcon
 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
@@ -55,40 +65,105 @@ export interface NavItem {
   icon: LucideIcon
   /** Entity type whose count is shown next to the item. */
   countOf?: EntityType
-  hotkey?: string
 }
 
-export interface NavGroup {
+/**
+ * A hub groups related sections (one nesting level in the sidebar).
+ * `overview` is the hub landing page; `platforms: true` injects the user's freelance platforms.
+ */
+export interface NavHub {
+  id: string
   title: string
+  icon: LucideIcon
+  overview?: string
   items: NavItem[]
+  /** Freelance only: platform pages are inserted before the static items. */
+  platforms?: boolean
 }
 
-/** Sidebar structure. Order = keyboard shortcuts Alt+1…Alt+9 for the first nine. */
-export const NAV: NavGroup[] = [
+export const HOME: NavItem = { path: '/', label: 'Главная', icon: House }
+
+export const HUBS: NavHub[] = [
   {
+    id: 'work',
     title: 'Работа',
+    icon: SquareKanban,
     items: [
-      { path: '/', label: 'Главная', icon: House },
       { path: '/ideas', label: 'Идеи', icon: Lightbulb, countOf: 'idea' },
       { path: '/boards', label: 'Доски', icon: SquareKanban, countOf: 'board' },
       { path: '/calendar', label: 'Календарь', icon: CalendarDays },
-      { path: '/clients', label: 'Клиенты и проекты', icon: Briefcase, countOf: 'project' },
       { path: '/checklists', label: 'Чек-листы', icon: ListChecks, countOf: 'checklist' }
     ]
   },
   {
-    title: 'Знания',
+    id: 'freelance',
+    title: 'Фриланс',
+    icon: Send,
+    overview: '/freelance',
+    platforms: true,
     items: [
+      { path: '/clients', label: 'Клиенты и контракты', icon: Users, countOf: 'client' },
+      { path: '/freelance/templates', label: 'Шаблоны', icon: MessageSquareQuote, countOf: 'template' },
+      { path: '/freelance/portfolio', label: 'Портфолио', icon: BriefcaseBusiness, countOf: 'case' },
+      { path: '/freelance/flags', label: 'Красные флаги', icon: Flag, countOf: 'redflag' },
+      { path: '/freelance/goals', label: 'Цели', icon: Target },
+      { path: '/freelance/calculator', label: 'Калькулятор ставки', icon: Calculator }
+    ]
+  },
+  {
+    id: 'finance',
+    title: 'Финансы',
+    icon: Wallet,
+    overview: '/finance',
+    items: [
+      { path: '/finance/income', label: 'Доходы', icon: TrendingUp },
+      { path: '/finance/expenses', label: 'Подписки и расходы', icon: Receipt },
+      { path: '/finance/withdrawals', label: 'Выводы', icon: ArrowDownToLine }
+    ]
+  },
+  {
+    id: 'knowledge',
+    title: 'Знания',
+    icon: Library,
+    overview: '/knowledge',
+    items: [
+      { path: '/notes', label: 'Заметки', icon: NotebookPen, countOf: 'note' },
       { path: '/claude', label: 'Claude', icon: Sparkles, countOf: 'claude' },
       { path: '/snippets', label: 'Сниппеты', icon: CodeXml, countOf: 'snippet' },
       { path: '/components', label: 'Компоненты', icon: Component, countOf: 'component' },
       { path: '/libraries', label: 'JS-библиотеки', icon: Package, countOf: 'library' },
+      { path: '/fixes', label: 'Ошибки и решения', icon: Bug, countOf: 'fix' }
+    ]
+  },
+  {
+    id: 'inspiration',
+    title: 'Вдохновение и учёба',
+    icon: GraduationCap,
+    items: [
       { path: '/designs', label: 'Дизайны', icon: Image, countOf: 'design' },
-      { path: '/fixes', label: 'Ошибки и решения', icon: Bug, countOf: 'fix' },
       { path: '/bookmarks', label: 'Закладки', icon: Bookmark, countOf: 'bookmark' },
       { path: '/english', label: 'Английский', icon: Languages, countOf: 'word' }
     ]
   }
 ]
 
-export const ALL_NAV_ITEMS = NAV.flatMap((g) => g.items)
+export const PLATFORM_ICON = Landmark
+
+/** Flat list for the command palette and Alt+N shortcuts (overviews first, then sections). */
+export const ALL_NAV_ITEMS: NavItem[] = [
+  HOME,
+  ...HUBS.flatMap((h) => [
+    ...(h.overview ? [{ path: h.overview, label: `${h.title}: обзор`, icon: h.icon }] : []),
+    ...h.items
+  ])
+]
+
+/** Hub that owns a pathname (for auto-expanding the sidebar). */
+export function hubOf(pathname: string): string | undefined {
+  if (pathname.startsWith('/freelance') || pathname.startsWith('/clients') || pathname.startsWith('/projects')) return 'freelance'
+  for (const h of HUBS) {
+    if (h.overview && pathname === h.overview) return h.id
+    if (h.items.some((i) => pathname === i.path || pathname.startsWith(i.path + '/'))) return h.id
+  }
+  return undefined
+}
