@@ -188,15 +188,24 @@ export function EventDialog({
             <Field label="Начало">
               <DatePicker
                 value={startAt}
-                onChange={(v) => set('startAt', v)}
+                // Moving the start moves the end too, so the event keeps its length (like any calendar).
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    startAt: v,
+                    endAt: f.endAt !== null && f.startAt !== null && v !== null ? f.endAt + (v - f.startAt) : f.endAt
+                  }))
+                }
                 withTime={!form.allDay}
                 clearable={false}
               />
             </Field>
-            <Field label={endBeforeStart ? 'Конец раньше начала' : 'Конец (необязательно)'}>
+            <Field label="Конец (необязательно)" error={endBeforeStart ? 'Конец раньше начала' : undefined}>
               <DatePicker
                 value={endAt}
                 onChange={(v) => set('endAt', v)}
+                min={startAt}
+                invalid={endBeforeStart}
                 withTime={!form.allDay}
                 placeholder="Не задан"
               />
@@ -279,6 +288,8 @@ export function EventDialog({
               <Button
                 type="button"
                 variant="ghost"
+                // Flush-left: the icon lines up with the fields above; hover tint is the only background.
+                className="-ml-3 text-muted-foreground hover:text-destructive"
                 onClick={() => remove.mutate(event.id, { onSuccess: () => onOpenChange(false) })}
               >
                 <Trash2 /> В корзину

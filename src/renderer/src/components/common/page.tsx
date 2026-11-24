@@ -10,7 +10,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Progress } from '@/components/ui/progress'
-import { Field as UiField, FieldLabel } from '@/components/ui/field'
+import { Field as UiField, FieldError, FieldLabel } from '@/components/ui/field'
 import { Kbd as UiKbd } from '@/components/ui/kbd'
 
 /** Page title block: big display type, optional subtitle and actions on the right. */
@@ -241,17 +241,21 @@ export function Field({
   label,
   children,
   className,
-  htmlFor
+  htmlFor,
+  error
 }: {
   label: string
   children: ReactNode
   className?: string
   htmlFor?: string
+  /** Shown under the control in the destructive colour; the label stays the same. */
+  error?: ReactNode
 }) {
   return (
-    <UiField className={cn('gap-2', className)}>
+    <UiField className={cn('min-w-0 gap-2', className)} data-invalid={error ? true : undefined}>
       <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
       {children}
+      {error && <FieldError className="text-caption">{error}</FieldError>}
     </UiField>
   )
 }

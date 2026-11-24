@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, startOfDay } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { CalendarDays, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -20,7 +20,9 @@ export function DatePicker({
   placeholder = 'Выбрать дату',
   clearable = true,
   className,
-  size = 'default'
+  size = 'default',
+  min,
+  invalid
 }: {
   value: number | null
   onChange: (value: number | null) => void
@@ -29,6 +31,9 @@ export function DatePicker({
   clearable?: boolean
   className?: string
   size?: 'default' | 'sm'
+  /** Days before this moment can't be picked (e.g. an end date before the start). */
+  min?: number | null
+  invalid?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const date = value ? new Date(value) : undefined
@@ -60,14 +65,27 @@ export function DatePicker({
           <Button
             variant="soft"
             size={size}
-            className={cn('flex-1 justify-start font-normal', !date && 'text-muted-foreground')}
+            aria-invalid={invalid || undefined}
+            className={cn(
+              'flex-1 justify-start font-normal',
+              !date && 'text-muted-foreground',
+              invalid && 'text-destructive ring-1 ring-destructive/60 ring-inset'
+            )}
           >
             <CalendarDays />
             {label}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto rounded-2xl p-0" align="start">
-          <Calendar mode="single" selected={date} onSelect={setDay} defaultMonth={date} locale={ru} weekStartsOn={1} />
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={setDay}
+            defaultMonth={date ?? (min ? new Date(min) : undefined)}
+            disabled={min ? { before: startOfDay(new Date(min)) } : undefined}
+            locale={ru}
+            weekStartsOn={1}
+          />
           {withTime && (
             <div className="flex items-center gap-2 border-t border-border p-3">
               <span className="text-caption text-muted-foreground">Время</span>

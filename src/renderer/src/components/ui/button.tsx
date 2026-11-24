@@ -9,9 +9,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Filled buttons go flat grey when disabled (no washed-out lime/olive).
-        default: 'bg-primary text-primary-foreground hover:bg-primary/88 disabled:bg-surface disabled:text-muted-foreground',
-        lime: 'bg-lime text-lime-foreground hover:brightness-95 disabled:bg-surface disabled:text-muted-foreground',
+        // Disabled filled buttons lose the fill and get a dashed outline: clearly "not now", never mistaken
+        // for a neighbouring soft button (e.g. "Отмена" next to a disabled "Добавить").
+        default:
+          'bg-primary text-primary-foreground hover:bg-primary/88 disabled:border disabled:border-dashed disabled:border-foreground/20 disabled:bg-transparent disabled:text-muted-foreground',
+        lime: 'bg-lime text-lime-foreground hover:brightness-95 disabled:border disabled:border-dashed disabled:border-foreground/20 disabled:bg-transparent disabled:text-muted-foreground',
         soft: 'bg-surface text-foreground hover:bg-accent disabled:text-muted-foreground',
         outline: 'border border-input bg-transparent hover:bg-surface disabled:opacity-50',
         // Tinted hover: ghost buttons mostly sit on bg-surface cards, where hover:bg-surface was invisible.
