@@ -303,7 +303,12 @@ export function CodeBlock({
 
 /* ───────────── Language detection ───────────── */
 
-const SHELL_RE = /^(\$ |#!\/|(sudo|npm|npx|pnpm|yarn|bun|git|cd|ls|mkdir|rm|cp|mv|curl|wget|docker|kubectl|echo|export|brew|pip|apt|chmod)\b)/m
+// `export` counts as shell only as `export VAR=…`: `export { … }` / `export const` is JavaScript.
+const SHELL_RE = /^(\$ |#!\/|(sudo|npm|npx|pnpm|yarn|bun|git|cd|ls|mkdir|rm|cp|mv|curl|wget|docker|kubectl|echo|brew|pip|apt|chmod)\s|export\s+[A-Z_][A-Z0-9_]*=)/m
+/** Unmistakable JS/TS statements; checked before shell/SQL, whose keywords can also start a line of code. */
+const JS_RE = /^\s*(import\s[^;]*\sfrom\s|import\s+['"]|export\s+(default|const|let|var|function|class|type|interface|async|\{|\*)|(const|let|var)\s+[\w{[]|(async\s+)?function\s*\w*\s*\(|class\s+\w+)/m
+/** TypeScript-only syntax: interfaces, type aliases, annotations, `as const`, generic calls. */
+const TS_RE = /\binterface\s+\w+|\btype\s+\w+\s*=|:\s*(string|number|boolean|void|unknown|any|React\.\w+|[A-Z]\w*(<[^>]*>)?)(\[\])?\s*[,)=;{|<>]|\w\?:\s|\bas\s+const\b|\w<[A-Z]\w*(\[\])?>\(/
 const SQL_RE = /^\s*(select\s.+\sfrom\s|insert\s+into\s|update\s+\w+\s+set\s|delete\s+from\s|create\s+(table|index|view)\s|alter\s+table\s|with\s+\w+\s+as\s*\()/im
 const MD_RE = /^(#{1,6}\s+\S|[-*+]\s+\S|\d+\.\s+\S|>\s|```)/m
 const GRAPHQL_RE = /^\s*(query|mutation|subscription|fragment)\b[^{]*\{/m
@@ -342,6 +347,11 @@ export function detectLanguage(code: string): CodeLanguage | null {
   if (/^</.test(src)) {
     if (/^<!doctype|^<html|^<(div|section|span|p|ul|head|body|meta|link|script)[\s>]/i.test(src) && !/\bclassName=|\{[^}]*\}/.test(src)) return 'html'
     return 'tsx'
+  }
+  if (JS_RE.test(src)) {
+    const jsx = /\breturn\s*\(?\s*<|<[A-Z][\w.]*[\s/>]|<\/\w+>/.test(src)
+    const ts = TS_RE.test(src)
+    return jsx ? (ts ? 'tsx' : 'jsx') : ts ? 'typescript' : 'javascript'
   }
   if (GRAPHQL_RE.test(src)) return 'graphql'
   if (SQL_RE.test(src)) return 'sql'
