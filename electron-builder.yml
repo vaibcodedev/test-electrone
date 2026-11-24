@@ -57,6 +57,6 @@ npmRebuild: false
 generateUpdatesFilesForAllChannels: true
 publish:
   provider: github
-  owner: your-github-name
-  repo: vault
+  owner: vaibcodedev
+  repo: test-electrone
   releaseType: prerelease
