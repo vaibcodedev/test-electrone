@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const WORD_KINDS = ['word', 'phrase', 'idiom', 'term'] as const
 export type WordKind = (typeof WORD_KINDS)[number]
@@ -16,7 +16,7 @@ export const wordInputSchema = z.object({
   notes: z.string().max(10_000).default(''),
   ...withTagIds
 })
-export const wordPatchSchema = wordInputSchema.partial()
+export const wordPatchSchema = patchOf(wordInputSchema)
 export type WordInput = z.input<typeof wordInputSchema>
 export type WordPatch = z.input<typeof wordPatchSchema>
 

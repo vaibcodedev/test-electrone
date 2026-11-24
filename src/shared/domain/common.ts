@@ -58,3 +58,22 @@ export interface EntitySummary extends EntityRef {
   updatedAt?: number
   deletedAt?: number | null
 }
+
+/**
+ * Partial schema for updates WITHOUT defaults.
+ * Zod 4 applies `.default()` even inside `.partial()`, so `schema.partial().parse({ title })` would
+ * reset every other field to its default. Every *PatchSchema must be built with this helper.
+ */
+export function patchOf<T extends z.ZodRawShape>(
+  schema: z.ZodObject<T>
+): ReturnType<z.ZodObject<T>['partial']> {
+  const shape = Object.fromEntries(
+    Object.entries(schema.shape).map(([key, field]) => {
+      const def = (field as unknown as { _zod: { def: { type: string; innerType?: z.ZodType } } })
+        ._zod.def
+      const inner = def.type === 'default' && def.innerType ? def.innerType : (field as z.ZodType)
+      return [key, inner.optional()]
+    })
+  )
+  return z.object(shape) as unknown as ReturnType<z.ZodObject<T>['partial']>
+}

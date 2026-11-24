@@ -10,7 +10,8 @@ export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
   lead: 'Потенциальный',
   active: 'Активный',
   paused: 'На паузе',
-  archived: 'В архиве'
+  archived: 'В архиве',
+  avoid: 'Не работать'
 }
 
 export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {

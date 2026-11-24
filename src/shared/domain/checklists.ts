@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 /** A template is reusable ("Перед деплоем"); a run is a copy you tick through for a concrete release. */
 export const CHECKLIST_KINDS = ['template', 'run'] as const
@@ -12,7 +12,7 @@ export const checklistInputSchema = z.object({
   projectId: idSchema.nullable().default(null),
   ...withTagIds
 })
-export const checklistPatchSchema = checklistInputSchema.omit({ kind: true }).partial()
+export const checklistPatchSchema = patchOf(checklistInputSchema.omit({ kind: true }))
 export type ChecklistInput = z.input<typeof checklistInputSchema>
 export type ChecklistPatch = z.input<typeof checklistPatchSchema>
 
@@ -32,10 +32,9 @@ export const checklistItemInputSchema = z.object({
   hint: z.string().max(5000).default(''),
   section: z.string().max(200).default('')
 })
-export const checklistItemPatchSchema = checklistItemInputSchema
-  .omit({ checklistId: true })
-  .partial()
-  .extend({ done: z.boolean().optional() })
+export const checklistItemPatchSchema = patchOf(
+  checklistItemInputSchema.omit({ checklistId: true })
+).extend({ done: z.boolean().optional() })
 export type ChecklistItemInput = z.input<typeof checklistItemInputSchema>
 export type ChecklistItemPatch = z.input<typeof checklistItemPatchSchema>
 

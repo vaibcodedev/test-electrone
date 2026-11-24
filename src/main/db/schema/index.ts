@@ -281,7 +281,15 @@ export const clients = sqliteTable('clients', {
   status: text().notNull().default('active'),
   currency: text().notNull().default('USD'),
   defaultBilling: text().notNull().default('fixed'),
-  defaultRate: real().notNull().default(0)
+  defaultRate: real().notNull().default(0),
+  /* Freelance platform data (Upwork etc.) */
+  platformId: text(),
+  country: text().notNull().default(''),
+  rating: real(),
+  totalSpent: real(),
+  hireRate: real(),
+  paymentVerified: integer({ mode: 'boolean' }),
+  howToCommunicate: text().notNull().default('')
 })
 
 export const projects = sqliteTable(
@@ -302,7 +310,12 @@ export const projects = sqliteTable(
     repoUrl: text().notNull().default(''),
     stagingUrl: text().notNull().default(''),
     prodUrl: text().notNull().default(''),
-    adminUrl: text().notNull().default('')
+    adminUrl: text().notNull().default(''),
+    /* Freelance contract data */
+    platformId: text(),
+    /** Platform service fee % for this contract; null = platform default. */
+    feePercent: real(),
+    proposalId: text()
   },
   (t) => [index('projects_client_idx').on(t.clientId)]
 )
@@ -438,4 +451,182 @@ export const events = sqliteTable(
     remindedFor: integer()
   },
   (t) => [index('events_start_idx').on(t.startAt)]
+)
+
+/* ───────────── Notes (general) ───────────── */
+
+export const notes = sqliteTable('notes', {
+  ...base,
+  title: text().notNull(),
+  body: text().notNull().default(''),
+  folder: text().notNull().default('')
+})
+
+/* ───────────── Freelance ───────────── */
+
+export const platforms = sqliteTable('platforms', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  kind: text().notNull().default('other'),
+  color: text(),
+  currency: text().notNull().default('USD'),
+  creditsName: text().notNull().default(''),
+  creditPrice: real().notNull().default(0),
+  defaultFeePercent: real().notNull().default(0),
+  preChecklist: text({ mode: 'json' }).$type<{ id: string; label: string }[]>().notNull().default([]),
+  notes: text().notNull().default(''),
+  archived: integer({ mode: 'boolean' }).notNull().default(false),
+  position: real().notNull().default(0),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})
+
+export const proposals = sqliteTable(
+  'proposals',
+  {
+    ...base,
+    platformId: text().notNull(),
+    jobTitle: text().notNull(),
+    jobUrl: text().notNull().default(''),
+    jobDescription: text().notNull().default(''),
+    niche: text().notNull().default(''),
+    status: text().notNull().default('sent'),
+    sentAt: integer(),
+    credits: integer().notNull().default(0),
+    boostCredits: integer().notNull().default(0),
+    bidType: text().notNull().default('fixed'),
+    bidAmount: real().notNull().default(0),
+    feePercent: real(),
+    coverLetter: text().notNull().default(''),
+    templateId: text(),
+    clientId: text(),
+    clientName: text().notNull().default(''),
+    clientCountry: text().notNull().default(''),
+    clientRating: real(),
+    clientSpent: real(),
+    clientHireRate: real(),
+    paymentVerified: integer({ mode: 'boolean' }),
+    proposalsOnJob: text().notNull().default(''),
+    checks: text({ mode: 'json' }).$type<string[]>().notNull().default([]),
+    starred: integer({ mode: 'boolean' }).notNull().default(false),
+    notes: text().notNull().default(''),
+    repliedAt: integer(),
+    hiredAt: integer(),
+    projectId: text()
+  },
+  (t) => [index('proposals_platform_idx').on(t.platformId, t.status), index('proposals_sent_idx').on(t.sentAt)]
+)
+
+export const creditTxs = sqliteTable(
+  'credit_txs',
+  {
+    id: text().primaryKey(),
+    platformId: text().notNull(),
+    kind: text().notNull().default('purchase'),
+    amount: integer().notNull(),
+    cost: real().notNull().default(0),
+    at: integer().notNull(),
+    note: text().notNull().default(''),
+    createdAt: integer().notNull()
+  },
+  (t) => [index('credit_txs_platform_idx').on(t.platformId, t.at)]
+)
+
+export const messageTemplates = sqliteTable('message_templates', {
+  ...base,
+  situation: text().notNull().default('proposal'),
+  title: text().notNull(),
+  trigger: text().notNull().default(''),
+  body: text().notNull().default(''),
+  note: text().notNull().default(''),
+  niche: text().notNull().default(''),
+  copyCount: integer().notNull().default(0)
+})
+
+export const portfolioCases = sqliteTable('portfolio_cases', {
+  ...base,
+  title: text().notNull(),
+  niche: text().notNull().default(''),
+  client: text().notNull().default(''),
+  problem: text().notNull().default(''),
+  whatDone: text().notNull().default(''),
+  result: text().notNull().default(''),
+  stack: text().notNull().default(''),
+  url: text().notNull().default(''),
+  textEn: text().notNull().default(''),
+  projectId: text(),
+  coverPath: text()
+})
+
+export const redFlags = sqliteTable('red_flags', {
+  ...base,
+  title: text().notNull(),
+  signs: text().notNull().default(''),
+  action: text().notNull().default(''),
+  severity: integer().notNull().default(2)
+})
+
+export const goals = sqliteTable('goals', {
+  id: text().primaryKey(),
+  title: text().notNull().default(''),
+  metric: text().notNull(),
+  period: text().notNull().default('month'),
+  target: real().notNull(),
+  platformId: text(),
+  active: integer({ mode: 'boolean' }).notNull().default(true),
+  createdAt: integer().notNull()
+})
+
+/* ───────────── Finance ───────────── */
+
+export const subscriptions = sqliteTable('subscriptions', {
+  id: text().primaryKey(),
+  title: text().notNull(),
+  amount: real().notNull(),
+  currency: text().notNull().default('USD'),
+  period: text().notNull().default('monthly'),
+  billingDay: integer().notNull().default(1),
+  billingMonth: integer().notNull().default(0),
+  category: text().notNull().default('subscription'),
+  url: text().notNull().default(''),
+  note: text().notNull().default(''),
+  active: integer({ mode: 'boolean' }).notNull().default(true),
+  startedAt: integer(),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})
+
+export const expenses = sqliteTable(
+  'expenses',
+  {
+    id: text().primaryKey(),
+    title: text().notNull(),
+    amount: real().notNull(),
+    currency: text().notNull().default('USD'),
+    category: text().notNull().default('other'),
+    at: integer().notNull(),
+    subscriptionId: text(),
+    note: text().notNull().default(''),
+    createdAt: integer().notNull()
+  },
+  (t) => [index('expenses_at_idx').on(t.at)]
+)
+
+export const withdrawals = sqliteTable(
+  'withdrawals',
+  {
+    id: text().primaryKey(),
+    platformId: text(),
+    amount: real().notNull(),
+    currency: text().notNull().default('USD'),
+    fee: real().notNull().default(0),
+    rate: real().notNull().default(1),
+    receivedCurrency: text().notNull().default('UAH'),
+    received: real().notNull().default(0),
+    method: text().notNull().default(''),
+    at: integer().notNull(),
+    note: text().notNull().default(''),
+    createdAt: integer().notNull()
+  },
+  (t) => [index('withdrawals_at_idx').on(t.at)]
 )

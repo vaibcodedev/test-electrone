@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const SNIPPET_LANGUAGES = [
   'typescript',
@@ -24,7 +24,7 @@ export const snippetInputSchema = z.object({
   language: z.enum(SNIPPET_LANGUAGES).default('typescript'),
   ...withTagIds
 })
-export const snippetPatchSchema = snippetInputSchema.partial()
+export const snippetPatchSchema = patchOf(snippetInputSchema)
 export type SnippetInput = z.input<typeof snippetInputSchema>
 export type SnippetPatch = z.input<typeof snippetPatchSchema>
 

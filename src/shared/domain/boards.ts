@@ -5,7 +5,8 @@ import {
   timestampSchema,
   withTagIds,
   type EntityBase,
-  type WithTags
+  type WithTags,
+  patchOf
 } from './common'
 
 export const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'] as const
@@ -18,7 +19,9 @@ export const boardInputSchema = z.object({
   projectId: idSchema.nullable().default(null),
   ...withTagIds
 })
-export const boardPatchSchema = boardInputSchema.partial().extend({ archived: z.boolean().optional() })
+export const boardPatchSchema = patchOf(boardInputSchema).extend({
+  archived: z.boolean().optional()
+})
 export type BoardInput = z.input<typeof boardInputSchema>
 export type BoardPatch = z.input<typeof boardPatchSchema>
 
@@ -42,7 +45,7 @@ export const columnInputSchema = z.object({
   color: hexColorSchema.default(null),
   isDone: z.boolean().default(false)
 })
-export const columnPatchSchema = columnInputSchema.partial()
+export const columnPatchSchema = patchOf(columnInputSchema)
 export type ColumnInput = z.input<typeof columnInputSchema>
 export type ColumnPatch = z.input<typeof columnPatchSchema>
 
@@ -64,7 +67,7 @@ export const cardInputSchema = z.object({
   dueAt: timestampSchema.nullable().default(null),
   ...withTagIds
 })
-export const cardPatchSchema = cardInputSchema.omit({ boardId: true }).partial()
+export const cardPatchSchema = patchOf(cardInputSchema.omit({ boardId: true }))
 export type CardInput = z.input<typeof cardInputSchema>
 export type CardPatch = z.input<typeof cardPatchSchema>
 

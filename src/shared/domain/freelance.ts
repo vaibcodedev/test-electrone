@@ -4,7 +4,16 @@
  * Clients and contracts are the shared CRM clients/projects with a `platformId`.
  */
 import { z } from 'zod'
-import { hexColorSchema, idSchema, timestampSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import {
+  hexColorSchema,
+  idSchema,
+  timestampSchema,
+  urlSchema,
+  withTagIds,
+  type EntityBase,
+  type WithTags,
+  patchOf
+} from './common'
 import { CURRENCIES, type Currency } from './crm'
 
 /* ───────────── Platforms ───────────── */
@@ -13,7 +22,10 @@ export const PLATFORM_KINDS = ['upwork', 'freelancehunt', 'direct', 'other'] as 
 export type PlatformKind = (typeof PLATFORM_KINDS)[number]
 
 /** One pre-proposal check, e.g. "Оплата верифицирована". */
-export const preCheckSchema = z.object({ id: z.string().min(1).max(40), label: z.string().trim().min(1).max(200) })
+export const preCheckSchema = z.object({
+  id: z.string().min(1).max(40),
+  label: z.string().trim().min(1).max(200)
+})
 export type PreCheck = z.infer<typeof preCheckSchema>
 
 export const platformInputSchema = z.object({
@@ -32,7 +44,7 @@ export const platformInputSchema = z.object({
   notes: z.string().max(20_000).default(''),
   archived: z.boolean().default(false)
 })
-export const platformPatchSchema = platformInputSchema.partial()
+export const platformPatchSchema = patchOf(platformInputSchema)
 export type PlatformInput = z.input<typeof platformInputSchema>
 export type PlatformPatch = z.input<typeof platformPatchSchema>
 
@@ -71,7 +83,14 @@ export const PROPOSAL_STATUSES = [
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number]
 
 /** Funnel stages used by statistics (a proposal "reached" a stage if its status is at or past it). */
-export const PROPOSAL_FUNNEL: ProposalStatus[] = ['sent', 'viewed', 'replied', 'interview', 'offer', 'hired']
+export const PROPOSAL_FUNNEL: ProposalStatus[] = [
+  'sent',
+  'viewed',
+  'replied',
+  'interview',
+  'offer',
+  'hired'
+]
 
 export const BID_TYPES = ['fixed', 'hourly'] as const
 export type BidType = (typeof BID_TYPES)[number]
@@ -109,7 +128,7 @@ export const proposalInputSchema = z.object({
   notes: z.string().max(50_000).default(''),
   ...withTagIds
 })
-export const proposalPatchSchema = proposalInputSchema.omit({ platformId: true }).partial()
+export const proposalPatchSchema = patchOf(proposalInputSchema.omit({ platformId: true }))
 export type ProposalInput = z.input<typeof proposalInputSchema>
 export type ProposalPatch = z.input<typeof proposalPatchSchema>
 
@@ -228,7 +247,7 @@ export const templateInputSchema = z.object({
   niche: z.string().max(100).default(''),
   ...withTagIds
 })
-export const templatePatchSchema = templateInputSchema.partial()
+export const templatePatchSchema = patchOf(templateInputSchema)
 export type TemplateInput = z.input<typeof templateInputSchema>
 export type TemplatePatch = z.input<typeof templatePatchSchema>
 
@@ -262,7 +281,7 @@ export const caseInputSchema = z.object({
   projectId: idSchema.nullable().default(null),
   ...withTagIds
 })
-export const casePatchSchema = caseInputSchema.partial()
+export const casePatchSchema = patchOf(caseInputSchema)
 export type CaseInput = z.input<typeof caseInputSchema>
 export type CasePatch = z.input<typeof casePatchSchema>
 
@@ -291,7 +310,7 @@ export const redFlagInputSchema = z.object({
   severity: z.number().int().min(1).max(3).default(2),
   ...withTagIds
 })
-export const redFlagPatchSchema = redFlagInputSchema.partial()
+export const redFlagPatchSchema = patchOf(redFlagInputSchema)
 export type RedFlagInput = z.input<typeof redFlagInputSchema>
 export type RedFlagPatch = z.input<typeof redFlagPatchSchema>
 
@@ -304,7 +323,14 @@ export interface RedFlag extends EntityBase, WithTags {
 
 /* ───────────── Goals ───────────── */
 
-export const GOAL_METRICS = ['net_income', 'proposals', 'replies', 'contracts', 'reply_rate', 'hire_rate'] as const
+export const GOAL_METRICS = [
+  'net_income',
+  'proposals',
+  'replies',
+  'contracts',
+  'reply_rate',
+  'hire_rate'
+] as const
 export type GoalMetric = (typeof GOAL_METRICS)[number]
 export const GOAL_PERIODS = ['week', 'month'] as const
 export type GoalPeriod = (typeof GOAL_PERIODS)[number]
@@ -318,7 +344,7 @@ export const goalInputSchema = z.object({
   platformId: idSchema.nullable().default(null),
   active: z.boolean().default(true)
 })
-export const goalPatchSchema = goalInputSchema.partial()
+export const goalPatchSchema = patchOf(goalInputSchema)
 export type GoalInput = z.input<typeof goalInputSchema>
 export type GoalPatch = z.input<typeof goalPatchSchema>
 

@@ -155,7 +155,15 @@ export type UpdateStatus =
 
 /* ───────────── Quick add ───────────── */
 
-export const QUICK_ADD_TARGETS = ['idea', 'card', 'claude', 'snippet', 'bookmark', 'word', 'event'] as const
+export const QUICK_ADD_TARGETS = [
+  'idea',
+  'card',
+  'claude',
+  'snippet',
+  'bookmark',
+  'word',
+  'event'
+] as const
 export type QuickAddTarget = (typeof QUICK_ADD_TARGETS)[number]
 
 export const quickAddSchema = z.object({

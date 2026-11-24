@@ -32,7 +32,7 @@ import {
   type RunningTimer,
   type TimeEntry
 } from '@shared/domain/crm'
-import { clients, credentials, payments, projects, timeEntries } from '../db/schema'
+import { clients, credentials, payments, platforms, projects, timeEntries } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { newId, now, NotFoundError, startOfMonth, startOfWeek, UserError } from '../core/util'
@@ -143,7 +143,14 @@ export class CrmModule {
             .map((c) => [c.id, c.name])
         : []
     )
+    const platformRows = this.db
+      .select({ id: platforms.id, name: platforms.name, fee: platforms.defaultFeePercent })
+      .from(platforms)
+      .all()
+    const platformById = new Map(platformRows.map((x) => [x.id, x]))
     return list.map((p) => {
+      const platform = p.platformId ? platformById.get(p.platformId) : undefined
+      const effectiveFeePercent = p.feePercent ?? platform?.fee ?? 0
       const mine = times.filter((t) => t.projectId === p.id).map((t) => this.toTime(t))
       const trackedMinutes = mine.reduce((s, t) => s + t.minutes, 0)
       const billableMinutes = mine.filter((t) => t.billable).reduce((s, t) => s + t.minutes, 0)
@@ -169,6 +176,9 @@ export class CrmModule {
       return {
         ...p,
         clientName: p.clientId ? (clientNames.get(p.clientId) ?? null) : null,
+        platformName: platform?.name ?? null,
+        effectiveFeePercent,
+        netPaidAmount: round2(paidAmount * (1 - effectiveFeePercent / 100)),
         trackedMinutes,
         earnedAmount,
         effectiveRate,
@@ -322,6 +332,7 @@ export class CrmModule {
           repo.listWhere([
             q.clientId ? eq(projects.clientId, q.clientId) : undefined,
             q.status ? eq(projects.status, q.status) : undefined,
+            q.platformId ? eq(projects.platformId, q.platformId) : undefined,
             repo.hasTag(q.tagId),
             repo.matches(q.search, [projects.title, projects.description])
           ])
@@ -334,7 +345,7 @@ export class CrmModule {
       create: async (input) => {
         const [data, tagIds] = splitTags(projectInputSchema.parse(input))
         if (data.clientId) this.clientRepo.rowOrThrow(data.clientId)
-        return one(repo.insert(data, tagIds).id)
+        return one(repo.insert({ ...data, proposalId: null }, tagIds).id)
       },
       update: async (args) => {
         const { id, patch } = updateArgs(projectPatchSchema).parse(args)

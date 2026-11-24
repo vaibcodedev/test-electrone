@@ -5,7 +5,8 @@ import {
   timestampSchema,
   withTagIds,
   type EntityBase,
-  type WithTags
+  type WithTags,
+  patchOf
 } from './common'
 
 export const RECURRENCES = ['none', 'daily', 'weekly', 'monthly', 'yearly'] as const
@@ -29,7 +30,7 @@ export const eventInputSchema = z.object({
   color: hexColorSchema.default(null),
   ...withTagIds
 })
-export const eventPatchSchema = eventInputSchema.partial()
+export const eventPatchSchema = patchOf(eventInputSchema)
 export type EventInput = z.input<typeof eventInputSchema>
 export type EventPatch = z.input<typeof eventPatchSchema>
 

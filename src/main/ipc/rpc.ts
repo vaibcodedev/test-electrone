@@ -39,9 +39,19 @@ const NS_TYPES: Partial<Record<keyof Api, EntityType[]>> = {
   fixes: ['fix'],
   bookmarks: ['bookmark'],
   english: ['word'],
-  events: ['event']
+  events: ['event'],
+  notes: ['note'],
+  proposals: ['proposal'],
+  templates: ['template'],
+  cases: ['case'],
+  redflags: ['redflag'],
+  platforms: ['proposal'],
+  credits: ['proposal'],
+  goals: ['proposal'],
+  finance: ['project']
 }
-const READ_METHODS = /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard)$/
+const READ_METHODS =
+  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals)$/
 
 /**
  * Single IPC entry point: `rpc("ns.method", arg)` → api[ns][method](arg).

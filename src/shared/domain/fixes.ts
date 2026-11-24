@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const fixInputSchema = z.object({
   title: z.string().trim().min(1).max(300),
@@ -12,7 +12,7 @@ export const fixInputSchema = z.object({
   projectId: idSchema.nullable().default(null),
   ...withTagIds
 })
-export const fixPatchSchema = fixInputSchema.partial()
+export const fixPatchSchema = patchOf(fixInputSchema)
 export type FixInput = z.input<typeof fixInputSchema>
 export type FixPatch = z.input<typeof fixPatchSchema>
 

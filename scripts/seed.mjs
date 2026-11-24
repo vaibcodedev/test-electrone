@@ -116,5 +116,38 @@ export default function Demo() {
   if (!backup || backup.size < 1000) throw new Error('backup too small')
   console.log('backup', backup.fileName, backup.size)
 
+  // ── freelance & finance
+  const plats = await call('platforms.list')
+  const upwork = plats.find((x) => x.kind === 'upwork')
+  if (!upwork) throw new Error('upwork platform not seeded')
+  const tpls = await call('templates.list', { situation: 'proposal' })
+  await call('credits.add', { platformId: upwork.id, kind: 'purchase', amount: 80, cost: 12, at: t - 10 * 86400000 })
+  const p1 = await call('proposals.create', {
+    platformId: upwork.id, jobTitle: 'Next.js dashboard for SaaS', niche: 'Next.js', credits: 16, boostCredits: 8,
+    bidAmount: 1200, feePercent: 10, templateId: tpls[0]?.id ?? null, clientName: 'Mark Stone', clientCountry: 'USA',
+    clientRating: 4.9, clientSpent: 25000, paymentVerified: true, sentAt: t - 6 * 86400000, checks: ['verified', 'rating']
+  })
+  await call('proposals.create', { platformId: upwork.id, jobTitle: 'Shopify theme fixes', niche: 'Shopify', credits: 12, sentAt: t - 5 * 86400000 })
+  await call('proposals.create', { platformId: upwork.id, jobTitle: 'Telegram bot for orders', niche: 'Боты', credits: 10, status: 'replied', sentAt: t - 2 * 86400000 })
+  await call('proposals.update', { id: p1.id, patch: { status: 'interview' } })
+  const hired = await call('proposals.hire', { proposalId: p1.id, title: 'SaaS dashboard (Upwork)', billing: 'fixed', amount: 1200, feePercent: 10 })
+  await call('payments.create', { projectId: hired.projectId, amount: 600, status: 'paid' })
+  const cs = await call('credits.summary', { platformId: upwork.id })
+  if (cs.spent !== 46 || cs.contracts !== 1) throw new Error('credits summary wrong ' + JSON.stringify(cs))
+  const st = await call('freelance.stats', { platformId: upwork.id })
+  if (st.totals.sent !== 3 || st.totals.hired !== 1) throw new Error('stats wrong ' + JSON.stringify(st.totals))
+  await call('goals.create', { metric: 'proposals', period: 'week', target: 10 })
+  const gp = await call('goals.progress')
+  const sub = await call('finance.createSubscription', { title: 'Claude Max', amount: 100, billingDay: 5 })
+  await call('finance.createSubscription', { title: 'Телефон', amount: 300, currency: 'UAH', billingDay: 20, category: 'phone' })
+  const monthKey = new Date().toISOString().slice(0, 7)
+  await call('finance.setSubscriptionPaid', { id: sub.id, month: monthKey, paid: true })
+  await call('finance.createWithdrawal', { platformId: upwork.id, amount: 500, fee: 2, rate: 41.5, at: t })
+  const rep = await call('finance.month', { month: monthKey })
+  if (rep.net.USD !== 1040) throw new Error('net wrong ' + JSON.stringify(rep.net))
+  await call('notes.create', { title: 'Как оформлять счета', folder: 'Работа', body: 'Счёт до 5 числа.' })
+  const fov = await call('finance.overview')
+  console.log('freelance ok: goals', gp.length, 'profit', JSON.stringify(rep.profit), 'balances', JSON.stringify(fov.platformBalances))
+
   console.log('seed ok; search hits:', hits.length, 'week minutes:', ov.weekMinutes)
 }

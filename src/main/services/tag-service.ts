@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import type { EntityType } from '@shared/entity-types'
-import type { EntitySummary, Tag, TagWithUsage } from '@shared/domain/common'
+import { patchOf, type EntitySummary, type Tag, type TagWithUsage } from '@shared/domain/common'
 import { tagInputSchema, type TagInput } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { entityTags, tags } from '../db/schema'
@@ -46,7 +46,7 @@ export class TagService {
   }
 
   update(id: string, patch: Partial<TagInput>): Tag {
-    const data = tagInputSchema.partial().parse(patch)
+    const data = patchOf(tagInputSchema).parse(patch)
     if (data.name) {
       const clash = this.db
         .select()

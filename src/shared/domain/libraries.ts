@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const LIBRARY_STATUSES = ['used', 'favorite', 'want', 'testing', 'dropped'] as const
 export type LibraryStatus = (typeof LIBRARY_STATUSES)[number]
@@ -15,7 +15,7 @@ export const libraryInputSchema = z.object({
   status: z.enum(LIBRARY_STATUSES).default('want'),
   ...withTagIds
 })
-export const libraryPatchSchema = libraryInputSchema.partial()
+export const libraryPatchSchema = patchOf(libraryInputSchema)
 export type LibraryInput = z.input<typeof libraryInputSchema>
 export type LibraryPatch = z.input<typeof libraryPatchSchema>
 

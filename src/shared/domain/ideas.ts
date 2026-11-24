@@ -1,7 +1,14 @@
 import { z } from 'zod'
-import { idSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
-export const IDEA_STATUSES = ['inbox', 'thinking', 'planned', 'in_progress', 'done', 'dropped'] as const
+export const IDEA_STATUSES = [
+  'inbox',
+  'thinking',
+  'planned',
+  'in_progress',
+  'done',
+  'dropped'
+] as const
 export type IdeaStatus = (typeof IDEA_STATUSES)[number]
 
 export const ideaInputSchema = z.object({
@@ -12,7 +19,7 @@ export const ideaInputSchema = z.object({
   impact: z.number().int().min(0).max(3).default(0),
   ...withTagIds
 })
-export const ideaPatchSchema = ideaInputSchema.partial()
+export const ideaPatchSchema = patchOf(ideaInputSchema)
 export type IdeaInput = z.input<typeof ideaInputSchema>
 export type IdeaPatch = z.input<typeof ideaPatchSchema>
 

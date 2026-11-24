@@ -19,7 +19,12 @@ export const ENTITY_TYPES = [
   'fix',
   'bookmark',
   'word',
-  'event'
+  'event',
+  'note',
+  'proposal',
+  'template',
+  'case',
+  'redflag'
 ] as const
 
 export type EntityType = (typeof ENTITY_TYPES)[number]
@@ -47,7 +52,12 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   fix: { label: 'Ошибка', plural: 'Ошибки и решения', route: (id) => `/fixes?open=${id}` },
   bookmark: { label: 'Закладка', plural: 'Закладки', route: (id) => `/bookmarks?open=${id}` },
   word: { label: 'Слово', plural: 'Английский', route: (id) => `/english?open=${id}` },
-  event: { label: 'Событие', plural: 'Календарь', route: (id) => `/calendar?open=${id}` }
+  event: { label: 'Событие', plural: 'Календарь', route: (id) => `/calendar?open=${id}` },
+  note: { label: 'Заметка', plural: 'Заметки', route: (id) => `/notes?open=${id}` },
+  proposal: { label: 'Отклик', plural: 'Отклики', route: (id) => `/freelance/proposal/${id}` },
+  template: { label: 'Шаблон', plural: 'Шаблоны', route: (id) => `/freelance/templates?open=${id}` },
+  case: { label: 'Кейс', plural: 'Портфолио', route: (id) => `/freelance/portfolio?open=${id}` },
+  redflag: { label: 'Красный флаг', plural: 'Красные флаги', route: (id) => `/freelance/flags?open=${id}` }
 }
 
 export function isEntityType(value: unknown): value is EntityType {

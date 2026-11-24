@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const COMPONENT_LANGUAGES = ['tsx', 'jsx', 'html'] as const
 export type ComponentLanguage = (typeof COMPONENT_LANGUAGES)[number]
@@ -15,7 +15,7 @@ export const componentInputSchema = z.object({
   previewBg: z.enum(PREVIEW_BACKGROUNDS).default('light'),
   ...withTagIds
 })
-export const componentPatchSchema = componentInputSchema.partial()
+export const componentPatchSchema = patchOf(componentInputSchema)
 export type ComponentInput = z.input<typeof componentInputSchema>
 export type ComponentPatch = z.input<typeof componentPatchSchema>
 

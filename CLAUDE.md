@@ -88,6 +88,7 @@ src/renderer/
 
 - Данные в renderer — только через `useApi(ns, method, arg)` / `useApiMutation(ns, method)`; после любой мутации обновляются все активные запросы.
 - Выбранная запись модуля — в URL `?open=<id>` (`useOpenParam`), чтобы поиск/связи открывали её напрямую.
+- **Patch-схемы только через `patchOf(inputSchema)`** (`shared/domain/common.ts`). В zod 4 `.partial()` подставляет `.default()` — частичное обновление затёрло бы остальные поля.
 - **Миграции проверять глазами.** Если drizzle-kit сгенерировал пересоздание таблицы (`__new_…` + `DROP TABLE`) для таблицы, на которую ссылаются FK с `ON DELETE CASCADE`, — НЕЛЬЗЯ: в транзакции `PRAGMA foreign_keys=OFF` не работает и дочерние строки удалятся. Меняй схему только аддитивно (`ADD COLUMN`), дефолты задавай в приложении.
 - Каждая новая сущность: таблица в `db/schema`, `npm run db:generate`, дескриптор в модуле, регистрация в `container.ts`, маршрут в `ENTITY_META`.
 - Файлы — только в `<data>/files`, в БД относительный путь; в renderer — `fileUrl(path)` (`vault-file://`).

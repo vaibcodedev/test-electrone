@@ -54,7 +54,10 @@ import {
   type BookmarkPatch,
   type BookmarkStatus
 } from '@shared/domain/bookmarks'
-import { bookmarks, claudeItems, fixes, libraries, snippets } from '../db/schema'
+import { bookmarks, claudeItems, fixes, libraries, notes, snippets } from '../db/schema'
+import { noteInputSchema, noteListQuerySchema, notePatchSchema, type Note, type NoteInput, type NoteListQuery, type NotePatch } from '@shared/domain/notes'
+import type { NotesApi } from '@shared/api'
+import { and, isNull } from 'drizzle-orm'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { now } from '../core/util'
@@ -85,6 +88,7 @@ export class KnowledgeModule {
   private readonly snippetRepo: SoftRepository<typeof snippets.$inferSelect, Snippet>
   private readonly fixRepo: SoftRepository<typeof fixes.$inferSelect, Fix>
   readonly bookmarkRepo: SoftRepository<typeof bookmarks.$inferSelect, Bookmark>
+  private readonly noteRepo: SoftRepository<typeof notes.$inferSelect, Note>
 
   constructor(private readonly m: ModuleContext) {
     const claude: EntityDescriptor = {
@@ -120,7 +124,14 @@ export class KnowledgeModule {
       searchDoc: (r) => ({ title: r.title, body: `${r.url}\n${r.notes}` }),
       summary: (r) => ({ title: r.title, subtitle: hostOf(r.url) })
     }
-    this.descriptors = [claude, library, snippet, fix, bookmark]
+    const note: EntityDescriptor = {
+      type: 'note',
+      table: notes,
+      searchDoc: (r) => ({ title: r.title, body: `${r.folder}\n${r.body}` }),
+      summary: (r) => ({ title: r.title, subtitle: r.folder || undefined })
+    }
+    this.descriptors = [claude, library, snippet, fix, bookmark, note]
+    this.noteRepo = new SoftRepository(m.repo, note, (r, tags) => ({ ...r, tags }))
 
     this.claudeRepo = new SoftRepository(m.repo, claude, (r, tags) => ({ ...r, kind: r.kind as ClaudeKind, tags }))
     this.libraryRepo = new SoftRepository(m.repo, library, (r, tags) => ({
@@ -220,6 +231,31 @@ export class KnowledgeModule {
         repo.matches(q.search, [fixes.title, fixes.errorText, fixes.solution, fixes.context])
       ]
     })
+  }
+
+  notesApi(): NotesApi {
+    const repo = this.noteRepo
+    return {
+      ...createCrudApi<typeof notes.$inferSelect, Note, NoteInput, NotePatch, NoteListQuery>({
+        repo,
+        input: noteInputSchema,
+        patch: notePatchSchema,
+        query: noteListQuerySchema,
+        where: (q) => [
+          q.folder !== undefined ? eq(notes.folder, q.folder) : undefined,
+          repo.hasTag(q.tagId),
+          repo.matches(q.search, [notes.title, notes.body])
+        ]
+      }),
+      folders: async () =>
+        this.m.db.orm
+          .selectDistinct({ folder: notes.folder })
+          .from(notes)
+          .where(and(isNull(notes.deletedAt), sql`${notes.folder} != ''`))
+          .all()
+          .map((r) => r.folder)
+          .sort((a, b) => a.localeCompare(b, 'ru'))
+    }
   }
 
   bookmarksApi(): BookmarksApi {

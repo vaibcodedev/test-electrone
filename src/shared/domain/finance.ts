@@ -3,7 +3,7 @@
  * recurring subscriptions with a per-month paid checklist, one-off expenses, withdrawals with FX.
  */
 import { z } from 'zod'
-import { idSchema, timestampSchema, urlSchema } from './common'
+import { idSchema, timestampSchema, urlSchema, patchOf } from './common'
 import { CURRENCIES, type Currency } from './crm'
 
 export const EXPENSE_CATEGORIES = [
@@ -40,7 +40,7 @@ export const subscriptionInputSchema = z.object({
   active: z.boolean().default(true),
   startedAt: timestampSchema.nullable().default(null)
 })
-export const subscriptionPatchSchema = subscriptionInputSchema.partial()
+export const subscriptionPatchSchema = patchOf(subscriptionInputSchema)
 export type SubscriptionInput = z.input<typeof subscriptionInputSchema>
 export type SubscriptionPatch = z.input<typeof subscriptionPatchSchema>
 
@@ -80,7 +80,7 @@ export const expenseInputSchema = z.object({
   subscriptionId: idSchema.nullable().default(null),
   note: z.string().max(5000).default('')
 })
-export const expensePatchSchema = expenseInputSchema.partial()
+export const expensePatchSchema = patchOf(expenseInputSchema)
 export type ExpenseInput = z.input<typeof expenseInputSchema>
 export type ExpensePatch = z.input<typeof expensePatchSchema>
 
@@ -114,7 +114,7 @@ export const withdrawalInputSchema = z.object({
   at: timestampSchema,
   note: z.string().max(5000).default('')
 })
-export const withdrawalPatchSchema = withdrawalInputSchema.partial()
+export const withdrawalPatchSchema = patchOf(withdrawalInputSchema)
 export type WithdrawalInput = z.input<typeof withdrawalInputSchema>
 export type WithdrawalPatch = z.input<typeof withdrawalPatchSchema>
 
@@ -179,7 +179,12 @@ export type MonthQuery = z.infer<typeof monthQuerySchema>
 
 export interface FinanceOverview {
   /** Last 12 months, oldest first. */
-  months: { month: string; net: MoneyByCurrency; expenses: MoneyByCurrency; profit: MoneyByCurrency }[]
+  months: {
+    month: string
+    net: MoneyByCurrency
+    expenses: MoneyByCurrency
+    profit: MoneyByCurrency
+  }[]
   /** Net earned on each platform minus withdrawals from it = still on the platform. */
   platformBalances: { platformId: string; name: string; currency: Currency; balance: number }[]
   monthlySubscriptions: MoneyByCurrency

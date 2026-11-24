@@ -35,6 +35,8 @@ import { CrmModule } from './modules/crm'
 import { ChecklistsModule } from './modules/checklists'
 import { EnglishModule } from './modules/english'
 import { CalendarModule } from './modules/calendar'
+import { FreelanceModule } from './modules/freelance'
+import { FinanceModule } from './modules/finance'
 import { idArg, type ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
 import { TrayController } from './system/tray'
@@ -82,6 +84,8 @@ export class Container {
   readonly checklists = new ChecklistsModule(this.moduleCtx)
   readonly english = new EnglishModule(this.moduleCtx)
   readonly calendar = new CalendarModule(this.moduleCtx, this.boards, this.crm)
+  readonly freelance = new FreelanceModule(this.moduleCtx, this.crm)
+  readonly finance = new FinanceModule(this.moduleCtx, this.freelance)
 
   readonly backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus)
   readonly exporter = new ExportService(this.db, this.paths, this.registry, this.tags, this.links)
@@ -111,7 +115,8 @@ export class Container {
       ...this.crm.descriptors,
       this.checklists.descriptor,
       this.english.descriptor,
-      this.calendar.descriptor
+      this.calendar.descriptor,
+      ...this.freelance.descriptors
     ]) {
       this.registry.register(d)
     }
@@ -141,6 +146,7 @@ export class Container {
     this.db.open()
     if (this.search.count() === 0) this.search.rebuild()
     this.checklists.seedIfEmpty()
+    this.freelance.seedIfEmpty()
     this.trash.purgeExpired()
     setInterval(() => this.trash.purgeExpired(), 6 * 3600_000)
   }
@@ -165,7 +171,17 @@ export class Container {
       fixes: this.knowledge.fixesApi(),
       bookmarks: this.knowledge.bookmarksApi(),
       english: this.english.api(),
-      events: this.calendar.api()
+      events: this.calendar.api(),
+      notes: this.knowledge.notesApi(),
+      platforms: this.freelance.platformsApi(),
+      proposals: this.freelance.proposalsApi(),
+      credits: this.freelance.creditsApi(),
+      templates: this.freelance.templatesApi(),
+      cases: this.freelance.casesApi(),
+      redflags: this.freelance.redFlagsApi(),
+      goals: this.freelance.goalsApi(),
+      freelance: this.freelance.freelanceApi(),
+      finance: this.finance.api()
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)
     const refArg = entityRefSchema

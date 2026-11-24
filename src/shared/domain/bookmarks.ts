@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const BOOKMARK_KINDS = ['article', 'video', 'course', 'docs', 'repo', 'other'] as const
 export type BookmarkKind = (typeof BOOKMARK_KINDS)[number]
@@ -16,7 +16,7 @@ export const bookmarkInputSchema = z.object({
   notes: z.string().max(100_000).default(''),
   ...withTagIds
 })
-export const bookmarkPatchSchema = bookmarkInputSchema.partial()
+export const bookmarkPatchSchema = patchOf(bookmarkInputSchema)
 export type BookmarkInput = z.input<typeof bookmarkInputSchema>
 export type BookmarkPatch = z.input<typeof bookmarkPatchSchema>
 

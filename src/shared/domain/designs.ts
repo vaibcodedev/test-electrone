@@ -5,7 +5,8 @@ import {
   urlSchema,
   withTagIds,
   type EntityBase,
-  type WithTags
+  type WithTags,
+  patchOf
 } from './common'
 
 export const DESIGN_KINDS = ['site', 'landing', 'shop', 'app', 'dashboard', 'other'] as const
@@ -21,7 +22,7 @@ export const designInputSchema = z.object({
   colors: z.array(hex).max(12).default([]),
   ...withTagIds
 })
-export const designPatchSchema = designInputSchema.partial()
+export const designPatchSchema = patchOf(designInputSchema)
 export type DesignInput = z.input<typeof designInputSchema>
 export type DesignPatch = z.input<typeof designPatchSchema>
 
@@ -65,7 +66,7 @@ export const moodboardInputSchema = z.object({
   color: hexColorSchema.default(null),
   ...withTagIds
 })
-export const moodboardPatchSchema = moodboardInputSchema.partial()
+export const moodboardPatchSchema = patchOf(moodboardInputSchema)
 export type MoodboardInput = z.input<typeof moodboardInputSchema>
 export type MoodboardPatch = z.input<typeof moodboardPatchSchema>
 

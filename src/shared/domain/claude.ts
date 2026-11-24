@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const CLAUDE_KINDS = ['note', 'branch', 'skill', 'plugin', 'guide', 'prompt'] as const
 export type ClaudeKind = (typeof CLAUDE_KINDS)[number]
@@ -14,7 +14,7 @@ export const claudeInputSchema = z.object({
   works: z.boolean().default(false),
   ...withTagIds
 })
-export const claudePatchSchema = claudeInputSchema.partial()
+export const claudePatchSchema = patchOf(claudeInputSchema)
 export type ClaudeInput = z.input<typeof claudeInputSchema>
 export type ClaudePatch = z.input<typeof claudePatchSchema>
 

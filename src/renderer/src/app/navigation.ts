@@ -16,6 +16,11 @@ import {
   SquareKanban,
   StickyNote,
   UserRound,
+  NotebookPen,
+  Send,
+  MessageSquareQuote,
+  BriefcaseBusiness,
+  Flag,
   type LucideIcon
 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
@@ -36,7 +41,12 @@ export const ENTITY_ICON: Record<EntityType, LucideIcon> = {
   fix: Bug,
   bookmark: Bookmark,
   word: Languages,
-  event: CalendarDays
+  event: CalendarDays,
+  note: NotebookPen,
+  proposal: Send,
+  template: MessageSquareQuote,
+  case: BriefcaseBusiness,
+  redflag: Flag
 }
 
 export interface NavItem {

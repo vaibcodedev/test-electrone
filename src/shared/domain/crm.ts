@@ -1,5 +1,13 @@
 import { z } from 'zod'
-import { idSchema, timestampSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+import {
+  idSchema,
+  timestampSchema,
+  urlSchema,
+  withTagIds,
+  type EntityBase,
+  type WithTags,
+  patchOf
+} from './common'
 
 export const CURRENCIES = ['USD', 'EUR', 'UAH', 'PLN', 'GBP'] as const
 export type Currency = (typeof CURRENCIES)[number]
@@ -16,7 +24,8 @@ export type BillingType = (typeof BILLING_TYPES)[number]
 
 /* ───────────── Clients ───────────── */
 
-export const CLIENT_STATUSES = ['lead', 'active', 'paused', 'archived'] as const
+/** avoid = «не работать»: client to skip next time (see red flags). */
+export const CLIENT_STATUSES = ['lead', 'active', 'paused', 'archived', 'avoid'] as const
 export type ClientStatus = (typeof CLIENT_STATUSES)[number]
 
 export const clientInputSchema = z.object({
@@ -33,9 +42,19 @@ export const clientInputSchema = z.object({
   defaultBilling: z.enum(BILLING_TYPES).default('fixed'),
   /** Hourly rate (hourly) or monthly fee (retainer) used as default for new projects. */
   defaultRate: z.number().min(0).max(100_000).default(0),
+  /** Where the client came from (freelance platform); null = direct/unknown. */
+  platformId: idSchema.nullable().default(null),
+  country: z.string().max(100).default(''),
+  rating: z.number().min(0).max(5).nullable().default(null),
+  /** Total spent on the platform (as shown on the client profile). */
+  totalSpent: z.number().min(0).max(1_000_000_000).nullable().default(null),
+  hireRate: z.number().min(0).max(100).nullable().default(null),
+  paymentVerified: z.boolean().nullable().default(null),
+  /** Notes on how to communicate with this client. */
+  howToCommunicate: z.string().max(20_000).default(''),
   ...withTagIds
 })
-export const clientPatchSchema = clientInputSchema.partial()
+export const clientPatchSchema = patchOf(clientInputSchema)
 export type ClientInput = z.input<typeof clientInputSchema>
 export type ClientPatch = z.input<typeof clientPatchSchema>
 
@@ -51,6 +70,13 @@ export interface Client extends EntityBase, WithTags {
   currency: Currency
   defaultBilling: BillingType
   defaultRate: number
+  platformId: string | null
+  country: string
+  rating: number | null
+  totalSpent: number | null
+  hireRate: number | null
+  paymentVerified: boolean | null
+  howToCommunicate: string
 }
 
 export interface ClientSummary extends Client {
@@ -84,14 +110,19 @@ export const projectInputSchema = z.object({
   stagingUrl: urlSchema.default(''),
   prodUrl: urlSchema.default(''),
   adminUrl: urlSchema.default(''),
+  /** Freelance platform of the contract; null = direct. */
+  platformId: idSchema.nullable().default(null),
+  /** Platform fee % for this contract (Upwork: 0–15%, known at bidding); null = platform default. */
+  feePercent: z.number().min(0).max(100).nullable().default(null),
   ...withTagIds
 })
-export const projectPatchSchema = projectInputSchema.partial()
+export const projectPatchSchema = patchOf(projectInputSchema)
 export type ProjectInput = z.input<typeof projectInputSchema>
 export type ProjectPatch = z.input<typeof projectPatchSchema>
 
 export const projectListQuerySchema = z.object({
   clientId: idSchema.optional(),
+  platformId: idSchema.optional(),
   status: z.enum(PROJECT_STATUSES).optional(),
   search: z.string().max(200).optional(),
   tagId: idSchema.optional()
@@ -114,10 +145,18 @@ export interface Project extends EntityBase, WithTags {
   stagingUrl: string
   prodUrl: string
   adminUrl: string
+  platformId: string | null
+  feePercent: number | null
+  proposalId: string | null
 }
 
 export interface ProjectSummary extends Project {
   clientName: string | null
+  platformName: string | null
+  /** Fee actually applied: contract value or platform default. */
+  effectiveFeePercent: number
+  /** Paid amount after the platform fee — money that reached you. */
+  netPaidAmount: number
   trackedMinutes: number
   /** Value of the work so far: hours × rate (hourly), price (fixed), fee × months (retainer), 0 (none). */
   earnedAmount: number
@@ -141,7 +180,7 @@ export const credentialInputSchema = z.object({
   secret: z.string().max(10_000).default(''),
   notes: z.string().max(10_000).default('')
 })
-export const credentialPatchSchema = credentialInputSchema.partial()
+export const credentialPatchSchema = patchOf(credentialInputSchema)
 export type CredentialInput = z.input<typeof credentialInputSchema>
 export type CredentialPatch = z.input<typeof credentialPatchSchema>
 
@@ -167,7 +206,7 @@ export const timeEntryInputSchema = z.object({
   endedAt: timestampSchema.nullable().default(null),
   billable: z.boolean().default(true)
 })
-export const timeEntryPatchSchema = timeEntryInputSchema.partial()
+export const timeEntryPatchSchema = patchOf(timeEntryInputSchema)
 export type TimeEntryInput = z.input<typeof timeEntryInputSchema>
 export type TimeEntryPatch = z.input<typeof timeEntryPatchSchema>
 
@@ -200,7 +239,7 @@ export const paymentInputSchema = z.object({
   paidAt: timestampSchema.nullable().default(null),
   note: z.string().max(2000).default('')
 })
-export const paymentPatchSchema = paymentInputSchema.partial()
+export const paymentPatchSchema = patchOf(paymentInputSchema)
 export type PaymentInput = z.input<typeof paymentInputSchema>
 export type PaymentPatch = z.input<typeof paymentPatchSchema>
 

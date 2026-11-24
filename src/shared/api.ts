@@ -87,6 +87,51 @@ import type {
   WordPatch
 } from './domain/english'
 import type { CalendarEvent, CalendarItem, DateRange, EventInput, EventPatch } from './domain/calendar'
+import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
+import type {
+  CaseInput,
+  CasePatch,
+  CreditsSummary,
+  CreditTx,
+  CreditTxInput,
+  FreelanceStats,
+  Goal,
+  GoalInput,
+  GoalPatch,
+  GoalProgress,
+  HireInput,
+  MessageTemplate,
+  Platform,
+  PlatformInput,
+  PlatformPatch,
+  PortfolioCase,
+  Proposal,
+  ProposalInput,
+  ProposalListQuery,
+  ProposalPatch,
+  RedFlag,
+  RedFlagInput,
+  RedFlagPatch,
+  StatsQuery,
+  TemplateInput,
+  TemplatePatch,
+  TemplateSituation
+} from './domain/freelance'
+import type {
+  Expense,
+  ExpenseInput,
+  ExpensePatch,
+  FinanceOverview,
+  IncomeRow,
+  MonthReport,
+  Subscription,
+  SubscriptionInput,
+  SubscriptionMonthRow,
+  SubscriptionPatch,
+  Withdrawal,
+  WithdrawalInput,
+  WithdrawalPatch
+} from './domain/finance'
 import type {
   AppInfo,
   Attachment,
@@ -244,6 +289,80 @@ export interface EventsApi extends CrudApi<CalendarEvent, EventInput, EventPatch
   feed(range: DateRange): Promise<CalendarItem[]>
 }
 
+export type NotesApi = CrudApi<Note, NoteInput, NotePatch, NoteListQuery> & {
+  /** Distinct folders in use. */
+  folders(): Promise<string[]>
+}
+
+export interface PlatformsApi {
+  list(args?: { includeArchived?: boolean }): Promise<Platform[]>
+  get(id: string): Promise<Platform | null>
+  create(input: PlatformInput): Promise<Platform>
+  update(args: { id: string; patch: PlatformPatch }): Promise<Platform>
+  reorder(ids: string[]): Promise<void>
+}
+
+export interface ProposalsApi extends CrudApi<Proposal, ProposalInput, ProposalPatch, ProposalListQuery> {
+  /** Distinct niches used so far (for suggestions). */
+  niches(): Promise<string[]>
+  /** Sent proposals with no answer for N days (default 3) — time to follow up. */
+  stale(args?: { days?: number; platformId?: string }): Promise<Proposal[]>
+  /** Creates (or reuses) a CRM client and a contract from a won proposal; status → hired. */
+  hire(input: HireInput): Promise<{ projectId: string; clientId: string }>
+  /** Saves the cover letter as a new proposal template. */
+  toTemplate(id: string): Promise<MessageTemplate>
+}
+
+export interface CreditsApi {
+  list(args: { platformId: string }): Promise<CreditTx[]>
+  add(input: CreditTxInput): Promise<CreditTx>
+  remove(id: string): Promise<void>
+  summary(args: { platformId: string }): Promise<CreditsSummary>
+}
+
+export interface TemplatesApi extends CrudApi<MessageTemplate, TemplateInput, TemplatePatch, { situation?: TemplateSituation; search?: string; tagId?: string }> {
+  markCopied(id: string): Promise<void>
+}
+
+export type CasesApi = CrudApi<PortfolioCase, CaseInput, CasePatch, { search?: string; niche?: string; tagId?: string }> & {
+  setCover(args: { id: string; source: FileSource }): Promise<PortfolioCase>
+}
+
+export type RedFlagsApi = CrudApi<RedFlag, RedFlagInput, RedFlagPatch, { search?: string }>
+
+export interface GoalsApi {
+  list(): Promise<Goal[]>
+  progress(args?: { platformId?: string }): Promise<GoalProgress[]>
+  create(input: GoalInput): Promise<Goal>
+  update(args: { id: string; patch: GoalPatch }): Promise<Goal>
+  remove(id: string): Promise<void>
+}
+
+export interface FreelanceApi {
+  stats(query?: StatsQuery): Promise<FreelanceStats>
+}
+
+export interface FinanceApi {
+  overview(): Promise<FinanceOverview>
+  month(args: { month: string }): Promise<MonthReport>
+  income(args: { from: number; to: number }): Promise<IncomeRow[]>
+  subscriptions(): Promise<Subscription[]>
+  subscriptionMonth(args: { month: string }): Promise<SubscriptionMonthRow[]>
+  createSubscription(input: SubscriptionInput): Promise<Subscription>
+  updateSubscription(args: { id: string; patch: SubscriptionPatch }): Promise<Subscription>
+  removeSubscription(id: string): Promise<void>
+  /** Marks a subscription paid for the month (creates an expense) or unpaid (removes it). */
+  setSubscriptionPaid(args: { id: string; month: string; paid: boolean; amount?: number }): Promise<void>
+  expenses(args: { from: number; to: number }): Promise<Expense[]>
+  createExpense(input: ExpenseInput): Promise<Expense>
+  updateExpense(args: { id: string; patch: ExpensePatch }): Promise<Expense>
+  removeExpense(id: string): Promise<void>
+  withdrawals(args?: { from?: number; to?: number }): Promise<Withdrawal[]>
+  createWithdrawal(input: WithdrawalInput): Promise<Withdrawal>
+  updateWithdrawal(args: { id: string; patch: WithdrawalPatch }): Promise<Withdrawal>
+  removeWithdrawal(id: string): Promise<void>
+}
+
 export interface TagsApi {
   list(): Promise<TagWithUsage[]>
   create(input: TagInput): Promise<Tag>
@@ -342,6 +461,16 @@ export interface Api {
   bookmarks: BookmarksApi
   english: EnglishApi
   events: EventsApi
+  notes: NotesApi
+  platforms: PlatformsApi
+  proposals: ProposalsApi
+  credits: CreditsApi
+  templates: TemplatesApi
+  cases: CasesApi
+  redflags: RedFlagsApi
+  goals: GoalsApi
+  freelance: FreelanceApi
+  finance: FinanceApi
   tags: TagsApi
   links: LinksApi
   pins: PinsApi
