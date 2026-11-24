@@ -24,7 +24,7 @@
     pointerEvents: 'none'
   })
   const hint = document.createElement('div')
-  hint.textContent = 'Выделите область для Vault · Esc — отмена'
+  hint.textContent = 'Виділіть область для Vault · Esc — скасувати'
   Object.assign(hint.style, {
     position: 'fixed',
     top: '16px',

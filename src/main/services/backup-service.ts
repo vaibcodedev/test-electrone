@@ -97,14 +97,14 @@ export class BackupService {
   }
 
   async create(opts: { saveAs: boolean; label?: string }): Promise<BackupEntry | null> {
-    if (this.running) throw new UserError('Бэкап уже выполняется')
+    if (this.running) throw new UserError('Бекап уже виконується')
     this.running = true
     try {
       const fileName = `vault-${opts.label ? opts.label + '-' : ''}${this.stamp()}.${BACKUP_EXT}`
       let target = join(this.paths.backupsDir, fileName)
       if (opts.saveAs) {
         const res = await dialog.showSaveDialog(this.parent(), {
-          title: 'Сохранить бэкап',
+          title: 'Зберегти бекап',
           defaultPath: join(app.getPath('documents'), fileName),
           filters: [{ name: 'Vault backup', extensions: [BACKUP_EXT] }]
         })
@@ -133,7 +133,7 @@ export class BackupService {
     let file = path
     if (!file) {
       const res = await dialog.showOpenDialog(this.parent(), {
-        title: 'Восстановить из бэкапа',
+        title: 'Відновити з бекапу',
         defaultPath: this.paths.backupsDir,
         properties: ['openFile'],
         filters: [{ name: 'Vault backup', extensions: [BACKUP_EXT, 'zip'] }]
@@ -143,20 +143,20 @@ export class BackupService {
     }
     const confirm = await dialog.showMessageBox(this.parent(), {
       type: 'warning',
-      buttons: ['Восстановить', 'Отмена'],
+      buttons: ['Відновити', 'Скасувати'],
       defaultId: 1,
       cancelId: 1,
-      title: 'Восстановление',
-      message: 'Текущие данные будут заменены данными из бэкапа.',
-      detail: 'Перед этим будет автоматически сохранён бэкап текущего состояния.'
+      title: 'Відновлення',
+      message: 'Поточні дані буде замінено даними з бекапу.',
+      detail: 'Перед цим автоматично збережеться бекап поточного стану.'
     })
     if (confirm.response !== 0) return false
 
     const archive = await unzipAsync(readFileSync(file))
     const manifestRaw = archive[MANIFEST]
-    if (!manifestRaw || !archive['vault.db']) throw new UserError('Это не файл бэкапа Vault')
+    if (!manifestRaw || !archive['vault.db']) throw new UserError('Це не файл бекапу Vault')
     const manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as Manifest
-    if (manifest.format !== 'vault-backup') throw new UserError('Неизвестный формат бэкапа')
+    if (manifest.format !== 'vault-backup') throw new UserError('Невідомий формат бекапу')
 
     await this.create({ saveAs: false, label: 'pre-restore' })
 

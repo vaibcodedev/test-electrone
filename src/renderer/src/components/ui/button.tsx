@@ -20,7 +20,9 @@ const buttonVariants = cva(
         ghost: 'text-foreground hover:bg-foreground/[0.07] disabled:opacity-40',
         // Navigation from a card ("Все библиотеки", "Календарь"): a visible pill on bg-surface cards.
         subtle: 'bg-card text-foreground hover:bg-accent disabled:opacity-50',
-        destructive: 'bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50',
+        // Dangerous action: solid red, white text and icon, calm hover; its focus ring is red too (never lime).
+        destructive:
+          'bg-destructive text-white hover:bg-destructive/88 focus-visible:ring-destructive/40 disabled:opacity-50 [&_svg]:text-white',
         link: 'h-auto rounded-none px-0 text-foreground underline decoration-current/30 underline-offset-4 hover:decoration-current disabled:opacity-50'
       },
       size: {

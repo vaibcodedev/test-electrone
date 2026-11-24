@@ -83,7 +83,7 @@ export function LogView({ runId, className }: { runId: string; className?: strin
       className={cn('selectable min-h-0 overflow-auto rounded-xl bg-[var(--code-bg)] font-mono text-caption text-[var(--code-fg)]', className)}
     >
       {rows.length === 0 ? (
-        <div className="p-3 text-[var(--code-muted)]">Лог пуст…</div>
+        <div className="p-3 text-[var(--code-muted)]">Лог порожній…</div>
       ) : (
         <div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((v) => {

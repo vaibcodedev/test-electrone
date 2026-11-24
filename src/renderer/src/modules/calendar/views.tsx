@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { dayKey, itemColor, SOURCE_LABEL, timeOnDay } from './items'
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 /** Lines a month cell can show; when there are more items, the last line becomes "+N". */
 const MAX_IN_CELL = 3
 
@@ -30,7 +30,7 @@ function ItemChip({ item, day, onOpen }: { item: CalendarItem; day: Date; onOpen
       }}
       title={`${SOURCE_LABEL[item.source]}: ${item.title}`}
       className={cn(
-        'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card',
+        'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card active:translate-y-0',
         item.done && 'text-muted-foreground line-through'
       )}
     >
@@ -62,7 +62,7 @@ function MoreItems({
           onClick={(e) => e.stopPropagation()}
           className="h-5 w-fit justify-start rounded-lg px-1.5 text-meta font-medium text-muted-foreground hover:text-foreground"
         >
-          ещё {count}
+          ще {count}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-2" onClick={(e) => e.stopPropagation()}>
@@ -113,7 +113,8 @@ export function MonthView({
               key={day.toISOString()}
               onClick={() => onDayClick(day)}
               className={cn(
-                'group min-h-[92px] cursor-pointer gap-0.5 overflow-hidden rounded-2xl p-2 transition-colors',
+                // overflow-clip (not hidden): never becomes a scroll container, so no flash of a scrollbar on click.
+                'group min-h-[92px] cursor-pointer gap-0.5 overflow-clip rounded-2xl p-2 transition-colors',
                 inMonth ? 'bg-surface/60 hover:bg-surface' : 'bg-transparent opacity-55 hover:bg-surface/50',
                 today && 'bg-surface ring-1 ring-lime/70 ring-inset'
               )}
@@ -133,7 +134,7 @@ export function MonthView({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label={`Новое событие ${format(day, 'd MMMM', { locale: LOCALE })}`}
+                  aria-label={`Нова подія ${format(day, 'd MMMM', { locale: LOCALE })}`}
                   className="text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -220,7 +221,7 @@ export function WeekView({
                   today ? 'text-ink-muted hover:bg-ink-foreground/8 hover:text-ink-foreground' : 'text-muted-foreground hover:bg-card'
                 )}
               >
-                <Plus /> Событие
+                <Plus /> Подія
               </Button>
             </div>
           </Card>

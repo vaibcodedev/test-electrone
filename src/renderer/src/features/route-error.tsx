@@ -27,20 +27,20 @@ export function RouteError() {
           <EmptyMedia variant="icon" className="size-14 rounded-full bg-destructive/10 text-destructive">
             <TriangleAlert className="size-6" />
           </EmptyMedia>
-          <EmptyTitle className="text-lead font-medium">Экран не открылся</EmptyTitle>
+          <EmptyTitle className="text-lead font-medium">Екран не відкрився</EmptyTitle>
           <EmptyDescription className="text-body break-words">
-            {message}. Ошибка записана в журнал — данные не пострадали.
+            {message}. Помилку записано в журнал — дані не постраждали.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center gap-2">
           <Button variant="lime" onClick={() => window.location.reload()}>
-            <RotateCcw /> Перезагрузить
+            <RotateCcw /> Перезавантажити
           </Button>
           <Button variant="soft" onClick={() => navigate('/')}>
-            На главную
+            На головну
           </Button>
           <Button variant="ghost" onClick={() => api.settings.openLogs()}>
-            Открыть журнал
+            Відкрити журнал
           </Button>
         </EmptyContent>
       </Empty>

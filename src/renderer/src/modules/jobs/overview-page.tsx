@@ -29,7 +29,7 @@ function TodayRow({ board }: { board: DailyBoard }) {
         checked={t.checked || t.done}
         disabled={t.done && !t.checked}
         onCheckedChange={(v) => checkin.mutate({ boardId: board.id, day: t.day, checked: v === true })}
-        aria-label={`Отметить ${board.name} на сегодня`}
+        aria-label={`Позначити ${board.name} на сьогодні`}
         className="size-5 rounded-full"
       />
       <ItemContent className="min-w-0">
@@ -39,11 +39,11 @@ function TodayRow({ board }: { board: DailyBoard }) {
         </ItemTitle>
         <ItemDescription className="text-caption">
           {target > 0
-            ? `${t.applied} из ${target} ${plural(target, ['отклика', 'откликов', 'откликов'])}`
+            ? `${t.applied} з ${target} ${plural(target, ['відгуку', 'відгуків', 'відгуків'])}`
             : t.applied
-              ? `${t.applied} ${plural(t.applied, ['отклик', 'отклика', 'откликов'])}`
-              : 'просто проверить'}
-          {t.checked && !t.applied ? ' · проверил, подходящего нет' : ''}
+              ? `${t.applied} ${plural(t.applied, ['відгук', 'відгуки', 'відгуків'])}`
+              : 'просто перевірити'}
+          {t.checked && !t.applied ? ' · перевірив, підхожого немає' : ''}
         </ItemDescription>
       </ItemContent>
       <ItemActions>
@@ -55,11 +55,11 @@ function TodayRow({ board }: { board: DailyBoard }) {
         {board.url && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Открыть ${board.name}`} onClick={() => api.app.openExternal(board.url)}>
+              <Button variant="ghost" size="icon-sm" aria-label={`Відкрити ${board.name}`} onClick={() => api.app.openExternal(board.url)}>
                 <ExternalLink />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Открыть {board.name}</TooltipContent>
+            <TooltipContent>Відкрити {board.name}</TooltipContent>
           </Tooltip>
         )}
       </ItemActions>
@@ -94,7 +94,7 @@ export function JobsOverviewPage() {
   if (!data) {
     return (
       <Page>
-        <PageHeader title="Поиск работы" />
+        <PageHeader title="Пошук роботи" />
         <PageBody className="grid grid-cols-2 gap-3">
           <Skeleton className="h-64 rounded-3xl" />
           <Skeleton className="h-64 rounded-3xl" />
@@ -110,15 +110,15 @@ export function JobsOverviewPage() {
   return (
     <Page>
       <PageHeader
-        title="Поиск работы"
-        subtitle="Площадки на сегодня, ближайшие собеседования и то, что пора довести до конца."
+        title="Пошук роботи"
+        subtitle="Майданчики на сьогодні, найближчі співбесіди й те, що час довести до кінця."
         actions={
           <>
             <Button variant="soft" onClick={() => navigate('/jobs/boards')}>
-              <Settings2 /> Площадки
+              <Settings2 /> Майданчики
             </Button>
             <Button variant="lime" onClick={() => navigate('/jobs/applications')}>
-              Вакансии
+              Вакансії
             </Button>
           </>
         }
@@ -127,21 +127,21 @@ export function JobsOverviewPage() {
         <div className="stagger grid grid-cols-12 gap-3">
           <Card className="col-span-5">
             <CardHeader>
-              <CardTitle>Сегодня, {format(new Date(), 'd MMMM', { locale: LOCALE })}</CardTitle>
+              <CardTitle>Сьогодні, {format(new Date(), 'd MMMM', { locale: LOCALE })}</CardTitle>
               <CardDescription>
                 {expected.length === 0
-                  ? 'Сегодня по площадкам выходной.'
+                  ? 'Сьогодні на майданчиках вихідний.'
                   : pending.length
-                    ? `Не отмечены: ${pending.map((b) => b.name).join(', ')}`
-                    : 'Все площадки на сегодня закрыты.'}
+                    ? `Не позначено: ${pending.map((b) => b.name).join(', ')}`
+                    : 'Усі майданчики на сьогодні закрито.'}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {data.today.length === 0 ? (
                 <EmptyState
-                  title="Площадок пока нет"
-                  hint="Добавьте Djinni, DOU, LinkedIn и задайте норму откликов в день."
-                  action={<Button onClick={() => navigate('/jobs/boards')}>Добавить площадку</Button>}
+                  title="Майданчиків поки немає"
+                  hint="Додайте Djinni, DOU, LinkedIn і задайте норму відгуків на день."
+                  action={<Button onClick={() => navigate('/jobs/boards')}>Додати майданчик</Button>}
                   className="py-6"
                 />
               ) : (
@@ -158,14 +158,14 @@ export function JobsOverviewPage() {
                 <p className="min-w-0 flex-1 text-caption leading-snug text-muted-foreground">
                   {reminder ? (
                     <>
-                      Напомню в <span className="font-medium text-foreground tabular-nums">{reminder}</span>, если что-то не отмечено
+                      Нагадаю о <span className="font-medium text-foreground tabular-nums">{reminder}</span>, якщо щось не позначено
                     </>
                   ) : (
-                    'Вечернее напоминание выключено'
+                    'Вечірнє нагадування вимкнено'
                   )}
                 </p>
                 <Button variant="subtle" size="xs" onClick={() => navigate('/settings')}>
-                  {reminder ? 'Изменить время' : 'Включить'}
+                  {reminder ? 'Змінити час' : 'Увімкнути'}
                 </Button>
               </div>
             </CardContent>
@@ -173,8 +173,8 @@ export function JobsOverviewPage() {
 
           <Card className="col-span-7">
             <CardHeader>
-              <CardTitle>Последние 4 недели</CardTitle>
-              <CardDescription>Отклик засчитывается сам; галочка закрывает день, если подходящих вакансий не было.</CardDescription>
+              <CardTitle>Останні 4 тижні</CardTitle>
+              <CardDescription>Відгук зараховується сам; позначка закриває день, якщо підхожих вакансій не було.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col">
               <DailyHeatmap boards={data.today} />
@@ -182,28 +182,28 @@ export function JobsOverviewPage() {
           </Card>
 
           <div className="col-span-12 grid grid-cols-3 gap-3">
-            <Counter label="Активных откликов" value={data.activeCount} hint="Открыть вакансии" onClick={() => navigate('/jobs/applications')} />
-            <Counter label="Офферов" value={data.offers} accent={data.offers > 0} hint="Посмотреть" onClick={() => navigate('/jobs/applications')} />
+            <Counter label="Активних відгуків" value={data.activeCount} hint="Відкрити вакансії" onClick={() => navigate('/jobs/applications')} />
+            <Counter label="Оферів" value={data.offers} accent={data.offers > 0} hint="Переглянути" onClick={() => navigate('/jobs/applications')} />
             <Counter
-              label="Вопросов к повторению"
+              label="Питань до повторення"
               value={data.questionsDue}
-              hint={data.questionsDue ? 'Начать тренировку' : 'Банк вопросов'}
+              hint={data.questionsDue ? 'Почати тренування' : 'Банк питань'}
               onClick={() => navigate(data.questionsDue ? '/jobs/questions/practice' : '/jobs/questions')}
             />
           </div>
 
           <Card className="col-span-6">
             <CardHeader>
-              <CardTitle>Ближайшие собеседования и тестовые</CardTitle>
+              <CardTitle>Найближчі співбесіди й тестові</CardTitle>
               <CardAction>
                 <Button variant="subtle" size="xs" onClick={() => navigate('/calendar')}>
-                  Календарь
+                  Календар
                 </Button>
               </CardAction>
             </CardHeader>
             <CardContent>
               {data.upcoming.length === 0 ? (
-                <p className="text-body text-muted-foreground">Ничего не запланировано. Добавьте этап в вакансии — он сразу появится в календаре.</p>
+                <p className="text-body text-muted-foreground">Нічого не заплановано. Додайте етап у вакансії — він одразу з’явиться в календарі.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {data.upcoming.map((s) => {
@@ -222,7 +222,7 @@ export function JobsOverviewPage() {
                             <ItemDescription className="truncate text-caption">
                               {s.company ? s.applicationTitle : ''}
                               {stage ? `${s.company ? ' · ' : ''}${stage}` : ''}
-                              {s.kind === 'test_task' && s.deadlineAt ? ' · сдать до срока' : ''}
+                              {s.kind === 'test_task' && s.deadlineAt ? ' · здати до терміну' : ''}
                             </ItemDescription>
                           </ItemContent>
                           <Badge variant={s.kind === 'test_task' ? 'warn' : 'info'}>{kind}</Badge>
@@ -237,17 +237,17 @@ export function JobsOverviewPage() {
 
           <Card className="col-span-6">
             <CardHeader>
-              <CardTitle>Напомнить о себе</CardTitle>
-              <CardDescription>Подошла дата напоминания или нет ответа неделю.</CardDescription>
+              <CardTitle>Нагадати про себе</CardTitle>
+              <CardDescription>Настав час нагадування або немає відповіді тиждень.</CardDescription>
               <CardAction>
                 <Button variant="subtle" size="xs" onClick={() => navigate('/freelance/templates?situation=follow_up')}>
-                  Шаблоны
+                  Шаблони
                 </Button>
               </CardAction>
             </CardHeader>
             <CardContent>
               {data.followUps.length === 0 ? (
-                <p className="text-body text-muted-foreground">Никого не нужно догонять.</p>
+                <p className="text-body text-muted-foreground">Нікого не треба наздоганяти.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {data.followUps.slice(0, 8).map((a) => (
@@ -256,8 +256,8 @@ export function JobsOverviewPage() {
                         <ItemContent className="min-w-0">
                           <ItemTitle className="w-full truncate font-normal">{a.title}</ItemTitle>
                           <ItemDescription className="truncate text-meta">
-                            {a.company || 'Компания не указана'}
-                            {a.appliedAt ? ` · отправлено ${fmtDay(a.appliedAt)}` : ''}
+                            {a.company || 'Компанію не вказано'}
+                            {a.appliedAt ? ` · надіслано ${fmtDay(a.appliedAt)}` : ''}
                           </ItemDescription>
                         </ItemContent>
                         {a.followUpAt && <Badge variant="success">{fmtDay(a.followUpAt)}</Badge>}

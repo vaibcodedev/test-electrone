@@ -39,7 +39,7 @@ function TitleBar() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Вперёд"
+          aria-label="Вперед"
           className="text-muted-foreground hover:bg-card"
           onClick={() => navigate(1)}
         >
@@ -52,7 +52,7 @@ function TitleBar() {
         className="no-drag h-8 w-[min(420px,40vw)] justify-start gap-2 bg-card/70 px-3.5 font-normal text-muted-foreground hover:bg-card"
       >
         <Search />
-        <span className="flex-1 text-left">Найти везде</span>
+        <span className="flex-1 text-left">Знайти всюди</span>
         <KbdGroup>
           <Kbd>Ctrl</Kbd>
           <Kbd>K</Kbd>

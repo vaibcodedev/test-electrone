@@ -13,7 +13,7 @@ export function PageSkeleton({ delay = 150 }: { delay?: number }) {
   }, [delay])
   if (!visible) return null
   return (
-    <div className="flex animate-page flex-col gap-6 px-8 pt-7" aria-busy="true" aria-label="Загрузка страницы">
+    <div className="flex animate-page flex-col gap-6 px-8 pt-7" aria-busy="true" aria-label="Завантаження сторінки">
       <div className="flex flex-col gap-3">
         <Skeleton className="h-9 w-64 rounded-2xl" />
         <Skeleton className="h-4 w-96 max-w-full rounded-full" />

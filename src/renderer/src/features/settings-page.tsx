@@ -1,17 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import {
-  Archive,
-  Download,
-  FileJson,
-  FileText,
-  FolderOpen,
-  HardDrive,
-  Monitor,
-  Moon,
-  RefreshCw,
-  RotateCcw,
-  Sun
-} from 'lucide-react'
+import { Archive, Check, Download, FileJson, FileText, FolderOpen, HardDrive, Monitor, Moon, RefreshCw, RotateCcw, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Settings, Theme } from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -20,6 +8,7 @@ import { fmtBytes, fmtDateTime, fmtRelative } from '@/lib/format'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/common/number-input'
 import { Switch } from '@/components/ui/switch'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,6 +17,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { limitsOf } from '@/lib/limits'
+import { settingsSchema } from '@shared/domain/system'
 import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/settings-cards'
 
 /** Settings section: shadcn Card with header and a column of rows. */
@@ -76,7 +67,7 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (accel: s
           e.altKey ? 'Alt' : null,
           e.shiftKey ? 'Shift' : null
         ].filter(Boolean)
-        if (!parts.length) return toast.error('Нужен хотя бы один модификатор: Ctrl, Alt или Shift')
+        if (!parts.length) return toast.error('Потрібен хоча б один модифікатор: Ctrl, Alt або Shift')
         const key =
           e.code === 'Space'
             ? 'Space'
@@ -92,7 +83,7 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (accel: s
       }}
     >
       {recording ? (
-        'Нажмите сочетание…'
+        'Натисніть комбінацію…'
       ) : (
         <KbdGroup>
           {keys.map((k) => (
@@ -105,9 +96,9 @@ function ShortcutInput({ value, onChange }: { value: string; onChange: (accel: s
 }
 
 const THEMES: { value: Theme; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'Светлая', icon: Sun },
-  { value: 'dark', label: 'Тёмная', icon: Moon },
-  { value: 'system', label: 'Как в системе', icon: Monitor }
+  { value: 'light', label: 'Світла', icon: Sun },
+  { value: 'dark', label: 'Темна', icon: Moon },
+  { value: 'system', label: 'Як у системі', icon: Monitor }
 ]
 
 export function SettingsPage() {
@@ -139,39 +130,40 @@ export function SettingsPage() {
     update?.state === 'disabled'
       ? update.reason
       : update?.state === 'ready'
-        ? `Версия ${update.version} готова к установке`
+        ? `Версія ${update.version} готова до встановлення`
         : update?.state === 'downloading'
-          ? `Загрузка ${update.percent}%`
+          ? `Завантаження ${update.percent}%`
           : update?.state === 'error'
-            ? `Ошибка: ${update.message}`
+            ? `Помилка: ${update.message}`
             : update?.state === 'none'
-              ? 'У вас последняя версия'
+              ? 'У вас остання версія'
               : update?.state === 'available'
-                ? `Доступна версия ${update.version}`
+                ? `Доступна версія ${update.version}`
                 : undefined
 
   return (
     <Page>
-      <PageHeader title="Настройки" subtitle={info ? `Vault ${info.version}` : undefined} />
+      <PageHeader title="Налаштування" subtitle={info ? `Vault ${info.version}` : undefined} />
       <PageBody>
         <div className="flex max-w-4xl flex-col gap-3">
-          <Section title="Вы" hint="Имя показывается в приветствии.">
-            <Row label="Как к вам обращаться">
+          <Section title="Ви" hint="Імʼя показується в привітанні.">
+            <Row label="Як до вас звертатися">
               <Input
                 key={settings.userName}
                 defaultValue={settings.userName}
-                placeholder="Имя"
+                placeholder="Імʼя"
+                maxLength={limitsOf(settingsSchema).userName}
                 onBlur={(e) => e.target.value !== settings.userName && set({ userName: e.target.value })}
                 className="w-56 bg-surface"
               />
             </Row>
           </Section>
 
-          <Section title="Оформление">
+          <Section title="Оформлення">
             <RadioGroup
               value={settings.theme}
               onValueChange={(v) => set({ theme: v as Theme })}
-              className="grid grid-cols-3 gap-2"
+              className="grid grid-cols-3 gap-3"
             >
               {THEMES.map((t) => {
                 const active = settings.theme === t.value
@@ -180,35 +172,38 @@ export function SettingsPage() {
                     key={t.value}
                     htmlFor={`theme-${t.value}`}
                     className={cn(
-                      'flex h-20 flex-col items-start justify-between rounded-2xl p-3 text-body font-normal transition-colors',
-                      active ? 'bg-ink text-ink-foreground' : 'bg-card text-foreground hover:bg-accent'
+                      // Neutral cards with a preview; the chosen one gets a clear ring + check (no inversion).
+                      'relative flex cursor-pointer flex-col items-stretch gap-2.5 rounded-2xl border bg-card p-2.5 text-body font-normal transition-[border-color,box-shadow]',
+                      active ? 'border-transparent ring-2 ring-chart-1' : 'border-border hover:border-foreground/25'
                     )}
                   >
-                    <span className="flex w-full items-center justify-between">
-                      <t.icon className={cn('size-4', active && 'text-ink-accent')} />
-                      <RadioGroupItem value={t.value} id={`theme-${t.value}`} className="sr-only" />
+                    <ThemePreview theme={t.value} />
+                    <span className="flex items-center gap-2 px-1">
+                      <t.icon className="size-4 text-muted-foreground" />
+                      <span className={cn(active && 'font-semibold')}>{t.label}</span>
+                      {active && <Check className="ml-auto size-4 text-chart-1" />}
                     </span>
-                    {t.label}
+                    <RadioGroupItem value={t.value} id={`theme-${t.value}`} className="sr-only" />
                   </Label>
                 )
               })}
             </RadioGroup>
           </Section>
 
-          <Section title="Система" hint="Vault живёт в трее и ловит быстрые мысли из любого окна.">
-            <Row label="Быстрое добавление" hint="Глобальное сочетание, работает даже когда окно свёрнуто">
+          <Section title="Система" hint="Vault живе в треї й ловить швидкі думки з будь-якого вікна.">
+            <Row label="Швидке додавання" hint="Глобальна комбінація, працює навіть коли вікно згорнуте">
               <ShortcutInput value={settings.quickAddShortcut} onChange={(quickAddShortcut) => set({ quickAddShortcut })} />
             </Row>
-            <Row label="Запускать вместе с Windows" hint="Работает в установленной версии">
+            <Row label="Запускати разом із Windows" hint="Працює у встановленій версії">
               <Switch checked={settings.launchAtLogin} onCheckedChange={(launchAtLogin) => set({ launchAtLogin })} />
             </Row>
-            <Row label="Стартовать свёрнутым в трей" hint="При автозапуске окно не открывается">
+            <Row label="Стартувати згорнутим у трей" hint="Під час автозапуску вікно не відкривається">
               <Switch checked={settings.startHidden} onCheckedChange={(startHidden) => set({ startHidden })} />
             </Row>
-            <Row label="Закрытие окна сворачивает в трей" hint="Выйти полностью — через меню иконки в трее">
+            <Row label="Закриття вікна згортає в трей" hint="Вийти повністю — через меню іконки в треї">
               <Switch checked={settings.closeToTray} onCheckedChange={(closeToTray) => set({ closeToTray })} />
             </Row>
-            <Row label="Вечернее напоминание о площадках" hint="Поиск работы: если сегодня не отмечены площадки. Пусто — выключено">
+            <Row label="Вечірнє нагадування про майданчики" hint="Пошук роботи: якщо сьогодні не відмічено майданчики. Порожньо — вимкнено">
               <Input
                 type="time"
                 defaultValue={settings.jobReminderTime}
@@ -218,63 +213,62 @@ export function SettingsPage() {
             </Row>
           </Section>
 
-          <Section title="Данные" hint="База и файлы лежат в одной папке. В базе хранятся только пути к картинкам.">
+          <Section title="Дані" hint="База й файли лежать в одній папці. У базі зберігаються лише шляхи до картинок.">
             {info && (
               <Row label={info.dataDir} hint={`База ${fmtBytes(info.dbSizeBytes)}`}>
                 <Button variant="soft" size="sm" onClick={() => api.settings.openDataDir()}>
-                  <FolderOpen /> Открыть папку
+                  <FolderOpen /> Відкрити папку
                 </Button>
               </Row>
             )}
             {info && (
-              <Row label="Журнал ошибок" hint={info.logFile}>
+              <Row label="Журнал помилок" hint={info.logFile}>
                 <Button variant="soft" size="sm" onClick={() => api.settings.openLogs()}>
-                  <FolderOpen /> Открыть журнал
+                  <FolderOpen /> Відкрити журнал
                 </Button>
               </Row>
             )}
           </Section>
 
           <Section
-            title="Бэкап"
-            hint="Один файл .vaultbak: база + все картинки и файлы. Автобэкап раз в день, хранятся последние копии."
+            title="Бекап"
+            hint="Один файл .vaultbak: база + усі картинки й файли. Автобекап раз на день, зберігаються останні копії."
           >
             <Row
-              label="Автобэкап раз в день"
-              hint={info?.lastBackupAt ? `Последний: ${fmtRelative(info.lastBackupAt)}` : 'Ещё не делался'}
+              label="Автобекап раз на день"
+              hint={info?.lastBackupAt ? `Останній: ${fmtRelative(info.lastBackupAt)}` : 'Ще не робився'}
             >
               <Switch checked={settings.autoBackup} onCheckedChange={(autoBackup) => set({ autoBackup })} />
             </Row>
-            <Row label="Сколько копий хранить">
-              <Input
-                type="number"
+            <Row label="Скільки копій зберігати">
+              <NumberInput
+                integer
                 min={1}
                 max={100}
-                key={settings.backupKeep}
-                defaultValue={settings.backupKeep}
-                onBlur={(e) => set({ backupKeep: Math.max(1, Math.min(100, Number(e.target.value) || 14)) })}
-                className="w-20 bg-surface"
+                value={settings.backupKeep}
+                onChange={(v) => v !== null && set({ backupKeep: v })}
+                className="w-20"
               />
             </Row>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button
                 variant="lime"
                 disabled={!!busy}
-                onClick={() => run('backup', () => createBackup.mutateAsync({ saveAs: false }), () => toast.success('Бэкап создан'))}
+                onClick={() => run('backup', () => createBackup.mutateAsync({ saveAs: false }), () => toast.success('Бекап створено'))}
               >
-                <Archive /> Сделать бэкап сейчас
+                <Archive /> Зробити бекап зараз
               </Button>
               <Button
                 variant="outline"
                 disabled={!!busy}
                 onClick={() =>
-                  run('backup-as', () => createBackup.mutateAsync({ saveAs: true }), (r) => r && toast.success('Бэкап сохранён'))
+                  run('backup-as', () => createBackup.mutateAsync({ saveAs: true }), (r) => r && toast.success('Бекап збережено'))
                 }
               >
-                <Download /> Сохранить бэкап как…
+                <Download /> Зберегти бекап як…
               </Button>
               <Button variant="outline" disabled={!!busy} onClick={() => run('restore', () => api.backup.restore({}))}>
-                <RotateCcw /> Восстановить из файла…
+                <RotateCcw /> Відновити з файлу…
               </Button>
             </div>
             {backups.length > 0 && (
@@ -282,8 +276,8 @@ export function SettingsPage() {
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Файл</TableHead>
-                    <TableHead className="text-right">Размер</TableHead>
-                    <TableHead className="text-right">Создан</TableHead>
+                    <TableHead className="text-right">Розмір</TableHead>
+                    <TableHead className="text-right">Створено</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -306,7 +300,7 @@ export function SettingsPage() {
                           className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                           onClick={() => run('restore', () => api.backup.restore({ path: b.path }))}
                         >
-                          Восстановить
+                          Відновити
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -316,7 +310,7 @@ export function SettingsPage() {
             )}
           </Section>
 
-          <Section title="Экспорт" hint="Данные никогда не заперты в приложении: всё выгружается в открытые форматы.">
+          <Section title="Експорт" hint="Дані ніколи не замкнені в застосунку: усе вивантажується у відкриті формати.">
             <ItemGroup className="gap-2">
               <Item size="sm" className="bg-card">
                 <ItemMedia variant="icon">
@@ -324,16 +318,16 @@ export function SettingsPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle className="font-normal">Markdown</ItemTitle>
-                  <ItemDescription className="text-caption">Zip: папка на раздел, файл на запись, картинки рядом</ItemDescription>
+                  <ItemDescription className="text-caption">Zip: папка на розділ, файл на запис, картинки поруч</ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button
                     variant="soft"
                     size="sm"
                     disabled={!!busy}
-                    onClick={() => run('md', () => api.backup.export('markdown'), (p) => p && toast.success('Экспортировано в Markdown'))}
+                    onClick={() => run('md', () => api.backup.export('markdown'), (p) => p && toast.success('Експортовано в Markdown'))}
                   >
-                    Экспорт
+                    Експорт
                   </Button>
                 </ItemActions>
               </Item>
@@ -343,31 +337,31 @@ export function SettingsPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle className="font-normal">JSON</ItemTitle>
-                  <ItemDescription className="text-caption">Один файл со всеми таблицами</ItemDescription>
+                  <ItemDescription className="text-caption">Один файл з усіма таблицями</ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button
                     variant="soft"
                     size="sm"
                     disabled={!!busy}
-                    onClick={() => run('json', () => api.backup.export('json'), (p) => p && toast.success('Экспортировано в JSON'))}
+                    onClick={() => run('json', () => api.backup.export('json'), (p) => p && toast.success('Експортовано в JSON'))}
                   >
-                    Экспорт
+                    Експорт
                   </Button>
                 </ItemActions>
               </Item>
             </ItemGroup>
             <p className="text-caption text-muted-foreground">
-              Пароли из «Доступов» в экспорт не попадают — они зашифрованы ключом Windows и расшифровываются только на этом
-              компьютере.
+              Паролі з «Доступів» до експорту не потрапляють — вони зашифровані ключем Windows і розшифровуються лише на цьому
+              компʼютері.
             </p>
           </Section>
 
           <GithubSettingsCard />
           <ExtensionSettingsCard />
 
-          <Section title="Обновления" hint="Через GitHub Releases (настраивается в electron-builder.yml).">
-            <Row label="Скачивать обновления автоматически" hint={updateHint}>
+          <Section title="Оновлення" hint="Через GitHub Releases (налаштовується в electron-builder.yml).">
+            <Row label="Завантажувати оновлення автоматично" hint={updateHint}>
               <Switch checked={settings.autoUpdate} onCheckedChange={(autoUpdate) => set({ autoUpdate })} />
             </Row>
             <div className="flex gap-2 pt-1">
@@ -376,11 +370,11 @@ export function SettingsPage() {
                 disabled={update?.state === 'disabled' || checkUpdates.isPending}
                 onClick={() => checkUpdates.mutate(undefined)}
               >
-                <RefreshCw className={cn(checkUpdates.isPending && 'animate-spin')} /> Проверить
+                <RefreshCw className={cn(checkUpdates.isPending && 'animate-spin')} /> Перевірити
               </Button>
               {(update?.state === 'ready' || update?.state === 'available') && (
                 <Button variant="lime" onClick={() => api.updates.install()}>
-                  {update.state === 'ready' ? 'Перезапустить и обновить' : 'Скачать обновление'}
+                  {update.state === 'ready' ? 'Перезапустити й оновити' : 'Завантажити оновлення'}
                 </Button>
               )}
             </div>
@@ -388,5 +382,42 @@ export function SettingsPage() {
         </div>
       </PageBody>
     </Page>
+  )
+}
+
+/** Fixed palette swatches: the preview must show the OTHER theme too, so it can't use the live CSS vars. */
+type Swatch = { frame: string; card: string; line: string; accent: string }
+const PREVIEW: Record<'light' | 'dark', Swatch> = {
+  light: { frame: '#d8dcd2', card: '#f7f8f4', line: '#14160f1f', accent: '#d4f542' },
+  dark: { frame: '#0e0f11', card: '#18191c', line: '#ffffff1f', accent: '#d8f74a' }
+}
+
+function PreviewHalf({ p }: { p: Swatch }) {
+  return (
+    <div className="flex h-full flex-1 gap-1 p-1.5" style={{ background: p.frame }}>
+      <div className="flex w-1/4 flex-col gap-1">
+        <div className="h-3 rounded-[4px]" style={{ background: p.accent }} />
+        <div className="flex-1 rounded-[4px]" style={{ background: p.card }} />
+      </div>
+      <div className="flex flex-1 flex-col gap-1 rounded-[4px] p-1.5" style={{ background: p.card }}>
+        <div className="h-1.5 w-3/5 rounded-full" style={{ background: p.line }} />
+        <div className="h-1.5 w-2/5 rounded-full" style={{ background: p.line }} />
+      </div>
+    </div>
+  )
+}
+
+function ThemePreview({ theme }: { theme: Theme }) {
+  return (
+    <div aria-hidden className="flex h-16 w-full overflow-hidden rounded-xl ring-1 ring-foreground/10">
+      {theme === 'light' && <PreviewHalf p={PREVIEW.light} />}
+      {theme === 'dark' && <PreviewHalf p={PREVIEW.dark} />}
+      {theme === 'system' && (
+        <>
+          <PreviewHalf p={PREVIEW.light} />
+          <PreviewHalf p={PREVIEW.dark} />
+        </>
+      )}
+    </div>
   )
 }

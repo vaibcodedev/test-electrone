@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { PRIORITIES, type BoardColumn, type CardDetails, type CardPatch, type ChecklistEntry, type Priority } from '@shared/domain/boards'
+import { cardInputSchema, PRIORITIES, type BoardColumn, type CardDetails, type CardPatch, type ChecklistEntry, type Priority } from '@shared/domain/boards'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(cardInputSchema)
+/** Card checklist entry text limit (validated in main: boards.addChecklistItem, max 1000). */
+const ENTRY_MAX = 1000
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime } from '@/lib/format'
@@ -18,6 +23,7 @@ import { Field, SegmentBar } from '@/components/common/page'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { PinButtons } from '@/components/common/pin-buttons'
+import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { cn } from '@/lib/utils'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
@@ -35,11 +41,12 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
       />
       <Input
         value={text}
+        maxLength={ENTRY_MAX}
         onChange={(e) => setText(e.target.value)}
-        aria-label="Текст пункта"
+        aria-label="Текст пункту"
         className={cn(
           'h-8 min-w-0 flex-1 bg-transparent px-1 focus-visible:bg-card',
-          entry.done && 'text-muted-foreground line-through'
+          entry.done && 'text-muted-foreground'
         )}
       />
       <Button
@@ -47,7 +54,7 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
         size="icon-xs"
         onClick={() => remove.mutate(entry.id)}
         className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-        aria-label="Удалить пункт"
+        aria-label="Видалити пункт"
       >
         <X />
       </Button>
@@ -74,7 +81,7 @@ function Checklist({ card }: { card: CardDetails }) {
           Чек-лист
         </SectionLabel>
       </div>
-      {card.checklist.length > 0 && <SegmentBar value={done} total={card.checklist.length} segments={card.checklist.length > 8 ? 8 : card.checklist.length} />}
+      {card.checklist.length > 0 && <SegmentBar value={done} total={card.checklist.length} segments={Math.min(card.checklist.length, 8)} states={card.checklist.map((c) => c.done)} />}
       <ul className="-mx-2 flex flex-col">
         {card.checklist.map((e) => (
           <ChecklistRow key={e.id} entry={e} />
@@ -89,8 +96,8 @@ function Checklist({ card }: { card: CardDetails }) {
           setText('')
         }}
       >
-        <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="Добавить пункт" />
-        <Button type="submit" variant="soft" size="icon" disabled={!text.trim()} aria-label="Добавить пункт">
+        <Input value={text} maxLength={ENTRY_MAX} onChange={(e) => setText(e.target.value)} placeholder="Додати пункт" />
+        <Button type="submit" variant="soft" size="icon" disabled={!text.trim()} aria-label="Додати пункт">
           <Plus />
         </Button>
       </form>
@@ -102,7 +109,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
   const update = useApiMutation('cards', 'update')
   const remove = useApiMutation('cards', 'remove', {
     onSuccess: () => {
-      toast.success('Карточка в корзине')
+      toast.success('Картку переміщено в кошик')
       onClose()
     }
   })
@@ -110,6 +117,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
   const [title, setTitle] = useAutosave(card.title, (t) => t.trim() && patch({ title: t.trim() }))
   const [description, setDescription] = useAutosave(card.description, (d) => patch({ description: d }))
 
+  const mode = useRecordMode(card.id)
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
@@ -117,27 +125,29 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
         <span className="flex-1 truncate text-caption text-muted-foreground">
           {card.boardTitle} · {card.columnTitle}
         </span>
+        <EditToggle mode={mode} />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="В корзину" onClick={() => remove.mutate(card.id)}>
+            <Button variant="ghost" size="icon-sm" aria-label="У кошик" onClick={() => remove.mutate(card.id)}>
               <Trash2 />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>В корзину</TooltipContent>
+          <TooltipContent>У кошик</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={onClose}>
               <X />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Закрыть · Esc</TooltipContent>
+          <TooltipContent>Закрити · Esc</TooltipContent>
         </Tooltip>
       </div>
+      <RecordMode mode={mode}>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <SheetTitle className="sr-only">{card.title}</SheetTitle>
-        <SheetDescription className="sr-only">Редактирование карточки</SheetDescription>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Название карточки" className="text-[24px]" />
+        <SheetDescription className="sr-only">Редагування картки</SheetDescription>
+        <InlineTitle value={title} onChange={setTitle} placeholder="Назва картки" maxLength={LIMITS.title} className="text-[24px]" />
 
         <div className="mt-5 grid grid-cols-2 gap-4">
           <Field label="Колонка">
@@ -154,7 +164,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Приоритет">
+          <Field label="Пріоритет">
             <Select value={card.priority} onValueChange={(v) => patch({ priority: v as Priority })}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -170,21 +180,21 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
             </Select>
           </Field>
           <Field label="Дедлайн" className="col-span-2">
-            <DatePicker withTime value={card.dueAt} onChange={(dueAt) => patch({ dueAt })} placeholder="Без дедлайна" />
+            <DatePicker withTime value={card.dueAt} onChange={(dueAt) => patch({ dueAt })} placeholder="Без дедлайну" />
           </Field>
         </div>
 
         <section className="mt-5 flex flex-col gap-2">
-          <SectionLabel>Метки</SectionLabel>
+          <SectionLabel>Мітки</SectionLabel>
           <TagPicker value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
         </section>
 
         <section className="mt-5">
           <MarkdownField
-            label="Описание"
+            label="Опис"
             value={description}
             onChange={setDescription}
-            placeholder="Описание, ссылки, детали…"
+            placeholder="Опис, посилання, деталі…"
             minHeight="160px"
           />
         </section>
@@ -197,11 +207,12 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
           <LinksPanel entity={{ type: 'card', id: card.id }} />
           <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
           <div className="text-meta text-muted-foreground">
-            Создано {fmtDateTime(card.createdAt)}
-            {card.completedAt && ` · выполнено ${fmtDateTime(card.completedAt)}`}
+            Створено {fmtDateTime(card.createdAt)}
+            {card.completedAt && ` · виконано ${fmtDateTime(card.completedAt)}`}
           </div>
         </div>
       </div>
+      </RecordMode>
     </div>
   )
 }
@@ -216,8 +227,8 @@ export function CardSheet({ cardId, columns, onClose }: { cardId: string | null;
           <CardEditor key={card.id} card={card} columns={columns} onClose={onClose} />
         ) : (
           <>
-            <SheetTitle className="sr-only">Карточка</SheetTitle>
-            <SheetDescription className="sr-only">Загрузка</SheetDescription>
+            <SheetTitle className="sr-only">Картка</SheetTitle>
+            <SheetDescription className="sr-only">Завантаження</SheetDescription>
           </>
         )}
       </SheetContent>

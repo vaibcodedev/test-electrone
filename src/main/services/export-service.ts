@@ -46,7 +46,7 @@ export class ExportService {
     const day = new Date().toISOString().slice(0, 10)
     const isJson = format === 'json'
     const res = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0], {
-      title: isJson ? 'Экспорт в JSON' : 'Экспорт в Markdown',
+      title: isJson ? 'Експорт у JSON' : 'Експорт у Markdown',
       defaultPath: join(app.getPath('documents'), `vault-export-${day}.${isJson ? 'json' : 'zip'}`),
       filters: isJson ? [{ name: 'JSON', extensions: ['json'] }] : [{ name: 'ZIP', extensions: ['zip'] }]
     })
@@ -90,7 +90,7 @@ export class ExportService {
       }
     }
     if (tagNames.length) front.push(`tags: ${yamlValue(tagNames)}`)
-    if (links.length) body.push('## Связи', '', ...links.map((l) => `- ${l}`), '')
+    if (links.length) body.push('## Зв’язки', '', ...links.map((l) => `- ${l}`), '')
     if (type === 'board') body.push(...this.boardBody(row.id))
     return `---\n${front.join('\n')}\n---\n\n${body.join('\n')}`
   }
@@ -131,7 +131,7 @@ export class ExportService {
       }
     }
     entries['README.md'] = enc.encode(
-      `# Vault export\n\nЭкспортировано ${new Date().toLocaleString('ru-RU')}.\nКаждая папка — модуль, каждый файл — запись с frontmatter. Картинки лежат в files/.\n`
+      `# Vault export\n\nЕкспортовано ${new Date().toLocaleString('uk-UA')}.\nКожна папка — модуль, кожен файл — запис із frontmatter. Зображення лежать у files/.\n`
     )
     collectFiles(this.paths.filesDir, 'files', entries)
     return zipAsync(entries, { level: 6 })

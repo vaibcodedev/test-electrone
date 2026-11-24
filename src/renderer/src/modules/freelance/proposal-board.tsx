@@ -23,6 +23,8 @@ import { Card } from '@/components/ui/card'
 import { ACTIVE_STATUSES, CLOSED_STATUSES, PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { ProposalCard } from './proposal-card'
 
+const PAGE = 30
+
 interface BoardProps {
   proposals: Proposal[]
   currency: Currency
@@ -97,13 +99,32 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
   const [overrides, setOverrides] = useState<Record<string, ProposalStatus>>({})
   const [activeId, setActiveId] = useState<string | null>(null)
   const [closedOpen, setClosedOpen] = useState(false)
+  // Columns render in pages of 30: big pipelines stay fast and the column stays scannable.
+  const [pages, setPages] = useState<Partial<Record<ProposalStatus, number>>>({})
+  const visible = (status: ProposalStatus, list: Proposal[]): Proposal[] =>
+    list.slice(0, (pages[status] ?? 1) * PAGE)
+  const more = (status: ProposalStatus, list: Proposal[]): ReactNode => {
+    const shown = (pages[status] ?? 1) * PAGE
+    if (list.length <= shown) return null
+    return (
+      <Button
+        variant="subtle"
+        size="xs"
+        className="mx-1 w-fit"
+        onClick={() => setPages((p) => ({ ...p, [status]: (p[status] ?? 1) + 1 }))}
+      >
+        Ще {Math.min(PAGE, list.length - shown)} з {list.length - shown}
+      </Button>
+    )
+  }
   const [now] = useState(() => Date.now())
   const update = useApiMutation('proposals', 'update', {
-    onError: (_e, vars) => setOverrides((o) => {
-      const next = { ...o }
-      delete next[vars.id]
-      return next
-    })
+    onError: (_e, vars) =>
+      setOverrides((o) => {
+        const next = { ...o }
+        delete next[vars.id]
+        return next
+      })
   })
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -151,7 +172,13 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActiveId(null)}
+    >
       <div className="flex h-full min-h-0 gap-3 overflow-x-auto pb-2">
         {ACTIVE_STATUSES.map((status) => {
           const list = byStatus.get(status) ?? []
@@ -159,10 +186,12 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
             <Card key={status} className="flex w-65 shrink-0 flex-col gap-2 rounded-3xl px-2 py-3">
               <div className="flex items-center gap-2 px-2">
                 <span className="text-body font-medium">{PROPOSAL_STATUS_LABEL[status]}</span>
-                <span className="text-caption text-muted-foreground tabular-nums">{list.length}</span>
+                <span className="text-caption text-muted-foreground tabular-nums">
+                  {list.length}
+                </span>
               </div>
               <DropZone status={status} className="overflow-y-auto">
-                {list.map((p) => (
+                {visible(status, list).map((p) => (
                   <DraggableProposal
                     key={p.id}
                     proposal={p}
@@ -172,30 +201,39 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
                     onOpen={() => onOpen(p.id)}
                   />
                 ))}
+                {more(status, list)}
               </DropZone>
             </Card>
           )
         })}
 
-        <Card className={cn('flex shrink-0 flex-col gap-2 rounded-3xl px-2 py-3', showClosed ? 'w-65' : 'w-14 items-center')}>
+        <Card
+          className={cn(
+            'flex shrink-0 flex-col gap-2 rounded-3xl px-2 py-3',
+            showClosed ? 'w-65 overflow-y-auto' : 'w-14 items-center'
+          )}
+        >
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setClosedOpen(!closedOpen)}
-            className={cn('text-body', showClosed ? 'justify-between' : 'h-auto flex-col gap-2 px-1 py-2')}
+            className={cn(
+              'text-body',
+              showClosed ? 'justify-between' : 'h-auto flex-col gap-2 px-1 py-2'
+            )}
             aria-expanded={showClosed}
           >
             {showClosed ? (
               <>
                 <span className="flex items-center gap-2">
-                  Закрытые <span className="text-muted-foreground tabular-nums">{closedCount}</span>
+                  Закриті <span className="text-muted-foreground tabular-nums">{closedCount}</span>
                 </span>
                 <ChevronLeft />
               </>
             ) : (
               <>
                 <ChevronRight />
-                <span className="[writing-mode:vertical-rl]">Закрытые</span>
+                <span className="[writing-mode:vertical-rl]">Закриті</span>
                 <Badge variant="soft">{closedCount}</Badge>
               </>
             )}
@@ -206,10 +244,11 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
               return (
                 <div key={status} className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 px-2 text-caption text-muted-foreground">
-                    {PROPOSAL_STATUS_LABEL[status]} <span className="tabular-nums">{list.length}</span>
+                    {PROPOSAL_STATUS_LABEL[status]}{' '}
+                    <span className="tabular-nums">{list.length}</span>
                   </div>
                   <DropZone status={status} compact className="bg-surface">
-                    {list.map((p) => (
+                    {visible(status, list).map((p) => (
                       <DraggableProposal
                         key={p.id}
                         proposal={p}
@@ -219,6 +258,7 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
                         onOpen={() => onOpen(p.id)}
                       />
                     ))}
+                    {more(status, list)}
                   </DropZone>
                 </div>
               )
@@ -226,7 +266,14 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
         </Card>
       </div>
       <DragOverlay>
-        {active ? <ProposalCard proposal={active} currency={currency} now={now} className="w-61 rotate-2 shadow-xl" /> : null}
+        {active ? (
+          <ProposalCard
+            proposal={active}
+            currency={currency}
+            now={now}
+            className="w-61 rotate-2 shadow-xl"
+          />
+        ) : null}
       </DragOverlay>
     </DndContext>
   )

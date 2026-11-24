@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { FileText, Trash2, X } from 'lucide-react'
-import { APPLICATION_STATUSES, WORK_FORMATS, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
+import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(applicationInputSchema)
 import { CURRENCIES } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
@@ -20,6 +23,8 @@ import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { PinButtons } from '@/components/common/pin-buttons'
+import { promptAfterStatusChange } from './schedule-stage'
+import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '../crm/parts'
 import { CompanyCombobox, LinkInput, NumberInput, TextField } from './j1-fields'
@@ -35,34 +40,34 @@ function CoverTemplatePicker({ application: a, patch }: { application: Applicati
     if (!tpl) return
     patch({ coverLetter: tpl.body, templateId: tpl.id })
     void api.templates.markCopied(tpl.id)
-    toast.success('Шаблон вставлен — замените {переменные}')
+    toast.success('Шаблон вставлено — замініть {змінні}')
   }
   const button = (
     <Button variant="soft" disabled={!tpl}>
-      <FileText /> Вставить
+      <FileText /> Вставити
     </Button>
   )
   return (
     <div className="flex items-end gap-2">
-      <Field label="Шаблон сопроводительного" className="flex-1">
+      <Field label="Шаблон супровідного листа" className="flex-1">
         <Choice
           value={selected}
           onChange={(v) => {
             setSelected(v)
             patch({ templateId: v })
           }}
-          none="Без шаблона"
-          placeholder={letters.length ? 'Выберите шаблон' : 'Шаблонов пока нет'}
+          none="Без шаблону"
+          placeholder={letters.length ? 'Виберіть шаблон' : 'Шаблонів поки немає'}
           options={letters.map((t) => ({ value: t.id, label: t.title }))}
         />
       </Field>
       {a.coverLetter.trim() ? (
-        <Confirm title="Заменить текст письма?" description="Текущий текст будет заменён шаблоном." confirmLabel="Заменить" onConfirm={insert}>
+        <Confirm title="Замінити текст листа?" description="Поточний текст буде замінено шаблоном." confirmLabel="Замінити" onConfirm={insert}>
           {button}
         </Confirm>
       ) : (
         <Button variant="soft" disabled={!tpl} onClick={insert}>
-          <FileText /> Вставить
+          <FileText /> Вставити
         </Button>
       )}
     </div>
@@ -71,7 +76,7 @@ function CoverTemplatePicker({ application: a, patch }: { application: Applicati
 
 function Editor({ application: a, onClose }: { application: ApplicationDetails; onClose: () => void }) {
   const update = useApiMutation('jobs', 'update')
-  const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансия в корзине', onSuccess: onClose })
+  const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
   const { data: resumes = [] } = useApi('jobs', 'resumes')
   const patch = (p: ApplicationPatch): void => update.mutate({ id: a.id, patch: p })
@@ -81,70 +86,77 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
   const [notes, setNotes] = useAutosave(a.notes, (v) => patch({ notes: v }))
   const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
 
+  const mode = useRecordMode(a.id)
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <PinButtons entity={{ type: 'application', id: a.id }} />
         <div className="flex-1" />
+        <EditToggle mode={mode} />
         <Choice
           size="sm"
           value={a.status}
-          onChange={(v) => v && patch({ status: v })}
+          onChange={(v) => {
+            if (!v) return
+            patch({ status: v })
+            promptAfterStatusChange(a, v)
+          }}
           options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
           className="w-44"
         />
-        <Confirm title="Убрать вакансию в корзину?" description="Связанные события календаря тоже уйдут в корзину." confirmLabel="В корзину" onConfirm={() => remove.mutate(a.id)}>
-          <Button variant="ghost" size="icon-sm" aria-label="В корзину">
+        <Confirm title="Перемістити вакансію в кошик?" description="Пов’язані події календаря теж потраплять у кошик." confirmLabel="У кошик" onConfirm={() => remove.mutate(a.id)}>
+          <Button variant="ghost" size="icon-sm" aria-label="У кошик">
             <Trash2 />
           </Button>
         </Confirm>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={onClose}>
               <X />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Закрыть · Esc</TooltipContent>
+          <TooltipContent>Закрити · Esc</TooltipContent>
         </Tooltip>
       </div>
 
+      <RecordMode mode={mode}>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <SheetTitle className="sr-only">{a.title}</SheetTitle>
-        <SheetDescription className="sr-only">Редактирование вакансии</SheetDescription>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Позиция" className="text-[24px]" />
+        <SheetDescription className="sr-only">Редагування вакансії</SheetDescription>
+        <InlineTitle value={title} onChange={setTitle} placeholder="Посада" className="text-[24px]" maxLength={LIMITS.title} />
 
         <div className="mt-5 grid grid-cols-2 gap-4">
-          <Field label="Компания" className="col-span-2">
+          <Field label="Компанія" className="col-span-2">
             <CompanyCombobox
               value={{ companyId: a.companyId, companyName: a.companyName }}
               onChange={({ companyId, companyName }) => patch({ companyId, companyName })}
             />
           </Field>
-          <Field label="Площадка">
+          <Field label="Майданчик">
             <Choice
               value={a.boardId}
               onChange={(boardId) => patch({ boardId })}
-              none="Не указана"
+              none="Не вказано"
               options={boards.map((b) => ({ value: b.id, label: b.name }))}
             />
           </Field>
-          <Field label="Ссылка на вакансию">
+          <Field label="Посилання на вакансію">
             <LinkInput value={a.url} onSave={(url) => patch({ url })} />
           </Field>
-          <Field label="Отправлено">
-            <DatePicker value={a.appliedAt} onChange={(appliedAt) => patch({ appliedAt })} placeholder="Ещё не отправлено" />
+          <Field label="Надіслано">
+            <DatePicker value={a.appliedAt} onChange={(appliedAt) => patch({ appliedAt })} placeholder="Ще не надіслано" />
           </Field>
-          <Field label="Напомнить о себе">
-            <DatePicker value={a.followUpAt} onChange={(followUpAt) => patch({ followUpAt })} placeholder="Не напоминать" />
+          <Field label="Нагадати про себе">
+            <DatePicker value={a.followUpAt} onChange={(followUpAt) => patch({ followUpAt })} placeholder="Не нагадувати" />
           </Field>
         </div>
 
         <Separator className="my-6" />
 
         <section className="flex flex-col gap-4">
-          <SectionLabel>Условия</SectionLabel>
+          <SectionLabel>Умови</SectionLabel>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Зарплата от">
+            <Field label="Зарплата від">
               <NumberInput value={a.salaryMin} onCommit={(salaryMin) => patch({ salaryMin })} />
             </Field>
             <Field label="до">
@@ -162,7 +174,13 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
                 options={WORK_FORMATS.map((f) => ({ value: f, label: FORMAT_LABEL[f] }))}
               />
             </Field>
-            <TextField label="Город / часовой пояс" value={a.location} onSave={(location) => patch({ location })} placeholder="Киев, EU timezone…" />
+            <TextField
+              label="Місто / часовий пояс"
+              value={a.location}
+              onSave={(location) => patch({ location })}
+              placeholder="Київ, EU timezone…"
+              maxLength={LIMITS.location}
+            />
           </div>
         </section>
 
@@ -173,23 +191,29 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
         <Separator className="my-6" />
 
         <section className="flex flex-col gap-4">
-          <SectionLabel>Что отправил</SectionLabel>
-          <Field label="Версия резюме">
+          <SectionLabel>Що надіслав</SectionLabel>
+          <Field label="Версія резюме">
             <Choice
               value={a.resumeId}
               onChange={(resumeId) => patch({ resumeId })}
-              none="Не указана"
-              placeholder={resumes.length ? 'Выберите версию' : 'Загрузите резюме в разделе «Резюме»'}
+              none="Не вказано"
+              placeholder={resumes.length ? 'Виберіть версію' : 'Завантажте резюме в розділі «Резюме»'}
               options={resumes.map((r) => ({
                 value: r.id,
-                label: `${r.title}${r.isCurrent ? ' · текущая' : ''} — ${fmtDate(r.createdAt, 'd MMM')}`
+                label: `${r.title}${r.isCurrent ? ' · поточна' : ''} — ${fmtDate(r.createdAt, 'd MMM')}`
               }))}
             />
           </Field>
           <CoverTemplatePicker key={a.id} application={a} patch={patch} />
-          <MarkdownField label="Сопроводительное письмо" value={cover} onChange={setCover} placeholder="Cover letter…" minHeight="160px" />
-          <Field label="Контакт (рекрутер, HR)">
-            <Textarea value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Имя, Telegram, LinkedIn, email" className="min-h-12" />
+          <MarkdownField label="Супровідний лист" value={cover} onChange={setCover} placeholder="Cover letter…" minHeight="160px" />
+          <Field label="Контакт (рекрутер, HR)" count={{ length: contact.length, max: LIMITS.contact }}>
+            <Textarea
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              placeholder="Ім’я, Telegram, LinkedIn, email"
+              className="min-h-12"
+              maxLength={LIMITS.contact}
+            />
           </Field>
         </section>
 
@@ -200,24 +224,25 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
         <Separator className="my-6" />
 
         <section className="flex flex-col gap-4">
-          <MarkdownField label="Текст вакансии" value={description} onChange={setDescription} placeholder="Скопируйте описание вакансии" minHeight="120px" />
-          <MarkdownField label="Заметки" value={notes} onChange={setNotes} placeholder="Впечатления, договорённости, вопросы к оферу" minHeight="100px" />
+          <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Скопіюйте опис вакансії" minHeight="120px" />
+          <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Враження, домовленості, питання до оферу" minHeight="100px" />
         </section>
 
         <div className="mt-6 flex flex-col gap-6">
           <section className="flex flex-col gap-2">
-            <SectionLabel>Метки</SectionLabel>
+            <SectionLabel>Мітки</SectionLabel>
             <TagPicker value={a.tags} onChange={(tagIds) => patch({ tagIds })} />
           </section>
           <LinksPanel entity={{ type: 'application', id: a.id }} />
           <AttachmentsPanel entity={{ type: 'application', id: a.id }} />
           <div className="text-meta text-muted-foreground">
-            Создано {fmtDateTime(a.createdAt)}
-            {a.repliedAt && ` · ответили ${fmtDateTime(a.repliedAt)}`}
-            {a.closedAt && ` · закрыто ${fmtDateTime(a.closedAt)}`}
+            Створено {fmtDateTime(a.createdAt)}
+            {a.repliedAt && ` · відповіли ${fmtDateTime(a.repliedAt)}`}
+            {a.closedAt && ` · закрито ${fmtDateTime(a.closedAt)}`}
           </div>
         </div>
       </div>
+      </RecordMode>
     </div>
   )
 }
@@ -232,8 +257,8 @@ export function ApplicationEditorSheet({ applicationId, onClose }: { application
           <Editor key={application.id} application={application} onClose={onClose} />
         ) : (
           <>
-            <SheetTitle className="sr-only">Вакансия</SheetTitle>
-            <SheetDescription className="sr-only">Загрузка</SheetDescription>
+            <SheetTitle className="sr-only">Вакансія</SheetTitle>
+            <SheetDescription className="sr-only">Завантаження</SheetDescription>
           </>
         )}
       </SheetContent>

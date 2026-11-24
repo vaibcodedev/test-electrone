@@ -111,7 +111,7 @@ export class CaptureServer {
       req.on('data', (c: Buffer) => {
         size += c.length
         if (size > MAX_BODY) {
-          reject(new Error('Слишком большой запрос'))
+          reject(new Error('Завеликий запит'))
           req.destroy()
         } else chunks.push(c)
       })
@@ -127,14 +127,14 @@ export class CaptureServer {
       res.end()
       return
     }
-    if (!this.authorized(req)) return this.json(res, 401, { ok: false, error: 'Неверный ключ — скопируйте его в Vault: Настройки → Расширение' })
+    if (!this.authorized(req)) return this.json(res, 401, { ok: false, error: 'Невірний ключ — скопіюйте його у Vault: Налаштування → Розширення' })
     try {
       if (req.method === 'GET' && req.url === '/ping') return this.json(res, 200, { ok: true, app: 'vault', version: app.getVersion() })
       if (req.method === 'POST' && req.url === '/capture') {
         const input = captureSchema.parse(JSON.parse(await this.readBody(req)))
         const saved = await this.capture(input)
         this.bus.dataChanged('all')
-        const n = new Notification({ title: 'Сохранено в Vault', body: `${ENTITY_META[saved.type].label}: ${saved.title}`, icon: this.icon })
+        const n = new Notification({ title: 'Збережено у Vault', body: `${ENTITY_META[saved.type].label}: ${saved.title}`, icon: this.icon })
         n.on('click', () => this.openRoute(ENTITY_META[saved.type].route(saved.id)))
         n.show()
         return this.json(res, 200, { ok: true, ...saved })
@@ -204,7 +204,7 @@ export class CaptureServer {
     }
     switch (input.target) {
       case 'design': {
-        if (!shot) throw new Error('Для дизайна нужен скриншот')
+        if (!shot) throw new Error('Для дизайну потрібен скриншот')
         const d = await api.designs.importImage({ source: shot, input: { title, sourceUrl: input.url, notes: input.note, tagIds } })
         return { type: 'design', id: d.id, title: d.title || title }
       }

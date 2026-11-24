@@ -1,5 +1,8 @@
 import { useMemo } from 'react'
-import { WORD_KINDS, type Word, type WordPatch } from '@shared/domain/english'
+import { WORD_KINDS, wordInputSchema, type Word, type WordPatch } from '@shared/domain/english'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(wordInputSchema)
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime, fmtDay } from '@/lib/format'
@@ -48,13 +51,13 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
 /** SM-2 ease (1.3…2.5+) as a word: how hard the word is for you. */
 function easeLabel(ease: number): string {
   if (ease >= 2.45) return 'легко'
-  if (ease >= 2.0) return 'средне'
-  return 'трудно'
+  if (ease >= 2.0) return 'середньо'
+  return 'важко'
 }
 
 export function WordDetail({ word, onClose }: { word: Word; onClose: () => void }) {
   const update = useApiMutation('english', 'update', { silent: false })
-  const remove = useApiMutation('english', 'remove', { successMessage: 'Слово в корзине' })
+  const remove = useApiMutation('english', 'remove', { successMessage: 'Слово переміщено в кошик' })
   const initial = useMemo(() => toForm(word), [word])
   const [form, setForm] = useAutosave<Form>(initial, (next) => {
     if (!next.term.trim()) return
@@ -82,29 +85,29 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
           files={false}
         >
           <section className="flex flex-col gap-2">
-            <SectionLabel>Повторение</SectionLabel>
+            <SectionLabel>Повторення</SectionLabel>
             <div className="grid grid-cols-2 gap-1.5">
               <Stat
-                label="Повторить"
+                label="Повторити"
                 value={fmtDay(word.dueAt) || '—'}
-                hint={`Когда слово снова появится в тренировке: ${fmtDateTime(word.dueAt)}.`}
+                hint={`Коли слово знову зʼявиться в тренуванні: ${fmtDateTime(word.dueAt)}.`}
               />
               <Stat
                 label="Пауза"
-                value={word.intervalDays < 1 ? 'меньше дня' : `${Math.round(word.intervalDays)} дн.`}
-                hint="Сколько дней между повторами сейчас. Вспомнили — пауза растёт, забыли — снова короткая."
+                value={word.intervalDays < 1 ? 'менше дня' : `${Math.round(word.intervalDays)} дн.`}
+                hint="Скільки днів між повторами зараз. Згадали — пауза росте, забули — знову коротка."
               />
-              <Stat label="Вспомнил подряд" value={String(word.repetitions)} hint="Сколько раз подряд вы вспомнили слово без ошибки." />
-              <Stat label="Забывал" value={String(word.lapses)} hint="Сколько раз слово забылось и вернулось в начало." />
+              <Stat label="Згадав поспіль" value={String(word.repetitions)} hint="Скільки разів поспіль ви згадали слово без помилки." />
+              <Stat label="Забував" value={String(word.lapses)} hint="Скільки разів слово забулося й повернулося на початок." />
               <Stat
-                label="Даётся"
+                label="Дається"
                 value={easeLabel(word.ease)}
-                hint="Насколько легко даётся слово по вашим ответам. Чем труднее, тем чаще оно будет попадаться."
+                hint="Наскільки легко дається слово за вашими відповідями. Що важче, то частіше воно трапляється."
               />
               <Stat
-                label="Последний раз"
-                value={word.lastReviewedAt ? fmtDay(word.lastReviewedAt) : 'ещё не было'}
-                hint="Когда вы последний раз повторяли это слово."
+                label="Останній раз"
+                value={word.lastReviewedAt ? fmtDay(word.lastReviewedAt) : 'ще не було'}
+                hint="Коли ви востаннє повторювали це слово."
               />
             </div>
           </section>
@@ -113,12 +116,13 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
     >
       <div className="flex flex-col gap-5">
         <div>
-          <InlineTitle value={form.term} onChange={(v) => set('term', v)} placeholder="Слово" />
+          <InlineTitle value={form.term} onChange={(v) => set('term', v)} placeholder="Слово" maxLength={LIMITS.term} />
           <Input
-            aria-label="Транскрипция"
+            aria-label="Транскрипція"
             value={form.transcription}
+            maxLength={LIMITS.transcription}
             onChange={(e) => set('transcription', e.target.value)}
-            placeholder="[транскрипция]"
+            placeholder="[транскрипція]"
             className="mt-1 h-8 max-w-xs bg-transparent px-0 text-muted-foreground focus-visible:bg-transparent focus-visible:px-3"
           />
         </div>
@@ -129,26 +133,27 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
             onChange={(k) => set('kind', k)}
           />
         </Field>
-        <Field label="Перевод">
-          <Input value={form.translation} onChange={(e) => set('translation', e.target.value)} placeholder="Как это по-русски" />
+        <Field label="Переклад">
+          <Input value={form.translation} maxLength={LIMITS.translation} onChange={(e) => set('translation', e.target.value)} placeholder="Як це українською" />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Пример">
-            <Textarea value={form.example} onChange={(e) => set('example', e.target.value)} placeholder="We had to roll back the deploy." />
+          <Field label="Приклад" count={{ length: form.example.length, max: LIMITS.example }}>
+            <Textarea value={form.example} maxLength={LIMITS.example} onChange={(e) => set('example', e.target.value)} placeholder="We had to roll back the deploy." />
           </Field>
-          <Field label="Перевод примера">
+          <Field label="Переклад прикладу" count={{ length: form.exampleTranslation.length, max: LIMITS.exampleTranslation }}>
             <Textarea
               value={form.exampleTranslation}
+              maxLength={LIMITS.exampleTranslation}
               onChange={(e) => set('exampleTranslation', e.target.value)}
-              placeholder="Пришлось откатить деплой."
+              placeholder="Довелося відкотити деплой."
             />
           </Field>
         </div>
-        <Field label="Где встретил">
-          <Input value={form.context} onChange={(e) => set('context', e.target.value)} placeholder="PR review, документация Shopify…" />
+        <Field label="Де трапилося">
+          <Input value={form.context} maxLength={LIMITS.context} onChange={(e) => set('context', e.target.value)} placeholder="PR review, документація Shopify…" />
         </Field>
-        <Field label="Заметки">
-          <Textarea value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Синонимы, нюансы употребления" />
+        <Field label="Нотатки" count={{ length: form.notes.length, max: LIMITS.notes }}>
+          <Textarea value={form.notes} maxLength={LIMITS.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Синоніми, нюанси вживання" />
         </Field>
       </div>
     </DetailPane>

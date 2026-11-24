@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Flag, Plus } from 'lucide-react'
-import type { RedFlag, RedFlagPatch } from '@shared/domain/freelance'
+import { redFlagInputSchema, type RedFlag, type RedFlagPatch } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
+import { limitsOf } from '@/lib/limits'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -22,15 +24,25 @@ import {
 import { AutoMarkdown, AutoTitle, Block, EditorStack, useEscapeToClose } from '../claude/editor-kit'
 import { SEVERITY_LABEL } from './g2-labels'
 
+const TITLE_MAX = limitsOf(redFlagInputSchema).title
+
 const SEVERITY_VARIANT: Record<number, 'soft' | 'warn' | 'destructive'> = {
   1: 'soft',
   2: 'warn',
   3: 'destructive'
 }
 
+/** Severity reads as a scale: обережно (neutral + muted dot) → серйозно (warn) → критично (destructive). */
 export function SeverityBadge({ severity }: { severity: number }) {
+  const variant = SEVERITY_VARIANT[severity] ?? 'soft'
   return (
-    <Badge variant={SEVERITY_VARIANT[severity] ?? 'soft'}>
+    <Badge variant={variant}>
+      <span
+        className={cn(
+          'size-1.5 rounded-full',
+          variant === 'soft' ? 'bg-muted-foreground' : 'bg-current'
+        )}
+      />
       {SEVERITY_LABEL[severity] ?? severity}
     </Badge>
   )
@@ -38,7 +50,7 @@ export function SeverityBadge({ severity }: { severity: number }) {
 
 function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
   const update = useApiMutation('redflags', 'update')
-  const remove = useApiMutation('redflags', 'remove', { successMessage: 'Перемещено в корзину' })
+  const remove = useApiMutation('redflags', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: RedFlagPatch): void => update.mutate({ id: flag.id, patch })
   const entity = { type: 'redflag' as const, id: flag.id }
   useEscapeToClose(onClose)
@@ -60,8 +72,9 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
           updatedAt={flag.updatedAt}
           files={false}
         >
-          <Block label="Насколько серьёзно">
+          <Block label="Наскільки серйозно">
             <Segmented
+              className="w-fit"
               size="xs"
               value={String(flag.severity) as '1' | '2' | '3'}
               onChange={(v) => save({ severity: Number(v) })}
@@ -78,20 +91,21 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
         <AutoTitle
           value={flag.title}
           onSave={(title) => save({ title })}
-          placeholder="Красный флаг"
+          maxLength={TITLE_MAX}
+          placeholder="Червоний прапорець"
         />
         <AutoMarkdown
-          label="Как распознать"
+          label="Як розпізнати"
           value={flag.signs}
           onSave={(signs) => save({ signs })}
-          placeholder="Признаки в описании вакансии, профиле или переписке"
+          placeholder="Ознаки в описі вакансії, профілі чи листуванні"
           minHeight="120px"
         />
         <AutoMarkdown
-          label="Что делать"
+          label="Що робити"
           value={flag.action}
           onSave={(action) => save({ action })}
-          placeholder="Пропустить, задать вопрос, поднять цену…"
+          placeholder="Пропустити, поставити питання, підняти ціну…"
           minHeight="120px"
         />
       </EditorStack>
@@ -109,18 +123,18 @@ export function RedFlagsPage() {
   return (
     <Page>
       <PageHeader
-        title="Красные флаги"
-        subtitle="Каких клиентов и вакансий лучше обходить. Клиенту можно поставить статус «Не работать» в его карточке."
+        title="Червоні прапорці"
+        subtitle="Яких клієнтів і вакансій краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці."
         actions={
-          <Button variant="lime" onClick={() => create.mutate({ title: 'Новый флаг' })}>
-            <Plus /> Флаг
+          <Button variant="lime" onClick={() => create.mutate({ title: 'Новий прапорець' })}>
+            <Plus /> Прапорець
           </Button>
         }
       >
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Искать по признакам"
+          placeholder="Шукати за ознаками"
           className="w-72"
         />
       </PageHeader>
@@ -130,8 +144,8 @@ export function RedFlagsPage() {
             list.length === 0 ? (
               <EmptyState
                 icon={Flag}
-                title="Флагов нет"
-                hint="Запишите признак проблемного клиента, как только наткнётесь на него."
+                title="Прапорців немає"
+                hint="Запишіть ознаку проблемного клієнта, щойно на неї натрапите."
               />
             ) : (
               <div className="flex min-h-0 flex-col gap-2 overflow-y-auto pr-1">

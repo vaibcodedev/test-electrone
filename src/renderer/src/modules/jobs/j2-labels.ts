@@ -1,20 +1,22 @@
 import type { QuestionCategory, StageKind } from '@shared/domain/jobs'
 
 export const QUESTION_CATEGORY_LABEL: Record<QuestionCategory, string> = {
-  technical: 'Технические',
-  behavioral: 'Общие / о себе',
-  company: 'О компании',
-  salary: 'Зарплата',
-  other: 'Другое'
+  technical: 'Технічні',
+  behavioral: 'Про себе',
+  company: 'Про компанію',
+  salary: 'Зарплата й умови',
+  other: 'Інше'
 }
 
+export const QUESTION_GROUP_LABEL = { technical: 'Технічні', nontechnical: 'Нетехнічні' } as const
+
 export const STAGE_KIND_LABEL: Record<StageKind, string> = {
-  screening: 'Скрининг',
-  technical: 'Техническое',
-  test_task: 'Тестовое',
+  screening: 'Скринінг',
+  technical: 'Технічна',
+  test_task: 'Тестове',
   hr: 'HR',
-  final: 'Финальное',
-  other: 'Этап'
+  final: 'Фінальна',
+  other: 'Етап'
 }
 
 export const LANG_LABEL = { ru: 'RU', uk: 'UK', en: 'EN' } as const
@@ -27,7 +29,7 @@ export const WEEKDAYS: { value: number; label: string }[] = [
   { value: 4, label: 'Чт' },
   { value: 5, label: 'Пт' },
   { value: 6, label: 'Сб' },
-  { value: 0, label: 'Вс' }
+  { value: 0, label: 'Нд' }
 ]
 
-export const DIFFICULTY_LABEL: Record<number, string> = { 1: 'Лёгкий', 2: 'Средний', 3: 'Сложный' }
+export const DIFFICULTY_LABEL: Record<number, string> = { 1: 'Легке', 2: 'Середнє', 3: 'Складне' }

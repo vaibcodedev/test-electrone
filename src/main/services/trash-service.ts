@@ -1,8 +1,8 @@
-import { and, eq, isNotNull, lt } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lt } from 'drizzle-orm'
 import type { EntityRef } from '@shared/domain/common'
 import type { TrashItem } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
-import type { AnyRow, EntityRegistry } from '../core/registry'
+import { isDraft, type AnyRow, type EntityRegistry } from '../core/registry'
 import { DAY_MS, now, NotFoundError } from '../core/util'
 import type { TagService } from './tag-service'
 import type { LinkService } from './link-service'
@@ -86,6 +86,38 @@ export class TrashService {
     const items = this.list()
     for (const item of items) this.purge(item)
     return items.length
+  }
+
+  /**
+   * Closing an empty draft (default title, never edited, no content) deletes it for good — no trash entry.
+   * The renderer calls this a moment after the editor closes; the check runs here, so a late autosave wins.
+   */
+  discardDraft(ref: EntityRef): boolean {
+    const d = this.registry.get(ref.type)
+    const row = this.registry.findRow(ref)
+    if (!row || !isDraft(d, row)) return false
+    this.purge(ref)
+    return true
+  }
+
+  /** Startup: drafts left over from earlier sessions (app closed with a draft open) older than an hour. */
+  purgeStaleDrafts(): number {
+    const cutoff = now() - 3600_000
+    let count = 0
+    for (const d of this.registry.all()) {
+      if (!d.draft) continue
+      const rows = this.ctx.orm
+        .select()
+        .from(d.table)
+        .where(and(isNull(d.table.deletedAt), eq(d.table.createdAt, d.table.updatedAt), lt(d.table.createdAt, cutoff)))
+        .all() as AnyRow[]
+      for (const r of rows) {
+        if (!isDraft(d, r)) continue
+        this.purge({ type: d.type, id: r.id })
+        count++
+      }
+    }
+    return count
   }
 
   /** Called on startup and daily: removes everything older than 30 days. */

@@ -1,26 +1,37 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import { Plus, Unlink } from 'lucide-react'
-import type { EntityRef } from '@shared/domain/common'
+import type { EntityRef, EntitySummary } from '@shared/domain/common'
 import { ENTITY_META } from '@shared/entity-types'
 import { useApi, useApiMutation } from '@/lib/query'
+import { fmtRelative } from '@/lib/format'
 import { ENTITY_ICON } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EntityRow } from './entity-link'
+
+const LINKS_HINT = "Пов’яжіть запис з іншим — ідею з дошкою, помилку зі сніпетом. Зв’язок видно з обох боків."
 
 /** Links between any objects: idea → project → board → snippets → designs. */
 export function LinksPanel({ entity }: { entity: EntityRef }) {
+  const navigate = useNavigate()
   const { data: links = [] } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
   return (
     <section className="flex flex-col gap-1">
       <div className="flex min-h-6 items-center justify-between">
-        <h3 className="text-caption font-semibold text-muted-foreground">Связи</h3>
-        <LinkPicker entity={entity} />
+        <h3 className="text-caption font-semibold text-muted-foreground">Зв’язки</h3>
+        <LinkPicker entity={entity} linked={links} />
       </div>
       {links.length === 0 ? (
-        <p className="py-1 text-caption text-muted-foreground/80">Свяжите с проектом, доской, сниппетом или дизайном.</p>
+        <p className="py-1 text-caption text-muted-foreground">
+          {LINKS_HINT}{' '}
+          <Button variant="link" className="text-caption" onClick={() => navigate('/guide#faq-links')}>
+            Докладніше
+          </Button>
+        </p>
       ) : (
         <div className="-mx-2.5 flex flex-col">
           {links.map((l) => (
@@ -31,7 +42,7 @@ export function LinksPanel({ entity }: { entity: EntityRef }) {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label="Убрать связь"
+                  aria-label="Прибрати зв’язок"
                   className="opacity-0 group-hover:opacity-100 hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -49,28 +60,43 @@ export function LinksPanel({ entity }: { entity: EntityRef }) {
   )
 }
 
-function LinkPicker({ entity }: { entity: EntityRef }) {
+/** Search hits carry \u0001…\u0002 match markers — plain text is enough for a one-line preview. */
+const plainSnippet = (s?: string): string => (s ?? '').replace(/[\u0001\u0002]/g, '').replace(/\s+/g, ' ').trim()
+
+function LinkPicker({ entity, linked }: { entity: EntityRef; linked: EntitySummary[] }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const { data: recent = [] } = useApi('search', 'recent', 15, { enabled: open })
   const { data: hits = [] } = useApi('search', 'query', { text, limit: 20 }, { enabled: open && text.trim().length > 0 })
-  const create = useApiMutation('links', 'create', { successMessage: 'Связь добавлена' })
-  const list = (text.trim() ? hits : recent).filter((i) => !(i.type === entity.type && i.id === entity.id))
+  const create = useApiMutation('links', 'create', { successMessage: "Зв’язок додано" })
+  const taken = new Set([`${entity.type}:${entity.id}`, ...linked.map((l) => `${l.type}:${l.id}`)])
+  // Hide the record itself and what's already linked.
+  const list = (text.trim() ? hits : recent).filter((i) => !taken.has(`${i.type}:${i.id}`))
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="subtle" size="xs">
-          <Plus /> Связать
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 rounded-2xl p-0" align="end">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button variant="subtle" size="xs">
+              <Plus /> Зв’язати
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-64">{LINKS_HINT}</TooltipContent>
+      </Tooltip>
+      <PopoverContent className="w-96 rounded-2xl p-0" align="end">
         <Command shouldFilter={false}>
-          <CommandInput placeholder="Найти что угодно…" value={text} onValueChange={setText} />
+          <CommandInput placeholder="Знайти будь-що…" value={text} onValueChange={setText} />
           <CommandList>
-            <CommandEmpty>Ничего не найдено</CommandEmpty>
-            <CommandGroup heading={text.trim() ? 'Результаты' : 'Недавние'}>
+            <CommandEmpty>Нічого не знайдено</CommandEmpty>
+            <CommandGroup heading={text.trim() ? 'Результати' : 'Нещодавні'}>
               {list.map((item) => {
                 const Icon = ENTITY_ICON[item.type]
+                const snippet = 'snippet' in item ? plainSnippet((item as { snippet?: string }).snippet) : ''
+                // Identical titles («Нова нотатка» ×10) are told apart by type, date and a preview line.
+                const meta = [ENTITY_META[item.type].label, item.updatedAt ? fmtRelative(item.updatedAt) : '']
+                  .filter(Boolean)
+                  .join(' · ')
                 return (
                   <CommandItem
                     key={`${item.type}:${item.id}`}
@@ -80,10 +106,16 @@ function LinkPicker({ entity }: { entity: EntityRef }) {
                       setOpen(false)
                       setText('')
                     }}
+                    className="items-start"
                   >
-                    <Icon />
-                    <span className="flex-1 truncate">{item.title}</span>
-                    <span className="text-meta text-muted-foreground">{ENTITY_META[item.type].label}</span>
+                    <Icon className="mt-0.5" />
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate">{item.title}</span>
+                      <span className="truncate text-meta text-muted-foreground">
+                        {meta}
+                        {snippet || item.subtitle ? ` — ${snippet || item.subtitle}` : ''}
+                      </span>
+                    </div>
                   </CommandItem>
                 )
               })}

@@ -39,18 +39,18 @@ function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boo
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-6 sm:max-w-[480px]">
-        <SheetTitle className="font-display text-xl">О доске</SheetTitle>
-        <SheetDescription className="text-caption">Описание, метки, связи и файлы.</SheetDescription>
+        <SheetTitle className="font-display text-xl">Про дошку</SheetTitle>
+        <SheetDescription className="text-caption">Опис, мітки, звʼязки й файли.</SheetDescription>
         <div className="mt-5 flex flex-col gap-6">
           <MarkdownField
-            label="Описание"
+            label="Опис"
             value={description}
             onChange={setDescription}
-            placeholder="Цель, ссылки, договорённости…"
+            placeholder="Мета, посилання, домовленості…"
             minHeight="160px"
           />
           <section className="flex flex-col gap-2">
-            <SectionLabel>Метки</SectionLabel>
+            <SectionLabel>Мітки</SectionLabel>
             <TagPicker value={board.tags} onChange={(tagIds) => patch({ tagIds })} />
           </section>
           <LinksPanel entity={{ type: 'board', id: board.id }} />
@@ -69,7 +69,7 @@ function BoardHeader({ board }: { board: Board }) {
   const update = useApiMutation('boards', 'update')
   const remove = useApiMutation('boards', 'remove', {
     onSuccess: () => {
-      toast.success('Доска в корзине')
+      toast.success('Дошку переміщено в кошик')
       navigate('/boards')
     }
   })
@@ -79,7 +79,7 @@ function BoardHeader({ board }: { board: Board }) {
     <header className="flex items-start gap-4 px-8 pt-6 pb-4">
       <div className="min-w-0 flex-1">
         <InlineTitle value={title} onChange={setTitle} className="font-display text-stat leading-none" />
-        {board.archived && <Badge variant="outline" className="mt-2">В архиве</Badge>}
+        {board.archived && <Badge variant="outline" className="mt-2">В архіві</Badge>}
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-1">
         <Segmented
@@ -90,31 +90,31 @@ function BoardHeader({ board }: { board: Board }) {
         <PinButtons entity={{ type: 'board', id: board.id }} />
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="soft" size="icon-sm" aria-label="О доске" onClick={() => setInfoOpen(true)}>
+            <Button variant="soft" size="icon-sm" aria-label="Про дошку" onClick={() => setInfoOpen(true)}>
               <Info />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>О доске: описание, метки, связи, файлы</TooltipContent>
+          <TooltipContent>Про дошку: опис, мітки, звʼязки, файли</TooltipContent>
         </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="soft" size="icon-sm" aria-label="Меню доски">
+            <Button variant="soft" size="icon-sm" aria-label="Меню дошки">
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52 rounded-2xl">
             <DropdownMenuItem onSelect={() => update.mutate({ id: board.id, patch: { archived: !board.archived } })}>
               {board.archived ? <ArchiveRestore /> : <Archive />}
-              {board.archived ? 'Вернуть из архива' : 'В архив'}
+              {board.archived ? 'Повернути з архіву' : 'В архів'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <Confirm
-              title={`Удалить доску «${board.title}»?`}
-              description="Доска и её карточки уйдут в корзину на 30 дней."
+              title={`Видалити дошку «${board.title}»?`}
+              description="Дошка та її картки підуть у кошик на 30 днів."
               onConfirm={() => remove.mutate(board.id)}
             >
               <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
-                <Trash2 /> Удалить доску
+                <Trash2 /> Видалити дошку
               </DropdownMenuItem>
             </Confirm>
           </DropdownMenuContent>
@@ -137,11 +137,11 @@ export function BoardPage() {
     return (
       <EmptyState
         icon={SquareKanban}
-        title="Доска не найдена"
-        hint="Возможно, она в корзине."
+        title="Дошку не знайдено"
+        hint="Можливо, вона в кошику."
         action={
           <Button variant="soft" onClick={() => navigate('/boards')}>
-            Все доски
+            Усі дошки
           </Button>
         }
       />

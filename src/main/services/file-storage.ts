@@ -55,7 +55,7 @@ export class FileStorage {
     const abs = normalize(join(this.root, relPath))
     const rel = relative(this.root, abs)
     if (rel.startsWith('..') || rel.includes(`..${sep}`) || abs === this.root) {
-      throw new UserError('Недопустимый путь к файлу')
+      throw new UserError('Неприпустимий шлях до файлу')
     }
     return abs
   }
@@ -72,7 +72,7 @@ export class FileStorage {
     const stored = await this.write(source)
     if (opts.imagesOnly && !stored.mime.startsWith('image/') && !stored.mime.startsWith('video/')) {
       this.remove(stored.path)
-      throw new UserError('Нужна картинка, GIF или видео')
+      throw new UserError('Потрібне зображення, GIF або відео')
     }
     return stored
   }
@@ -80,17 +80,17 @@ export class FileStorage {
   private async write(source: FileSource): Promise<StoredFile> {
     switch (source.kind) {
       case 'path': {
-        if (!existsSync(source.path)) throw new UserError('Файл не найден')
+        if (!existsSync(source.path)) throw new UserError('Файл не знайдено')
         const st = statSync(source.path)
-        if (!st.isFile()) throw new UserError('Это не файл')
-        if (st.size > MAX_SIZE) throw new UserError('Файл больше 300 МБ')
+        if (!st.isFile()) throw new UserError('Це не файл')
+        if (st.size > MAX_SIZE) throw new UserError('Файл більший за 300 МБ')
         const name = basename(source.path)
         const { rel, abs } = this.allocate(extname(name) || '.bin')
         copyFileSync(source.path, abs)
         return this.describe(rel, name, st.size)
       }
       case 'bytes': {
-        if (source.data.byteLength > MAX_SIZE) throw new UserError('Файл больше 300 МБ')
+        if (source.data.byteLength > MAX_SIZE) throw new UserError('Файл більший за 300 МБ')
         const ext = extname(source.name) || EXT_BY_MIME[source.mime] || '.bin'
         const { rel, abs } = this.allocate(ext)
         writeFileSync(abs, source.data)
@@ -100,7 +100,7 @@ export class FileStorage {
         const items = await clipboard.read()
         const item = items.find((i) => i.types.some((t) => t.startsWith('image/')))
         const type = item?.types.find((t) => t.startsWith('image/'))
-        if (!item || !type) throw new UserError('В буфере обмена нет картинки')
+        if (!item || !type) throw new UserError('У буфері обміну немає зображення')
         const blob = (await item.getType(type)) as Blob
         const bytes = new Uint8Array(await blob.arrayBuffer())
         const { rel, abs } = this.allocate(EXT_BY_MIME[type] ?? '.png')

@@ -1,12 +1,20 @@
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Handshake } from 'lucide-react'
+import { Archive, ArchiveRestore, Handshake } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
-import { useApi } from '@/lib/query'
+import { useApi, useApiMutation } from '@/lib/query'
+import { Button } from '@/components/ui/button'
 import { fmtMoney } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import { EmptyState, Page, PageHeader } from '@/components/common/page'
 import { BILLING_LABEL, PROJECT_STATUS_BADGE, PROJECT_STATUS_LABEL } from '../crm/labels'
 import { ProposalsTab } from './proposal-tab'
@@ -26,8 +34,8 @@ function ContractsTab({ platform }: { platform: Platform }) {
     return (
       <EmptyState
         icon={Handshake}
-        title="Контрактов пока нет"
-        hint="Откройте выигранный отклик и нажмите «Контракт» — клиент и проект появятся здесь и в «Клиентах и контрактах»."
+        title="Контрактів поки немає"
+        hint="Відкрийте виграний відгук і натисніть «Контракт» — клієнт і проєкт з’являться тут і в «Клієнтах й контрактах»."
       />
     )
   }
@@ -37,12 +45,12 @@ function ContractsTab({ platform }: { platform: Platform }) {
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="pl-4">Контракт</TableHead>
-            <TableHead>Клиент</TableHead>
+            <TableHead>Клієнт</TableHead>
             <TableHead>Статус</TableHead>
             <TableHead>Оплата</TableHead>
-            <TableHead className="text-right">Заработано</TableHead>
+            <TableHead className="text-right">Зароблено</TableHead>
             <TableHead className="text-right">На руки</TableHead>
-            <TableHead className="pr-4 text-right">Комиссия</TableHead>
+            <TableHead className="pr-4 text-right">Комісія</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -57,12 +65,20 @@ function ContractsTab({ platform }: { platform: Platform }) {
               <TableCell className="max-w-[300px] truncate pl-4 font-medium">{p.title}</TableCell>
               <TableCell className="text-muted-foreground">{p.clientName ?? '—'}</TableCell>
               <TableCell>
-                <Badge variant={PROJECT_STATUS_BADGE[p.status]}>{PROJECT_STATUS_LABEL[p.status]}</Badge>
+                <Badge variant={PROJECT_STATUS_BADGE[p.status]}>
+                  {PROJECT_STATUS_LABEL[p.status]}
+                </Badge>
               </TableCell>
               <TableCell className="text-muted-foreground">{BILLING_LABEL[p.billing]}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtMoney(p.earnedAmount, p.currency)}</TableCell>
-              <TableCell className="text-right tabular-nums">{fmtMoney(p.netPaidAmount, p.currency)}</TableCell>
-              <TableCell className="pr-4 text-right text-muted-foreground tabular-nums">{p.effectiveFeePercent}%</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {fmtMoney(p.earnedAmount, p.currency)}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {fmtMoney(p.netPaidAmount, p.currency)}
+              </TableCell>
+              <TableCell className="pr-4 text-right text-muted-foreground tabular-nums">
+                {p.effectiveFeePercent}%
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -75,7 +91,10 @@ function ContractsTab({ platform }: { platform: Platform }) {
 export function PlatformPage() {
   const { platformId = '' } = useParams()
   const [params, setParams] = useSearchParams()
-  const { data: platform, isLoading } = useApi('platforms', 'get', platformId, { enabled: !!platformId })
+  const { data: platform, isLoading } = useApi('platforms', 'get', platformId, {
+    enabled: !!platformId
+  })
+  const update = useApiMutation('platforms', 'update', { successMessage: 'Платформа знову в меню' })
 
   if (isLoading) {
     return (
@@ -85,14 +104,17 @@ export function PlatformPage() {
       </Page>
     )
   }
-  if (!platform) return <EmptyState title="Платформа не найдена" hint="Возможно, она в архиве или была удалена." />
+  if (!platform)
+    return (
+      <EmptyState title="Платформу не знайдено" hint="Можливо, вона в архіві або її видалено." />
+    )
 
   const tabs: { value: Tab; label: string }[] = [
-    { value: 'proposals', label: 'Отклики' },
-    { value: 'contracts', label: 'Контракты' },
+    { value: 'proposals', label: 'Відгуки' },
+    { value: 'contracts', label: 'Контракти' },
     ...(platform.creditsName ? [{ value: 'credits' as Tab, label: platform.creditsName }] : []),
     { value: 'stats', label: 'Статистика' },
-    { value: 'settings', label: 'Настройки' }
+    { value: 'settings', label: 'Налаштування' }
   ]
   const requested = params.get('tab') as Tab | null
   const tab: Tab = requested && tabs.some((t) => t.value === requested) ? requested : 'proposals'
@@ -117,14 +139,17 @@ export function PlatformPage() {
         <PageHeader
           title={
             <span className="flex items-center gap-3">
-              <span className="size-3.5 shrink-0 rounded-full" style={{ background: platform.color ?? 'var(--muted-foreground)' }} />
+              <span
+                className="size-3.5 shrink-0 rounded-full"
+                style={{ background: platform.color ?? 'var(--muted-foreground)' }}
+              />
               {platform.name}
             </span>
           }
           subtitle={
             platform.archived
-              ? 'В архиве'
-              : `Комиссия по умолчанию ${platform.defaultFeePercent}%${platform.creditsName ? ` · ${platform.creditsName} по ${fmtMoney(platform.creditPrice, platform.currency)}` : ''}`
+              ? 'В архіві'
+              : `Комісія за замовчуванням ${platform.defaultFeePercent}%${platform.creditsName ? ` · ${platform.creditsName} по ${fmtMoney(platform.creditPrice, platform.currency)}` : ''}`
           }
         >
           <TabsList className="h-10 rounded-full bg-surface p-1">
@@ -135,6 +160,19 @@ export function PlatformPage() {
             ))}
           </TabsList>
         </PageHeader>
+        {platform.archived && (
+          <div className="mx-8 mb-3 flex items-center gap-3 rounded-2xl bg-foreground/5 px-4 py-2.5 text-body">
+            <Archive className="size-4 text-muted-foreground" />
+            <span className="flex-1">Платформа в архіві — прихована з меню</span>
+            <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => update.mutate({ id: platform.id, patch: { archived: false } })}
+            >
+              <ArchiveRestore /> Повернути
+            </Button>
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-hidden px-8 pb-6">
           <TabsContent value="proposals" className="h-full">
             <ProposalsTab platform={platform} />

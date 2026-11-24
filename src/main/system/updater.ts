@@ -16,7 +16,7 @@ export class Updater {
     private readonly config: ConfigStore
   ) {
     if (!app.isPackaged) {
-      this.status = { state: 'disabled', reason: 'Обновления работают только в собранной версии' }
+      this.status = { state: 'disabled', reason: 'Оновлення працюють лише в зібраній версії' }
       return
     }
     autoUpdater.autoDownload = config.settings.autoUpdate

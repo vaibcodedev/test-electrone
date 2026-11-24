@@ -52,17 +52,17 @@ function headline(s: WeekSnapshot): string {
   const metric = (key: string): number => s.sections.flatMap((x) => x.metrics).find((m) => m.key === key)?.value ?? 0
   const parts: string[] = []
   const cards = metric('cardsDone')
-  if (cards) parts.push(`${cards} ${plural(cards, ['задача', 'задачи', 'задач'])}`)
+  if (cards) parts.push(`${cards} ${plural(cards, ['завдання', 'завдання', 'завдань'])}`)
   const net = Object.entries(s.money.net).find(([, v]) => (v ?? 0) > 0)
   if (net) parts.push(`${fmtMoney(net[1] ?? 0, net[0] as Currency)} на руки`)
   const interviews = metric('interviews')
-  if (interviews) parts.push(`${interviews} ${plural(interviews, ['собеседование', 'собеседования', 'собеседований'])}`)
+  if (interviews) parts.push(`${interviews} ${plural(interviews, ['співбесіда', 'співбесіди', 'співбесід'])}`)
   const sent = metric('proposals') + metric('applications')
-  if (sent) parts.push(`${sent} ${plural(sent, ['отклик', 'отклика', 'откликов'])}`)
+  if (sent) parts.push(`${sent} ${plural(sent, ['відгук', 'відгуки', 'відгуків'])}`)
   const minutes = metric('minutes')
-  if (!cards && minutes) parts.push(`${fmtMinutes(minutes)} работы`)
+  if (!cards && minutes) parts.push(`${fmtMinutes(minutes)} роботи`)
   // Non-breaking spaces keep "1 собеседование" on one line; lines break only between facts.
-  return parts.length ? parts.slice(0, 3).map((p) => p.replace(/ /g, ' ')).join(', ') : 'Тихая неделя'
+  return parts.length ? parts.slice(0, 3).map((p) => p.replace(/ /g, ' ')).join(', ') : 'Тихий тиждень'
 }
 
 function Delta({ m }: { m: WeekMetric }) {
@@ -70,7 +70,7 @@ function Delta({ m }: { m: WeekMetric }) {
   if (diff === 0) {
     return (
       <Badge variant="soft" className="text-muted-foreground">
-        <Minus /> как прошлая
+        <Minus /> як минулого
       </Badge>
     )
   }
@@ -84,7 +84,7 @@ function Delta({ m }: { m: WeekMetric }) {
           {fmtValue(m, Math.abs(diff))}
         </Badge>
       </TooltipTrigger>
-      <TooltipContent>Прошлая неделя: {fmtValue(m, m.previous)}</TooltipContent>
+      <TooltipContent>Минулий тиждень: {fmtValue(m, m.previous)}</TooltipContent>
     </Tooltip>
   )
 }
@@ -120,13 +120,13 @@ function MoneyCard({ money }: { money: WeekSnapshot['money'] }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Расходы</CardTitle>
+          <CardTitle>Витрати</CardTitle>
         </CardHeader>
         <CardContent className="font-display text-[28px] leading-none">{moneyText(money.expenses)}</CardContent>
       </Card>
       <Card className="bg-ink text-ink-foreground">
         <CardHeader>
-          <CardTitle className="text-ink-muted">Прибыль за неделю</CardTitle>
+          <CardTitle className="text-ink-muted">Прибуток за тиждень</CardTitle>
         </CardHeader>
         <CardContent className="font-display text-[28px] leading-none">{moneyText(money.profit)}</CardContent>
       </Card>
@@ -143,10 +143,10 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
       <Card>
         <CardContent>
           <MarkdownField
-            label="Итоги — что получилось, а что нет"
+            label="Підсумки — що вдалося, а що ні"
             value={s}
             onChange={setS}
-            placeholder="Что сработало? Что мешало? Что делать иначе?"
+            placeholder="Що спрацювало? Що заважало? Що робити інакше?"
             minHeight="160px"
           />
         </CardContent>
@@ -154,10 +154,10 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
       <Card>
         <CardContent>
           <MarkdownField
-            label="План на следующую неделю"
+            label="План на наступний тиждень"
             value={p}
             onChange={setP}
-            placeholder="- [ ] 10 откликов на Djinni&#10;- [ ] Доделать редизайн Bloom"
+            placeholder="- [ ] 10 відгуків на Djinni&#10;- [ ] Доробити редизайн Bloom"
             minHeight="160px"
           />
         </CardContent>
@@ -173,14 +173,14 @@ function Archive({ current, onPick }: { current: string; onPick: (key: string) =
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="soft">
-          <ArchiveRestore /> Архив
+          <ArchiveRestore /> Архів
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 rounded-2xl p-0" align="end">
         <Command>
           <CommandList>
-            <CommandEmpty>Прошлых обзоров пока нет</CommandEmpty>
-            <CommandGroup heading="Недели">
+            <CommandEmpty>Минулих оглядів поки немає</CommandEmpty>
+            <CommandGroup heading="Тижні">
               {data.map((w) => (
                 <CommandItem
                   key={w.weekStart}
@@ -217,18 +217,18 @@ export function ReviewPage() {
   return (
     <Page>
       <PageHeader
-        title="Итоги недели"
-        subtitle={`${isCurrent ? 'Текущая неделя' : 'Неделя'}: ${weekLabel(week)}`}
+        title="Підсумки тижня"
+        subtitle={`${isCurrent ? 'Поточний тиждень' : 'Тиждень'}: ${weekLabel(week)}`}
         actions={
           <>
             <ButtonGroup>
-              <Button variant="soft" size="icon" aria-label="Предыдущая неделя" onClick={() => shift(-7)}>
+              <Button variant="soft" size="icon" aria-label="Попередній тиждень" onClick={() => shift(-7)}>
                 <ChevronLeft />
               </Button>
               <Button variant="soft" className="min-w-36" onClick={() => setWeek(currentWeekKey())}>
                 {weekLabel(week)}
               </Button>
-              <Button variant="soft" size="icon" aria-label="Следующая неделя" disabled={isCurrent} onClick={() => shift(7)}>
+              <Button variant="soft" size="icon" aria-label="Наступний тиждень" disabled={isCurrent} onClick={() => shift(7)}>
                 <ChevronRight />
               </Button>
             </ButtonGroup>
@@ -257,14 +257,14 @@ export function ReviewPage() {
 
             <Card className="col-span-5">
               <CardHeader>
-                <CardTitle>Висит</CardTitle>
+                <CardTitle>Висить</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {snapshot.pending.length === 0 && (
-                  <p className="text-body text-muted-foreground">Ничего не висит — отклики отвечены, задачи в срок.</p>
+                  <p className="text-body text-muted-foreground">Нічого не висить — на відгуки відповіли, завдання вчасно.</p>
                 )}
                 {snapshot.pending.map((g) => {
-                  const isSubscription = g.title.toLowerCase().includes('подпис')
+                  const isSubscription = /п[оі]дпис/i.test(g.title)
                   return (
                     <section key={g.title} className="flex flex-col gap-1">
                       <h3 className="flex items-center gap-2 text-caption font-semibold text-muted-foreground">
@@ -288,7 +288,7 @@ export function ReviewPage() {
 
             <Card className="col-span-4">
               <CardHeader>
-                <CardTitle>Сделано</CardTitle>
+                <CardTitle>Зроблено</CardTitle>
               </CardHeader>
               <CardContent>
                 {snapshot.done.length ? (
@@ -298,14 +298,14 @@ export function ReviewPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-body text-muted-foreground">Закрытые задачи недели появятся здесь.</p>
+                  <p className="text-body text-muted-foreground">Закриті завдання тижня з’являться тут.</p>
                 )}
               </CardContent>
             </Card>
 
             <Card className="col-span-3">
               <CardHeader>
-                <CardTitle>На следующей неделе</CardTitle>
+                <CardTitle>Наступного тижня</CardTitle>
               </CardHeader>
               <CardContent>
                 {snapshot.upcoming.length ? (
@@ -324,7 +324,7 @@ export function ReviewPage() {
                     ))}
                   </ItemGroup>
                 ) : (
-                  <p className="text-body text-muted-foreground">В календаре на следующую неделю пусто.</p>
+                  <p className="text-body text-muted-foreground">У календарі на наступний тиждень порожньо.</p>
                 )}
               </CardContent>
             </Card>

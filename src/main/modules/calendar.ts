@@ -102,7 +102,7 @@ export class CalendarModule {
       searchDoc: (r) => ({ title: r.title, body: r.description }),
       summary: (r) => ({
         title: r.title,
-        subtitle: new Date(r.startAt).toLocaleString('ru-RU', {
+        subtitle: new Date(r.startAt).toLocaleString('uk-UA', {
           dateStyle: 'medium',
           timeStyle: r.allDay ? undefined : 'short'
         })

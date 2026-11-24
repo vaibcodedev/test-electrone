@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
+import { NumberInput } from '@/components/common/number-input'
 import { calculateRate, type RateCalcInput } from '@shared/domain/finance'
 import { useApi } from '@/lib/query'
 import { fmtMoney } from '@/lib/format'
-import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -42,7 +42,8 @@ function NumberField({
   onChange,
   suffix,
   min = 0,
-  max
+  max,
+  integer
 }: {
   id: string
   label: string
@@ -52,6 +53,7 @@ function NumberField({
   suffix?: string
   min?: number
   max?: number
+  integer?: boolean
 }) {
   return (
     <Field className="gap-2">
@@ -59,15 +61,14 @@ function NumberField({
         {label}
         {suffix ? `, ${suffix}` : ''}
       </FieldLabel>
-      <Input
+      {/* Draft text while typing (clear «1», type «20»); clamped to the schema range on blur. */}
+      <NumberInput
         id={id}
-        type="number"
         min={min}
         max={max}
-        value={Number.isFinite(value) ? value : ''}
-        onChange={(e) =>
-          onChange(Math.max(min, Math.min(max ?? Infinity, Number(e.target.value) || 0)))
-        }
+        integer={integer}
+        value={Number.isFinite(value) ? value : null}
+        onChange={(v) => onChange(v ?? min)}
       />
       {hint && <FieldDescription className="text-caption">{hint}</FieldDescription>}
     </Field>
@@ -100,19 +101,19 @@ export function CalculatorPage() {
     <Page>
       <PageHeader
         title="Калькулятор ставки"
-        subtitle="Сколько ставить в час, чтобы после комиссии платформы, вывода и налогов на руках осталась нужная сумма."
+        subtitle="Скільки брати за годину, щоб після комісії платформи, виведення й податків на руках лишалася потрібна сума."
       />
       <PageBody>
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Вводные</CardTitle>
-              <CardDescription>Сохраняются на этом компьютере.</CardDescription>
+              <CardTitle>Вхідні дані</CardTitle>
+              <CardDescription>Зберігаються на цьому комп’ютері.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <NumberField
                 id="rc-target"
-                label="Хочу на руки в месяц"
+                label="Хочу на руки за місяць"
                 suffix="$"
                 value={input.targetNet}
                 onChange={(n) => set('targetNet', n)}
@@ -121,38 +122,40 @@ export function CalculatorPage() {
               <div className="grid grid-cols-2 gap-3">
                 <NumberField
                   id="rc-hours"
-                  label="Часов в неделю"
+                  label="Годин на тиждень"
                   value={input.hoursPerWeek}
-                  onChange={(n) => set('hoursPerWeek', Math.max(1, n))}
+                  onChange={(n) => set('hoursPerWeek', n)}
                   min={1}
                   max={100}
+                  integer
                 />
                 <NumberField
                   id="rc-vac"
-                  label="Недель отдыха в году"
+                  label="Тижнів відпочинку на рік"
                   value={input.vacationWeeks}
                   onChange={(n) => set('vacationWeeks', n)}
                   max={30}
+                  integer
                 />
               </div>
               <Field className="gap-3">
-                <FieldLabel>Оплачиваемое время: {input.billableShare}%</FieldLabel>
+                <FieldLabel>Оплачуваний час: {input.billableShare}%</FieldLabel>
                 <Slider
                   min={5}
                   max={100}
                   step={5}
                   value={[input.billableShare]}
                   onValueChange={([v]) => set('billableShare', v)}
-                  aria-label="Доля оплачиваемого времени"
+                  aria-label="Частка оплачуваного часу"
                 />
                 <FieldDescription className="text-caption">
-                  Остальное — отклики, созвоны, правки без оплаты, учёба.
+                  Решта — відгуки, дзвінки, правки без оплати, навчання.
                 </FieldDescription>
               </Field>
               <div className="grid grid-cols-3 gap-3">
                 <NumberField
                   id="rc-fee"
-                  label="Комиссия платформы"
+                  label="Комісія платформи"
                   suffix="%"
                   value={input.feePercent}
                   onChange={(n) => set('feePercent', n)}
@@ -160,7 +163,7 @@ export function CalculatorPage() {
                 />
                 <NumberField
                   id="rc-wd"
-                  label="Комиссия вывода"
+                  label="Комісія виведення"
                   suffix="%"
                   value={input.withdrawalFeePercent}
                   onChange={(n) => set('withdrawalFeePercent', n)}
@@ -168,7 +171,7 @@ export function CalculatorPage() {
                 />
                 <NumberField
                   id="rc-tax"
-                  label="Налог"
+                  label="Податок"
                   suffix="%"
                   value={input.taxPercent}
                   onChange={(n) => set('taxPercent', n)}
@@ -177,11 +180,11 @@ export function CalculatorPage() {
               </div>
               <NumberField
                 id="rc-exp"
-                label="Расходы в месяц"
+                label="Витрати на місяць"
                 suffix="$"
                 hint={
                   subsUsd !== undefined
-                    ? `Подписки в разделе «Финансы»: ${usd(subsUsd)} в месяц`
+                    ? `Підписки в розділі «Фінанси»: ${usd(subsUsd)} на місяць`
                     : undefined
                 }
                 value={input.monthlyExpenses}
@@ -194,22 +197,22 @@ export function CalculatorPage() {
           <div className="flex flex-col gap-4">
             <Card className="bg-ink text-ink-foreground">
               <CardHeader>
-                <CardTitle className="text-ink-muted">Ставка в час</CardTitle>
+                <CardTitle className="text-ink-muted">Ставка за годину</CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 <div className="font-display text-[56px] leading-none tabular-nums">
                   {usd(r.hourlyRate)}
                 </div>
                 <div className="text-body text-ink-muted">
-                  {usd(r.grossNeeded)} в месяц до всех вычетов ·{' '}
-                  {Math.round(r.billableHoursPerMonth)} оплачиваемых часов
+                  {usd(r.grossNeeded)} на місяць до всіх відрахувань ·{' '}
+                  {Math.round(r.billableHoursPerMonth)} оплачуваних годин
                 </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Из чего складывается</CardTitle>
+                <CardTitle>Із чого складається</CardTitle>
               </CardHeader>
               <CardContent>
                 <ItemGroup className="gap-1">
@@ -224,11 +227,9 @@ export function CalculatorPage() {
                   <Separator className="my-1" />
                   <Item size="xs">
                     <ItemContent>
-                      <ItemTitle>Нужно заработать</ItemTitle>
+                      <ItemTitle>Треба заробити</ItemTitle>
                     </ItemContent>
-                    <span className="text-body font-medium tabular-nums">
-                      {usd(r.grossNeeded)}
-                    </span>
+                    <span className="text-body font-medium tabular-nums">{usd(r.grossNeeded)}</span>
                   </Item>
                 </ItemGroup>
               </CardContent>
@@ -236,17 +237,19 @@ export function CalculatorPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Фикс-проект</CardTitle>
-                <CardDescription>Сколько просить за проект по оценке в часах.</CardDescription>
+                <CardTitle>Проєкт за фіксовану ціну</CardTitle>
+                <CardDescription>Скільки просити за проєкт за оцінкою в годинах.</CardDescription>
               </CardHeader>
               <CardContent className="flex items-end gap-4">
                 <div className="w-32">
                   <NumberField
                     id="rc-fixed"
-                    label="Оценка, часов"
+                    label="Оцінка, годин"
                     value={fixedHours}
                     onChange={setFixedHours}
+                    min={1}
                     max={10_000}
+                    integer
                   />
                 </div>
                 <div className="pb-1">

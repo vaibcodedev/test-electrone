@@ -3,21 +3,29 @@ import type { badgeVariants } from '@/components/ui/badge'
 import type { VariantProps } from 'class-variance-authority'
 
 export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
-  draft: 'Черновик',
-  sent: 'Отправлен',
-  viewed: 'Просмотрен',
-  replied: 'Ответили',
-  interview: 'Интервью',
-  offer: 'Оффер',
+  draft: 'Чернетка',
+  sent: 'Надіслано',
+  viewed: 'Переглянуто',
+  replied: 'Відповіли',
+  interview: 'Інтерв’ю',
+  offer: 'Офер',
   hired: 'Контракт',
-  declined: 'Отказ',
-  no_reply: 'Без ответа',
-  withdrawn: 'Отозван',
-  closed: 'Вакансия закрыта'
+  declined: 'Відмова',
+  no_reply: 'Без відповіді',
+  withdrawn: 'Відкликано',
+  closed: 'Вакансію закрито'
 }
 
 /** Pipeline columns shown on the kanban, in order. */
-export const ACTIVE_STATUSES: ProposalStatus[] = ['draft', 'sent', 'viewed', 'replied', 'interview', 'offer', 'hired']
+export const ACTIVE_STATUSES: ProposalStatus[] = [
+  'draft',
+  'sent',
+  'viewed',
+  'replied',
+  'interview',
+  'offer',
+  'hired'
+]
 /** Terminal "negative" statuses, grouped in the collapsed «Закрытые» lane. */
 export const CLOSED_STATUSES: ProposalStatus[] = ['declined', 'no_reply', 'withdrawn', 'closed']
 
@@ -38,18 +46,27 @@ export const PROPOSAL_STATUS_BADGE: Record<ProposalStatus, BadgeVariant> = {
 }
 
 export const BID_TYPE_LABEL: Record<BidType, string> = {
-  fixed: 'Фикс',
-  hourly: 'Почасово'
+  fixed: 'Фікс',
+  hourly: 'Погодинно'
 }
 
 export const PLATFORM_KIND_LABEL: Record<PlatformKind, string> = {
   upwork: 'Upwork',
   freelancehunt: 'Freelancehunt',
-  direct: 'Прямые заказы',
-  other: 'Другая'
+  direct: 'Прямі замовлення',
+  other: 'Інша'
 }
 
-export const PLATFORM_COLORS = ['#14a800', '#2f7dd1', '#f5a524', '#e5484d', '#8e4ec6', '#3fbf9b', '#14160f', '#9a9f93']
+export const PLATFORM_COLORS = [
+  '#14a800',
+  '#2f7dd1',
+  '#f5a524',
+  '#e5484d',
+  '#8e4ec6',
+  '#3fbf9b',
+  '#14160f',
+  '#9a9f93'
+]
 
 export const DAY_MS = 86_400_000
 

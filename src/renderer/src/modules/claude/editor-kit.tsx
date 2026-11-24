@@ -5,18 +5,21 @@
  * Each field keeps a local draft and saves itself after typing stops (useAutosave).
  * Key the detail by entity id so pending edits flush to the right record when switching items.
  */
-import { useId, type ComponentProps, type ReactNode } from 'react'
+import { useId, useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { X } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
-import { CodeEditor, type CodeLanguage } from '@/components/common/code'
+import { CodeEditor, detectLanguage, LANGUAGE_LABEL, type CodeLanguage } from '@/components/common/code'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
 
 /** Vertical rhythm for editor bodies: one gap everywhere. */
 export function EditorStack({ children, className }: { children: ReactNode; className?: string }) {
@@ -26,14 +29,17 @@ export function EditorStack({ children, className }: { children: ReactNode; clas
 export function AutoTitle({
   value,
   onSave,
-  placeholder
+  placeholder,
+  maxLength
 }: {
   value: string
   onSave: (value: string) => void
   placeholder?: string
+  /** From the schema (limitsOf): typing stops where the server would reject. */
+  maxLength?: number
 }) {
   const [draft, setDraft] = useAutosave(value, (v) => v.trim() && onSave(v.trim()))
-  return <InlineTitle value={draft} onChange={setDraft} placeholder={placeholder} />
+  return <InlineTitle value={draft} onChange={setDraft} placeholder={placeholder} maxLength={maxLength} />
 }
 
 export function AutoInput({
@@ -64,7 +70,7 @@ export function AutoTextarea({
   )
 }
 
-/** Markdown with its own label row (Текст / Просмотр switch sits next to the label, never over text). */
+/** Markdown with its own label row (Текст / Перегляд switch sits next to the label, never over text). */
 export function AutoMarkdown({
   value,
   onSave,
@@ -118,20 +124,118 @@ export function AutoCode({
 export function Block({
   label,
   hint,
+  error,
+  count,
   children,
-  className
+  className,
+  htmlFor
 }: {
   label: string
   hint?: ReactNode
+  /** Shown under the control in the destructive colour (replaces the hint). */
+  error?: ReactNode
+  /** Character counter next to the label, visible from 80% of the limit (same as common Field). */
+  count?: { length: number; max?: number }
   children: ReactNode
   className?: string
+  htmlFor?: string
 }) {
+  const near = count?.max ? count.length >= count.max * 0.8 : false
   return (
-    <Field className={cn('gap-2', className)}>
-      <FieldLabel>{label}</FieldLabel>
+    <Field className={cn('min-w-0 gap-2', className)} data-invalid={error ? true : undefined}>
+      <div className="flex items-baseline justify-between gap-3">
+        <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+        {near && count?.max && (
+          <span
+            className={cn('text-meta tabular-nums', count.length >= count.max ? 'text-warn' : 'text-muted-foreground')}
+            aria-live="polite"
+          >
+            {count.length} / {count.max}
+          </span>
+        )}
+      </div>
       {children}
-      {hint && <FieldDescription className="text-caption">{hint}</FieldDescription>}
+      {error ? (
+        <FieldError className="text-caption">{error}</FieldError>
+      ) : (
+        hint && <FieldDescription className="text-caption">{hint}</FieldDescription>
+      )}
     </Field>
+  )
+}
+
+/** Labelled autosaving textarea with a character counter (limit from the schema). */
+export function TextareaBlock({
+  label,
+  value,
+  onSave,
+  maxLength,
+  hint,
+  ...props
+}: { label: string; value: string; onSave: (value: string) => void; maxLength?: number; hint?: ReactNode } & Omit<
+  ComponentProps<typeof Textarea>,
+  'value' | 'onChange' | 'maxLength'
+>) {
+  const id = useId()
+  const [draft, setDraft] = useAutosave(value, onSave)
+  return (
+    <Block label={label} htmlFor={id} hint={hint} count={{ length: draft.length, max: maxLength }}>
+      <Textarea
+        id={id}
+        rows={1}
+        value={draft}
+        maxLength={maxLength}
+        onChange={(e) => setDraft(e.target.value)}
+        className={cn('min-h-9 px-3 py-2', props.className)}
+        {...props}
+      />
+    </Block>
+  )
+}
+
+/**
+ * Labelled autosaving link field: type="url", an error under the field for text that isn't a link,
+ * and an invalid non-empty value is never saved. `trailing` renders next to the input (e.g. open button).
+ */
+export function UrlBlock({
+  label,
+  value,
+  onSave,
+  maxLength,
+  placeholder = 'https://…',
+  trailing,
+  hint
+}: {
+  label: string
+  value: string
+  onSave: (value: string) => void
+  maxLength?: number
+  placeholder?: string
+  trailing?: (draft: string) => ReactNode
+  hint?: ReactNode
+}) {
+  const id = useId()
+  const [draft, setDraft] = useAutosave(value, (v) => {
+    if (isLikelyUrl(v)) onSave(v.trim())
+  })
+  const invalid = !isLikelyUrl(draft)
+  return (
+    <Block label={label} htmlFor={id} hint={hint} error={invalid ? URL_ERROR : undefined}>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          type="url"
+          inputMode="url"
+          spellCheck={false}
+          value={draft}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          aria-invalid={invalid || undefined}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        {trailing?.(draft)}
+      </div>
+    </Block>
   )
 }
 
@@ -147,7 +251,7 @@ export function InputField({
 >) {
   const id = useId()
   return (
-    <Field className="gap-2">
+    <Field className="min-w-0 gap-2">
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <AutoInput id={id} value={value} onSave={onSave} {...props} />
     </Field>
@@ -230,4 +334,38 @@ export function countBy<T, K extends string>(items: T[], key: (item: T) => K): P
     out[k] = (out[k] ?? 0) + 1
   }
   return out
+}
+
+/**
+ * «Схоже на JSON — Перемкнути» under a code editor: shown when the code looks like another of the
+ * allowed languages than the selected one. Never switches silently; ✕ hides it for this record.
+ */
+export function LanguageSuggestion<L extends string>({
+  code,
+  language,
+  languages,
+  onSwitch
+}: {
+  code: string
+  language: L
+  languages: readonly L[]
+  onSwitch: (language: L) => void
+}) {
+  const [dismissed, setDismissed] = useState<string | null>(null)
+  const detected = useMemo(() => detectLanguage(code), [code])
+  const suggestion = detected && (languages as readonly string[]).includes(detected) ? (detected as L) : null
+  if (!suggestion || suggestion === language || dismissed === suggestion) return null
+  return (
+    <div className="flex animate-enter items-center gap-2 rounded-xl bg-foreground/5 py-1.5 pr-1.5 pl-3 text-caption">
+      <span className="flex-1 text-muted-foreground">
+        Схоже на <span className="font-medium text-foreground">{LANGUAGE_LABEL[suggestion as CodeLanguage] ?? suggestion}</span>
+      </span>
+      <Button variant="subtle" size="xs" onClick={() => onSwitch(suggestion)}>
+        Перемкнути
+      </Button>
+      <Button variant="ghost" size="icon-xs" aria-label="Сховати підказку" onClick={() => setDismissed(suggestion)}>
+        <X />
+      </Button>
+    </div>
+  )
 }

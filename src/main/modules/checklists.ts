@@ -37,7 +37,7 @@ export class ChecklistsModule {
           .all()
         return { title: r.title, body: `${r.description}\n${items.map((i) => i.text).join('\n')}` }
       },
-      summary: (r) => ({ title: r.title, subtitle: r.kind === 'template' ? 'Шаблон' : 'Прогон' })
+      summary: (r) => ({ title: r.title, subtitle: r.kind === 'template' ? 'Шаблон' : 'Прохід' })
     }
     this.repo = new SoftRepository(m.repo, this.descriptor, (r, tags) => ({
       ...r,
@@ -172,7 +172,7 @@ export class ChecklistsModule {
       instantiate: async (input) => {
         const data = instantiateSchema.parse(input)
         const template = repo.rowOrThrow(data.templateId)
-        if (template.kind !== 'template') throw new UserError('Это не шаблон')
+        if (template.kind !== 'template') throw new UserError('Це не шаблон')
         const tags = this.m.repo.tags.forMany('checklist', [template.id]).get(template.id) ?? []
         const run = this.m.db.tx(() => {
           const created = repo.insert(

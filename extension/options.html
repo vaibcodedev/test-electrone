@@ -1,19 +1,19 @@
 <!doctype html>
-<html lang="ru">
+<html lang="uk">
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src http://127.0.0.1:*; style-src 'self'; script-src 'self'" />
-    <title>Vault — настройки расширения</title>
+    <title>Vault — налаштування розширення</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body class="options">
     <main class="card">
       <div class="head">
         <span class="logo">V</span>
-        <span class="title">Подключение к Vault</span>
+        <span class="title">Під’єднання до Vault</span>
       </div>
       <p class="hint">
-        Откройте Vault → Настройки → «Расширение для Chrome» и скопируйте ключ и порт. Данные уходят только в Vault на этом компьютере (127.0.0.1).
+        Відкрийте Vault → Налаштування → «Розширення для Chrome» і скопіюйте ключ і порт. Дані надходять лише у Vault на цьому комп’ютері (127.0.0.1).
       </p>
       <div class="row">
         <label class="label" for="port">Порт</label>
@@ -25,9 +25,9 @@
       </div>
       <div class="error" id="error" role="alert"></div>
       <div class="actions">
-        <span class="status" id="status" data-state="pending"><span class="dot"></span><span id="status-text">Не проверено</span></span>
-        <button type="button" class="ghost" id="check">Проверить подключение</button>
-        <button type="button" class="primary" id="save">Сохранить</button>
+        <span class="status" id="status" data-state="pending"><span class="dot"></span><span id="status-text">Не перевірено</span></span>
+        <button type="button" class="ghost" id="check">Перевірити під’єднання</button>
+        <button type="button" class="primary" id="save">Зберегти</button>
       </div>
     </main>
     <script type="module" src="options.js"></script>

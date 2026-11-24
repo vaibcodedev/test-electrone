@@ -161,13 +161,13 @@ export class DevProjectsModule {
 
   private row(id: string): Row {
     const r = this.db.select().from(devProjects).where(eq(devProjects.id, id)).get()
-    if (!r) throw new NotFoundError('Проект', id)
+    if (!r) throw new NotFoundError('Проєкт', id)
     return r
   }
 
   private validFolder(path: string): void {
     if (!existsSync(path) || !statSync(path).isDirectory())
-      throw new UserError(`Папка не найдена: ${path}`)
+      throw new UserError(`Папку не знайдено: ${path}`)
   }
 
   async describe(r: Row): Promise<DevProject> {
@@ -271,8 +271,8 @@ export class DevProjectsModule {
     this.validFolder(p.path)
     const pkg = readPackage(p.path)
     if (!pkg || !(script in pkg.scripts))
-      throw new UserError(`В package.json нет скрипта «${script}»`)
-    if (!SCRIPT_NAME.test(script)) throw new UserError('Недопустимое имя скрипта')
+      throw new UserError(`У package.json немає скрипту «${script}»`)
+    if (!SCRIPT_NAME.test(script)) throw new UserError('Неприпустима назва скрипту')
     const already = [...this.runs.values()].find(
       (r) => r.projectId === projectId && r.script === script && r.status === 'running'
     )
@@ -305,14 +305,14 @@ export class DevProjectsModule {
     child.stderr?.on('data', (d: Buffer) => this.push(run, d.toString(), 'err'))
     child.on('error', (e) => {
       run.status = 'failed'
-      this.push(run, `Не удалось запустить: ${e.message}\n`, 'sys')
+      this.push(run, `Не вдалося запустити: ${e.message}\n`, 'sys')
       this.m.bus.emit('dev:status', this.publicRun(run))
     })
     child.on('exit', (code) => {
       run.status = code === 0 || code === null ? 'exited' : 'failed'
       run.exitCode = code
       run.child = null
-      this.push(run, `\nПроцесс завершён (код ${code ?? '—'})\n`, 'sys')
+      this.push(run, `\nПроцес завершено (код ${code ?? '—'})\n`, 'sys')
       this.m.bus.emit('dev:status', this.publicRun(run))
     })
     this.db
@@ -356,7 +356,7 @@ export class DevProjectsModule {
         'code',
         [quoted],
         fail(
-          "Команда code не найдена. В VS Code: Ctrl+Shift+P → «Shell Command: Install 'code' command in PATH»."
+          "Команду code не знайдено. У VS Code: Ctrl+Shift+P → «Shell Command: Install 'code' command in PATH»."
         )
       )
     else if (target === 'cursor')
@@ -364,7 +364,7 @@ export class DevProjectsModule {
         'cursor',
         [quoted],
         fail(
-          "Команда cursor не найдена. В Cursor: Ctrl+Shift+P → «Install 'cursor' command in PATH»."
+          "Команду cursor не знайдено. У Cursor: Ctrl+Shift+P → «Install 'cursor' command in PATH»."
         )
       )
     else if (IS_WIN)
@@ -454,7 +454,7 @@ export class DevProjectsModule {
           .where(eq(devProjects.id, id))
           .returning()
           .get()
-        if (!row) throw new NotFoundError('Проект', id)
+        if (!row) throw new NotFoundError('Проєкт', id)
         return this.describe(row)
       },
       remove: async (id) => {
@@ -467,7 +467,7 @@ export class DevProjectsModule {
         const res = await dialog.showOpenDialog(
           BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0],
           {
-            title: 'Выберите папку',
+            title: 'Оберіть папку',
             properties: ['openDirectory']
           }
         )

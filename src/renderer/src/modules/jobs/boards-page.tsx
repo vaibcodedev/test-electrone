@@ -3,7 +3,10 @@ import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type D
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ExternalLink, GripVertical, Plus } from 'lucide-react'
-import type { JobBoard, JobFunnelRow } from '@shared/domain/jobs'
+import { jobBoardInputSchema, type JobBoard, type JobFunnelRow } from '@shared/domain/jobs'
+import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
+
+const LIMITS = limitsOf(jobBoardInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -12,9 +15,10 @@ import { TAG_COLORS } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { NumberInput } from '@/components/common/number-input'
 import { Switch } from '@/components/ui/switch'
 import { Card, CardContent } from '@/components/ui/card'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -24,6 +28,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
   const update = useApiMutation('jobs', 'updateBoard')
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: board.id })
   const save = (patch: Partial<JobBoard>): void => update.mutate({ id: board.id, patch })
+  const [urlBad, setUrlBad] = useState(false)
 
   return (
     <Card
@@ -33,68 +38,76 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
     >
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon-sm" className="cursor-grab text-muted-foreground" aria-label="Перетащить" {...attributes} {...listeners}>
+          <Button variant="ghost" size="icon-sm" className="cursor-grab text-muted-foreground" aria-label="Перетягнути" {...attributes} {...listeners}>
             <GripVertical />
           </Button>
           <span className="size-3 shrink-0 rounded-full" style={{ background: board.color ?? 'var(--muted-foreground)' }} />
           <Input
             key={`name-${board.id}-${board.name}`}
             defaultValue={board.name}
-            aria-label="Название площадки"
+            aria-label="Назва майданчика"
+            maxLength={LIMITS.name}
             className="font-display h-10 max-w-xs bg-transparent text-[18px]"
             onBlur={(e) => e.target.value.trim() && e.target.value !== board.name && save({ name: e.target.value.trim() })}
           />
           <div className="ml-auto flex items-center gap-2">
             {stats && (
               <Badge variant="soft" className="bg-card font-normal">
-                {stats.applied} откл. · ответы {stats.replyRate}% · офферы {stats.offer}
+                {stats.applied} відг. · відповіді {stats.replyRate}% · офери {stats.offer}
               </Badge>
             )}
             <label className="flex items-center gap-2 text-caption text-muted-foreground">
-              Активна
+              Активний
               <Switch checked={board.active} onCheckedChange={(active) => save({ active })} />
             </label>
           </div>
         </div>
         <div className="grid grid-cols-[1fr_160px] gap-4">
           <Field className="gap-2">
-            <FieldLabel>Ссылка</FieldLabel>
+            <FieldLabel>Посилання</FieldLabel>
             <InputGroup className="bg-card">
               <InputGroupInput
                 key={`url-${board.id}-${board.url}`}
                 defaultValue={board.url}
+                type="url"
+                inputMode="url"
+                spellCheck={false}
+                maxLength={LIMITS.url}
+                aria-invalid={urlBad || undefined}
                 placeholder="https://djinni.co/jobs/?primary_keyword=React"
-                onBlur={(e) => e.target.value !== board.url && save({ url: e.target.value.trim() })}
+                onChange={(e) => urlBad && setUrlBad(!isLikelyUrl(e.target.value))}
+                onBlur={(e) => {
+                  const ok = isLikelyUrl(e.target.value)
+                  setUrlBad(!ok)
+                  if (ok && e.target.value !== board.url) save({ url: e.target.value.trim() })
+                }}
               />
               {board.url && (
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Открыть" onClick={() => api.app.openExternal(board.url)}>
+                  <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити" onClick={() => api.app.openExternal(board.url)}>
                     <ExternalLink />
                   </InputGroupButton>
                 </InputGroupAddon>
               )}
             </InputGroup>
+            {urlBad && <FieldError className="text-caption">{URL_ERROR}</FieldError>}
           </Field>
           <Field className="gap-2">
-            <FieldLabel>Откликов в день</FieldLabel>
-            <Input
-              key={`t-${board.id}-${board.dailyTarget}`}
-              type="number"
+            <FieldLabel>Відгуків на день</FieldLabel>
+            <NumberInput
+              integer
               min={0}
               max={100}
-              defaultValue={board.dailyTarget}
+              value={board.dailyTarget}
               className="bg-card"
-              onBlur={(e) => {
-                const v = Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0)))
-                if (v !== board.dailyTarget) save({ dailyTarget: v })
-              }}
+              onChange={(v) => v !== null && v !== board.dailyTarget && save({ dailyTarget: v })}
             />
           </Field>
         </div>
-        <p className="-mt-2 text-meta text-muted-foreground">0 — просто зайти и проверить, день закрывается галочкой.</p>
+        <p className="-mt-2 text-meta text-muted-foreground">0 — просто зайти й перевірити, день закривається позначкою.</p>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <Field className="w-auto gap-2">
-            <FieldLabel>Дни</FieldLabel>
+            <FieldLabel>Дні</FieldLabel>
             <ToggleGroup
               type="multiple"
               variant="chip"
@@ -110,7 +123,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
             </ToggleGroup>
           </Field>
           <Field className="w-auto gap-2">
-            <FieldLabel>Цвет</FieldLabel>
+            <FieldLabel>Колір</FieldLabel>
             <ToggleGroup type="single" value={board.color ?? ''} onValueChange={(c) => c && save({ color: c })} spacing={1}>
               {TAG_COLORS.map((c) => (
                 <ToggleGroupItem
@@ -133,7 +146,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
 export function JobBoardsPage() {
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
   const { data: stats } = useApi('jobs', 'stats', {})
-  const create = useApiMutation('jobs', 'createBoard', { successMessage: 'Площадка добавлена' })
+  const create = useApiMutation('jobs', 'createBoard', { successMessage: 'Майданчик додано' })
   const reorder = useApiMutation('jobs', 'reorderBoards')
   const [name, setName] = useState('')
   const [order, setOrder] = useState<string[] | null>(null)
@@ -153,8 +166,8 @@ export function JobBoardsPage() {
   return (
     <Page>
       <PageHeader
-        title="Площадки"
-        subtitle="Где искать каждый день. Норма засчитывается по откликам с площадки; если вакансий нет — закройте день галочкой на обзоре."
+        title="Майданчики"
+        subtitle="Де шукати щодня. Норма зараховується за відгуками з майданчика; якщо вакансій немає — закрийте день позначкою на огляді."
       />
       <PageBody className="flex max-w-4xl flex-col gap-3">
         <form
@@ -165,18 +178,24 @@ export function JobBoardsPage() {
             create.mutate({ name: name.trim(), color: TAG_COLORS[boards.length % TAG_COLORS.length] }, { onSuccess: () => setName('') })
           }}
         >
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Новая площадка: Djinni, DOU, LinkedIn…" className="max-w-sm" />
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Новий майданчик: Djinni, DOU, LinkedIn…"
+            className="max-w-sm"
+            maxLength={LIMITS.name}
+          />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button type="submit" variant="lime" disabled={!name.trim()}>
-                <Plus /> Добавить
+                <Plus /> Додати
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Ссылку, норму и дни можно задать после добавления</TooltipContent>
+            <TooltipContent>Посилання, норму й дні можна задати після додавання</TooltipContent>
           </Tooltip>
         </form>
         {boards.length === 0 ? (
-          <EmptyState title="Площадок нет" hint="Добавьте сайты с вакансиями, на которые заходите каждый день." />
+          <EmptyState title="Майданчиків немає" hint="Додайте сайти з вакансіями, на які заходите щодня." />
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={sorted.map((b) => b.id)} strategy={verticalListSortingStrategy}>
@@ -189,7 +208,7 @@ export function JobBoardsPage() {
           </DndContext>
         )}
         <p className="text-caption text-muted-foreground">
-          Отключённая площадка пропадает с обзора, но её история и статистика сохраняются.
+          Вимкнений майданчик зникає з огляду, але його історія й статистика зберігаються.
         </p>
       </PageBody>
     </Page>

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { plural } from '@/lib/format'
 
 /** Column title with rename / "done column" toggle / delete (with choice where cards go). */
 export function ColumnHeader({ column, count, columns }: { column: BoardColumn; count: number; columns: BoardColumn[] }) {
@@ -24,7 +25,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
   const others = columns.filter((c) => c.id !== column.id)
   const [target, setTarget] = useState<string>(others[0]?.id ?? '')
   const update = useApiMutation('boards', 'updateColumn')
-  const remove = useApiMutation('boards', 'removeColumn', { successMessage: 'Колонка удалена' })
+  const remove = useApiMutation('boards', 'removeColumn', { successMessage: 'Колонку видалено' })
 
   const commit = (): void => {
     setEditing(false)
@@ -47,7 +48,8 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
               setEditing(false)
             }
           }}
-          aria-label="Название колонки"
+          maxLength={100}
+          aria-label="Назва колонки"
           className="h-7 min-w-0 flex-1 rounded-lg bg-card px-2 text-body font-medium"
         />
       ) : (
@@ -56,10 +58,10 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
           size="sm"
           onDoubleClick={() => setEditing(true)}
           className="min-w-0 flex-1 justify-start gap-2 px-1 text-body hover:bg-transparent"
-          title="Двойной клик — переименовать"
+          title="Подвійний клік — перейменувати"
         >
           {column.isDone && (
-            <Badge variant="lime" className="size-4 p-0" aria-label="Колонка готовых">
+            <Badge variant="lime" className="size-4 p-0" aria-label="Колонка готових">
               <Check className="size-2.5" />
             </Badge>
           )}
@@ -80,17 +82,17 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 rounded-2xl">
           <DropdownMenuItem onSelect={() => setEditing(true)}>
-            <Pencil /> Переименовать
+            <Pencil /> Перейменувати
           </DropdownMenuItem>
           <DropdownMenuCheckboxItem
             checked={column.isDone}
             onCheckedChange={(isDone) => update.mutate({ id: column.id, patch: { isDone: !!isDone } })}
           >
-            Колонка готовых
+            Колонка готових
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
-            <Trash2 /> Удалить колонку
+            <Trash2 /> Видалити колонку
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -98,17 +100,17 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
       <Dialog open={deleting} onOpenChange={setDeleting}>
         <DialogContent className="rounded-3xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Удалить колонку «{column.title}»?</DialogTitle>
+            <DialogTitle>Видалити колонку «{column.title}»?</DialogTitle>
             <DialogDescription>
               {count
-                ? `В колонке ${count} карт. Перенесите их в другую колонку или отправьте в корзину вместе с колонкой.`
-                : 'Колонка пустая.'}
+                ? `У колонці ${count} ${plural(count, ['картка', 'картки', 'карток'])}. Перенесіть їх в іншу колонку або відправте в кошик разом із колонкою.`
+                : 'Колонка порожня.'}
             </DialogDescription>
           </DialogHeader>
           {count > 0 && others.length > 0 && (
             <Select value={target} onValueChange={setTarget}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Куда перенести карточки" />
+                <SelectValue placeholder="Куди перенести картки" />
               </SelectTrigger>
               <SelectContent>
                 {others.map((c) => (
@@ -128,7 +130,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
                   setDeleting(false)
                 }}
               >
-                Удалить с карточками
+                Видалити з картками
               </Button>
             )}
             <Button
@@ -138,7 +140,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
                 setDeleting(false)
               }}
             >
-              {count && others.length ? 'Перенести и удалить' : 'Удалить'}
+              {count && others.length ? 'Перенести й видалити' : 'Видалити'}
             </Button>
           </DialogFooter>
         </DialogContent>

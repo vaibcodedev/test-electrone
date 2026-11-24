@@ -1,13 +1,27 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Handshake } from 'lucide-react'
+import { projectInputSchema } from '@shared/domain/crm'
 import type { Platform, Proposal } from '@shared/domain/freelance'
 import { useApiMutation } from '@/lib/query'
+import { NumberInput } from '@/components/common/number-input'
+import { draftToNumber, numberToDraft } from '../crm/money'
+import { limitsOf, rangesOf } from '@/lib/limits'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { InputGroup, InputGroupAddon } from '@/components/ui/input-group'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Field, Segmented } from '@/components/common/page'
+
+const TITLE_MAX = limitsOf(projectInputSchema).title
+const PROJECT_R = rangesOf(projectInputSchema)
 
 /**
  * «Контракт»: turns a won proposal into a CRM client + contract (project) on this platform.
@@ -30,7 +44,7 @@ export function HireDialog({
   const [amount, setAmount] = useState(String(proposal.bidAmount || ''))
   const [fee, setFee] = useState(String(proposal.feePercent ?? platform.defaultFeePercent))
   const hire = useApiMutation('proposals', 'hire', {
-    successMessage: 'Контракт создан',
+    successMessage: 'Контракт створено',
     onSuccess: ({ projectId }) => {
       onOpenChange(false)
       navigate(`/projects/${projectId}`)
@@ -38,16 +52,23 @@ export function HireDialog({
   })
   const amountNum = Number(amount.replace(',', '.'))
   const feeNum = Number(fee.replace(',', '.'))
-  const valid = title.trim() && !Number.isNaN(amountNum) && amountNum >= 0 && !Number.isNaN(feeNum) && feeNum >= 0 && feeNum <= 100
+  const valid =
+    title.trim() &&
+    !Number.isNaN(amountNum) &&
+    amountNum >= 0 &&
+    !Number.isNaN(feeNum) &&
+    feeNum >= 0 &&
+    feeNum <= 100
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Оформить контракт</DialogTitle>
+          <DialogTitle className="font-display text-xl">Оформити контракт</DialogTitle>
           <DialogDescription>
-            Клиент и проект появятся в «Клиентах и контрактах»{proposal.clientName ? ` — ${proposal.clientName}` : ''}. Отклик
-            перейдёт в статус «Контракт».
+            Клієнт і проєкт з’являться в «Клієнтах й контрактах»
+            {proposal.clientName ? ` — ${proposal.clientName}` : ''}. Відгук перейде в статус
+            «Контракт».
           </DialogDescription>
         </DialogHeader>
         <form
@@ -65,36 +86,58 @@ export function HireDialog({
             })
           }}
         >
-          <Field label="Название контракта">
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+          <Field label="Назва контракту">
+            <Input
+              value={title}
+              maxLength={TITLE_MAX}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+            />
           </Field>
           <Field label="Оплата">
             <Segmented
+              className="w-fit"
               value={billing}
               onChange={setBilling}
               options={[
-                { value: 'fixed', label: 'Фикс за проект' },
-                { value: 'hourly', label: 'Почасовая' }
+                { value: 'fixed', label: 'Фіксована ціна' },
+                { value: 'hourly', label: 'Погодинно' }
               ]}
             />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label={billing === 'hourly' ? 'Ставка в час' : 'Стоимость проекта'}>
+            <Field label={billing === 'hourly' ? 'Ставка за годину' : 'Вартість проєкту'}>
               <InputGroup>
-                <InputGroupInput type="number" min={0} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                <NumberInput
+                  data-slot="input-group-control"
+                  className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+                  allowEmpty
+                  min={0}
+                  max={PROJECT_R.fixedPrice?.max}
+                  value={draftToNumber(amount)}
+                  onChange={(v) => setAmount(numberToDraft(v))}
+                />
                 <InputGroupAddon align="inline-end">{platform.currency}</InputGroupAddon>
               </InputGroup>
             </Field>
-            <Field label="Комиссия платформы">
+            <Field label="Комісія платформи">
               <InputGroup>
-                <InputGroupInput type="number" min={0} max={100} step={0.5} inputMode="decimal" value={fee} onChange={(e) => setFee(e.target.value)} />
+                <NumberInput
+                  data-slot="input-group-control"
+                  className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+                  allowEmpty
+                  {...PROJECT_R.feePercent}
+                  step={0.5}
+                  value={draftToNumber(fee)}
+                  onChange={(v) => setFee(numberToDraft(v))}
+                />
                 <InputGroupAddon align="inline-end">%</InputGroupAddon>
               </InputGroup>
             </Field>
           </div>
           {!Number.isNaN(amountNum) && amountNum > 0 && !Number.isNaN(feeNum) && (
             <p className="text-caption text-muted-foreground">
-              На руки {billing === 'hourly' ? 'за час' : 'за проект'}:{' '}
+              На руки {billing === 'hourly' ? 'за годину' : 'за проєкт'}:{' '}
               <span className="font-medium text-foreground tabular-nums">
                 {(amountNum * (1 - feeNum / 100)).toFixed(2)} {platform.currency}
               </span>
@@ -102,10 +145,10 @@ export function HireDialog({
           )}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Отмена
+              Скасувати
             </Button>
             <Button type="submit" variant="lime" disabled={!valid || hire.isPending}>
-              <Handshake /> Создать контракт
+              <Handshake /> Створити контракт
             </Button>
           </DialogFooter>
         </form>

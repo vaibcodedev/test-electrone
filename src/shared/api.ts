@@ -323,7 +323,9 @@ export type BookmarksApi = CrudApi<Bookmark, BookmarkInput, BookmarkPatch, Bookm
 export interface EnglishApi extends CrudApi<Word, WordInput, WordPatch, WordListQuery> {
   /** Words due for review now, oldest first. */
   queue(limit?: number): Promise<Word[]>
-  review(args: { id: string; grade: ReviewGrade }): Promise<Word>
+  /** Words not due yet, hardest and soonest first — for practice beyond the daily norm. */
+  practiceExtra(limit?: number): Promise<Word[]>
+  review(args: { id: string; grade: ReviewGrade; extra?: boolean }): Promise<Word>
   stats(): Promise<EnglishStats>
 }
 
@@ -452,8 +454,16 @@ export interface JobsApi {
   updateQuestion(args: { id: string; patch: QuestionPatch }): Promise<InterviewQuestion>
   removeQuestion(id: string): Promise<void>
   topics(): Promise<string[]>
-  practiceQueue(args?: { limit?: number; category?: QuestionCategory }): Promise<InterviewQuestion[]>
-  reviewQuestion(args: { id: string; grade: number }): Promise<InterviewQuestion>
+  practiceQueue(args?: { limit?: number; category?: QuestionCategory; group?: 'technical' | 'nontechnical' }): Promise<InterviewQuestion[]>
+  reviewQuestion(args: { id: string; grade: number; extra?: boolean }): Promise<InterviewQuestion>
+  /** Not-yet-due questions for extra practice: soonest due and weakest (lowest ease) first. */
+  practiceExtra(args: {
+    limit?: number
+    category?: QuestionCategory
+    group?: 'technical' | 'nontechnical'
+    topic?: string
+    excludeIds?: string[]
+  }): Promise<InterviewQuestion[]>
 
   stats(args?: { from?: number; to?: number }): Promise<JobStats>
   overview(): Promise<JobsOverview>
@@ -533,6 +543,8 @@ export interface TrashApi {
   restore(ref: EntityRef): Promise<void>
   purge(ref: EntityRef): Promise<void>
   empty(): Promise<number>
+  /** Deletes the record for good if it's still an empty draft; true when it was discarded. */
+  discardDraft(ref: EntityRef): Promise<boolean>
 }
 
 export interface FilesApi {

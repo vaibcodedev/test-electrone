@@ -1,7 +1,11 @@
 /** General notes — everything that is not Claude-specific. Optional folders + global tags. */
 import { useState } from 'react'
 import { NotebookPen, Plus } from 'lucide-react'
-import type { Note, NotePatch } from '@shared/domain/notes'
+import { noteInputSchema, type Note, type NotePatch } from '@shared/domain/notes'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(noteInputSchema)
+const NEW_TITLE = 'Нова нотатка'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
@@ -29,7 +33,7 @@ function excerpt(md: string): string {
 
 function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
   const update = useApiMutation('notes', 'update')
-  const remove = useApiMutation('notes', 'remove', { successMessage: 'Заметка в корзине' })
+  const remove = useApiMutation('notes', 'remove', { successMessage: 'Нотатку переміщено в кошик' })
   const save = (patch: NotePatch): void => update.mutate({ id: note.id, patch })
   const entity = { type: 'note' as const, id: note.id }
   useEscapeToClose(onClose)
@@ -51,19 +55,19 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
           updatedAt={note.updatedAt}
         >
           <section className="flex flex-col gap-2">
-            <SectionLabel>Папка</SectionLabel>
+            <SectionLabel>Тека</SectionLabel>
             <FolderPicker value={note.folder} onChange={(folder) => save({ folder })} />
           </section>
         </EntityAside>
       }
     >
       <EditorStack key={note.id}>
-        <AutoTitle value={note.title} onSave={(title) => save({ title })} placeholder="Название заметки" />
+        <AutoTitle value={note.title} onSave={(title) => save({ title })} placeholder="Назва нотатки" maxLength={LIMITS.title} />
         <AutoMarkdown
           label="Текст"
           value={note.body}
           onSave={(body) => save({ body })}
-          placeholder="Пишите в Markdown: списки, ссылки, ```код```"
+          placeholder="Пишіть у Markdown: списки, посилання, ```код```"
           minHeight="320px"
         />
       </EditorStack>
@@ -94,39 +98,39 @@ export function NotesPage() {
   return (
     <Page>
       <PageHeader
-        title="Заметки"
-        subtitle="Всё, что не про Claude: договорённости, процессы, черновики мыслей."
+        title="Нотатки"
+        subtitle="Усе, що не про Claude: домовленості, процеси, чернетки думок."
         actions={
           <Button
             variant="lime"
             onClick={async () => {
               // An untouched blank note already exists → open it instead of piling up empty ones.
-              const blank = list.items.find((n) => n.title === 'Новая заметка' && !n.body.trim())
+              const blank = list.items.find((n) => n.title === NEW_TITLE && !n.body.trim())
               if (blank) return setOpen(blank.id)
               const created = await create.mutateAsync({
-                title: 'Новая заметка',
+                title: NEW_TITLE,
                 folder: folder && folder !== NO_FOLDER ? folder : ''
               })
               setOpen(created.id)
             }}
           >
-            <Plus /> Заметка
+            <Plus /> Нотатка
           </Button>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
-            allLabel="Все"
+            allLabel="Усі"
             value={folder}
             onChange={setFolder}
             options={[
               ...folders.map((f) => ({ value: f, label: f, count: countIn(f) })),
-              ...(folders.length && unfiled ? [{ value: NO_FOLDER, label: 'Без папки', count: unfiled }] : [])
+              ...(folders.length && unfiled ? [{ value: NO_FOLDER, label: 'Без теки', count: unfiled }] : [])
             ]}
           />
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Искать в заметках" className="w-64" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Шукати в нотатках" className="w-64" />
           </div>
         </div>
       </PageHeader>
@@ -143,11 +147,11 @@ export function NotesPage() {
               onLoadMore={list.loadMore}
               empty={!list.isLoading && (<EmptyState
                   icon={NotebookPen}
-                  title={filtered ? 'Ничего не нашлось' : 'Заметок пока нет'}
+                  title={filtered ? 'Нічого не знайшлося' : 'Нотаток поки немає'}
                   hint={
                     filtered
-                      ? 'Поиск идёт по названию и тексту заметок.'
-                      : 'Создайте первую заметку — разложить по папкам можно потом.'
+                      ? 'Пошук іде за назвою й текстом нотаток.'
+                      : 'Створіть першу нотатку — розкласти по теках можна потім.'
                   }
                 />)}
               renderItem={(n) => {
@@ -161,14 +165,22 @@ export function NotesPage() {
                         {text}
                       </div>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {/* One meta line: folder · tags … time (time never drops to its own row). */}
+                    <div className="mt-2 flex min-w-0 items-center gap-1.5">
                       {n.folder && (
-                        <Badge variant={active ? 'lime' : 'outline'} className="h-5">
+                        <Badge
+                          variant="outline"
+                          className={cn('h-5 max-w-40 shrink-0 truncate', active && 'border-ink-foreground/20 text-ink-foreground')}
+                        >
                           {n.folder}
                         </Badge>
                       )}
-                      {!active && <TagList tags={n.tags} max={3} />}
-                      <span className={cn('ml-auto text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      {!active && (
+                        <div className="flex min-w-0 flex-1 overflow-hidden">
+                          <TagList tags={n.tags} max={2} className="flex-nowrap" />
+                        </div>
+                      )}
+                      <span className={cn('ml-auto shrink-0 text-meta whitespace-nowrap', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {fmtRelative(n.updatedAt)}
                       </span>
                     </div>

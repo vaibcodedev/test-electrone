@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
-import { LIBRARY_STATUSES, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
+import { LIBRARY_STATUSES, libraryInputSchema, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
@@ -15,22 +16,25 @@ import { CopyButton } from '@/components/common/copy-button'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
   AutoMarkdown,
-  AutoTextarea,
   AutoTitle,
   Block,
   EditorStack,
   InputField,
   PillSelect,
+  TextareaBlock,
+  UrlBlock,
   countBy,
   useEscapeToClose
 } from '../claude/editor-kit'
 
+const LIMITS = limitsOf(libraryInputSchema)
+
 const STATUS_LABEL: Record<LibraryStatus, string> = {
-  used: 'Использую',
-  favorite: 'Любимая',
-  want: 'Хочу попробовать',
+  used: 'Використовую',
+  favorite: 'Улюблена',
+  want: 'Хочу спробувати',
   testing: 'Пробую',
-  dropped: 'Не зашла'
+  dropped: 'Не зайшла'
 }
 
 const STATUS_DOT: Record<LibraryStatus, string> = {
@@ -50,7 +54,7 @@ function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
   const links = [
     { url: lib.npmUrl, label: 'npm', icon: Package },
     { url: lib.githubUrl, label: 'GitHub', icon: GitBranch },
-    { url: lib.docsUrl, label: 'Доки', icon: BookOpen }
+    { url: lib.docsUrl, label: 'Документація', icon: BookOpen }
   ].filter((l) => isUrl(l.url))
   if (!links.length) return null
   return (
@@ -74,16 +78,27 @@ function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
   )
 }
 
-/** Install command as a read-only shadcn InputGroup with copy. */
+/** Install command as a read-only shadcn InputGroup with copy; a quiet placeholder when empty (keeps card height). */
 function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
-  if (!cmd.trim()) return null
+  if (!cmd.trim()) {
+    return (
+      <div
+        className={cn(
+          'flex h-8 items-center rounded-xl border border-dashed px-3 text-caption',
+          onInk ? 'border-ink-foreground/20 text-ink-muted' : 'border-foreground/12 text-muted-foreground'
+        )}
+      >
+        Команду встановлення не вказано
+      </div>
+    )
+  }
   return (
     <InputGroup
       onClick={(e) => e.stopPropagation()}
       className={cn('h-8 font-mono', onInk ? 'bg-ink-foreground/8 text-ink-foreground' : 'bg-card')}
     >
       <InputGroupAddon className={cn('font-mono', onInk ? 'text-ink-accent' : 'text-muted-foreground')}>$</InputGroupAddon>
-      <InputGroupInput readOnly value={cmd} aria-label="Команда установки" className="font-mono text-caption" />
+      <InputGroupInput readOnly value={cmd} aria-label="Команда встановлення" className="font-mono text-caption" />
       <InputGroupAddon align="inline-end">
         <CopyButton text={cmd} variant="ghost" size="xs" className="size-6 rounded-full text-inherit" />
       </InputGroupAddon>
@@ -93,7 +108,7 @@ function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
 
 function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) {
   const update = useApiMutation('libraries', 'update')
-  const remove = useApiMutation('libraries', 'remove', { successMessage: 'Перемещено в корзину' })
+  const remove = useApiMutation('libraries', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: LibraryPatch): void => update.mutate({ id: lib.id, patch })
   const entity = { type: 'library' as const, id: lib.id }
   useEscapeToClose(onClose)
@@ -119,14 +134,14 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
       }
     >
       <EditorStack>
-        <AutoTitle value={lib.name} onSave={(name) => save({ name })} placeholder="Название пакета" />
-        <Block label="Для чего">
-          <AutoTextarea
-            value={lib.purpose}
-            onSave={(purpose) => save({ purpose })}
-            placeholder="Формы, анимации, слайдеры…"
-          />
-        </Block>
+        <AutoTitle value={lib.name} onSave={(name) => save({ name })} placeholder="Назва пакета" maxLength={LIMITS.name} />
+        <TextareaBlock
+          label="Для чого"
+          value={lib.purpose}
+          onSave={(purpose) => save({ purpose })}
+          maxLength={LIMITS.purpose}
+          placeholder="Форми, анімації, слайдери…"
+        />
         <Block label="Статус">
           <PillSelect
             options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
@@ -135,61 +150,83 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
           />
         </Block>
         <InputField
-          label="Команда установки"
+          label="Команда встановлення"
           value={lib.installCmd}
           onSave={(installCmd) => save({ installCmd })}
+          maxLength={LIMITS.installCmd}
+          spellCheck={false}
           placeholder={`npm i ${lib.name}`}
           className="font-mono"
         />
         <div className="grid grid-cols-3 gap-3">
-          <InputField label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} placeholder="https://npmjs.com/package/…" />
-          <InputField label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} placeholder="https://github.com/…" />
-          <InputField label="Документация" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} placeholder="https://…" />
+          <UrlBlock label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} maxLength={LIMITS.npmUrl} placeholder="https://npmjs.com/package/…" />
+          <UrlBlock label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} maxLength={LIMITS.githubUrl} placeholder="https://github.com/…" />
+          <UrlBlock label="Документація" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} maxLength={LIMITS.docsUrl} />
         </div>
         <AutoMarkdown
-          label="Заметки"
+          label="Нотатки"
           value={lib.notes}
           onSave={(notes) => save({ notes })}
-          placeholder="Как подключал, подводные камни, пример использования"
+          placeholder="Як підключав, підводні камені, приклад використання"
         />
       </EditorStack>
     </DetailPane>
   )
 }
 
-function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: boolean; compact: boolean; onOpen: () => void }) {
+function StatusLabel({ status, muted }: { status: LibraryStatus; muted: string }) {
   return (
-    <Card
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && onOpen()}
-      aria-current={active || undefined}
-      className={cn(
-        'cursor-pointer gap-3 py-4 transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
-        active ? 'bg-ink text-ink-foreground' : 'hover:bg-accent'
-      )}
-    >
+    <span className={cn('flex shrink-0 items-center gap-1.5 text-meta whitespace-nowrap', muted)}>
+      <span className={cn('size-2 rounded-full', STATUS_DOT[status])} />
+      {STATUS_LABEL[status]}
+    </span>
+  )
+}
+
+/**
+ * Grid card in the same language as snippet cards: equal height (h-full, footer pinned), purpose
+ * one line with reserved height, install row always present. With a record open the list turns into
+ * compact one-line rows (title + status), so a narrow list pane stays readable.
+ */
+function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: boolean; compact: boolean; onOpen: () => void }) {
+  const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
+  const base = cn(
+    'h-full min-w-0 cursor-pointer transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+    active ? 'bg-ink text-ink-foreground' : 'hover:bg-accent'
+  )
+  const keys = (e: React.KeyboardEvent): void => {
+    if (e.key === 'Enter' && e.target === e.currentTarget) onOpen()
+  }
+  if (compact) {
+    return (
+      <Card role="button" tabIndex={0} onClick={onOpen} onKeyDown={keys} aria-current={active || undefined} className={cn(base, 'gap-0 px-4 py-3')}>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="min-w-0 flex-1 truncate text-body font-semibold">{lib.name}</span>
+          <StatusLabel status={lib.status} muted={muted} />
+        </div>
+      </Card>
+    )
+  }
+  return (
+    <Card role="button" tabIndex={0} onClick={onOpen} onKeyDown={keys} aria-current={active || undefined} className={cn(base, 'gap-3 py-4')}>
       <CardHeader className="gap-1 px-4">
-        <div className="font-display truncate text-[20px] leading-tight">{lib.name}</div>
-        <div className={cn('flex items-center gap-1.5 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-          <span className={cn('size-1.5 rounded-full', STATUS_DOT[lib.status])} />
-          {STATUS_LABEL[lib.status]}
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="font-display min-w-0 flex-1 truncate text-[20px] leading-tight">{lib.name}</span>
+          <StatusLabel status={lib.status} muted={muted} />
+        </div>
+        <div className={cn('min-h-5 truncate text-caption', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>
+          {lib.purpose || ' '}
         </div>
       </CardHeader>
-      {(lib.purpose || (!compact && lib.installCmd.trim())) && (
-        <CardContent className="flex flex-col gap-3 px-4">
-          {lib.purpose && (
-            <p className={cn('line-clamp-2 text-body', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>{lib.purpose}</p>
-          )}
-          {!compact && <InstallCommand cmd={lib.installCmd} onInk={active} />}
-        </CardContent>
-      )}
-      {!compact && (
-        <CardFooter className="mt-auto items-end justify-between gap-2 px-4">
-          <TagList tags={lib.tags} max={3} />
-          <LinkButtons lib={lib} onInk={active} />
-        </CardFooter>
-      )}
+      <CardContent className="min-w-0 px-4">
+        <InstallCommand cmd={lib.installCmd} onInk={active} />
+      </CardContent>
+      <CardFooter className="mt-auto min-w-0 items-center justify-between gap-2 px-4">
+        <div className="flex min-h-6 min-w-0 flex-1 items-center overflow-hidden">
+          <TagList tags={lib.tags} max={3} className="flex-nowrap" />
+        </div>
+        <LinkButtons lib={lib} onInk={active} />
+      </CardFooter>
     </Card>
   )
 }
@@ -212,8 +249,8 @@ export function LibrariesPage() {
   return (
     <Page>
       <PageHeader
-        title="JS-библиотеки"
-        subtitle="Что использовал, что хочется попробовать, и как это поставить."
+        title="JS-бібліотеки"
+        subtitle="Що використовував, що хочеться спробувати й як це встановити."
         actions={
           <Button
             variant="lime"
@@ -222,20 +259,20 @@ export function LibrariesPage() {
               setOpen(created.id)
             }}
           >
-            <Plus /> Библиотека
+            <Plus /> Бібліотека
           </Button>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
-            allLabel="Все"
+            allLabel="Усі"
             value={status}
             onChange={setStatus}
             options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s], count: counts[s] ?? 0 }))}
           />
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Название или задача" className="w-60" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Назва або задача" className="w-60" />
           </div>
         </div>
       </PageHeader>
@@ -247,7 +284,7 @@ export function LibrariesPage() {
               items={list.items}
               getKey={(l) => l.id}
               minColumnWidth={openId ? 10_000 : 300}
-              rowHeight={openId ? 90 : 210}
+              rowHeight={openId ? 52 : 200}
               gap={8}
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
@@ -257,18 +294,18 @@ export function LibrariesPage() {
                 !list.isLoading && (
                   <EmptyState
                     icon={Package}
-                    title={search || tagId || status ? 'Ничего не нашлось' : 'Список пуст'}
+                    title={search || tagId || status ? 'Нічого не знайшлося' : 'Список порожній'}
                     hint={
                       search || tagId || status
-                        ? 'Снимите фильтр или поищите по задаче: «формы», «анимации».'
-                        : 'Добавьте пакет, который понравился, с командой установки и ссылками.'
+                        ? 'Зніміть фільтр або пошукайте за задачею: «форми», «анімації».'
+                        : 'Додайте пакет, який сподобався, з командою встановлення й посиланнями.'
                     }
                   />
                 )
               }
             />
           }
-          listSize="30%"
+          listSize="36%"
           detail={openId && openItem ? <LibraryDetail key={openItem.id} lib={openItem} onClose={() => setOpen(null)} /> : null}
         />
       </PageBody>

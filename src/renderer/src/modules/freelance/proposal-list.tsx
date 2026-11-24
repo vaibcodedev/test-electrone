@@ -5,7 +5,14 @@ import type { Currency } from '@shared/domain/crm'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { daysSince, PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL } from './proposal-labels'
 
@@ -48,13 +55,13 @@ export function ProposalList({
       <Table className="table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="pl-4">Вакансия</TableHead>
+            <TableHead className="pl-4">Вакансія</TableHead>
             <TableHead className={COL.status}>Статус</TableHead>
             <TableHead className={COL.niche}>Тип</TableHead>
             <TableHead className={cn(COL.bid, 'text-right')}>Ставка</TableHead>
-            <TableHead className={cn(COL.credits, 'text-right')}>Коннекты</TableHead>
-            <TableHead className={COL.client}>Клиент</TableHead>
-            <TableHead className={cn(COL.sent, 'pr-4 text-right')}>Отправлен</TableHead>
+            <TableHead className={cn(COL.credits, 'text-right')}>Конекти</TableHead>
+            <TableHead className={COL.client}>Клієнт</TableHead>
+            <TableHead className={cn(COL.sent, 'pr-4 text-right')}>Надіслано</TableHead>
           </TableRow>
         </TableHeader>
       </Table>
@@ -67,7 +74,11 @@ export function ProposalList({
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
         empty={
-          !loading && <div className="py-10 text-center text-body text-muted-foreground">Под фильтр ничего не попало.</div>
+          !loading && (
+            <div className="py-10 text-center text-body text-muted-foreground">
+              Під фільтр нічого не потрапило.
+            </div>
+          )
         }
         renderItem={(p) => {
           const days = daysSince(p.sentAt, now)
@@ -88,24 +99,43 @@ export function ProposalList({
                     </div>
                   </TableCell>
                   <TableCell className={COL.status}>
-                    <Badge variant={PROPOSAL_STATUS_BADGE[p.status]}>{PROPOSAL_STATUS_LABEL[p.status]}</Badge>
+                    <Badge variant={PROPOSAL_STATUS_BADGE[p.status]}>
+                      {PROPOSAL_STATUS_LABEL[p.status]}
+                    </Badge>
                   </TableCell>
-                  <TableCell className={cn(COL.niche, 'truncate text-muted-foreground')}>{p.niche || '—'}</TableCell>
+                  <TableCell className={cn(COL.niche, 'truncate text-muted-foreground')}>
+                    {p.niche || '—'}
+                  </TableCell>
                   <TableCell className={cn(COL.bid, 'truncate text-right tabular-nums')}>
-                    {p.bidAmount ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/ч' : ''}` : '—'}
+                    {p.bidAmount
+                      ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/год' : ''}`
+                      : '—'}
                   </TableCell>
                   <TableCell className={cn(COL.credits, 'text-right tabular-nums')}>
                     {p.credits}
-                    {p.boostCredits > 0 && <span className="text-muted-foreground">+{p.boostCredits}</span>}
+                    {p.boostCredits > 0 && (
+                      <span className="text-muted-foreground">+{p.boostCredits}</span>
+                    )}
                   </TableCell>
                   <TableCell className={COL.client}>
                     <span className="flex items-center gap-1.5">
                       <span className="truncate">{p.clientName || '—'}</span>
-                      {p.paymentVerified && <BadgeCheck className="size-3.5 shrink-0 text-success" aria-label="Оплата верифицирована" />}
+                      {p.paymentVerified && (
+                        <BadgeCheck
+                          className="size-3.5 shrink-0 text-success"
+                          aria-label="Оплату верифіковано"
+                        />
+                      )}
                     </span>
                   </TableCell>
-                  <TableCell className={cn(COL.sent, 'pr-4 text-right text-muted-foreground tabular-nums')}>
-                    {p.sentAt ? (days !== null && days < 7 ? `${days} дн. назад` : fmtDate(p.sentAt, 'd MMM')) : '—'}
+                  <TableCell
+                    className={cn(COL.sent, 'pr-4 text-right text-muted-foreground tabular-nums')}
+                  >
+                    {p.sentAt
+                      ? days !== null && days < 7
+                        ? `${days} дн. тому`
+                        : fmtDate(p.sentAt, 'd MMM')
+                      : '—'}
                   </TableCell>
                 </TableRow>
               </TableBody>

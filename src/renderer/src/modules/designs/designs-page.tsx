@@ -101,14 +101,14 @@ export function DesignsPage() {
       <div {...props} className="flex min-h-0 flex-1 flex-col">
         <DropOverlay show={isOver} />
         <PageHeader
-          title="Дизайны и примеры"
-          subtitle="Перетащите картинки в окно или вставьте скриншот через Ctrl+V."
+          title="Дизайни й приклади"
+          subtitle="Перетягніть картинки у вікно або вставте скриншот через Ctrl+V."
           actions={
             <>
               <Button variant="soft" disabled={busy} onClick={() => void importSources([{ kind: 'clipboard' }])}>
-                <Clipboard /> Из буфера
+                <Clipboard /> З буфера
               </Button>
-              <PickImagesButton onSources={(s) => void importSources(s)} label="Загрузить" variant="lime" />
+              <PickImagesButton onSources={(s) => void importSources(s)} label="Завантажити" variant="lime" />
             </>
           }
         >
@@ -121,21 +121,21 @@ export function DesignsPage() {
                 variant="outline"
                 className="h-auto w-40 shrink-0 flex-col gap-2 rounded-3xl border-dashed font-normal text-muted-foreground hover:text-foreground"
                 onClick={async () => {
-                  const b = await createBoard.mutateAsync({ title: 'Новая подборка' })
+                  const b = await createBoard.mutateAsync({ title: 'Нова добірка' })
                   navigate(`/designs/boards/${b.id}`)
                 }}
               >
                 <span className="grid size-9 place-items-center rounded-full bg-surface">
                   <Plus />
                 </span>
-                Новая подборка
+                Нова добірка
               </Button>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <SearchInput value={search} onChange={setSearch} className="w-64" />
             <FilterChips
-              allLabel="Все"
+              allLabel="Усі"
               options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
               value={kind}
               onChange={setKind}
@@ -144,13 +144,13 @@ export function DesignsPage() {
           </div>
           {palette.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-caption font-medium text-muted-foreground">Цвет</span>
+              <span className="mr-1 text-caption font-medium text-muted-foreground">Колір</span>
               <ToggleGroup
                 type="single"
                 spacing={1}
                 value={color ?? ''}
                 onValueChange={(v) => setColor(v || undefined)}
-                aria-label="Фильтр по цвету"
+                aria-label="Фільтр за кольором"
               >
                 {palette.slice(0, 28).map((c) => (
                   <ToggleGroupItem
@@ -168,11 +168,11 @@ export function DesignsPage() {
               {color && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xs" aria-label="Сбросить цвет" onClick={() => setColor(undefined)}>
+                    <Button variant="ghost" size="icon-xs" aria-label="Скинути колір" onClick={() => setColor(undefined)}>
                       <X />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Сбросить цвет</TooltipContent>
+                  <TooltipContent>Скинути колір</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -182,11 +182,11 @@ export function DesignsPage() {
           {!list.isLoading && list.items.length === 0 ? (
             <EmptyState
               icon={Image}
-              title={filtered ? 'По этим фильтрам ничего нет' : 'Галерея пуста'}
+              title={filtered ? 'За цими фільтрами нічого немає' : 'Галерея порожня'}
               hint={
                 filtered
-                  ? 'Сбросьте фильтр по типу, цвету или метке.'
-                  : 'Перетащите сюда скриншоты сайтов, лендингов и магазинов — или вставьте из буфера Ctrl+V.'
+                  ? 'Скиньте фільтр за типом, кольором чи міткою.'
+                  : 'Перетягніть сюди скриншоти сайтів, лендингів і магазинів — або вставте з буфера Ctrl+V.'
               }
             />
           ) : (

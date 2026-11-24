@@ -57,7 +57,8 @@ const fieldVariants = cva(
   {
     variants: {
       orientation: {
-        vertical: ["flex-col [&>*]:w-full [&>.sr-only]:w-auto"],
+        // Children stretch, except segmented controls: those are as wide as their options (design rule).
+        vertical: ["flex-col [&>*]:w-full [&>.sr-only]:w-auto [&>[data-slot=toggle-group]]:w-fit"],
         horizontal: [
           "flex-row items-center",
           "[&>[data-slot=field-label]]:flex-auto",

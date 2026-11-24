@@ -13,24 +13,24 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartToo
 import { STAGE_KIND_LABEL } from './j2-labels'
 
 const RANGES = [
-  { value: '30', label: '30 дней' },
-  { value: '90', label: '90 дней' },
-  { value: '365', label: 'Год' }
+  { value: '30', label: '30 днів' },
+  { value: '90', label: '90 днів' },
+  { value: '365', label: 'Рік' }
 ] as const
 type Range = (typeof RANGES)[number]['value']
 
 /** Two series → the validated pair already used in freelance stats (passes contrast & CVD in both themes). */
 const weeklyConfig = {
-  applied: { label: 'Отклики', theme: { light: '#6b8c00', dark: '#d8f74a' } },
-  replied: { label: 'Ответили', theme: { light: '#5b6be0', dark: '#8b98ff' } }
+  applied: { label: 'Відгуки', theme: { light: '#6b8c00', dark: '#d8f74a' } },
+  replied: { label: 'Відповіли', theme: { light: '#5b6be0', dark: '#8b98ff' } }
 } satisfies ChartConfig
 
 function Funnel({ totals }: { totals: JobFunnelRow }) {
   const steps = [
-    { label: 'Отклики', value: totals.applied },
-    { label: 'Ответили', value: totals.replied },
-    { label: 'Собеседования', value: totals.interview },
-    { label: 'Офферы', value: totals.offer }
+    { label: 'Відгуки', value: totals.applied },
+    { label: 'Відповіли', value: totals.replied },
+    { label: 'Співбесіди', value: totals.interview },
+    { label: 'Офери', value: totals.offer }
   ]
   const max = Math.max(1, totals.applied)
   return (
@@ -62,16 +62,16 @@ function FunnelTable({ title, description, rows }: { title: string; description:
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-body text-muted-foreground">Пока нет данных за период.</p>
+          <p className="text-body text-muted-foreground">Поки немає даних за період.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead />
-                <TableHead className="text-right">Откликов</TableHead>
-                <TableHead className="text-right">Ответы</TableHead>
-                <TableHead className="text-right">Собес.</TableHead>
-                <TableHead className="text-right">Офферы</TableHead>
+                <TableHead className="text-right">Відгуків</TableHead>
+                <TableHead className="text-right">Відповіді</TableHead>
+                <TableHead className="text-right">Співбес.</TableHead>
+                <TableHead className="text-right">Офери</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,22 +106,22 @@ export function JobStatsPage() {
   return (
     <Page>
       <PageHeader
-        title="Статистика поиска"
-        subtitle="Какие площадки, версии резюме и письма дают ответы."
+        title="Статистика пошуку"
+        subtitle="Які майданчики, версії резюме й листи дають відповіді."
         actions={<Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} />}
       />
       <PageBody>
         {!data ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : data.totals.applied === 0 ? (
-          <EmptyState title="За период откликов нет" hint="Добавляйте вакансии со статусом «Отправлено» — здесь появится воронка." />
+          <EmptyState title="За період відгуків немає" hint="Додавайте вакансії зі статусом «Надіслано» — тут з’явиться воронка." />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             <Card>
               <CardHeader>
                 <CardTitle>Воронка</CardTitle>
                 <CardDescription>
-                  {data.avgReplyDays !== null ? `В среднем отвечают за ${data.avgReplyDays} дн.` : 'Ответов пока не было'}
+                  {data.avgReplyDays !== null ? `У середньому відповідають за ${data.avgReplyDays} дн.` : 'Відповідей поки не було'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -130,8 +130,8 @@ export function JobStatsPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>По неделям</CardTitle>
-                <CardDescription>Сколько откликов отправлено и на сколько ответили</CardDescription>
+                <CardTitle>За тижнями</CardTitle>
+                <CardDescription>Скільки відгуків надіслано і на скільки відповіли</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={weeklyConfig} className="aspect-auto h-52 w-full">
@@ -147,17 +147,17 @@ export function JobStatsPage() {
                 </ChartContainer>
               </CardContent>
             </Card>
-            <FunnelTable title="По площадкам" description="Где откликаться выгоднее" rows={data.byBoard} />
-            <FunnelTable title="По версиям резюме" description="Какая версия чаще получает ответ" rows={data.byResume} />
-            <FunnelTable title="По шаблонам писем" description="Сопроводительные, которые работают" rows={data.byTemplate} />
+            <FunnelTable title="За майданчиками" description="Де відгукуватися вигідніше" rows={data.byBoard} />
+            <FunnelTable title="За версіями резюме" description="Яка версія частіше отримує відповідь" rows={data.byResume} />
+            <FunnelTable title="За шаблонами листів" description="Супровідні листи, які працюють" rows={data.byTemplate} />
             <Card>
               <CardHeader>
-                <CardTitle>Этапы</CardTitle>
-                <CardDescription>Сколько этапов пройдено успешно</CardDescription>
+                <CardTitle>Етапи</CardTitle>
+                <CardDescription>Скільки етапів пройдено успішно</CardDescription>
               </CardHeader>
               <CardContent>
                 {data.stagesByKind.length === 0 ? (
-                  <p className="text-body text-muted-foreground">Этапов за период не было.</p>
+                  <p className="text-body text-muted-foreground">Етапів за період не було.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {data.stagesByKind.map((s) => (

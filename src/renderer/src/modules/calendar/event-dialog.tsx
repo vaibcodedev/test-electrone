@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { RECURRENCES, type CalendarEvent, type EventInput, type Recurrence } from '@shared/domain/calendar'
+import { eventInputSchema, RECURRENCES, type CalendarEvent, type EventInput, type Recurrence } from '@shared/domain/calendar'
+import { limitsOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Field } from '@/components/common/page'
@@ -14,30 +15,32 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TAG_COLORS } from '@/components/common/tags'
 
+const LIMITS = limitsOf(eventInputSchema)
+
 const REMINDERS: { value: string; label: string }[] = [
-  { value: 'none', label: 'Без напоминания' },
-  { value: '0', label: 'В момент начала' },
-  { value: '5', label: 'За 5 минут' },
-  { value: '15', label: 'За 15 минут' },
-  { value: '30', label: 'За 30 минут' },
-  { value: '60', label: 'За час' },
+  { value: 'none', label: 'Без нагадування' },
+  { value: '0', label: 'У момент початку' },
+  { value: '5', label: 'За 5 хвилин' },
+  { value: '15', label: 'За 15 хвилин' },
+  { value: '30', label: 'За 30 хвилин' },
+  { value: '60', label: 'За годину' },
   { value: '1440', label: 'За день' }
 ]
 
 const SECOND_REMINDERS: { value: string; label: string }[] = [
-  { value: 'none', label: 'Нет' },
-  { value: '60', label: 'За 1 час' },
-  { value: '180', label: 'За 3 часа' },
+  { value: 'none', label: 'Ні' },
+  { value: '60', label: 'За 1 годину' },
+  { value: '180', label: 'За 3 години' },
   { value: '1440', label: 'За день' },
-  { value: '2880', label: 'За 2 дня' }
+  { value: '2880', label: 'За 2 дні' }
 ]
 
 const RECURRENCE_LABEL: Record<Recurrence, string> = {
-  none: 'Не повторять',
-  daily: 'Каждый день',
-  weekly: 'Каждую неделю',
-  monthly: 'Каждый месяц',
-  yearly: 'Каждый год'
+  none: 'Не повторювати',
+  daily: 'Щодня',
+  weekly: 'Щотижня',
+  monthly: 'Щомісяця',
+  yearly: 'Щороку'
 }
 
 /** Sentinel for "default colour" in the swatch ToggleGroup (null in the API). */
@@ -110,9 +113,9 @@ export function EventDialog({
   date?: Date | null
 }) {
   const [form, setForm] = useState<FormState>(() => (event ? fromEvent(event) : blank(date ?? new Date())))
-  const create = useApiMutation('events', 'create', { successMessage: 'Событие добавлено' })
-  const update = useApiMutation('events', 'update', { successMessage: 'Сохранено' })
-  const remove = useApiMutation('events', 'remove', { successMessage: 'Событие в корзине' })
+  const create = useApiMutation('events', 'create', { successMessage: 'Подію додано' })
+  const update = useApiMutation('events', 'update', { successMessage: 'Збережено' })
+  const remove = useApiMutation('events', 'remove', { successMessage: 'Подію переміщено в кошик' })
 
   useEffect(() => {
     if (open) setForm(event ? fromEvent(event) : blank(date ?? new Date()))
@@ -147,7 +150,7 @@ export function EventDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl p-6 sm:max-w-[540px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">{event ? 'Событие' : 'Новое событие'}</DialogTitle>
+          <DialogTitle className="font-display text-xl">{event ? 'Подія' : 'Нова подія'}</DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -156,25 +159,26 @@ export function EventDialog({
             save()
           }}
         >
-          <Field label="Название" htmlFor="event-title">
+          <Field label="Назва" htmlFor="event-title" count={{ length: form.title.length, max: LIMITS.title }}>
             <Input
               id="event-title"
               autoFocus
               value={form.title}
+              maxLength={LIMITS.title}
               onChange={(e) => set('title', e.target.value)}
-              placeholder="Созвон, дедлайн, напоминание…"
+              placeholder="Дзвінок, дедлайн, нагадування…"
               className="h-11 text-lead"
               readOnly={linked}
             />
           </Field>
           {linked && (
             <p className="-mt-2 rounded-xl bg-surface px-3 py-2 text-caption text-muted-foreground">
-              Создано из вакансии — время синхронизируется с этапом собеседования.
+              Створено з вакансії — час синхронізується з етапом співбесіди.
             </p>
           )}
           <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5">
             <Label htmlFor="event-all-day" className="text-body text-foreground">
-              Весь день
+              Увесь день
             </Label>
             <Switch
               id="event-all-day"
@@ -185,7 +189,7 @@ export function EventDialog({
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Начало">
+            <Field label="Початок">
               <DatePicker
                 value={startAt}
                 // Moving the start moves the end too, so the event keeps its length (like any calendar).
@@ -200,19 +204,19 @@ export function EventDialog({
                 clearable={false}
               />
             </Field>
-            <Field label="Конец (необязательно)" error={endBeforeStart ? 'Конец раньше начала' : undefined}>
+            <Field label="Кінець (необов’язково)" error={endBeforeStart ? 'Кінець раніше за початок' : undefined}>
               <DatePicker
                 value={endAt}
                 onChange={(v) => set('endAt', v)}
                 min={startAt}
                 invalid={endBeforeStart}
                 withTime={!form.allDay}
-                placeholder="Не задан"
+                placeholder="Не задано"
               />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Напоминание">
+            <Field label="Нагадування">
               <Select value={form.remind} onValueChange={(v) => set('remind', v)}>
                 <SelectTrigger className="w-full rounded-xl">
                   <SelectValue />
@@ -226,7 +230,7 @@ export function EventDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Второе напоминание">
+            <Field label="Друге нагадування">
               <Select value={form.remind2} onValueChange={(v) => set('remind2', v)}>
                 <SelectTrigger className="w-full rounded-xl">
                   <SelectValue />
@@ -257,7 +261,7 @@ export function EventDialog({
               </Select>
             </Field>
           </div>
-          <Field label="Цвет">
+          <Field label="Колір">
             <ToggleGroup
               type="single"
               value={form.color ?? DEFAULT_COLOR}
@@ -268,19 +272,20 @@ export function EventDialog({
                 <ToggleGroupItem
                   key={c}
                   value={c}
-                  aria-label={c === DEFAULT_COLOR ? 'По умолчанию' : c}
+                  aria-label={c === DEFAULT_COLOR ? 'За замовчуванням' : c}
                   className="size-7 min-w-7 rounded-full p-0 ring-offset-2 ring-offset-card hover:opacity-90 on:ring-2 on:ring-foreground"
                   style={{ background: c === DEFAULT_COLOR ? 'var(--lime)' : c }}
                 />
               ))}
             </ToggleGroup>
           </Field>
-          <Field label="Заметки" htmlFor="event-notes">
+          <Field label="Нотатки" htmlFor="event-notes" count={{ length: form.description.length, max: LIMITS.description }}>
             <Textarea
               id="event-notes"
+              maxLength={LIMITS.description}
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
-              placeholder="Повестка, ссылка на созвон"
+              placeholder="Порядок денний, посилання на дзвінок"
             />
           </Field>
           <DialogFooter className="items-center gap-2 pt-1 sm:justify-between">
@@ -292,17 +297,17 @@ export function EventDialog({
                 className="-ml-3 text-muted-foreground hover:text-destructive"
                 onClick={() => remove.mutate(event.id, { onSuccess: () => onOpenChange(false) })}
               >
-                <Trash2 /> В корзину
+                <Trash2 /> У кошик
               </Button>
             ) : (
               <span />
             )}
             <div className="flex gap-2">
               <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
-                Отмена
+                Скасувати
               </Button>
               <Button type="submit" variant="lime" disabled={invalid || create.isPending || update.isPending}>
-                {event ? 'Сохранить' : 'Добавить'}
+                {event ? 'Зберегти' : 'Додати'}
               </Button>
             </div>
           </DialogFooter>

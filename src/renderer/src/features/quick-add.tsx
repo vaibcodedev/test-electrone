@@ -11,27 +11,33 @@ import { useUi } from '@/stores/ui-store'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
+import { limitsOf } from '@/lib/limits'
+import { quickAddSchema } from '@shared/domain/system'
 import { Spinner } from '@/components/ui/spinner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
+
+/** Same limit as quickAddSchema.text (first line + body in one field). */
+const QUICK_LIMITS = limitsOf(quickAddSchema)
+
 const TARGET_LABEL: Record<QuickAddTarget, string> = {
-  idea: 'Идея',
-  card: 'Задача',
-  claude: 'Заметка',
-  snippet: 'Сниппет',
+  idea: 'Ідея',
+  card: 'Завдання',
+  claude: 'Нотатка',
+  snippet: 'Сніпет',
   bookmark: 'Закладка',
   word: 'Слово',
-  event: 'Событие'
+  event: 'Подія'
 }
 
 const PLACEHOLDER: Record<QuickAddTarget, string> = {
-  idea: 'Что пришло в голову?',
-  card: 'Задача в первую колонку доски',
-  claude: 'Заметка для раздела Claude',
-  snippet: 'Название сниппета, код — со второй строки',
-  bookmark: 'Ссылка или название статьи',
-  word: 'deploy — развернуть',
-  event: 'Событие на завтра 10:00'
+  idea: 'Що спало на думку?',
+  card: 'Завдання в першу колонку дошки',
+  claude: 'Нотатка для розділу Claude',
+  snippet: 'Назва сніпета, код — з другого рядка',
+  bookmark: 'Посилання або назва статті',
+  word: 'deploy — розгорнути',
+  event: 'Подія на завтра 10:00'
 }
 
 const TARGET_TYPE: Record<QuickAddTarget, keyof typeof ENTITY_META> = {
@@ -63,7 +69,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
     setSaving(true)
     try {
       const created = await api.app.quickAdd({ target, text })
-      toast.success(`${ENTITY_META[created.type].label} добавлена: ${created.title}`)
+      toast.success(`Додано: ${ENTITY_META[created.type].label} — ${created.title}`)
       setText('')
       invalidateAll()
       onDone()
@@ -87,7 +93,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
         size="sm"
         value={target}
         onValueChange={(v) => v && setTarget(v as QuickAddTarget)}
-        aria-label="Куда добавить"
+        aria-label="Куди додати"
       >
         {QUICK_ADD_TARGETS.map((t) => {
           const Icon = ENTITY_ICON[TARGET_TYPE[t]]
@@ -104,6 +110,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
           ref={ref}
           value={text}
           rows={2}
+          maxLength={QUICK_LIMITS.text}
           onChange={(e) => setText(e.target.value)}
           placeholder={PLACEHOLDER[target]}
           className="max-h-40 min-h-12 px-4 text-lead"
@@ -127,7 +134,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
             className="size-10 rounded-full"
             disabled={!text.trim() || saving}
             onClick={() => void submit()}
-            aria-label="Сохранить"
+            aria-label="Зберегти"
           >
             {saving ? <Spinner /> : <ArrowUp className="size-5" />}
           </InputGroupButton>
@@ -135,17 +142,17 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
       </InputGroup>
       <div className="flex flex-wrap items-center gap-3 text-meta text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <Kbd>Enter</Kbd> сохранить
+          <Kbd>Enter</Kbd> зберегти
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>Tab</Kbd> сменить тип
+          <Kbd>Tab</Kbd> змінити тип
         </span>
         <span className="flex items-center gap-1.5">
           <KbdGroup>
             <Kbd>Shift</Kbd>
             <Kbd>Enter</Kbd>
           </KbdGroup>
-          новая строка
+          новий рядок
         </span>
       </div>
     </div>
@@ -160,7 +167,7 @@ export function QuickAddDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="rounded-3xl p-5 sm:max-w-[600px]" showCloseButton={false}>
-        <DialogTitle className="font-display text-xl">Быстро добавить</DialogTitle>
+        <DialogTitle className="font-display text-xl">Швидко додати</DialogTitle>
         <QuickAddForm key={target ?? 'default'} initialTarget={target} onDone={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
@@ -187,7 +194,7 @@ export function QuickAddWindow() {
           <Avatar className="size-7">
             <AvatarFallback className="bg-lime text-caption font-semibold text-lime-foreground">V</AvatarFallback>
           </Avatar>
-          <span className="font-display text-[18px]">Быстро добавить</span>
+          <span className="font-display text-[18px]">Швидко додати</span>
         </div>
         <div className="no-drag">
           <QuickAddForm key={key} initialTarget={target} onDone={() => void api.app.closeQuickAdd()} />

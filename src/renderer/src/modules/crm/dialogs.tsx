@@ -1,13 +1,17 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import {
+  clientInputSchema,
   CURRENCIES,
+  projectInputSchema,
   type BillingType,
   type ClientInput,
   type Currency,
   type ProjectInput
 } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
+import { NumberInput } from '@/components/common/number-input'
+import { limitsOf, rangesOf } from '@/lib/limits'
 import {
   Dialog,
   DialogContent,
@@ -23,8 +27,12 @@ import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
 import { BILLING_INFO } from './labels'
 import { BillingPicker, Choice } from './parts'
-import { amountPatch, numberOrZero } from './money'
+import { amountPatch } from './money'
 import { ClientPlatformFields, FeeField, PlatformSelect, usePlatforms } from './platform-fields'
+
+const CLIENT_L = limitsOf(clientInputSchema)
+const PROJECT_L = limitsOf(projectInputSchema)
+const PROJECT_R = rangesOf(projectInputSchema)
 
 function FormDialog({
   open,
@@ -62,7 +70,7 @@ function FormDialog({
           <FieldGroup className="gap-4">{children}</FieldGroup>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Отмена
+              Скасувати
             </Button>
             <Button type="submit" variant="lime" disabled={disabled}>
               {submitLabel}
@@ -92,12 +100,14 @@ export function AmountField({
   if (!label) return null
   return (
     <Field
-      label={`${forClient && billing === 'fixed' ? 'Обычный бюджет проекта' : label}, ${currency}`}
+      label={`${forClient && billing === 'fixed' ? 'Звичайний бюджет проєкту' : label}, ${currency}`}
     >
-      <Input
-        inputMode="decimal"
-        value={value || ''}
-        onChange={(e) => onChange(numberOrZero(e.target.value))}
+      <NumberInput
+        value={value || null}
+        allowEmpty
+        min={0}
+        max={PROJECT_R.fixedPrice?.max}
+        onChange={(v) => onChange(v ?? 0)}
         placeholder="0"
       />
     </Field>
@@ -129,7 +139,7 @@ export function ClientDialog({
   const navigate = useNavigate()
   const [form, setForm] = useState<ClientInput>(EMPTY_CLIENT)
   const create = useApiMutation('clients', 'create', {
-    successMessage: 'Клиент добавлен',
+    successMessage: 'Клієнта додано',
     onSuccess: (c) => {
       onOpenChange(false)
       setForm(EMPTY_CLIENT)
@@ -142,23 +152,25 @@ export function ClientDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Новый клиент"
-      submitLabel="Добавить клиента"
+      title="Новий клієнт"
+      submitLabel="Додати клієнта"
       disabled={!form.name.trim() || create.isPending}
       onSubmit={() => create.mutate(form)}
     >
-      <Field label="Имя или название">
+      <Field label="Ім’я або назва">
         <Input
           autoFocus
           value={form.name}
+          maxLength={CLIENT_L.name}
           onChange={(e) => set({ name: e.target.value })}
           placeholder="Анна Петренко"
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Компания">
+        <Field label="Компанія">
           <Input
             value={form.company}
+            maxLength={CLIENT_L.company}
             onChange={(e) => set({ company: e.target.value })}
             placeholder="Bloom Store"
           />
@@ -167,12 +179,13 @@ export function ClientDialog({
           <Input
             type="email"
             value={form.email}
+            maxLength={CLIENT_L.email}
             onChange={(e) => set({ email: e.target.value })}
             placeholder="name@company.com"
           />
         </Field>
       </div>
-      <Field label="Откуда">
+      <Field label="Звідки">
         <PlatformSelect value={form.platformId} onChange={(platformId) => set({ platformId })} />
       </Field>
       {form.platformId && (
@@ -188,7 +201,7 @@ export function ClientDialog({
           onChange={(patch) => set(patch)}
         />
       )}
-      <Field label="Как обычно работаете">
+      <Field label="Як зазвичай працюєте">
         <BillingPicker value={billing} onChange={(defaultBilling) => set({ defaultBilling })} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
@@ -254,7 +267,7 @@ export function ProjectDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opened / clients first arrive
   }, [open, clientsLoaded])
   const create = useApiMutation('projects', 'create', {
-    successMessage: 'Проект создан',
+    successMessage: 'Проєкт створено',
     onSuccess: (p) => {
       onOpenChange(false)
       navigate(`/projects/${p.id}`)
@@ -270,9 +283,9 @@ export function ProjectDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Новый проект"
-      description="Сначала выберите, как оплачивается работа — поля подстроятся."
-      submitLabel="Создать проект"
+      title="Новий проєкт"
+      description="Спершу оберіть, як оплачується робота, — поля підлаштуються."
+      submitLabel="Створити проєкт"
       disabled={!form.title.trim() || create.isPending}
       onSubmit={() =>
         create.mutate({
@@ -284,18 +297,19 @@ export function ProjectDialog({
         })
       }
     >
-      <Field label="Название">
+      <Field label="Назва">
         <Input
           autoFocus
           value={form.title}
+          maxLength={PROJECT_L.title}
           onChange={(e) => set({ title: e.target.value })}
-          placeholder="Редизайн магазина"
+          placeholder="Редизайн магазину"
         />
       </Field>
-      <Field label="Клиент">
+      <Field label="Клієнт">
         <Choice
           value={form.clientId ?? null}
-          none="Без клиента"
+          none="Без клієнта"
           onChange={(v) => set({ clientId: v, ...fromClient(v) })}
           options={clients.map((c) => ({
             value: c.id,
@@ -307,7 +321,9 @@ export function ProjectDialog({
         <Field label="Платформа">
           <PlatformSelect
             value={form.platformId}
-            onChange={(platformId) => set({ platformId, feePercent: platformId ? form.feePercent : null })}
+            onChange={(platformId) =>
+              set({ platformId, feePercent: platformId ? form.feePercent : null })
+            }
           />
         </Field>
         {form.platformId && billing !== 'none' && (
@@ -338,29 +354,31 @@ export function ProjectDialog({
           onChange={(v) => set(billing === 'hourly' ? { rate: v } : { fixedPrice: v })}
         />
         {billing === 'hourly' && (
-          <Field label="Бюджет, часов">
-            <Input
-              inputMode="decimal"
-              value={form.budgetHours || ''}
-              onChange={(e) => set({ budgetHours: numberOrZero(e.target.value) })}
-              placeholder="без лимита"
+          <Field label="Бюджет, годин">
+            <NumberInput
+              value={form.budgetHours || null}
+              allowEmpty
+              {...PROJECT_R.budgetHours}
+              step={0.5}
+              onChange={(v) => set({ budgetHours: v ?? 0 })}
+              placeholder="без ліміту"
             />
           </Field>
         )}
         {billing === 'retainer' && (
-          <Field label="Абонемент с">
+          <Field label="Ретейнер з">
             <DatePicker
               value={form.startAt ?? null}
               onChange={(startAt) => set({ startAt })}
-              placeholder="Сегодня"
+              placeholder="Сьогодні"
             />
           </Field>
         )}
-        <Field label={billing === 'retainer' ? 'До (необязательно)' : 'Дедлайн'}>
+        <Field label={billing === 'retainer' ? 'До (необов’язково)' : 'Дедлайн'}>
           <DatePicker
             value={form.dueAt ?? null}
             onChange={(dueAt) => set({ dueAt })}
-            placeholder="Без срока"
+            placeholder="Без терміну"
           />
         </Field>
       </div>

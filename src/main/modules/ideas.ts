@@ -18,12 +18,12 @@ import type { BoardsModule } from './boards'
 type IdeaRow = typeof ideas.$inferSelect
 
 export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
-  inbox: 'Входящие',
-  thinking: 'Обдумываю',
-  planned: 'В планах',
-  in_progress: 'В работе',
-  done: 'Сделано',
-  dropped: 'Отказался'
+  inbox: 'Вхідні',
+  thinking: 'Обмірковую',
+  planned: 'У планах',
+  in_progress: 'У роботі',
+  done: 'Зроблено',
+  dropped: 'Відмовився'
 }
 
 export class IdeasModule {
@@ -77,7 +77,7 @@ export class IdeasModule {
       convertToBoard: async (id) => {
         const idea = this.repo.getOrThrow(idArg.parse(id))
         if (idea.boardId && this.boards.boardRepo.row(idea.boardId)) {
-          throw new UserError('У этой идеи уже есть доска')
+          throw new UserError('У цієї ідеї вже є дошка')
         }
         return this.m.db.tx(() => {
           const board = this.boards.createBoard(
@@ -98,7 +98,7 @@ export class IdeasModule {
             this.boards.createCard({
               boardId: board.id,
               columnId: firstColumn.id,
-              title: `Разобрать идею: ${idea.title}`.slice(0, 300),
+              title: `Розібрати ідею: ${idea.title}`.slice(0, 300),
               description: idea.body
             })
           }

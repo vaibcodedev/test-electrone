@@ -97,10 +97,10 @@ export function EnglishPage() {
   return (
     <Page>
       <PageHeader
-        title="Английский"
+        title="Англійська"
         subtitle={
           stats
-            ? `${stats.total} ${plural(stats.total, ['слово', 'слова', 'слов'])} · сегодня повторено ${stats.reviewedToday}`
+            ? `${stats.total} ${plural(stats.total, ['слово', 'слова', 'слів'])} · сьогодні повторено ${stats.reviewedToday}`
             : undefined
         }
         actions={
@@ -108,15 +108,21 @@ export function EnglishPage() {
             {stats && stats.streakDays > 0 && (
               <Badge variant="soft" className="h-8 px-3 text-caption font-normal">
                 <Flame className="size-4! text-warn" />
-                {stats.streakDays} {plural(stats.streakDays, ['день', 'дня', 'дней'])} подряд
+                {stats.streakDays} {plural(stats.streakDays, ['день', 'дні', 'днів'])} поспіль
               </Badge>
             )}
             <div className="flex flex-col items-end">
-              <Button variant="lime" size="lg" disabled={!due} onClick={() => navigate('/english/review')}>
-                <Brain /> {due ? `Повторить ${due}` : 'Нечего повторять'}
+              {/* Never a dead end: with nothing due the trainer offers practice beyond the norm. */}
+              <Button
+                variant={due ? 'lime' : 'subtle'}
+                size="lg"
+                disabled={!stats?.total}
+                onClick={() => navigate('/english/review')}
+              >
+                <Brain /> {due ? `Повторити ${due}` : 'Тренуватися наперед'}
               </Button>
               {!due && nextDue && (
-                <span className="mt-1 text-meta text-muted-foreground">Следующий повтор {fmtDay(nextDue)}</span>
+                <span className="mt-1 text-meta text-muted-foreground">Наступний повтор {fmtDay(nextDue)}</span>
               )}
             </div>
           </div>
@@ -127,9 +133,9 @@ export function EnglishPage() {
         {/* A new word is always "new" and may not match the active filters: show it instead of hiding it. */}
         <AddWordForm onAdded={resetFilters} />
         <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={search} onChange={setSearch} placeholder="Слово, перевод, пример" className="w-64" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Слово, переклад, приклад" className="w-64" />
           <FilterChips
-            allLabel="Все стадии"
+            allLabel="Усі стадії"
             options={WORD_STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s], count: stats?.byStage[s] }))}
             value={stage}
             onChange={setStage}
@@ -143,7 +149,7 @@ export function EnglishPage() {
           <TagFilter value={tagId} onChange={setTagId} />
           {filtered && (
             <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={resetFilters}>
-              <X /> Сбросить
+              <X /> Скинути
             </Button>
           )}
         </div>
@@ -167,16 +173,16 @@ export function EnglishPage() {
                 !list.isLoading && (
                   <EmptyState
                     icon={Languages}
-                    title={all.length ? 'Ничего не подошло под фильтр' : 'Словарь пуст'}
+                    title={all.length ? 'Нічого не підійшло під фільтр' : 'Словник порожній'}
                     hint={
                       all.length
-                        ? 'Слова есть, но фильтры их скрывают.'
-                        : 'Добавьте слово из рабочей переписки в форме выше — оно сразу попадёт в повторение.'
+                        ? 'Слова є, але фільтри їх приховують.'
+                        : 'Додайте слово з робочого листування у формі вище — воно одразу потрапить у повторення.'
                     }
                     action={
                       all.length && filtered ? (
                         <Button variant="subtle" onClick={resetFilters}>
-                          <X /> Сбросить фильтры
+                          <X /> Скинути фільтри
                         </Button>
                       ) : undefined
                     }
@@ -200,7 +206,7 @@ export function EnglishPage() {
                       </span>
                     </div>
                     <div className={cn('mt-0.5 truncate text-body', active ? 'text-ink-foreground/85' : 'text-foreground/85')}>
-                      {w.translation || 'без перевода'}
+                      {w.translation || 'без перекладу'}
                     </div>
                     {w.example && (
                       <div className={cn('mt-1.5 truncate text-caption italic', active ? 'text-ink-muted' : 'text-muted-foreground')}>
@@ -214,7 +220,7 @@ export function EnglishPage() {
                       </span>
                       {w.dueAt <= Date.now() ? (
                         <Badge variant={active ? 'ink' : 'warn'} className={cn(active && 'bg-ink-foreground/12 text-ink-foreground')}>
-                          <Brain /> пора повторить
+                          <Brain /> час повторити
                         </Badge>
                       ) : (
                         <span>повтор {fmtDay(w.dueAt)}</span>

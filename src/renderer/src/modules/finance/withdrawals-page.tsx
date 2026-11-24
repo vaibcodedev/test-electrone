@@ -28,7 +28,9 @@ export function WithdrawalsPage() {
   const [from, to] = monthRange(month)
   const { data: rows } = useApi('finance', 'withdrawals', { from, to }, KEEP_PERIOD)
   const { data: platformList = [] } = useApi('platforms', 'list', { includeArchived: true })
-  const remove = useApiMutation('finance', 'removeWithdrawal', { successMessage: 'Вывод удалён' })
+  const remove = useApiMutation('finance', 'removeWithdrawal', {
+    successMessage: 'Виведення видалено'
+  })
   const [editing, setEditing] = useState<Withdrawal | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [nowTs] = useState(() => Date.now())
@@ -53,13 +55,13 @@ export function WithdrawalsPage() {
   return (
     <Page>
       <PageHeader
-        title="Выводы"
-        subtitle="Деньги, выведенные с платформ: комиссия за вывод, курс и сколько реально пришло на карту."
+        title="Виведення"
+        subtitle="Гроші, виведені з платформ: комісія за виведення, курс і скільки реально надійшло на картку."
         actions={
           <>
             <MonthSwitcher month={month} onChange={setMonth} />
             <Button variant="lime" onClick={() => openDialog(null)}>
-              <Plus /> Вывод
+              <Plus /> Виведення
             </Button>
           </>
         }
@@ -72,20 +74,25 @@ export function WithdrawalsPage() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={ArrowDownToLine}
-            title="В этом месяце выводов нет"
-            hint="Запишите вывод, чтобы видеть, сколько денег ещё лежит на платформе и сколько съели комиссии и курс."
+            title="Цього місяця виведень немає"
+            hint="Запишіть виведення, щоб бачити, скільки грошей ще лежить на платформі й скільки з’їли комісії та курс."
             action={
               <Button variant="soft" onClick={() => openDialog(null)}>
-                <Plus /> Добавить вывод
+                <Plus /> Додати виведення
               </Button>
             }
           />
         ) : (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-3 gap-3">
-              <StatTile title="Выведено" value={totals.amount} />
-              <StatTile title="Комиссии за вывод" value={totals.fee} />
-              <StatTile ink title="Пришло" value={totals.received} hint="после комиссии и обмена" />
+              <StatTile title="Виведено" value={totals.amount} />
+              <StatTile title="Комісії за виведення" value={totals.fee} />
+              <StatTile
+                ink
+                title="Надійшло"
+                value={totals.received}
+                hint="після комісії та обміну"
+              />
             </div>
             <Card className="py-2">
               <CardContent className="px-2">
@@ -93,12 +100,12 @@ export function WithdrawalsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Дата</TableHead>
-                      <TableHead>Откуда</TableHead>
-                      <TableHead className="text-right">Сумма</TableHead>
-                      <TableHead className="text-right">Комиссия</TableHead>
+                      <TableHead>Звідки</TableHead>
+                      <TableHead className="text-right">Сума</TableHead>
+                      <TableHead className="text-right">Комісія</TableHead>
                       <TableHead className="text-right">Курс</TableHead>
-                      <TableHead className="text-right">Пришло</TableHead>
-                      <TableHead>Способ</TableHead>
+                      <TableHead className="text-right">Надійшло</TableHead>
+                      <TableHead>Спосіб</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
@@ -114,7 +121,7 @@ export function WithdrawalsPage() {
                               {platformName.get(w.platformId) ?? 'Платформа'}
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground">Другое</span>
+                            <span className="text-muted-foreground">Інше</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
@@ -139,23 +146,23 @@ export function WithdrawalsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon-xs"
-                                  aria-label="Изменить"
+                                  aria-label="Змінити"
                                   onClick={() => openDialog(w)}
                                 >
                                   <Pencil />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Изменить</TooltipContent>
+                              <TooltipContent>Змінити</TooltipContent>
                             </Tooltip>
                             <Confirm
-                              title="Удалить вывод?"
-                              description="Запись будет удалена без возможности восстановления."
+                              title="Видалити виведення?"
+                              description="Запис буде видалено без можливості відновлення."
                               onConfirm={() => remove.mutate(w.id)}
                             >
                               <Button
                                 variant="ghost"
                                 size="icon-xs"
-                                aria-label="Удалить вывод"
+                                aria-label="Видалити виведення"
                                 className="hover:text-destructive"
                               >
                                 <Trash2 />
@@ -168,7 +175,7 @@ export function WithdrawalsPage() {
                   </TableBody>
                   <TableFooter>
                     <TableRow>
-                      <TableCell colSpan={2}>Итого</TableCell>
+                      <TableCell colSpan={2}>Разом</TableCell>
                       <TableCell className="text-right">
                         <MoneyLines value={totals.amount} className="items-end" />
                       </TableCell>

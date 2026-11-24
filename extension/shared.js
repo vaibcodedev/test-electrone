@@ -5,9 +5,9 @@ export const DEFAULT_PORT = 47219
 export const TARGETS = [
   { id: 'design', label: 'Дизайн' },
   { id: 'bookmark', label: 'Закладка' },
-  { id: 'library', label: 'Библиотека' },
+  { id: 'library', label: 'Бібліотека' },
   { id: 'component', label: 'Компонент' },
-  { id: 'application', label: 'Вакансия' }
+  { id: 'application', label: 'Вакансія' }
 ]
 
 /** Reads { port, key } from storage; port is always a valid number. */
@@ -24,7 +24,7 @@ export function validPort(value) {
 /** Calls the local Vault bridge. Never talks to anything but 127.0.0.1. */
 export async function vaultFetch(path, { method = 'GET', body } = {}) {
   const { port, key } = await getConnection()
-  if (!key) return { ok: false, status: 'nokey', error: 'Нет ключа — откройте настройки расширения' }
+  if (!key) return { ok: false, status: 'nokey', error: 'Немає ключа — відкрийте налаштування розширення' }
   let res
   try {
     res = await fetch(`http://127.0.0.1:${port}${path}`, {
@@ -33,7 +33,7 @@ export async function vaultFetch(path, { method = 'GET', body } = {}) {
       body: body ? JSON.stringify(body) : undefined
     })
   } catch {
-    return { ok: false, status: 'offline', error: 'Vault не запущен' }
+    return { ok: false, status: 'offline', error: 'Vault не запущено' }
   }
   let data = {}
   try {
@@ -41,8 +41,8 @@ export async function vaultFetch(path, { method = 'GET', body } = {}) {
   } catch {
     /* empty body */
   }
-  if (res.status === 401) return { ok: false, status: 'unauthorized', error: 'Неверный ключ — откройте настройки' }
-  if (!res.ok || data.ok === false) return { ok: false, status: 'error', error: data.error || `Ошибка ${res.status}` }
+  if (res.status === 401) return { ok: false, status: 'unauthorized', error: 'Невірний ключ — відкрийте налаштування' }
+  if (!res.ok || data.ok === false) return { ok: false, status: 'error', error: data.error || `Помилка ${res.status}` }
   return { ok: true, status: 'ok', ...data }
 }
 

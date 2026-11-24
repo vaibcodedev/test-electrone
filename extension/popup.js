@@ -106,7 +106,7 @@ function renderMode() {
 function renderSelectionHint() {
   const n = state.selection.trim().length
   const useful = state.target === 'application' || state.target === 'component' || state.target === 'bookmark'
-  $('selection-hint').textContent = n && useful ? `Выделенный на странице текст (${n} симв.) добавится как ${state.target === 'component' ? 'код' : 'описание'}.` : ''
+  $('selection-hint').textContent = n && useful ? `Виділений на сторінці текст (${n} симв.) додасться як ${state.target === 'component' ? 'код' : 'опис'}.` : ''
 }
 
 function parseTags(value) {
@@ -120,7 +120,7 @@ async function captureVisible() {
     state.screenshot = await chrome.tabs.captureVisibleTab(state.tab.windowId, { format: 'png' })
   } catch (e) {
     state.screenshot = null
-    setError(`Не удалось сделать скриншот: ${e.message || e}`)
+    setError(`Не вдалося зробити скриншот: ${e.message || e}`)
   }
   renderMode()
 }
@@ -140,7 +140,7 @@ async function readSelection() {
 
 async function startAreaSelection() {
   if (isRestricted(state.tab.url)) {
-    setError('На этой странице выделение области недоступно — используйте «Видимая область».')
+    setError('На цій сторінці виділення області недоступне — скористайтеся «Видима область».')
     state.mode = 'visible'
     renderMode()
     return
@@ -150,7 +150,7 @@ async function startAreaSelection() {
     await chrome.scripting.executeScript({ target: { tabId: state.tab.id }, files: ['select.js'] })
     window.close() // the overlay needs the page; the popup reopens when the area is captured
   } catch (e) {
-    setError(`Не удалось начать выделение: ${e.message || e}`)
+    setError(`Не вдалося почати виділення: ${e.message || e}`)
   }
 }
 
@@ -161,7 +161,7 @@ async function save() {
   setError('')
   state.saving = true
   $('save').disabled = true
-  $('save').textContent = 'Сохраняю…'
+  $('save').textContent = 'Зберігаю…'
   const tags = parseTags($('tags').value)
   const res = await vaultFetch('/capture', {
     method: 'POST',
@@ -177,7 +177,7 @@ async function save() {
   })
   state.saving = false
   $('save').disabled = false
-  $('save').textContent = 'Сохранить в Vault'
+  $('save').textContent = 'Зберегти у Vault'
   if (!res.ok) {
     setError(res.error)
     return
@@ -187,7 +187,7 @@ async function save() {
   $('form').style.display = 'none'
   $('done').style.display = 'flex'
   $('done-title').textContent = res.title || $('title').value
-  $('done-type').textContent = `${TARGET_LABEL[state.target]} сохранено в Vault`
+  $('done-type').textContent = `${TARGET_LABEL[state.target]}: збережено у Vault`
   setTimeout(() => window.close(), 2500)
 }
 
@@ -197,7 +197,7 @@ async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   state.tab = tab
   if (!tab?.url) {
-    setError('Не удалось прочитать текущую вкладку')
+    setError('Не вдалося прочитати поточну вкладку')
     return
   }
 
@@ -228,7 +228,7 @@ async function init() {
   }
 
   const ping = await vaultFetch('/ping')
-  if (ping.ok) setStatus('ok', 'Vault подключён')
+  if (ping.ok) setStatus('ok', 'Vault під’єднано')
   else setStatus('bad', ping.error)
 
   $('title').focus()

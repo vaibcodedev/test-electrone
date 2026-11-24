@@ -7,19 +7,19 @@ import type {
 } from '@shared/domain/crm'
 
 export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
-  lead: 'Потенциальный',
-  active: 'Активный',
-  paused: 'На паузе',
-  archived: 'В архиве',
-  avoid: 'Не работать'
+  lead: 'Потенційний',
+  active: 'Активний',
+  paused: 'На паузі',
+  archived: 'В архіві',
+  avoid: 'Не працювати'
 }
 
 export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
-  lead: 'Лид',
-  active: 'В работе',
-  paused: 'На паузе',
-  done: 'Завершён',
-  cancelled: 'Отменён'
+  lead: 'Лід',
+  active: 'У роботі',
+  paused: 'На паузі',
+  done: 'Завершено',
+  cancelled: 'Скасовано'
 }
 
 export const PROJECT_STATUS_BADGE: Record<
@@ -34,10 +34,10 @@ export const PROJECT_STATUS_BADGE: Record<
 }
 
 export const BILLING_LABEL: Record<BillingType, string> = {
-  fixed: 'Фикс за проект',
-  hourly: 'Почасовая',
-  retainer: 'Абонемент',
-  none: 'Без оплаты'
+  fixed: 'Фіксована ціна',
+  hourly: 'Погодинно',
+  retainer: 'Ретейнер',
+  none: 'Без оплати'
 }
 
 /** Copy for the billing picker and the amount field that follows the chosen type. */
@@ -46,32 +46,32 @@ export const BILLING_INFO: Record<
   { title: string; description: string; amountLabel: string | null }
 > = {
   fixed: {
-    title: 'Фикс за проект',
-    description: 'Одна цена, оплата этапами',
-    amountLabel: 'Стоимость проекта'
+    title: 'Фіксована ціна',
+    description: 'Одна ціна, оплата етапами',
+    amountLabel: 'Вартість проєкту'
   },
   hourly: {
-    title: 'Почасовая',
-    description: 'Часы × ставка',
-    amountLabel: 'Ставка в час'
+    title: 'Погодинно',
+    description: 'Години × ставка',
+    amountLabel: 'Ставка за годину'
   },
   retainer: {
-    title: 'Абонемент',
-    description: 'Фиксированная сумма в месяц',
-    amountLabel: 'Абонемент в месяц'
+    title: 'Ретейнер',
+    description: 'Фіксована сума на місяць',
+    amountLabel: 'Ретейнер на місяць'
   },
   none: {
-    title: 'Без оплаты',
-    description: 'Свой проект, только учёт времени',
+    title: 'Без оплати',
+    description: 'Власний проєкт, лише облік часу',
     amountLabel: null
   }
 }
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
-  expected: 'Ожидается',
-  invoiced: 'Счёт выставлен',
+  expected: 'Очікується',
+  invoiced: 'Рахунок виставлено',
   paid: 'Оплачено',
-  cancelled: 'Отменено'
+  cancelled: 'Скасовано'
 }
 
 export const CURRENCY_SIGN: Record<Currency, string> = {

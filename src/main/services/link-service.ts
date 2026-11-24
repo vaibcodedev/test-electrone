@@ -44,7 +44,7 @@ export class LinkService {
   create(input: LinkInput): void {
     const data = linkInputSchema.parse(input)
     if (data.fromType === data.toType && data.fromId === data.toId) {
-      throw new UserError('Нельзя связать объект с самим собой')
+      throw new UserError('Не можна пов’язати об’єкт із самим собою')
     }
     const exists = this.ctx.orm
       .select({ id: entityLinks.id })

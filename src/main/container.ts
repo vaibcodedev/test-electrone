@@ -145,8 +145,19 @@ export class Container {
     }
 
     this.windows = new WindowManager(this.config, this.bus, iconPath)
-    this.tray = new TrayController(this.windows, this.config, iconPath, (enabled) =>
-      this.config.updateSettings({ launchAtLogin: enabled })
+    const time = this.crm.timeApi()
+    this.tray = new TrayController(
+      this.windows,
+      this.config,
+      iconPath,
+      (enabled) => this.config.updateSettings({ launchAtLogin: enabled }),
+      {
+        running: () => this.crm.running(),
+        projects: () => this.crm.recentActiveProjects(),
+        start: (projectId) => time.start({ projectId }),
+        stop: () => time.stop(),
+        onChange: (cb) => this.bus.onDataChanged(cb)
+      }
     )
     this.shortcuts = new ShortcutController(this.config, this.windows)
     this.updater = new Updater(this.bus, this.config)
@@ -176,6 +187,7 @@ export class Container {
     this.jobs.seedIfEmpty()
     this.registerCalendarFeeds()
     this.trash.purgeExpired()
+    this.trash.purgeStaleDrafts()
     setInterval(() => this.trash.purgeExpired(), 6 * 3600_000)
   }
 
@@ -194,7 +206,7 @@ export class Container {
             source: 'subscription' as const,
             ref: { type: 'event' as const, id: s.id },
             route: `/finance/expenses?month=${month}`,
-            title: `Подписка: ${s.title} · ${s.amount} ${s.currency}`,
+            title: `Підписка: ${s.title} · ${s.amount} ${s.currency}`,
             startAt: s.dueAt,
             endAt: null,
             allDay: true,
@@ -213,7 +225,7 @@ export class Container {
           key: `followup:${a.id}`,
           source: 'followup' as const,
           ref: { type: 'application' as const, id: a.id },
-          title: `Напомнить о себе: ${a.title}${a.companyName ? ` — ${a.companyName}` : ''}`,
+          title: `Нагадати про себе: ${a.title}${a.companyName ? ` — ${a.companyName}` : ''}`,
           startAt: a.followUpAt!,
           endAt: null,
           allDay: true,
@@ -315,7 +327,7 @@ export class Container {
         list: async (kind) => this.pins.list(z.enum(PIN_KINDS).optional().parse(kind)),
         toggle: async (args) => {
           const { ref, kind } = z.object({ ref: refArg, kind: z.enum(PIN_KINDS) }).parse(args)
-          if (!this.registry.findRow(ref)) throw new Error('Объект не найден')
+          if (!this.registry.findRow(ref)) throw new Error('Об’єкт не знайдено')
           return this.pins.toggle(ref, kind)
         },
         state: async (ref) => this.pins.state(refArg.parse(ref)),
@@ -342,7 +354,8 @@ export class Container {
           this.bus.dataChanged('all')
         },
         purge: async (ref) => this.trash.purge(refArg.parse(ref)),
-        empty: async () => this.trash.empty()
+        empty: async () => this.trash.empty(),
+        discardDraft: async (ref) => this.trash.discardDraft(refArg.parse(ref))
       },
       files: {
         list: async (ref) => this.attachments.list(refArg.parse(ref)),
@@ -406,7 +419,7 @@ export class Container {
         },
         openExternal: async (url) => {
           const u = z.string().url().parse(url)
-          if (!/^(https?|mailto):/i.test(u)) throw new Error('Можно открывать только http(s) и mailto ссылки')
+          if (!/^(https?|mailto):/i.test(u)) throw new Error('Відкривати можна лише посилання http(s) і mailto')
           await shell.openExternal(u)
         },
         copyText: async (text) => clipboard.writeText(z.string().max(5_000_000).parse(text)),

@@ -19,7 +19,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-caption font-semibold text-muted-foreground">Файлы</h3>
+      <h3 className="text-caption font-semibold text-muted-foreground">Файли</h3>
       <div {...props} className={cn('flex flex-col gap-1 rounded-2xl transition-colors', isOver && 'bg-lime-soft')}>
         {files.map((f) => (
           <Item key={f.id} size="xs" className="group hover:bg-surface">
@@ -31,20 +31,20 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
               <ItemDescription className="text-meta">{fmtBytes(f.size)}</ItemDescription>
             </ItemContent>
             <ItemActions className="gap-0 opacity-0 group-hover:opacity-100">
-              <Button variant="ghost" size="icon-xs" aria-label="Открыть" onClick={() => api.files.open(f.id)}>
+              <Button variant="ghost" size="icon-xs" aria-label="Відкрити" onClick={() => api.files.open(f.id)}>
                 <ExternalLink />
               </Button>
-              <Button variant="ghost" size="icon-xs" aria-label="Показать в папке" onClick={() => api.files.reveal(f.id)}>
+              <Button variant="ghost" size="icon-xs" aria-label="Показати в папці" onClick={() => api.files.reveal(f.id)}>
                 <FolderOpen />
               </Button>
-              <Button variant="ghost" size="icon-xs" aria-label="Удалить файл" className="hover:text-destructive" onClick={() => remove.mutate(f.id)}>
+              <Button variant="ghost" size="icon-xs" aria-label="Видалити файл" className="hover:text-destructive" onClick={() => remove.mutate(f.id)}>
                 <Trash2 />
               </Button>
             </ItemActions>
           </Item>
         ))}
         <Empty className={cn('gap-0 border border-dashed border-input p-3 md:p-3', isOver && 'border-ring')}>
-          <EmptyDescription className="text-meta">Перетащите файлы сюда</EmptyDescription>
+          <EmptyDescription className="text-meta">Перетягніть файли сюди</EmptyDescription>
         </Empty>
       </div>
     </section>

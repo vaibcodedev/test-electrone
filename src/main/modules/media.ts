@@ -42,9 +42,9 @@ const DESIGN_KIND_LABEL: Record<DesignKind, string> = {
   site: 'Сайт',
   landing: 'Лендинг',
   shop: 'Магазин',
-  app: 'Приложение',
+  app: 'Застосунок',
   dashboard: 'Дашборд',
-  other: 'Другое'
+  other: 'Інше'
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -87,7 +87,7 @@ export class MediaModule {
         body: `${r.notes}\n${r.sourceUrl}\n${DESIGN_KIND_LABEL[r.kind as DesignKind]}`
       }),
       summary: (r) => ({
-        title: r.title || hostOf(r.sourceUrl) || 'Без названия',
+        title: r.title || hostOf(r.sourceUrl) || 'Без назви',
         subtitle: DESIGN_KIND_LABEL[r.kind as DesignKind]
       }),
       onPurge: (r) => m.files.remove(r.imagePath)
@@ -95,8 +95,9 @@ export class MediaModule {
     const moodboard: EntityDescriptor = {
       type: 'moodboard',
       table: moodboards,
+      draft: { titleField: 'title', contentFields: ['description'] },
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({ title: r.title, subtitle: 'Подборка' })
+      summary: (r) => ({ title: r.title, subtitle: 'Добірка' })
     }
     this.descriptors = [component, design, moodboard]
     this.componentRepo = new SoftRepository(m.repo, component, (r, tags) => ({
@@ -286,7 +287,7 @@ export class MediaModule {
     const repo = this.moodboardRepo
     const one = (id: string): Moodboard => {
       const found = this.moodboardSummaries([id])[0]
-      if (!found) throw new Error('Подборка не найдена')
+      if (!found) throw new Error('Добірку не знайдено')
       return found
     }
     return {

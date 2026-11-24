@@ -16,27 +16,27 @@ import { GithubTokenField } from './github-connect'
 export function GithubSettingsCard() {
   const navigate = useNavigate()
   const { data: status } = useApi('github', 'status')
-  const disconnect = useApiMutation('github', 'setToken', { successMessage: 'GitHub отключён' })
+  const disconnect = useApiMutation('github', 'setToken', { successMessage: 'GitHub відключено' })
   return (
     <Card className="gap-3">
       <CardHeader>
         <CardTitle className="text-lead text-foreground">GitHub</CardTitle>
-        <CardDescription className="text-caption">Репозитории, issues и коммиты в разделе «Разработка → GitHub». Токен только на чтение.</CardDescription>
+        <CardDescription className="text-caption">Репозиторії, issues і коміти в розділі «Розробка → GitHub». Токен лише на читання.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {status?.connected ? (
           <Item size="sm" className="bg-card">
             <ItemContent>
-              <ItemTitle className="font-normal">Подключён как @{status.login}</ItemTitle>
-              {status.rateRemaining !== null && <ItemDescription className="text-caption">Осталось запросов: {status.rateRemaining}</ItemDescription>}
+              <ItemTitle className="font-normal">Підключено як @{status.login}</ItemTitle>
+              {status.rateRemaining !== null && <ItemDescription className="text-caption">Залишилося запитів: {status.rateRemaining}</ItemDescription>}
             </ItemContent>
             <ItemActions>
               <Button size="sm" variant="soft" onClick={() => navigate('/dev/github')}>
-                Открыть
+                Відкрити
               </Button>
-              <Confirm title="Отключить GitHub?" description="Токен будет удалён из Vault." confirmLabel="Отключить" onConfirm={() => disconnect.mutate({ token: '' })}>
+              <Confirm title="Відключити GitHub?" description="Токен буде видалено з Vault." confirmLabel="Відключити" onConfirm={() => disconnect.mutate({ token: '' })}>
                 <Button size="sm" variant="ghost">
-                  Отключить
+                  Відключити
                 </Button>
               </Confirm>
             </ItemActions>
@@ -46,7 +46,7 @@ export function GithubSettingsCard() {
             {status?.error && <p className="text-caption text-destructive">{status.error}</p>}
             <GithubTokenField compact />
             <Button variant="link" className="self-start text-caption" onClick={() => navigate('/dev/github')}>
-              Как создать токен — пошаговый гайд
+              Як створити токен — покроковий гайд
             </Button>
           </>
         )}
@@ -56,11 +56,11 @@ export function GithubSettingsCard() {
 }
 
 const STEPS = [
-  'Откройте chrome://extensions в Chrome (или edge://extensions).',
-  'Включите «Режим разработчика» справа сверху.',
-  'Нажмите «Загрузить распакованное» и выберите папку расширения (кнопка ниже).',
-  'В настройках расширения вставьте ключ и порт отсюда.',
-  'Vault должен быть запущен (хватит иконки в трее).'
+  'Відкрийте chrome://extensions у Chrome (або edge://extensions).',
+  'Увімкніть «Режим розробника» праворуч угорі.',
+  'Натисніть «Завантажити розпаковане» й виберіть папку розширення (кнопка нижче).',
+  'У налаштуваннях розширення вставте ключ і порт звідси.',
+  'Vault має бути запущений (досить іконки в треї).'
 ]
 
 /** Settings → Chrome extension bridge: state, port, secret key, folder. */
@@ -68,25 +68,25 @@ export function ExtensionSettingsCard() {
   const { data: settings } = useApi('settings', 'get')
   const { data: info } = useApi('capture', 'info')
   const save = useApiMutation('settings', 'update')
-  const regenerate = useApiMutation('capture', 'regenerateKey', { successMessage: 'Новый ключ создан — обновите его в расширении' })
+  const regenerate = useApiMutation('capture', 'regenerateKey', { successMessage: 'Новий ключ створено — оновіть його в розширенні' })
   if (!settings) return null
   return (
     <Card className="gap-3">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lead text-foreground">
-          Расширение для Chrome
+          Розширення для Chrome
           {info && (
-            <Badge variant={info.running ? 'lime' : 'soft'}>{info.running ? 'принимает' : settings.captureEnabled ? 'не запущено' : 'выключено'}</Badge>
+            <Badge variant={info.running ? 'lime' : 'soft'}>{info.running ? 'приймає' : settings.captureEnabled ? 'не запущено' : 'вимкнено'}</Badge>
           )}
         </CardTitle>
         <CardDescription className="text-caption">
-          Сохраняйте сайты, дизайны, библиотеки, компоненты и вакансии одной кнопкой — со ссылкой и скриншотом. Связь только локальная (127.0.0.1) по секретному ключу.
+          Зберігайте сайти, дизайни, бібліотеки, компоненти й вакансії однією кнопкою — з посиланням і скриншотом. Зв’язок лише локальний (127.0.0.1) за секретним ключем.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <Item size="sm" className="bg-card">
           <ItemContent>
-            <ItemTitle className="font-normal">Принимать данные из расширения</ItemTitle>
+            <ItemTitle className="font-normal">Приймати дані з розширення</ItemTitle>
             <ItemDescription className="text-caption">Порт {info?.port ?? settings.capturePort}</ItemDescription>
           </ItemContent>
           <ItemActions>
@@ -99,7 +99,7 @@ export function ExtensionSettingsCard() {
             <InputGroupInput readOnly value={info.token} className="font-mono text-caption" />
             <InputGroupAddon align="inline-end">
               <CopyButton text={info.token} variant="ghost" size="xs" />
-              <Button size="icon-xs" variant="ghost" aria-label="Сгенерировать новый ключ" title="Сгенерировать новый" onClick={() => regenerate.mutate(undefined)}>
+              <Button size="icon-xs" variant="ghost" aria-label="Згенерувати новий ключ" title="Згенерувати новий" onClick={() => regenerate.mutate(undefined)}>
                 <RefreshCw />
               </Button>
             </InputGroupAddon>
@@ -111,7 +111,7 @@ export function ExtensionSettingsCard() {
           ))}
         </ol>
         <Button variant="soft" className="self-start" onClick={() => api.capture.openExtensionDir()}>
-          <FolderOpen /> Открыть папку расширения
+          <FolderOpen /> Відкрити папку розширення
         </Button>
       </CardContent>
     </Card>

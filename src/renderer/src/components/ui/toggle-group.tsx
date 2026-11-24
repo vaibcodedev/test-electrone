@@ -71,6 +71,9 @@ function ToggleGroupItem({
           size: context.size || size,
         }),
         "w-auto min-w-0 shrink-0 focus:z-10 focus-visible:z-10",
+        // Segment track has p-1: items are 8px shorter so the whole control matches an input's height (36px).
+        (context.variant || variant) === "segment" &&
+          ({ default: "h-7", sm: "h-6", xs: "h-5", lg: "h-8" } as const)[(context.size || size || "default") as "default"],
         className
       )}
       {...props}

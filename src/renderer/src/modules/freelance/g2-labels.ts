@@ -1,38 +1,38 @@
 import type { GoalMetric, GoalPeriod, TemplateSituation } from '@shared/domain/freelance'
 
 export const SITUATION_LABEL: Record<TemplateSituation, string> = {
-  proposal: 'Отклик',
-  first_message: 'Первое сообщение',
-  estimate: 'Оценка сроков',
-  tz_questions: 'Вопросы по ТЗ',
+  proposal: 'Відгук',
+  first_message: 'Перше повідомлення',
+  estimate: 'Оцінка термінів',
+  tz_questions: 'Питання щодо ТЗ',
   revisions: 'Правки',
-  follow_up: 'Напоминание',
+  follow_up: 'Нагадування',
   small_talk: 'Small talk',
-  closing: 'Завершение',
-  cover_letter: 'Сопроводительное',
-  recruiter: 'Ответ рекрутеру',
-  thank_you: 'Благодарность после интервью',
-  other: 'Другое'
+  closing: 'Завершення',
+  cover_letter: 'Супровідний лист',
+  recruiter: 'Відповідь рекрутеру',
+  thank_you: 'Подяка після інтерв’ю',
+  other: 'Інше'
 }
 
 export const GOAL_METRIC_LABEL: Record<GoalMetric, string> = {
-  net_income: 'Чистый доход',
-  proposals: 'Отклики',
-  replies: 'Ответы',
-  contracts: 'Контракты',
-  reply_rate: '% ответов',
-  hire_rate: '% контрактов'
+  net_income: 'Чистий дохід',
+  proposals: 'Відгуки',
+  replies: 'Відповіді',
+  contracts: 'Контракти',
+  reply_rate: '% відповідей',
+  hire_rate: '% контрактів'
 }
 
 export const GOAL_PERIOD_LABEL: Record<GoalPeriod, string> = {
-  week: 'Неделя',
-  month: 'Месяц'
+  week: 'Тиждень',
+  month: 'Місяць'
 }
 
 export const SEVERITY_LABEL: Record<number, string> = {
-  1: 'Осторожно',
-  2: 'Серьёзно',
-  3: 'Обходить'
+  1: 'Обережно',
+  2: 'Серйозно',
+  3: 'Критично'
 }
 
 /** {variable} names in a template body, in order of first appearance. */

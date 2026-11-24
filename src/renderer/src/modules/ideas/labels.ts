@@ -1,12 +1,12 @@
 import type { IdeaStatus } from '@shared/domain/ideas'
 
 export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
-  inbox: 'Входящие',
-  thinking: 'Обдумываю',
-  planned: 'В планах',
-  in_progress: 'В работе',
-  done: 'Сделано',
-  dropped: 'Отказался'
+  inbox: 'Вхідні',
+  thinking: 'Обмірковую',
+  planned: 'У планах',
+  in_progress: 'У роботі',
+  done: 'Зроблено',
+  dropped: 'Відмовився'
 }
 
-export const IMPACT_LABEL = ['Не оценена', 'Мелочь', 'Стоящая', 'Важная'] as const
+export const IMPACT_LABEL = ['Не оцінена', 'Дрібниця', 'Варта уваги', 'Важлива'] as const

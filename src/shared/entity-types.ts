@@ -40,32 +40,56 @@ export interface EntityTypeMeta {
 }
 
 export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
-  idea: { label: 'Идея', plural: 'Идеи', route: (id) => `/ideas?open=${id}` },
-  board: { label: 'Доска', plural: 'Доски', route: (id) => `/boards/${id}` },
-  card: { label: 'Карточка', plural: 'Карточки', route: (id) => `/cards/${id}` },
+  idea: { label: 'Ідея', plural: 'Ідеї', route: (id) => `/ideas?open=${id}` },
+  board: { label: 'Дошка', plural: 'Дошки', route: (id) => `/boards/${id}` },
+  card: { label: 'Картка', plural: 'Картки', route: (id) => `/cards/${id}` },
   claude: { label: 'Claude', plural: 'Claude', route: (id) => `/claude?open=${id}` },
-  library: { label: 'Библиотека', plural: 'Библиотеки', route: (id) => `/libraries?open=${id}` },
-  component: { label: 'Компонент', plural: 'Компоненты', route: (id) => `/components/${id}` },
-  design: { label: 'Дизайн', plural: 'Дизайны', route: (id) => `/designs?open=${id}` },
-  moodboard: { label: 'Подборка', plural: 'Подборки', route: (id) => `/designs/boards/${id}` },
-  snippet: { label: 'Сниппет', plural: 'Сниппеты', route: (id) => `/snippets?open=${id}` },
-  client: { label: 'Клиент', plural: 'Клиенты', route: (id) => `/clients/${id}` },
-  project: { label: 'Проект', plural: 'Проекты', route: (id) => `/projects/${id}` },
-  checklist: { label: 'Чек-лист', plural: 'Чек-листы', route: (id) => `/checklists/${id}` },
-  fix: { label: 'Ошибка', plural: 'Ошибки и решения', route: (id) => `/fixes?open=${id}` },
+  library: { label: 'Бібліотека', plural: 'JS-бібліотеки', route: (id) => `/libraries?open=${id}` },
+  component: { label: 'Компонент', plural: 'Компоненти', route: (id) => `/components/${id}` },
+  design: { label: 'Дизайн', plural: 'Дизайни', route: (id) => `/designs?open=${id}` },
+  moodboard: { label: 'Добірка', plural: 'Добірки', route: (id) => `/designs/boards/${id}` },
+  snippet: { label: 'Сніпет', plural: 'Сніпети', route: (id) => `/snippets?open=${id}` },
+  client: { label: 'Клієнт', plural: 'Клієнти', route: (id) => `/clients/${id}` },
+  project: { label: 'Проєкт', plural: 'Проєкти', route: (id) => `/projects/${id}` },
+  checklist: { label: 'Чек-лист', plural: 'Чек-листи', route: (id) => `/checklists/${id}` },
+  fix: { label: 'Помилка', plural: 'Помилки й рішення', route: (id) => `/fixes?open=${id}` },
   bookmark: { label: 'Закладка', plural: 'Закладки', route: (id) => `/bookmarks?open=${id}` },
-  word: { label: 'Слово', plural: 'Английский', route: (id) => `/english?open=${id}` },
-  event: { label: 'Событие', plural: 'Календарь', route: (id) => `/calendar?open=${id}` },
-  note: { label: 'Заметка', plural: 'Заметки', route: (id) => `/notes?open=${id}` },
-  proposal: { label: 'Отклик', plural: 'Отклики', route: (id) => `/freelance/proposal/${id}` },
-  template: { label: 'Шаблон', plural: 'Шаблоны', route: (id) => `/freelance/templates?open=${id}` },
-  case: { label: 'Кейс', plural: 'Портфолио', route: (id) => `/freelance/portfolio?open=${id}` },
-  redflag: { label: 'Красный флаг', plural: 'Красные флаги', route: (id) => `/freelance/flags?open=${id}` },
-  application: { label: 'Вакансия', plural: 'Вакансии', route: (id) => `/jobs/applications?open=${id}` },
-  company: { label: 'Компания', plural: 'Компании', route: (id) => `/jobs/companies?open=${id}` },
-  question: { label: 'Вопрос', plural: 'Вопросы к собеседованию', route: (id) => `/jobs/questions?open=${id}` }
+  word: { label: 'Слово', plural: 'Англійська', route: (id) => `/english?open=${id}` },
+  event: { label: 'Подія', plural: 'Календар', route: (id) => `/calendar?open=${id}` },
+  note: { label: 'Нотатка', plural: 'Нотатки', route: (id) => `/notes?open=${id}` },
+  proposal: { label: 'Відгук', plural: 'Відгуки', route: (id) => `/freelance/proposal/${id}` },
+  template: { label: 'Шаблон', plural: 'Шаблони', route: (id) => `/freelance/templates?open=${id}` },
+  case: { label: 'Кейс', plural: 'Портфоліо', route: (id) => `/freelance/portfolio?open=${id}` },
+  redflag: { label: 'Червоний прапорець', plural: 'Червоні прапорці', route: (id) => `/freelance/flags?open=${id}` },
+  application: { label: 'Вакансія', plural: 'Вакансії', route: (id) => `/jobs/applications?open=${id}` },
+  company: { label: 'Компанія', plural: 'Компанії', route: (id) => `/jobs/companies?open=${id}` },
+  question: { label: 'Питання', plural: 'Банк питань', route: (id) => `/jobs/questions?open=${id}` }
 }
 
 export function isEntityType(value: unknown): value is EntityType {
   return typeof value === 'string' && (ENTITY_TYPES as readonly string[]).includes(value)
+}
+
+/**
+ * Titles a record gets from a «+ Створити» button, per type. A record that still has one of these titles,
+ * was never edited and has no content is a *draft*: creating another one reuses it, closing it discards it
+ * (docs/design-system.md → Формы → Пустые записи). Old Russian defaults stay here so existing drafts match.
+ */
+export const DRAFT_TITLES: Partial<Record<EntityType, readonly string[]>> = {
+  note: ['Нова нотатка', 'Новая заметка'],
+  claude: [
+    'Нова нотатка', 'Нова гілка', 'Новий скіл', 'Новий плагін', 'Новий гайд', 'Новий промт',
+    'Новая заметка', 'Новая ветка', 'Новый скил', 'Новый плагин', 'Новый гайд', 'Новый промт'
+  ],
+  snippet: ['Новий сніпет', 'Новый сниппет'],
+  fix: ['Нова помилка', 'Новая ошибка'],
+  component: ['Новий компонент', 'Новый компонент'],
+  bookmark: ['Нова закладка', 'Новая закладка'],
+  moodboard: ['Нова добірка', 'Новая подборка'],
+  library: ['new-package'],
+  case: ['Новий кейс', 'Новый кейс'],
+  redflag: ['Новий прапорець', 'Новый флаг', 'Новый красный флаг'],
+  template: ['Новий шаблон', 'Новый шаблон'],
+  question: ['Нове питання', 'Новый вопрос'],
+  checklist: ['Новий чек-лист', 'Новый чек-лист']
 }

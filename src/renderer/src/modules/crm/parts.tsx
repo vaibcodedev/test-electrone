@@ -10,13 +10,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-  FieldTitle
-} from '@/components/ui/field'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { BILLING_INFO } from './labels'
 
@@ -178,6 +172,19 @@ export function Meter({
 }
 
 /** Billing type chosen first: shadcn RadioGroup of choice cards. */
+/** One-line hint per billing type: short enough to never wrap next to the label. */
+const BILLING_HINT: Record<BillingType, string> = {
+  fixed: 'оплата за весь проєкт',
+  hourly: 'ставка за годину',
+  retainer: 'щомісячна сума',
+  none: 'без грошей'
+}
+
+/**
+ * Billing type as a vertical radio list (shadcn RadioGroup + Label): one compact row per option —
+ * radio, label (nowrap), one-line muted hint. Selected row is a neutral raised surface, not a coloured
+ * card, so it reads the same in narrow asides and in dialogs (docs/design-system.md → Формы).
+ */
 export function BillingPicker({
   value,
   onChange,
@@ -189,39 +196,31 @@ export function BillingPicker({
   compact?: boolean
   className?: string
 }) {
+  const idPrefix = `billing-${compact ? 'c' : 'f'}`
   return (
     <RadioGroup
       value={value}
       onValueChange={(v) => onChange(v as BillingType)}
-      className={cn('grid grid-cols-2 gap-2', className)}
+      className={cn('flex flex-col gap-1', className)}
     >
       {BILLING_TYPES.map((b) => (
-        <FieldLabel
+        <Label
           key={b}
-          htmlFor={`billing-${b}-${compact ? 'c' : 'f'}`}
-          className="rounded-2xl! border-transparent! bg-surface has-data-[state=checked]:border-ring! has-data-[state=checked]:bg-lime-soft!"
+          htmlFor={`${idPrefix}-${b}`}
+          className="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 font-normal transition-colors hover:bg-foreground/5 has-data-[state=checked]:bg-card has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-foreground/15"
         >
-          <Field
-            orientation="horizontal"
-            className={cn('items-start gap-2.5', compact ? 'p-3!' : 'p-3.5!')}
-          >
-            <FieldContent className="gap-0.5">
-              <FieldTitle className="text-body text-foreground">
-                {BILLING_INFO[b].title}
-              </FieldTitle>
-              {!compact && (
-                <FieldDescription className="text-meta leading-snug">
-                  {BILLING_INFO[b].description}
-                </FieldDescription>
-              )}
-            </FieldContent>
-            <RadioGroupItem
-              value={b}
-              id={`billing-${b}-${compact ? 'c' : 'f'}`}
-              className="mt-0.5"
-            />
-          </Field>
-        </FieldLabel>
+          <RadioGroupItem
+            value={b}
+            id={`${idPrefix}-${b}`}
+            className="data-[state=checked]:border-transparent data-[state=checked]:bg-lime [&_svg]:fill-lime-foreground [&_svg]:stroke-none"
+          />
+          <span className="shrink-0 text-body font-medium whitespace-nowrap text-foreground">
+            {BILLING_INFO[b].title}
+          </span>
+          <span className="min-w-0 truncate text-caption text-muted-foreground">
+            {BILLING_HINT[b]}
+          </span>
+        </Label>
       ))}
     </RadioGroup>
   )

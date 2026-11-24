@@ -29,11 +29,15 @@ interface UiState {
   /** Ids playing the leave animation right before they are removed (list rows, detail pane). */
   leaving: Record<string, true>
   setLeaving: (id: string, on: boolean) => void
+  /** Records created a moment ago: their detail pane opens straight in edit mode. */
+  justCreated: Record<string, true>
+  markCreated: (id: string) => void
+  takeCreated: (id: string) => boolean
 }
 
 export const useUi = create<UiState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       quickAddOpen: false,
@@ -52,6 +56,18 @@ export const useUi = create<UiState>()(
       setHubOpen: (id, open) => set((s) => ({ openHubs: { ...s.openHubs, [id]: open } })),
       trashBump: 0,
       bumpTrash: () => set((s) => ({ trashBump: s.trashBump + 1 })),
+      justCreated: {},
+      markCreated: (id) => set((s) => ({ justCreated: { ...s.justCreated, [id]: true } })),
+      takeCreated: (id) => {
+        const was = !!get().justCreated[id]
+        if (was)
+          set((s) => {
+            const justCreated = { ...s.justCreated }
+            delete justCreated[id]
+            return { justCreated }
+          })
+        return was
+      },
       leaving: {},
       setLeaving: (id, on) =>
         set((s) => {

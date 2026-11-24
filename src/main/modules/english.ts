@@ -3,7 +3,7 @@ import { pageSchema } from '@shared/domain/common'
  * English vocabulary from work with spaced repetition (SM-2 variant with 4 grades).
  * Grades: 0 forgot · 1 hard · 2 good · 3 easy.
  */
-import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, gte, isNull, lte, sql } from 'drizzle-orm'
 import type { EnglishApi } from '@shared/api'
 import {
   reviewInputSchema,
@@ -181,13 +181,18 @@ export class EnglishModule {
         const n = z.number().int().min(1).max(500).optional().parse(limit) ?? 30
         return repo.listWhere([lte(words.dueAt, now())], [asc(words.dueAt)], n)
       },
+      practiceExtra: async (limit) => {
+        const n = z.number().int().min(1).max(500).optional().parse(limit) ?? 10
+        return repo.listWhere([gt(words.dueAt, now())], [asc(words.ease), asc(words.dueAt)], n)
+      },
       review: async (args) => {
-        const { id, grade } = reviewInputSchema.parse(args)
+        const { id, grade, extra } = reviewInputSchema.parse(args)
         const row = repo.rowOrThrow(id)
         const at = now()
-        const next = schedule(row, grade, at)
         this.db.insert(wordReviews).values({ id: newId(), wordId: id, grade, reviewedAt: at }).run()
-        this.db.update(words).set(next).where(eq(words.id, id)).run()
+        // Extra practice: remembering doesn't push the next review further; forgetting still counts as a lapse.
+        if (extra && grade > 0) this.db.update(words).set({ lastReviewedAt: at }).where(eq(words.id, id)).run()
+        else this.db.update(words).set(schedule(row, grade, at)).where(eq(words.id, id)).run()
         return repo.getOrThrow(id)
       },
       stats: async () => this.stats()

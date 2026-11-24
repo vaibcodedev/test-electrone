@@ -16,20 +16,20 @@ export const FREELANCE_SEED: {
       creditPrice: 0.15,
       defaultFeePercent: 10,
       preChecklist: [
-        { id: 'verified', label: 'Оплата клиента верифицирована' },
-        { id: 'rating', label: 'Рейтинг клиента ≥ 4.5 (или новый, но с верификацией)' },
-        { id: 'hire-rate', label: 'Hire rate ≥ 50% и есть потраченные деньги' },
-        { id: 'competition', label: 'Откликов меньше 20–50, вакансия свежая' },
-        { id: 'scope', label: 'ТЗ понятно, могу оценить объём' },
-        { id: 'budget', label: 'Бюджет адекватен моей ставке' },
-        { id: 'flags', label: 'Нет красных флагов в описании и отзывах' },
-        { id: 'personal', label: 'Первые 2 строки отклика — про задачу клиента, а не про меня' }
+        { id: 'verified', label: 'Оплату клієнта верифіковано' },
+        { id: 'rating', label: 'Рейтинг клієнта ≥ 4.5 (або новий, але з верифікацією)' },
+        { id: 'hire-rate', label: 'Hire rate ≥ 50% і є витрачені гроші' },
+        { id: 'competition', label: 'Відгуків менше 20–50, вакансія свіжа' },
+        { id: 'scope', label: 'ТЗ зрозуміле, можу оцінити обсяг' },
+        { id: 'budget', label: 'Бюджет відповідає моїй ставці' },
+        { id: 'flags', label: 'Немає червоних прапорців в описі й відгуках' },
+        { id: 'personal', label: 'Перші 2 рядки відгуку — про задачу клієнта, а не про мене' }
       ],
       notes:
-        'Комиссия Upwork плавающая (0–15%) — точную видно в момент отклика, записывай её в отклик и контракт.'
+        'Комісія Upwork плаваюча (0–15%) — точну видно в момент відгуку, записуй її у відгук і контракт.'
     },
     {
-      name: 'Прямые заказы',
+      name: 'Прямі замовлення',
       kind: 'direct',
       color: null,
       currency: 'USD',
@@ -37,8 +37,8 @@ export const FREELANCE_SEED: {
       creditPrice: 0,
       defaultFeePercent: 0,
       preChecklist: [
-        { id: 'prepay', label: 'Договорились о предоплате или этапах' },
-        { id: 'scope', label: 'Объём и сроки зафиксированы письменно' }
+        { id: 'prepay', label: 'Домовилися про передоплату або етапи' },
+        { id: 'scope', label: 'Обсяг і терміни зафіксовано письмово' }
       ],
       notes: ''
     }
@@ -46,50 +46,50 @@ export const FREELANCE_SEED: {
   templates: [
     {
       situation: 'proposal',
-      title: 'Отклик: короткий, про задачу клиента',
-      trigger: 'Базовый отклик на любую вакансию',
+      title: 'Відгук: короткий, про задачу клієнта',
+      trigger: 'Базовий відгук на будь-яку вакансію',
       body: 'Hi {client},\n\nI read your post about {task}. The key part for you seems to be {main_goal} — I have done exactly this for {similar_project}.\n\nHow I would approach it:\n1. {step_1}\n2. {step_2}\n3. {step_3}\n\nI can start {start_date} and deliver the first version in {timeline}.\n\nOne question to make sure I estimate correctly: {question}\n\nBest,\n{my_name}',
-      note: 'Первые две строки видны в превью — там должна быть задача клиента, а не «Hello, I am a developer with 5 years…».',
+      note: 'Перші два рядки видно в превʼю — там має бути задача клієнта, а не «Hello, I am a developer with 5 years…».',
       niche: ''
     },
     {
       situation: 'first_message',
-      title: 'Первое сообщение после ответа клиента',
-      trigger: 'Клиент ответил на отклик',
+      title: 'Перше повідомлення після відповіді клієнта',
+      trigger: 'Клієнт відповів на відгук',
       body: 'Hi {client}, thanks for getting back to me!\n\nTo give you an accurate plan, could you share:\n- {question_1}\n- {question_2}\n\nIf it is easier, I am happy to jump on a short call — {my_availability}.',
       note: '',
       niche: ''
     },
     {
       situation: 'estimate',
-      title: 'Оценка сроков и стоимости',
+      title: 'Оцінка термінів і вартості',
       trigger: 'How long will it take? / What is your estimate?',
       body: 'Based on what we discussed, here is my estimate:\n\n- {part_1}: {hours_1}h\n- {part_2}: {hours_2}h\n- Testing & fixes: {hours_3}h\n\nTotal: {total} ({timeline}). This includes {included}. Anything outside this scope I will flag before starting.',
-      note: 'Всегда закладывай время на тесты и правки отдельной строкой.',
+      note: 'Завжди закладай час на тести й правки окремим рядком.',
       niche: ''
     },
     {
       situation: 'tz_questions',
-      title: 'Уточняющие вопросы по ТЗ',
-      trigger: 'ТЗ размытое',
+      title: 'Уточнювальні питання щодо ТЗ',
+      trigger: 'ТЗ розмите',
       body: 'Before I start, a few questions so nothing gets lost:\n1. Do you have designs (Figma) or should I propose the layout?\n2. Which devices/browsers matter most?\n3. Is there an existing codebase or are we starting fresh?\n4. What does "done" look like for you?\n5. Who will give feedback and how quickly?',
       note: '',
       niche: ''
     },
     {
       situation: 'revisions',
-      title: 'Правки сверх объёма',
-      trigger: 'Клиент просит то, чего не было в задаче',
+      title: 'Правки понад обсяг',
+      trigger: 'Клієнт просить те, чого не було в задачі',
       body: 'Happy to add this! It was not part of the original scope, so it would take about {hours} more hours ({price}). Should I go ahead, or would you prefer to keep it for the next milestone?',
-      note: 'Вежливо, но всегда называй цену дополнительной работы.',
+      note: 'Ввічливо, але завжди називай ціну додаткової роботи.',
       niche: ''
     },
     {
       situation: 'follow_up',
-      title: 'Напоминание через 3–4 дня',
-      trigger: 'Клиент не отвечает',
+      title: 'Нагадування через 3–4 дні',
+      trigger: 'Клієнт не відповідає',
       body: 'Hi {client}, just checking in on {task}. I am still available and can start {start_date}. If the project is on hold, no worries — let me know if anything changes.',
-      note: 'Одно напоминание, не больше.',
+      note: 'Одне нагадування, не більше.',
       niche: ''
     },
     {
@@ -97,7 +97,7 @@ export const FREELANCE_SEED: {
       title: 'How are you?',
       trigger: 'How are you doing? / How is it going?',
       body: 'Doing great, thanks! Busy week, but in a good way. How about you?',
-      note: 'Короткий ответ + встречный вопрос, затем сразу к делу.',
+      note: 'Коротка відповідь + зустрічне питання, далі одразу до справи.',
       niche: ''
     },
     {
@@ -110,16 +110,16 @@ export const FREELANCE_SEED: {
     },
     {
       situation: 'small_talk',
-      title: 'Извиниться за задержку ответа',
-      trigger: 'Ответил с опозданием',
+      title: 'Перепросити за затримку відповіді',
+      trigger: 'Відповів із запізненням',
       body: 'Sorry for the delayed reply — I wanted to check this properly before answering. Here is what I found: {answer}',
       note: '',
       niche: ''
     },
     {
       situation: 'closing',
-      title: 'Сдача работы и просьба об отзыве',
-      trigger: 'Проект завершён',
+      title: 'Здача роботи й прохання про відгук',
+      trigger: 'Проєкт завершено',
       body: 'Everything is delivered: {summary}. Thanks a lot for working with me! If you are happy with the result, I would really appreciate a short review on {platform} — it helps a lot. And of course, I am here if you need anything else.',
       note: '',
       niche: ''
@@ -127,41 +127,41 @@ export const FREELANCE_SEED: {
   ],
   redFlags: [
     {
-      title: 'Оплата не верифицирована',
-      signs: 'На Upwork нет значка «Payment verified», ноль потраченных денег.',
+      title: 'Оплату не верифіковано',
+      signs: 'На Upwork немає значка «Payment verified», нуль витрачених грошей.',
       action:
-        'Не тратить коннекты, если только вакансия не идеальна. Если откликаюсь — фиксированные этапы с эскроу.',
+        'Не витрачати конекти, хіба що вакансія ідеальна. Якщо відгукуюся — фіксовані етапи з ескроу.',
       severity: 3
     },
     {
-      title: 'Просят работать вне платформы',
-      signs: '«Напиши в Telegram/WhatsApp», «давай оплачу напрямую», просят email до контракта.',
-      action: 'Отказаться — это нарушение правил и частый скам.',
+      title: 'Просять працювати поза платформою',
+      signs: '«Напиши в Telegram/WhatsApp», «давай оплачу напряму», просять email до контракту.',
+      action: 'Відмовитися — це порушення правил і частий скам.',
       severity: 3
     },
     {
-      title: 'Бесплатное тестовое на реальной задаче',
-      signs: '«Сделайте небольшой кусок бесплатно, чтобы мы оценили».',
-      action: 'Предложить оплачиваемое тестовое или показать похожий кейс из портфолио.',
+      title: 'Безкоштовне тестове на реальній задачі',
+      signs: '«Зробіть невеликий шматок безкоштовно, щоб ми оцінили».',
+      action: 'Запропонувати оплачуване тестове або показати схожий кейс із портфоліо.',
       severity: 2
     },
     {
-      title: 'Огромный объём за маленький бюджет',
-      signs: '«Клон Airbnb за $300», «простой сайт как Amazon».',
-      action: 'Пропустить или ответить честной оценкой без скидки.',
+      title: 'Величезний обсяг за маленький бюджет',
+      signs: '«Клон Airbnb за $300», «простий сайт як Amazon».',
+      action: 'Пропустити або відповісти чесною оцінкою без знижки.',
       severity: 2
     },
     {
-      title: 'Плохие отзывы фрилансеров о клиенте',
+      title: 'Погані відгуки фрилансерів про клієнта',
       signs:
-        'Низкие оценки, «не платит», «постоянно меняет требования», много отменённых контрактов.',
-      action: 'Пропустить. Если очень нужно — только с предоплаченными этапами.',
+        'Низькі оцінки, «не платить», «постійно змінює вимоги», багато скасованих контрактів.',
+      action: 'Пропустити. Якщо дуже треба — лише з передоплаченими етапами.',
       severity: 2
     },
     {
-      title: 'Размытое ТЗ и «потом обсудим»',
-      signs: 'Нет конкретики, срочно, «детали в личке».',
-      action: 'Задать вопросы из шаблона «Вопросы по ТЗ» до оценки.',
+      title: 'Розмите ТЗ і «потім обговоримо»',
+      signs: 'Немає конкретики, терміново, «деталі в особистих».',
+      action: 'Поставити питання із шаблону «Питання щодо ТЗ» до оцінки.',
       severity: 1
     }
   ]

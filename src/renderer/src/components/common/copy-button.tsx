@@ -5,7 +5,7 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export async function copyText(text: string, message = 'Скопировано'): Promise<void> {
+export async function copyText(text: string, message = 'Скопійовано'): Promise<void> {
   await api.app.copyText(text)
   toast.success(message)
 }
@@ -33,7 +33,7 @@ export function CopyButton({
       variant={variant}
       size={label ? size : size === 'sm' ? 'icon-sm' : size}
       className={cn(className)}
-      title="Скопировать"
+      title="Скопіювати"
       onClick={async (e) => {
         e.stopPropagation()
         await copyText(text)

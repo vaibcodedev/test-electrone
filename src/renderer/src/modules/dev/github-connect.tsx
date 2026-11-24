@@ -11,11 +11,11 @@ import { cn } from '@/lib/utils'
 const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new'
 
 export const TOKEN_STEPS = [
-  'Откройте страницу создания токена (кнопка ниже) и войдите в GitHub.',
-  'Token name — например «Vault», Expiration — до года.',
-  'Repository access → All repositories (или только нужные).',
-  'Permissions → Repositories: Metadata, Contents, Issues, Pull requests — везде «Read-only».',
-  'Нажмите «Generate token», скопируйте его и вставьте сюда.'
+  'Відкрийте сторінку створення токена (кнопка нижче) й увійдіть у GitHub.',
+  'Token name — наприклад «Vault», Expiration — до року.',
+  'Repository access → All repositories (або лише потрібні).',
+  'Permissions → Repositories: Metadata, Contents, Issues, Pull requests — скрізь «Read-only».',
+  'Натисніть «Generate token», скопіюйте його й вставте сюди.'
 ]
 
 /** Token field — saves it encrypted with the OS keychain. */
@@ -23,8 +23,8 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
   const [token, setToken] = useState('')
   const save = useApiMutation('github', 'setToken', {
     onSuccess: (s) => {
-      if (s.connected) toast.success(`GitHub подключён: ${s.login}`)
-      else toast.error(s.error ?? 'Токен не подошёл')
+      if (s.connected) toast.success(`GitHub підключено: ${s.login}`)
+      else toast.error(s.error ?? 'Токен не підійшов')
       setToken('')
     }
   })
@@ -35,7 +35,7 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
     <Field
       label="Токен GitHub"
       htmlFor="github-token"
-      hint="Хранится зашифрованным ключом Windows и используется только для чтения."
+      hint="Зберігається зашифрованим ключем Windows і використовується лише для читання."
     >
       <div className="flex items-center gap-2">
         {/* bg-card: the field sits on a surface card, so it needs its own fill to read as an input. */}
@@ -49,12 +49,12 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
             autoComplete="off"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            placeholder="Вставьте токен github_pat_…"
+            placeholder="Вставте токен github_pat_…"
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
         </InputGroup>
         <Button variant="lime" disabled={!token.trim() || save.isPending} onClick={submit}>
-          Подключить
+          Підключити
         </Button>
       </div>
     </Field>
@@ -71,7 +71,7 @@ export function GithubGuide() {
         ))}
       </ol>
       <Button variant="subtle" className="self-start" onClick={() => api.app.openExternal(NEW_TOKEN_URL)}>
-        <ExternalLink /> Создать токен на GitHub
+        <ExternalLink /> Створити токен на GitHub
       </Button>
       <GithubTokenField />
     </div>

@@ -24,14 +24,14 @@ export class QuickAddService {
       .where(isNull(boards.deletedAt))
       .orderBy(asc(boards.archived), asc(boards.createdAt))
       .get()
-    if (!board) throw new UserError('Сначала создайте хотя бы одну доску')
+    if (!board) throw new UserError('Спершу створіть хоча б одну дошку')
     const col = this.ctx.orm
       .select({ id: boardColumns.id })
       .from(boardColumns)
       .where(eq(boardColumns.boardId, board.id))
       .orderBy(asc(boardColumns.position))
       .get()
-    if (!col) throw new UserError('На доске нет колонок')
+    if (!col) throw new UserError('На дошці немає колонок')
     return { boardId: board.id, columnId: col.id }
   }
 

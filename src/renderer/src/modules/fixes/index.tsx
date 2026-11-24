@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Bug, CircleCheck, CircleDot, Plus } from 'lucide-react'
-import type { Fix, FixPatch } from '@shared/domain/fixes'
+import { fixInputSchema, type Fix, type FixPatch } from '@shared/domain/fixes'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
@@ -22,6 +23,8 @@ import {
   useEscapeToClose
 } from '../claude/editor-kit'
 
+const LIMITS = limitsOf(fixInputSchema)
+
 type ResolvedFilter = 'open' | 'resolved'
 
 function firstLine(text: string): string {
@@ -30,7 +33,7 @@ function firstLine(text: string): string {
 
 function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
   const update = useApiMutation('fixes', 'update')
-  const remove = useApiMutation('fixes', 'remove', { successMessage: 'Перемещено в корзину' })
+  const remove = useApiMutation('fixes', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: FixPatch): void => update.mutate({ id: fix.id, patch })
   const entity = { type: 'fix' as const, id: fix.id }
   useEscapeToClose(onClose)
@@ -49,10 +52,10 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           variant="chip"
           pressed={fix.resolved}
           onPressedChange={(resolved) => save({ resolved })}
-          aria-label="Решено"
+          aria-label="Вирішено"
         >
           {fix.resolved ? <CircleCheck /> : <CircleDot />}
-          {fix.resolved ? 'Решено' : 'Ещё не решено'}
+          {fix.resolved ? 'Вирішено' : 'Ще не вирішено'}
         </Toggle>
       }
       aside={
@@ -64,38 +67,39 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           updatedAt={fix.updatedAt}
         >
           <InputField
-            label="Где случилось"
+            label="Де сталося"
             value={fix.context}
             onSave={(context) => save({ context })}
+            maxLength={LIMITS.context}
             placeholder="Hydrogen, Vite, Electron…"
           />
         </EntityAside>
       }
     >
       <EditorStack>
-        <AutoTitle value={fix.title} onSave={(title) => save({ title })} placeholder="Что сломалось" />
-        <Block label="Текст ошибки">
+        <AutoTitle value={fix.title} onSave={(title) => save({ title })} placeholder="Що зламалося" maxLength={LIMITS.title} />
+        <Block label="Текст помилки">
           <AutoCode
             value={fix.errorText}
             onSave={(errorText) => save({ errorText })}
             language="text"
             lineNumbers={false}
             minHeight="90px"
-            placeholder="Вставьте сообщение или стек ошибки"
+            placeholder="Вставте повідомлення або стек помилки"
           />
         </Block>
         <AutoMarkdown
           label="Причина"
           value={fix.cause}
           onSave={(cause) => save({ cause })}
-          placeholder="Почему так вышло"
+          placeholder="Чому так сталося"
           minHeight="100px"
         />
         <AutoMarkdown
-          label="Как исправил"
+          label="Як виправив"
           value={fix.solution}
           onSave={(solution) => save({ solution })}
-          placeholder="Шаги, команды, код исправления"
+          placeholder="Кроки, команди, код виправлення"
           minHeight="180px"
         />
       </EditorStack>
@@ -121,33 +125,33 @@ export function FixesPage() {
   return (
     <Page>
       <PageHeader
-        title="Ошибки и решения"
-        subtitle="Что сломалось и как починил — чтобы второй раз не искать."
+        title="Помилки й рішення"
+        subtitle="Що зламалося і як полагодив — щоб удруге не шукати."
         actions={
           <Button
             variant="lime"
             onClick={async () => {
-              const created = await create.mutateAsync({ title: 'Новая ошибка', resolved: false })
+              const created = await create.mutateAsync({ title: 'Нова помилка', resolved: false })
               setOpen(created.id)
             }}
           >
-            <Plus /> Ошибка
+            <Plus /> Помилка
           </Button>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
-            allLabel="Все"
+            allLabel="Усі"
             value={resolved}
             onChange={setResolved}
             options={[
-              { value: 'open', label: 'Не решено', count: openCount },
-              { value: 'resolved', label: 'Решено', count: all.length - openCount }
+              { value: 'open', label: 'Не вирішено', count: openCount },
+              { value: 'resolved', label: 'Вирішено', count: all.length - openCount }
             ]}
           />
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Текст ошибки или решение" className="w-64" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Текст помилки або рішення" className="w-64" />
           </div>
         </div>
       </PageHeader>
@@ -158,17 +162,17 @@ export function FixesPage() {
               className="-mx-1 px-1"
               items={list.items}
               getKey={(x) => x.id}
-              estimateSize={96}
+              estimateSize={76}
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={!list.isLoading && (<EmptyState
                   icon={Bug}
-                  title={search || tagId || resolved ? 'Ничего не нашлось' : 'Ошибок пока нет'}
+                  title={search || tagId || resolved ? 'Нічого не знайшлося' : 'Помилок поки немає'}
                   hint={
                     search || tagId || resolved
-                      ? 'Вставьте кусок текста ошибки в поиск — он ищет и по решениям.'
-                      : 'Запишите следующую ошибку вместе с решением, и поиск найдёт её через полгода.'
+                      ? 'Вставте шматок тексту помилки в пошук — він шукає й по рішеннях.'
+                      : 'Запишіть наступну помилку разом із рішенням, і пошук знайде її за пів року.'
                   }
                 />)}
               renderItem={(f) => {
@@ -176,38 +180,36 @@ export function FixesPage() {
                 const line = firstLine(f.errorText)
                 return (
                   <ListItem active={active} onClick={() => setOpen(f.id)}>
-                    <div className="flex items-start gap-3">
+                    {/* Height follows content: title line, optional error line, one meta line (badge · tags … time). */}
+                    <div className="flex min-w-0 items-center gap-2.5">
                       <span
-                        className={cn(
-                          'mt-1.5 size-2 shrink-0 rounded-full',
-                          f.resolved ? 'bg-success' : 'bg-destructive'
-                        )}
-                        title={f.resolved ? 'Решено' : 'Не решено'}
+                        className={cn('size-2 shrink-0 rounded-full', f.resolved ? 'bg-success' : 'bg-destructive')}
+                        title={f.resolved ? 'Вирішено' : 'Не вирішено'}
                       />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-body font-medium">{f.title}</div>
-                        {line && (
-                          <div
-                            className={cn(
-                              'mt-1 truncate font-mono text-meta',
-                              active ? 'text-ink-muted' : 'text-muted-foreground'
-                            )}
-                          >
-                            {line}
-                          </div>
-                        )}
-                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                          {f.context && (
-                            <Badge variant={active ? 'lime' : 'outline'} className="h-5">
-                              {f.context}
-                            </Badge>
-                          )}
-                          {!active && <TagList tags={f.tags} max={3} />}
-                          <span className={cn('ml-auto text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                            {fmtRelative(f.updatedAt)}
-                          </span>
-                        </div>
+                      <span className="min-w-0 flex-1 truncate text-body font-medium">{f.title}</span>
+                    </div>
+                    {line && (
+                      <div className={cn('mt-1 truncate pl-[18px] font-mono text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        {line}
                       </div>
+                    )}
+                    <div className="mt-1.5 flex min-w-0 items-center gap-1.5 pl-[18px]">
+                      {f.context && (
+                        <Badge
+                          variant="outline"
+                          className={cn('h-5 max-w-40 shrink-0 truncate', active && 'border-ink-foreground/20 text-ink-foreground')}
+                        >
+                          {f.context}
+                        </Badge>
+                      )}
+                      {!active && (
+                        <div className="flex min-w-0 flex-1 overflow-hidden">
+                          <TagList tags={f.tags} max={2} className="flex-nowrap" />
+                        </div>
+                      )}
+                      <span className={cn('ml-auto shrink-0 text-meta whitespace-nowrap', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        {fmtRelative(f.updatedAt)}
+                      </span>
                     </div>
                   </ListItem>
                 )

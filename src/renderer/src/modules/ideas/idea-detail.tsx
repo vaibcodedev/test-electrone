@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router'
 import { SquareKanban, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { IDEA_STATUSES, type Idea, type IdeaPatch, type IdeaStatus } from '@shared/domain/ideas'
+import { IDEA_STATUSES, ideaInputSchema, type Idea, type IdeaPatch, type IdeaStatus } from '@shared/domain/ideas'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(ideaInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { DetailPane, EntityAside, InlineTitle } from '@/components/common/master-detail'
@@ -23,13 +26,13 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
   const update = useApiMutation('ideas', 'update', { silent: false })
   const remove = useApiMutation('ideas', 'remove', {
     onSuccess: () => {
-      toast.success('Идея перемещена в корзину')
+      toast.success('Ідею переміщено в кошик')
       onClose()
     }
   })
   const convert = useApiMutation('ideas', 'convertToBoard', {
     onSuccess: (board) => {
-      toast.success('Доска создана')
+      toast.success('Дошку створено')
       navigate(`/boards/${board.id}`)
     }
   })
@@ -46,11 +49,11 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
       headerExtra={
         idea.boardId ? (
           <Button variant="soft" size="sm" onClick={() => navigate(`/boards/${idea.boardId}`)}>
-            <ArrowUpRight /> Открыть доску
+            <ArrowUpRight /> Відкрити дошку
           </Button>
         ) : (
           <Button variant="lime" size="sm" disabled={convert.isPending} onClick={() => convert.mutate(idea.id)}>
-            <SquareKanban /> Превратить в доску
+            <SquareKanban /> Перетворити на дошку
           </Button>
         )
       }
@@ -76,7 +79,7 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Важность">
+          <Field label="Важливість">
             <Segmented
               className="w-full [&>*]:flex-1"
               value={String(idea.impact)}
@@ -92,13 +95,13 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
         </EntityAside>
       }
     >
-      <InlineTitle value={title} onChange={setTitle} placeholder="Название идеи" />
+      <InlineTitle value={title} onChange={setTitle} placeholder="Назва ідеї" maxLength={LIMITS.title} />
       <div className="mt-5">
         <MarkdownField
           value={body}
           onChange={setBody}
-          label="Описание"
-          placeholder="Опишите идею: зачем, для кого, первые шаги…"
+          label="Опис"
+          placeholder="Опишіть ідею: навіщо, для кого, перші кроки…"
           minHeight="280px"
         />
       </div>

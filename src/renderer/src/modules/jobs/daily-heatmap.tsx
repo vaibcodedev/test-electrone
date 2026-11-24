@@ -22,10 +22,10 @@ function cellClass(day: BoardDay, target: number): string {
 }
 
 function describe(day: BoardDay, target: number): string {
-  const parts = [`откликов: ${day.applied}${target > 0 ? ` из ${target}` : ''}`]
-  if (day.checked) parts.push('отмечено вручную')
-  if (!day.expected) parts.push('выходной для площадки')
-  else parts.push(day.done ? 'норма выполнена' : 'не выполнено')
+  const parts = [`відгуків: ${day.applied}${target > 0 ? ` з ${target}` : ''}`]
+  if (day.checked) parts.push('позначено вручну')
+  if (!day.expected) parts.push('вихідний для майданчика')
+  else parts.push(day.done ? 'норму виконано' : 'не виконано')
   return parts.join(' · ')
 }
 
@@ -55,9 +55,9 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div className="grid grid-cols-3 gap-2">
-        <Stat label="Откликов" value={String(applied)} />
-        <Stat label="Дней с нормой" value={expected ? `${Math.round((done / expected) * 100)}%` : '—'} />
-        <Stat label="Лучшая серия" value={`${best} ${plural(best, ['день', 'дня', 'дней'])}`} />
+        <Stat label="Відгуків" value={String(applied)} />
+        <Stat label="Днів з нормою" value={expected ? `${Math.round((done / expected) * 100)}%` : '—'} />
+        <Stat label="Найдовша серія" value={`${best} ${plural(best, ['день', 'дні', 'днів'])}`} />
       </div>
 
       <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden">
@@ -68,7 +68,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
               {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE })}
             </span>
           ))}
-          <span className="text-right text-meta text-muted-foreground">серия</span>
+          <span className="text-right text-meta text-muted-foreground">серія</span>
         </div>
         {boards.map((b) => (
           <div key={b.id} className="grid items-center gap-x-2.5" style={{ gridTemplateColumns: cols }}>
@@ -92,16 +92,16 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
 
       <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[4px] bg-chart-1" /> норма выполнена
+          <span className="size-3 rounded-[4px] bg-chart-1" /> норму виконано
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[4px] bg-chart-1/35" /> частично
+          <span className="size-3 rounded-[4px] bg-chart-1/35" /> частково
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-[4px] bg-foreground/10" /> пропуск
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[4px] ring-1 ring-inset ring-border" /> выходной
+          <span className="size-3 rounded-[4px] ring-1 ring-inset ring-border" /> вихідний
         </span>
       </div>
     </div>

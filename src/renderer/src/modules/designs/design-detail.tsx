@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { ExternalLink, RefreshCw, Replace } from 'lucide-react'
 import { toast } from 'sonner'
-import { DESIGN_KINDS, type Design, type DesignPatch } from '@shared/domain/designs'
+import { DESIGN_KINDS, designInputSchema, type Design, type DesignPatch } from '@shared/domain/designs'
+import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { extractPalette, fileUrl, toFileSources } from '@/lib/files'
@@ -16,6 +17,8 @@ import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddToMoodboard, DesignMedia, KIND_LABEL } from './shared'
 
+const LIMITS = limitsOf(designInputSchema)
+
 function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void }) {
   return (
     <section className="flex flex-col gap-2">
@@ -23,15 +26,15 @@ function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void
         action={
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-label="Пересчитать палитру" onClick={onRecalc}>
+              <Button variant="ghost" size="icon-xs" aria-label="Перерахувати палітру" onClick={onRecalc}>
                 <RefreshCw />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Пересчитать палитру</TooltipContent>
+            <TooltipContent>Перерахувати палітру</TooltipContent>
           </Tooltip>
         }
       >
-        Палитра — клик копирует
+        Палітра — клік копіює
       </SectionLabel>
       <div className="flex flex-wrap gap-1">
         {colors.map((c) => (
@@ -39,14 +42,14 @@ function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void
             key={c}
             variant="ghost"
             className="h-auto flex-col gap-1 rounded-2xl px-1.5 py-1.5"
-            aria-label={`Скопировать ${c}`}
-            onClick={() => void copyText(c, `${c} скопирован`)}
+            aria-label={`Скопіювати ${c}`}
+            onClick={() => void copyText(c, `${c} скопійовано`)}
           >
             <span className="size-10 rounded-xl ring-1 ring-border" style={{ background: c }} />
             <span className="font-mono text-[10.5px] font-normal text-muted-foreground">{c}</span>
           </Button>
         ))}
-        {!colors.length && <span className="text-caption text-muted-foreground">Определяется…</span>}
+        {!colors.length && <span className="text-caption text-muted-foreground">Визначається…</span>}
       </div>
     </section>
   )
@@ -54,12 +57,13 @@ function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void
 
 function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
   const update = useApiMutation('designs', 'update')
-  const remove = useApiMutation('designs', 'remove', { successMessage: 'Дизайн в корзине' })
-  const replace = useApiMutation('designs', 'replaceImage', { successMessage: 'Картинка заменена' })
+  const remove = useApiMutation('designs', 'remove', { successMessage: 'Дизайн переміщено в кошик' })
+  const replace = useApiMutation('designs', 'replaceImage', { successMessage: 'Картинку замінено' })
   const save = (patch: DesignPatch): void => update.mutate({ id: design.id, patch })
   const [title, setTitle] = useAutosave(design.title, (title) => save({ title }))
   const [notes, setNotes] = useAutosave(design.notes, (notes) => save({ notes }))
-  const [sourceUrl, setSourceUrl] = useAutosave(design.sourceUrl, (sourceUrl) => save({ sourceUrl }))
+  // An invalid non-empty link is shown with an error and never saved.
+  const [sourceUrl, setSourceUrl] = useAutosave(design.sourceUrl, (sourceUrl) => isLikelyUrl(sourceUrl) && save({ sourceUrl: sourceUrl.trim() }))
   const fileInput = useRef<HTMLInputElement>(null)
   const tried = useRef<string | null>(null)
 
@@ -69,7 +73,7 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
       const colors = await extractPalette(fileUrl(design.imagePath)!)
       if (colors.length) save({ colors })
     } catch {
-      toast.error('Не удалось определить цвета')
+      toast.error('Не вдалося визначити кольори')
     }
   }
 
@@ -123,10 +127,10 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
             className="absolute right-3 bottom-3 bg-card opacity-0 shadow-sm group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
             onClick={() => fileInput.current?.click()}
           >
-            <Replace /> Заменить
+            <Replace /> Замінити
           </Button>
         </Card>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Название или сайт" />
+        <InlineTitle value={title} onChange={setTitle} placeholder="Назва або сайт" maxLength={LIMITS.title} />
         <Field label="Тип">
           <FilterChips
             options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
@@ -134,23 +138,32 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }) {
             onChange={(kind) => kind && save({ kind })}
           />
         </Field>
-        <Field label="Оригинал">
+        <Field label="Оригінал" error={isLikelyUrl(sourceUrl) ? undefined : URL_ERROR}>
           <div className="flex gap-1.5">
-            <Input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://…" />
+            <Input
+              type="url"
+              inputMode="url"
+              spellCheck={false}
+              value={sourceUrl}
+              maxLength={LIMITS.sourceUrl}
+              aria-invalid={!isLikelyUrl(sourceUrl) || undefined}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://…"
+            />
             {/^https?:\/\//i.test(sourceUrl) && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="soft" size="icon" aria-label="Открыть оригинал" onClick={() => api.app.openExternal(sourceUrl)}>
+                  <Button variant="soft" size="icon" aria-label="Відкрити оригінал" onClick={() => api.app.openExternal(sourceUrl)}>
                     <ExternalLink />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Открыть оригинал</TooltipContent>
+                <TooltipContent>Відкрити оригінал</TooltipContent>
               </Tooltip>
             )}
           </div>
         </Field>
-        <Field label="Заметки — что понравилось, что взять">
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24" />
+        <Field label="Нотатки — що сподобалося, що взяти" count={{ length: notes.length, max: LIMITS.notes }}>
+          <Textarea value={notes} maxLength={LIMITS.notes} onChange={(e) => setNotes(e.target.value)} className="min-h-24" />
         </Field>
       </div>
     </DetailPane>

@@ -41,7 +41,7 @@ export function ImportDialog({ scan, onClose }: { scan: ScanResult | null; onClo
     }
     setBusy(false)
     invalidateAll()
-    if (added) toast.success(`Добавлено проектов: ${added}`)
+    if (added) toast.success(`Додано проєктів: ${added}`)
     setPicked(new Set())
     onClose()
   }
@@ -58,13 +58,13 @@ export function ImportDialog({ scan, onClose }: { scan: ScanResult | null; onClo
     >
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Импорт проектов</DialogTitle>
+          <DialogTitle>Імпорт проєктів</DialogTitle>
           <DialogDescription className="truncate" title={scan?.root}>
             {scan?.root}
           </DialogDescription>
         </DialogHeader>
         {items.length === 0 ? (
-          <EmptyState title="Новых проектов не найдено" hint="Ищем папки с package.json или .git — сама папка и один уровень вложенности." className="py-8" />
+          <EmptyState title="Нових проєктів не знайдено" hint="Шукаємо папки з package.json або .git — сама папка й один рівень вкладеності." className="py-8" />
         ) : (
           <>
             <div className="flex justify-end">
@@ -73,7 +73,7 @@ export function ImportDialog({ scan, onClose }: { scan: ScanResult | null; onClo
                 size="xs"
                 onClick={() => setPicked(picked.size === items.length ? new Set() : new Set(items.map((i) => i.path)))}
               >
-                {picked.size === items.length ? 'Снять все' : 'Выбрать все'}
+                {picked.size === items.length ? 'Зняти всі' : 'Вибрати всі'}
               </Button>
             </div>
             <ItemGroup className="max-h-[50vh] gap-1 overflow-y-auto">
@@ -97,10 +97,10 @@ export function ImportDialog({ scan, onClose }: { scan: ScanResult | null; onClo
         )}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>
-            Отмена
+            Скасувати
           </Button>
           <Button variant="lime" disabled={!picked.size || busy} onClick={() => void submit()}>
-            Добавить {picked.size || ''}
+            Додати {picked.size || ''}
           </Button>
         </DialogFooter>
       </DialogContent>

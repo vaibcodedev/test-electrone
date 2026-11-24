@@ -18,7 +18,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowLeft, GripVertical, Plus, RotateCcw, Rocket, Trash2 } from 'lucide-react'
-import type { ChecklistItem, ChecklistPatch } from '@shared/domain/checklists'
+import { checklistInputSchema, checklistItemInputSchema, type ChecklistItem, type ChecklistPatch } from '@shared/domain/checklists'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState, SegmentBar } from '@/components/common/page'
@@ -35,7 +36,10 @@ import { SectionLabel } from '@/components/common/master-detail'
 import { cn } from '@/lib/utils'
 import { LaunchDialog } from './launch-dialog'
 
-const NO_SECTION = 'Без раздела'
+const LIMITS = limitsOf(checklistInputSchema)
+const ITEM_LIMITS = limitsOf(checklistItemInputSchema)
+
+const NO_SECTION = 'Без розділу'
 
 /** Groups items by section, keeping the order in which sections first appear. */
 function groupBySection(items: ChecklistItem[]): [string, ChecklistItem[]][] {
@@ -83,7 +87,7 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
         {...attributes}
         {...listeners}
         className="mt-0.5 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100 active:cursor-grabbing"
-        aria-label="Перетащить"
+        aria-label="Перетягнути"
       >
         <GripVertical />
       </Button>
@@ -103,6 +107,7 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
             <Input
               autoFocus
               value={text}
+              maxLength={ITEM_LIMITS.text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') save()
@@ -115,7 +120,8 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
             />
             <Input
               value={hint}
-              placeholder="Подсказка (необязательно)"
+              maxLength={ITEM_LIMITS.hint}
+              placeholder="Підказка (необовʼязково)"
               onChange={(e) => setHint(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && save()}
               onBlur={(e) => {
@@ -129,12 +135,12 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
             variant="ghost"
             onClick={() => setEditing(true)}
             className="h-auto w-full flex-col items-start gap-0 rounded-lg p-0 text-left font-normal whitespace-normal hover:bg-transparent"
-            title="Нажмите, чтобы изменить"
+            title="Натисніть, щоб змінити"
           >
             <span
               className={cn(
                 'text-lead leading-snug',
-                item.done && isRun && 'text-muted-foreground line-through'
+                item.done && isRun && 'text-muted-foreground'
               )}
             >
               {item.text}
@@ -148,7 +154,7 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
       <Button
         variant="ghost"
         size="icon-xs"
-        aria-label="Удалить пункт"
+        aria-label="Видалити пункт"
         onClick={() => remove.mutate(item.id)}
         className="mt-0.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
       >
@@ -191,8 +197,9 @@ function AddItem({
       />
       <Input
         value={text}
+        maxLength={ITEM_LIMITS.text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={section === undefined ? 'Новый пункт' : 'Добавить пункт'}
+        placeholder={section === undefined ? 'Новий пункт' : 'Додати пункт'}
         className="min-w-0 flex-1 border-0 bg-transparent px-1 text-body shadow-none focus-visible:bg-transparent focus-visible:ring-0"
       />
       {section === undefined && (
@@ -200,8 +207,9 @@ function AddItem({
           <Input
             list={listId}
             value={newSection}
+            maxLength={ITEM_LIMITS.section}
             onChange={(e) => setNewSection(e.target.value)}
-            placeholder="Раздел"
+            placeholder="Розділ"
             className="w-48 bg-card"
           />
           <datalist id={listId}>
@@ -210,7 +218,7 @@ function AddItem({
             ))}
           </datalist>
           <Button type="submit" variant="lime" size="sm" disabled={!text.trim()}>
-            Добавить
+            Додати
           </Button>
         </>
       )}
@@ -225,9 +233,9 @@ export function ChecklistPage() {
   const update = useApiMutation('checklists', 'update')
   const reorder = useApiMutation('checklists', 'reorderItems')
   const updateItem = useApiMutation('checklists', 'updateItem')
-  const reset = useApiMutation('checklists', 'reset', { successMessage: 'Отметки сняты' })
+  const reset = useApiMutation('checklists', 'reset', { successMessage: 'Позначки знято' })
   const remove = useApiMutation('checklists', 'remove', {
-    successMessage: 'Чек-лист в корзине',
+    successMessage: 'Чек-лист переміщено в кошик',
     onSuccess: () => navigate(data?.kind === 'run' ? '/checklists?tab=runs' : '/checklists')
   })
   const [launchOpen, setLaunchOpen] = useState(false)
@@ -253,9 +261,9 @@ export function ChecklistPage() {
   if (!data) {
     return (
       <EmptyState
-        title="Чек-лист не найден"
-        hint="Возможно, он в корзине."
-        action={<Button onClick={() => navigate('/checklists')}>К чек-листам</Button>}
+        title="Чек-лист не знайдено"
+        hint="Можливо, він у кошику."
+        action={<Button onClick={() => navigate('/checklists')}>До чек-листів</Button>}
       />
     )
   }
@@ -288,40 +296,40 @@ export function ChecklistPage() {
           to={isRun ? '/checklists?tab=runs' : '/checklists'}
           className="mb-4 flex w-fit items-center gap-1 text-caption text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" /> {isRun ? 'Прогоны' : 'Шаблоны'}
+          <ArrowLeft className="size-3.5" /> {isRun ? 'Прогони' : 'Шаблони'}
         </Link>
 
         <div className="flex items-start gap-4">
           <div className="min-w-0 flex-1">
             <Badge variant={isRun ? 'ink' : 'soft'} className="mb-2">
-              {isRun ? 'Прогон' : 'Шаблон'}
+              {isRun ? 'Прогін' : 'Шаблон'}
             </Badge>
-            <InlineTitle value={title} onChange={setTitle} className="text-[38px]" />
+            <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="text-[38px]" />
           </div>
           <div className="flex shrink-0 items-center gap-2 pt-7">
             {isRun ? (
               <Confirm
-                title="Снять все отметки?"
-                description="Все пункты снова станут невыполненными."
-                confirmLabel="Сбросить"
+                title="Зняти всі позначки?"
+                description="Усі пункти знову стануть невиконаними."
+                confirmLabel="Скинути"
                 onConfirm={() => reset.mutate(id)}
               >
                 <Button variant="soft">
-                  <RotateCcw /> Сбросить
+                  <RotateCcw /> Скинути
                 </Button>
               </Confirm>
             ) : (
               <Button variant="lime" onClick={() => setLaunchOpen(true)}>
-                <Rocket /> Запустить прогон
+                <Rocket /> Запустити прогін
               </Button>
             )}
             <PinButtons entity={{ type: 'checklist', id }} />
             <Confirm
-              title="Удалить чек-лист?"
-              description="Он уйдёт в корзину на 30 дней."
+              title="Видалити чек-лист?"
+              description="Він піде в кошик на 30 днів."
               onConfirm={() => remove.mutate(id)}
             >
-              <Button variant="ghost" size="icon-sm" aria-label="В корзину">
+              <Button variant="ghost" size="icon-sm" aria-label="У кошик">
                 <Trash2 />
               </Button>
             </Confirm>
@@ -358,7 +366,7 @@ export function ChecklistPage() {
           <MarkdownField
             value={description}
             onChange={setDescription}
-            placeholder="Когда и зачем использовать этот чек-лист"
+            placeholder="Коли й навіщо використовувати цей чек-лист"
             minHeight="100px"
           />
         </div>
@@ -411,7 +419,7 @@ export function ChecklistPage() {
             <section className="flex flex-col gap-1">
               <SectionLabel>Шаблон</SectionLabel>
               <Button variant="link" size="sm" asChild className="w-fit">
-                <Link to={`/checklists/${data.templateId}`}>Открыть исходный шаблон</Link>
+                <Link to={`/checklists/${data.templateId}`}>Відкрити вихідний шаблон</Link>
               </Button>
             </section>
           )}

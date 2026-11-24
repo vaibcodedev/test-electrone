@@ -6,7 +6,7 @@ import type { DbContext } from '../db/client'
 import { entityTags } from '../db/schema'
 import type { TagService } from '../services/tag-service'
 import type { SearchIndex } from '../services/search-index'
-import type { AnyRow, EntityDescriptor } from './registry'
+import { isDraft, type AnyRow, type EntityDescriptor } from './registry'
 import { defined, likePattern, newId, now, NotFoundError } from './util'
 
 export interface RepositoryDeps {
@@ -118,6 +118,31 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
 
   insert(values: Omit<TRow, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'> & { id?: string }, tagIds?: string[]): TEntity {
     const ts = now()
+    // «+ Створити» while an untouched empty draft of this type exists → reuse it instead of piling up drafts.
+    if (!tagIds?.length && this.descriptor.draft) {
+      const candidate = { ...values, id: '', createdAt: ts, updatedAt: ts, deletedAt: null } as unknown as AnyRow
+      if (isDraft(this.descriptor, candidate)) {
+        const existing = (
+          this.db
+            .select()
+            .from(this.table)
+            .where(and(isNull(this.table.deletedAt), eq(this.table.createdAt, this.table.updatedAt)))
+            .orderBy(desc(this.table.createdAt))
+            .limit(50)
+            .all() as TRow[]
+        ).find((r) => isDraft(this.descriptor, r))
+        if (existing) {
+          const reused = this.db
+            .update(this.table)
+            .set({ ...values, id: undefined, createdAt: ts, updatedAt: ts })
+            .where(eq(this.table.id, existing.id))
+            .returning()
+            .get() as TRow
+          this.deps.search.indexRow(this.type, reused)
+          return this.hydrate([reused])[0]
+        }
+      }
+    }
     const row = this.deps.ctx.tx(() => {
       const inserted = this.db
         .insert(this.table)

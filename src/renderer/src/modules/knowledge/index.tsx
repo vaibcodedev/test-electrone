@@ -16,12 +16,12 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
 import { cn } from '@/lib/utils'
 
 const SECTIONS: { type: EntityType; label: string; path: string; forms: [string, string, string] }[] = [
-  { type: 'note', label: 'Заметки', path: '/notes', forms: ['заметка', 'заметки', 'заметок'] },
-  { type: 'claude', label: 'Claude', path: '/claude', forms: ['запись', 'записи', 'записей'] },
-  { type: 'snippet', label: 'Сниппеты', path: '/snippets', forms: ['сниппет', 'сниппета', 'сниппетов'] },
-  { type: 'component', label: 'Компоненты', path: '/components', forms: ['компонент', 'компонента', 'компонентов'] },
-  { type: 'library', label: 'JS-библиотеки', path: '/libraries', forms: ['библиотека', 'библиотеки', 'библиотек'] },
-  { type: 'fix', label: 'Ошибки и решения', path: '/fixes', forms: ['ошибка', 'ошибки', 'ошибок'] }
+  { type: 'note', label: 'Нотатки', path: '/notes', forms: ['нотатка', 'нотатки', 'нотаток'] },
+  { type: 'claude', label: 'Claude', path: '/claude', forms: ['запис', 'записи', 'записів'] },
+  { type: 'snippet', label: 'Сніпети', path: '/snippets', forms: ['сніпет', 'сніпети', 'сніпетів'] },
+  { type: 'component', label: 'Компоненти', path: '/components', forms: ['компонент', 'компоненти', 'компонентів'] },
+  { type: 'library', label: 'JS-бібліотеки', path: '/libraries', forms: ['бібліотека', 'бібліотеки', 'бібліотек'] },
+  { type: 'fix', label: 'Помилки й рішення', path: '/fixes', forms: ['помилка', 'помилки', 'помилок'] }
 ]
 
 const KNOWLEDGE_TYPES = new Set<EntityType>(SECTIONS.map((s) => s.type))
@@ -108,7 +108,7 @@ function MostCopied() {
     [snippets, prompts]
   )
   return (
-    <ListCard title="Часто копирую" className="col-span-6">
+    <ListCard title="Часто копіюю" className="col-span-6">
       {top.length ? (
         <ItemGroup className="gap-1.5">
           {top.map((x) => {
@@ -123,14 +123,14 @@ function MostCopied() {
                     </Button>
                   </ItemTitle>
                   <ItemDescription className="text-meta">
-                    {x.sub} · {x.count} {plural(x.count, ['раз', 'раза', 'раз'])}
+                    {x.sub} · {x.count} {plural(x.count, ['раз', 'рази', 'разів'])}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Скопировать"
+                    aria-label="Скопіювати"
                     onClick={async () => {
                       await copyText(x.text)
                       if (x.type === 'snippet') markSnippet.mutate(x.id)
@@ -145,7 +145,7 @@ function MostCopied() {
           })}
         </ItemGroup>
       ) : (
-        <Empty>Копируйте сниппеты и промты кнопкой — самые нужные соберутся здесь.</Empty>
+        <Empty>Копіюйте сніпети й промти кнопкою — найпотрібніші зберуться тут.</Empty>
       )}
     </ListCard>
   )
@@ -164,14 +164,14 @@ export function KnowledgeOverviewPage() {
   return (
     <Page>
       <PageHeader
-        title="Знания"
-        subtitle={`${total} ${plural(total, ['запись', 'записи', 'записей'])} — заметки, промты, код и решения в одном месте.`}
+        title="Знання"
+        subtitle={`${total} ${plural(total, ['запис', 'записи', 'записів'])} — нотатки, промти, код і рішення в одному місці.`}
       />
       <PageBody>
         <div className="flex flex-col gap-3">
           <SectionCards counts={counts} />
           <div className="stagger grid grid-cols-12 gap-3">
-            <ListCard title="Недавнее" className="col-span-6">
+            <ListCard title="Нещодавнє" className="col-span-6">
               {recent.length ? (
                 <div className="-mx-2.5 flex flex-col">
                   {recent.map((r) => (
@@ -183,12 +183,12 @@ export function KnowledgeOverviewPage() {
                   ))}
                 </div>
               ) : (
-                <Empty>Здесь появятся последние изменённые записи из всех разделов знаний.</Empty>
+                <Empty>Тут зʼявляться останні змінені записи з усіх розділів знань.</Empty>
               )}
             </ListCard>
             <MostCopied />
             <ListCard
-              title="Нерешённые ошибки"
+              title="Невирішені помилки"
               className="col-span-6"
               action={
                 openFixes.length > 0 && (
@@ -208,15 +208,15 @@ export function KnowledgeOverviewPage() {
                   ))}
                 </div>
               ) : (
-                <Empty>Всё решено. Отмечайте «Ещё не решено», чтобы вернуться к проблеме позже.</Empty>
+                <Empty>Усе вирішено. Позначайте «Ще не вирішено», щоб повернутися до проблеми пізніше.</Empty>
               )}
             </ListCard>
             <ListCard
-              title="Хочу попробовать"
+              title="Хочу спробувати"
               className="col-span-6"
               action={
                 <Button variant="subtle" size="xs" onClick={() => navigate('/libraries')}>
-                  Все библиотеки
+                  Усі бібліотеки
                 </Button>
               }
             >
@@ -237,7 +237,7 @@ export function KnowledgeOverviewPage() {
                   ))}
                 </div>
               ) : (
-                <Empty>Отметьте библиотеку статусом «Хочу попробовать» — список соберётся здесь.</Empty>
+                <Empty>Позначте бібліотеку статусом «Хочу спробувати» — список збереться тут.</Empty>
               )}
             </ListCard>
           </div>

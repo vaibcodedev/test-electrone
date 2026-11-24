@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { PRIORITY_DOT } from './labels'
 import { isOverdue } from './use-card-param'
 
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 
 /** Month grid of this board's cards by due date. */
 export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenCard: (id: string) => void }) {
@@ -42,16 +42,16 @@ export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenC
     <div className="flex h-full min-h-0 flex-col px-8 pb-6">
       <div className="mb-3 flex items-center gap-2">
         <h2 className="font-display min-w-48 text-stat-sm capitalize">{format(month, 'LLLL yyyy', { locale: LOCALE })}</h2>
-        <Button variant="soft" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Предыдущий месяц">
+        <Button variant="soft" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Попередній місяць">
           <ChevronLeft />
         </Button>
-        <Button variant="soft" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Следующий месяц">
+        <Button variant="soft" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Наступний місяць">
           <ChevronRight />
         </Button>
         <Button variant="ghost" size="sm" onClick={() => setMonth(startOfMonth(new Date()))}>
-          Сегодня
+          Сьогодні
         </Button>
-        {noDate && <span className="ml-auto text-caption text-muted-foreground">В этом месяце нет карточек с дедлайном</span>}
+        {noDate && <span className="ml-auto text-caption text-muted-foreground">Цього місяця немає карток із дедлайном</span>}
       </div>
       <div className="grid grid-cols-7 gap-1.5 pb-1.5">
         {WEEKDAYS.map((d) => (

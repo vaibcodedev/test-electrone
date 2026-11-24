@@ -40,7 +40,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
           </AvatarFallback>
         </Avatar>
         <span className="text-caption text-muted-foreground tabular-nums">
-          {item.total} {plural(item.total, ['пункт', 'пункта', 'пунктов'])}
+          {item.total} {plural(item.total, ['пункт', 'пункти', 'пунктів'])}
         </span>
       </div>
       <div>
@@ -60,7 +60,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
             onLaunch()
           }}
         >
-          <Rocket /> Запустить
+          <Rocket /> Запустити
         </Button>
       </div>
     </Card>
@@ -81,7 +81,7 @@ function RunCard({ item }: { item: Checklist }) {
       <button type="button" onClick={() => navigate(`/checklists/${item.id}`)}>
         <div className="flex items-start justify-between gap-3">
           <span className={cn('text-caption', complete ? 'opacity-70' : 'text-ink-muted')}>
-            {complete ? 'Готово' : 'В процессе'} · {fmtRelative(item.updatedAt)}
+            {complete ? 'Готово' : 'У процесі'} · {fmtRelative(item.updatedAt)}
           </span>
           <ArrowUpRight className="size-4 opacity-60 transition-transform group-hover:rotate-45" />
         </div>
@@ -127,12 +127,12 @@ export function ChecklistsPage() {
   return (
     <Page>
       <PageHeader
-        title="Чек-листы"
-        subtitle="Шаблоны для повторяющихся процессов: запуск магазина, деплой, SEO. Каждый запуск — отдельный прогон с галочками."
+        title="Чек-листи"
+        subtitle="Шаблони для повторюваних процесів: запуск магазину, деплой, SEO. Кожен запуск — окремий прогін із галочками."
         actions={
           <Button
             variant="lime"
-            onClick={() => create.mutate({ title: 'Новый чек-лист', kind: 'template' })}
+            onClick={() => create.mutate({ title: 'Новий чек-лист', kind: 'template' })}
           >
             <Plus /> Шаблон
           </Button>
@@ -141,8 +141,8 @@ export function ChecklistsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <FilterChips<Tab>
             options={[
-              { value: 'template', label: 'Шаблоны', count: templates },
-              { value: 'run', label: 'Прогоны', count: runs }
+              { value: 'template', label: 'Шаблони', count: templates },
+              { value: 'run', label: 'Прогони', count: runs }
             ]}
             value={tab}
             onChange={(v) => setParams(v === 'run' ? { tab: 'runs' } : {}, { replace: true })}
@@ -155,11 +155,11 @@ export function ChecklistsPage() {
         {list.length === 0 ? (
           <EmptyState
             icon={ListChecks}
-            title={tab === 'template' ? 'Шаблонов нет' : 'Прогонов пока нет'}
+            title={tab === 'template' ? 'Шаблонів немає' : 'Прогонів поки немає'}
             hint={
               tab === 'template'
-                ? 'Создайте шаблон — список шагов, который вы повторяете от проекта к проекту.'
-                : 'Откройте шаблон и нажмите «Запустить» — появится прогон, в котором можно ставить галочки.'
+                ? 'Створіть шаблон — список кроків, який ви повторюєте від проєкту до проєкту.'
+                : 'Відкрийте шаблон і натисніть «Запустити» — зʼявиться прогін, у якому можна ставити галочки.'
             }
           />
         ) : tab === 'template' ? (

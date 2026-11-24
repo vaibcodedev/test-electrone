@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { ArrowUpRight, Briefcase, Plus, UserRound } from 'lucide-react'
+import { ArrowUpRight, Briefcase, CalendarDays, Plus, UserRound } from 'lucide-react'
 import {
   PROJECT_STATUSES,
   type ClientSummary,
@@ -17,22 +17,16 @@ import {
   PageHeader,
   SearchInput
 } from '@/components/common/page'
-import { TagList } from '@/components/common/tags'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { cn } from '@/lib/utils'
-import {
-  BILLING_LABEL,
-  CLIENT_STATUS_LABEL,
-  PROJECT_STATUS_BADGE,
-  PROJECT_STATUS_LABEL
-} from './labels'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { BILLING_LABEL, CLIENT_STATUS_LABEL, PROJECT_STATUS_LABEL } from './labels'
 import { Meter, StatTile } from './parts'
 import { moneyMap } from './money'
 import { ClientDialog, ProjectDialog } from './dialogs'
-import { AvoidBadge, NetPaid, PlatformBadge, usePlatforms } from './platform-fields'
+import { AvoidBadge, PlatformBadge, usePlatforms } from './platform-fields'
 
 type Tab = 'clients' | 'projects'
 
@@ -47,31 +41,31 @@ function Overview() {
     <div className="stagger grid grid-cols-4 gap-3">
       <StatTile
         tone="ink"
-        label="Оплачено в этом месяце"
+        label="Оплачено цього місяця"
         value={<span className="text-[24px]">{moneyMap(data.paidThisMonth)}</span>}
       />
       <StatTile
-        label="Ожидается к оплате"
+        label="Очікується до оплати"
         value={<span className="text-[24px]">{moneyMap(data.outstanding)}</span>}
         hint={
           data.overduePayments
-            ? `${data.overduePayments} ${plural(data.overduePayments, ['просрочена', 'просрочены', 'просрочено'])}`
-            : 'Просрочек нет'
+            ? `${data.overduePayments} ${plural(data.overduePayments, ['прострочена', 'прострочені', 'прострочено'])}`
+            : 'Прострочок немає'
         }
       />
       <StatTile
-        label="Проекты в работе"
+        label="Проєкти в роботі"
         value={data.activeProjects}
         hint={plural(data.activeProjects, [
-          'активный проект',
-          'активных проекта',
-          'активных проектов'
+          'активний проєкт',
+          'активні проєкти',
+          'активних проєктів'
         ])}
       />
       <StatTile
-        label="Учёт времени за месяц"
+        label="Облік часу за місяць"
         value={fmtHours(data.monthMinutes)}
-        hint={`${fmtMinutes(data.weekMinutes)} на этой неделе`}
+        hint={`${fmtMinutes(data.weekMinutes)} цього тижня`}
       />
     </div>
   )
@@ -110,12 +104,12 @@ function ClientCard({ client }: { client: ClientSummary }) {
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted-foreground">
             <span>
               {client.activeProjectCount}/{client.projectCount}{' '}
-              {plural(client.projectCount, ['проект', 'проекта', 'проектов'])}
+              {plural(client.projectCount, ['проєкт', 'проєкти', 'проєктів'])}
             </span>
             <span className="text-foreground">{fmtMoney(client.paidTotal, client.currency)}</span>
             {client.outstandingTotal > 0 && (
               <span className="text-warn">
-                ждём {fmtMoney(client.outstandingTotal, client.currency)}
+                чекаємо {fmtMoney(client.outstandingTotal, client.currency)}
               </span>
             )}
             {client.defaultBilling === 'hourly' && <span>{fmtHours(client.trackedMinutes)}</span>}
@@ -126,49 +120,79 @@ function ClientCard({ client }: { client: ClientSummary }) {
   )
 }
 
-/** The progress metric that matters for each billing type. */
-function BillingProgress({ project: p }: { project: ProjectSummary }) {
-  if (p.billing === 'hourly') {
-    return (
-      <>
-        <div className="flex justify-between text-caption">
-          <span>{fmtHours(p.trackedMinutes)}</span>
-          {p.budgetHours > 0 && <span className="text-muted-foreground">из {p.budgetHours} ч</span>}
-        </div>
-        {p.budgetHours > 0 && (
-          <Meter value={p.trackedMinutes / 60} max={p.budgetHours} className="mt-1.5" />
-        )}
-      </>
-    )
-  }
+const STATUS_DOT: Record<ProjectSummary['status'], string> = {
+  lead: 'bg-info',
+  active: 'bg-chart-1',
+  paused: 'bg-warn',
+  done: 'bg-muted-foreground/60',
+  cancelled: 'bg-destructive/70'
+}
+
+/** Middle zone: one money/time line, a thin bar under it, and «чекаємо» only when something is owed. */
+function ProjectMoney({ p }: { p: ProjectSummary }) {
+  const m = (v: number): string => fmtMoney(v, p.currency)
+  let line: ReactNode
+  let bar: ReactNode = null
   if (p.billing === 'fixed') {
-    return (
+    line = (
       <>
-        <div className="flex justify-between text-caption">
-          <span>
-            оплачено {p.fixedPrice ? Math.round((p.paidAmount / p.fixedPrice) * 100) : 0}%
-          </span>
-          <span className="text-muted-foreground">{fmtMoney(p.fixedPrice, p.currency)}</span>
-        </div>
-        {p.fixedPrice > 0 && <Meter value={p.paidAmount} max={p.fixedPrice} className="mt-1.5" />}
+        {m(p.paidAmount)} <span className="text-muted-foreground">з {m(p.fixedPrice)}</span>
       </>
     )
-  }
-  if (p.billing === 'retainer') {
-    return (
-      <div className="text-caption">
-        {fmtMoney(p.fixedPrice, p.currency)} <span className="text-muted-foreground">/ мес</span>
-        <div className="text-muted-foreground">
-          {p.retainerMonths} {plural(p.retainerMonths, ['месяц', 'месяца', 'месяцев'])}
-        </div>
-      </div>
+    if (p.fixedPrice > 0) bar = <Meter value={p.paidAmount} max={p.fixedPrice} className="mt-1.5" />
+  } else if (p.billing === 'hourly') {
+    line = (
+      <>
+        {fmtHours(p.trackedMinutes)}
+        {p.budgetHours > 0 && <span className="text-muted-foreground"> з {p.budgetHours} год</span>}
+      </>
     )
+    if (p.budgetHours > 0)
+      bar = <Meter value={p.trackedMinutes / 60} max={p.budgetHours} className="mt-1.5" />
+  } else if (p.billing === 'retainer') {
+    line = (
+      <>
+        {m(p.fixedPrice)}{' '}
+        <span className="text-muted-foreground">
+          / міс · {p.retainerMonths} {plural(p.retainerMonths, ['місяць', 'місяці', 'місяців'])}
+        </span>
+      </>
+    )
+  } else {
+    line = <span className="text-muted-foreground">{fmtHours(p.trackedMinutes)} враховано</span>
   }
+  const money = <div className="truncate text-body tabular-nums">{line}</div>
   return (
-    <div className="text-caption text-muted-foreground">{fmtHours(p.trackedMinutes)} учтено</div>
+    <div className="min-w-0">
+      {p.billing !== 'none' && p.effectiveFeePercent > 0 ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{money}</TooltipTrigger>
+          <TooltipContent>
+            На руки після комісії {p.effectiveFeePercent}%: {m(p.netPaidAmount)}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        money
+      )}
+      {bar}
+      {p.billing === 'fixed' && p.fixedPrice > 0 && p.paidAmount > p.fixedPrice ? (
+        <div className="mt-1 text-caption text-warn">
+          переплата {m(p.paidAmount - p.fixedPrice)}
+        </div>
+      ) : (
+        p.billing !== 'none' &&
+        p.outstandingAmount > 0 && (
+          <div className="mt-1 text-caption text-warn">чекаємо {m(p.outstandingAmount)}</div>
+        )
+      )}
+    </div>
   )
 }
 
+/**
+ * Project row in three calm zones: title + status dot and a muted «клієнт · оплата · платформа» line;
+ * one money line with a thin bar; deadline on the right (warn ≤3 days, destructive when overdue).
+ */
 export function ProjectRow({
   project,
   showClient = true
@@ -177,60 +201,61 @@ export function ProjectRow({
   showClient?: boolean
 }) {
   const navigate = useNavigate()
+  const platforms = usePlatforms()
   const [today] = useState(() => Date.now())
-  const overdue = project.dueAt !== null && project.dueAt < today && project.status === 'active'
-  const paid = project.billing !== 'none'
+  const platform = project.platformId ? platforms.find((x) => x.id === project.platformId) : null
+  const platformName = project.platformName ?? platform?.name
+  const daysLeft = project.dueAt !== null ? Math.ceil((project.dueAt - today) / 86_400_000) : null
+  const live = project.status === 'active' || project.status === 'lead'
+  const overdue = live && daysLeft !== null && daysLeft < 0
+  const soon = live && daysLeft !== null && daysLeft >= 0 && daysLeft <= 3
   return (
     <Item asChild variant="muted" size="sm">
       <button
         type="button"
         onClick={() => navigate(`/projects/${project.id}`)}
-        className="grid w-full grid-cols-[minmax(0,2.2fr)_minmax(0,1.3fr)_minmax(0,1.6fr)_100px] items-center gap-5 px-5 py-3.5 text-left"
+        className="grid min-h-[76px] w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_120px] items-center gap-6 px-5 py-4 text-left transition-colors hover:bg-accent"
       >
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-lead font-medium">{project.title}</span>
-            <Badge variant={PROJECT_STATUS_BADGE[project.status]}>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="truncate text-body font-semibold">{project.title}</span>
+            <span className="flex shrink-0 items-center gap-1.5 text-caption text-muted-foreground">
+              <span className={cn('size-1.5 rounded-full', STATUS_DOT[project.status])} />
               {PROJECT_STATUS_LABEL[project.status]}
-            </Badge>
-            <PlatformBadge platformId={project.platformId} name={project.platformName} />
+            </span>
           </div>
-          <div className="mt-0.5 truncate text-caption text-muted-foreground">
-            {showClient && `${project.clientName ?? 'Без клиента'} · `}
-            {BILLING_LABEL[project.billing]}
+          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground">
+            <span className="truncate">
+              {showClient && `${project.clientName ?? 'Без клієнта'} · `}
+              {BILLING_LABEL[project.billing]}
+            </span>
+            {platformName && (
+              <span className="flex shrink-0 items-center gap-1.5">
+                ·
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ background: platform?.color ?? 'var(--muted-foreground)' }}
+                />
+                {platformName}
+              </span>
+            )}
           </div>
-          <TagList tags={project.tags} max={3} className="mt-1.5" />
         </div>
-        <div className="min-w-0">
-          <BillingProgress project={project} />
-        </div>
-        <div className="min-w-0 text-caption leading-relaxed">
-          {paid ? (
-            <>
-              <div>
-                <span className="text-muted-foreground">Оплачено </span>
-                {fmtMoney(project.paidAmount, project.currency)}
-              </div>
-              <NetPaid project={project} className="block" />
-              {project.outstandingAmount > 0 ? (
-                <div className="text-warn">
-                  ждём {fmtMoney(project.outstandingAmount, project.currency)}
-                </div>
-              ) : (
-                <div className="text-muted-foreground">долгов нет</div>
-              )}
-            </>
-          ) : (
-            <span className="text-muted-foreground">без оплаты</span>
-          )}
-        </div>
+        <ProjectMoney p={project} />
         <div
           className={cn(
-            'text-right text-caption',
-            overdue ? 'text-destructive' : 'text-muted-foreground'
+            'flex items-center justify-end gap-1.5 text-caption',
+            overdue ? 'text-destructive' : soon ? 'text-warn' : 'text-muted-foreground'
           )}
         >
-          {project.dueAt ? `до ${fmtDay(project.dueAt)}` : '—'}
+          {project.dueAt ? (
+            <>
+              <CalendarDays className="size-3.5" />
+              до {fmtDay(project.dueAt)}
+            </>
+          ) : (
+            '—'
+          )}
         </div>
       </button>
     </Item>
@@ -277,15 +302,15 @@ export function ClientsPage() {
   return (
     <Page>
       <PageHeader
-        title="Клиенты и проекты"
-        subtitle="Контакты, доступы, оплаты — фикс, абонемент или почасово."
+        title="Клієнти й контракти"
+        subtitle="Контакти, доступи, оплати — фіксована ціна, ретейнер чи погодинно."
         actions={
           <>
             <Button variant="soft" onClick={() => setClientOpen(true)}>
-              <UserRound /> Клиент
+              <UserRound /> Клієнт
             </Button>
             <Button variant="lime" onClick={() => setProjectOpen(true)}>
-              <Plus /> Проект
+              <Plus /> Проєкт
             </Button>
           </>
         }
@@ -294,10 +319,10 @@ export function ClientsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <FilterChips<Tab>
             options={[
-              { value: 'clients', label: 'Клиенты', count: clients.length },
+              { value: 'clients', label: 'Клієнти', count: clients.length },
               {
                 value: 'projects',
-                label: 'Проекты',
+                label: 'Проєкти',
                 count: tab === 'projects' ? projects.length : undefined
               }
             ]}
@@ -309,15 +334,15 @@ export function ClientsPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder={tab === 'clients' ? 'Найти клиента' : 'Найти проект'}
+            placeholder={tab === 'clients' ? 'Знайти клієнта' : 'Знайти проєкт'}
             className="w-64"
           />
           {platforms.length > 0 && (
             <FilterChips<string>
-              allLabel="Все платформы"
+              allLabel="Усі платформи"
               options={[
                 ...platforms.map((p) => ({ value: p.id, label: p.name })),
-                { value: DIRECT, label: 'Напрямую' }
+                { value: DIRECT, label: 'Напряму' }
               ]}
               value={platformId}
               onChange={setPlatformId}
@@ -325,7 +350,7 @@ export function ClientsPage() {
           )}
           {tab === 'projects' && (
             <FilterChips<ProjectStatus>
-              allLabel="Все статусы"
+              allLabel="Усі статуси"
               options={PROJECT_STATUSES.map((s) => ({ value: s, label: PROJECT_STATUS_LABEL[s] }))}
               value={status}
               onChange={setStatus}
@@ -344,12 +369,12 @@ export function ClientsPage() {
           ) : (
             <EmptyState
               icon={UserRound}
-              title={search ? 'Никого не нашли' : 'Клиентов пока нет'}
-              hint="Добавьте клиента — к нему привяжутся проекты, доступы и оплаты."
+              title={search ? 'Нікого не знайдено' : 'Клієнтів поки немає'}
+              hint="Додайте клієнта — до нього прив’яжуться проєкти, доступи й оплати."
               action={
                 !search && (
                   <Button variant="lime" onClick={() => setClientOpen(true)}>
-                    <Plus /> Добавить клиента
+                    <Plus /> Додати клієнта
                   </Button>
                 )
               }
@@ -364,11 +389,11 @@ export function ClientsPage() {
         ) : (
           <EmptyState
             icon={Briefcase}
-            title={search || status ? 'Проектов не найдено' : 'Проектов пока нет'}
-            hint="Проект хранит оплаты, доступы, ссылки на стенды и учёт времени."
+            title={search || status ? 'Проєктів не знайдено' : 'Проєктів поки немає'}
+            hint="Проєкт зберігає оплати, доступи, посилання на стенди й облік часу."
             action={
               <Button variant="lime" onClick={() => setProjectOpen(true)}>
-                <Plus /> Создать проект
+                <Plus /> Створити проєкт
               </Button>
             }
           />

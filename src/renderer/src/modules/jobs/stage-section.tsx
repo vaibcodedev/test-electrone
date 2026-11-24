@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { CalendarCheck, ChevronDown, Plus, Trash2 } from 'lucide-react'
-import { STAGE_KINDS, STAGE_STATUSES, type Stage, type StageKind, type StagePatch } from '@shared/domain/jobs'
+import { STAGE_KINDS, STAGE_STATUSES, stageInputSchema, type Stage, type StageKind, type StagePatch } from '@shared/domain/jobs'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(stageInputSchema)
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
@@ -40,42 +43,60 @@ function CalendarBadge({ eventId, label }: { eventId: string | null; label: stri
           <CalendarCheck /> {label}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Есть в календаре с напоминаниями за день и за час. Открыть событие</TooltipContent>
+      <TooltipContent>Є в календарі з нагадуваннями за день і за годину. Відкрити подію</TooltipContent>
     </Tooltip>
   )
 }
 
 function StageEditor({ stage }: { stage: Stage }) {
   const update = useApiMutation('jobs', 'updateStage')
-  const remove = useApiMutation('jobs', 'removeStage', { successMessage: 'Этап удалён' })
+  const remove = useApiMutation('jobs', 'removeStage', { successMessage: 'Етап видалено' })
   const patch = (p: StagePatch): void => update.mutate({ id: stage.id, patch: p })
   const [notes, setNotes] = useAutosave(stage.notes, (v) => patch({ notes: v }))
   const isTest = stage.kind === 'test_task'
   return (
     <div className="flex flex-col gap-4 pt-3">
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Тип этапа">
+        <Field label="Тип етапу">
           <Choice value={stage.kind} onChange={(v) => v && patch({ kind: v })} options={KIND_OPTIONS} />
         </Field>
-        <TextField label="Название" value={stage.title} onSave={(title) => patch({ title })} placeholder={STAGE_KIND_LABEL[stage.kind]} />
-        <Field label={isTest ? 'Получил задание' : 'Дата и время'}>
-          <DatePicker withTime value={stage.at} onChange={(at) => patch({ at })} placeholder="Назначить" />
+        <TextField
+          label="Назва"
+          value={stage.title}
+          onSave={(title) => patch({ title })}
+          placeholder={STAGE_KIND_LABEL[stage.kind]}
+          maxLength={LIMITS.title}
+        />
+        <Field label={isTest ? 'Отримав завдання' : 'Дата й час'}>
+          <DatePicker withTime value={stage.at} onChange={(at) => patch({ at })} placeholder="Призначити" />
         </Field>
         {isTest ? (
-          <Field label="Сдать до">
-            <DatePicker withTime value={stage.deadlineAt} onChange={(deadlineAt) => patch({ deadlineAt })} placeholder="Без срока" />
+          <Field label="Здати до">
+            <DatePicker withTime value={stage.deadlineAt} onChange={(deadlineAt) => patch({ deadlineAt })} placeholder="Без терміну" />
           </Field>
         ) : (
-          <Field label="Длительность">
-            <NumberInput value={stage.durationMin} onCommit={(v) => patch({ durationMin: Math.round(v ?? 60) })} suffix="мин" max={1440} />
+          <Field label="Тривалість">
+            <NumberInput value={stage.durationMin} onCommit={(v) => patch({ durationMin: Math.round(v ?? 60) })} suffix="хв" max={1440} />
           </Field>
         )}
-        <Field label={isTest ? 'Ссылка на задание / репозиторий' : 'Ссылка на звонок или адрес'}>
-          <LinkInput value={stage.location} onSave={(location) => patch({ location })} placeholder="https://meet.google.com/…" />
+        <Field label={isTest ? 'Посилання на завдання / репозиторій' : 'Посилання на дзвінок або адреса'}>
+          <LinkInput
+            value={stage.location}
+            onSave={(location) => patch({ location })}
+            placeholder="https://meet.google.com/…"
+            maxLength={LIMITS.location}
+            strict={false}
+          />
         </Field>
-        <TextField label="Кто проводил" value={stage.interviewers} onSave={(interviewers) => patch({ interviewers })} placeholder="Имена, роли" />
+        <TextField
+          label="Хто проводив"
+          value={stage.interviewers}
+          onSave={(interviewers) => patch({ interviewers })}
+          placeholder="Імена, ролі"
+          maxLength={LIMITS.interviewers}
+        />
       </div>
-      <Field label="Итог">
+      <Field label="Підсумок">
         <Segmented
           size="xs"
           value={stage.status}
@@ -83,13 +104,19 @@ function StageEditor({ stage }: { stage: Stage }) {
           options={STAGE_STATUSES.map((s) => ({ value: s, label: STAGE_STATUS_LABEL[s] }))}
         />
       </Field>
-      <Field label="Как прошло, что улучшить">
-        <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Вопросы, реакция, что подтянуть к следующему разу" className="min-h-20" />
+      <Field label="Як пройшло, що покращити" count={{ length: notes.length, max: LIMITS.notes }}>
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Питання, реакція, що підтягнути до наступного разу"
+          className="min-h-20"
+          maxLength={LIMITS.notes}
+        />
       </Field>
       <div className="flex justify-end">
-        <Confirm title="Удалить этап?" description="Связанные события календаря тоже удалятся." onConfirm={() => remove.mutate(stage.id)}>
+        <Confirm title="Видалити етап?" description="Пов’язані події календаря теж буде видалено." onConfirm={() => remove.mutate(stage.id)}>
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
-            <Trash2 /> Удалить этап
+            <Trash2 /> Видалити етап
           </Button>
         </Confirm>
       </div>
@@ -114,7 +141,7 @@ function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-body font-medium">{stage.title || STAGE_KIND_LABEL[stage.kind]}</span>
               <span className="text-caption text-muted-foreground">
-                {stage.kind === 'test_task' ? (stage.deadlineAt ? `сдать ${whenLabel(stage.deadlineAt)}` : 'без срока') : whenLabel(when)}
+                {stage.kind === 'test_task' ? (stage.deadlineAt ? `здати ${whenLabel(stage.deadlineAt)}` : 'без терміну') : whenLabel(when)}
               </span>
             </span>
             <Badge variant={STAGE_STATUS_VARIANT[stage.status]}>{STAGE_STATUS_LABEL[stage.status]}</Badge>
@@ -122,8 +149,8 @@ function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }
           </Button>
         </CollapsibleTrigger>
         <div className="flex flex-wrap gap-1 pl-5">
-          <CalendarBadge eventId={stage.eventId} label="в календаре" />
-          <CalendarBadge eventId={stage.deadlineEventId} label="дедлайн в календаре" />
+          <CalendarBadge eventId={stage.eventId} label="у календарі" />
+          <CalendarBadge eventId={stage.deadlineEventId} label="дедлайн у календарі" />
         </div>
         <CollapsibleContent>
           <StageEditor stage={stage} />
@@ -133,29 +160,70 @@ function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }
   )
 }
 
-function AddStageDialog({ applicationId, open, onOpenChange }: { applicationId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const [kind, setKind] = useState<StageKind>('screening')
+/**
+ * New stage form (also used by the «Запланувати» prompt when a vacancy moves to interview / test task).
+ * The backend mirrors the stage to the calendar.
+ */
+export function AddStageDialog({
+  applicationId,
+  open,
+  onOpenChange,
+  defaultKind = 'screening',
+  title,
+  context,
+  cancelLabel = 'Скасувати'
+}: {
+  applicationId: string
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  defaultKind?: StageKind
+  /** Dialog title; defaults to «Новий етап». */
+  title?: string
+  /** Shown under the title, e.g. «Senior Frontend · Grammarly». */
+  context?: string
+  cancelLabel?: string
+}) {
+  const [kind, setKind] = useState<StageKind>(defaultKind)
   const [at, setAt] = useState<number | null>(() => tomorrowAt(11))
   const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
   const [durationMin, setDurationMin] = useState<number | null>(60)
+  const [notes, setNotes] = useState('')
+
+  // Fresh, prefilled form every time it opens (kind from the status the vacancy moved to).
+  useEffect(() => {
+    if (!open) return
+    setKind(defaultKind)
+    setNotes('')
+    setDurationMin(60)
+    if (defaultKind === 'test_task') {
+      setAt(Date.now())
+      setDeadlineAt(tomorrowAt(18) + 2 * 86_400_000)
+    } else {
+      setAt(tomorrowAt(11))
+      setDeadlineAt(null)
+    }
+  }, [open, defaultKind])
+
   const add = useApiMutation('jobs', 'addStage', {
-    successMessage: 'Этап добавлен — событие уже в календаре',
+    successMessage: 'Етап заплановано — подія вже в календарі',
     onSuccess: () => onOpenChange(false)
   })
   const isTest = kind === 'test_task'
+  const missingDate = isTest ? !deadlineAt : !at
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
-          <DialogTitle>Новый этап</DialogTitle>
+          <DialogTitle>{title ?? 'Новий етап'}</DialogTitle>
           <DialogDescription>
+            {context ? `${context}. ` : ''}
             {isTest
-              ? 'Срок сдачи появится в календаре с напоминанием за день.'
-              : 'Собеседование появится в календаре с напоминаниями за день и за час.'}
+              ? 'Термін здачі з’явиться в календарі з нагадуванням за день.'
+              : 'Співбесіда з’явиться в календарі з нагадуваннями за день і за годину.'}
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <Field label="Что за этап">
+          <Field label="Що за етап">
             <Segmented
               size="xs"
               value={kind}
@@ -170,38 +238,48 @@ function AddStageDialog({ applicationId, open, onOpenChange }: { applicationId: 
             />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label={isTest ? 'Получил задание' : 'Дата и время'}>
+            <Field label={isTest ? 'Отримав завдання' : 'Дата й час'} error={!isTest && !at ? 'Вкажіть дату й час' : undefined}>
               <DatePicker withTime value={at} onChange={setAt} clearable={isTest} />
             </Field>
             {isTest ? (
-              <Field label="Сдать до">
-                <DatePicker withTime value={deadlineAt} onChange={setDeadlineAt} placeholder="Без срока" />
+              <Field label="Здати до" error={!deadlineAt ? 'Вкажіть термін здачі' : undefined}>
+                <DatePicker withTime value={deadlineAt} onChange={setDeadlineAt} placeholder="Без терміну" min={at} />
               </Field>
             ) : (
-              <Field label="Длительность">
-                <NumberInput value={durationMin} onCommit={setDurationMin} suffix="мин" max={1440} />
+              <Field label="Тривалість">
+                <NumberInput value={durationMin} onCommit={setDurationMin} suffix="хв" max={1440} />
               </Field>
             )}
           </div>
+          <Field label="Нотатка (необов’язково)" count={{ length: notes.length, max: LIMITS.notes }}>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={isTest ? 'Що треба зробити, стек, вимоги' : 'Посилання на дзвінок, з ким, що підготувати'}
+              className="min-h-16"
+              maxLength={LIMITS.notes}
+            />
+          </Field>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Отмена
+            {cancelLabel}
           </Button>
           <Button
             variant="lime"
-            disabled={add.isPending || (!isTest && !at)}
+            disabled={add.isPending || missingDate}
             onClick={() =>
               add.mutate({
                 applicationId,
                 kind,
                 at,
                 deadlineAt: isTest ? deadlineAt : null,
-                durationMin: Math.round(durationMin ?? 60)
+                durationMin: Math.round(durationMin ?? 60),
+                notes: notes.trim()
               })
             }
           >
-            Добавить этап
+            Запланувати
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -218,15 +296,15 @@ export function StageSection({ applicationId, stages }: { applicationId: string;
       <SectionLabel
         action={
           <Button variant="soft" size="xs" onClick={() => setAdding(true)}>
-            <Plus /> Этап
+            <Plus /> Етап
           </Button>
         }
       >
-        Этапы
+        Етапи
       </SectionLabel>
       {stages.length === 0 ? (
         <p className="text-caption text-muted-foreground">
-          Скрининг, техническое, тестовое — добавьте этап, и он сразу появится в календаре.
+          Скринінг, технічна, тестове — додайте етап, і він одразу з’явиться в календарі.
         </p>
       ) : (
         <div className="flex flex-col gap-2">

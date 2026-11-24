@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Building2, ExternalLink, Plus, Star } from 'lucide-react'
-import type { Company, CompanyPatch } from '@shared/domain/jobs'
+import { companyInputSchema, type Company, type CompanyPatch } from '@shared/domain/jobs'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(companyInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -35,14 +38,14 @@ function Stars({ value, onChange }: { value: number; onChange: (v: number) => vo
       size="sm"
       value={value ? String(value) : ''}
       onValueChange={(v) => onChange(v ? Number(v) : 0)}
-      aria-label="Моя оценка"
+      aria-label="Моя оцінка"
       className="gap-0.5"
     >
       {[1, 2, 3, 4, 5].map((n) => (
         <ToggleGroupItem
           key={n}
           value={String(n)}
-          aria-label={`${n} из 5`}
+          aria-label={`${n} з 5`}
           className="size-8 min-w-8 px-0 on:bg-transparent"
         >
           <Star className={cn('size-4', n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')} />
@@ -57,9 +60,9 @@ function CompanyApplications({ companyId }: { companyId: string }) {
   const { data: list = [] } = useApi('jobs', 'list', { companyId })
   return (
     <section className="flex flex-col gap-3">
-      <SectionLabel>Вакансии в компании</SectionLabel>
+      <SectionLabel>Вакансії в компанії</SectionLabel>
       {list.length === 0 ? (
-        <p className="text-caption text-muted-foreground">Откликов в эту компанию пока не было.</p>
+        <p className="text-caption text-muted-foreground">Відгуків у цю компанію поки не було.</p>
       ) : (
         <ItemGroup className="gap-1.5">
           {list.map((a) => {
@@ -88,7 +91,7 @@ function CompanyApplications({ companyId }: { companyId: string }) {
 
 function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () => void }) {
   const update = useApiMutation('jobs', 'updateCompany')
-  const remove = useApiMutation('jobs', 'removeCompany', { successMessage: 'Компания в корзине', onSuccess: onClose })
+  const remove = useApiMutation('jobs', 'removeCompany', { successMessage: 'Компанію переміщено в кошик', onSuccess: onClose })
   const { data: questions = [] } = useApi('jobs', 'questions', { companyId: c.id })
   const patch = (p: CompanyPatch): void => update.mutate({ id: c.id, patch: p })
   const [name, setName] = useAutosave(c.name, (v) => v.trim() && patch({ name: v.trim() }))
@@ -110,7 +113,7 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           )}
           {/^https?:\/\//i.test(c.reviewsUrl) && (
             <Button variant="soft" size="sm" onClick={() => open(c.reviewsUrl)}>
-              Отзывы <ExternalLink />
+              Відгуки <ExternalLink />
             </Button>
           )}
         </div>
@@ -123,33 +126,39 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           createdAt={c.createdAt}
           updatedAt={c.updatedAt}
         >
-          <Field label="Моё впечатление">
+          <Field label="Моє враження">
             <Stars value={c.rating} onChange={(rating) => patch({ rating })} />
           </Field>
         </EntityAside>
       }
     >
-      <InlineTitle value={name} onChange={setName} placeholder="Название компании" />
+      <InlineTitle value={name} onChange={setName} placeholder="Назва компанії" maxLength={LIMITS.name} />
       <div className="mt-5 grid grid-cols-2 gap-4">
         <Field label="Сайт">
           <LinkInput value={c.website} onSave={(website) => patch({ website })} />
         </Field>
-        <Field label="Отзывы (DOU, Glassdoor)">
+        <Field label="Відгуки (DOU, Glassdoor)">
           <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="https://jobs.dou.ua/companies/…" />
         </Field>
-        <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="React, Node.js, AWS" className="col-span-2" />
-        <TextField label="Размер" value={c.size} onSave={(size) => patch({ size })} placeholder="50–200 человек" />
-        <TextField label="Где" value={c.location} onSave={(location) => patch({ location })} placeholder="Киев, удалённо" />
+        <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="React, Node.js, AWS" className="col-span-2" maxLength={LIMITS.stack} />
+        <TextField label="Розмір" value={c.size} onSave={(size) => patch({ size })} placeholder="50–200 людей" maxLength={LIMITS.size} />
+        <TextField label="Де" value={c.location} onSave={(location) => patch({ location })} placeholder="Київ, віддалено" maxLength={LIMITS.location} />
       </div>
-      <Field label="Контакты HR и команды" className="mt-4">
-        <Textarea value={contacts} onChange={(e) => setContacts(e.target.value)} placeholder="Имя рекрутера, Telegram, LinkedIn" className="min-h-16" />
+      <Field label="Контакти HR і команди" className="mt-4" count={{ length: contacts.length, max: LIMITS.contacts }}>
+        <Textarea
+          value={contacts}
+          onChange={(e) => setContacts(e.target.value)}
+          placeholder="Ім’я рекрутера, Telegram, LinkedIn"
+          className="min-h-16"
+          maxLength={LIMITS.contacts}
+        />
       </Field>
-      <MarkdownField label="Заметки: процесс, впечатления, что спрашивают" value={notes} onChange={setNotes} className="mt-4" minHeight="120px" />
+      <MarkdownField label="Нотатки: процес, враження, що питають" value={notes} onChange={setNotes} className="mt-4" minHeight="120px" />
 
       <Separator className="my-6" />
       <CompanyApplications companyId={c.id} />
       <Separator className="my-6" />
-      <AskedQuestions questions={questions} companyId={c.id} title="Вопросы, которые здесь задавали" />
+      <AskedQuestions questions={questions} companyId={c.id} title="Питання, які тут ставили" />
     </DetailPane>
   )
 }
@@ -178,10 +187,11 @@ export function CompaniesPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="Новая компания…"
+          placeholder="Нова компанія…"
+          maxLength={LIMITS.name}
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Добавить компанию" disabled={!name.trim()} onClick={submit}>
+          <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Додати компанію" disabled={!name.trim()} onClick={submit}>
             <Plus />
           </InputGroupButton>
         </InputGroupAddon>
@@ -199,10 +209,10 @@ export function CompaniesPage() {
               )}
             </div>
             <div className="mt-0.5 flex gap-2 text-caption opacity-65">
-              <span className="truncate">{c.stack || c.location || 'Без описания'}</span>
+              <span className="truncate">{c.stack || c.location || 'Без опису'}</span>
               {c.applicationCount > 0 && (
                 <span className="ml-auto shrink-0 tabular-nums">
-                  {c.activeCount > 0 ? `${c.activeCount} активн.` : `${c.applicationCount} откл.`}
+                  {c.activeCount > 0 ? `${c.activeCount} активн.` : `${c.applicationCount} відг.`}
                 </span>
               )}
             </div>
@@ -211,8 +221,8 @@ export function CompaniesPage() {
         {!isLoading && list.length === 0 && (
           <EmptyState
             icon={Building2}
-            title={search ? 'Ничего не нашлось' : 'Компаний пока нет'}
-            hint={search ? undefined : 'Карточка компании собирает отзывы, контакты и все собеседования в одном месте.'}
+            title={search ? 'Нічого не знайдено' : 'Компаній поки немає'}
+            hint={search ? undefined : 'Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці.'}
             className="py-8"
           />
         )}
@@ -222,8 +232,8 @@ export function CompaniesPage() {
 
   return (
     <Page>
-      <PageHeader title="Компании" subtitle="Отзывы, стек, контакты HR и история откликов по каждой компании.">
-        <SearchInput value={search} onChange={setSearch} placeholder="Название, стек, заметки" className="w-72" />
+      <PageHeader title="Компанії" subtitle="Відгуки, стек, контакти HR та історія відгуків щодо кожної компанії.">
+        <SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" className="w-72" />
       </PageHeader>
       <div className="flex min-h-0 flex-1 px-8 pb-6">
         <MasterDetail

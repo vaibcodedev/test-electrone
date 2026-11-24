@@ -1,15 +1,20 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   CURRENCIES,
   PROJECT_STATUSES,
+  projectInputSchema,
   type BillingType,
   type ProjectPatch,
   type ProjectSummary
 } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
+import { NumberInput } from '@/components/common/number-input'
+import { EditToggle, RecordMode, useReadOnly, useRecordMode } from '@/components/common/detail-mode'
+import { ProjectTermsView } from './client-aside'
+import { isLikelyUrl, limitsOf, rangesOf, URL_ERROR } from '@/lib/limits'
 import { api } from '@/lib/api'
 import { fmtHours, fmtMoney, plural } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -31,130 +36,157 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { cn } from '@/lib/utils'
 import { BILLING_INFO, PROJECT_STATUS_LABEL } from './labels'
-import { BillingPicker, Choice, Meter, Section } from './parts'
-import { amountPatch, numberOrZero } from './money'
+import { BillingPicker, Choice, Meter } from './parts'
+import { amountPatch } from './money'
 import { TimeSection } from './time-section'
 import { PaymentsSection } from './payments-section'
 import { CredentialsSection } from './credentials-section'
 import { FeeField, NetPaid, PlatformBadge, PlatformSelect, usePlatforms } from './platform-fields'
 
-function Money({
-  label,
-  value,
-  tone,
-  hint
-}: {
-  label: string
-  value: ReactNode
-  tone?: 'lime' | 'warn'
-  hint?: ReactNode
-}) {
+/** Stat cell: muted caption label → value (text-stat-sm, tabular, foreground) → optional caption. */
+function Money({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1">
       <span className="text-caption text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          'font-display w-fit text-[28px] leading-tight tabular-nums',
-          tone === 'lime' && 'rounded-xl bg-lime px-2 text-lime-foreground',
-          tone === 'warn' && 'text-warn'
-        )}
-      >
-        {value}
-      </span>
+      <span className="font-display truncate text-stat-sm leading-tight tabular-nums">{value}</span>
       {hint && <span className="text-caption text-muted-foreground">{hint}</span>}
     </div>
   )
 }
 
-/** Money header that speaks the language of the billing type. */
-function MoneyHeader({ p }: { p: ProjectSummary }) {
+/**
+ * Money header in the language of the billing type: four equal stat cells with one type scale, no
+ * highlighted values, and one full-width progress bar under the whole row (docs/design-system.md →
+ * Списки и плитки). «Ставка» says «ще немає годин» instead of a bare dash.
+ */
+function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }) {
   const m = (n: number): string => fmtMoney(n, p.currency)
-  const rate = p.effectiveRate ? `${m(p.effectiveRate)} / ч` : '—'
-  const hours = (
-    <div className="flex flex-col gap-1">
-      <span className="text-caption text-muted-foreground">Часы</span>
-      <span className="font-display text-[28px] leading-tight tabular-nums">
-        {fmtHours(p.trackedMinutes)}
-        {p.budgetHours > 0 && (
-          <span className="text-[16px] text-muted-foreground"> / {p.budgetHours} ч</span>
-        )}
-      </span>
-      {p.budgetHours > 0 && <Meter value={p.trackedMinutes / 60} max={p.budgetHours} />}
-    </div>
+  const rateCell = (
+    <Money
+      label="Фактична ставка"
+      value={
+        p.trackedMinutes > 0 && p.effectiveRate ? (
+          `${m(p.effectiveRate)}/год`
+        ) : (
+          <span className="font-sans text-body text-muted-foreground">ще немає годин</span>
+        )
+      }
+      hint={p.trackedMinutes > 0 ? `за ${fmtHours(p.trackedMinutes)}` : undefined}
+    />
+  )
+  const owed = (
+    <Money
+      label={p.billing === 'fixed' ? 'Залишилося отримати' : 'Очікується'}
+      value={m(p.outstandingAmount)}
+      hint={overdue ? <span className="text-warn">є прострочені оплати</span> : undefined}
+    />
   )
   let cells: ReactNode
+  let bar: ReactNode = null
   switch (p.billing) {
     case 'hourly':
       cells = (
         <>
-          <Money label="Заработано" value={m(p.earnedAmount)} hint={`${m(p.rate)} / ч`} />
-          <Money label="Оплачено" value={m(p.paidAmount)} tone="lime" />
+          <Money label="Зароблено" value={m(p.earnedAmount)} hint={`${m(p.rate)}/год`} />
+          <Money label="Оплачено" value={m(p.paidAmount)} />
+          {owed}
           <Money
-            label="Ожидается"
-            value={m(p.outstandingAmount)}
-            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
+            label="Години"
+            value={fmtHours(p.trackedMinutes)}
+            hint={p.budgetHours > 0 ? `з ${p.budgetHours} год бюджету` : undefined}
           />
-          {hours}
         </>
       )
+      if (p.budgetHours > 0) {
+        const pct = Math.min(100, Math.round((p.trackedMinutes / 60 / p.budgetHours) * 100))
+        bar = (
+          <ProgressLine
+            label={`Відпрацьовано ${fmtHours(p.trackedMinutes)} з ${p.budgetHours} год · ${pct}%`}
+          >
+            <Meter value={p.trackedMinutes / 60} max={p.budgetHours} />
+          </ProgressLine>
+        )
+      }
       break
     case 'fixed':
       cells = (
         <>
-          <Money label="Стоимость проекта" value={m(p.fixedPrice)} />
-          <div className="flex flex-col gap-1">
-            <Money label="Оплачено" value={m(p.paidAmount)} tone="lime" />
-            {p.fixedPrice > 0 && <Meter value={p.paidAmount} max={p.fixedPrice} />}
-          </div>
-          <Money
-            label="Осталось получить"
-            value={m(p.outstandingAmount)}
-            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
-          />
-          <Money
-            label="Фактическая ставка"
-            value={rate}
-            hint={`${fmtHours(p.trackedMinutes)} учтено`}
-          />
+          <Money label="Вартість проєкту" value={m(p.fixedPrice)} />
+          <Money label="Оплачено" value={m(p.paidAmount)} />
+          {owed}
+          {rateCell}
         </>
       )
+      if (p.fixedPrice > 0) {
+        // Old data can be overpaid: the bar and percent stop at 100%, the excess is said in words.
+        const pct = Math.min(100, Math.round((p.paidAmount / p.fixedPrice) * 100))
+        const over = p.paidAmount - p.fixedPrice
+        bar = (
+          <ProgressLine
+            label={`Оплачено ${m(p.paidAmount)} з ${m(p.fixedPrice)} · ${pct}%`}
+            warn={over > 0 ? `переплата ${m(over)}` : undefined}
+          >
+            <Meter value={Math.min(p.paidAmount, p.fixedPrice)} max={p.fixedPrice} />
+          </ProgressLine>
+        )
+      }
       break
     case 'retainer':
       cells = (
         <>
           <Money
-            label="Абонемент"
-            value={m(p.fixedPrice)}
-            hint={`в месяц · ${p.retainerMonths} ${plural(p.retainerMonths, ['месяц', 'месяца', 'месяцев'])}`}
+            label="Ретейнер"
+            value={`${m(p.fixedPrice)}/міс`}
+            hint={`${p.retainerMonths} ${plural(p.retainerMonths, ['місяць', 'місяці', 'місяців'])}`}
           />
-          <Money label="Оплачено" value={m(p.paidAmount)} tone="lime" />
-          <Money
-            label="Ожидается"
-            value={m(p.outstandingAmount)}
-            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
-          />
-          <Money
-            label="Фактическая ставка"
-            value={rate}
-            hint={`${fmtHours(p.trackedMinutes)} учтено`}
-          />
+          <Money label="Оплачено" value={m(p.paidAmount)} />
+          {owed}
+          {rateCell}
         </>
       )
       break
     default:
       cells = (
         <>
-          {hours}
+          <Money label="Години" value={fmtHours(p.trackedMinutes)} />
           <div className="col-span-3 self-center text-body text-muted-foreground">
-            Проект без оплаты — ведётся только учёт времени.
+            Проєкт без оплати — ведеться лише облік часу.
           </div>
         </>
       )
   }
-  return <Card className="mt-6 grid grid-cols-4 gap-6 p-6">{cells}</Card>
+  return (
+    <Card className="mt-6 gap-5 p-6">
+      <div className="grid grid-cols-4 gap-6">{cells}</div>
+      {bar}
+    </Card>
+  )
 }
+
+function ProgressLine({
+  label,
+  warn,
+  children
+}: {
+  label: string
+  warn?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="flex justify-between gap-3 text-caption tabular-nums">
+        <span className="text-muted-foreground">{label}</span>
+        {warn && <span className="text-warn">{warn}</span>}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+const PROJECT_L = limitsOf(projectInputSchema)
+const PROJECT_R = rangesOf(projectInputSchema)
+const URL_MAX = PROJECT_L.prodUrl
 
 const LINK_FIELDS: {
   key: 'repoUrl' | 'stagingUrl' | 'prodUrl' | 'adminUrl'
@@ -163,11 +195,15 @@ const LINK_FIELDS: {
 }[] = [
   { key: 'prodUrl', label: 'Прод', placeholder: 'https://store.com' },
   { key: 'stagingUrl', label: 'Стейджинг', placeholder: 'https://staging…' },
-  { key: 'adminUrl', label: 'Админка', placeholder: 'https://admin.shopify.com/…' },
-  { key: 'repoUrl', label: 'Репозиторий', placeholder: 'https://github.com/…' }
+  { key: 'adminUrl', label: 'Адмінка', placeholder: 'https://admin.shopify.com/…' },
+  { key: 'repoUrl', label: 'Репозиторій', placeholder: 'https://github.com/…' }
 ]
 
-function UrlField({
+/**
+ * Link field that saves on blur. A non-empty value that doesn't look like a link is not saved:
+ * the error stays under the field until it's fixed (docs/design-system.md → Ограничения ввода).
+ */
+export function UrlField({
   label,
   value,
   placeholder,
@@ -178,19 +214,29 @@ function UrlField({
   placeholder: string
   onSave: (v: string) => void
 }) {
+  const [bad, setBad] = useState(false)
   return (
-    <Field label={label}>
+    <Field label={label} error={bad ? URL_ERROR : undefined}>
       <ButtonGroup className="w-full">
         <Input
+          type="url"
           defaultValue={value}
           placeholder={placeholder}
-          onBlur={(e) => e.target.value !== value && onSave(e.target.value.trim())}
+          maxLength={URL_MAX}
+          aria-invalid={bad || undefined}
+          onChange={(e) => bad && setBad(!isLikelyUrl(e.target.value))}
+          onBlur={(e) => {
+            const v = e.target.value.trim()
+            if (!isLikelyUrl(v)) return setBad(true)
+            setBad(false)
+            if (v !== value) onSave(v)
+          }}
         />
         {value && (
           <Button
             variant="soft"
             size="icon"
-            aria-label={`Открыть ${value}`}
+            aria-label={`Відкрити ${value}`}
             onClick={() => api.app.openExternal(value).catch((e: Error) => toast.error(e.message))}
           >
             <ExternalLink />
@@ -202,6 +248,24 @@ function UrlField({
 }
 
 function Terms({ project, patch }: { project: ProjectSummary; patch: (p: ProjectPatch) => void }) {
+  const readOnly = useReadOnly()
+  if (readOnly)
+    return (
+      <section className="flex flex-col gap-3">
+        <SectionLabel>Умови</SectionLabel>
+        <ProjectTermsView project={project} />
+      </section>
+    )
+  return <TermsEditor project={project} patch={patch} />
+}
+
+function TermsEditor({
+  project,
+  patch
+}: {
+  project: ProjectSummary
+  patch: (p: ProjectPatch) => void
+}) {
   const info = BILLING_INFO[project.billing]
   const amount = project.billing === 'hourly' ? project.rate : project.fixedPrice
   const platforms = usePlatforms()
@@ -219,7 +283,7 @@ function Terms({ project, patch }: { project: ProjectSummary; patch: (p: Project
           onChange={(feePercent) => patch({ feePercent })}
         />
       )}
-      <SectionLabel>Условия оплаты</SectionLabel>
+      <SectionLabel>Умови оплати</SectionLabel>
       <BillingPicker
         compact
         value={project.billing}
@@ -228,15 +292,13 @@ function Terms({ project, patch }: { project: ProjectSummary; patch: (p: Project
       <div className="grid grid-cols-2 gap-2">
         {info.amountLabel && (
           <Field label={info.amountLabel} key={`amount-${project.billing}`}>
-            <Input
-              inputMode="decimal"
-              defaultValue={amount || ''}
-              onBlur={(e) =>
-                patch(
-                  project.billing === 'hourly'
-                    ? { rate: numberOrZero(e.target.value) }
-                    : { fixedPrice: numberOrZero(e.target.value) }
-                )
+            <NumberInput
+              value={amount || null}
+              allowEmpty
+              min={0}
+              max={(project.billing === 'hourly' ? PROJECT_R.rate : PROJECT_R.fixedPrice)?.max}
+              onChange={(v) =>
+                patch(project.billing === 'hourly' ? { rate: v ?? 0 } : { fixedPrice: v ?? 0 })
               }
             />
           </Field>
@@ -251,28 +313,30 @@ function Terms({ project, patch }: { project: ProjectSummary; patch: (p: Project
           </Field>
         )}
         {project.billing === 'hourly' && (
-          <Field label="Бюджет, ч">
-            <Input
-              inputMode="decimal"
-              defaultValue={project.budgetHours || ''}
+          <Field label="Бюджет, год">
+            <NumberInput
+              value={project.budgetHours || null}
+              allowEmpty
+              {...PROJECT_R.budgetHours}
+              step={0.5}
               placeholder="—"
-              onBlur={(e) => patch({ budgetHours: numberOrZero(e.target.value) })}
+              onChange={(v) => patch({ budgetHours: v ?? 0 })}
             />
           </Field>
         )}
       </div>
-      <Field label={project.billing === 'retainer' ? 'Абонемент с' : 'Начало'}>
+      <Field label={project.billing === 'retainer' ? 'Ретейнер з' : 'Початок'}>
         <DatePicker
           value={project.startAt}
           onChange={(startAt) => patch({ startAt })}
-          placeholder="Не указано"
+          placeholder="Не вказано"
         />
       </Field>
       <Field label={project.billing === 'retainer' ? 'До' : 'Дедлайн'}>
         <DatePicker
           value={project.dueAt}
           onChange={(dueAt) => patch({ dueAt })}
-          placeholder="Без срока"
+          placeholder="Без терміну"
         />
       </Field>
     </section>
@@ -286,11 +350,13 @@ export function ProjectPage() {
   const { data: clients = [] } = useApi('clients', 'list')
   const update = useApiMutation('projects', 'update')
   const remove = useApiMutation('projects', 'remove', {
-    successMessage: 'Проект в корзине',
+    successMessage: 'Проєкт переміщено в кошик',
     onSuccess: () => navigate('/clients?tab=projects')
   })
   const p = data?.project
   const patch = (patchValue: ProjectPatch): void => update.mutate({ id, patch: patchValue })
+  // Click opens the project for reading; «Редагувати» switches the whole record to editing.
+  const mode = useRecordMode(id)
   const [title, setTitle] = useAutosave(
     p?.title ?? '',
     (t) => t.trim() && patch({ title: t.trim() })
@@ -303,9 +369,9 @@ export function ProjectPage() {
   if (!data || !p) {
     return (
       <EmptyState
-        title="Проект не найден"
-        hint="Возможно, он в корзине."
-        action={<Button onClick={() => navigate('/clients?tab=projects')}>К проектам</Button>}
+        title="Проєкт не знайдено"
+        hint="Можливо, він у кошику."
+        action={<Button onClick={() => navigate('/clients?tab=projects')}>До проєктів</Button>}
       />
     )
   }
@@ -323,119 +389,126 @@ export function ProjectPage() {
   )
 
   return (
-    <div className="flex h-full min-h-0">
-      <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={p.id}>
-        <Breadcrumb className="mb-4">
-          <BreadcrumbList className="text-caption">
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/clients?tab=projects" className="flex items-center gap-1">
-                  <ArrowLeft className="size-3.5" /> Проекты
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            {data.client && (
-              <>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link to={`/clients/${data.client.id}`}>{data.client.name}</Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-              </>
-            )}
-          </BreadcrumbList>
-        </Breadcrumb>
+    <RecordMode mode={mode}>
+      <div className="flex h-full min-h-0">
+        <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={p.id}>
+          <Breadcrumb className="mb-4">
+            <BreadcrumbList className="text-caption">
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link to="/clients?tab=projects" className="flex items-center gap-1">
+                    <ArrowLeft className="size-3.5" /> Проєкти
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              {data.client && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to={`/clients/${data.client.id}`}>{data.client.name}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
 
-        <div className="flex items-start gap-4">
-          <InlineTitle value={title} onChange={setTitle} className="text-[40px]" />
-          <div className="flex shrink-0 items-center gap-2 pt-2">
-            <PinButtons entity={{ type: 'project', id }} />
-            <Confirm
-              title="Удалить проект?"
-              description="Проект уйдёт в корзину на 30 дней вместе с часами и оплатами."
-              onConfirm={() => remove.mutate(id)}
-            >
-              <Button variant="ghost" size="icon-sm" aria-label="В корзину">
-                <Trash2 />
-              </Button>
-            </Confirm>
+          <div className="flex items-start gap-4">
+            <InlineTitle
+              value={title}
+              onChange={setTitle}
+              maxLength={PROJECT_L.title}
+              className="text-[40px]"
+            />
+            <div className="flex shrink-0 items-center gap-2 pt-2">
+              <EditToggle mode={mode} />
+              <PinButtons entity={{ type: 'project', id }} />
+              <Confirm
+                title="Видалити проєкт?"
+                description="Проєкт піде в кошик на 30 днів разом із годинами й оплатами."
+                onConfirm={() => remove.mutate(id)}
+              >
+                <Button variant="ghost" size="icon-sm" aria-label="У кошик">
+                  <Trash2 />
+                </Button>
+              </Confirm>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Choice
+              className="w-40"
+              value={p.status}
+              onChange={(v) => v && patch({ status: v })}
+              options={PROJECT_STATUSES.map((s) => ({ value: s, label: PROJECT_STATUS_LABEL[s] }))}
+            />
+            <Choice
+              className="w-60"
+              value={p.clientId}
+              none="Без клієнта"
+              onChange={(v) => patch({ clientId: v })}
+              options={clients.map((c) => ({ value: c.id, label: c.name }))}
+            />
+            <PlatformBadge platformId={p.platformId} name={p.platformName} />
+            <NetPaid project={p} />
+          </div>
+
+          <MoneyHeader p={p} overdue={data.payments.some((x) => x.overdue)} />
+
+          <div className="mt-8 flex flex-col gap-10">
+            {hourly && time}
+            {p.billing !== 'none' && (
+              <PaymentsSection
+                projectId={p.id}
+                currency={p.currency}
+                payments={data.payments}
+                billing={p.billing}
+                price={p.fixedPrice}
+                paid={p.paidAmount}
+              />
+            )}
+            {!hourly && time}
+            <CredentialsSection items={data.credentials} owner={{ projectId: p.id }} />
+            <MarkdownField
+              label="Опис"
+              value={description}
+              onChange={setDescription}
+              placeholder="Завдання, домовленості, контакти з боку клієнта…"
+            />
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Choice
-            className="w-40"
-            value={p.status}
-            onChange={(v) => v && patch({ status: v })}
-            options={PROJECT_STATUSES.map((s) => ({ value: s, label: PROJECT_STATUS_LABEL[s] }))}
-          />
-          <Choice
-            className="w-60"
-            value={p.clientId}
-            none="Без клиента"
-            onChange={(v) => patch({ clientId: v })}
-            options={clients.map((c) => ({ value: c.id, label: c.name }))}
-          />
-          <PlatformBadge platformId={p.platformId} name={p.platformName} />
-          <NetPaid project={p} />
-        </div>
-
-        <MoneyHeader p={p} />
-
-        <div className="mt-8 flex flex-col gap-10">
-          {hourly && time}
-          {p.billing !== 'none' && (
-            <PaymentsSection
-              projectId={p.id}
-              currency={p.currency}
-              payments={data.payments}
-              billing={p.billing}
-              price={p.fixedPrice}
-              paid={p.paidAmount}
+        <aside
+          className="w-[300px] shrink-0 overflow-y-auto border-l border-border px-5 py-6"
+          key={`aside-${p.id}`}
+        >
+          <div className="flex flex-col gap-6">
+            <Terms project={p} patch={patch} />
+            <Separator />
+            <section className="flex flex-col gap-3">
+              <SectionLabel>Посилання</SectionLabel>
+              {LINK_FIELDS.map((f) => (
+                <UrlField
+                  key={f.key}
+                  label={f.label}
+                  value={p[f.key]}
+                  placeholder={f.placeholder}
+                  onSave={(v) => patch({ [f.key]: v })}
+                />
+              ))}
+            </section>
+            <Separator />
+            <EntityAside
+              entity={{ type: 'project', id: p.id }}
+              tags={p.tags}
+              onTagsChange={(tagIds) => patch({ tagIds })}
+              createdAt={p.createdAt}
+              updatedAt={p.updatedAt}
             />
-          )}
-          {!hourly && time}
-          <CredentialsSection items={data.credentials} owner={{ projectId: p.id }} />
-          <Section title="Описание">
-            <MarkdownField
-              value={description}
-              onChange={setDescription}
-              placeholder="Задачи, договорённости, контакты на стороне клиента…"
-            />
-          </Section>
-        </div>
+          </div>
+        </aside>
       </div>
-
-      <aside
-        className="w-[300px] shrink-0 overflow-y-auto border-l border-border px-5 py-6"
-        key={`aside-${p.id}`}
-      >
-        <div className="flex flex-col gap-6">
-          <Terms project={p} patch={patch} />
-          <Separator />
-          <section className="flex flex-col gap-3">
-            <SectionLabel>Ссылки</SectionLabel>
-            {LINK_FIELDS.map((f) => (
-              <UrlField
-                key={f.key}
-                label={f.label}
-                value={p[f.key]}
-                placeholder={f.placeholder}
-                onSave={(v) => patch({ [f.key]: v })}
-              />
-            ))}
-          </section>
-          <Separator />
-          <EntityAside
-            entity={{ type: 'project', id: p.id }}
-            tags={p.tags}
-            onTagsChange={(tagIds) => patch({ tagIds })}
-            createdAt={p.createdAt}
-            updatedAt={p.updatedAt}
-          />
-        </div>
-      </aside>
-    </div>
+    </RecordMode>
   )
 }

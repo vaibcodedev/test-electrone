@@ -45,13 +45,13 @@ export function ApplicationList({
       <Table className="table-fixed">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead>Вакансия</TableHead>
-            <TableHead className={COL.company}>Компания</TableHead>
+            <TableHead>Вакансія</TableHead>
+            <TableHead className={COL.company}>Компанія</TableHead>
             <TableHead className={COL.status}>Статус</TableHead>
-            <TableHead className={COL.next}>Следующий этап</TableHead>
+            <TableHead className={COL.next}>Наступний етап</TableHead>
             <TableHead className={COL.salary}>Зарплата</TableHead>
-            <TableHead className={COL.board}>Площадка</TableHead>
-            <TableHead className={cn(COL.applied, 'text-right')}>Отправлено</TableHead>
+            <TableHead className={COL.board}>Майданчик</TableHead>
+            <TableHead className={cn(COL.applied, 'text-right')}>Надіслано</TableHead>
           </TableRow>
         </TableHeader>
       </Table>
@@ -64,7 +64,7 @@ export function ApplicationList({
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
         empty={
-          !loading && <div className="py-10 text-center text-body text-muted-foreground">Под фильтр ничего не попало.</div>
+          !loading && <div className="py-10 text-center text-body text-muted-foreground">Під фільтр нічого не потрапило.</div>
         }
         renderItem={(a) => {
           const board = a.boardId ? boardById.get(a.boardId) : undefined

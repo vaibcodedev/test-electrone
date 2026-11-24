@@ -11,8 +11,17 @@ import { daysSince } from './proposal-labels'
 /** Compact proposal tile used on the kanban (composed of shadcn Card + Badge). */
 export const ProposalCard = forwardRef<
   HTMLDivElement,
-  ComponentProps<'div'> & { proposal: Proposal; currency: Currency; now: number; dragging?: boolean; creditsName?: string }
->(function ProposalCard({ proposal: p, currency, now, dragging, creditsName, className, ...rest }, ref) {
+  ComponentProps<'div'> & {
+    proposal: Proposal
+    currency: Currency
+    now: number
+    dragging?: boolean
+    creditsName?: string
+  }
+>(function ProposalCard(
+  { proposal: p, currency, now, dragging, creditsName, className, ...rest },
+  ref
+) {
   const days = daysSince(p.sentAt, now)
   const credits = p.credits + p.boostCredits
   return (
@@ -28,15 +37,22 @@ export const ProposalCard = forwardRef<
       {...rest}
     >
       <div className="flex items-start gap-2">
-        <span className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium">{p.jobTitle}</span>
-        {p.starred && <Star className="mt-0.5 size-3.5 shrink-0 fill-warn text-warn" aria-label="Сильный отклик" />}
+        <span className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium">
+          {p.jobTitle}
+        </span>
+        {p.starred && (
+          <Star
+            className="mt-0.5 size-3.5 shrink-0 fill-warn text-warn"
+            aria-label="Сильний відгук"
+          />
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-1">
         {p.niche && <Badge variant="soft">{p.niche}</Badge>}
         {p.bidAmount > 0 && (
           <Badge variant="outline">
             {fmtMoney(p.bidAmount, currency)}
-            {p.bidType === 'hourly' ? '/ч' : ''}
+            {p.bidType === 'hourly' ? '/год' : ''}
           </Badge>
         )}
         {credits > 0 && (
@@ -49,18 +65,22 @@ export const ProposalCard = forwardRef<
       </div>
       <div className="flex items-center gap-2 text-meta text-muted-foreground">
         {days !== null ? (
-          <span>{days === 0 ? 'сегодня' : `${days} ${plural(days, ['день', 'дня', 'дней'])} назад`}</span>
+          <span>
+            {days === 0 ? 'сьогодні' : `${days} ${plural(days, ['день', 'дні', 'днів'])} тому`}
+          </span>
         ) : (
-          <span>не отправлен</span>
+          <span>не надіслано</span>
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {p.clientRating !== null && (
-            <span className="flex items-center gap-0.5" title="Рейтинг клиента">
+            <span className="flex items-center gap-0.5" title="Рейтинг клієнта">
               <Star className="size-3" />
               {p.clientRating.toFixed(1)}
             </span>
           )}
-          {p.paymentVerified && <BadgeCheck className="size-3.5 text-success" aria-label="Оплата верифицирована" />}
+          {p.paymentVerified && (
+            <BadgeCheck className="size-3.5 text-success" aria-label="Оплату верифіковано" />
+          )}
         </span>
       </div>
     </Card>

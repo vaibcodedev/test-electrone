@@ -78,6 +78,8 @@ export function useApiMutation<N extends ApiNamespace, M extends MethodOf<N>>(
     onSuccess: (...args) => {
       invalidateAll()
       if (method === 'remove') useUi.getState().bumpTrash()
+      const created = args[0] as { id?: unknown } | null
+      if (String(method).startsWith('create') && created && typeof created.id === 'string') useUi.getState().markCreated(created.id)
       if (successMessage) toast.success(successMessage)
       return onSuccess?.(...args)
     },

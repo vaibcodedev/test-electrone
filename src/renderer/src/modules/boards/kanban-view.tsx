@@ -20,13 +20,23 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus } from 'lucide-react'
+import { MoveRight, Plus, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
 import type { BoardColumn, BoardDetails, Card } from '@shared/domain/boards'
 import { useApiMutation } from '@/lib/query'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card as UiCard } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { CardTile } from './card-tile'
 import { ColumnHeader } from './column-header'
@@ -41,9 +51,24 @@ function buildLayout(details: BoardDetails): Layout {
   return layout
 }
 
-function SortableCard({ card, done, onOpen }: { card: Card; done: boolean; onOpen: () => void }) {
+function SortableCard({
+  card,
+  done,
+  onOpen,
+  columns
+}: {
+  card: Card
+  done: boolean
+  onOpen: () => void
+  columns: BoardColumn[]
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id })
+  const move = useApiMutation('cards', 'move')
+  const remove = useApiMutation('cards', 'remove', { successMessage: 'Картку переміщено в кошик' })
+  // Right-click menu: the quick way to move or delete without opening the card.
   return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
     <CardTile
       ref={setNodeRef}
       card={card}
@@ -57,6 +82,33 @@ function SortableCard({ card, done, onOpen }: { card: Card; done: boolean; onOpe
       {...attributes}
       {...listeners}
     />
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem onSelect={onOpen}>
+          <SquareArrowOutUpRight /> Відкрити
+        </ContextMenuItem>
+        <ContextMenuSub>
+          <ContextMenuSubTrigger>
+            <MoveRight /> Перемістити в…
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="w-48">
+            {columns.map((c) => (
+              <ContextMenuItem
+                key={c.id}
+                disabled={c.id === card.columnId}
+                onSelect={() => move.mutate({ cardId: card.id, columnId: c.id, index: 0 })}
+              >
+                {c.title}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={() => remove.mutate(card.id)}>
+          <Trash2 /> У кошик
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -72,7 +124,7 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
         onClick={() => setOpen(true)}
         className="w-full justify-start rounded-xl px-2 text-caption font-normal text-muted-foreground hover:bg-card hover:text-foreground"
       >
-        <Plus /> Карточка
+        <Plus /> Картка
       </Button>
     )
   }
@@ -81,7 +133,8 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
       autoFocus
       rows={2}
       value={title}
-      placeholder="Название карточки, Enter — сохранить"
+      maxLength={300}
+      placeholder="Назва картки, Enter — зберегти"
       onChange={(e) => setTitle(e.target.value)}
       onBlur={() => {
         if (!title.trim()) setOpen(false)
@@ -97,11 +150,13 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
           setOpen(false)
         }
       }}
-      aria-label="Название новой карточки"
+      aria-label="Назва нової картки"
       className="min-h-16 rounded-2xl bg-card p-3 text-body ring-1 ring-ring/40"
     />
   )
 }
+
+const COLUMN_PAGE = 30
 
 function Column({
   column,
@@ -117,6 +172,10 @@ function Column({
   onOpen: (id: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id })
+  // Big columns render in pages of 30 (the column scrolls on its own); «Ще N» shows the next page.
+  const [limit, setLimit] = useState(COLUMN_PAGE)
+  const shownIds = cardIds.length > limit ? cardIds.slice(0, limit) : cardIds
+  const hidden = cardIds.length - shownIds.length
   return (
     <UiCard
       className={cn(
@@ -126,14 +185,19 @@ function Column({
     >
       <ColumnHeader column={column} count={cardIds.length} columns={columns} />
       <div ref={setNodeRef} className="flex min-h-12 flex-1 flex-col gap-2 overflow-y-auto px-0.5 py-1">
-        <SortableContext items={cardIds} strategy={verticalListSortingStrategy}>
-          {cardIds.map((id) => {
+        <SortableContext items={shownIds} strategy={verticalListSortingStrategy}>
+          {shownIds.map((id) => {
             const card = cardsById.get(id)
             return card ? (
-              <SortableCard key={id} card={card} done={column.isDone} onOpen={() => onOpen(id)} />
+              <SortableCard key={id} card={card} done={column.isDone} columns={columns} onOpen={() => onOpen(id)} />
             ) : null
           })}
         </SortableContext>
+        {hidden > 0 && (
+          <Button variant="subtle" size="sm" className="mx-auto my-1" onClick={() => setLimit((l) => l + COLUMN_PAGE)}>
+            Ще {Math.min(hidden, COLUMN_PAGE)} з {hidden}
+          </Button>
+        )}
       </div>
       <div className="pt-1">
         <QuickAddCard boardId={column.boardId} columnId={column.id} />
@@ -155,20 +219,22 @@ function AddColumn({ boardId }: { boardId: string }) {
         setTitle('')
       }}
     >
-      <InputGroup className="h-12 rounded-3xl border-dashed border-input bg-transparent">
+      {/* Dashed = an empty slot; once you type it becomes a normal field (no dashed border under the focus ring). */}
+      <InputGroup className="h-12 rounded-3xl border-dashed bg-transparent has-[input:focus]:border-solid has-[input:focus]:bg-foreground/[0.04]">
         <InputGroupAddon>
           <Plus />
         </InputGroupAddon>
         <InputGroupInput
           value={title}
+          maxLength={100}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Новая колонка"
-          aria-label="Название новой колонки"
+          placeholder="Нова колонка"
+          aria-label="Назва нової колонки"
         />
         {title.trim() && (
           <InputGroupAddon align="inline-end">
-            <InputGroupButton type="submit" size="xs" variant="lime" className="rounded-full">
-              Добавить
+            <InputGroupButton type="submit" size="xs" variant="default" className="rounded-full">
+              Додати
             </InputGroupButton>
           </InputGroupAddon>
         )}

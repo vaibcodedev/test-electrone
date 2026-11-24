@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Check, Copy, ExternalLink, Plus, Sparkles, ThumbsUp } from 'lucide-react'
-import { CLAUDE_KINDS, type ClaudeItem, type ClaudeKind, type ClaudePatch } from '@shared/domain/claude'
+import { CLAUDE_KINDS, claudeInputSchema, type ClaudeItem, type ClaudeKind, type ClaudePatch } from '@shared/domain/claude'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
-import { fmtRelative } from '@/lib/format'
+import { fmtRelative, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -16,65 +17,67 @@ import { TagFilter, TagList } from '@/components/common/tags'
 import { copyText } from '@/components/common/copy-button'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
-  AutoInput,
   AutoMarkdown,
-  AutoTextarea,
   AutoTitle,
   Block,
   EditorStack,
   PillSelect,
+  TextareaBlock,
+  UrlBlock,
   countBy,
   useEscapeToClose
 } from './editor-kit'
 
+const LIMITS = limitsOf(claudeInputSchema)
+
 const KIND_LABEL: Record<ClaudeKind, string> = {
-  note: 'Заметки',
-  branch: 'Ветки',
-  skill: 'Скилы',
-  plugin: 'Плагины',
-  guide: 'Гайды',
-  prompt: 'Промты'
+  note: 'Нотатки',
+  branch: 'Гілки',
+  skill: 'Скіли',
+  plugin: 'Плагіни',
+  guide: 'Гайди',
+  prompt: 'Промти'
 }
 
 const KIND_SINGLE: Record<ClaudeKind, string> = {
-  note: 'Заметка',
-  branch: 'Ветка',
-  skill: 'Скил',
-  plugin: 'Плагин',
+  note: 'Нотатка',
+  branch: 'Гілка',
+  skill: 'Скіл',
+  plugin: 'Плагін',
   guide: 'Гайд',
   prompt: 'Промт'
 }
 
 /** What each kind is for — shown under the type picker so the choice is obvious. */
 const KIND_HINT: Record<ClaudeKind, string> = {
-  note: 'Мысль или наблюдение о работе с Claude.',
-  branch: 'Ветка работы: задача, git-ветка или сессия Claude — где остановились и что дальше.',
-  skill: 'Скил Claude Code: что умеет, когда вызывать, как установить.',
-  plugin: 'Плагин или MCP-сервер: зачем нужен и как подключить.',
-  guide: 'Пошаговая инструкция, которую стоит повторить.',
-  prompt: 'Промт, который можно скопировать одной кнопкой; отметьте, если он работает.'
+  note: 'Думка чи спостереження про роботу з Claude.',
+  branch: 'Гілка роботи: завдання, git-гілка чи сесія Claude — де зупинилися й що далі.',
+  skill: 'Скіл Claude Code: що вміє, коли викликати, як встановити.',
+  plugin: 'Плагін або MCP-сервер: навіщо потрібен і як підключити.',
+  guide: 'Покрокова інструкція, яку варто повторити.',
+  prompt: 'Промт, який можна скопіювати однією кнопкою; позначте, якщо він працює.'
 }
 
 const NEW_TITLE: Record<ClaudeKind, string> = {
-  note: 'Новая заметка',
-  branch: 'Новая ветка',
-  skill: 'Новый скил',
-  plugin: 'Новый плагин',
-  guide: 'Новый гайд',
-  prompt: 'Новый промт'
+  note: 'Нова нотатка',
+  branch: 'Нова гілка',
+  skill: 'Новий скіл',
+  plugin: 'Новий плагін',
+  guide: 'Новий гайд',
+  prompt: 'Новий промт'
 }
 
 function useCopyPrompt() {
   const markCopied = useApiMutation('claude', 'markCopied', { silent: true })
   return async (item: Pick<ClaudeItem, 'id' | 'content' | 'title'>): Promise<void> => {
-    await copyText(item.content || item.title, 'Промт скопирован')
+    await copyText(item.content || item.title, 'Промт скопійовано')
     markCopied.mutate(item.id)
   }
 }
 
 function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void }) {
   const update = useApiMutation('claude', 'update')
-  const remove = useApiMutation('claude', 'remove', { successMessage: 'Перемещено в корзину' })
+  const remove = useApiMutation('claude', 'remove', { successMessage: 'Переміщено в кошик' })
   const copyPrompt = useCopyPrompt()
   const [copied, setCopied] = useState(false)
   const save = (patch: ClaudePatch): void => update.mutate({ id: item.id, patch })
@@ -102,7 +105,7 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
                 setTimeout(() => setCopied(false), 1400)
               }}
             >
-              {copied ? <Check /> : <Copy />} Скопировать промт
+              {copied ? <Check /> : <Copy />} Скопіювати промт
             </Button>
             <Toggle
               size="sm"
@@ -112,11 +115,11 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
               className="font-normal"
             >
               <ThumbsUp className={cn(item.works && 'text-ink-accent')} />
-              {item.works ? 'Работает' : 'Отметить «работает»'}
+              {item.works ? 'Працює' : 'Позначити «працює»'}
             </Toggle>
             {item.copyCount > 0 && (
               <Badge variant="soft" className="font-normal text-muted-foreground">
-                скопирован {item.copyCount} раз
+                скопійовано {item.copyCount} {plural(item.copyCount, ['раз', 'рази', 'разів'])}
               </Badge>
             )}
           </div>
@@ -143,29 +146,32 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
       }
     >
       <EditorStack>
-        <AutoTitle value={item.title} onSave={(title) => save({ title })} />
-        <Block label="Коротко">
-          <AutoTextarea
-            value={item.summary}
-            onSave={(summary) => save({ summary })}
-            placeholder="О чём это и когда пригодится"
-          />
-        </Block>
-        <Block label="Ссылка">
-          <div className="flex gap-2">
-            <AutoInput value={item.url} onSave={(url) => save({ url })} placeholder="https://…" />
-            {/^https?:\/\//i.test(item.url) && (
-              <Button variant="soft" size="icon" aria-label="Открыть ссылку" onClick={() => api.app.openExternal(item.url)}>
+        <AutoTitle value={item.title} onSave={(title) => save({ title })} maxLength={LIMITS.title} />
+        <TextareaBlock
+          label="Коротко"
+          value={item.summary}
+          onSave={(summary) => save({ summary })}
+          maxLength={LIMITS.summary}
+          placeholder="Про що це й коли знадобиться"
+        />
+        <UrlBlock
+          label="Посилання"
+          value={item.url}
+          onSave={(url) => save({ url })}
+          maxLength={LIMITS.url}
+          trailing={(draft) =>
+            /^https?:\/\//i.test(draft) && (
+              <Button variant="soft" size="icon" aria-label="Відкрити посилання" onClick={() => api.app.openExternal(draft)}>
                 <ExternalLink />
               </Button>
-            )}
-          </div>
-        </Block>
+            )
+          }
+        />
         <AutoMarkdown
-          label={isPrompt ? 'Текст промта' : 'Содержимое'}
+          label={isPrompt ? 'Текст промту' : 'Вміст'}
           value={item.content}
           onSave={(content) => save({ content })}
-          placeholder={isPrompt ? 'Вставьте промт, который сработал…' : 'Пишите в Markdown: заголовки, списки, ```код```'}
+          placeholder={isPrompt ? 'Вставте промт, який спрацював…' : 'Пишіть у Markdown: заголовки, списки, ```код```'}
           minHeight="280px"
         />
       </EditorStack>
@@ -195,7 +201,7 @@ export function ClaudePage() {
     <Page>
       <PageHeader
         title="Claude"
-        subtitle="Заметки, ветки, скилы, плагины, гайды и промты, которые сработали."
+        subtitle="Нотатки, гілки, скіли, плагіни, гайди та промти, що спрацювали."
         actions={
           <Button
             variant="lime"
@@ -210,14 +216,14 @@ export function ClaudePage() {
       >
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
-            allLabel="Всё"
+            allLabel="Усе"
             value={kind}
             onChange={setKind}
             options={CLAUDE_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k], count: counts[k] ?? 0 }))}
           />
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Искать в Claude" className="w-64" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Шукати в Claude" className="w-64" />
           </div>
         </div>
       </PageHeader>
@@ -236,11 +242,11 @@ export function ClaudePage() {
                 !list.isLoading && (
                   <EmptyState
                     icon={Sparkles}
-                    title={search || tagId || kind ? 'Ничего не нашлось' : 'Здесь пока пусто'}
+                    title={search || tagId || kind ? 'Нічого не знайшлося' : 'Тут поки порожньо'}
                     hint={
                       search || tagId || kind
-                        ? 'Попробуйте другое слово или снимите фильтр.'
-                        : 'Сохраняйте промты, которые сработали, и заметки по работе с Claude.'
+                        ? 'Спробуйте інше слово або зніміть фільтр.'
+                        : 'Зберігайте промти, що спрацювали, і нотатки про роботу з Claude.'
                     }
                   />
                 )
@@ -253,7 +259,7 @@ export function ClaudePage() {
                     <ListItem active={active} onClick={() => setOpen(i.id)} className={cn(isPrompt && 'pr-14')}>
                       <div className={cn('mb-0.5 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {KIND_SINGLE[i.kind]}
-                        {isPrompt && i.works && <span className={cn('ml-1.5', active ? 'text-ink-accent' : 'text-success')}>● работает</span>}
+                        {isPrompt && i.works && <span className={cn('ml-1.5', active ? 'text-ink-accent' : 'text-success')}>● працює</span>}
                       </div>
                       <div className="truncate text-body font-medium">{i.title}</div>
                       {i.summary && (
@@ -271,13 +277,13 @@ export function ClaudePage() {
                             size="icon-sm"
                             variant={active ? 'lime' : 'soft'}
                             className={cn('absolute top-3 right-3', !active && 'bg-card hover:bg-lime hover:text-lime-foreground')}
-                            aria-label="Скопировать промт"
+                            aria-label="Скопіювати промт"
                             onClick={() => void copyPrompt(i)}
                           >
                             <Copy />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Скопировать промт</TooltipContent>
+                        <TooltipContent>Скопіювати промт</TooltipContent>
                       </Tooltip>
                     )}
                   </div>

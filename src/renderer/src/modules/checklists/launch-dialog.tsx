@@ -15,6 +15,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { Choice } from '@/modules/crm/parts'
+import { checklistInputSchema } from '@shared/domain/checklists'
+import { limitsOf } from '@/lib/limits'
+
+const LIMITS = limitsOf(checklistInputSchema)
 
 /** Creates a run (a tickable copy) from a template, optionally tied to a project. */
 export function LaunchDialog({
@@ -31,7 +35,7 @@ export function LaunchDialog({
   const [title, setTitle] = useState('')
   const [projectId, setProjectId] = useState<string | null>(null)
   const instantiate = useApiMutation('checklists', 'instantiate', {
-    successMessage: 'Прогон создан',
+    successMessage: 'Прогін створено',
     onSuccess: (run) => {
       onOpenChange(false)
       navigate(`/checklists/${run.id}`)
@@ -49,9 +53,9 @@ export function LaunchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Запустить прогон</DialogTitle>
+          <DialogTitle className="font-display text-xl">Запустити прогін</DialogTitle>
           <DialogDescription>
-            Создаётся копия шаблона, в которой можно отмечать пункты. Шаблон не меняется.
+            Створюється копія шаблону, у якій можна позначати пункти. Шаблон не змінюється.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -62,13 +66,13 @@ export function LaunchDialog({
               instantiate.mutate({ templateId: template.id, title: title.trim(), projectId })
           }}
         >
-          <Field label="Название прогона">
-            <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
+          <Field label="Назва прогону">
+            <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
-          <Field label="Проект">
+          <Field label="Проєкт">
             <Choice
               value={projectId}
-              none="Без проекта"
+              none="Без проєкту"
               onChange={setProjectId}
               options={projects.map((p) => ({
                 value: p.id,
@@ -78,10 +82,10 @@ export function LaunchDialog({
           </Field>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Отмена
+              Скасувати
             </Button>
             <Button type="submit" variant="lime" disabled={!title.trim() || instantiate.isPending}>
-              <Rocket /> Запустить
+              <Rocket /> Запустити
             </Button>
           </DialogFooter>
         </form>

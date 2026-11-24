@@ -45,11 +45,11 @@ type TimeRow = typeof timeEntries.$inferSelect
 type CredentialRow = typeof credentials.$inferSelect
 
 const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
-  lead: 'Лид',
-  active: 'В работе',
-  paused: 'На паузе',
-  done: 'Завершён',
-  cancelled: 'Отменён'
+  lead: 'Лід',
+  active: 'У роботі',
+  paused: 'На паузі',
+  done: 'Завершено',
+  cancelled: 'Скасовано'
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100
@@ -262,6 +262,17 @@ export class CrmModule {
 
   /* ───────── running timer ───────── */
 
+  /** Active projects, most recently touched first — the tray's «start timer» list. */
+  recentActiveProjects(limit = 6): { id: string; title: string }[] {
+    return this.db
+      .select({ id: projects.id, title: projects.title })
+      .from(projects)
+      .where(and(isNull(projects.deletedAt), eq(projects.status, 'active')))
+      .orderBy(desc(projects.updatedAt))
+      .limit(limit)
+      .all()
+  }
+
   running(): RunningTimer | null {
     const row = this.db
       .select({ entry: timeEntries, projectTitle: projects.title })
@@ -278,6 +289,11 @@ export class CrmModule {
     let last: TimeEntry | null = null
     const ts = now()
     for (const r of run) {
+      // Under a minute = an accidental start/stop: don't keep a «0 хв» entry.
+      if (ts - r.startedAt < 60_000) {
+        this.db.delete(timeEntries).where(eq(timeEntries.id, r.id)).run()
+        continue
+      }
       const updated = this.db
         .update(timeEntries)
         .set({ endedAt: ts, minutes: minutesBetween(r.startedAt, ts) })
@@ -443,7 +459,7 @@ export class CrmModule {
       create: async (input) => {
         const data = credentialInputSchema.parse(input)
         if (!data.projectId && !data.clientId)
-          throw new UserError('Доступ должен относиться к клиенту или проекту')
+          throw new UserError('Доступ має належати клієнту або проєкту')
         const ts = now()
         const row = this.db
           .insert(credentials)
@@ -487,7 +503,7 @@ export class CrmModule {
   timeApi(): TimeApi {
     const find = (id: string): TimeRow => {
       const row = this.db.select().from(timeEntries).where(eq(timeEntries.id, id)).get()
-      if (!row) throw new NotFoundError('Запись времени', id)
+      if (!row) throw new NotFoundError('Запис часу', id)
       return row
     }
     return {
@@ -547,7 +563,7 @@ export class CrmModule {
         const data = timeEntryInputSchema.parse(input)
         this.projectRepo.rowOrThrow(data.projectId)
         const endedAt = data.endedAt ?? data.startedAt
-        if (endedAt < data.startedAt) throw new UserError('Конец раньше начала')
+        if (endedAt < data.startedAt) throw new UserError('Кінець раніше за початок')
         const row = this.db
           .insert(timeEntries)
           .values({
@@ -566,7 +582,7 @@ export class CrmModule {
         const cur = find(id)
         const startedAt = patch.startedAt ?? cur.startedAt
         const endedAt = patch.endedAt !== undefined ? patch.endedAt : cur.endedAt
-        if (endedAt !== null && endedAt < startedAt) throw new UserError('Конец раньше начала')
+        if (endedAt !== null && endedAt < startedAt) throw new UserError('Кінець раніше за початок')
         const row = this.db
           .update(timeEntries)
           .set({ ...patch, minutes: endedAt ? minutesBetween(startedAt, endedAt) : 0 })
@@ -604,7 +620,8 @@ export class CrmModule {
       },
       create: async (input) => {
         const data = paymentInputSchema.parse(input)
-        this.projectRepo.rowOrThrow(data.projectId)
+        const project = this.projectRepo.rowOrThrow(data.projectId)
+        this.assertWithinPrice(project, data.amount, data.currency)
         const row = this.db
           .insert(payments)
           .values({
@@ -621,6 +638,14 @@ export class CrmModule {
         const { id, patch } = updateArgs(paymentPatchSchema).parse(args)
         const cur = this.db.select().from(payments).where(eq(payments.id, id)).get()
         if (!cur) throw new NotFoundError('Оплата', id)
+        if (patch.amount !== undefined || patch.currency !== undefined) {
+          this.assertWithinPrice(
+            this.projectRepo.rowOrThrow(cur.projectId),
+            patch.amount ?? cur.amount,
+            patch.currency ?? cur.currency,
+            id
+          )
+        }
         const values = { ...patch }
         if (patch.status === 'paid' && !cur.paidAt && patch.paidAt === undefined)
           values.paidAt = now()
@@ -640,6 +665,32 @@ export class CrmModule {
           .where(eq(payments.id, idArg.parse(id)))
           .run()
       }
+    }
+  }
+
+  /**
+   * Fixed-price project: stages can't add up to more than the price (same currency).
+   * Otherwise "left to receive" and income stats would be nonsense (5 000 $ project, 5 000 000 $ stage).
+   */
+  private assertWithinPrice(project: { billing: string; fixedPrice: number; currency: string }, amount: number, currency: string, exceptId?: string): void {
+    if (project.billing !== 'fixed' || project.fixedPrice <= 0) return
+    if (currency !== project.currency)
+      throw new Error(`Етапи фіксованого проєкту — у валюті проєкту (${project.currency}).`)
+    const others = this.db
+      .select({ id: payments.id, amount: payments.amount, currency: payments.currency })
+      .from(payments)
+      .where(eq(payments.projectId, (project as { id?: string }).id ?? ''))
+      .all()
+      .filter((p) => p.id !== exceptId && p.currency === currency)
+      .reduce((sum, p) => sum + p.amount, 0)
+    const left = Math.round((project.fixedPrice - others) * 100) / 100
+    if (amount > left + 0.005) {
+      const fmt = (n: number): string => `${n.toLocaleString('uk-UA', { maximumFractionDigits: 2 })} ${currency}`
+      throw new Error(
+        left > 0
+          ? `Етапи перевищують вартість проєкту (${fmt(project.fixedPrice)}): можна додати щонайбільше ${fmt(left)}. Змініть суму або вартість проєкту.`
+          : `Вартість проєкту (${fmt(project.fixedPrice)}) вже повністю розподілена між етапами. Збільште вартість проєкту, щоб додати етап.`
+      )
     }
   }
 

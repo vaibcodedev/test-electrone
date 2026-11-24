@@ -1,6 +1,6 @@
-import { useCallback, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
-import { Pencil, Trash2, X } from 'lucide-react'
+import { Check, Pencil, Trash2, X } from 'lucide-react'
 import type { EntityRef, Tag } from '@shared/domain/common'
 import { fmtDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,9 @@ import { Separator } from '@/components/ui/separator'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useUi } from '@/stores/ui-store'
+import { api } from '@/lib/api'
+import { invalidateAll } from '@/lib/query'
+import { DetailModeContext, useReadOnly } from './detail-mode'
 import { PinButtons } from './pin-buttons'
 import { TagPicker } from './tags'
 import { LinksPanel } from './links-panel'
@@ -74,14 +77,25 @@ export function MasterDetail({
 export function InlineTitle({
   value,
   onChange,
-  placeholder = 'Без названия',
-  className
+  placeholder = 'Без назви',
+  className,
+  maxLength = 200
 }: {
   value: string
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  /** Pass the schema limit (limitsOf(...).title); 200 matches most title fields. */
+  maxLength?: number
 }) {
+  const readOnly = useReadOnly()
+  if (readOnly) {
+    return (
+      <h2 className={cn('font-display text-[28px] leading-[1.1] [overflow-wrap:anywhere]', !value && 'text-muted-foreground/60', className)}>
+        {value || placeholder}
+      </h2>
+    )
+  }
   // Editable-in-place affordance: tint + pencil on hover, tint while editing. Without it a borderless
   // title reads as static text (docs/design-system.md → Формы).
   return (
@@ -90,8 +104,9 @@ export function InlineTitle({
         rows={1}
         value={value}
         placeholder={placeholder}
-        title="Нажмите, чтобы изменить"
-        aria-label="Название"
+        maxLength={maxLength}
+        title="Натисніть, щоб змінити"
+        aria-label="Назва"
         onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
         onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
         className={cn(
@@ -127,6 +142,22 @@ export function DetailPane({
 }) {
   const leaving = useUi((s) => !!s.leaving[entity.id])
   const setLeaving = useUi((s) => s.setLeaving)
+  // View first; a record created a moment ago opens straight in edit mode.
+  const [editing, setEditing] = useState(() => useUi.getState().takeCreated(entity.id))
+  const mode = useMemo(() => ({ editing, setEditing }), [editing])
+
+  // Closing an untouched empty draft discards it (server re-checks, so a late autosave wins).
+  useEffect(() => {
+    const ref = { type: entity.type, id: entity.id }
+    return () => {
+      setTimeout(() => {
+        api.trash
+          .discardDraft(ref)
+          .then((discarded) => discarded && invalidateAll())
+          .catch(() => undefined)
+      }, 800)
+    }
+  }, [entity.type, entity.id])
   // "В корзину": the pane and the list row fade out first, then the record is removed.
   const remove = onDelete
     ? (): void => {
@@ -140,32 +171,49 @@ export function DetailPane({
   return (
     // Visible edge + soft shadow + enter motion: the pane reads as a layer above the list, not part of it.
     <Card
+      data-detail-mode={editing ? 'edit' : 'view'}
       className={cn(
         'min-h-0 flex-1 animate-pane gap-0 overflow-hidden bg-card py-0 shadow-[0_12px_40px_-16px_rgb(0_0_0/0.35)] ring-1 ring-foreground/12',
         leaving && 'pointer-events-none animate-leave',
         className
       )}
     >
+      <DetailModeContext.Provider value={mode}>
       <div className="flex items-center gap-2 px-4 py-2.5">
         <PinButtons entity={entity} />
         <div className="flex-1">{headerExtra}</div>
         {remove && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="В корзину" onClick={remove}>
+              <Button variant="ghost" size="icon-sm" aria-label="У кошик" onClick={remove}>
                 <Trash2 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>В корзину</TooltipContent>
+            <TooltipContent>У кошик</TooltipContent>
           </Tooltip>
         )}
+        {/* E edits, Esc leaves edit mode first and closes the pane on the second press. */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" data-close-detail onClick={onClose}>
+            {editing ? (
+              <Button variant="subtle" size="sm" data-close-detail onClick={() => setEditing(false)}>
+                <Check className="text-success" /> Готово
+              </Button>
+            ) : (
+              <Button variant="subtle" size="sm" data-edit-detail onClick={() => setEditing(true)}>
+                <Pencil /> Редагувати
+              </Button>
+            )}
+          </TooltipTrigger>
+          <TooltipContent>{editing ? 'Зберігається саме · Esc' : 'Редагувати · E'}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрити" data-close-detail={editing ? undefined : true} onClick={onClose}>
               <X />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Закрыть · Esc</TooltipContent>
+          <TooltipContent>Закрити{editing ? '' : ' · Esc'}</TooltipContent>
         </Tooltip>
       </div>
       <Separator />
@@ -178,6 +226,7 @@ export function DetailPane({
           </>
         )}
       </div>
+      </DetailModeContext.Provider>
     </Card>
   )
 }
@@ -215,7 +264,7 @@ export function EntityAside({
       {children}
       {tags && onTagsChange && (
         <section className="flex flex-col gap-2">
-          <SectionLabel>Метки</SectionLabel>
+          <SectionLabel>Мітки</SectionLabel>
           <TagPicker value={tags} onChange={onTagsChange} />
         </section>
       )}
@@ -223,8 +272,8 @@ export function EntityAside({
       {files && <AttachmentsPanel entity={entity} />}
       {(createdAt || updatedAt) && (
         <div className="text-meta leading-relaxed text-muted-foreground">
-          {createdAt && <div>Создано {fmtDateTime(createdAt)}</div>}
-          {updatedAt && <div>Изменено {fmtDateTime(updatedAt)}</div>}
+          {createdAt && <div>Створено {fmtDateTime(createdAt)}</div>}
+          {updatedAt && <div>Змінено {fmtDateTime(updatedAt)}</div>}
         </div>
       )}
     </div>

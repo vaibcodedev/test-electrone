@@ -7,6 +7,8 @@ import type {
   SubscriptionMonthRow
 } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
+import { NumberInput } from '@/components/common/number-input'
+import { draftToNumber, numberToDraft } from '../crm/money'
 import { api } from '@/lib/api'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -14,7 +16,6 @@ import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import {
   Card,
   CardAction,
@@ -77,7 +78,7 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
     <div className="flex items-center gap-2">
       <Checkbox
         checked={paid}
-        aria-label={paid ? 'Снять отметку об оплате' : 'Отметить оплаченным'}
+        aria-label={paid ? 'Зняти позначку про оплату' : 'Позначити оплаченим'}
         onCheckedChange={(v) => setPaid.mutate({ id: row.id, month, paid: v === true })}
         className="size-5 rounded-full data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground"
       />
@@ -86,7 +87,7 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
           <Button variant="subtle" size="xs">
             {paid && row.paidAmount !== null && row.paidAmount !== row.amount
               ? fmtMoney(row.paidAmount, row.currency)
-              : 'Другая сумма'}
+              : 'Інша сума'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 rounded-2xl" align="start">
@@ -100,16 +101,17 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
             }}
           >
             <span className="text-caption text-muted-foreground">
-              Сколько списали в {monthName(month)}, {row.currency}
+              Скільки списали за {monthName(month)}, {row.currency}
             </span>
-            <Input
+            <NumberInput
               autoFocus
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              allowEmpty
+              min={0}
+              value={draftToNumber(amount)}
+              onChange={(v) => setAmount(numberToDraft(v))}
             />
             <Button type="submit" size="sm" variant="lime">
-              Отметить оплаченным
+              Позначити оплаченим
             </Button>
           </form>
         </PopoverContent>
@@ -122,7 +124,7 @@ function SubscriptionsSection({ month }: { month: string }) {
   const { data: rows } = useApi('finance', 'subscriptionMonth', { month }, KEEP_PERIOD)
   const { data: all = [] } = useApi('finance', 'subscriptions')
   const remove = useApiMutation('finance', 'removeSubscription', {
-    successMessage: 'Подписка удалена'
+    successMessage: 'Підписку видалено'
   })
   const [editing, setEditing] = useState<Subscription | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -144,14 +146,14 @@ function SubscriptionsSection({ month }: { month: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="font-display text-[20px] text-foreground">
-          Подписки на {monthName(month)}
+          Підписки на {monthName(month)}
         </CardTitle>
         <CardDescription>
-          Отметьте, что уже списалось, — отметка превращается в расход этого месяца.
+          Позначте, що вже списалося, — позначка стає витратою цього місяця.
         </CardDescription>
         <CardAction>
-          <Button variant="soft" size="sm" onClick={() => openDialog(null)}>
-            <Plus /> Подписка
+          <Button variant="subtle" size="xs" onClick={() => openDialog(null)}>
+            <Plus /> Підписка
           </Button>
         </CardAction>
       </CardHeader>
@@ -161,18 +163,18 @@ function SubscriptionsSection({ month }: { month: string }) {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Receipt}
-            title="Подписок нет"
-            hint="Добавьте регулярные платежи: Claude, телефон, интернет, хостинг. Каждый месяц они будут появляться здесь."
+            title="Підписок немає"
+            hint="Додайте регулярні платежі: Claude, телефон, інтернет, хостинг. Щомісяця вони з’являтимуться тут."
           />
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-48">Оплачено</TableHead>
-                <TableHead>Подписка</TableHead>
-                <TableHead>Списание</TableHead>
-                <TableHead>Категория</TableHead>
-                <TableHead className="text-right">Сумма</TableHead>
+                <TableHead>Підписка</TableHead>
+                <TableHead>Списання</TableHead>
+                <TableHead>Категорія</TableHead>
+                <TableHead className="text-right">Сума</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
@@ -186,12 +188,12 @@ function SubscriptionsSection({ month }: { month: string }) {
                     {r.title}
                     {r.period === 'yearly' && (
                       <Badge variant="soft" className="ml-2">
-                        раз в год
+                        раз на рік
                       </Badge>
                     )}
                     {!r.active && (
                       <Badge variant="outline" className="ml-2">
-                        отключена
+                        вимкнена
                       </Badge>
                     )}
                   </TableCell>
@@ -208,13 +210,13 @@ function SubscriptionsSection({ month }: { month: string }) {
                     <div className="flex justify-end">
                       {r.url && (
                         <IconAction
-                          label="Открыть сайт"
+                          label="Відкрити сайт"
                           onClick={() => void api.app.openExternal(r.url)}
                         >
                           <ExternalLink />
                         </IconAction>
                       )}
-                      <IconAction label="Изменить" onClick={() => openDialog(r)}>
+                      <IconAction label="Змінити" onClick={() => openDialog(r)}>
                         <Pencil />
                       </IconAction>
                     </div>
@@ -224,14 +226,14 @@ function SubscriptionsSection({ month }: { month: string }) {
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={4}>Всего за месяц · оплачено</TableCell>
+                <TableCell colSpan={4}>Усього за місяць · оплачено</TableCell>
                 <TableCell className="text-right">
                   <span className="flex flex-col items-end">
                     <MoneyLines value={total} className="items-end" />
                     <MoneyLines
                       value={paidTotal}
                       className="items-end text-muted-foreground"
-                      emptyLabel="ничего не оплачено"
+                      emptyLabel="нічого не оплачено"
                     />
                   </span>
                 </TableCell>
@@ -242,21 +244,21 @@ function SubscriptionsSection({ month }: { month: string }) {
         )}
         {inactive.length > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-2 px-3 text-caption text-muted-foreground">
-            Отключённые:
+            Вимкнені:
             {inactive.map((s) => (
               <span key={s.id} className="inline-flex items-center gap-0.5">
                 <Button variant="soft" size="xs" onClick={() => openDialog(s)}>
                   {s.title}
                 </Button>
                 <Confirm
-                  title={`Удалить подписку «${s.title}»?`}
-                  description="Прошлые расходы по ней останутся в истории."
+                  title={`Видалити підписку «${s.title}»?`}
+                  description="Минулі витрати за нею залишаться в історії."
                   onConfirm={() => remove.mutate(s.id)}
                 >
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={`Удалить ${s.title}`}
+                    aria-label={`Видалити ${s.title}`}
                     className="hover:text-destructive"
                   >
                     <Trash2 />
@@ -280,7 +282,7 @@ function SubscriptionsSection({ month }: { month: string }) {
 function ExpensesSection({ month }: { month: string }) {
   const [from, to] = monthRange(month)
   const { data: rows } = useApi('finance', 'expenses', { from, to }, KEEP_PERIOD)
-  const remove = useApiMutation('finance', 'removeExpense', { successMessage: 'Расход удалён' })
+  const remove = useApiMutation('finance', 'removeExpense', { successMessage: 'Витрату видалено' })
   const [editing, setEditing] = useState<Expense | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [nowTs] = useState(() => Date.now())
@@ -303,15 +305,15 @@ function ExpensesSection({ month }: { month: string }) {
     <Card>
       <CardHeader>
         <CardTitle className="font-display text-[20px] text-foreground">
-          Расходы за {monthName(month)}
+          Витрати за {monthName(month)}
         </CardTitle>
         <CardDescription>
-          Оплаченные подписки попадают сюда автоматически. Покупки коннектов считаются отдельно на
-          странице платформы.
+          Оплачені підписки потрапляють сюди автоматично. Купівлі конектів рахуються окремо на
+          сторінці платформи.
         </CardDescription>
         <CardAction>
-          <Button variant="lime" size="sm" onClick={() => openDialog(null)}>
-            <Plus /> Расход
+          <Button variant="subtle" size="xs" onClick={() => openDialog(null)}>
+            <Plus /> Витрата
           </Button>
         </CardAction>
       </CardHeader>
@@ -321,8 +323,8 @@ function ExpensesSection({ month }: { month: string }) {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={Receipt}
-            title="Расходов нет"
-            hint="Добавьте разовую трату или отметьте оплаченную подписку выше."
+            title="Витрат немає"
+            hint="Додайте разову витрату або позначте оплачену підписку вище."
           />
         ) : (
           <>
@@ -338,9 +340,9 @@ function ExpensesSection({ month }: { month: string }) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Дата</TableHead>
-                  <TableHead>На что</TableHead>
-                  <TableHead>Категория</TableHead>
-                  <TableHead className="text-right">Сумма</TableHead>
+                  <TableHead>На що</TableHead>
+                  <TableHead>Категорія</TableHead>
+                  <TableHead className="text-right">Сума</TableHead>
                   <TableHead className="w-20" />
                 </TableRow>
               </TableHeader>
@@ -354,7 +356,7 @@ function ExpensesSection({ month }: { month: string }) {
                       {e.title}
                       {e.subscriptionId && (
                         <Badge variant="soft" className="ml-2">
-                          подписка
+                          підписка
                         </Badge>
                       )}
                       {e.note && (
@@ -371,18 +373,18 @@ function ExpensesSection({ month }: { month: string }) {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end">
-                        <IconAction label="Изменить" onClick={() => openDialog(e)}>
+                        <IconAction label="Змінити" onClick={() => openDialog(e)}>
                           <Pencil />
                         </IconAction>
                         <Confirm
-                          title="Удалить расход?"
-                          description={`«${e.title}» будет удалён без возможности восстановления.`}
+                          title="Видалити витрату?"
+                          description={`«${e.title}» буде видалено без можливості відновлення.`}
                           onConfirm={() => remove.mutate(e.id)}
                         >
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            aria-label="Удалить расход"
+                            aria-label="Видалити витрату"
                             className="hover:text-destructive"
                           >
                             <Trash2 />
@@ -395,7 +397,7 @@ function ExpensesSection({ month }: { month: string }) {
               </TableBody>
               <TableFooter>
                 <TableRow>
-                  <TableCell colSpan={3}>Итого</TableCell>
+                  <TableCell colSpan={3}>Разом</TableCell>
                   <TableCell className="text-right font-semibold">
                     <MoneyLines value={total} className="items-end" />
                   </TableCell>
@@ -422,8 +424,8 @@ export function ExpensesPage() {
   return (
     <Page>
       <PageHeader
-        title="Подписки и расходы"
-        subtitle="Регулярные платежи отмечаются по месяцам, разовые траты — отдельно."
+        title="Підписки й витрати"
+        subtitle="Регулярні платежі позначаються помісячно, разові витрати — окремо."
         actions={<MonthSwitcher month={month} onChange={setMonth} />}
       >
         <FinanceNav />

@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { BellRing, FileUser, Kanban, List, Plus } from 'lucide-react'
-import type { Application } from '@shared/domain/jobs'
+import { applicationInputSchema, type Application } from '@shared/domain/jobs'
+import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
+
+const LIMITS = limitsOf(applicationInputSchema)
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useUi } from '@/stores/ui-store'
@@ -19,6 +22,7 @@ import { agoLabel, daysSince } from './j1-labels'
 import { ApplicationBoard } from './application-board'
 import { ApplicationList } from './application-list'
 import { ApplicationEditorSheet } from './application-editor'
+import { ScheduleStageHost } from './schedule-stage'
 
 type View = 'kanban' | 'list'
 
@@ -46,7 +50,7 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant={variant}>
-          <Plus /> Вакансия
+          <Plus /> Вакансія
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[420px] rounded-2xl p-4">
@@ -57,24 +61,39 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
             submit()
           }}
         >
-          <Field label="Позиция">
-            <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Middle Frontend Developer" />
+          <Field label="Посада">
+            <Input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Middle Frontend Developer"
+              maxLength={LIMITS.title}
+            />
           </Field>
-          <Field label="Компания">
+          <Field label="Компанія">
             <CompanyCombobox value={company} onChange={setCompany} showLink={false} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Площадка">
-              <Choice value={boardId} onChange={setBoardId} none="Не указана" options={boards.map((b) => ({ value: b.id, label: b.name }))} />
+            <Field label="Майданчик">
+              <Choice value={boardId} onChange={setBoardId} none="Не вказано" options={boards.map((b) => ({ value: b.id, label: b.name }))} />
             </Field>
-            <Field label="Ссылка">
-              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
+            <Field label="Посилання" error={isLikelyUrl(url) ? undefined : URL_ERROR}>
+              <Input
+                type="url"
+                inputMode="url"
+                spellCheck={false}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://…"
+                maxLength={LIMITS.url}
+                aria-invalid={!isLikelyUrl(url) || undefined}
+              />
             </Field>
           </div>
-          <Button type="submit" variant="lime" disabled={!title.trim() || create.isPending}>
-            Добавить и открыть
+          <Button type="submit" variant="lime" disabled={!title.trim() || !isLikelyUrl(url) || create.isPending}>
+            Додати й відкрити
           </Button>
-          <p className="text-caption text-muted-foreground">Статус «Отправлено» и сегодняшняя дата — площадка сразу отметится в дневной норме.</p>
+          <p className="text-caption text-muted-foreground">Статус «Надіслано» і сьогоднішня дата — майданчик одразу зарахується в денну норму.</p>
         </form>
       </PopoverContent>
     </Popover>
@@ -90,14 +109,14 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }) {
     <Card className="gap-3 bg-warn/10 py-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-foreground">
-          <BellRing className="size-4 text-warn" /> Напомнить о себе
+          <BellRing className="size-4 text-warn" /> Нагадати про себе
         </CardTitle>
         <CardDescription>
-          {list.length} {plural(list.length, ['вакансия', 'вакансии', 'вакансий'])}: подошёл срок напоминания или нет ответа неделю.
+          {list.length} {plural(list.length, ['вакансія', 'вакансії', 'вакансій'])}: настав час нагадування або немає відповіді тиждень.
         </CardDescription>
         <CardAction>
           <Button variant="soft" size="sm" className="bg-card" onClick={() => navigate('/freelance/templates?situation=recruiter')}>
-            Шаблоны ответов
+            Шаблони відповідей
           </Button>
         </CardAction>
       </CardHeader>
@@ -147,8 +166,8 @@ export function ApplicationsPage() {
   return (
     <Page>
       <PageHeader
-        title="Вакансии"
-        subtitle="Перетаскивайте карточки между колонками. Собеседования и тестовые попадают в календарь автоматически."
+        title="Вакансії"
+        subtitle="Перетягуйте картки між колонками. Співбесіди й тестові завдання автоматично потрапляють у календар."
         actions={
           <>
             <Segmented
@@ -164,13 +183,13 @@ export function ApplicationsPage() {
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={search} onChange={setSearch} placeholder="Позиция, компания, заметки" className="w-64" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" className="w-64" />
           {companies.length > 0 && (
             <Choice
               size="sm"
               value={companyId}
               onChange={setCompanyId}
-              none="Все компании"
+              none="Усі компанії"
               options={companies.map((c) => ({ value: c.id, label: c.name }))}
               className="w-44 rounded-full"
             />
@@ -180,14 +199,14 @@ export function ApplicationsPage() {
               size="sm"
               value={resumeId}
               onChange={setResumeId}
-              none="Любое резюме"
+              none="Будь-яке резюме"
               options={resumes.map((r) => ({ value: r.id, label: r.title }))}
               className="w-44 rounded-full"
             />
           )}
           <TagFilter value={tagId} onChange={setTagId} />
         </div>
-        {boardChips.length > 0 && <FilterChips options={boardChips} value={boardId} onChange={setBoardId} allLabel="Все площадки" />}
+        {boardChips.length > 0 && <FilterChips options={boardChips} value={boardId} onChange={setBoardId} allLabel="Усі майданчики" />}
       </PageHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-6">
@@ -196,8 +215,8 @@ export function ApplicationsPage() {
           {!isLoading && all.length === 0 && !filtered ? (
             <EmptyState
               icon={FileUser}
-              title="Вакансий пока нет"
-              hint="Добавляйте каждую вакансию, на которую откликнулись: так видно, какие площадки и версии резюме дают ответы."
+              title="Вакансій поки немає"
+              hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які майданчики й версії резюме дають відповіді."
               action={<NewApplicationButton onCreated={(a) => setOpenId(a.id)} />}
             />
           ) : view === 'kanban' ? (
@@ -218,6 +237,7 @@ export function ApplicationsPage() {
       </div>
 
       <ApplicationEditorSheet applicationId={openId} onClose={() => setOpenId(null)} />
+      <ScheduleStageHost />
     </Page>
   )
 }

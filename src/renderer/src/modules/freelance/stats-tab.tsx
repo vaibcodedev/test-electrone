@@ -6,28 +6,42 @@ import { useApi } from '@/lib/query'
 import { LOCALE } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig
+} from '@/components/ui/chart'
 import { EmptyState, Segmented } from '@/components/common/page'
 
 const RANGES = [
-  { value: '30', label: '30 дней' },
-  { value: '90', label: '90 дней' },
-  { value: '365', label: 'Год' }
+  { value: '30', label: '30 днів' },
+  { value: '90', label: '90 днів' },
+  { value: '365', label: 'Рік' }
 ] as const
 type Range = (typeof RANGES)[number]['value']
 
 /** Two series → validated pair (dataviz validator: light #6b8c00/#5b6be0 on surface; dark pair passes contrast & CVD). */
 const weeklyConfig = {
-  sent: { label: 'Отправлено', theme: { light: '#6b8c00', dark: '#d8f74a' } },
-  replied: { label: 'Ответили', theme: { light: '#5b6be0', dark: '#8b98ff' } }
+  sent: { label: 'Надіслано', theme: { light: '#6b8c00', dark: '#d8f74a' } },
+  replied: { label: 'Відповіли', theme: { light: '#5b6be0', dark: '#8b98ff' } }
 } satisfies ChartConfig
 
 function Funnel({ totals }: { totals: FunnelRow }) {
   const steps = [
-    { label: 'Отправлено', value: totals.sent },
-    { label: 'Ответили', value: totals.replied },
-    { label: 'Интервью', value: totals.interview },
+    { label: 'Надіслано', value: totals.sent },
+    { label: 'Відповіли', value: totals.replied },
+    { label: 'Інтерв’ю', value: totals.interview },
     { label: 'Контракт', value: totals.hired }
   ]
   const max = Math.max(1, totals.sent)
@@ -44,7 +58,9 @@ function Funnel({ totals }: { totals: FunnelRow }) {
           <span className="text-right text-body tabular-nums">
             <span className="font-medium">{s.value}</span>
             {i > 0 && totals.sent > 0 && (
-              <span className="ml-1.5 text-muted-foreground">{Math.round((s.value / totals.sent) * 100)}%</span>
+              <span className="ml-1.5 text-muted-foreground">
+                {Math.round((s.value / totals.sent) * 100)}%
+              </span>
             )}
           </span>
         </div>
@@ -53,7 +69,17 @@ function Funnel({ totals }: { totals: FunnelRow }) {
   )
 }
 
-function FunnelTable({ title, description, rows, creditsName }: { title: string; description: string; rows: FunnelRow[]; creditsName: string }) {
+function FunnelTable({
+  title,
+  description,
+  rows,
+  creditsName
+}: {
+  title: string
+  description: string
+  rows: FunnelRow[]
+  creditsName: string
+}) {
   return (
     <Card>
       <CardHeader>
@@ -62,15 +88,15 @@ function FunnelTable({ title, description, rows, creditsName }: { title: string;
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-body text-muted-foreground">Нет данных за период.</p>
+          <p className="text-body text-muted-foreground">Немає даних за період.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>Группа</TableHead>
-                <TableHead className="text-right">Откликов</TableHead>
-                <TableHead className="text-right">Ответы</TableHead>
-                <TableHead className="text-right">Контракты</TableHead>
+                <TableHead>Група</TableHead>
+                <TableHead className="text-right">Відгуків</TableHead>
+                <TableHead className="text-right">Відповіді</TableHead>
+                <TableHead className="text-right">Контракти</TableHead>
                 {creditsName && <TableHead className="text-right">{creditsName}</TableHead>}
               </TableRow>
             </TableHeader>
@@ -85,7 +111,9 @@ function FunnelTable({ title, description, rows, creditsName }: { title: string;
                   <TableCell className="text-right tabular-nums">
                     {r.hired} <span className="text-muted-foreground">· {r.hireRate}%</span>
                   </TableCell>
-                  {creditsName && <TableCell className="text-right tabular-nums">{r.credits}</TableCell>}
+                  {creditsName && (
+                    <TableCell className="text-right tabular-nums">{r.credits}</TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -105,21 +133,32 @@ export function StatsTab({ platform }: { platform: Platform }) {
 
   if (!stats) return null
   const t = stats.totals
-  const weekly = stats.weekly.map((w) => ({ ...w, label: format(new Date(w.week), 'd MMM', { locale: LOCALE }) }))
+  const weekly = stats.weekly.map((w) => ({
+    ...w,
+    label: format(new Date(w.week), 'd MMM', { locale: LOCALE })
+  }))
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} />
+        <Segmented
+          className="w-fit"
+          value={range}
+          onChange={setRange}
+          options={RANGES.map((r) => ({ value: r.value, label: r.label }))}
+        />
         <span className="text-caption text-muted-foreground">
           {stats.avgReplyHours !== null
-            ? `Клиенты отвечают в среднем за ${stats.avgReplyHours < 48 ? `${Math.round(stats.avgReplyHours)} ч` : `${Math.round(stats.avgReplyHours / 24)} дн.`}`
-            : 'Ответов пока нет'}
+            ? `Клієнти відповідають у середньому за ${stats.avgReplyHours < 48 ? `${Math.round(stats.avgReplyHours)} год` : `${Math.round(stats.avgReplyHours / 24)} дн.`}`
+            : 'Відповідей поки немає'}
         </span>
       </div>
 
       {t.sent === 0 ? (
-        <EmptyState title="За этот период откликов нет" hint="Статистика появится, когда вы отправите несколько откликов." />
+        <EmptyState
+          title="За цей період відгуків немає"
+          hint="Статистика з’явиться, коли ви надішлете кілька відгуків."
+        />
       ) : (
         <>
           <div className="stagger grid grid-cols-12 gap-3">
@@ -127,7 +166,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
               <CardHeader>
                 <CardTitle>Воронка</CardTitle>
                 <CardDescription>
-                  Ответили на {t.replyRate}% откликов, контракт в {t.hireRate}%
+                  Відповіли на {t.replyRate}% відгуків, контракт у {t.hireRate}%
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -136,14 +175,24 @@ export function StatsTab({ platform }: { platform: Platform }) {
             </Card>
             <Card className="col-span-7">
               <CardHeader>
-                <CardTitle>По неделям</CardTitle>
-                <CardDescription>Сколько откликов отправлено и на сколько ответили</CardDescription>
+                <CardTitle>По тижнях</CardTitle>
+                <CardDescription>Скільки відгуків надіслано й на скільки відповіли</CardDescription>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={weeklyConfig} className="aspect-auto h-52 w-full">
-                  <BarChart data={weekly} margin={{ top: 4, right: 4, bottom: 0, left: -20 }} barGap={2}>
+                  <BarChart
+                    data={weekly}
+                    margin={{ top: 4, right: 4, bottom: 0, left: -20 }}
+                    barGap={2}
+                  >
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={16} />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={16}
+                    />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={40} />
                     <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
@@ -156,14 +205,14 @@ export function StatsTab({ platform }: { platform: Platform }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <FunnelTable
-              title="По типам задач"
-              description="Где вас чаще выбирают"
+              title="За типами завдань"
+              description="Де вас частіше обирають"
               rows={stats.byNiche}
               creditsName={platform.creditsName}
             />
             <FunnelTable
-              title="По шаблонам"
-              description="Какие тексты откликов работают лучше"
+              title="За шаблонами"
+              description="Які тексти відгуків працюють краще"
               rows={stats.byTemplate}
               creditsName={platform.creditsName}
             />

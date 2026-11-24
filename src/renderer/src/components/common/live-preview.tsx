@@ -16,14 +16,24 @@ export function LivePreview({
   language,
   bg = 'light',
   className,
-  debounce = 350
+  debounce = 350,
+  showStatus = true,
+  onStatus
 }: {
   code: string
   language: PreviewLanguage
   bg?: PreviewBg
   className?: string
   debounce?: number
+  /** false = no status badge (cards show their own quiet dot). */
+  showStatus?: boolean
+  /** Render result for the parent: ok / error message. */
+  onStatus?: (status: { ok: boolean; error?: string }) => void
 }) {
+  const onStatusRef = useRef(onStatus)
+  useEffect(() => {
+    onStatusRef.current = onStatus
+  })
   const frame = useRef<HTMLIFrameElement>(null)
   const [ready, setReady] = useState(false)
   const [status, setStatus] = useState<{ ok: boolean; error?: string } | null>(null)
@@ -35,7 +45,11 @@ export function LivePreview({
       const data = e.data as { source?: string; ready?: boolean; ok?: boolean; error?: string }
       if (data?.source !== 'vault-preview') return
       if (data.ready) setReady(true)
-      else setStatus({ ok: !!data.ok, error: data.error })
+      else {
+        const next = { ok: !!data.ok, error: data.error }
+        setStatus(next)
+        onStatusRef.current?.(next)
+      }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
@@ -53,15 +67,15 @@ export function LivePreview({
     <div className={cn('relative flex min-h-0 flex-col overflow-hidden rounded-2xl ring-1 ring-border', className)}>
       <iframe
         ref={frame}
-        title="Превью компонента"
+        title="Превʼю компонента"
         src={src}
         sandbox="allow-scripts"
         className="min-h-0 w-full flex-1 border-0 bg-white"
       />
-      {status && (
-        <Badge variant={status.ok ? 'lime' : 'destructive'} className="absolute top-2 left-2" title={status.error}>
+      {showStatus && status && (
+        <Badge variant={status.ok ? 'success' : 'destructive'} className="absolute top-2 left-2" title={status.error}>
           {status.ok ? <CheckCircle2 /> : <AlertTriangle />}
-          {status.ok ? 'Рендерится' : 'Ошибка'}
+          {status.ok ? 'Рендериться' : 'Помилка'}
         </Badge>
       )}
     </div>

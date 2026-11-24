@@ -16,9 +16,9 @@ import { plural } from '@/lib/format'
 
 /** Four equal neutral buttons; only the label colour carries the meaning (no single loud one). */
 const GRADES: { grade: ReviewGrade; label: string; hint: string; text: string; hover: string; tile: string }[] = [
-  { grade: 0, label: 'Не вспомнил', hint: 'покажу ещё раз', text: 'text-destructive', hover: 'hover:bg-destructive/12', tile: 'bg-destructive/12 text-destructive' },
-  { grade: 1, label: 'С трудом', hint: 'повторим скоро', text: 'text-warn', hover: 'hover:bg-warn/15', tile: 'bg-warn/15 text-warn' },
-  { grade: 2, label: 'Вспомнил', hint: 'по плану', text: 'text-foreground', hover: 'hover:bg-accent', tile: '' },
+  { grade: 0, label: 'Не згадав', hint: 'покажу ще раз', text: 'text-destructive', hover: 'hover:bg-destructive/12', tile: 'bg-destructive/12 text-destructive' },
+  { grade: 1, label: 'Насилу', hint: 'повторимо скоро', text: 'text-warn', hover: 'hover:bg-warn/15', tile: 'bg-warn/15 text-warn' },
+  { grade: 2, label: 'Згадав', hint: 'за планом', text: 'text-foreground', hover: 'hover:bg-accent', tile: '' },
   { grade: 3, label: 'Легко', hint: 'не скоро', text: 'text-success', hover: 'hover:bg-success/15', tile: 'bg-success/15 text-success' }
 ]
 
@@ -32,6 +32,43 @@ export function ReviewPage() {
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<Record<ReviewGrade, number>>({ 0: 0, 1: 0, 2: 0, 3: 0 })
   const [uniqueTotal, setUniqueTotal] = useState(0)
+  /** Practice beyond the norm: grades don't push the schedule (see english.review `extra`). */
+  const [extra, setExtra] = useState(false)
+
+  const startExtra = async (limit: number): Promise<void> => {
+    try {
+      const words = await api.english.practiceExtra(limit)
+      if (!words.length) {
+        toast.info('Більше слів для тренування немає — додайте нові у словник')
+        return
+      }
+      setExtra(true)
+      setQueue(words)
+      setIndex(0)
+      setRevealed(false)
+      setResults({ 0: 0, 1: 0, 2: 0, 3: 0 })
+      setUniqueTotal(words.length)
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const moreButtons = (
+    <div className="mt-6 flex flex-col items-center gap-2">
+      <span className="text-caption text-muted-foreground">Потренуватися понад норму — розклад повторень не збиватиметься</span>
+      <div className="flex gap-2">
+        <Button variant="subtle" onClick={() => void startExtra(10)}>
+          Ще 10
+        </Button>
+        <Button variant="subtle" onClick={() => void startExtra(20)}>
+          Ще 20
+        </Button>
+        <Button variant="subtle" onClick={() => void startExtra(500)}>
+          Усі
+        </Button>
+      </div>
+    </div>
+  )
 
   useEffect(() => {
     if (initial && queue === null) {
@@ -52,7 +89,7 @@ export function ReviewPage() {
     if (!current || !revealed || busy) return
     setBusy(true)
     try {
-      await api.english.review({ id: current.id, grade: g })
+      await api.english.review({ id: current.id, grade: g, extra })
       setResults((r) => ({ ...r, [g]: r[g] + 1 }))
       if (g === 0) setQueue((q) => (q ? [...q, current] : q))
       setIndex((i) => i + 1)
@@ -79,7 +116,7 @@ export function ReviewPage() {
     <div className="flex h-full flex-col px-8 py-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={exit}>
-          <ArrowLeft /> К словарю
+          <ArrowLeft /> До словника
         </Button>
         <SegmentBar value={done} total={Math.max(total, 1)} segments={Math.min(Math.max(total, 1), 12)} className="flex-1" />
         <span className="w-16 text-right text-body text-muted-foreground tabular-nums">
@@ -89,13 +126,14 @@ export function ReviewPage() {
 
       <div className="flex min-h-0 flex-1 items-center justify-center">
         {isLoading || queue === null ? (
-          <span className="text-muted-foreground">Загрузка…</span>
+          <span className="text-muted-foreground">Завантаження…</span>
         ) : queue.length === 0 ? (
           <div className="text-center">
-            <div className="font-display text-title">Всё повторено</div>
-            <p className="mt-2 text-body text-muted-foreground">Новые слова появятся в очереди, когда подойдёт их интервал.</p>
-            <Button className="mt-5" onClick={exit}>
-              Вернуться к словарю
+            <div className="font-display text-title">Усе повторено</div>
+            <p className="mt-2 text-body text-muted-foreground">Нові слова зʼявляться в черзі, коли настане їхній інтервал.</p>
+            {moreButtons}
+            <Button variant="ghost" className="mt-3" onClick={exit}>
+              Повернутися до словника
             </Button>
           </div>
         ) : finished ? (
@@ -105,9 +143,9 @@ export function ReviewPage() {
                 <PartyPopper className="size-7" />
               </AvatarFallback>
             </Avatar>
-            <div className="font-display text-title mt-5">Сессия завершена</div>
+            <div className="font-display text-title mt-5">{extra ? 'Тренування завершено' : 'Сесію завершено'}</div>
             <p className="mt-2 text-body text-muted-foreground">
-              {uniqueTotal} {plural(uniqueTotal, ['слово', 'слова', 'слов'])}, ответов: {done}
+              {uniqueTotal} {plural(uniqueTotal, ['слово', 'слова', 'слів'])}, відповідей: {done}
             </p>
             <div className="stagger mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
@@ -117,8 +155,9 @@ export function ReviewPage() {
                 </Card>
               ))}
             </div>
-            <Button className="mt-6" onClick={exit}>
-              Вернуться к словарю
+            {moreButtons}
+            <Button variant="ghost" className="mt-3" onClick={exit}>
+              Повернутися до словника
             </Button>
           </div>
         ) : current ? (
@@ -155,17 +194,17 @@ export function ReviewPage() {
                       setRevealed(true)
                     }}
                   >
-                    Показать ответ
+                    Показати відповідь
                   </Button>
                   <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
-                    или <Kbd>Пробел</Kbd>
+                    або <Kbd>Пробіл</Kbd>
                   </span>
                 </div>
               )}
             </Card>
             {revealed ? (
               <div className="flex animate-enter flex-col gap-2">
-                <div className="text-center text-body font-medium">Как вы вспомнили перевод?</div>
+                <div className="text-center text-body font-medium">Як ви згадали переклад?</div>
                 <div className="grid grid-cols-4 gap-2">
                 {GRADES.map((g) => (
                   <Button
@@ -187,7 +226,7 @@ export function ReviewPage() {
             ) : (
               // Same height as the grade row, so nothing jumps when the answer opens.
               <div className="flex h-16 items-center justify-center rounded-2xl border border-dashed border-foreground/12 text-caption text-muted-foreground">
-                Вспомните перевод, откройте ответ и оцените, насколько легко он дался
+                Згадайте переклад, відкрийте відповідь і оцініть, наскільки легко він дався
               </div>
             )}
           </div>

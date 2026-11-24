@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { BellRing, Kanban, List, Plus, Star } from 'lucide-react'
-import type { Platform, Proposal } from '@shared/domain/freelance'
+import { proposalInputSchema, type Platform, type Proposal } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { limitsOf } from '@/lib/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useUi } from '@/stores/ui-store'
 import { plural } from '@/lib/format'
@@ -10,7 +11,12 @@ import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput
+} from '@/components/ui/input-group'
 import { EmptyState, FilterChips, SearchInput, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { ProposalBoard } from './proposal-board'
@@ -18,9 +24,17 @@ import { ProposalList } from './proposal-list'
 import { ProposalEditorSheet } from './proposal-editor'
 import { daysSince } from './proposal-labels'
 
+const TITLE_MAX = limitsOf(proposalInputSchema).jobTitle
+
 type View = 'kanban' | 'list'
 
-function NewProposalButton({ platform, onCreated }: { platform: Platform; onCreated: (p: Proposal) => void }) {
+function NewProposalButton({
+  platform,
+  onCreated
+}: {
+  platform: Platform
+  onCreated: (p: Proposal) => void
+}) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const create = useApiMutation('proposals', 'create', {
@@ -32,13 +46,18 @@ function NewProposalButton({ platform, onCreated }: { platform: Platform; onCrea
   })
   const submit = (): void => {
     if (!title.trim()) return
-    create.mutate({ platformId: platform.id, jobTitle: title.trim(), status: 'sent', feePercent: null })
+    create.mutate({
+      platformId: platform.id,
+      jobTitle: title.trim(),
+      status: 'sent',
+      feePercent: null
+    })
   }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="lime">
-          <Plus /> Отклик
+          <Plus /> Відгук
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96 rounded-2xl p-3">
@@ -46,6 +65,7 @@ function NewProposalButton({ platform, onCreated }: { platform: Platform; onCrea
           <InputGroupInput
             autoFocus
             value={title}
+            maxLength={TITLE_MAX}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -53,15 +73,23 @@ function NewProposalButton({ platform, onCreated }: { platform: Platform; onCrea
                 submit()
               }
             }}
-            placeholder="Название вакансии"
+            placeholder="Назва вакансії"
           />
           <InputGroupAddon align="inline-end">
-            <InputGroupButton size="xs" variant="default" className="rounded-full" disabled={!title.trim() || create.isPending} onClick={submit}>
-              Добавить
+            <InputGroupButton
+              size="xs"
+              variant="default"
+              className="rounded-full"
+              disabled={!title.trim() || create.isPending}
+              onClick={submit}
+            >
+              Додати
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
-        <p className="mt-2 px-1 text-caption text-muted-foreground">Остальное — ставку, коннекты, клиента — заполните в карточке.</p>
+        <p className="mt-2 px-1 text-caption text-muted-foreground">
+          Решту — ставку, конекти, клієнта — заповніть у картці.
+        </p>
       </PopoverContent>
     </Popover>
   )
@@ -76,23 +104,36 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
     <Card className="gap-3 bg-warn/10 py-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-foreground">
-          <BellRing className="size-4 text-warn" /> Пора напомнить
+          <BellRing className="size-4 text-warn" /> Час нагадати
         </CardTitle>
         <CardDescription>
-          {stale.length} {plural(stale.length, ['отклик', 'отклика', 'откликов'])} без ответа 3+ дня. Одно короткое напоминание
-          часто возвращает клиента.
+          {stale.length} {plural(stale.length, ['відгук', 'відгуки', 'відгуків'])} без відповіді 3+
+          дні. Одне коротке нагадування часто повертає клієнта.
         </CardDescription>
         <CardAction>
-          <Button variant="soft" size="sm" className="bg-card" onClick={() => navigate('/freelance/templates')}>
-            Шаблоны напоминаний
+          <Button
+            variant="soft"
+            size="sm"
+            className="bg-card"
+            onClick={() => navigate('/freelance/templates')}
+          >
+            Шаблони нагадувань
           </Button>
         </CardAction>
       </CardHeader>
       <div className="flex flex-wrap gap-1.5 px-5">
         {stale.slice(0, 8).map((p) => (
-          <Button key={p.id} variant="soft" size="sm" className="max-w-[280px] bg-card font-normal" onClick={() => onOpen(p.id)}>
+          <Button
+            key={p.id}
+            variant="soft"
+            size="sm"
+            className="max-w-[280px] bg-card font-normal"
+            onClick={() => onOpen(p.id)}
+          >
             <span className="truncate">{p.jobTitle}</span>
-            <span className="text-muted-foreground tabular-nums">{daysSince(p.sentAt, now)} дн.</span>
+            <span className="text-muted-foreground tabular-nums">
+              {daysSince(p.sentAt, now)} дн.
+            </span>
           </Button>
         ))}
       </div>
@@ -112,12 +153,18 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
   const base = { platformId: platform.id, search: term || undefined }
   // Kanban needs every card (and the niche chips count them); the list view pages through the server.
   const { data: all = [], isLoading } = useApi('proposals', 'list', base)
-  const paged = useInfiniteApi('proposals', 'list', { ...base, niche, starred: starred || undefined })
+  const paged = useInfiniteApi('proposals', 'list', {
+    ...base,
+    niche,
+    starred: starred || undefined
+  })
 
   const niches = useMemo(() => {
     const counts = new Map<string, number>()
     for (const p of all) if (p.niche) counts.set(p.niche, (counts.get(p.niche) ?? 0) + 1)
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([value, count]) => ({ value, label: value, count }))
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([value, count]) => ({ value, label: value, count }))
   }, [all])
 
   const list = all.filter((p) => (!niche || p.niche === niche) && (!starred || p.starred))
@@ -125,18 +172,24 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <SearchInput value={search} onChange={setSearch} placeholder="Вакансия, клиент, текст отклика" className="w-72" />
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Вакансія, клієнт, текст відгуку"
+          className="w-72"
+        />
         <Toggle
           variant="chip"
           size="sm"
           pressed={starred}
           onPressedChange={setStarred}
-          aria-label="Только сильные"
+          aria-label="Лише сильні"
         >
-          <Star /> Сильные
+          <Star /> Сильні
         </Toggle>
         <div className="flex-1" />
         <Segmented
+          className="w-fit"
           value={view}
           onChange={(v) => setView('proposals', v)}
           options={[
@@ -146,18 +199,25 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
         />
         <NewProposalButton platform={platform} onCreated={(p) => setOpenId(p.id)} />
       </div>
-      {niches.length > 0 && <FilterChips options={niches} value={niche} onChange={setNiche} allLabel="Все типы" />}
+      {niches.length > 0 && (
+        <FilterChips options={niches} value={niche} onChange={setNiche} allLabel="Усі типи" />
+      )}
       <StaleBanner platformId={platform.id} onOpen={setOpenId} />
 
       <div className="min-h-0 flex-1">
         {!isLoading && all.length === 0 && !search ? (
           <EmptyState
-            title="Откликов пока нет"
-            hint="Добавляйте каждый отклик — так станет видно, какие задачи и тексты приносят контракты."
+            title="Відгуків поки немає"
+            hint="Додавайте кожен відгук — так стане видно, які завдання й тексти приносять контракти."
             action={<NewProposalButton platform={platform} onCreated={(p) => setOpenId(p.id)} />}
           />
         ) : view === 'kanban' ? (
-          <ProposalBoard proposals={list} currency={platform.currency} creditsName={platform.creditsName} onOpen={setOpenId} />
+          <ProposalBoard
+            proposals={list}
+            currency={platform.currency}
+            creditsName={platform.creditsName}
+            onOpen={setOpenId}
+          />
         ) : (
           <ProposalList
             proposals={paged.items}
@@ -172,7 +232,11 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
         )}
       </div>
 
-      <ProposalEditorSheet proposalId={openId} platform={platform} onClose={() => setOpenId(null)} />
+      <ProposalEditorSheet
+        proposalId={openId}
+        platform={platform}
+        onClose={() => setOpenId(null)}
+      />
     </div>
   )
 }

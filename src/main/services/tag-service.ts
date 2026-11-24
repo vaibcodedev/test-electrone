@@ -53,10 +53,10 @@ export class TagService {
         .from(tags)
         .where(sql`lower(${tags.name}) = lower(${data.name}) AND ${tags.id} != ${id}`)
         .get()
-      if (clash) throw new UserError(`Метка «${data.name}» уже существует`)
+      if (clash) throw new UserError(`Мітка «${data.name}» уже існує`)
     }
     const updated = this.db.update(tags).set(data).where(eq(tags.id, id)).returning().get()
-    if (!updated) throw new NotFoundError('Метка', id)
+    if (!updated) throw new NotFoundError('Мітка', id)
     return updated
   }
 

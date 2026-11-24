@@ -26,7 +26,7 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
       }}
     >
       <InputGroup className="h-11 pr-1">
-        <InputGroupInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Новая идея…" className="pl-4 text-body" />
+        <InputGroupInput value={title} maxLength={300} onChange={(e) => setTitle(e.target.value)} placeholder="Нова ідея…" className="pl-4 text-body" />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
             type="submit"
@@ -34,7 +34,7 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
             variant="default"
             className="rounded-full"
             disabled={!title.trim()}
-            aria-label="Добавить идею"
+            aria-label="Додати ідею"
           >
             <Plus />
           </InputGroupButton>
@@ -59,7 +59,7 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
         <span>{IDEA_STATUS_LABEL[idea.status]}</span>
         {idea.boardId && (
           <span className="inline-flex items-center gap-1">
-            <SquareKanban className="size-3" /> доска
+            <SquareKanban className="size-3" /> дошка
           </span>
         )}
         <span>· {fmtRelative(idea.updatedAt)}</span>
@@ -88,17 +88,17 @@ export function IdeasPage() {
 
   return (
     <Page>
-      <PageHeader title="Идеи" subtitle="Записывайте всё, что приходит в голову. Созревшую идею — одной кнопкой в доску.">
+      <PageHeader title="Ідеї" subtitle="Записуйте все, що спадає на думку. Дозрілу ідею — однією кнопкою в дошку.">
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
-            allLabel="Все"
+            allLabel="Усі"
             value={status}
             onChange={setStatus}
             options={IDEA_STATUSES.map((s) => ({ value: s, label: IDEA_STATUS_LABEL[s], count: counts[s] ?? 0 }))}
           />
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Поиск по идеям" className="w-60" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Пошук ідеями" className="w-60" />
           </div>
         </div>
       </PageHeader>
@@ -120,11 +120,11 @@ export function IdeasPage() {
                   !list.isLoading && (
                     <EmptyState
                       icon={Lightbulb}
-                      title={ideas.length ? 'Под фильтр ничего не попало' : 'Идей пока нет'}
+                      title={ideas.length ? 'Під фільтр нічого не потрапило' : 'Ідей поки немає'}
                       hint={
                         ideas.length
-                          ? 'Сбросьте фильтр статуса или метки.'
-                          : 'Напишите первую идею в поле выше — или нажмите глобальное сочетание быстрого добавления из любого окна.'
+                          ? 'Скиньте фільтр статусу чи мітки.'
+                          : 'Напишіть першу ідею в полі вище — або натисніть глобальне сполучення швидкого додавання з будь-якого вікна.'
                       }
                     />
                   )

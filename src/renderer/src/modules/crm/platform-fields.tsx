@@ -1,21 +1,33 @@
 /** Freelance platform bits for clients and contracts (Upwork data, fee %, "на руки"). */
-import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Flag } from 'lucide-react'
-import type { Client, ClientPatch, ProjectSummary } from '@shared/domain/crm'
+import {
+  clientInputSchema,
+  projectInputSchema,
+  type Client,
+  type ClientPatch,
+  type ProjectSummary
+} from '@shared/domain/crm'
 import type { Platform } from '@shared/domain/freelance'
 import { useApi } from '@/lib/query'
+import { rangesOf } from '@/lib/limits'
+import { NumberField } from './number-field'
+import { CountryCombobox } from './country-combobox'
 import { fmtMoney } from '@/lib/format'
 import { Field } from '@/components/common/page'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { Choice } from './parts'
+import { CURRENCY_SIGN } from './labels'
 
-export const FEE_HINT = 'Upwork: 0–15%, точную видно при отклике. Пусто — комиссия платформы по умолчанию.'
+const CLIENT_R = rangesOf(clientInputSchema)
+const FEE_RANGE = rangesOf(projectInputSchema).feePercent
+
+export const FEE_HINT =
+  'Upwork: 0–15%, точну видно під час відгуку. Порожньо — комісія платформи за замовчуванням.'
 
 export function usePlatforms(): Platform[] {
   const { data = [] } = useApi('platforms', 'list')
@@ -45,14 +57,20 @@ export function PlatformSelect({
     <Choice
       className={className}
       value={value ?? null}
-      none="Напрямую"
+      none="Напряму"
       onChange={onChange}
       options={platforms.map((p) => ({ value: p.id, label: p.name }))}
     />
   )
 }
 
-export function PlatformBadge({ platformId, name }: { platformId: string | null; name?: string | null }) {
+export function PlatformBadge({
+  platformId,
+  name
+}: {
+  platformId: string | null
+  name?: string | null
+}) {
   const platforms = usePlatforms()
   if (!platformId) return null
   const p = platforms.find((x) => x.id === platformId)
@@ -60,7 +78,10 @@ export function PlatformBadge({ platformId, name }: { platformId: string | null;
   if (!label) return null
   return (
     <Badge variant="outline" className="gap-1.5">
-      <span className="size-1.5 rounded-full" style={{ background: p?.color ?? 'var(--muted-foreground)' }} />
+      <span
+        className="size-1.5 rounded-full"
+        style={{ background: p?.color ?? 'var(--muted-foreground)' }}
+      />
       {label}
     </Badge>
   )
@@ -71,7 +92,7 @@ export function AvoidBadge({ className, link = true }: { className?: string; lin
   if (!link) {
     return (
       <Badge variant="destructive" className={cn('gap-1', className)}>
-        <Flag /> Не работать
+        <Flag /> Не працювати
       </Badge>
     )
   }
@@ -80,11 +101,11 @@ export function AvoidBadge({ className, link = true }: { className?: string; lin
       <TooltipTrigger asChild>
         <Badge variant="destructive" className={cn('gap-1', className)} asChild>
           <Link to="/freelance/flags">
-            <Flag /> Не работать
+            <Flag /> Не працювати
           </Link>
         </Badge>
       </TooltipTrigger>
-      <TooltipContent>Клиент в стоп-листе — см. «Красные флаги»</TooltipContent>
+      <TooltipContent>Клієнт у стоп-листі — див. «Червоні прапорці»</TooltipContent>
     </Tooltip>
   )
 }
@@ -101,67 +122,58 @@ export type ClientPlatformData = Pick<
 export function ClientPlatformFields({
   value,
   onChange,
-  saveOnBlur,
   currency = 'USD'
 }: {
   value: ClientPlatformData
   onChange: (patch: Partial<ClientPatch>) => void
-  /** true → uncontrolled inputs that save on blur (client page). */
+  /** @deprecated fields commit on blur in every context. */
   saveOnBlur?: boolean
   currency?: string
 }) {
-  const num = (
-    key: 'rating' | 'totalSpent' | 'hireRate',
-    label: string,
-    placeholder: string
-  ): ReactNode => (
-    <Field label={label}>
-      {saveOnBlur ? (
-        <Input
-          inputMode="decimal"
-          defaultValue={value[key] ?? ''}
-          placeholder={placeholder}
-          onBlur={(e) => {
-            const n = numberOrNull(e.target.value)
-            if (n !== value[key]) onChange({ [key]: n })
-          }}
-        />
-      ) : (
-        <Input
-          inputMode="decimal"
-          value={value[key] ?? ''}
-          placeholder={placeholder}
-          onChange={(e) => onChange({ [key]: numberOrNull(e.target.value) })}
-        />
-      )}
-    </Field>
-  )
+  // Short labels + the unit inside the input (InputGroup addon): labels never wrap into different
+  // heights, and `items-end` keeps the inputs on one line even if one does (docs/design-system.md → Формы).
+  // Schema ranges (rating 0–5, hire rate 0–100…) — out-of-range values show an error and aren't saved.
+  // Commit on blur works for both the autosaving page and the dialog state.
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Страна">
-          {saveOnBlur ? (
-            <Input
-              defaultValue={value.country}
-              placeholder="USA"
-              onBlur={(e) => e.target.value.trim() !== value.country && onChange({ country: e.target.value.trim() })}
-            />
-          ) : (
-            <Input value={value.country} placeholder="USA" onChange={(e) => onChange({ country: e.target.value })} />
-          )}
+      <div className="grid grid-cols-2 items-end gap-3">
+        <Field label="Країна">
+          <CountryCombobox value={value.country} onChange={(country) => onChange({ country })} />
         </Field>
-        {num('rating', 'Рейтинг', '4.9')}
-        {num('totalSpent', `Потратил на платформе, ${currency}`, '25000')}
-        {num('hireRate', 'Hire rate, %', '70')}
+        <NumberField
+          label="Рейтинг"
+          value={value.rating}
+          {...CLIENT_R.rating}
+          step={0.1}
+          placeholder="4.9"
+          unit="★"
+          onCommit={(rating) => onChange({ rating })}
+        />
+        <NumberField
+          label="Витрачено"
+          value={value.totalSpent}
+          {...CLIENT_R.totalSpent}
+          placeholder="25000"
+          unit={(CURRENCY_SIGN as Record<string, string>)[currency] ?? currency}
+          onCommit={(totalSpent) => onChange({ totalSpent })}
+        />
+        <NumberField
+          label="Найм, %"
+          value={value.hireRate}
+          {...CLIENT_R.hireRate}
+          placeholder="70"
+          unit="%"
+          onCommit={(hireRate) => onChange({ hireRate })}
+        />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex h-9 items-center gap-2">
         <Switch
           id="payment-verified"
           checked={!!value.paymentVerified}
           onCheckedChange={(paymentVerified) => onChange({ paymentVerified })}
         />
         <Label htmlFor="payment-verified" className="text-body font-normal text-foreground">
-          Оплата верифицирована
+          Оплату верифіковано
         </Label>
       </div>
     </div>
@@ -172,45 +184,38 @@ export function ClientPlatformFields({
 export function FeeField({
   value,
   onChange,
-  saveOnBlur,
   platformDefault
 }: {
   value: number | null | undefined
   onChange: (feePercent: number | null) => void
+  /** @deprecated NumberField commits on blur in both cases. */
   saveOnBlur?: boolean
   platformDefault?: number
 }) {
-  const placeholder = platformDefault !== undefined ? `${platformDefault}` : '10'
   return (
-    <Field label="Комиссия платформы, %">
-      {saveOnBlur ? (
-        <Input
-          inputMode="decimal"
-          defaultValue={value ?? ''}
-          placeholder={placeholder}
-          onBlur={(e) => {
-            const n = numberOrNull(e.target.value)
-            if (n !== (value ?? null)) onChange(n === null ? null : Math.min(100, Math.max(0, n)))
-          }}
-        />
-      ) : (
-        <Input
-          inputMode="decimal"
-          value={value ?? ''}
-          placeholder={placeholder}
-          onChange={(e) => {
-            const n = numberOrNull(e.target.value)
-            onChange(n === null ? null : Math.min(100, Math.max(0, n)))
-          }}
-        />
-      )}
+    <div className="flex flex-col gap-1.5">
+      <NumberField
+        label="Комісія платформи"
+        value={value}
+        {...FEE_RANGE}
+        step={0.5}
+        unit="%"
+        placeholder={platformDefault !== undefined ? `${platformDefault}` : '10'}
+        onCommit={onChange}
+      />
       <span className="text-meta text-muted-foreground">{FEE_HINT}</span>
-    </Field>
+    </div>
   )
 }
 
 /** "на руки 540 $ (−10%)" — paid amount after the platform fee. */
-export function NetPaid({ project: p, className }: { project: ProjectSummary; className?: string }) {
+export function NetPaid({
+  project: p,
+  className
+}: {
+  project: ProjectSummary
+  className?: string
+}) {
   if (!p.platformId || p.billing === 'none') return null
   return (
     <span className={cn('text-caption text-muted-foreground', className)}>

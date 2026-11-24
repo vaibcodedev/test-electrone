@@ -73,20 +73,20 @@ import { idArg, type ModuleContext } from './context'
 import { createCrudApi } from './crud'
 
 const CLAUDE_LABEL: Record<ClaudeKind, string> = {
-  note: 'Заметка',
-  branch: 'Ветка',
-  skill: 'Скил',
-  plugin: 'Плагин',
+  note: 'Нотатка',
+  branch: 'Гілка',
+  skill: 'Скіл',
+  plugin: 'Плагін',
   guide: 'Гайд',
   prompt: 'Промт'
 }
 
 const LIB_STATUS_LABEL: Record<LibraryStatus, string> = {
-  used: 'Использовал',
-  favorite: 'Любимая',
-  want: 'Хочу попробовать',
+  used: 'Використовував',
+  favorite: 'Улюблена',
+  want: 'Хочу спробувати',
   testing: 'Пробую',
-  dropped: 'Не зашла'
+  dropped: 'Не зайшла'
 }
 
 export class KnowledgeModule {
@@ -102,12 +102,14 @@ export class KnowledgeModule {
     const claude: EntityDescriptor = {
       type: 'claude',
       table: claudeItems,
+      draft: { titleField: 'title', contentFields: ['summary', 'content', 'url'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.summary}\n${r.content}` }),
       summary: (r) => ({ title: r.title, subtitle: CLAUDE_LABEL[r.kind as ClaudeKind] })
     }
     const library: EntityDescriptor = {
       type: 'library',
       table: libraries,
+      draft: { titleField: 'name', contentFields: ['purpose', 'notes', 'npmUrl', 'githubUrl', 'docsUrl', 'installCmd'] },
       searchDoc: (r) => ({ title: r.name, body: `${r.purpose}\n${r.installCmd}\n${r.notes}` }),
       summary: (r) => ({
         title: r.name,
@@ -117,12 +119,14 @@ export class KnowledgeModule {
     const snippet: EntityDescriptor = {
       type: 'snippet',
       table: snippets,
+      draft: { titleField: 'title', contentFields: ['description', 'code'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.description}\n${r.code}` }),
       summary: (r) => ({ title: r.title, subtitle: r.language })
     }
     const fix: EntityDescriptor = {
       type: 'fix',
       table: fixes,
+      draft: { titleField: 'title', contentFields: ['errorText', 'cause', 'solution', 'context'] },
       searchDoc: (r) => ({
         title: r.title,
         body: `${r.errorText}\n${r.cause}\n${r.solution}\n${r.context}`
@@ -132,12 +136,14 @@ export class KnowledgeModule {
     const bookmark: EntityDescriptor = {
       type: 'bookmark',
       table: bookmarks,
+      draft: { titleField: 'title', contentFields: ['url', 'notes'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.url}\n${r.notes}` }),
       summary: (r) => ({ title: r.title, subtitle: hostOf(r.url) })
     }
     const note: EntityDescriptor = {
       type: 'note',
       table: notes,
+      draft: { titleField: 'title', contentFields: ['body'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.folder}\n${r.body}` }),
       summary: (r) => ({ title: r.title, subtitle: r.folder || undefined })
     }
@@ -287,7 +293,7 @@ export class KnowledgeModule {
           .where(and(isNull(notes.deletedAt), sql`${notes.folder} != ''`))
           .all()
           .map((r) => r.folder)
-          .sort((a, b) => a.localeCompare(b, 'ru'))
+          .sort((a, b) => a.localeCompare(b, 'uk'))
     }
   }
 

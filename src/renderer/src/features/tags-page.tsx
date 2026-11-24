@@ -15,6 +15,10 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '
 import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { plural } from '@/lib/format'
+import { limitsOf } from '@/lib/limits'
+import { tagInputSchema } from '@shared/domain/system'
+
+const TAG_LIMITS = limitsOf(tagInputSchema)
 import { cn } from '@/lib/utils'
 
 /** Global tags shared by all modules: rename, recolor, delete, and see everything carrying a tag. */
@@ -25,7 +29,7 @@ export function TagsPage() {
   const { data: entities = [] } = useApi('tags', 'entities', selected ?? '', { enabled: !!selected })
   const create = useApiMutation('tags', 'create')
   const update = useApiMutation('tags', 'update')
-  const remove = useApiMutation('tags', 'remove', { successMessage: 'Метка удалена' })
+  const remove = useApiMutation('tags', 'remove', { successMessage: 'Мітку видалено' })
   const [name, setName] = useState('')
   const current = tags.find((t) => t.id === selected)
 
@@ -40,8 +44,8 @@ export function TagsPage() {
   return (
     <Page>
       <PageHeader
-        title="Метки"
-        subtitle="Общие для всех разделов: одна метка «shopify» найдёт идеи, сниппеты, дизайны и ошибки."
+        title="Мітки"
+        subtitle="Спільні для всіх розділів: одна мітка «shopify» знайде ідеї, сніпети, дизайни й помилки."
       />
       <PageBody>
         <div className="grid grid-cols-[minmax(280px,360px)_minmax(0,1fr)] items-start gap-3">
@@ -54,7 +58,7 @@ export function TagsPage() {
                 }}
               >
                 <InputGroup className="bg-card">
-                  <InputGroupInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Новая метка" />
+                  <InputGroupInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Нова мітка" maxLength={TAG_LIMITS.name} />
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton
                       type="submit"
@@ -63,13 +67,13 @@ export function TagsPage() {
                       className="rounded-full"
                       disabled={!name.trim() || create.isPending}
                     >
-                      <Plus /> Добавить
+                      <Plus /> Додати
                     </InputGroupButton>
                   </InputGroupAddon>
                 </InputGroup>
               </form>
               {tags.length === 0 ? (
-                <p className="px-1 text-caption text-muted-foreground">Меток пока нет. Создайте первую выше или прямо в любой записи.</p>
+                <p className="px-1 text-caption text-muted-foreground">Міток поки немає. Створіть першу вище або просто в будь-якому записі.</p>
               ) : (
                 <ItemGroup className="gap-1">
                   {tags.map((t) => {
@@ -104,8 +108,8 @@ export function TagsPage() {
             {!current ? (
               <EmptyState
                 icon={Tags}
-                title="Выберите метку"
-                hint="Здесь появится всё, что ей помечено, из всех разделов."
+                title="Виберіть мітку"
+                hint="Тут з’явиться все, що нею позначено, з усіх розділів."
                 className="py-10"
               />
             ) : (
@@ -114,16 +118,17 @@ export function TagsPage() {
                   <CardTitle className="font-display text-stat-sm text-foreground">{current.name}</CardTitle>
                   <CardDescription>
                     {entities.length
-                      ? `${entities.length} ${plural(entities.length, ['запись', 'записи', 'записей'])}`
-                      : 'Пока ничем не помечено'}
+                      ? `${entities.length} ${plural(entities.length, ['запис', 'записи', 'записів'])}`
+                      : 'Поки нічим не позначено'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-5">
                   <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-                    <Field label="Название">
+                    <Field label="Назва">
                       <Input
                         key={current.id + current.name}
                         defaultValue={current.name}
+                        maxLength={TAG_LIMITS.name}
                         className="bg-card"
                         onBlur={(e) =>
                           e.target.value.trim() &&
@@ -134,19 +139,19 @@ export function TagsPage() {
                       />
                     </Field>
                     <Confirm
-                      title={`Удалить метку «${current.name}»?`}
-                      description="Записи останутся, пропадёт только метка."
+                      title={`Видалити мітку «${current.name}»?`}
+                      description="Записи залишаться, зникне лише мітка."
                       onConfirm={() => {
                         remove.mutate(current.id)
                         setParams({})
                       }}
                     >
                       <Button variant="ghost" className="hover:text-destructive">
-                        <Trash2 /> Удалить
+                        <Trash2 /> Видалити
                       </Button>
                     </Confirm>
                   </div>
-                  <Field label="Цвет">
+                  <Field label="Колір">
                     <ToggleGroup
                       type="single"
                       value={current.color ?? ''}
@@ -167,7 +172,7 @@ export function TagsPage() {
                     </ToggleGroup>
                   </Field>
                   <div className="flex flex-col gap-1">
-                    <span className="text-caption font-medium text-muted-foreground">Помечено</span>
+                    <span className="text-caption font-medium text-muted-foreground">Позначено</span>
                     {entities.length ? (
                       // Height follows the content up to 60vh, then scrolls; rows are virtualized.
                       <VirtualList
@@ -180,7 +185,7 @@ export function TagsPage() {
                       />
                     ) : (
                       <p className="text-caption text-muted-foreground">
-                        Добавьте эту метку к идее, сниппету или дизайну — запись появится здесь.
+                        Додайте цю мітку до ідеї, сніпета чи дизайну — запис з’явиться тут.
                       </p>
                     )}
                   </div>

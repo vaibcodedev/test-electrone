@@ -40,13 +40,13 @@ export function IncomePage() {
   return (
     <Page>
       <PageHeader
-        title="Доходы"
-        subtitle="Каждая строка — оплата по контракту со статусом «оплачено». Комиссия берётся из контракта, а если её нет — из настроек платформы."
+        title="Доходи"
+        subtitle="Кожен рядок — оплата за контрактом зі статусом «оплачено». Комісія береться з контракту, а якщо її немає — з налаштувань платформи."
         actions={
           <>
             <MonthSwitcher month={month} onChange={setMonth} />
             <Button variant="lime" onClick={() => navigate('/clients')}>
-              Добавить оплату
+              Додати оплату
             </Button>
           </>
         }
@@ -59,11 +59,11 @@ export function IncomePage() {
         ) : rows.length === 0 ? (
           <EmptyState
             icon={TrendingUp}
-            title="В этом месяце оплат нет"
-            hint="Откройте контракт в «Клиенты и контракты» и отметьте оплату — она появится здесь с учётом комиссии."
+            title="Цього місяця оплат немає"
+            hint="Відкрийте контракт у «Клієнти й контракти» й позначте оплату — вона з’явиться тут з урахуванням комісії."
             action={
               <Button variant="soft" onClick={() => navigate('/clients')}>
-                К контрактам
+                До контрактів
               </Button>
             }
           />
@@ -75,10 +75,10 @@ export function IncomePage() {
                   <TableRow>
                     <TableHead>Дата</TableHead>
                     <TableHead>Контракт</TableHead>
-                    <TableHead>Клиент</TableHead>
+                    <TableHead>Клієнт</TableHead>
                     <TableHead>Платформа</TableHead>
-                    <TableHead className="text-right">Сумма</TableHead>
-                    <TableHead className="text-right">Комиссия</TableHead>
+                    <TableHead className="text-right">Сума</TableHead>
+                    <TableHead className="text-right">Комісія</TableHead>
                     <TableHead className="text-right">На руки</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -104,7 +104,7 @@ export function IncomePage() {
                         {r.platformName ? (
                           <Badge variant="soft">{r.platformName}</Badge>
                         ) : (
-                          <span className="text-muted-foreground">Напрямую</span>
+                          <span className="text-muted-foreground">Напряму</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
@@ -121,7 +121,7 @@ export function IncomePage() {
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={4}>Итого за месяц</TableCell>
+                    <TableCell colSpan={4}>Разом за місяць</TableCell>
                     <TableCell className="text-right">
                       <MoneyLines value={totals.gross} className="items-end" />
                     </TableCell>

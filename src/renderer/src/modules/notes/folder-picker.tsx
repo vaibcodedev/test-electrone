@@ -40,16 +40,16 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
           >
             <span className="flex min-w-0 items-center gap-2">
               <Folder />
-              <span className="truncate">{value || 'Без папки'}</span>
+              <span className="truncate">{value || 'Без теки'}</span>
             </span>
             <ChevronsUpDown className="opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 rounded-2xl p-0" align="start">
           <Command>
-            <CommandInput placeholder="Найти или создать папку…" value={query} onValueChange={setQuery} />
+            <CommandInput placeholder="Знайти або створити теку…" value={query} maxLength={100} onValueChange={setQuery} />
             <CommandList>
-              <CommandEmpty>Папок пока нет</CommandEmpty>
+              <CommandEmpty>Тек поки немає</CommandEmpty>
               <CommandGroup>
                 {folders.map((f) => (
                   <CommandItem key={f} value={f} onSelect={() => pick(f)}>
@@ -61,7 +61,7 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
                 {typed && !exists && (
                   <CommandItem value={`__create__${typed}`} onSelect={() => pick(typed)}>
                     <FolderPlus />
-                    Создать «{typed}»
+                    Створити «{typed}»
                   </CommandItem>
                 )}
               </CommandGroup>
@@ -70,7 +70,7 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
         </PopoverContent>
       </Popover>
       {value && (
-        <Button variant="soft" size="icon" aria-label="Убрать из папки" onClick={() => onChange('')}>
+        <Button variant="soft" size="icon" aria-label="Прибрати з теки" onClick={() => onChange('')}>
           <X />
         </Button>
       )}

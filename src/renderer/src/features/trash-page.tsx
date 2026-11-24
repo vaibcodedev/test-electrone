@@ -11,25 +11,25 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle }
 
 export function TrashPage() {
   const { data: items = [], isLoading } = useApi('trash', 'list')
-  const restore = useApiMutation('trash', 'restore', { successMessage: 'Восстановлено' })
-  const purge = useApiMutation('trash', 'purge', { successMessage: 'Удалено навсегда' })
-  const empty = useApiMutation('trash', 'empty', { successMessage: 'Корзина очищена' })
+  const restore = useApiMutation('trash', 'restore', { successMessage: 'Відновлено' })
+  const purge = useApiMutation('trash', 'purge', { successMessage: 'Видалено назавжди' })
+  const empty = useApiMutation('trash', 'empty', { successMessage: 'Кошик очищено' })
 
   return (
     <Page>
       <PageHeader
-        title="Корзина"
-        subtitle="Удалённое хранится 30 дней, потом исчезает само. Связи, метки и файлы удаляются вместе с записью."
+        title="Кошик"
+        subtitle="Видалене зберігається 30 днів, потім зникає саме. Зв’язки, мітки й файли видаляються разом із записом."
         actions={
           items.length > 0 && (
             <Confirm
-              title="Очистить корзину?"
-              description={`Будет удалено навсегда: ${items.length}. Это нельзя отменить.`}
-              confirmLabel="Очистить"
+              title="Очистити кошик?"
+              description={`Буде видалено назавжди: ${items.length}. Це не можна скасувати.`}
+              confirmLabel="Очистити"
               onConfirm={() => empty.mutate(undefined)}
             >
               <Button variant="soft">
-                <Trash2 /> Очистить
+                <Trash2 /> Очистити
               </Button>
             </Confirm>
           )
@@ -41,7 +41,7 @@ export function TrashPage() {
           getKey={(item) => `${item.type}:${item.id}`}
           estimateSize={60}
           gap={8}
-          empty={!isLoading && <EmptyState icon={Trash2} title="Корзина пуста" hint="Всё, что вы удаляете, попадает сюда на 30 дней." />}
+          empty={!isLoading && <EmptyState icon={Trash2} title="Кошик порожній" hint="Усе, що ви видаляєте, потрапляє сюди на 30 днів." />}
           renderItem={(item) => {
             const Icon = ENTITY_ICON[item.type]
             return (
@@ -52,23 +52,23 @@ export function TrashPage() {
                 <ItemContent className="min-w-0">
                   <ItemTitle className="w-full truncate text-body">{item.title}</ItemTitle>
                   <ItemDescription className="text-caption">
-                    {ENTITY_META[item.type].label} · удалено {fmtRelative(item.deletedAt)} · исчезнет {fmtDay(item.purgeAt)}
+                    {ENTITY_META[item.type].label} · видалено {fmtRelative(item.deletedAt)} · зникне {fmtDay(item.purgeAt)}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button variant="ghost" size="sm" onClick={() => restore.mutate({ type: item.type, id: item.id })}>
-                    <RotateCcw /> Восстановить
+                    <RotateCcw /> Відновити
                   </Button>
                   <Confirm
-                    title="Удалить навсегда?"
-                    description={`«${item.title}» будет удалено без возможности восстановления.`}
+                    title="Видалити назавжди?"
+                    description={`«${item.title}» буде видалено без можливості відновлення.`}
                     onConfirm={() => purge.mutate({ type: item.type, id: item.id })}
                   >
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Удалить навсегда"
-                      title="Удалить навсегда"
+                      aria-label="Видалити назавжди"
+                      title="Видалити назавжди"
                       className="hover:text-destructive"
                     >
                       <Trash2 />

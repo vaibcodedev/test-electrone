@@ -5,7 +5,9 @@ import rehypeHighlight from 'rehype-highlight'
 import { Eye, Pencil } from 'lucide-react'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useReadOnly } from './detail-mode'
 import { Textarea } from '@/components/ui/textarea'
+import { FieldLabel } from '@/components/ui/field'
 import { Segmented } from './page'
 import { CopyButton } from './copy-button'
 
@@ -68,11 +70,12 @@ export function Markdown({ source, className }: { source: string; className?: st
 export function MarkdownField({
   value,
   onChange,
-  placeholder = 'Пишите в Markdown: **жирный**, списки, ```код```',
+  placeholder = 'Пишіть у Markdown: **жирний**, списки, ```код```',
   minHeight = '160px',
   className,
   defaultMode,
-  label
+  label,
+  maxLength
 }: {
   value: string
   onChange: (value: string) => void
@@ -81,19 +84,44 @@ export function MarkdownField({
   className?: string
   defaultMode?: 'edit' | 'preview'
   label?: string
+  /** From the schema (limitsOf); the counter appears in the label row after 80%. */
+  maxLength?: number
 }) {
+  const near = maxLength ? value.length >= maxLength * 0.8 : false
+  const viewMode = useReadOnly()
   const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? (value.trim() ? 'preview' : 'edit'))
+  // Record view mode: rendered text only; an empty field disappears.
+  if (viewMode) {
+    if (!value.trim()) return null
+    return (
+      <div className={cn('flex flex-col gap-2', className)}>
+        {label && <FieldLabel>{label}</FieldLabel>}
+        <Markdown source={value} />
+      </div>
+    )
+  }
   return (
     <div className={cn('flex flex-col gap-2', className)}>
+      {/* Label row has the label's height: the compact toggle (h-7, -my-1) must not push the control down,
+          so label → control is 8px like every other Field (docs/design-system.md → Формы). */}
       <div className="flex items-center justify-between gap-2">
-        {label ? <span className="text-caption font-medium text-muted-foreground">{label}</span> : <span />}
+        {label ? <FieldLabel>{label}</FieldLabel> : <span />}
+        {near && (
+          <span
+            className={cn('ml-auto text-meta tabular-nums', value.length >= maxLength! ? 'text-warn' : 'text-muted-foreground')}
+            aria-live="polite"
+          >
+            {value.length} / {maxLength}
+          </span>
+        )}
         <Segmented
           size="xs"
+          className="-my-1 h-7 p-0.5 [&>button]:h-6 [&>button]:px-2.5 [&>button]:text-meta"
           value={mode}
           onChange={setMode}
           options={[
             { value: 'edit', label: <><Pencil /> Текст</> },
-            { value: 'preview', label: <><Eye /> Просмотр</> }
+            { value: 'preview', label: <><Eye /> Перегляд</> }
           ]}
         />
       </div>
@@ -102,6 +130,7 @@ export function MarkdownField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          maxLength={maxLength}
           style={{ minHeight }}
           className="px-4 py-3 text-lead leading-relaxed"
         />
@@ -110,12 +139,12 @@ export function MarkdownField({
           className="cursor-text rounded-xl bg-surface px-5 py-4"
           style={{ minHeight: `calc(${minHeight} / 2)` }}
           onDoubleClick={() => setMode('edit')}
-          title="Двойной клик — редактировать"
+          title="Подвійний клік — редагувати"
         >
           {value.trim() ? (
             <Markdown source={value} />
           ) : (
-            <span className="text-body text-muted-foreground">Пусто. Переключитесь на «Текст», чтобы написать.</span>
+            <span className="text-body text-muted-foreground">Порожньо. Перемкніться на «Текст», щоб написати.</span>
           )}
         </div>
       )}

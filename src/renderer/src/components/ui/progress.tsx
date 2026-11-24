@@ -13,14 +13,15 @@ function Progress({
     <ProgressPrimitive.Root
       data-slot="progress"
       className={cn(
-        "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+        // Neutral track visible on any surface; fill = chart-1 (contrast-checked). docs/design-system.md → Прогресс.
+        "relative h-2 w-full overflow-hidden rounded-full bg-foreground/10",
         className
       )}
       {...props}
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className="h-full w-full flex-1 bg-primary transition-all"
+        className="h-full w-full flex-1 bg-chart-1 transition-all"
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </ProgressPrimitive.Root>

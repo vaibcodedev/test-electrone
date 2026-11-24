@@ -36,15 +36,15 @@ function ReposTab({ force }: { force: number }) {
   return (
     <div className="flex flex-col gap-3">
       <ErrorNote error={error} />
-      <SearchInput value={search} onChange={setSearch} placeholder="Найти репозиторий" className="max-w-sm" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Знайти репозиторій" className="max-w-sm" />
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Репозиторий</TableHead>
-            <TableHead>Язык</TableHead>
+            <TableHead>Репозиторій</TableHead>
+            <TableHead>Мова</TableHead>
             <TableHead className="text-right">★</TableHead>
             <TableHead className="text-right">Issues</TableHead>
-            <TableHead>Последний push</TableHead>
+            <TableHead>Останній push</TableHead>
             <TableHead>Локально</TableHead>
           </TableRow>
         </TableHeader>
@@ -80,8 +80,8 @@ function ReposTab({ force }: { force: number }) {
                     Локально
                   </Button>
                 ) : (
-                  <span className="text-caption text-muted-foreground" title="Добавьте папку репозитория в «Мои проекты» — связь определится по git remote">
-                    нет папки
+                  <span className="text-caption text-muted-foreground" title="Додайте папку репозиторію в «Мої проєкти» — зв’язок визначиться за git remote">
+                    немає папки
                   </span>
                 )}
               </TableCell>
@@ -89,7 +89,7 @@ function ReposTab({ force }: { force: number }) {
           ))}
         </TableBody>
       </Table>
-      {repos && !list.length && <EmptyState title="Репозиториев нет" hint="Проверьте, что у токена есть доступ к нужным репозиториям." />}
+      {repos && !list.length && <EmptyState title="Репозиторіїв немає" hint="Перевірте, що токен має доступ до потрібних репозиторіїв." />}
     </div>
   )
 }
@@ -116,7 +116,7 @@ function IssueRow({ issue: i }: { issue: GithubIssue }) {
               </Badge>
             ))}
             <span>
-              {i.author} · обновлено {fmtRelative(i.updatedAt)}
+              {i.author} · оновлено {fmtRelative(i.updatedAt)}
             </span>
             {i.comments > 0 && (
               <span className="inline-flex items-center gap-0.5">
@@ -140,7 +140,7 @@ function IssuesTab({ force }: { force: number }) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <FilterChips<IssueKind>
-          allLabel="Все"
+          allLabel="Усі"
           value={kind}
           onChange={setKind}
           options={[
@@ -153,7 +153,7 @@ function IssuesTab({ force }: { force: number }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>Все репозитории</SelectItem>
+            <SelectItem value={ALL}>Усі репозиторії</SelectItem>
             {repos.map((r) => (
               <SelectItem key={r.fullName} value={r.fullName}>
                 {r.fullName}
@@ -172,7 +172,7 @@ function IssuesTab({ force }: { force: number }) {
           ))}
         </ItemGroup>
       ) : (
-        <EmptyState icon={CircleDot} title="Открытых задач нет" hint="Здесь появятся открытые issues и pull requests, где вы автор, исполнитель или упомянуты." />
+        <EmptyState icon={CircleDot} title="Відкритих задач немає" hint="Тут з’являться відкриті issues і pull requests, де ви автор, виконавець або вас згадано." />
       )}
     </div>
   )
@@ -197,7 +197,7 @@ function CommitsTab({ force }: { force: number }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={ALL}>Последние активные репозитории</SelectItem>
+          <SelectItem value={ALL}>Останні активні репозиторії</SelectItem>
           {repos.map((r) => (
             <SelectItem key={r.fullName} value={r.fullName}>
               {r.fullName}
@@ -233,7 +233,7 @@ function CommitsTab({ force }: { force: number }) {
           </section>
         ))
       ) : (
-        <EmptyState icon={GitCommitHorizontal} title="Коммитов нет" />
+        <EmptyState icon={GitCommitHorizontal} title="Комітів немає" />
       )}
     </div>
   )
@@ -242,7 +242,7 @@ function CommitsTab({ force }: { force: number }) {
 /** GitHub: repos, open issues/PRs and recent commits (read-only token). */
 export function GithubPage() {
   const { data: status, isLoading } = useApi('github', 'status')
-  const disconnect = useApiMutation('github', 'setToken', { successMessage: 'GitHub отключён' })
+  const disconnect = useApiMutation('github', 'setToken', { successMessage: 'GitHub відключено' })
   const [force, setForce] = useState(0)
   const [tab, setTab] = useState('repos')
 
@@ -251,13 +251,13 @@ export function GithubPage() {
   if (!status?.connected) {
     return (
       <Page>
-        <PageHeader title="GitHub" subtitle="Репозитории, открытые issues и последние коммиты в одном месте." />
+        <PageHeader title="GitHub" subtitle="Репозиторії, відкриті issues й останні коміти в одному місці." />
         <PageBody>
           <Card className="max-w-2xl">
             <CardHeader>
-              <CardTitle className="text-lead text-foreground">Подключите GitHub</CardTitle>
+              <CardTitle className="text-lead text-foreground">Підключіть GitHub</CardTitle>
               <CardDescription className="text-caption">
-                Нужен fine-grained токен только на чтение. Vault ничего не меняет в ваших репозиториях.
+                Потрібен fine-grained токен лише на читання. Vault нічого не змінює у ваших репозиторіях.
                 {status?.error && <span className="mt-1 block text-destructive">{status.error}</span>}
               </CardDescription>
             </CardHeader>
@@ -281,7 +281,7 @@ export function GithubPage() {
               <AvatarFallback className="text-[10px]">{status.login?.slice(0, 1).toUpperCase()}</AvatarFallback>
             </Avatar>
             {status.name ? `${status.name} · ` : ''}@{status.login}
-            {status.rateRemaining !== null && <Badge variant="soft">запросов осталось: {status.rateRemaining}</Badge>}
+            {status.rateRemaining !== null && <Badge variant="soft">запитів залишилося: {status.rateRemaining}</Badge>}
           </span>
         }
         actions={
@@ -293,11 +293,11 @@ export function GithubPage() {
                 invalidateAll()
               }}
             >
-              <RefreshCw /> Обновить
+              <RefreshCw /> Оновити
             </Button>
-            <Confirm title="Отключить GitHub?" description="Токен будет удалён из Vault. На GitHub его можно отозвать отдельно." confirmLabel="Отключить" onConfirm={() => disconnect.mutate({ token: '' })}>
+            <Confirm title="Відключити GitHub?" description="Токен буде видалено з Vault. На GitHub його можна відкликати окремо." confirmLabel="Відключити" onConfirm={() => disconnect.mutate({ token: '' })}>
               <Button variant="ghost">
-                <Unplug /> Отключить
+                <Unplug /> Відключити
               </Button>
             </Confirm>
           </>
@@ -307,13 +307,13 @@ export function GithubPage() {
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="repos">
-              <Star /> Репозитории
+              <Star /> Репозиторії
             </TabsTrigger>
             <TabsTrigger value="issues">
-              <CircleDot /> Issues и PR
+              <CircleDot /> Issues і PR
             </TabsTrigger>
             <TabsTrigger value="commits">
-              <GitCommitHorizontal /> Коммиты
+              <GitCommitHorizontal /> Коміти
             </TabsTrigger>
           </TabsList>
           <TabsContent value="repos" className={cn('pt-3')}>

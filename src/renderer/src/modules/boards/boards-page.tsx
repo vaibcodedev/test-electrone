@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ArrowUpRight, Plus, SquareKanban } from 'lucide-react'
-import type { BoardSummary } from '@shared/domain/boards'
+import { boardInputSchema, type BoardSummary } from '@shared/domain/boards'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { EmptyState, Field, Page, PageBody, PageHeader, SegmentBar } from '@/components/common/page'
@@ -13,6 +14,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
+
+const LIMITS = limitsOf(boardInputSchema)
 
 function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const navigate = useNavigate()
@@ -30,8 +33,8 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-3xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Новая доска</DialogTitle>
-          <DialogDescription>Колонки «Бэклог → В работе → Ревью → Готово» создадутся сами, их можно поменять.</DialogDescription>
+          <DialogTitle className="font-display text-xl">Нова дошка</DialogTitle>
+          <DialogDescription>Колонки «Беклог → У роботі → Ревʼю → Готово» створяться самі, їх можна змінити.</DialogDescription>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -40,15 +43,15 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
             if (title.trim()) create.mutate({ title: title.trim(), description })
           }}
         >
-          <Field label="Название">
-            <Input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например, Bloom Store — редизайн" />
+          <Field label="Назва" count={{ length: title.length, max: LIMITS.title }}>
+            <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Наприклад, Bloom Store — редизайн" />
           </Field>
-          <Field label="Описание">
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Необязательно" />
+          <Field label="Опис">
+            <Textarea value={description} maxLength={LIMITS.description} onChange={(e) => setDescription(e.target.value)} placeholder="Необовʼязково" />
           </Field>
           <DialogFooter>
             <Button type="submit" variant="lime" disabled={!title.trim() || create.isPending}>
-              Создать доску
+              Створити дошку
             </Button>
           </DialogFooter>
         </form>
@@ -71,8 +74,8 @@ function BoardTile({ board }: { board: BoardSummary }) {
           <ArrowUpRight className="size-4 transition-transform group-hover:rotate-45" />
         </span>
         <div className="flex gap-1">
-          {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} просрочено</Badge>}
-          {board.archived && <Badge variant="outline">Архив</Badge>}
+          {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} прострочено</Badge>}
+          {board.archived && <Badge variant="outline">Архів</Badge>}
         </div>
       </div>
       <CardTitle className="font-display mt-4 line-clamp-2 text-stat-sm leading-tight font-normal text-foreground">
@@ -90,8 +93,8 @@ function BoardTile({ board }: { board: BoardSummary }) {
         <div className="mt-1.5 flex justify-between gap-3 text-meta text-muted-foreground">
           <span className="min-w-0 truncate">
             {board.cardCount
-              ? `Готово ${board.doneCount} из ${board.cardCount}`
-              : 'Пока без карточек'}
+              ? `Готово ${board.doneCount} з ${board.cardCount}`
+              : 'Поки без карток'}
           </span>
           <span className="shrink-0">{fmtRelative(board.updatedAt)}</span>
         </div>
@@ -106,11 +109,11 @@ export function BoardsPage() {
   return (
     <Page>
       <PageHeader
-        title="Доски"
-        subtitle="Отдельная канбан-доска на каждый проект."
+        title="Дошки"
+        subtitle="Окрема канбан-дошка на кожен проєкт."
         actions={
           <Button variant="lime" onClick={() => setCreating(true)}>
-            <Plus /> Новая доска
+            <Plus /> Нова дошка
           </Button>
         }
       />
@@ -118,11 +121,11 @@ export function BoardsPage() {
         {!isLoading && boards.length === 0 ? (
           <EmptyState
             icon={SquareKanban}
-            title="Досок пока нет"
-            hint="Создайте доску вручную или превратите идею в доску одной кнопкой."
+            title="Дошок поки немає"
+            hint="Створіть дошку вручну або перетворіть ідею на дошку однією кнопкою."
             action={
               <Button variant="lime" onClick={() => setCreating(true)}>
-                <Plus /> Новая доска
+                <Plus /> Нова дошка
               </Button>
             }
           />

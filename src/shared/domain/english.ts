@@ -53,7 +53,8 @@ export interface Word extends EntityBase, WithTags {
 /** 0 = forgot, 1 = hard, 2 = good, 3 = easy */
 export const reviewGradeSchema = z.number().int().min(0).max(3)
 export type ReviewGrade = z.infer<typeof reviewGradeSchema>
-export const reviewInputSchema = z.object({ id: idSchema, grade: reviewGradeSchema })
+/** `extra` = practice beyond the schedule: only «Не згадав» changes the schedule (lapse). */
+export const reviewInputSchema = z.object({ id: idSchema, grade: reviewGradeSchema, extra: z.boolean().optional() })
 
 export interface EnglishStats {
   total: number

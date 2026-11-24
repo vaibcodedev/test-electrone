@@ -285,6 +285,11 @@ export interface ApplicationDetails extends Application {
 
 export const QUESTION_CATEGORIES = ['technical', 'behavioral', 'company', 'salary', 'other'] as const
 export type QuestionCategory = (typeof QUESTION_CATEGORIES)[number]
+/** Main split shown in the UI: technical vs everything else (stored categories stay as they are). */
+export const QUESTION_GROUPS = ['technical', 'nontechnical'] as const
+export type QuestionGroup = (typeof QUESTION_GROUPS)[number]
+export const NON_TECH_CATEGORIES = ['behavioral', 'company', 'salary', 'other'] as const satisfies readonly QuestionCategory[]
+export const groupOf = (c: QuestionCategory): QuestionGroup => (c === 'technical' ? 'technical' : 'nontechnical')
 
 export const questionInputSchema = z.object({
   category: z.enum(QUESTION_CATEGORIES).default('technical'),
@@ -294,7 +299,7 @@ export const questionInputSchema = z.object({
   /** My best answer (markdown). */
   answer: z.string().max(100_000).default(''),
   /** Language of the answer, for English interviews. */
-  lang: z.enum(['ru', 'uk', 'en']).default('ru'),
+  lang: z.enum(['ru', 'uk', 'en']).default('uk'),
   difficulty: z.number().int().min(1).max(3).default(2),
   /** Where it was asked (optional). */
   companyId: idSchema.nullable().default(null),
@@ -307,6 +312,7 @@ export type QuestionPatch = z.input<typeof questionPatchSchema>
 
 export const questionListQuerySchema = z.object({
   category: z.enum(QUESTION_CATEGORIES).optional(),
+  group: z.enum(QUESTION_GROUPS).optional(),
   topic: z.string().max(100).optional(),
   companyId: idSchema.optional(),
   applicationId: idSchema.optional(),
@@ -333,7 +339,12 @@ export interface InterviewQuestion extends EntityBase, WithTags {
   lastReviewedAt: number | null
 }
 
-export const questionReviewSchema = z.object({ id: idSchema, grade: z.number().int().min(0).max(3) })
+export const questionReviewSchema = z.object({
+  id: idSchema,
+  grade: z.number().int().min(0).max(3),
+  /** Practice beyond the due queue: may bring a question back sooner, never pushes it later. */
+  extra: z.boolean().optional()
+})
 export type QuestionReview = { id: string; grade: ReviewGrade }
 
 /* ───────────── Stats ───────────── */

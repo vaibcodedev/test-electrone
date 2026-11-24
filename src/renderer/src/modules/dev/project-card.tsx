@@ -35,20 +35,20 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
     <Card className={cn('h-full gap-3', !p.exists && 'opacity-60')}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lead text-foreground">
-          {running.length > 0 && <span className="size-2 shrink-0 animate-pulse rounded-full bg-lime" aria-label="запущен" />}
+          {running.length > 0 && <span className="size-2 shrink-0 animate-pulse rounded-full bg-lime" aria-label="запущено" />}
           <Button variant="link" className="h-auto truncate p-0 text-lead font-medium no-underline hover:underline" onClick={onOpen}>
             {p.name}
           </Button>
         </CardTitle>
         <CardDescription className="truncate text-meta" title={p.path}>
-          {p.exists ? p.path : `Папка не найдена: ${p.path}`}
+          {p.exists ? p.path : `Папку не знайдено: ${p.path}`}
         </CardDescription>
         <CardAction>
           <Toggle
             size="sm"
             pressed={p.favorite}
             onPressedChange={(favorite) => update.mutate({ id: p.id, patch: { favorite } })}
-            aria-label="Избранное"
+            aria-label="Обране"
             className="size-8 min-w-8 rounded-full p-0 text-muted-foreground on:bg-transparent on:text-warn"
           >
             <Star className={cn(p.favorite && 'fill-current')} />
@@ -64,11 +64,11 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
               <GitBranch /> {p.git.branch}
             </Badge>
           )}
-          {!!p.git?.dirty && <Badge variant="warn">{p.git.dirty} изм.</Badge>}
+          {!!p.git?.dirty && <Badge variant="warn">{p.git.dirty} змін.</Badge>}
           {!!p.git?.ahead && <Badge variant="info">↑{p.git.ahead}</Badge>}
           {!!p.git?.behind && <Badge variant="info">↓{p.git.behind}</Badge>}
           {!p.framework && !p.packageManager && !p.git && (
-            <span className="text-caption text-muted-foreground">Не git-репозиторий, package.json не найден</span>
+            <span className="text-caption text-muted-foreground">Не git-репозиторій, package.json не знайдено</span>
           )}
           {p.githubRepo && (
             <Button variant="link" size="xs" className="h-6 px-0 text-meta text-muted-foreground" onClick={() => api.app.openExternal(`https://github.com/${p.githubRepo}`)}>
@@ -90,7 +90,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             <ButtonGroupSeparator className="bg-foreground/10" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon-sm" variant="subtle" disabled={!p.exists} aria-label="Открыть в…">
+                <Button size="icon-sm" variant="subtle" disabled={!p.exists} aria-label="Відкрити в…">
                   <ChevronDown />
                 </Button>
               </DropdownMenuTrigger>
@@ -102,7 +102,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
                   <Zap /> Cursor
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => open.mutate({ projectId: p.id, target: 'terminal' })}>
-                  <TerminalSquare /> Терминал
+                  <TerminalSquare /> Термінал
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => open.mutate({ projectId: p.id, target: 'folder' })}>
                   <FolderOpen /> Папка
@@ -113,7 +113,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
 
           {mainRun ? (
             <Button size="sm" variant="outline" onClick={() => stop.mutate(mainRun.runId)}>
-              <Square /> Стоп {mainRun.script}
+              <Square /> Зупинити {mainRun.script}
             </Button>
           ) : (
             main && (
@@ -127,7 +127,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="subtle" disabled={!p.exists}>
-                  Скрипты <ChevronDown />
+                  Скрипти <ChevronDown />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="max-h-80 w-64 overflow-y-auto">
@@ -158,7 +158,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
                   <ExternalLink /> {url.replace(/^https?:\/\//, '')}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Открыть в браузере</TooltipContent>
+              <TooltipContent>Відкрити в браузері</TooltipContent>
             </Tooltip>
           )}
         </div>

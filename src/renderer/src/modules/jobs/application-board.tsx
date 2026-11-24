@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ACTIVE_APP_STATUSES, APP_STATUS_LABEL, CLOSED_APP_STATUSES } from './j1-labels'
 import { ApplicationCard } from './application-card'
+import { promptAfterStatusChange } from './schedule-stage'
 
 function DraggableApplication({
   application,
@@ -69,7 +70,7 @@ function DropZone({
       className={cn(
         'flex flex-col gap-2 rounded-2xl transition-colors',
         compact ? 'min-h-14 p-2' : 'min-h-24 flex-1 p-1',
-        isOver && 'bg-lime-soft ring-2 ring-ring/60',
+        isOver && 'bg-lime-soft ring-2 ring-inset ring-ring/60',
         className
       )}
     >
@@ -82,6 +83,22 @@ function DropZone({
  * Vacancies kanban: one column per pipeline status plus a collapsed «Закрытые» lane.
  * Dropping a card on a column changes its status (optimistic, rolled back on error).
  */
+/** A column renders 30 cards at a time (it scrolls on its own); «Ще N» adds the next 30. */
+function PagedCards<T>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {
+  const [limit, setLimit] = useState(30)
+  const hidden = Math.max(0, items.length - limit)
+  return (
+    <>
+      {(hidden ? items.slice(0, limit) : items).map(render)}
+      {hidden > 0 && (
+        <Button variant="subtle" size="sm" className="mx-auto my-1" onClick={() => setLimit((l) => l + 30)}>
+          Ще {Math.min(hidden, 30)} з {hidden}
+        </Button>
+      )}
+    </>
+  )
+}
+
 export function ApplicationBoard({
   applications,
   boards,
@@ -144,6 +161,9 @@ export function ApplicationBoard({
     if (!current || current === status) return
     setOverrides((o) => ({ ...o, [id]: status }))
     update.mutate({ id, patch: { status } })
+    // Moved to «Співбесіда» / «Тестове» with nothing scheduled → offer to put it in the calendar.
+    const app = applications.find((a) => a.id === id)
+    if (app) promptAfterStatusChange(app, status)
   }
 
   const renderCard = (a: Application): ReactNode => (
@@ -174,7 +194,7 @@ export function ApplicationBoard({
                 <span className="text-caption text-muted-foreground tabular-nums">{list.length}</span>
               </div>
               <DropZone status={status} className="overflow-y-auto">
-                {list.map(renderCard)}
+                <PagedCards items={list} render={renderCard} />
               </DropZone>
             </Card>
           )
@@ -191,14 +211,14 @@ export function ApplicationBoard({
             {showClosed ? (
               <>
                 <span className="flex items-center gap-2">
-                  Закрытые <span className="text-muted-foreground tabular-nums">{closedCount}</span>
+                  Закриті <span className="text-muted-foreground tabular-nums">{closedCount}</span>
                 </span>
                 <ChevronLeft />
               </>
             ) : (
               <>
                 <ChevronRight />
-                <span className="[writing-mode:vertical-rl]">Закрытые</span>
+                <span className="[writing-mode:vertical-rl]">Закриті</span>
                 <Badge variant="soft">{closedCount}</Badge>
               </>
             )}

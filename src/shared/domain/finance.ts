@@ -234,10 +234,10 @@ export function calculateRate(i: RateCalcInput): RateCalcResult {
     hourlyRate: r(hourlyRate),
     breakdown: [
       { label: 'На руки', amount: r(i.targetNet) },
-      { label: 'Расходы', amount: r(i.monthlyExpenses) },
-      { label: 'Налоги', amount: r(beforeTax - neededOnHand) },
-      { label: 'Вывод', amount: r(beforeWithdraw - beforeTax) },
-      { label: 'Комиссия платформы', amount: r(grossNeeded - beforeWithdraw) }
+      { label: 'Витрати', amount: r(i.monthlyExpenses) },
+      { label: 'Податки', amount: r(beforeTax - neededOnHand) },
+      { label: 'Виведення', amount: r(beforeWithdraw - beforeTax) },
+      { label: 'Комісія платформи', amount: r(grossNeeded - beforeWithdraw) }
     ]
   }
 }

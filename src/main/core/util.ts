@@ -34,7 +34,7 @@ export function defined<T extends object>(obj: T): Partial<T> {
 export class NotFoundError extends Error {
   readonly code = 'NOT_FOUND'
   constructor(what: string, id: string) {
-    super(`${what} не найден(а): ${id}`)
+    super(`${what}: не знайдено (${id})`)
   }
 }
 

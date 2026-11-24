@@ -10,7 +10,7 @@ export function TopicPicker({
   value,
   options,
   onChange,
-  placeholder = 'Тема: React, JS, о себе…'
+  placeholder = 'Тема: React, JS, про себе…'
 }: {
   value: string
   options: string[]
@@ -36,13 +36,13 @@ export function TopicPicker({
       </PopoverTrigger>
       <PopoverContent className="w-64 rounded-2xl p-0" align="start">
         <Command>
-          <CommandInput placeholder="Найти или создать…" value={query} onValueChange={setQuery} />
+          <CommandInput placeholder="Знайти або створити…" value={query} onValueChange={setQuery} />
           <CommandList>
-            <CommandEmpty>Тем пока нет</CommandEmpty>
+            <CommandEmpty>Тем поки немає</CommandEmpty>
             <CommandGroup>
               {value && (
                 <CommandItem value="__clear__" onSelect={() => pick('')}>
-                  Без темы
+                  Без теми
                 </CommandItem>
               )}
               {options.map((o) => (
@@ -53,7 +53,7 @@ export function TopicPicker({
               ))}
               {q && !exists && (
                 <CommandItem value={`__new__${q}`} onSelect={() => pick(q)}>
-                  <Plus /> Создать «{q}»
+                  <Plus /> Створити «{q}»
                 </CommandItem>
               )}
             </CommandGroup>

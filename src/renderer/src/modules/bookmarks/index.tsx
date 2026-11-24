@@ -14,6 +14,7 @@ import {
 import {
   BOOKMARK_KINDS,
   BOOKMARK_STATUSES,
+  bookmarkInputSchema,
   type Bookmark,
   type BookmarkKind,
   type BookmarkPatch,
@@ -25,6 +26,7 @@ import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
 import { fmtDate, hostOf } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -39,26 +41,28 @@ import {
   AutoTitle,
   Block,
   EditorStack,
-  InputField,
   PillSelect,
+  UrlBlock,
   countBy,
   useEscapeToClose
 } from '../claude/editor-kit'
 
+const LIMITS = limitsOf(bookmarkInputSchema)
+
 const STATUS_LABEL: Record<BookmarkStatus, string> = {
-  queue: 'Прочитать',
+  queue: 'Прочитати',
   in_progress: 'Читаю',
-  done: 'Прочитал',
-  dropped: 'Бросил'
+  done: 'Прочитано',
+  dropped: 'Покинув'
 }
 
 const KIND_LABEL: Record<BookmarkKind, string> = {
-  article: 'Статья',
-  video: 'Видео',
+  article: 'Стаття',
+  video: 'Відео',
   course: 'Курс',
-  docs: 'Доки',
+  docs: 'Документація',
   repo: 'Репо',
-  other: 'Другое'
+  other: 'Інше'
 }
 
 const KIND_ICON: Record<BookmarkKind, LucideIcon> = {
@@ -82,7 +86,7 @@ function ProgressSlider({ value, onSave }: { value: number; onSave: (value: numb
         step={5}
         value={[draft]}
         onValueChange={([v]) => setDraft(v)}
-        aria-label="Прогресс"
+        aria-label="Прогрес"
         className="flex-1 [&_[data-slot=slider-range]]:bg-lime [&_[data-slot=slider-thumb]]:border-lime-foreground/40"
       />
       <span className="w-10 text-right text-body tabular-nums">{draft}%</span>
@@ -96,7 +100,7 @@ function Rating({ value, onChange }: { value: number; onChange: (value: number) 
       type="single"
       size="sm"
       spacing={0.5}
-      aria-label="Оценка"
+      aria-label="Оцінка"
       value={value ? String(value) : ''}
       onValueChange={(v) => onChange(v ? Number(v) : 0)}
     >
@@ -104,8 +108,8 @@ function Rating({ value, onChange }: { value: number; onChange: (value: number) 
         <ToggleGroupItem
           key={n}
           value={String(n)}
-          aria-label={`${n} из 5`}
-          title={`${n} из 5`}
+          aria-label={`${n} з 5`}
+          title={`${n} з 5`}
           className="size-8 min-w-8 px-0 on:bg-transparent"
         >
           <Star className={cn(n <= value ? 'fill-lime text-foreground' : 'text-muted-foreground')} />
@@ -117,7 +121,7 @@ function Rating({ value, onChange }: { value: number; onChange: (value: number) 
 
 function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void }) {
   const update = useApiMutation('bookmarks', 'update')
-  const remove = useApiMutation('bookmarks', 'remove', { successMessage: 'Перемещено в корзину' })
+  const remove = useApiMutation('bookmarks', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: BookmarkPatch): void => update.mutate({ id: item.id, patch })
   const entity = { type: 'bookmark' as const, id: item.id }
   useEscapeToClose(onClose)
@@ -133,7 +137,7 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
       headerExtra={
         isUrl(item.url) && (
           <Button variant="lime" size="sm" onClick={() => api.app.openExternal(item.url)}>
-            <ExternalLink /> Открыть
+            <ExternalLink /> Відкрити
           </Button>
         )
       }
@@ -154,14 +158,14 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
             />
           </Block>
           {item.finishedAt && (
-            <p className="text-caption text-muted-foreground">Закончил {fmtDate(item.finishedAt)}</p>
+            <p className="text-caption text-muted-foreground">Завершено {fmtDate(item.finishedAt)}</p>
           )}
         </EntityAside>
       }
     >
       <EditorStack>
-        <AutoTitle value={item.title} onSave={(title) => save({ title })} />
-        <InputField label="Ссылка" value={item.url} onSave={(url) => save({ url })} placeholder="https://…" />
+        <AutoTitle value={item.title} onSave={(title) => save({ title })} maxLength={LIMITS.title} />
+        <UrlBlock label="Посилання" value={item.url} onSave={(url) => save({ url })} maxLength={LIMITS.url} />
         <Block label="Статус">
           <PillSelect
             options={BOOKMARK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
@@ -170,7 +174,7 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
           />
         </Block>
         <div className="grid grid-cols-2 gap-6">
-          <Block label="Прогресс">
+          <Block label="Прогрес">
             <ProgressSlider
               value={item.progress}
               onSave={(progress) =>
@@ -182,15 +186,15 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
               }
             />
           </Block>
-          <Block label="Оценка">
+          <Block label="Оцінка">
             <Rating value={item.rating} onChange={(rating) => save({ rating })} />
           </Block>
         </div>
         <AutoMarkdown
-          label="Заметки"
+          label="Нотатки"
           value={item.notes}
           onSave={(notes) => save({ notes })}
-          placeholder="Главные мысли, цитаты, что применить"
+          placeholder="Головні думки, цитати, що застосувати"
         />
       </EditorStack>
     </DetailPane>
@@ -220,13 +224,13 @@ export function BookmarksPage() {
     <Page>
       <PageHeader
         title="Закладки"
-        subtitle="Статьи, видео и курсы: что прочитать, что читаю, что уже прочитал."
+        subtitle="Статті, відео й курси: що прочитати, що читаю, що вже прочитано."
         actions={
           <Button
             variant="lime"
             onClick={async () => {
               const created = await create.mutateAsync({
-                title: 'Новая закладка',
+                title: 'Нова закладка',
                 kind: kind ?? 'article',
                 status: status ?? 'queue'
               })
@@ -239,19 +243,19 @@ export function BookmarksPage() {
       >
         <div className="flex flex-wrap items-center gap-2">
           <FilterChips
-            allLabel="Все"
+            allLabel="Усі"
             value={status}
             onChange={setStatus}
             options={BOOKMARK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s], count: statusCounts[s] ?? 0 }))}
           />
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Название, сайт, заметки" className="w-60" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Назва, сайт, нотатки" className="w-60" />
           </div>
         </div>
         {usedKinds.length > 1 && (
           <FilterChips
-            allLabel="Любой тип"
+            allLabel="Будь-який тип"
             value={kind}
             onChange={setKind}
             options={usedKinds.map((k) => ({ value: k, label: KIND_LABEL[k], count: kindCounts[k] }))}
@@ -271,11 +275,11 @@ export function BookmarksPage() {
               onLoadMore={list.loadMore}
               empty={!list.isLoading && (<EmptyState
                   icon={BookmarkIcon}
-                  title={search || tagId || status || kind ? 'Ничего не нашлось' : 'Закладок пока нет'}
+                  title={search || tagId || status || kind ? 'Нічого не знайшлося' : 'Закладок поки немає'}
                   hint={
                     search || tagId || status || kind
-                      ? 'Снимите фильтры или поищите по сайту.'
-                      : 'Сохраните статью или курс на потом — ссылку можно добавить и через быстрое добавление.'
+                      ? 'Зніміть фільтри або пошукайте за сайтом.'
+                      : 'Збережіть статтю чи курс на потім — посилання можна додати й через швидке додавання.'
                   }
                 />)}
               renderItem={(b) => {
@@ -314,7 +318,7 @@ export function BookmarksPage() {
                       {b.status !== 'queue' && b.status !== 'dropped' && (
                         <Progress
                           value={b.progress}
-                          aria-label="Прогресс"
+                          aria-label="Прогрес"
                           className={cn(
                             // chart-1 is contrast-checked against surfaces; on an ink row the bar uses ink colours.
                             'h-1.5 w-16 shrink-0',

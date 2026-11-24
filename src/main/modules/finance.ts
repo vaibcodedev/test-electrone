@@ -337,7 +337,7 @@ export class FinanceModule {
           .where(eq(subscriptions.id, id))
           .returning()
           .get()
-        if (!row) throw new NotFoundError('Подписка', id)
+        if (!row) throw new NotFoundError('Підписка', id)
         return this.toSub(row)
       },
       removeSubscription: async (id) => {
@@ -360,7 +360,7 @@ export class FinanceModule {
         const sub =
           row ??
           this.toSub(this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()!)
-        if (!sub) throw new NotFoundError('Подписка', id)
+        if (!sub) throw new NotFoundError('Підписка', id)
         const [from, to] = monthRange(month)
         this.db
           .delete(expenses)
@@ -406,7 +406,7 @@ export class FinanceModule {
       updateExpense: async (args) => {
         const { id, patch } = updateArgs(expensePatchSchema).parse(args)
         const row = this.db.update(expenses).set(patch).where(eq(expenses.id, id)).returning().get()
-        if (!row) throw new NotFoundError('Расход', id)
+        if (!row) throw new NotFoundError('Витрата', id)
         return this.toExpense(row)
       },
       removeExpense: async (id) => {
@@ -446,7 +446,7 @@ export class FinanceModule {
       updateWithdrawal: async (args) => {
         const { id, patch } = updateArgs(withdrawalPatchSchema).parse(args)
         const cur = this.db.select().from(withdrawals).where(eq(withdrawals.id, id)).get()
-        if (!cur) throw new NotFoundError('Вывод', id)
+        if (!cur) throw new NotFoundError('Виведення', id)
         const next = { ...cur, ...patch }
         const recompute =
           patch.received === undefined &&

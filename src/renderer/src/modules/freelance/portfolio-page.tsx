@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { BriefcaseBusiness, ClipboardCopy, ExternalLink, ImagePlus, Plus } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
-import type { CasePatch, PortfolioCase } from '@shared/domain/freelance'
+import { caseInputSchema, type CasePatch, type PortfolioCase } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
+import { limitsOf } from '@/lib/limits'
 import { api } from '@/lib/api'
 import { fileUrl, isImageFile } from '@/lib/files'
 import { cn } from '@/lib/utils'
@@ -34,15 +35,17 @@ import {
   useOpenParam
 } from '@/components/common/master-detail'
 import {
-  AutoInput,
   AutoMarkdown,
-  AutoTextarea,
   AutoTitle,
   Block,
   EditorStack,
   InputField,
+  TextareaBlock,
+  UrlBlock,
   useEscapeToClose
 } from '../claude/editor-kit'
+
+const CASE_L = limitsOf(caseInputSchema)
 
 /** English block ready to paste into the platform portfolio / a proposal. */
 function upworkText(c: PortfolioCase): string {
@@ -64,8 +67,8 @@ const NO_PROJECT = '__none__'
 
 function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
   const update = useApiMutation('cases', 'update')
-  const remove = useApiMutation('cases', 'remove', { successMessage: 'Перемещено в корзину' })
-  const setCover = useApiMutation('cases', 'setCover', { successMessage: 'Обложка обновлена' })
+  const remove = useApiMutation('cases', 'remove', { successMessage: 'Переміщено в кошик' })
+  const setCover = useApiMutation('cases', 'setCover', { successMessage: 'Обкладинку оновлено' })
   const { data: projectList = [] } = useApi('projects', 'list')
   const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
   const entity = { type: 'case' as const, id: c.id }
@@ -89,9 +92,9 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         <Button
           variant="lime"
           size="sm"
-          onClick={() => void copyText(upworkText(c), 'Текст для Upwork скопирован')}
+          onClick={() => void copyText(upworkText(c), 'Текст для Upwork скопійовано')}
         >
-          <ClipboardCopy /> Скопировать для Upwork
+          <ClipboardCopy /> Скопіювати для Upwork
         </Button>
       }
       aside={
@@ -103,45 +106,46 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           updatedAt={c.updatedAt}
         >
           <InputField
-            label="Тип задачи"
+            label="Тип завдання"
             value={c.niche}
+            maxLength={CASE_L.niche}
             onSave={(niche) => save({ niche })}
             placeholder="Next.js, Shopify…"
           />
           <InputField
-            label="Клиент / индустрия"
+            label="Клієнт / індустрія"
             value={c.client}
+            maxLength={CASE_L.client}
             onSave={(client) => save({ client })}
             placeholder="E-commerce, SaaS…"
           />
           <InputField
             label="Стек"
             value={c.stack}
+            maxLength={CASE_L.stack}
             onSave={(stack) => save({ stack })}
             placeholder="Next.js, Tailwind, Stripe"
           />
-          <Block label="Ссылка">
-            <div className="flex gap-1.5">
-              <AutoInput
-                value={c.url}
-                onSave={(url) => save({ url })}
-                placeholder="https://…"
-                aria-label="Ссылка"
-              />
-              {c.url && (
+          <UrlBlock
+            label="Посилання"
+            value={c.url}
+            maxLength={CASE_L.url}
+            onSave={(url) => save({ url })}
+            trailing={() =>
+              c.url && (
                 <Button
                   variant="soft"
                   size="icon"
                   className="shrink-0"
-                  aria-label="Открыть"
+                  aria-label="Відкрити"
                   onClick={() => void api.app.openExternal(c.url)}
                 >
                   <ExternalLink />
                 </Button>
-              )}
-            </div>
-          </Block>
-          <Block label="Проект">
+              )
+            }
+          />
+          <Block label="Проєкт">
             <Select
               value={c.projectId ?? NO_PROJECT}
               onValueChange={(v) => save({ projectId: v === NO_PROJECT ? null : v })}
@@ -150,7 +154,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_PROJECT}>Не связан</SelectItem>
+                <SelectItem value={NO_PROJECT}>Не пов’язано</SelectItem>
                 {projectList.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.title}
@@ -177,7 +181,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
             >
               <ImagePlus className="size-5 text-muted-foreground" />
               <EmptyDescription className="text-caption">
-                Перетащите скриншот сюда или нажмите Ctrl+V
+                Перетягніть скриншот сюди або натисніть Ctrl+V
               </EmptyDescription>
             </Empty>
           )}
@@ -185,16 +189,17 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         <AutoTitle
           value={c.title}
           onSave={(title) => save({ title })}
-          placeholder="Название кейса"
+          maxLength={CASE_L.title}
+          placeholder="Назва кейсу"
         />
         <AutoMarkdown
-          label="Задача клиента"
+          label="Завдання клієнта"
           value={c.problem}
           onSave={(problem) => save({ problem })}
           minHeight="100px"
         />
         <AutoMarkdown
-          label="Что сделал"
+          label="Що зробив"
           value={c.whatDone}
           onSave={(whatDone) => save({ whatDone })}
           minHeight="140px"
@@ -204,19 +209,17 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           value={c.result}
           onSave={(result) => save({ result })}
           minHeight="100px"
-          placeholder="Цифры: скорость, конверсия, сроки"
+          placeholder="Цифри: швидкість, конверсія, терміни"
         />
-        <Block
-          label="Текст на английском"
-          hint="Его копирует кнопка «Скопировать для Upwork». Пусто — соберётся из задачи, работы и результата."
-        >
-          <AutoTextarea
-            value={c.textEn}
-            onSave={(textEn) => save({ textEn })}
-            className="min-h-40 text-lead leading-relaxed"
-            placeholder="Built a … that …"
-          />
-        </Block>
+        <TextareaBlock
+          label="Текст англійською"
+          hint="Його копіює кнопка «Скопіювати для Upwork». Порожньо — збереться із завдання, роботи й результату."
+          value={c.textEn}
+          maxLength={CASE_L.textEn}
+          onSave={(textEn) => save({ textEn })}
+          className="min-h-40 text-lead leading-relaxed"
+          placeholder="Built a … that …"
+        />
       </EditorStack>
     </DetailPane>
   )
@@ -235,10 +238,10 @@ export function PortfolioPage() {
   return (
     <Page>
       <PageHeader
-        title="Портфолио"
-        subtitle="Кейсы: задача, что сделано, результат, скриншоты и готовый английский текст для профиля и откликов."
+        title="Портфоліо"
+        subtitle="Кейси: завдання, що зроблено, результат, скриншоти й готовий англійський текст для профілю та відгуків."
         actions={
-          <Button variant="lime" onClick={() => create.mutate({ title: 'Новый кейс' })}>
+          <Button variant="lime" onClick={() => create.mutate({ title: 'Новий кейс' })}>
             <Plus /> Кейс
           </Button>
         }
@@ -246,7 +249,7 @@ export function PortfolioPage() {
         <div className="flex flex-wrap items-center gap-2">
           {niches.length > 0 && (
             <FilterChips
-              allLabel="Все"
+              allLabel="Усі"
               value={niche}
               onChange={setNiche}
               options={niches.map((n) => ({ value: n, label: n }))}
@@ -255,7 +258,7 @@ export function PortfolioPage() {
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Искать в кейсах"
+            placeholder="Шукати в кейсах"
             className="ml-auto w-64"
           />
         </div>
@@ -267,8 +270,8 @@ export function PortfolioPage() {
             list.length === 0 ? (
               <EmptyState
                 icon={BriefcaseBusiness}
-                title="Кейсов пока нет"
-                hint="Добавьте завершённый проект — пригодится для откликов и профиля."
+                title="Кейсів поки немає"
+                hint="Додайте завершений проєкт — знадобиться для відгуків і профілю."
               />
             ) : (
               <div className="grid min-h-0 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] content-start gap-3 overflow-y-auto pr-1">

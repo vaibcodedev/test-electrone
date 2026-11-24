@@ -4,7 +4,7 @@ import { pageSchema } from '@shared/domain/common'
  * to calendar events (both directions), companies, resume versions with upload tracking, and a
  * question bank practised with the same SM-2 scheduler as English words.
  */
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, max, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, max, sql, ne, notInArray } from 'drizzle-orm'
 import { z } from 'zod'
 import type { JobsApi } from '@shared/api'
 import {
@@ -73,25 +73,25 @@ export const STAGE_SOURCE = 'job_stage'
 export const STAGE_DEADLINE_SOURCE = 'job_stage_deadline'
 
 const STATUS_LABEL: Record<ApplicationStatus, string> = {
-  saved: 'Сохранено',
-  applied: 'Отправлено',
-  replied: 'Ответили',
-  test: 'Тестовое',
-  interview: 'Собеседование',
-  offer: 'Оффер',
-  accepted: 'Принял',
-  rejected: 'Отказ',
-  no_reply: 'Нет ответа',
-  withdrawn: 'Отозвал'
+  saved: 'Збережено',
+  applied: 'Надіслано',
+  replied: 'Відповіли',
+  test: 'Тестове',
+  interview: 'Співбесіда',
+  offer: 'Офер',
+  accepted: 'Прийняв',
+  rejected: 'Відмова',
+  no_reply: 'Немає відповіді',
+  withdrawn: 'Відкликав'
 }
 
 export const STAGE_LABEL: Record<StageKind, string> = {
-  screening: 'Скрининг',
-  technical: 'Техническое',
-  test_task: 'Тестовое',
+  screening: 'Скринінг',
+  technical: 'Технічна',
+  test_task: 'Тестове завдання',
   hr: 'HR',
-  final: 'Финальное',
-  other: 'Этап'
+  final: 'Фінальна',
+  other: 'Етап'
 }
 
 const REPLIED: ApplicationStatus[] = ['replied', 'test', 'interview', 'offer', 'accepted']
@@ -148,6 +148,7 @@ export class JobsModule {
     const question: EntityDescriptor = {
       type: 'question',
       table: interviewQuestions,
+      draft: { titleField: 'question', contentFields: ['topic', 'answer'] },
       searchDoc: (r) => ({ title: r.question, body: `${r.topic}\n${r.answer}` }),
       summary: (r) => ({ title: r.question.slice(0, 140), subtitle: r.topic || undefined })
     }
@@ -341,7 +342,7 @@ export class JobsModule {
       stage.deadlineEventId,
       !!stage.deadlineAt && !cancelled && stage.status === 'planned',
       {
-        title: `Сдать тестовое: ${who}`,
+        title: `Здати тестове: ${who}`,
         startAt: stage.deadlineAt ?? 0,
         endAt: null,
         allDay: false,
@@ -593,10 +594,10 @@ export class JobsModule {
     }
     return {
       range: { from, to },
-      totals: this.funnel('all', 'Все', rows, interviewApps),
+      totals: this.funnel('all', 'Усі', rows, interviewApps),
       byBoard: group(
         (r) => r.boardId ?? '—',
-        (k) => boardNames.get(k) ?? 'Без площадки'
+        (k) => boardNames.get(k) ?? 'Без майданчика'
       ),
       byResume: group(
         (r) => r.resumeId ?? '—',
@@ -604,7 +605,7 @@ export class JobsModule {
       ),
       byTemplate: group(
         (r) => r.templateId ?? '—',
-        (k) => templateNames.get(k) ?? 'Без шаблона'
+        (k) => templateNames.get(k) ?? 'Без шаблону'
       ),
       weekly: [...weeks.entries()].map(([w, v]) => ({
         week: new Date(w).toISOString().slice(0, 10),
@@ -755,7 +756,7 @@ export class JobsModule {
           .where(eq(jobBoards.id, id))
           .returning()
           .get()
-        if (!row) throw new NotFoundError('Площадка', id)
+        if (!row) throw new NotFoundError('Майданчик', id)
         return this.toBoard(row)
       },
       reorderBoards: async (ids) => {
@@ -916,7 +917,7 @@ export class JobsModule {
           .where(eq(applicationStages.id, id))
           .returning()
           .get()
-        if (!row) throw new NotFoundError('Этап', id)
+        if (!row) throw new NotFoundError('Етап', id)
         this.syncStageEvents(row)
         apps.touch(row.applicationId)
         return this.toStage(
@@ -1054,6 +1055,11 @@ export class JobsModule {
         return qs.listWhere(
           [
             q.category ? eq(interviewQuestions.category, q.category) : undefined,
+            q.group === 'technical'
+              ? eq(interviewQuestions.category, 'technical')
+              : q.group === 'nontechnical'
+                ? ne(interviewQuestions.category, 'technical')
+                : undefined,
             q.topic ? eq(interviewQuestions.topic, q.topic) : undefined,
             q.companyId ? eq(interviewQuestions.companyId, q.companyId) : undefined,
             q.applicationId ? eq(interviewQuestions.applicationId, q.applicationId) : undefined,
@@ -1102,32 +1108,63 @@ export class JobsModule {
           .where(and(isNull(interviewQuestions.deletedAt), sql`${interviewQuestions.topic} != ''`))
           .all()
           .map((r) => r.topic)
-          .sort((a, b) => a.localeCompare(b, 'ru')),
+          .sort((a, b) => a.localeCompare(b, 'uk')),
       practiceQueue: async (args) => {
         const q = z
           .object({
             limit: z.number().int().min(1).max(200).optional(),
-            category: z.enum(['technical', 'behavioral', 'company', 'salary', 'other']).optional()
+            category: z.enum(['technical', 'behavioral', 'company', 'salary', 'other']).optional(),
+            group: z.enum(['technical', 'nontechnical']).optional()
           })
           .parse(args ?? {})
         return qs.listWhere(
           [
             lte(interviewQuestions.dueAt, now()),
-            q.category ? eq(interviewQuestions.category, q.category) : undefined
+            q.category ? eq(interviewQuestions.category, q.category) : undefined,
+            q.group === 'technical'
+              ? eq(interviewQuestions.category, 'technical')
+              : q.group === 'nontechnical'
+                ? ne(interviewQuestions.category, 'technical')
+                : undefined
           ],
           [asc(interviewQuestions.dueAt)],
           q.limit ?? 30
         )
       },
       reviewQuestion: async (args) => {
-        const { id, grade } = questionReviewSchema.parse(args)
+        const { id, grade, extra } = questionReviewSchema.parse(args)
         const row = qs.rowOrThrow(id)
-        this.db
-          .update(interviewQuestions)
-          .set(schedule(row, grade as ReviewGrade, now()))
-          .where(eq(interviewQuestions.id, id))
-          .run()
+        const next = schedule(row, grade as ReviewGrade, now())
+        // Extra practice must not distort the schedule: it can only bring a question back sooner (a lapse),
+        // a good answer ahead of time doesn't push the next review further.
+        const values = extra && next.dueAt >= row.dueAt ? { lastReviewedAt: now() } : next
+        this.db.update(interviewQuestions).set(values).where(eq(interviewQuestions.id, id)).run()
         return qs.getOrThrow(id)
+      },
+      practiceExtra: async (args) => {
+        const q = z
+          .object({
+            limit: z.number().int().min(1).max(500).optional(),
+            category: z.enum(['technical', 'behavioral', 'company', 'salary', 'other']).optional(),
+            group: z.enum(['technical', 'nontechnical']).optional(),
+            topic: z.string().max(100).optional(),
+            excludeIds: z.array(idArg).max(1000).optional()
+          })
+          .parse(args ?? {})
+        return qs.listWhere(
+          [
+            q.category ? eq(interviewQuestions.category, q.category) : undefined,
+            q.group === 'technical'
+              ? eq(interviewQuestions.category, 'technical')
+              : q.group === 'nontechnical'
+                ? ne(interviewQuestions.category, 'technical')
+                : undefined,
+            q.topic ? eq(interviewQuestions.topic, q.topic) : undefined,
+            q.excludeIds?.length ? notInArray(interviewQuestions.id, q.excludeIds) : undefined
+          ],
+          [asc(interviewQuestions.dueAt), asc(interviewQuestions.ease)],
+          q.limit ?? 10
+        )
       },
 
       /* stats & overview */

@@ -18,7 +18,7 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
   const toggle = useApiMutation('pins', 'toggle', {
     onSuccess: (on, { kind }) =>
       toast.success(
-        kind === 'pin' ? (on ? 'Закреплено на главной' : 'Откреплено с главной') : on ? 'Добавлено в избранное' : 'Убрано из избранного'
+        kind === 'pin' ? (on ? 'Закріплено на головній' : 'Відкріплено з головної') : on ? 'Додано в обране' : 'Прибрано з обраного'
       )
   })
   return (
@@ -30,12 +30,12 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
             className={pinCls}
             pressed={!!data?.pin}
             onPressedChange={() => toggle.mutate({ ref: entity, kind: 'pin' })}
-            aria-label="Закрепить на главной"
+            aria-label="Закріпити на головній"
           >
             <Pin />
           </Toggle>
         </TooltipTrigger>
-        <TooltipContent>{data?.pin ? 'Открепить с главной' : 'Закрепить на главной'}</TooltipContent>
+        <TooltipContent>{data?.pin ? 'Відкріпити з головної' : 'Закріпити на головній'}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
@@ -44,12 +44,12 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
             className={starCls}
             pressed={!!data?.favorite}
             onPressedChange={() => toggle.mutate({ ref: entity, kind: 'favorite' })}
-            aria-label="В избранное"
+            aria-label="В обране"
           >
             <Star className={cn(data?.favorite && 'fill-current')} />
           </Toggle>
         </TooltipTrigger>
-        <TooltipContent>{data?.favorite ? 'Убрать из избранного' : 'В избранное'}</TooltipContent>
+        <TooltipContent>{data?.favorite ? 'Прибрати з обраного' : 'В обране'}</TooltipContent>
       </Tooltip>
     </div>
   )

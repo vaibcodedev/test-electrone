@@ -2,6 +2,9 @@ import { useState, type ReactNode } from 'react'
 import { CURRENCIES, type Currency } from '@shared/domain/crm'
 import {
   EXPENSE_CATEGORIES,
+  expenseInputSchema,
+  subscriptionInputSchema,
+  withdrawalInputSchema,
   type Expense,
   type ExpenseCategory,
   type Subscription,
@@ -9,6 +12,9 @@ import {
   type Withdrawal
 } from '@shared/domain/finance'
 import { useApi, useApiMutation } from '@/lib/query'
+import { NumberInput } from '@/components/common/number-input'
+import { draftToNumber, numberToDraft } from '../crm/money'
+import { isLikelyUrl, limitsOf, rangesOf, URL_ERROR } from '@/lib/limits'
 import { fmtMoney } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { Segmented } from '@/components/common/page'
@@ -35,19 +41,28 @@ import {
 } from '@/components/ui/dialog'
 import { CATEGORY_LABEL } from './parts'
 
+const WD_L = limitsOf(withdrawalInputSchema)
+const WD_R = rangesOf(withdrawalInputSchema)
+
+const EXP_L = limitsOf(expenseInputSchema)
+const EXP_R = rangesOf(expenseInputSchema)
+
+const SUB_L = limitsOf(subscriptionInputSchema)
+const SUB_R = rangesOf(subscriptionInputSchema)
+
 const MONTHS = [
-  'Январь',
-  'Февраль',
-  'Март',
-  'Апрель',
-  'Май',
-  'Июнь',
-  'Июль',
-  'Август',
-  'Сентябрь',
-  'Октябрь',
-  'Ноябрь',
-  'Декабрь'
+  'Січень',
+  'Лютий',
+  'Березень',
+  'Квітень',
+  'Травень',
+  'Червень',
+  'Липень',
+  'Серпень',
+  'Вересень',
+  'Жовтень',
+  'Листопад',
+  'Грудень'
 ]
 
 const num = (v: string): number => {
@@ -133,7 +148,7 @@ function FormDialog({
           {children}
           <DialogFooter className="pt-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Отмена
+              Скасувати
             </Button>
             <Button type="submit" variant="lime" disabled={!canSubmit || pending}>
               {submitLabel}
@@ -168,10 +183,10 @@ export function SubscriptionDialog({
   const [note, setNote] = useState(s?.note ?? '')
   const [active, setActive] = useState(s?.active ?? true)
   const create = useApiMutation('finance', 'createSubscription', {
-    successMessage: 'Подписка добавлена'
+    successMessage: 'Підписку додано'
   })
   const update = useApiMutation('finance', 'updateSubscription', {
-    successMessage: 'Подписка сохранена'
+    successMessage: 'Підписку збережено'
   })
 
   const payload = {
@@ -191,10 +206,10 @@ export function SubscriptionDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={s ? 'Подписка' : 'Новая подписка'}
-      description="Регулярный платёж: каждый месяц он появится в списке, и его можно отметить оплаченным."
-      submitLabel={s ? 'Сохранить' : 'Добавить подписку'}
-      canSubmit={!!payload.title && payload.amount > 0}
+      title={s ? 'Підписка' : 'Нова підписка'}
+      description="Регулярний платіж: щомісяця він з’явиться в списку, і його можна позначити оплаченим."
+      submitLabel={s ? 'Зберегти' : 'Додати підписку'}
+      canSubmit={!!payload.title && payload.amount > 0 && isLikelyUrl(url)}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
         if (s) await update.mutateAsync({ id: s.id, patch: payload })
@@ -202,20 +217,23 @@ export function SubscriptionDialog({
         onOpenChange(false)
       }}
     >
-      <Field label="Название">
+      <Field label="Назва">
         <Input
           autoFocus
           value={title}
+          maxLength={SUB_L.title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Claude Max, телефон, хостинг…"
         />
       </Field>
       <div className="grid grid-cols-[1fr_120px] gap-3">
-        <Field label="Сумма">
-          <Input
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+        <Field label="Сума">
+          <NumberInput
+            allowEmpty
+            min={0}
+            max={SUB_R.amount?.max}
+            value={draftToNumber(amount)}
+            onChange={(v) => setAmount(numberToDraft(v))}
             placeholder="0"
           />
         </Field>
@@ -223,28 +241,29 @@ export function SubscriptionDialog({
           <CurrencySelect value={currency} onChange={setCurrency} />
         </Field>
       </div>
-      <Field label="Как часто">
+      <Field label="Як часто">
         <Segmented
+          className="w-fit"
           value={period}
           onChange={setPeriod}
           options={[
-            { value: 'monthly', label: 'Каждый месяц' },
-            { value: 'yearly', label: 'Раз в год' }
+            { value: 'monthly', label: 'Щомісяця' },
+            { value: 'yearly', label: 'Раз на рік' }
           ]}
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="День списания">
-          <Input
-            type="number"
+        <Field label="День списання">
+          <NumberInput
+            integer
             min={1}
             max={31}
-            value={billingDay}
-            onChange={(e) => setBillingDay(e.target.value)}
+            value={draftToNumber(billingDay)}
+            onChange={(v) => setBillingDay(numberToDraft(v))}
           />
         </Field>
         {period === 'yearly' ? (
-          <Field label="Месяц">
+          <Field label="Місяць">
             <Select value={billingMonth} onValueChange={setBillingMonth}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -259,26 +278,38 @@ export function SubscriptionDialog({
             </Select>
           </Field>
         ) : (
-          <Field label="Категория">
+          <Field label="Категорія">
             <CategorySelect value={category} onChange={setCategory} />
           </Field>
         )}
       </div>
       {period === 'yearly' && (
-        <Field label="Категория">
+        <Field label="Категорія">
           <CategorySelect value={category} onChange={setCategory} />
         </Field>
       )}
-      <Field label="Ссылка (необязательно)">
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
+      <Field label="Посилання (необов’язково)" error={isLikelyUrl(url) ? undefined : URL_ERROR}>
+        <Input
+          type="url"
+          value={url}
+          maxLength={SUB_L.url}
+          aria-invalid={!isLikelyUrl(url) || undefined}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://…"
+        />
       </Field>
-      <Field label="Заметка">
-        <Textarea value={note} onChange={(e) => setNote(e.target.value)} className="min-h-14" />
+      <Field label="Нотатка">
+        <Textarea
+          value={note}
+          maxLength={SUB_L.note}
+          onChange={(e) => setNote(e.target.value)}
+          className="min-h-14"
+        />
       </Field>
       <div className="flex items-center gap-3">
         <Switch id="sub-active" checked={active} onCheckedChange={setActive} />
         <Label htmlFor="sub-active" className="text-body text-foreground">
-          Активна — показывать в списке месяца
+          Активна — показувати в списку місяця
         </Label>
       </div>
     </FormDialog>
@@ -305,8 +336,8 @@ export function ExpenseDialog({
   const [category, setCategory] = useState<ExpenseCategory>(e?.category ?? 'other')
   const [at, setAt] = useState<number | null>(e?.at ?? defaultAt)
   const [note, setNote] = useState(e?.note ?? '')
-  const create = useApiMutation('finance', 'createExpense', { successMessage: 'Расход добавлен' })
-  const update = useApiMutation('finance', 'updateExpense', { successMessage: 'Расход сохранён' })
+  const create = useApiMutation('finance', 'createExpense', { successMessage: 'Витрату додано' })
+  const update = useApiMutation('finance', 'updateExpense', { successMessage: 'Витрату збережено' })
   const payload = {
     title: title.trim(),
     amount: num(amount),
@@ -320,9 +351,9 @@ export function ExpenseDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={e ? 'Расход' : 'Новый расход'}
-      description="Разовая трата. Регулярные платежи удобнее завести как подписку."
-      submitLabel={e ? 'Сохранить' : 'Добавить расход'}
+      title={e ? 'Витрата' : 'Нова витрата'}
+      description="Разова витрата. Регулярні платежі зручніше завести як підписку."
+      submitLabel={e ? 'Зберегти' : 'Додати витрату'}
       canSubmit={!!payload.title && payload.amount > 0}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
@@ -331,20 +362,23 @@ export function ExpenseDialog({
         onOpenChange(false)
       }}
     >
-      <Field label="На что">
+      <Field label="На що">
         <Input
           autoFocus
           value={title}
+          maxLength={EXP_L.title}
           onChange={(ev) => setTitle(ev.target.value)}
-          placeholder="Наушники, курс, домен…"
+          placeholder="Навушники, курс, домен…"
         />
       </Field>
       <div className="grid grid-cols-[1fr_120px] gap-3">
-        <Field label="Сумма">
-          <Input
-            inputMode="decimal"
-            value={amount}
-            onChange={(ev) => setAmount(ev.target.value)}
+        <Field label="Сума">
+          <NumberInput
+            allowEmpty
+            min={0}
+            max={EXP_R.amount?.max}
+            value={draftToNumber(amount)}
+            onChange={(v) => setAmount(numberToDraft(v))}
             placeholder="0"
           />
         </Field>
@@ -353,15 +387,20 @@ export function ExpenseDialog({
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Категория">
+        <Field label="Категорія">
           <CategorySelect value={category} onChange={setCategory} />
         </Field>
         <Field label="Дата">
           <DatePicker value={at} onChange={setAt} clearable={false} />
         </Field>
       </div>
-      <Field label="Заметка">
-        <Textarea value={note} onChange={(ev) => setNote(ev.target.value)} className="min-h-14" />
+      <Field label="Нотатка">
+        <Textarea
+          value={note}
+          maxLength={EXP_L.note}
+          onChange={(ev) => setNote(ev.target.value)}
+          className="min-h-14"
+        />
       </Field>
     </FormDialog>
   )
@@ -394,8 +433,12 @@ export function WithdrawalDialog({
   const [method, setMethod] = useState(w?.method ?? '')
   const [at, setAt] = useState<number | null>(w?.at ?? defaultAt)
   const [note, setNote] = useState(w?.note ?? '')
-  const create = useApiMutation('finance', 'createWithdrawal', { successMessage: 'Вывод добавлен' })
-  const update = useApiMutation('finance', 'updateWithdrawal', { successMessage: 'Вывод сохранён' })
+  const create = useApiMutation('finance', 'createWithdrawal', {
+    successMessage: 'Виведення додано'
+  })
+  const update = useApiMutation('finance', 'updateWithdrawal', {
+    successMessage: 'Виведення збережено'
+  })
 
   const estimate = Math.max(0, Math.round((num(amount) - num(fee)) * num(rate) * 100) / 100)
   const receivedValue = received.trim() ? num(received) : null
@@ -416,9 +459,9 @@ export function WithdrawalDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={w ? 'Вывод' : 'Новый вывод'}
-      description="Сколько вывел с платформы, сколько ушло на комиссию и сколько реально пришло."
-      submitLabel={w ? 'Сохранить' : 'Добавить вывод'}
+      title={w ? 'Виведення' : 'Нове виведення'}
+      description="Скільки вивів із платформи, скільки пішло на комісію і скільки реально надійшло."
+      submitLabel={w ? 'Зберегти' : 'Додати виведення'}
       canSubmit={payload.amount > 0}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
@@ -428,13 +471,13 @@ export function WithdrawalDialog({
       }}
     >
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Откуда">
+        <Field label="Звідки">
           <Select value={platformId} onValueChange={setPlatformId}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_PLATFORM}>Другое</SelectItem>
+              <SelectItem value={NO_PLATFORM}>Інше</SelectItem>
               {platformList.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -448,17 +491,24 @@ export function WithdrawalDialog({
         </Field>
       </div>
       <div className="grid grid-cols-[1fr_1fr_110px] gap-3">
-        <Field label="Сумма">
-          <Input
+        <Field label="Сума">
+          <NumberInput
             autoFocus
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            allowEmpty
+            min={0}
+            max={WD_R.amount?.max}
+            value={draftToNumber(amount)}
+            onChange={(v) => setAmount(numberToDraft(v))}
             placeholder="0"
           />
         </Field>
-        <Field label="Комиссия за вывод">
-          <Input inputMode="decimal" value={fee} onChange={(e) => setFee(e.target.value)} />
+        <Field label="Комісія за виведення">
+          <NumberInput
+            allowEmpty
+            min={0}
+            value={draftToNumber(fee)}
+            onChange={(v) => setFee(numberToDraft(v))}
+          />
         </Field>
         <Field label="Валюта">
           <CurrencySelect value={currency} onChange={setCurrency} />
@@ -466,13 +516,19 @@ export function WithdrawalDialog({
       </div>
       <div className="grid grid-cols-[1fr_1fr_110px] gap-3">
         <Field label={`Курс: 1 ${currency} =`}>
-          <Input inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
+          <NumberInput
+            allowEmpty
+            min={0}
+            value={draftToNumber(rate)}
+            onChange={(v) => setRate(numberToDraft(v))}
+          />
         </Field>
-        <Field label="Пришло (если знаешь)">
-          <Input
-            inputMode="decimal"
-            value={received}
-            onChange={(e) => setReceived(e.target.value)}
+        <Field label="Надійшло (якщо знаєш)">
+          <NumberInput
+            allowEmpty
+            min={0}
+            value={draftToNumber(received)}
+            onChange={(v) => setReceived(numberToDraft(v))}
             placeholder={String(estimate)}
           />
         </Field>
@@ -481,7 +537,7 @@ export function WithdrawalDialog({
         </Field>
       </div>
       <div className="rounded-xl bg-surface px-4 py-3 text-body">
-        <span className="text-muted-foreground">Придёт ≈ </span>
+        <span className="text-muted-foreground">Надійде ≈ </span>
         <span className="font-medium tabular-nums">
           {fmtMoney(receivedValue ?? estimate, receivedCurrency)}
         </span>
@@ -490,15 +546,21 @@ export function WithdrawalDialog({
           = ({fmtMoney(num(amount), currency)} − {fmtMoney(num(fee), currency)}) × {num(rate) || 1}
         </span>
       </div>
-      <Field label="Способ">
+      <Field label="Спосіб">
         <Input
           value={method}
+          maxLength={WD_L.method}
           onChange={(e) => setMethod(e.target.value)}
-          placeholder="Payoneer, карта, Wise…"
+          placeholder="Payoneer, картка, Wise…"
         />
       </Field>
-      <Field label="Заметка">
-        <Textarea value={note} onChange={(e) => setNote(e.target.value)} className="min-h-14" />
+      <Field label="Нотатка">
+        <Textarea
+          value={note}
+          maxLength={WD_L.note}
+          onChange={(e) => setNote(e.target.value)}
+          className="min-h-14"
+        />
       </Field>
     </FormDialog>
   )

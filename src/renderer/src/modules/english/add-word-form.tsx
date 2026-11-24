@@ -1,17 +1,20 @@
 import { useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useApiMutation } from '@/lib/query'
+import { wordInputSchema } from '@shared/domain/english'
+import { limitsOf } from '@/lib/limits'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
 const EMPTY = { term: '', translation: '', example: '', context: '' }
+const LIMITS = limitsOf(wordInputSchema)
 
 /** Inline capture (shadcn Input + Button in a surface row): four fields, Enter anywhere saves. */
 /** `onAdded` lets the page clear filters that would hide the new word. */
 export function AddWordForm({ onAdded }: { onAdded?: () => void }) {
   const [form, setForm] = useState(EMPTY)
   const termRef = useRef<HTMLInputElement>(null)
-  const create = useApiMutation('english', 'create', { successMessage: 'Слово добавлено' })
+  const create = useApiMutation('english', 'create', { successMessage: 'Слово додано' })
 
   const submit = (): void => {
     if (!form.term.trim()) return termRef.current?.focus()
@@ -26,6 +29,7 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }) {
 
   const field = (key: keyof typeof EMPTY) => ({
     value: form[key],
+    maxLength: LIMITS[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value })),
     onKeyDown: (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
@@ -43,12 +47,12 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }) {
         submit()
       }}
     >
-      <Input ref={termRef} aria-label="Слово или фраза" placeholder="Слово, напр. rollout" className="bg-card" {...field('term')} />
-      <Input aria-label="Перевод" placeholder="Перевод: выкатка" className="bg-card" {...field('translation')} />
-      <Input aria-label="Предложение, где встретилось слово" title="Предложение из переписки или кода, где встретилось слово" placeholder="Предложение: We'll do a staged rollout" className="bg-card" {...field('example')} />
-      <Input aria-label="Источник" title="Где встретилось: чат, код-ревью, созвон" placeholder="Источник: Slack, ревью…" className="bg-card" {...field('context')} />
+      <Input ref={termRef} aria-label="Слово або фраза" placeholder="Слово, напр. rollout" className="bg-card" {...field('term')} />
+      <Input aria-label="Переклад" placeholder="Переклад: викатка" className="bg-card" {...field('translation')} />
+      <Input aria-label="Речення, де трапилося слово" title="Речення з листування чи коду, де трапилося слово" placeholder="Речення: We'll do a staged rollout" className="bg-card" {...field('example')} />
+      <Input aria-label="Джерело" title="Де трапилося: чат, код-ревʼю, дзвінок" placeholder="Джерело: Slack, ревʼю…" className="bg-card" {...field('context')} />
       <Button type="submit" variant="lime" disabled={!form.term.trim() || create.isPending}>
-        <Plus /> Добавить
+        <Plus /> Додати
       </Button>
     </form>
   )

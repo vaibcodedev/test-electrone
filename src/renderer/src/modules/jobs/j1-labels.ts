@@ -9,16 +9,16 @@ import type {
 import { fmtDay, fmtMoney, LOCALE, plural } from '@/lib/format'
 
 export const APP_STATUS_LABEL: Record<ApplicationStatus, string> = {
-  saved: 'Сохранено',
-  applied: 'Отправлено',
-  replied: 'Ответили',
-  test: 'Тестовое',
-  interview: 'Собеседование',
-  offer: 'Оффер',
-  accepted: 'Принял',
-  rejected: 'Отказ',
-  no_reply: 'Нет ответа',
-  withdrawn: 'Отозвал'
+  saved: 'Збережено',
+  applied: 'Надіслано',
+  replied: 'Відповіли',
+  test: 'Тестове',
+  interview: 'Співбесіда',
+  offer: 'Офер',
+  accepted: 'Прийняв',
+  rejected: 'Відмова',
+  no_reply: 'Немає відповіді',
+  withdrawn: 'Відкликав'
 }
 
 /** Kanban columns in pipeline order. */
@@ -27,30 +27,30 @@ export const ACTIVE_APP_STATUSES: ApplicationStatus[] = ['saved', 'applied', 're
 export const CLOSED_APP_STATUSES: ApplicationStatus[] = ['accepted', 'rejected', 'no_reply', 'withdrawn']
 
 export const STAGE_KIND_LABEL: Record<StageKind, string> = {
-  screening: 'Скрининг',
-  technical: 'Техническое',
-  test_task: 'Тестовое',
+  screening: 'Скринінг',
+  technical: 'Технічна',
+  test_task: 'Тестове',
   hr: 'HR',
-  final: 'Финальное',
-  other: 'Этап'
+  final: 'Фінальна',
+  other: 'Етап'
 }
 
 /** Short form for cards: «Тех. собеседование». */
 export const STAGE_KIND_SHORT: Record<StageKind, string> = {
-  screening: 'Скрининг',
-  technical: 'Тех. собеседование',
-  test_task: 'Тестовое',
-  hr: 'HR-интервью',
-  final: 'Финальное',
-  other: 'Этап'
+  screening: 'Скринінг',
+  technical: 'Тех. співбесіда',
+  test_task: 'Тестове',
+  hr: 'HR-інтерв’ю',
+  final: 'Фінальна',
+  other: 'Етап'
 }
 
 export const STAGE_STATUS_LABEL: Record<StageStatus, string> = {
-  planned: 'Запланирован',
-  done: 'Прошёл',
-  passed: 'Успешно',
-  failed: 'Не прошёл',
-  cancelled: 'Отменён'
+  planned: 'Заплановано',
+  done: 'Відбувся',
+  passed: 'Успішно',
+  failed: 'Не пройшов',
+  cancelled: 'Скасовано'
 }
 
 export const STAGE_STATUS_VARIANT: Record<StageStatus, 'soft' | 'info' | 'success' | 'destructive' | 'outline'> = {
@@ -62,17 +62,17 @@ export const STAGE_STATUS_VARIANT: Record<StageStatus, 'soft' | 'info' | 'succes
 }
 
 export const FORMAT_LABEL: Record<WorkFormat, string> = {
-  remote: 'Удалённо',
-  office: 'Офис',
-  hybrid: 'Гибрид'
+  remote: 'Віддалено',
+  office: 'Офіс',
+  hybrid: 'Гібрид'
 }
 
 export const QUESTION_CATEGORY_LABEL: Record<QuestionCategory, string> = {
-  technical: 'Технический',
-  behavioral: 'Общий',
-  company: 'О компании',
+  technical: 'Технічне',
+  behavioral: 'Загальне',
+  company: 'Про компанію',
   salary: 'Зарплата',
-  other: 'Другое'
+  other: 'Інше'
 }
 
 export function daysSince(ts: number | null, now: number): number | null {
@@ -81,29 +81,29 @@ export function daysSince(ts: number | null, now: number): number | null {
 }
 
 export function agoLabel(days: number | null): string {
-  if (days === null) return 'не отправлено'
-  if (days === 0) return 'сегодня'
-  return `${days} ${plural(days, ['день', 'дня', 'дней'])} назад`
+  if (days === null) return 'не надіслано'
+  if (days === 0) return 'сьогодні'
+  return `${days} ${plural(days, ['день', 'дні', 'днів'])} тому`
 }
 
 /** «завтра 15:00», «12 дек 10:30». */
 export function whenLabel(ts: number | null): string {
-  if (!ts) return 'без даты'
+  if (!ts) return 'без дати'
   return `${fmtDay(ts)} ${format(ts, 'HH:mm', { locale: LOCALE })}`
 }
 
 export function salaryLabel(min: number | null, max: number | null, currency: string): string | null {
   if (min === null && max === null) return null
-  const whole = (n: number): string => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n)
+  const whole = (n: number): string => new Intl.NumberFormat('uk-UA', { maximumFractionDigits: 0 }).format(n)
   const one = (n: number): string => {
     try {
-      return new Intl.NumberFormat('ru-RU', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n)
+      return new Intl.NumberFormat('uk-UA', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n)
     } catch {
       return fmtMoney(n, currency)
     }
   }
   if (min !== null && max !== null && min !== max) return `${whole(min)}–${one(max)}`
-  if (min !== null && max === null) return `от ${one(min)}`
+  if (min !== null && max === null) return `від ${one(min)}`
   if (min === null && max !== null) return `до ${one(max)}`
   return one(min!)
 }

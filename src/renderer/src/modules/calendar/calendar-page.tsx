@@ -84,15 +84,15 @@ export function CalendarPage() {
                 </Badge>
               ))
             ) : (
-              <span>События, дедлайны, оплаты, подписки и собеседования — в одном месте.</span>
+              <span>Події, дедлайни, оплати, підписки та співбесіди — в одному місці.</span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Segmented<View>
             options={[
-              { value: 'month', label: 'Месяц' },
-              { value: 'week', label: 'Неделя' }
+              { value: 'month', label: 'Місяць' },
+              { value: 'week', label: 'Тиждень' }
             ]}
             value={view}
             onChange={(v) => setView('calendar', v)}
@@ -101,15 +101,15 @@ export function CalendarPage() {
             <Button variant="soft" size="icon-sm" onClick={() => step(-1)} aria-label="Назад (←)">
               <ChevronLeft />
             </Button>
-            <Button variant="soft" size="sm" onClick={() => setCursor(new Date())} title="Сегодня (T)">
-              Сегодня
+            <Button variant="soft" size="sm" onClick={() => setCursor(new Date())} title="Сьогодні (T)">
+              Сьогодні
             </Button>
-            <Button variant="soft" size="icon-sm" onClick={() => step(1)} aria-label="Вперёд (→)">
+            <Button variant="soft" size="icon-sm" onClick={() => step(1)} aria-label="Вперед (→)">
               <ChevronRight />
             </Button>
           </ButtonGroup>
           <Button variant="lime" onClick={() => setNewDate(new Date())}>
-            <Plus /> Событие
+            <Plus /> Подія
           </Button>
         </div>
       </header>

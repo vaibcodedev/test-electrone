@@ -24,14 +24,14 @@ export class ShortcutController {
     try {
       const ok = globalShortcut.register(accel, () => this.windows.showQuickAdd())
       if (!ok) {
-        this.lastError = `Сочетание ${accel} занято другой программой`
+        this.lastError = `Сполучення ${accel} зайняте іншою програмою`
         return false
       }
       this.current = accel
       this.lastError = null
       return true
     } catch {
-      this.lastError = `Некорректное сочетание: ${accel}`
+      this.lastError = `Некоректне сполучення: ${accel}`
       return false
     }
   }

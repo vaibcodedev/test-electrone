@@ -12,7 +12,7 @@ export default function Demo() {
       onClick={() => setCount((c) => c + 1)}
       className="flex items-center gap-3 rounded-full bg-[#d4f542] py-2 pr-2 pl-5 text-sm font-medium text-[#14160f] shadow-sm transition active:scale-95"
     >
-      Нажато {count}
+      Натиснуто {count}
       <span className="grid size-8 place-items-center rounded-full bg-[#14160f] text-[#d4f542]">
         <ArrowUpRight className="size-4" />
       </span>
@@ -23,7 +23,7 @@ export default function Demo() {
   jsx: `export default function Demo() {
   return (
     <div className="rounded-3xl bg-white p-6 shadow-lg">
-      <h2 className="text-2xl font-semibold tracking-tight">Привет</h2>
+      <h2 className="text-2xl font-semibold tracking-tight">Привіт</h2>
       <p className="mt-1 text-sm text-neutral-500">Компонент на JSX + Tailwind</p>
     </div>
   )
@@ -31,7 +31,7 @@ export default function Demo() {
 `,
   html: `<div class="rounded-3xl bg-[#14160f] p-6 text-[#eef1e6]">
   <h2 class="text-2xl font-semibold tracking-tight">HTML-блок</h2>
-  <p class="mt-1 text-sm opacity-70">Tailwind-классы работают и здесь</p>
+  <p class="mt-1 text-sm opacity-70">Tailwind-класи працюють і тут</p>
 </div>
 `
 }

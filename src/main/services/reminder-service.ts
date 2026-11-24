@@ -73,7 +73,7 @@ export class ReminderService {
           const d = new Date(start)
           const when = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
           const isToday = new Date().toDateString() === d.toDateString()
-          const body = e.allDay ? (isToday ? 'Сегодня' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })) : isToday ? `Сегодня в ${when}` : `${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} в ${when}`
+          const body = e.allDay ? (isToday ? 'Сьогодні' : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })) : isToday ? `Сьогодні о ${when}` : `${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })} о ${when}`
           this.notify(e.title, body, ENTITY_META.event.route(e.id))
           this.ctx.orm.update(events).set({ [slot.field]: start }).where(eq(events.id, e.id)).run()
         }
@@ -98,7 +98,7 @@ export class ReminderService {
     const week = new Date(t - ((d.getDay() + 6) % 7) * DAY_MS).toDateString()
     if (this.config.lastWeeklyReview === week) return
     this.config.lastWeeklyReview = week
-    this.notify('Итоги недели готовы', 'Что сделано, деньги, отклики без ответа и планы на следующую неделю', '/review')
+    this.notify('Підсумки тижня готові', 'Що зроблено, гроші, відгуки без відповіді й плани на наступний тиждень', '/review')
   }
 
   /** Evening reminder: job boards expected today that are not marked yet. */
@@ -112,6 +112,6 @@ export class ReminderService {
     this.lastJobNudge = key
     const pending = this.jobs.pendingToday()
     if (!pending.length) return
-    this.notify('Поиск работы: площадки на сегодня', `Не отмечены: ${pending.map((b) => b.name).join(', ')}`, '/jobs')
+    this.notify('Пошук роботи: майданчики на сьогодні', `Не позначено: ${pending.map((b) => b.name).join(', ')}`, '/jobs')
   }
 }

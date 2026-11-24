@@ -69,10 +69,10 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
       </div>
       <h2 className="font-display mt-3 text-[40px] leading-[0.98]">
         {open.length
-          ? `${open.length} ${plural(open.length, ['задача', 'задачи', 'задач'])} на сегодня`
+          ? `${open.length} ${plural(open.length, ['завдання', 'завдання', 'завдань'])} на сьогодні`
           : all.length
-            ? 'Всё сделано'
-            : 'Свободный день'}
+            ? 'Усе зроблено'
+            : 'Вільний день'}
       </h2>
       {all.length > 0 && <SegmentBar value={done} total={all.length} segments={6} className="mt-4 text-ink-foreground" />}
       <ItemGroup className="mt-5 gap-0.5">
@@ -87,7 +87,7 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
                 <ItemTitle className="w-full truncate text-lead font-normal">{c.title}</ItemTitle>
               </ItemContent>
               <span className={cn('shrink-0 text-caption', late ? 'text-destructive' : 'text-ink-muted')}>
-                {late ? 'просрочено' : c.boardTitle}
+                {late ? 'прострочено' : c.boardTitle}
               </span>
             </NavItem>
           )
@@ -95,7 +95,7 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
       </ItemGroup>
       {!all.length && (
         <p className="mt-4 max-w-sm text-body text-ink-muted">
-          Поставьте дедлайн карточке на доске — она появится здесь в нужный день.
+          Поставте дедлайн картці на дошці — вона з’явиться тут у потрібний день.
         </p>
       )}
     </Card>
@@ -107,16 +107,16 @@ function Agenda({ items }: { items: CalendarItem[] }) {
   return (
     <Card className="col-span-5">
       <CardHeader>
-        <CardTitle>Ближайшие 3 дня</CardTitle>
+        <CardTitle>Найближчі 3 дні</CardTitle>
         <CardAction>
           <Button variant="subtle" size="xs" onClick={() => navigate('/calendar')}>
-            Календарь
+            Календар
           </Button>
         </CardAction>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <p className="text-body text-muted-foreground">Событий нет. Добавьте встречу или напоминание в календаре.</p>
+          <p className="text-body text-muted-foreground">Подій немає. Додайте зустріч або нагадування в календарі.</p>
         ) : (
           <ItemGroup className="gap-2">
             {items.slice(0, 7).map((i) => (
@@ -140,10 +140,10 @@ function Agenda({ items }: { items: CalendarItem[] }) {
 }
 
 const QUICK: { target: QuickAddTarget; label: string; type: keyof typeof ENTITY_META }[] = [
-  { target: 'idea', label: 'Записать идею', type: 'idea' },
-  { target: 'card', label: 'Новая задача', type: 'card' },
-  { target: 'snippet', label: 'Сохранить сниппет', type: 'snippet' },
-  { target: 'word', label: 'Новое слово', type: 'word' }
+  { target: 'idea', label: 'Записати ідею', type: 'idea' },
+  { target: 'card', label: 'Нове завдання', type: 'card' },
+  { target: 'snippet', label: 'Зберегти сніпет', type: 'snippet' },
+  { target: 'word', label: 'Нове слово', type: 'word' }
 ]
 
 function QuickTiles() {
@@ -184,7 +184,7 @@ function TimerTile({
   timer: { projectTitle: string; startedAt: number; projectId: string } | null
   weekMinutes: number
 }) {
-  const stop = useApiMutation('time', 'stop', { successMessage: 'Таймер остановлен' })
+  const stop = useApiMutation('time', 'stop', { successMessage: 'Таймер зупинено' })
   const navigate = useNavigate()
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
@@ -196,7 +196,7 @@ function TimerTile({
   return (
     <Card className={cn('col-span-3 justify-between', timer && 'bg-lime text-lime-foreground')}>
       <CardHeader>
-        <CardTitle className={cn(timer && 'text-lime-foreground')}>Время</CardTitle>
+        <CardTitle className={cn(timer && 'text-lime-foreground')}>Час</CardTitle>
         <CardAction>
           <Timer className="size-4 opacity-60" />
         </CardAction>
@@ -215,13 +215,13 @@ function TimerTile({
               </Button>
             </div>
             <Button onClick={() => stop.mutate(undefined)} className="bg-lime-foreground text-lime hover:bg-lime-foreground/90">
-              <Pause /> Остановить
+              <Pause /> Зупинити
             </Button>
           </>
         ) : (
           <div>
             <div className="font-display text-stat leading-none">{fmtMinutes(weekMinutes)}</div>
-            <div className="mt-1 text-caption text-muted-foreground">за эту неделю</div>
+            <div className="mt-1 text-caption text-muted-foreground">за цей тиждень</div>
           </div>
         )}
       </CardContent>
@@ -238,7 +238,7 @@ function EnglishTile({ due, word }: { due: number; word: { id: string; term: str
         {due > 0 && (
           <CardAction>
             <Button size="xs" onClick={() => navigate('/english/review')}>
-              {due} на повтор
+              {due} на повторення
             </Button>
           </CardAction>
         )}
@@ -254,14 +254,14 @@ function EnglishTile({ due, word }: { due: number; word: { id: string; term: str
             <span className="text-body font-normal text-muted-foreground">{word.translation}</span>
           </Button>
         ) : (
-          <p className="text-body text-muted-foreground">Добавьте слова из рабочей переписки — здесь будет одно каждый день.</p>
+          <p className="text-body text-muted-foreground">Додайте слова з робочого листування — тут щодня буде одне.</p>
         )}
       </CardContent>
     </Card>
   )
 }
 
-const activityConfig = { count: { label: 'Сделано', color: 'var(--chart-1)' } } satisfies ChartConfig
+const activityConfig = { count: { label: 'Зроблено', color: 'var(--chart-1)' } } satisfies ChartConfig
 
 /** Single series → one validated hue, no legend; exact values on hover (dataviz skill). */
 function Activity({ data }: { data: { day: string; count: number }[] }) {
@@ -270,7 +270,7 @@ function Activity({ data }: { data: { day: string; count: number }[] }) {
   return (
     <Card className="col-span-4">
       <CardHeader>
-        <CardTitle>Сделано за 2 недели</CardTitle>
+        <CardTitle>Зроблено за 2 тижні</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="font-display text-stat leading-none">{total}</div>
@@ -325,15 +325,15 @@ function GuideHint() {
         <BookOpen className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-lead font-medium">Впервые здесь?</div>
+        <div className="text-lead font-medium">Уперше тут?</div>
         <div className="text-body text-muted-foreground">
-          Гайд за пару минут: разделы, горячие клавиши и где лежат ваши данные.
+          Гайд на кілька хвилин: розділи, гарячі клавіші й де лежать ваші дані.
         </div>
       </div>
       <Button variant="default" onClick={() => navigate('/guide')}>
-        Открыть гайд
+        Відкрити гайд
       </Button>
-      <Button variant="ghost" size="icon-sm" aria-label="Скрыть подсказку" onClick={dismiss}>
+      <Button variant="ghost" size="icon-sm" aria-label="Сховати підказку" onClick={dismiss}>
         <X />
       </Button>
     </Card>
@@ -367,7 +367,7 @@ export function DashboardPage() {
         <TimerTile timer={data.timer} weekMinutes={data.weekMinutes} />
         <EnglishTile due={data.english.due} word={data.english.wordOfDay} />
 
-        <ListCard title="Закреплено" className="col-span-4">
+        <ListCard title="Закріплено" className="col-span-4">
           {pinned.length ? (
             <div className="-mx-2.5 flex flex-col">
               {pinned.slice(0, 7).map((p) => (
@@ -385,11 +385,11 @@ export function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-body text-muted-foreground">Нажмите на булавку у любой записи, чтобы она появилась здесь.</p>
+            <p className="text-body text-muted-foreground">Натисніть шпильку в будь-якому записі, щоб він з’явився тут.</p>
           )}
         </ListCard>
 
-        <ListCard title="Недавно менялось" className="col-span-4">
+        <ListCard title="Нещодавно змінювалось" className="col-span-4">
           <div className="-mx-2.5 flex flex-col">
             {data.recent.slice(0, 7).map((r) => (
               <EntityRow
@@ -398,18 +398,18 @@ export function DashboardPage() {
                 trailing={<span className="text-meta text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
               />
             ))}
-            {!data.recent.length && <p className="px-2.5 text-body text-muted-foreground">Пока пусто.</p>}
+            {!data.recent.length && <p className="px-2.5 text-body text-muted-foreground">Поки порожньо.</p>}
           </div>
         </ListCard>
 
         <Activity data={data.activity} />
 
         <ListCard
-          title="Идеи во входящих"
+          title="Ідеї у вхідних"
           className="col-span-6"
           action={
             <Button variant="subtle" size="xs" onClick={() => navigate('/ideas')}>
-              Все идеи
+              Усі ідеї
             </Button>
           }
         >
@@ -429,12 +429,12 @@ export function DashboardPage() {
             </div>
           ) : (
             <p className="text-body text-muted-foreground">
-              Входящие пусты. Глобальная клавиша быстрого добавления работает даже из трея.
+              Вхідні порожні. Глобальна клавіша швидкого додавання працює навіть із трею.
             </p>
           )}
         </ListCard>
 
-        <ListCard title="Читаю сейчас" className="col-span-6">
+        <ListCard title="Читаю зараз" className="col-span-6">
           {data.reading.length ? (
             <ItemGroup className="gap-2">
               {data.reading.map((b) => (
@@ -447,7 +447,7 @@ export function DashboardPage() {
               ))}
             </ItemGroup>
           ) : (
-            <p className="text-body text-muted-foreground">Отметьте закладку «читаю» — прогресс будет здесь.</p>
+            <p className="text-body text-muted-foreground">Позначте закладку «читаю» — прогрес буде тут.</p>
           )}
         </ListCard>
       </div>

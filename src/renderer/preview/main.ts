@@ -69,7 +69,7 @@ function evaluate(code: string): React.ComponentType | null {
   const require = (name: string): unknown => {
     if (name in MODULES) return MODULES[name]
     if (/\.(css|scss)$/.test(name)) return {}
-    throw new Error(`Модуль "${name}" недоступен в превью. Доступны: ${Object.keys(MODULES).join(', ')}`)
+    throw new Error(`Модуль "${name}" недоступний у превʼю. Доступні: ${Object.keys(MODULES).join(', ')}`)
   }
   let rendered: React.ReactNode = null
   const render = (node: React.ReactNode): void => {
@@ -103,7 +103,7 @@ function renderMessage(msg: RenderMessage): void {
       return
     }
     const Component = evaluate(msg.code)
-    if (!Component) throw new Error('Нечего показать: добавьте `export default function Demo()` или вызов render(<X />)')
+    if (!Component) throw new Error('Нічого показати: додайте `export default function Demo()` або виклик render(<X />)')
     if (!root) {
       rootEl.innerHTML = ''
       root = ReactDOMClient.createRoot(rootEl)

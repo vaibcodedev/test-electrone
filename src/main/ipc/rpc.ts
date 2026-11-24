@@ -1,6 +1,56 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import { ZodError } from 'zod'
+import { z, ZodError } from 'zod'
+import { uk } from 'zod/locales'
+
+// Validation messages reach the UI as toasts → Ukrainian, not «Too big: expected number to be <=…».
+z.config(uk())
+// The common cases in plain words (the stock locale says «очікується, що number буде <=…»).
+z.config({
+  customError: (issue) => {
+    const fmt = (n: unknown): string => (typeof n === 'number' ? n.toLocaleString('uk-UA') : String(n))
+    if (issue.code === 'too_big')
+      return issue.origin === 'string' ? `занадто довго — максимум ${fmt(issue.maximum)} символів` : `забагато — максимум ${fmt(issue.maximum)}`
+    if (issue.code === 'too_small')
+      return issue.origin === 'string'
+        ? Number(issue.minimum) <= 1
+          ? 'не може бути порожнім'
+          : `закоротко — мінімум ${fmt(issue.minimum)} символів`
+        : `замало — мінімум ${fmt(issue.minimum)}`
+    if (issue.code === 'invalid_format' && issue.format === 'url') return 'не схоже на посилання'
+    if (issue.code === 'invalid_format' && issue.format === 'email') return 'не схоже на пошту'
+    return undefined
+  }
+})
+
+/** Human names for fields in validation errors; unknown paths fall back to the key. */
+const FIELD_LABEL: Record<string, string> = {
+  amount: 'Сума',
+  currency: 'Валюта',
+  title: 'Назва',
+  name: 'Назва',
+  url: 'Посилання',
+  email: 'Пошта',
+  phone: 'Телефон',
+  fixedPrice: 'Вартість проєкту',
+  hourlyRate: 'Погодинна ставка',
+  rate: 'Ставка',
+  feePercent: 'Комісія',
+  budgetHours: 'Бюджет годин',
+  minutes: 'Хвилини',
+  progress: 'Прогрес',
+  rating: 'Рейтинг',
+  dueAt: 'Строк',
+  startAt: 'Початок',
+  endAt: 'Кінець',
+  credits: 'Конекти',
+  question: 'Питання',
+  answer: 'Відповідь',
+  code: 'Код',
+  body: 'Текст',
+  description: 'Опис',
+  notes: 'Нотатки'
+}
 import { RPC_CHANNEL, type Api, type RpcResult } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import type { EventBus } from '../core/event-bus'
@@ -17,7 +67,9 @@ function trustedSender(event: IpcMainInvokeEvent): boolean {
 function formatError(e: unknown): { error: string; code?: string } {
   if (e instanceof ZodError) {
     const first = e.issues[0]
-    return { error: `Некорректные данные: ${first?.path.join('.') || 'value'} — ${first?.message}`, code: 'VALIDATION' }
+    const key = String(first?.path[first.path.length - 1] ?? '')
+    const field = FIELD_LABEL[key] ?? (first?.path.join('.') || 'значення')
+    return { error: `${field}: ${first?.message ?? 'некоректне значення'}`, code: 'VALIDATION' }
   }
   if (e instanceof Error) return { error: e.message, code: (e as { code?: string }).code }
   return { error: String(e) }
@@ -53,7 +105,7 @@ const NS_TYPES: Partial<Record<keyof Api, EntityType[]>> = {
   jobs: ['application', 'company', 'question', 'event']
 }
 const READ_METHODS =
-  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|resumes|questions|question|topics|practiceQueue|runs|logs|repos|issues|commits|pickFolder|scan)$/
+  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|resumes|questions|question|topics|practiceQueue|practiceExtra|runs|logs|repos|issues|commits|pickFolder|scan)$/
 
 /**
  * Single IPC entry point: `rpc("ns.method", arg)` → api[ns][method](arg).

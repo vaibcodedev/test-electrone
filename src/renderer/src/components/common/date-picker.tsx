@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { format, startOfDay } from 'date-fns'
-import { ru } from 'date-fns/locale'
+import { uk } from 'date-fns/locale'
 import { CalendarDays, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useReadOnly } from './detail-mode'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Calendar } from '@/components/ui/calendar'
@@ -17,7 +18,7 @@ export function DatePicker({
   value,
   onChange,
   withTime = false,
-  placeholder = 'Выбрать дату',
+  placeholder = 'Вибрати дату',
   clearable = true,
   className,
   size = 'default',
@@ -35,6 +36,7 @@ export function DatePicker({
   min?: number | null
   invalid?: boolean
 }) {
+  const viewMode = useReadOnly()
   const [open, setOpen] = useState(false)
   const date = value ? new Date(value) : undefined
   const time = date ? format(date, 'HH:mm') : '09:00'
@@ -56,7 +58,9 @@ export function DatePicker({
     onChange(base.getTime())
   }
 
-  const label = date ? format(date, withTime ? 'd MMM yyyy, HH:mm' : 'd MMM yyyy', { locale: ru }) : placeholder
+  const label = date ? format(date, withTime ? 'd MMM yyyy, HH:mm' : 'd MMM yyyy', { locale: uk }) : placeholder
+  // Record view mode: just the date as text (nothing to open).
+  if (viewMode) return <span className={cn('text-body', !date && 'text-muted-foreground')}>{date ? label : '—'}</span>
 
   return (
     <ButtonGroup className={cn('w-full', className)}>
@@ -67,7 +71,8 @@ export function DatePicker({
             size={size}
             aria-invalid={invalid || undefined}
             className={cn(
-              'flex-1 justify-start font-normal',
+              // Looks like an input (same border/tint as Input), not like a button.
+              'flex-1 justify-start rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/25 hover:bg-foreground/[0.04]',
               !date && 'text-muted-foreground',
               invalid && 'text-destructive ring-1 ring-destructive/60 ring-inset'
             )}
@@ -83,12 +88,12 @@ export function DatePicker({
             onSelect={setDay}
             defaultMonth={date ?? (min ? new Date(min) : undefined)}
             disabled={min ? { before: startOfDay(new Date(min)) } : undefined}
-            locale={ru}
+            locale={uk}
             weekStartsOn={1}
           />
           {withTime && (
             <div className="flex items-center gap-2 border-t border-border p-3">
-              <span className="text-caption text-muted-foreground">Время</span>
+              <span className="text-caption text-muted-foreground">Час</span>
               <Input
                 type="time"
                 value={time}
@@ -103,7 +108,7 @@ export function DatePicker({
         </PopoverContent>
       </Popover>
       {clearable && date && (
-        <Button variant="soft" size={size === 'sm' ? 'icon-sm' : 'icon'} aria-label="Очистить дату" onClick={() => onChange(null)}>
+        <Button variant="soft" size={size === 'sm' ? 'icon-sm' : 'icon'} aria-label="Очистити дату" onClick={() => onChange(null)}>
           <X />
         </Button>
       )}

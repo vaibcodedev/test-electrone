@@ -19,7 +19,7 @@ export function AskedQuestions({
   questions,
   applicationId,
   companyId,
-  title = 'Какие вопросы задавали'
+  title = 'Які питання ставили'
 }: {
   questions: InterviewQuestion[]
   applicationId?: string
@@ -30,7 +30,7 @@ export function AskedQuestions({
   const [text, setText] = useState('')
   const [category, setCategory] = useState<QuestionCategory>('technical')
   const create = useApiMutation('jobs', 'createQuestion', {
-    successMessage: 'Вопрос в банке — допишите ответ',
+    successMessage: 'Питання в банку — допишіть відповідь',
     onSuccess: () => setText('')
   })
   const submit = (): void => {
@@ -42,7 +42,7 @@ export function AskedQuestions({
       <SectionLabel
         action={
           <Button variant="subtle" size="xs" onClick={() => navigate('/jobs/questions')}>
-            Банк вопросов <ArrowUpRight />
+            Банк питань <ArrowUpRight />
           </Button>
         }
       >
@@ -56,7 +56,7 @@ export function AskedQuestions({
                 <ItemContent className="min-w-0">
                   <ItemTitle className="line-clamp-2 w-full font-normal">{q.question}</ItemTitle>
                   <ItemDescription className="text-meta">
-                    {q.answer.trim() ? 'есть ответ' : 'ответ ещё не записан'}
+                    {q.answer.trim() ? 'є відповідь' : 'відповідь ще не записана'}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
@@ -71,7 +71,7 @@ export function AskedQuestions({
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Вопрос, который задали…"
+          placeholder="Питання, яке поставили…"
           className="min-h-12"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -90,7 +90,7 @@ export function AskedQuestions({
           />
           <div className="flex-1" />
           <Button size="sm" variant="soft" disabled={!text.trim() || create.isPending} onClick={submit}>
-            <Plus /> В банк вопросов
+            <Plus /> У банк питань
           </Button>
         </div>
       </div>

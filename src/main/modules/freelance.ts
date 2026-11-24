@@ -96,32 +96,32 @@ type CaseRow = typeof portfolioCases.$inferSelect
 type RedFlagRow = typeof redFlags.$inferSelect
 
 export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
-  draft: 'Черновик',
-  sent: 'Отправлен',
-  viewed: 'Просмотрен',
-  replied: 'Ответили',
-  interview: 'Интервью',
-  offer: 'Оффер',
+  draft: 'Чернетка',
+  sent: 'Надіслано',
+  viewed: 'Переглянуто',
+  replied: 'Відповіли',
+  interview: 'Інтерв’ю',
+  offer: 'Офер',
   hired: 'Контракт',
-  declined: 'Отказ',
-  no_reply: 'Без ответа',
-  withdrawn: 'Отозван',
-  closed: 'Вакансия закрыта'
+  declined: 'Відмова',
+  no_reply: 'Без відповіді',
+  withdrawn: 'Відкликано',
+  closed: 'Вакансію закрито'
 }
 
 const SITUATION_LABEL: Record<TemplateSituation, string> = {
-  proposal: 'Отклик',
-  first_message: 'Первое сообщение',
-  estimate: 'Оценка сроков',
-  tz_questions: 'Вопросы по ТЗ',
+  proposal: 'Відгук',
+  first_message: 'Перше повідомлення',
+  estimate: 'Оцінка термінів',
+  tz_questions: 'Питання щодо ТЗ',
   revisions: 'Правки',
-  follow_up: 'Напоминание',
+  follow_up: 'Нагадування',
   small_talk: 'Small talk',
-  closing: 'Завершение',
-  cover_letter: 'Сопроводительное',
-  recruiter: 'Ответ рекрутеру',
-  thank_you: 'Благодарность после интервью',
-  other: 'Другое'
+  closing: 'Завершення',
+  cover_letter: 'Супровідний лист',
+  recruiter: 'Відповідь рекрутеру',
+  thank_you: 'Подяка після інтерв’ю',
+  other: 'Інше'
 }
 
 /** Pipeline rank: how far a status got. Terminal "negative" statuses rank by timestamps instead. */
@@ -178,6 +178,7 @@ export class FreelanceModule {
     const portfolioCase: EntityDescriptor = {
       type: 'case',
       table: portfolioCases,
+      draft: { titleField: 'title', contentFields: ['niche', 'client', 'problem', 'whatDone', 'result', 'stack', 'url', 'textEn', 'coverPath'] },
       searchDoc: (r) => ({
         title: r.title,
         body: `${r.niche}\n${r.client}\n${r.problem}\n${r.whatDone}\n${r.result}\n${r.stack}\n${r.textEn}`
@@ -188,8 +189,9 @@ export class FreelanceModule {
     const flag: EntityDescriptor = {
       type: 'redflag',
       table: redFlags,
+      draft: { titleField: 'title', contentFields: ['signs', 'action'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.signs}\n${r.action}` }),
-      summary: (r) => ({ title: r.title, subtitle: 'Красный флаг' })
+      summary: (r) => ({ title: r.title, subtitle: 'Червоний прапорець' })
     }
     this.descriptors = [proposal, template, portfolioCase, flag]
     this.proposalRepo = new SoftRepository(m.repo, proposal, (r, tags) => ({
@@ -380,7 +382,7 @@ export class FreelanceModule {
           .where(and(isNull(proposals.deletedAt), sql`${proposals.niche} != ''`))
           .all()
           .map((r) => r.niche)
-          .sort((a, b) => a.localeCompare(b, 'ru')),
+          .sort((a, b) => a.localeCompare(b, 'uk')),
       stale: async (args) => {
         const { days, platformId } = z
           .object({
@@ -407,7 +409,7 @@ export class FreelanceModule {
           let clientId = data.clientId ?? p.clientId
           if (!clientId) {
             const created = this.crm.clientRepo.insert({
-              name: p.clientName || 'Клиент',
+              name: p.clientName || 'Клієнт',
               company: '',
               email: '',
               phone: '',
@@ -466,7 +468,7 @@ export class FreelanceModule {
       },
       toTemplate: async (id) => {
         const p = repo.rowOrThrow(idArg.parse(id))
-        if (!p.coverLetter.trim()) throw new UserError('В отклике нет текста')
+        if (!p.coverLetter.trim()) throw new UserError('У відгуку немає тексту')
         const t = this.templateRepo.insert({
           situation: 'proposal',
           title: p.niche ? `${p.niche}: ${p.jobTitle}`.slice(0, 200) : p.jobTitle.slice(0, 200),
@@ -537,7 +539,7 @@ export class FreelanceModule {
         const data = creditTxInputSchema.parse(input)
         this.platform(data.platformId)
         if (data.kind !== 'adjust' && data.amount < 0)
-          throw new UserError('Количество должно быть положительным')
+          throw new UserError('Кількість має бути додатною')
         const row = this.db
           .insert(creditTxs)
           .values({ ...data, id: newId(), createdAt: now() })
@@ -795,14 +797,14 @@ export class FreelanceModule {
       .map((r) => (r.repliedAt! - r.sentAt!) / 3600_000)
     return {
       range: { from, to },
-      totals: this.funnel('all', 'Все', rows),
+      totals: this.funnel('all', 'Усі', rows),
       byNiche: group(
         (r) => r.niche || '—',
-        (k) => (k === '—' ? 'Без типа' : k)
+        (k) => (k === '—' ? 'Без типу' : k)
       ),
       byTemplate: group(
         (r) => r.templateId ?? '—',
-        (k) => (k === '—' ? 'Без шаблона' : (templateTitles.get(k) ?? 'Удалённый шаблон'))
+        (k) => (k === '—' ? 'Без шаблону' : (templateTitles.get(k) ?? 'Видалений шаблон'))
       ),
       byPlatform: group(
         (r) => r.platformId,
@@ -923,7 +925,7 @@ export class FreelanceModule {
       update: async (args) => {
         const { id, patch } = updateArgs(goalPatchSchema).parse(args)
         const row = this.db.update(goals).set(patch).where(eq(goals.id, id)).returning().get()
-        if (!row) throw new NotFoundError('Цель', id)
+        if (!row) throw new NotFoundError('Ціль', id)
         return toGoal(row)
       },
       remove: async (id) => {

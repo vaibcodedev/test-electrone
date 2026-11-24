@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core'
-import type { EntityType } from '@shared/entity-types'
+import { DRAFT_TITLES, type EntityType } from '@shared/entity-types'
 import type { EntityRef, EntitySummary } from '@shared/domain/common'
 import type { DbContext } from '../db/client'
 
@@ -35,6 +35,23 @@ export interface EntityDescriptor {
   dependents?(id: string): EntityRef[]
   /** Extra cleanup on permanent deletion (files on disk…). */
   onPurge?(row: AnyRow): void
+  /**
+   * Draft detection: the title column and the content columns that must all be empty.
+   * Types without it never count as drafts.
+   */
+  draft?: { titleField: string; contentFields: string[] }
+}
+
+/** Never edited since creation, default title, no content → an empty draft (see DRAFT_TITLES). */
+export function isDraft(d: EntityDescriptor, row: AnyRow): boolean {
+  if (!d.draft || row.deletedAt) return false
+  const titles = DRAFT_TITLES[d.type]
+  if (!titles?.includes(String(row[d.draft.titleField] ?? '').trim())) return false
+  if (row.createdAt !== row.updatedAt) return false
+  return d.draft.contentFields.every((f) => {
+    const v = row[f]
+    return v === null || v === undefined || (typeof v === 'string' && !v.trim())
+  })
 }
 
 export class EntityRegistry {

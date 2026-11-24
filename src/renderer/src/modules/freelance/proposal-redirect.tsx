@@ -7,6 +7,11 @@ export function ProposalRedirect() {
   const { id = '' } = useParams()
   const { data: proposal, isLoading } = useApi('proposals', 'get', id, { enabled: !!id })
   if (isLoading) return null
-  if (!proposal) return <EmptyState title="Отклик не найден" hint="Возможно, он в корзине." />
-  return <Navigate replace to={`/freelance/p/${proposal.platformId}?tab=proposals&open=${proposal.id}`} />
+  if (!proposal) return <EmptyState title="Відгук не знайдено" hint="Можливо, він у кошику." />
+  return (
+    <Navigate
+      replace
+      to={`/freelance/p/${proposal.platformId}?tab=proposals&open=${proposal.id}`}
+    />
+  )
 }

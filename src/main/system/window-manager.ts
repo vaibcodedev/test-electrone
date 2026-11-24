@@ -49,7 +49,19 @@ export class WindowManager {
     })
   }
 
+  /**
+   * UI is Ukrainian: spellcheck Ukrainian + English (Windows/Linux; macOS detects the language itself).
+   * Unknown codes throw, so only languages the runtime actually has are passed.
+   */
+  private setSpellcheck(win: BrowserWindow): void {
+    if (process.platform === 'darwin') return
+    const ses = win.webContents.session
+    const langs = ['uk', 'en-US'].filter((l) => ses.availableSpellCheckerLanguages.includes(l))
+    if (langs.length) ses.setSpellCheckerLanguages(langs)
+  }
+
   private secure(win: BrowserWindow): void {
+    this.setSpellcheck(win)
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
       return { action: 'deny' }
@@ -184,7 +196,7 @@ export class WindowManager {
       alwaysOnTop: true,
       transparent: true,
       backgroundColor: '#00000000',
-      title: 'Быстро добавить',
+      title: 'Швидко додати',
       webPreferences: this.webPreferences()
     })
     this.secure(win)

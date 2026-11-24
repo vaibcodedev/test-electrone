@@ -83,18 +83,18 @@ export function CommandPalette() {
     <CommandDialog
       open={open}
       onOpenChange={(o) => (o ? setOpen(true) : close())}
-      title="Поиск везде"
-      description="Идеи, сниппеты, ошибки, клиенты и разделы"
+      title="Пошук усюди"
+      description="Ідеї, сніпети, помилки, клієнти й розділи"
       showCloseButton={false}
       className="top-[14%] translate-y-0 rounded-3xl sm:max-w-[640px]"
       commandProps={{ shouldFilter: false, loop: true }}
     >
       <div className="relative">
-        <CommandInput value={text} onValueChange={setText} placeholder="Найти идею, сниппет, ошибку, клиента…" />
+        <CommandInput value={text} onValueChange={setText} placeholder="Знайти ідею, сніпет, помилку, клієнта…" />
         {isFetching && <Spinner className="absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground" />}
       </div>
       <CommandList className="max-h-[min(60vh,480px)]">
-        <CommandEmpty>Ничего не нашлось. Попробуйте другое слово или его начало.</CommandEmpty>
+        <CommandEmpty>Нічого не знайшлося. Спробуйте інше слово або його початок.</CommandEmpty>
 
         {grouped.map(([type, list]) => {
           const Icon = ENTITY_ICON[type]
@@ -125,7 +125,7 @@ export function CommandPalette() {
         })}
 
         {!query && recent.length > 0 && (
-          <CommandGroup heading="Недавние">
+          <CommandGroup heading="Нещодавні">
             {recent.map((r) => {
               const Icon = ENTITY_ICON[r.type]
               return (
@@ -140,7 +140,7 @@ export function CommandPalette() {
         )}
 
         {navMatches.length > 0 && (
-          <CommandGroup heading="Разделы">
+          <CommandGroup heading="Розділи">
             {navMatches.map((n, i) => (
               <CommandItem key={n.path} value={`nav:${n.path}`} onSelect={() => go(n.path)}>
                 <n.icon />
@@ -152,7 +152,7 @@ export function CommandPalette() {
         )}
 
         {!query && (
-          <CommandGroup heading="Действия">
+          <CommandGroup heading="Дії">
             <CommandItem
               value="action:quick-add"
               onSelect={() => {
@@ -160,12 +160,12 @@ export function CommandPalette() {
                 setQuickAddOpen(true)
               }}
             >
-              <Plus /> Быстро добавить
+              <Plus /> Швидко додати
               <CommandShortcut>Ctrl N</CommandShortcut>
             </CommandItem>
             <CommandItem value="action:theme" onSelect={() => updateSettings.mutate({ theme: theme === 'dark' ? 'light' : 'dark' })}>
               {theme === 'dark' ? <Sun /> : <Moon />}
-              {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+              {theme === 'dark' ? 'Світла тема' : 'Темна тема'}
             </CommandItem>
             <CommandItem
               value="action:shortcuts"
@@ -174,14 +174,14 @@ export function CommandPalette() {
                 setShortcutsOpen(true)
               }}
             >
-              <Keyboard /> Горячие клавиши
+              <Keyboard /> Гарячі клавіші
               <CommandShortcut>Ctrl /</CommandShortcut>
             </CommandItem>
             <CommandItem value="action:trash" onSelect={() => go('/trash')}>
-              <Trash2 /> Корзина
+              <Trash2 /> Кошик
             </CommandItem>
             <CommandItem value="action:settings" onSelect={() => go('/settings')}>
-              <Settings /> Настройки, бэкап и экспорт
+              <Settings /> Налаштування, бекап і експорт
             </CommandItem>
           </CommandGroup>
         )}

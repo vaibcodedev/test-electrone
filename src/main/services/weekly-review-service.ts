@@ -127,25 +127,25 @@ export class WeeklyReviewService {
     const sections: WeekSection[] = [
       {
         id: 'work',
-        title: 'Работа',
-        metrics: [metric('cardsDone', 'Задач закрыто'), metric('checksDone', 'Пунктов чек-листов'), metric('minutes', 'Отработано', 'minutes'), metric('ideas', 'Новых идей'), metric('notes', 'Заметок')]
+        title: 'Робота',
+        metrics: [metric('cardsDone', 'Завдань закрито'), metric('checksDone', 'Пунктів чек-листів'), metric('minutes', 'Відпрацьовано', 'minutes'), metric('ideas', 'Нових ідей'), metric('notes', 'Нотаток')]
       },
       {
         id: 'freelance',
         title: 'Фриланс',
-        metrics: [metric('proposals', 'Откликов'), metric('proposalReplies', 'Ответов'), metric('contracts', 'Контрактов'), metric('credits', 'Коннектов потрачено', 'count', 'down')]
+        metrics: [metric('proposals', 'Відгуків'), metric('proposalReplies', 'Відповідей'), metric('contracts', 'Контрактів'), metric('credits', 'Конектів витрачено', 'count', 'down')]
       },
       {
         id: 'jobs',
-        title: 'Поиск работы',
-        metrics: [metric('applications', 'Откликов на вакансии'), metric('appReplies', 'Ответов'), metric('interviews', 'Собеседований'), metric('offers', 'Офферов')]
+        title: 'Пошук роботи',
+        metrics: [metric('applications', 'Відгуків на вакансії'), metric('appReplies', 'Відповідей'), metric('interviews', 'Співбесід'), metric('offers', 'Оферів')]
       },
       {
         id: 'learning',
-        title: 'Учёба',
-        metrics: [metric('words', 'Повторений слов'), metric('questions', 'Вопросов отработано'), metric('bookmarksDone', 'Материалов изучено')]
+        title: 'Навчання',
+        metrics: [metric('words', 'Повторень слів'), metric('questions', 'Питань відпрацьовано'), metric('bookmarksDone', 'Матеріалів опрацьовано')]
       },
-      { id: 'code', title: 'Код', metrics: [metric('commits', 'Коммитов в моих проектах')] }
+      { id: 'code', title: 'Код', metrics: [metric('commits', 'Комітів у моїх проєктах')] }
     ]
 
     const summaries = (refs: EntitySummary[]): EntitySummary[] => refs.slice(0, 12)
@@ -169,7 +169,7 @@ export class WeeklyReviewService {
     const unpaid = this.mods.finance
       .subscriptionMonth(month)
       .filter((s) => !s.expenseId && s.dueAt <= Date.now())
-      .map((s): EntitySummary => ({ type: 'event', id: s.id, title: `${s.title} · ${s.amount} ${s.currency}`, subtitle: 'Подписка не отмечена' }))
+      .map((s): EntitySummary => ({ type: 'event', id: s.id, title: `${s.title} · ${s.amount} ${s.currency}`, subtitle: 'Підписку не позначено' }))
     const upcoming = this.mods.calendar
       .feed(to + 1, to + 7 * DAY_MS)
       .slice(0, 12)
@@ -181,10 +181,10 @@ export class WeeklyReviewService {
       sections,
       money: this.money(from, to),
       pending: [
-        { title: 'Отклики без ответа', items: summaries(staleProposals) },
-        { title: 'Вакансии: напомнить о себе', items: summaries(followUps) },
-        { title: 'Просроченные задачи', items: summaries(overdue) },
-        { title: 'Неоплаченные подписки', items: summaries(unpaid) }
+        { title: 'Відгуки без відповіді', items: summaries(staleProposals) },
+        { title: 'Вакансії: нагадати про себе', items: summaries(followUps) },
+        { title: 'Прострочені завдання', items: summaries(overdue) },
+        { title: 'Неоплачені підписки', items: summaries(unpaid) }
       ].filter((g) => g.items.length),
       done: summaries(doneCards),
       upcoming

@@ -11,13 +11,13 @@ const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
 }
 
 export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
-  event: 'Событие',
-  card: 'Дедлайн карточки',
+  event: 'Подія',
+  card: 'Дедлайн картки',
   payment: 'Оплата',
-  project: 'Дедлайн проекта',
-  interview: 'Собеседование',
-  subscription: 'Подписка',
-  followup: 'Напомнить о себе'
+  project: 'Дедлайн проєкту',
+  interview: 'Співбесіда',
+  subscription: 'Підписка',
+  followup: 'Нагадати про себе'
 }
 
 export function itemColor(item: CalendarItem): string {
@@ -71,8 +71,8 @@ export function timeOnDay(item: CalendarItem, day: Date): { short: string; long:
     if (end === null) return { short: hm(item.startAt), long: hm(item.startAt) }
     return endsToday
       ? { short: hm(item.startAt), long: `${hm(item.startAt)}–${hm(end)}` }
-      : { short: hm(item.startAt), long: `с ${hm(item.startAt)}` }
+      : { short: hm(item.startAt), long: `з ${hm(item.startAt)}` }
   }
   if (endsToday) return { short: `до ${hm(end)}`, long: `до ${hm(end)}` }
-  return { short: '', long: 'весь день' }
+  return { short: '', long: 'увесь день' }
 }

@@ -12,16 +12,16 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { currentMonth, monthLabel, shiftMonth } from './month'
 
 export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
-  subscription: 'Подписки',
-  connects: 'Коннекты',
-  software: 'Софт и сервисы',
-  hardware: 'Техника',
+  subscription: 'Підписки',
+  connects: 'Конекти',
+  software: 'Софт і сервіси',
+  hardware: 'Техніка',
   phone: 'Телефон',
-  internet: 'Интернет',
-  education: 'Обучение',
-  taxes: 'Налоги',
-  bank: 'Банк и комиссии',
-  other: 'Другое'
+  internet: 'Інтернет',
+  education: 'Навчання',
+  taxes: 'Податки',
+  bank: 'Банк і комісії',
+  other: 'Інше'
 }
 
 /** Non-zero entries of a per-currency amount, largest first. */
@@ -74,13 +74,13 @@ export function MonthSwitcher({
             <Button
               variant="soft"
               size="icon-sm"
-              aria-label="Предыдущий месяц"
+              aria-label="Попередній місяць"
               onClick={() => onChange(shiftMonth(month, -1))}
             >
               <ChevronLeft />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Предыдущий месяц</TooltipContent>
+          <TooltipContent>Попередній місяць</TooltipContent>
         </Tooltip>
         <Button
           variant="soft"
@@ -96,13 +96,13 @@ export function MonthSwitcher({
             <Button
               variant="soft"
               size="icon-sm"
-              aria-label="Следующий месяц"
+              aria-label="Наступний місяць"
               onClick={() => onChange(shiftMonth(month, 1))}
             >
               <ChevronRight />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Следующий месяц</TooltipContent>
+          <TooltipContent>Наступний місяць</TooltipContent>
         </Tooltip>
       </ButtonGroup>
     </div>
@@ -144,13 +144,14 @@ export function StatTile({
 export function FinanceNav() {
   const { pathname, search } = useLocation()
   const links = [
-    { to: '/finance', label: 'Обзор' },
-    { to: '/finance/income', label: 'Доходы' },
-    { to: '/finance/expenses', label: 'Подписки и расходы' },
-    { to: '/finance/withdrawals', label: 'Выводы' }
+    { to: '/finance', label: 'Огляд' },
+    { to: '/finance/income', label: 'Доходи' },
+    { to: '/finance/expenses', label: 'Підписки й витрати' },
+    { to: '/finance/withdrawals', label: 'Виведення' }
   ]
   return (
-    <div className="flex flex-wrap gap-1 rounded-full bg-surface p-1">
+    // w-fit: the track follows the tabs instead of stretching across the page.
+    <div className="flex w-fit flex-wrap gap-1 rounded-full bg-surface p-1">
       {links.map((l) => (
         <Button
           key={l.to}

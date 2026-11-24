@@ -22,7 +22,7 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
               </SectionLabel>
               {cards.length === 0 ? (
                 <Empty className="items-start rounded-2xl bg-surface p-3 md:p-3">
-                  <EmptyDescription className="text-caption">Пусто</EmptyDescription>
+                  <EmptyDescription className="text-caption">Порожньо</EmptyDescription>
                 </Empty>
               ) : (
                 <div className="overflow-hidden rounded-2xl bg-surface">

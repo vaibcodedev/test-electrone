@@ -467,3 +467,47 @@
     @apply mr-1.5 accent-[var(--lime)];
   }
 }
+
+/* Unlayered on purpose: these must beat Tailwind utilities (display/padding) inside fields. */
+/* ── Record view mode (DetailPane data-detail-mode="view"): read, don't edit ── */
+/* Empty fields disappear instead of showing empty boxes. */
+[data-detail-mode='view'] [data-slot='field']:has(> [data-empty]),
+[data-detail-mode='view'] [data-slot='field']:has(> [data-slot='input-group'] [data-empty]) {
+  display: none;
+}
+[data-detail-mode='view'] [data-slot='input-group'] {
+  background: transparent;
+  box-shadow: none;
+}
+/* Choice controls show only the chosen value and can't be changed. */
+[data-detail-mode='view'] [data-slot='toggle-group-item']:not([data-state='on']),
+[data-detail-mode='view'] [data-edit-only] {
+  display: none;
+}
+[data-detail-mode='view'] [data-slot='toggle-group'],
+[data-detail-mode='view'] [data-slot='select-trigger'],
+[data-detail-mode='view'] [data-slot='switch'],
+[data-detail-mode='view'] [data-slot='checkbox'],
+[data-detail-mode='view'] [data-slot='radio-group'],
+[data-detail-mode='view'] [data-slot='slider'] {
+  pointer-events: none;
+}
+[data-detail-mode='view'] [data-slot='select-trigger'] {
+  background: transparent;
+  border-color: transparent;
+  padding-inline: 0;
+  box-shadow: none;
+}
+[data-detail-mode='view'] [data-slot='select-trigger'] > svg:last-child {
+  display: none;
+}
+[data-detail-mode='view'] [data-slot='toggle-group'][data-variant='segment'] {
+  background: transparent;
+  padding: 0;
+}
+[data-detail-mode='view'] [data-slot='toggle-group'] {
+  width: fit-content;
+}
+[data-detail-mode='view'] [data-slot='toggle-group-item'] {
+  flex: none;
+}

@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
-import { ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
+import { Archive, ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
 import { GUIDE, HOME, HUBS, REVIEW, hubOf, type NavHub } from '@/app/navigation'
 import { cn } from '@/lib/utils'
@@ -29,10 +29,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 function greeting(): string {
   const h = new Date().getHours()
-  if (h < 5) return 'Доброй ночи'
-  if (h < 12) return 'Доброе утро'
-  if (h < 18) return 'Добрый день'
-  return 'Добрый вечер'
+  if (h < 5) return 'Доброї ночі'
+  if (h < 12) return 'Доброго ранку'
+  if (h < 18) return 'Добрий день'
+  return 'Добрий вечір'
 }
 
 function NotchButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
@@ -61,10 +61,10 @@ function IdentityCard() {
   return (
     <div className="notch-card bg-lime px-4 pt-4 pb-4 text-lime-foreground">
       <div className="notch">
-        <NotchButton label="Поиск везде · Ctrl K" onClick={() => setPaletteOpen(true)}>
+        <NotchButton label="Пошук усюди · Ctrl K" onClick={() => setPaletteOpen(true)}>
           <Search />
         </NotchButton>
-        <NotchButton label="Быстро добавить · Ctrl N" onClick={() => setQuickAddOpen(true)}>
+        <NotchButton label="Швидко додати · Ctrl N" onClick={() => setQuickAddOpen(true)}>
           <Plus />
         </NotchButton>
       </div>
@@ -83,8 +83,8 @@ function IdentityCard() {
         <div className="mt-1.5 flex justify-between text-meta opacity-70">
           <span>
             {cards.length
-              ? `Сегодня ${done} из ${cards.length} ${plural(cards.length, ['задачи', 'задач', 'задач'])}`
-              : 'На сегодня задач нет'}
+              ? `Сьогодні ${done} з ${cards.length} ${plural(cards.length, ['завдання', 'завдань', 'завдань'])}`
+              : 'На сьогодні завдань немає'}
           </span>
           {cards.length > 0 && <span>{Math.round((done / cards.length) * 100)}%</span>}
         </div>
@@ -107,6 +107,9 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
   const setHubOpen = useUi((s) => s.setHubOpen)
   const setPlatformDialog = useUi((s) => s.setPlatformDialogOpen)
   const { data: platformList = [] } = useApi('platforms', 'list', undefined, { enabled: !!hub.platforms })
+  // Archived platforms are hidden from the menu but must stay reachable (restore lives on /freelance#archived).
+  const { data: allPlatforms = [] } = useApi('platforms', 'list', { includeArchived: true }, { enabled: !!hub.platforms })
+  const archivedCount = allPlatforms.length - platformList.length
   const activeHub = hubOf(pathname) === hub.id
   const isActive = (path: string): boolean => pathname === path || pathname.startsWith(path + '/')
 
@@ -121,13 +124,18 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
             setHubOpen(hub.id, hub.overview ? true : !open)
           }}
         >
-          <hub.icon className={activeHub ? 'text-foreground' : 'text-muted-foreground'} />
+          {/* On the active (inverted) pill the icon takes the pill's text colour, otherwise it vanished. */}
+          <hub.icon
+            className={
+              hub.overview && pathname === hub.overview ? 'text-current' : activeHub ? 'text-foreground' : 'text-muted-foreground'
+            }
+          />
           <span>{hub.title}</span>
         </SidebarMenuButton>
         <CollapsibleTrigger asChild>
           <SidebarMenuAction
-            className="top-2 rounded-full transition-transform data-[state=open]:rotate-90"
-            aria-label={open ? 'Свернуть' : 'Развернуть'}
+            className="peer-data-[active=true]/menu-button:text-sidebar-primary-foreground data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
+            aria-label={open ? 'Згорнути' : 'Розгорнути'}
           >
             <ChevronRight />
           </SidebarMenuAction>
@@ -155,6 +163,17 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
                     <Plus />
                     <span>Платформа</span>
                   </button>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            )}
+            {hub.platforms && archivedCount > 0 && (
+              <SidebarMenuSubItem>
+                <SidebarMenuSubButton asChild>
+                  <NavLink to="/freelance#archived" className="text-muted-foreground">
+                    <Archive />
+                    <span className="truncate">Архів</span>
+                    <span className="ml-auto text-meta tabular-nums">{archivedCount}</span>
+                  </NavLink>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             )}
@@ -194,7 +213,7 @@ export function AppSidebar() {
     <div className="flex w-(--sidebar-width) shrink-0 flex-col gap-2.5">
       <IdentityCard />
       <Sidebar collapsible="none" className="min-h-0 flex-1 overflow-hidden rounded-3xl">
-        <SidebarContent className="gap-0 px-1 py-2 [mask-image:linear-gradient(to_bottom,transparent,black_10px,black_calc(100%-18px),transparent)]">
+        <SidebarContent className="gap-0 px-1 py-2 [mask-image:linear-gradient(to_bottom,transparent,black_10px,black_calc(100%-18px),transparent)] [scrollbar-gutter:auto] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <SidebarGroup className="py-1">
             <SidebarMenu className="gap-0.5">
               <SidebarMenuItem>
@@ -222,9 +241,9 @@ export function AppSidebar() {
         <SidebarFooter className="flex-row gap-1 border-t border-sidebar-border p-2">
           {[
             { to: GUIDE.path, icon: GUIDE.icon, label: GUIDE.label },
-            { to: '/tags', icon: Tags, label: 'Метки' },
-            { to: '/trash', icon: Trash2, label: 'Корзина' },
-            { to: '/settings', icon: Settings, label: 'Настройки' }
+            { to: '/tags', icon: Tags, label: 'Мітки' },
+            { to: '/trash', icon: Trash2, label: 'Кошик' },
+            { to: '/settings', icon: Settings, label: 'Налаштування' }
           ].map((b) => (
             <Tooltip key={b.to}>
               <TooltipTrigger asChild>

@@ -45,7 +45,7 @@ export function DevProjectsPage() {
     try {
       const p = await api.devProjects.create({ name: folderName(path), path })
       invalidateAll()
-      toast.success(`Добавлен проект ${p.name}`)
+      toast.success(`Додано проєкт ${p.name}`)
     } catch (e) {
       toast.error((e as Error).message)
     }
@@ -66,26 +66,26 @@ export function DevProjectsPage() {
       {isLoading ? null : projects.length === 0 ? (
         <EmptyState
           icon={FolderGit2}
-          title="Добавьте свои проекты"
-          hint="Укажите папку проекта или папку, где лежат все репозитории — Vault найдёт package.json и .git, покажет ветку и запустит dev-сервер."
+          title="Додайте свої проєкти"
+          hint="Вкажіть папку проєкту або папку, де лежать усі репозиторії — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер."
           action={
             <div className="flex gap-2">
               <Button variant="lime" onClick={() => void addFolder()}>
-                <FolderPlus /> Добавить папку
+                <FolderPlus /> Додати папку
               </Button>
               <Button variant="soft" onClick={() => void importFolder()}>
-                <FolderSearch /> Импорт из папки
+                <FolderSearch /> Імпорт із папки
               </Button>
             </div>
           }
         />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={only === 'favorite' && !search ? 'Избранных пока нет' : 'Ничего не найдено'}
+          title={only === 'favorite' && !search ? 'Обраних поки немає' : 'Нічого не знайдено'}
           hint={
             only === 'favorite' && !search
-              ? 'Нажмите звёздочку на карточке проекта — он появится здесь.'
-              : 'Поиск идёт по названию, пути, фреймворку и репозиторию.'
+              ? 'Натисніть зірочку на картці проєкту — він з’явиться тут.'
+              : 'Пошук іде за назвою, шляхом, фреймворком і репозиторієм.'
           }
         />
       ) : (
@@ -101,15 +101,15 @@ export function DevProjectsPage() {
   return (
     <Page>
       <PageHeader
-        title="Мои проекты"
-        subtitle="Локальные репозитории: открыть в редакторе, запустить скрипт, посмотреть лог."
+        title="Мої проєкти"
+        subtitle="Локальні репозиторії: відкрити в редакторі, запустити скрипт, переглянути лог."
         actions={
           <>
             <Button variant="soft" onClick={() => void importFolder()}>
-              <FolderSearch /> Импорт из папки
+              <FolderSearch /> Імпорт із папки
             </Button>
             <Button variant="lime" onClick={() => void addFolder()}>
-              <FolderPlus /> Добавить папку
+              <FolderPlus /> Додати папку
             </Button>
           </>
         }
@@ -117,15 +117,15 @@ export function DevProjectsPage() {
         {projects.length > 0 && (
           <div className="flex flex-wrap items-center gap-3">
             <FilterChips
-              allLabel="Все"
+              allLabel="Усі"
               value={only}
               onChange={setOnly}
               options={[
-                { value: 'favorite', label: 'Избранные', count: favorites },
-                { value: 'running', label: 'Запущенные', count: runningCount }
+                { value: 'favorite', label: 'Обрані', count: favorites },
+                { value: 'running', label: 'Запущені', count: runningCount }
               ]}
             />
-            <SearchInput value={search} onChange={setSearch} placeholder="Найти проект" className="ml-auto max-w-sm" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" className="ml-auto max-w-sm" />
           </div>
         )}
       </PageHeader>

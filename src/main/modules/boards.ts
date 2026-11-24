@@ -26,18 +26,18 @@ type BoardRow = typeof boards.$inferSelect
 type CardRow = typeof cards.$inferSelect
 
 export const DEFAULT_COLUMNS: { title: string; isDone?: boolean }[] = [
-  { title: 'Бэклог' },
-  { title: 'В работе' },
-  { title: 'Ревью' },
+  { title: 'Беклог' },
+  { title: 'У роботі' },
+  { title: 'Рев’ю' },
   { title: 'Готово', isDone: true }
 ]
 
 const PRIORITY_LABEL: Record<string, string> = {
   none: '',
-  low: 'низкий',
-  medium: 'средний',
-  high: 'высокий',
-  urgent: 'срочно'
+  low: 'низький',
+  medium: 'середній',
+  high: 'високий',
+  urgent: 'терміново'
 }
 
 export class BoardsModule {

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Clipboard, Code2, Columns2, ExternalLink, ImagePlus, Monitor, Trash2, X } from 'lucide-react'
 import {
   COMPONENT_LANGUAGES,
+  componentInputSchema,
   PREVIEW_BACKGROUNDS,
   type ComponentLanguage,
   type ComponentPatch,
@@ -30,20 +31,24 @@ import { Empty, EmptyDescription, EmptyMedia } from '@/components/ui/empty'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
 import { PREVIEW_IMPORTS } from './starter'
+import { LanguageSuggestion } from '../claude/editor-kit'
+
+const LIMITS = limitsOf(componentInputSchema)
 
 type Layout = 'split' | 'code' | 'preview'
 
-const BG_LABEL: Record<PreviewBackground, string> = { light: 'Светлый', dark: 'Тёмный', grid: 'Сетка' }
+const BG_LABEL: Record<PreviewBackground, string> = { light: 'Світлий', dark: 'Темний', grid: 'Сітка' }
 const LAYOUTS: { value: Layout; label: string; icon: typeof Code2 }[] = [
-  { value: 'code', label: 'Только код', icon: Code2 },
-  { value: 'split', label: 'Код и превью', icon: Columns2 },
-  { value: 'preview', label: 'Только превью', icon: Monitor }
+  { value: 'code', label: 'Лише код', icon: Code2 },
+  { value: 'split', label: 'Код і превʼю', icon: Columns2 },
+  { value: 'preview', label: 'Лише превʼю', icon: Monitor }
 ]
 
 /** Screenshot / GIF of the component: drop, paste (Ctrl+V) or take from clipboard. */
 function CoverField({ item }: { item: UiComponent }) {
-  const setCover = useApiMutation('components', 'setCover', { successMessage: 'Обложка обновлена' })
+  const setCover = useApiMutation('components', 'setCover', { successMessage: 'Обкладинку оновлено' })
   const removeCover = useApiMutation('components', 'removeCover')
   const apply = (sources: FileSource[]): void => {
     if (sources[0]) setCover.mutate({ id: item.id, source: sources[0] })
@@ -53,7 +58,7 @@ function CoverField({ item }: { item: UiComponent }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <SectionLabel>Скриншот или GIF</SectionLabel>
+      <SectionLabel>Скриншот або GIF</SectionLabel>
       <div {...props}>
         {item.coverPath ? (
           <Card className={cn('relative gap-0 overflow-hidden bg-card py-0', isOver && 'ring-2 ring-ring')}>
@@ -63,14 +68,14 @@ function CoverField({ item }: { item: UiComponent }) {
                 <Button
                   variant="soft"
                   size="icon-xs"
-                  aria-label="Убрать обложку"
+                  aria-label="Прибрати обкладинку"
                   className="absolute top-2 right-2 bg-card/90 hover:bg-card"
                   onClick={() => removeCover.mutate(item.id)}
                 >
                   <X />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Убрать обложку</TooltipContent>
+              <TooltipContent>Прибрати обкладинку</TooltipContent>
             </Tooltip>
           </Card>
         ) : (
@@ -78,7 +83,7 @@ function CoverField({ item }: { item: UiComponent }) {
             <EmptyMedia variant="icon" className="size-9 rounded-full bg-card">
               <ImagePlus className="size-4 text-muted-foreground" />
             </EmptyMedia>
-            <EmptyDescription className="text-caption">Перетащите картинку или нажмите Ctrl+V</EmptyDescription>
+            <EmptyDescription className="text-caption">Перетягніть картинку або натисніть Ctrl+V</EmptyDescription>
           </Empty>
         )}
       </div>
@@ -88,7 +93,7 @@ function CoverField({ item }: { item: UiComponent }) {
         className="self-start"
         onClick={() => setCover.mutate({ id: item.id, source: { kind: 'clipboard' } })}
       >
-        <Clipboard /> Из буфера обмена
+        <Clipboard /> З буфера обміну
       </Button>
     </section>
   )
@@ -97,14 +102,15 @@ function CoverField({ item }: { item: UiComponent }) {
 function Editor({ item }: { item: UiComponent }) {
   const navigate = useNavigate()
   const update = useApiMutation('components', 'update', { silent: false })
-  const remove = useApiMutation('components', 'remove', { successMessage: 'Компонент в корзине' })
+  const remove = useApiMutation('components', 'remove', { successMessage: 'Компонент переміщено в кошик' })
   const save = (patch: ComponentPatch): void => update.mutate({ id: item.id, patch })
   const [layout, setLayout] = useState<Layout>('split')
 
   const [title, setTitle] = useAutosave(item.title, (title) => title.trim() && save({ title }))
   const [code, setCode] = useAutosave(item.code, (code) => save({ code }), 800)
   const [description, setDescription] = useAutosave(item.description, (description) => save({ description }))
-  const [sourceUrl, setSourceUrl] = useAutosave(item.sourceUrl, (sourceUrl) => save({ sourceUrl }))
+  // An invalid non-empty link is shown with an error and never saved.
+  const [sourceUrl, setSourceUrl] = useAutosave(item.sourceUrl, (sourceUrl) => isLikelyUrl(sourceUrl) && save({ sourceUrl: sourceUrl.trim() }))
 
   const editorHeight = 'calc(100vh - 210px)'
 
@@ -113,13 +119,13 @@ function Editor({ item }: { item: UiComponent }) {
       <header className="flex items-center gap-3 border-b border-border px-6 py-3">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Ко всем компонентам" onClick={() => navigate('/components')}>
+            <Button variant="ghost" size="icon-sm" aria-label="До всіх компонентів" onClick={() => navigate('/components')}>
               <ArrowLeft />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Ко всем компонентам</TooltipContent>
+          <TooltipContent>До всіх компонентів</TooltipContent>
         </Tooltip>
-        <InlineTitle value={title} onChange={setTitle} className="min-w-0 flex-1 text-[24px]" />
+        <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="min-w-0 flex-1 text-[24px]" />
         <Segmented<ComponentLanguage>
           size="xs"
           value={item.language}
@@ -134,15 +140,15 @@ function Editor({ item }: { item: UiComponent }) {
         />
         <PinButtons entity={{ type: 'component', id: item.id }} />
         <Confirm
-          title="Удалить компонент?"
-          description="Он попадёт в корзину на 30 дней."
-          confirmLabel="В корзину"
+          title="Видалити компонент?"
+          description="Він потрапить у кошик на 30 днів."
+          confirmLabel="У кошик"
           onConfirm={() => {
             remove.mutate(item.id)
             navigate('/components')
           }}
         >
-          <Button variant="ghost" size="icon-sm" aria-label="В корзину">
+          <Button variant="ghost" size="icon-sm" aria-label="У кошик">
             <Trash2 />
           </Button>
         </Confirm>
@@ -159,12 +165,18 @@ function Editor({ item }: { item: UiComponent }) {
               maxHeight={editorHeight}
               className="flex-1"
             />
+            <LanguageSuggestion
+              code={item.code}
+              language={item.language}
+              languages={COMPONENT_LANGUAGES}
+              onSwitch={(language) => save({ language })}
+            />
           </div>
         )}
         {layout !== 'code' && (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-caption font-medium text-muted-foreground">Живое превью</span>
+              <span className="text-caption font-medium text-muted-foreground">Живе превʼю</span>
               <Segmented<PreviewBackground>
                 size="xs"
                 value={item.previewBg}
@@ -177,18 +189,24 @@ function Editor({ item }: { item: UiComponent }) {
         )}
 
         <Card className="w-[280px] shrink-0 gap-6 overflow-y-auto px-4 py-4">
-          <Field label="Описание">
+          <Field label="Опис" count={{ length: description.length, max: LIMITS.description }}>
             <Textarea
               value={description}
+              maxLength={LIMITS.description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Где используется, какие пропсы"
+              placeholder="Де використовується, які пропси"
               className="min-h-20 bg-card"
             />
           </Field>
-          <Field label="Источник">
+          <Field label="Джерело" error={isLikelyUrl(sourceUrl) ? undefined : URL_ERROR}>
             <div className="flex gap-1.5">
               <Input
+                type="url"
+                inputMode="url"
+                spellCheck={false}
                 value={sourceUrl}
+                maxLength={LIMITS.sourceUrl}
+                aria-invalid={!isLikelyUrl(sourceUrl) || undefined}
                 onChange={(e) => setSourceUrl(e.target.value)}
                 placeholder="https://…"
                 className="bg-card"
@@ -196,11 +214,11 @@ function Editor({ item }: { item: UiComponent }) {
               {/^https?:\/\//i.test(sourceUrl) && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="soft" size="icon" className="bg-card" aria-label="Открыть источник" onClick={() => api.app.openExternal(sourceUrl)}>
+                    <Button variant="soft" size="icon" className="bg-card" aria-label="Відкрити джерело" onClick={() => api.app.openExternal(sourceUrl)}>
                       <ExternalLink />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Открыть источник</TooltipContent>
+                  <TooltipContent>Відкрити джерело</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -208,7 +226,7 @@ function Editor({ item }: { item: UiComponent }) {
           <CoverField item={item} />
           <Separator />
           <section className="flex flex-col gap-2">
-            <SectionLabel>Доступно в превью</SectionLabel>
+            <SectionLabel>Доступно в превʼю</SectionLabel>
             <div className="flex flex-wrap gap-1">
               {PREVIEW_IMPORTS.map((m) => (
                 <Badge key={m} variant="outline" className="bg-card font-mono text-meta font-normal">
@@ -217,8 +235,8 @@ function Editor({ item }: { item: UiComponent }) {
               ))}
             </div>
             <p className="text-meta leading-relaxed text-muted-foreground">
-              Tailwind-классы работают. Покажется <code className="font-mono">export default</code> или компонент с именем
-              App / Demo / Preview, либо вызов <code className="font-mono">render(&lt;X /&gt;)</code>.
+              Tailwind-класи працюють. Покажеться <code className="font-mono">export default</code> або компонент з іменем
+              App / Demo / Preview чи виклик <code className="font-mono">render(&lt;X /&gt;)</code>.
             </p>
           </section>
           <EntityAside
@@ -243,9 +261,9 @@ export function ComponentPage() {
   if (!data)
     return (
       <EmptyState
-        title="Компонент не найден"
-        hint="Возможно, он в корзине."
-        action={<Button onClick={() => navigate('/components')}>Ко всем компонентам</Button>}
+        title="Компонент не знайдено"
+        hint="Можливо, він у кошику."
+        action={<Button onClick={() => navigate('/components')}>До всіх компонентів</Button>}
       />
     )
   return <Editor key={data.id} item={data} />

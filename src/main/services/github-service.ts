@@ -70,7 +70,7 @@ export class GithubService {
 
   private async get<T>(path: string, force = false): Promise<T> {
     const token = this.token()
-    if (!token) throw new UserError('GitHub не подключён: добавьте токен в Настройках')
+    if (!token) throw new UserError('GitHub не під’єднано: додайте токен у Налаштуваннях')
     const hit = this.cache.get(path)
     if (!force && hit && Date.now() - hit.at < TTL) return hit.data as T
     const res = await net.fetch(`${API}${path}`, {
@@ -83,7 +83,7 @@ export class GithubService {
     })
     const remaining = res.headers.get('x-ratelimit-remaining')
     if (remaining) this.rateRemaining = Number(remaining)
-    if (res.status === 401) throw new UserError('GitHub отклонил токен — создайте новый в Настройках')
+    if (res.status === 401) throw new UserError('GitHub відхилив токен — створіть новий у Налаштуваннях')
     if (!res.ok) throw new UserError(`GitHub: ${res.status} ${res.statusText}`)
     const data = (await res.json()) as T
     this.cache.set(path, { at: Date.now(), data })

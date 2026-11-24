@@ -98,6 +98,14 @@ export function useGlobalShortcuts(): void {
         navigate(1)
         return
       }
+      if (e.code === 'KeyE' && !e.shiftKey) {
+        const editBtn = document.querySelector('[data-edit-detail]')
+        if (visible(editBtn)) {
+          e.preventDefault()
+          editBtn.click()
+        }
+        return
+      }
       if (e.code === 'Slash') {
         const search = document.querySelector('[data-page-search]')
         if (visible(search)) {

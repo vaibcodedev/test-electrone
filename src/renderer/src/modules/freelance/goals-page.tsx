@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from 'react'
-import { Pencil, Plus, Target, Trash2 } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { MoreHorizontal, Pause, Pencil, Play, Plus, Target, Trash2 } from 'lucide-react'
 import {
   GOAL_METRICS,
   GOAL_PERIODS,
+  goalInputSchema,
   type Goal,
   type GoalInput,
   type GoalMetric,
@@ -10,14 +11,23 @@ import {
   type GoalProgress
 } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { NumberInput } from '@/components/common/number-input'
+import { draftToNumber, numberToDraft } from '../crm/money'
+import { limitsOf, rangesOf } from '@/lib/limits'
+import { fmtDate, fmtMoney, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Switch } from '@/components/ui/switch'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Field, FieldLabel } from '@/components/ui/field'
 import {
   Select,
@@ -36,8 +46,20 @@ import {
   DialogTrigger
 } from '@/components/ui/dialog'
 import { EmptyState, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
-import { Confirm } from '@/components/common/confirm'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { GOAL_METRIC_LABEL, GOAL_PERIOD_LABEL } from './g2-labels'
+
+const TITLE_MAX = limitsOf(goalInputSchema).title
+const GOAL_R = rangesOf(goalInputSchema)
 
 const ALL = '__all__'
 const selectCls = 'w-full rounded-xl border-transparent bg-surface shadow-none'
@@ -51,16 +73,29 @@ export function formatGoalValue(metric: GoalMetric, value: number): string {
 export function goalTitle(g: Pick<Goal, 'title' | 'metric' | 'period'>): string {
   return (
     g.title.trim() ||
-    `${GOAL_METRIC_LABEL[g.metric]} за ${g.period === 'week' ? 'неделю' : 'месяц'}`
+    `${GOAL_METRIC_LABEL[g.metric]} за ${g.period === 'week' ? 'тиждень' : 'місяць'}`
   )
 }
 
 /** Create / edit dialog. */
-function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
-  const [open, setOpen] = useState(false)
+function GoalDialog({
+  goal,
+  trigger,
+  open: openProp,
+  onOpenChange
+}: {
+  goal?: Goal
+  trigger?: ReactNode
+  /** Controlled mode — opened from the card's ⋯ menu. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
+  const [openState, setOpenState] = useState(false)
+  const open = openProp ?? openState
+  const setOpen = (o: boolean): void => (onOpenChange ? onOpenChange(o) : setOpenState(o))
   const { data: platformList = [] } = useApi('platforms', 'list')
-  const create = useApiMutation('goals', 'create', { successMessage: 'Цель добавлена' })
-  const update = useApiMutation('goals', 'update', { successMessage: 'Цель сохранена' })
+  const create = useApiMutation('goals', 'create', { successMessage: 'Ціль додано' })
+  const update = useApiMutation('goals', 'update', { successMessage: 'Ціль збережено' })
   const empty = {
     title: '',
     metric: 'proposals' as GoalMetric,
@@ -83,6 +118,11 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
         : empty
     )
 
+  useEffect(() => {
+    if (open) reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens
+  }, [open])
+
   const submit = async (): Promise<void> => {
     const input: GoalInput = {
       title: form.title,
@@ -97,24 +137,18 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o)
-        if (o) reset()
-      }}
-    >
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+    <Dialog open={open} onOpenChange={setOpen}>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{goal ? 'Изменить цель' : 'Новая цель'}</DialogTitle>
+          <DialogTitle>{goal ? 'Змінити ціль' : 'Нова ціль'}</DialogTitle>
           <DialogDescription>
-            Прогресс считается автоматически по откликам и оплатам.
+            Прогрес рахується автоматично за відгуками й оплатами.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           <Field className="gap-2">
-            <FieldLabel>Что считаем</FieldLabel>
+            <FieldLabel>Що рахуємо</FieldLabel>
             <Select
               value={form.metric}
               onValueChange={(v) => setForm((f) => ({ ...f, metric: v as GoalMetric }))}
@@ -133,8 +167,9 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field className="gap-2">
-              <FieldLabel>Период</FieldLabel>
+              <FieldLabel>Період</FieldLabel>
               <Segmented
+                className="w-fit"
                 value={form.period}
                 onChange={(period) => setForm((f) => ({ ...f, period }))}
                 options={GOAL_PERIODS.map((p) => ({ value: p, label: GOAL_PERIOD_LABEL[p] }))}
@@ -142,15 +177,16 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
             </Field>
             <Field className="gap-2">
               <FieldLabel htmlFor="goal-target">
-                Цель
+                Ціль
                 {form.metric === 'net_income' ? ', $' : form.metric.endsWith('rate') ? ', %' : ''}
               </FieldLabel>
-              <Input
+              <NumberInput
                 id="goal-target"
-                type="number"
                 min={0}
-                value={form.target}
-                onChange={(e) => setForm((f) => ({ ...f, target: e.target.value }))}
+                max={GOAL_R.target?.max}
+                integer={form.metric !== 'net_income'}
+                value={draftToNumber(form.target)}
+                onChange={(v) => setForm((f) => ({ ...f, target: numberToDraft(v) }))}
               />
             </Field>
           </div>
@@ -164,7 +200,7 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={ALL}>Все платформы</SelectItem>
+                <SelectItem value={ALL}>Усі платформи</SelectItem>
                 {platformList.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
@@ -174,10 +210,11 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
             </Select>
           </Field>
           <Field className="gap-2">
-            <FieldLabel htmlFor="goal-title">Название (необязательно)</FieldLabel>
+            <FieldLabel htmlFor="goal-title">Назва (необов’язково)</FieldLabel>
             <Input
               id="goal-title"
               value={form.title}
+              maxLength={TITLE_MAX}
               placeholder={goalTitle(form)}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             />
@@ -185,14 +222,14 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>
-            Отмена
+            Скасувати
           </Button>
           <Button
             variant="lime"
             onClick={() => void submit()}
             disabled={!(Number(form.target) > 0)}
           >
-            {goal ? 'Сохранить' : 'Добавить цель'}
+            {goal ? 'Зберегти' : 'Додати ціль'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -200,7 +237,20 @@ function GoalDialog({ goal, trigger }: { goal?: Goal; trigger: ReactNode }) {
   )
 }
 
-/** Progress card, reused on the freelance overview. */
+const DAY = 86_400_000
+
+type GoalStatus = { label: string; variant: 'success' | 'warn' | 'soft' }
+
+/** Done / behind (period >70% over, progress <50%) / in progress. */
+function goalStatus(g: GoalProgress, now: number): GoalStatus {
+  if (g.ratio >= 1) return { label: 'Виконано ✓', variant: 'success' }
+  const span = Math.max(1, g.periodEnd - g.periodStart)
+  const elapsed = (now - g.periodStart) / span
+  if (elapsed > 0.7 && g.ratio < 0.5) return { label: 'Не встигаю', variant: 'warn' }
+  return { label: 'У процесі', variant: 'soft' }
+}
+
+/** Progress card, reused on the freelance overview: status badge, bar, «ще N · залишилось M днів». */
 export function GoalCard({
   g,
   platformName,
@@ -210,45 +260,107 @@ export function GoalCard({
   platformName?: string
   actions?: ReactNode
 }) {
+  const [now] = useState(() => Date.now())
   const done = g.ratio >= 1
+  const status = goalStatus(g, now)
+  const daysLeft = Math.max(0, Math.ceil((g.periodEnd - now) / DAY))
+  const remaining = Math.max(0, g.target - g.current)
   return (
-    <Card className={cn(done && 'bg-lime text-lime-foreground')}>
+    <Card>
       <CardHeader>
-        <CardTitle className={cn(done && 'text-lime-foreground')}>{goalTitle(g)}</CardTitle>
-        {actions && <CardAction>{actions}</CardAction>}
+        <CardTitle>{goalTitle(g)}</CardTitle>
+        <CardAction className="flex items-center gap-1">
+          <Badge variant={status.variant}>{status.label}</Badge>
+          {actions}
+        </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-[30px] leading-none tabular-nums">
+          <span className="font-display text-stat leading-none tabular-nums">
             {formatGoalValue(g.metric, g.current)}
           </span>
-          <span className={cn('text-body', done ? 'opacity-70' : 'text-muted-foreground')}>
-            из {formatGoalValue(g.metric, g.target)}
+          <span className="text-body text-muted-foreground">
+            з {formatGoalValue(g.metric, g.target)}
           </span>
         </div>
         <Progress
-          value={g.ratio * 100}
+          value={Math.min(100, g.ratio * 100)}
+          aria-label="Прогрес цілі"
           className={cn(
             'h-2',
             done
-              ? 'bg-lime-foreground/15 [&>[data-slot=progress-indicator]]:bg-lime-foreground'
-              : 'bg-card [&>[data-slot=progress-indicator]]:bg-chart-1'
+              ? '[&>[data-slot=progress-indicator]]:bg-success'
+              : '[&>[data-slot=progress-indicator]]:bg-chart-1'
           )}
         />
-        <div
-          className={cn(
-            'flex flex-wrap items-center gap-1.5 text-meta',
-            done ? 'opacity-70' : 'text-muted-foreground'
-          )}
-        >
+        <p className={cn('text-caption', done ? 'text-success' : 'text-muted-foreground')}>
+          {done
+            ? `Виконано: ${formatGoalValue(g.metric, g.current)} з ${formatGoalValue(g.metric, g.target)}`
+            : `Ще ${formatGoalValue(g.metric, remaining)} · ${
+                daysLeft > 0
+                  ? `залишилось ${daysLeft} ${plural(daysLeft, ['день', 'дні', 'днів'])}`
+                  : 'останній день'
+              }`}
+        </p>
+        <div className="flex flex-wrap items-center gap-1.5 text-meta text-muted-foreground">
           <span>
             {GOAL_PERIOD_LABEL[g.period]}: {fmtDate(g.periodStart, 'd MMM')} —{' '}
             {fmtDate(g.periodEnd, 'd MMM')}
           </span>
-          {platformName && <Badge variant={done ? 'ink' : 'soft'}>{platformName}</Badge>}
+          {platformName && <Badge variant="soft">{platformName}</Badge>}
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+/** ⋯ menu instead of bare icons + an unlabeled switch: Змінити / Призупинити (Відновити) / Видалити. */
+function GoalMenu({ goal }: { goal: Goal }) {
+  const [editing, setEditing] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const update = useApiMutation('goals', 'update', {
+    successMessage: goal.active ? 'Ціль призупинено' : 'Ціль відновлено'
+  })
+  const remove = useApiMutation('goals', 'remove', { successMessage: 'Ціль видалено' })
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-xs" aria-label="Дії з ціллю">
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditing(true)}>
+            <Pencil /> Змінити
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => update.mutate({ id: goal.id, patch: { active: !goal.active } })}
+          >
+            {goal.active ? <Pause /> : <Play />} {goal.active ? 'Призупинити' : 'Відновити'}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
+            <Trash2 /> Видалити
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <GoalDialog goal={goal} open={editing} onOpenChange={setEditing} />
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Видалити ціль «{goalTitle(goal)}»?</AlertDialogTitle>
+            <AlertDialogDescription>Прогрес за минулі періоди теж зникне.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => remove.mutate(goal.id)}>
+              Видалити
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
 
@@ -256,8 +368,6 @@ export function GoalsPage() {
   const { data: progress = [] } = useApi('goals', 'progress')
   const { data: goals = [] } = useApi('goals', 'list')
   const { data: platformList = [] } = useApi('platforms', 'list')
-  const update = useApiMutation('goals', 'update')
-  const remove = useApiMutation('goals', 'remove', { successMessage: 'Цель удалена' })
   const platformName = (id: string | null): string | undefined =>
     platformList.find((p) => p.id === id)?.name
   const inactive = goals.filter((g) => !g.active)
@@ -265,13 +375,13 @@ export function GoalsPage() {
   return (
     <Page>
       <PageHeader
-        title="Цели"
-        subtitle="Недельные и месячные цели по откликам, ответам, контрактам и доходу."
+        title="Цілі"
+        subtitle="Тижневі й місячні цілі за відгуками, відповідями, контрактами й доходом."
         actions={
           <GoalDialog
             trigger={
               <Button variant="lime">
-                <Plus /> Цель
+                <Plus /> Ціль
               </Button>
             }
           />
@@ -281,8 +391,8 @@ export function GoalsPage() {
         {goals.length === 0 ? (
           <EmptyState
             icon={Target}
-            title="Целей пока нет"
-            hint="Например: 10 откликов в неделю или $3000 на руки в месяц."
+            title="Цілей поки немає"
+            hint="Наприклад: 10 відгуків на тиждень або $3000 на руки за місяць."
           />
         ) : (
           <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
@@ -293,32 +403,7 @@ export function GoalsPage() {
                   key={g.id}
                   g={g}
                   platformName={platformName(g.platformId)}
-                  actions={
-                    goal && (
-                      <div className="flex items-center gap-0.5">
-                        <GoalDialog
-                          goal={goal}
-                          trigger={
-                            <Button variant="ghost" size="icon-xs" aria-label="Изменить">
-                              <Pencil />
-                            </Button>
-                          }
-                        />
-                        <Confirm title="Удалить цель?" onConfirm={() => remove.mutate(g.id)}>
-                          <Button variant="ghost" size="icon-xs" aria-label="Удалить">
-                            <Trash2 />
-                          </Button>
-                        </Confirm>
-                        <Switch
-                          checked
-                          aria-label="Активна"
-                          onCheckedChange={(active) =>
-                            update.mutate({ id: g.id, patch: { active } })
-                          }
-                        />
-                      </div>
-                    )
-                  }
+                  actions={goal && <GoalMenu goal={goal} />}
                 />
               )
             })}
@@ -326,18 +411,15 @@ export function GoalsPage() {
         )}
         {inactive.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-caption font-semibold text-muted-foreground">На паузе</h2>
+            <h2 className="text-caption font-semibold text-muted-foreground">На паузі</h2>
             {inactive.map((g) => (
-              <Card key={g.id} className="flex-row items-center gap-3 px-5 py-3">
-                <span className="flex-1 text-body">{goalTitle(g)}</span>
+              <Card key={g.id} className="flex-row items-center gap-3 px-5 py-3 opacity-70">
+                <span className="flex-1 truncate text-body">{goalTitle(g)}</span>
                 <span className="text-caption text-muted-foreground">
-                  цель {formatGoalValue(g.metric, g.target)}
+                  ціль {formatGoalValue(g.metric, g.target)}
                 </span>
-                <Switch
-                  checked={false}
-                  aria-label="Активна"
-                  onCheckedChange={(active) => update.mutate({ id: g.id, patch: { active } })}
-                />
+                <Badge variant="soft">На паузі</Badge>
+                <GoalMenu goal={g} />
               </Card>
             ))}
           </section>

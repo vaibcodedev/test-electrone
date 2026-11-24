@@ -10,9 +10,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { LogView } from './log-view'
 
 const STATUS: Record<RunningScript['status'], { label: string; variant: 'lime' | 'soft' | 'destructive' }> = {
-  running: { label: 'работает', variant: 'lime' },
-  exited: { label: 'завершён', variant: 'soft' },
-  failed: { label: 'ошибка', variant: 'destructive' }
+  running: { label: 'працює', variant: 'lime' },
+  exited: { label: 'завершено', variant: 'soft' },
+  failed: { label: 'помилка', variant: 'destructive' }
 }
 
 /** Bottom panel: one tab per script run with its live log. */
@@ -27,7 +27,7 @@ export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects:
   }, [runs, active])
 
   const run = runs.find((r) => r.runId === active)
-  const nameOf = (projectId: string): string => projects.find((p) => p.id === projectId)?.name ?? 'Проект'
+  const nameOf = (projectId: string): string => projects.find((p) => p.id === projectId)?.name ?? 'Проєкт'
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 px-8 pt-2 pb-4">
@@ -51,17 +51,17 @@ export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects:
         )}
         {run?.status === 'running' && (
           <Button size="sm" variant="outline" onClick={() => stop.mutate(run.runId)}>
-            <Square /> Стоп
+            <Square /> Зупинити
           </Button>
         )}
         {runs.some((r) => r.status !== 'running') && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost" aria-label="Убрать завершённые" onClick={() => clear.mutate(undefined)}>
+              <Button size="icon-sm" variant="ghost" aria-label="Прибрати завершені" onClick={() => clear.mutate(undefined)}>
                 <Trash2 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Убрать завершённые</TooltipContent>
+            <TooltipContent>Прибрати завершені</TooltipContent>
           </Tooltip>
         )}
       </div>

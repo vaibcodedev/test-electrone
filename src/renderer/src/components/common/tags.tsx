@@ -12,9 +12,15 @@ import {
   CommandList
 } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
+import { useReadOnly } from './detail-mode'
+import { limitsOf } from '@/lib/limits'
+import { tagInputSchema } from '@shared/domain/system'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+
+/** Same limit as tagInputSchema.name — a new tag can be created right from the picker. */
+const TAG_NAME_MAX = limitsOf(tagInputSchema).name
 
 export const TAG_COLORS = ['#d4f542', '#7c8cf8', '#f5a524', '#f06b6b', '#3fbf9b', '#c98af0', '#5aa9f0', '#9a9f93']
 
@@ -46,7 +52,7 @@ export function TagChip({
             e.stopPropagation()
             onRemove()
           }}
-          aria-label={`Убрать метку ${tag.name}`}
+          aria-label={`Прибрати мітку ${tag.name}`}
         >
           <X className="size-3" />
         </Button>
@@ -82,9 +88,10 @@ export function TagPicker({
   onChange: (tagIds: string[]) => void
   className?: string
 }) {
+  const viewMode = useReadOnly()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const { data: all = [] } = useApi('tags', 'list')
+  const { data: all = [] } = useApi('tags', 'list', undefined, { enabled: !viewMode })
   const create = useApiMutation('tags', 'create')
   const selected = new Set(value.map((t) => t.id))
   const exact = all.some((t) => t.name.toLowerCase() === query.trim().toLowerCase())
@@ -96,6 +103,13 @@ export function TagPicker({
     onChange([...next])
   }
 
+  // Record view mode: tags as read-only chips (or a quiet dash).
+  if (viewMode)
+    return value.length ? (
+      <TagList tags={value} max={20} className={className} />
+    ) : (
+      <span className="text-caption text-muted-foreground">Без міток</span>
+    )
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
       {/* Editable tags are full-size controls (h-8, body text): the picker is a form field, not a meta badge. */}
@@ -108,17 +122,17 @@ export function TagPicker({
             variant="outline"
             size="sm"
             className="border-dashed text-muted-foreground hover:text-foreground"
-            aria-label={value.length ? 'Добавить метку' : undefined}
+            aria-label={value.length ? 'Додати мітку' : undefined}
           >
             {value.length ? <Plus /> : <TagIcon />}
-            {value.length ? '' : 'Добавить метку'}
+            {value.length ? '' : 'Додати мітку'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 rounded-2xl p-0" align="start">
           <Command>
-            <CommandInput placeholder="Найти или создать…" value={query} onValueChange={setQuery} />
+            <CommandInput placeholder="Знайти або створити…" value={query} onValueChange={setQuery} maxLength={TAG_NAME_MAX} />
             <CommandList>
-              <CommandEmpty>Нет меток</CommandEmpty>
+              <CommandEmpty>Міток немає</CommandEmpty>
               <CommandGroup>
                 {all.map((t) => (
                   <CommandItem key={t.id} value={t.name} onSelect={() => toggle(t.id)}>
@@ -140,7 +154,7 @@ export function TagPicker({
                     }}
                   >
                     <Plus className="size-3.5" />
-                    Создать «{query.trim()}»
+                    Створити «{query.trim()}»
                   </CommandItem>
                 )}
               </CommandGroup>
@@ -164,20 +178,20 @@ export function TagFilter({ value, onChange }: { value: string | undefined; onCh
         <PopoverTrigger asChild>
           <Button variant={current ? 'default' : 'soft'} size="sm">
             <TagIcon />
-            {current ? current.name : 'Метка'}
+            {current ? current.name : 'Мітка'}
           </Button>
         </PopoverTrigger>
         {current && (
-          <Button variant="default" size="icon-sm" aria-label="Сбросить метку" onClick={() => onChange(undefined)}>
+          <Button variant="default" size="icon-sm" aria-label="Скинути мітку" onClick={() => onChange(undefined)}>
             <X />
           </Button>
         )}
       </ButtonGroup>
       <PopoverContent className="w-56 rounded-2xl p-0" align="start">
         <Command>
-          <CommandInput placeholder="Метка…" />
+          <CommandInput placeholder="Мітка…" />
           <CommandList>
-            <CommandEmpty>Не найдено</CommandEmpty>
+            <CommandEmpty>Нічого не знайдено</CommandEmpty>
             <CommandGroup>
               {all.map((t) => (
                 <CommandItem

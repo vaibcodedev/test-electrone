@@ -18,8 +18,8 @@ export function ShortcutsDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl sm:max-w-[720px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Горячие клавиши</DialogTitle>
-          <DialogDescription>Работают, когда курсор не в поле ввода. Глобальная клавиша меняется в настройках.</DialogDescription>
+          <DialogTitle className="font-display text-2xl">Гарячі клавіші</DialogTitle>
+          <DialogDescription>Працюють, коли курсор не в полі введення. Глобальну клавішу можна змінити в налаштуваннях.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 sm:grid-cols-2">
           {groups.map((g) => (
@@ -36,7 +36,7 @@ export function ShortcutsDialog() {
                       <KbdGroup>
                         {s.keys.map((k, i) => (
                           <Fragment key={`${k}-${i}`}>
-                            {i > 0 && s.sequence && <span className="text-meta text-muted-foreground">затем</span>}
+                            {i > 0 && s.sequence && <span className="text-meta text-muted-foreground">потім</span>}
                             <Kbd>{k}</Kbd>
                           </Fragment>
                         ))}

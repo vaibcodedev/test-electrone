@@ -12,6 +12,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field } from '@/components/common/page'
+import { FieldError } from '@/components/ui/field'
+import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
 
 /** Number input that commits on blur/Enter (null when empty). */
 export function NumberInput({
@@ -70,37 +72,71 @@ export function TextField({
   value,
   onSave,
   placeholder,
-  className
+  className,
+  maxLength
 }: {
   label: string
   value: string
   onSave: (v: string) => void
   placeholder?: string
   className?: string
+  /** From the schema via limitsOf(): the input stops where the server would reject. */
+  maxLength?: number
 }) {
   const [draft, setDraft] = useAutosave(value, onSave)
   return (
     <Field label={label} className={className}>
-      <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />
+      <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} maxLength={maxLength} />
     </Field>
   )
 }
 
-/** URL input with an «open in browser» button. */
-export function LinkInput({ value, onSave, placeholder = 'https://…' }: { value: string; onSave: (v: string) => void; placeholder?: string }) {
-  const [draft, setDraft] = useAutosave(value, onSave)
+/**
+ * URL input with an «open in browser» button. Typing is never blocked; a value that doesn't look
+ * like a link shows URL_ERROR under the field and is not saved (docs/design-system.md → Формы).
+ */
+export function LinkInput({
+  value,
+  onSave,
+  placeholder = 'https://…',
+  maxLength = 2000,
+  strict = true
+}: {
+  value: string
+  onSave: (v: string) => void
+  placeholder?: string
+  maxLength?: number
+  /** false: links or plain text are both fine (e.g. "call link or office address"). */
+  strict?: boolean
+}) {
+  const [draft, setDraft] = useAutosave(value, (v) => {
+    if (!strict || isLikelyUrl(v)) onSave(v.trim())
+  })
   const valid = /^https?:\/\//i.test(draft)
+  const bad = strict && !isLikelyUrl(draft)
   return (
+    <>
     <InputGroup>
-      <InputGroupInput value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} />
+      <InputGroupInput
+        type={strict ? 'url' : 'text'}
+        inputMode={strict ? 'url' : undefined}
+        spellCheck={false}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        aria-invalid={bad || undefined}
+      />
       {valid && (
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Открыть ссылку" onClick={() => void api.app.openExternal(draft)}>
+          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Відкрити посилання" onClick={() => void api.app.openExternal(draft)}>
             <ExternalLink />
           </InputGroupButton>
         </InputGroupAddon>
       )}
     </InputGroup>
+    {bad && <FieldError className="text-caption">{URL_ERROR}</FieldError>}
+    </>
   )
 }
 
@@ -145,20 +181,20 @@ export function CompanyCombobox({
           <Button variant="soft" className={cn('min-w-0 flex-1 justify-between rounded-xl font-normal', !label && 'text-muted-foreground')}>
             <span className="flex min-w-0 items-center gap-2">
               <Building2 className="shrink-0 opacity-60" />
-              <span className="truncate">{label || 'Компания'}</span>
+              <span className="truncate">{label || 'Компанія'}</span>
             </span>
             <ChevronsUpDown className="opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-72 rounded-2xl p-0" align="start">
           <Command>
-            <CommandInput placeholder="Найти или создать…" value={query} onValueChange={setQuery} />
+            <CommandInput placeholder="Знайти або створити…" value={query} onValueChange={setQuery} />
             <CommandList>
-              <CommandEmpty>Компаний пока нет</CommandEmpty>
+              <CommandEmpty>Компаній поки немає</CommandEmpty>
               <CommandGroup>
                 {(value.companyId || value.companyName) && (
                   <CommandItem value="__clear__" onSelect={() => pick({ companyId: null, companyName: '' })}>
-                    <X /> Без компании
+                    <X /> Без компанії
                   </CommandItem>
                 )}
                 {list.map((c) => (
@@ -177,10 +213,10 @@ export function CompanyCombobox({
                         pick({ companyId: c.id, companyName: c.name })
                       }}
                     >
-                      <Plus /> Создать карточку «{q}»
+                      <Plus /> Створити картку «{q}»
                     </CommandItem>
                     <CommandItem value={`__text__${q}`} onSelect={() => pick({ companyId: null, companyName: q })}>
-                      Просто записать «{q}»
+                      Просто записати «{q}»
                     </CommandItem>
                   </>
                 )}
@@ -192,11 +228,11 @@ export function CompanyCombobox({
       {showLink && value.companyId && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="soft" size="icon" aria-label="Открыть компанию" onClick={() => navigate(`/jobs/companies?open=${value.companyId}`)}>
+            <Button variant="soft" size="icon" aria-label="Відкрити компанію" onClick={() => navigate(`/jobs/companies?open=${value.companyId}`)}>
               <ExternalLink />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Карточка компании</TooltipContent>
+          <TooltipContent>Картка компанії</TooltipContent>
         </Tooltip>
       )}
     </div>

@@ -12,7 +12,8 @@ import {
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowLeft, ArrowUpRight, Check, Image, LayoutGrid, Plus, Trash2, X } from 'lucide-react'
-import type { Design, MoodboardDetails, MoodboardPatch } from '@shared/domain/designs'
+import { moodboardInputSchema, type Design, type MoodboardDetails, type MoodboardPatch } from '@shared/domain/designs'
+import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { isImageFile } from '@/lib/files'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -39,6 +40,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { DesignMedia, DropOverlay, PickImagesButton, designTitle, useImportImages } from './shared'
 
+const LIMITS = limitsOf(moodboardInputSchema)
+
 function SortableDesign({ design, onRemove, onOpen }: { design: Design; onRemove: () => void; onOpen: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: design.id })
   return (
@@ -63,7 +66,7 @@ function SortableDesign({ design, onRemove, onOpen }: { design: Design; onRemove
               <Button
                 variant="soft"
                 size="icon-xs"
-                aria-label="Открыть"
+                aria-label="Відкрити"
                 className="bg-card hover:bg-card"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onOpen}
@@ -71,14 +74,14 @@ function SortableDesign({ design, onRemove, onOpen }: { design: Design; onRemove
                 <ArrowUpRight />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Открыть</TooltipContent>
+            <TooltipContent>Відкрити</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="soft"
                 size="icon-xs"
-                aria-label="Убрать из подборки"
+                aria-label="Прибрати з добірки"
                 className="bg-card hover:bg-card hover:text-destructive"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onRemove}
@@ -86,7 +89,7 @@ function SortableDesign({ design, onRemove, onOpen }: { design: Design; onRemove
                 <X />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Убрать из подборки</TooltipContent>
+            <TooltipContent>Прибрати з добірки</TooltipContent>
           </Tooltip>
         </span>
       </div>
@@ -107,7 +110,7 @@ function AddDesignsDialog({
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const { data: all = [] } = useApi('designs', 'list', { search: search || undefined }, { enabled: open })
-  const add = useApiMutation('moodboards', 'addDesigns', { successMessage: 'Добавлено в подборку' })
+  const add = useApiMutation('moodboards', 'addDesigns', { successMessage: 'Додано в добірку' })
   const inBoard = useMemo(() => new Set(board.designs.map((d) => d.id)), [board.designs])
   const candidates = all.filter((d) => !inBoard.has(d.id))
 
@@ -121,13 +124,13 @@ function AddDesignsDialog({
     >
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-[880px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">Добавить в «{board.title}»</DialogTitle>
-          <DialogDescription>Отметьте дизайны из галереи — они встанут в конец подборки.</DialogDescription>
+          <DialogTitle className="font-display text-xl">Додати в «{board.title}»</DialogTitle>
+          <DialogDescription>Позначте дизайни з галереї — вони стануть у кінець добірки.</DialogDescription>
         </DialogHeader>
         <SearchInput value={search} onChange={setSearch} autoFocus />
         <div className="min-h-0 flex-1 overflow-y-auto">
           {candidates.length === 0 ? (
-            <EmptyState icon={Image} title="Нечего добавить" hint="Все дизайны уже в подборке или ничего не найдено." />
+            <EmptyState icon={Image} title="Нічого додати" hint="Усі дизайни вже в добірці або нічого не знайдено." />
           ) : (
             <ToggleGroup
               type="multiple"
@@ -135,7 +138,7 @@ function AddDesignsDialog({
               value={[...selected]}
               onValueChange={(v) => setSelected(new Set(v))}
               className="grid w-full grid-cols-4 p-1"
-              aria-label="Дизайны"
+              aria-label="Дизайни"
             >
               {candidates.map((d) => {
                 const on = selected.has(d.id)
@@ -160,7 +163,7 @@ function AddDesignsDialog({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Отмена
+            Скасувати
           </Button>
           <Button
             variant="lime"
@@ -171,7 +174,7 @@ function AddDesignsDialog({
               onOpenChange(false)
             }}
           >
-            Добавить {selected.size || ''}
+            Додати {selected.size || ''}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -182,7 +185,7 @@ function AddDesignsDialog({
 function Board({ board }: { board: MoodboardDetails }) {
   const navigate = useNavigate()
   const update = useApiMutation('moodboards', 'update')
-  const remove = useApiMutation('moodboards', 'remove', { successMessage: 'Подборка в корзине' })
+  const remove = useApiMutation('moodboards', 'remove', { successMessage: 'Добірку переміщено в кошик' })
   const removeDesign = useApiMutation('moodboards', 'removeDesign')
   const reorder = useApiMutation('moodboards', 'reorder')
   const addDesigns = useApiMutation('moodboards', 'addDesigns', { silent: true })
@@ -216,44 +219,45 @@ function Board({ board }: { board: MoodboardDetails }) {
   return (
     <Page>
       <div {...props} className="relative flex min-h-0 flex-1 flex-col">
-        <DropOverlay show={isOver} label="Отпустите, чтобы добавить в подборку" />
+        <DropOverlay show={isOver} label="Відпустіть, щоб додати в добірку" />
         <header className="flex flex-col gap-3 px-8 pt-6 pb-5">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate('/designs')}>
-              <ArrowLeft /> Дизайны
+              <ArrowLeft /> Дизайни
             </Button>
             <div className="flex-1" />
             <PinButtons entity={{ type: 'moodboard', id: board.id }} />
             <Confirm
-              title="Удалить подборку?"
-              description="Сами дизайны останутся в галерее."
-              confirmLabel="В корзину"
+              title="Видалити добірку?"
+              description="Самі дизайни залишаться в галереї."
+              confirmLabel="У кошик"
               onConfirm={() => {
                 remove.mutate(board.id)
                 navigate('/designs')
               }}
             >
-              <Button variant="ghost" size="icon-sm" aria-label="Удалить подборку">
+              <Button variant="ghost" size="icon-sm" aria-label="Видалити добірку">
                 <Trash2 />
               </Button>
             </Confirm>
           </div>
           <div className="flex items-end justify-between gap-6">
             <div className="min-w-0 flex-1">
-              <InlineTitle value={title} onChange={setTitle} className="text-title" />
+              <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="text-title" />
               <Input
                 value={description}
+                maxLength={LIMITS.description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="О чём эта подборка: стиль, настроение, для какого проекта"
-                aria-label="Описание подборки"
+                placeholder="Про що ця добірка: стиль, настрій, для якого проєкту"
+                aria-label="Опис добірки"
                 className="mt-2 -mx-2 h-8 w-[calc(100%+1rem)] rounded-lg border-0 bg-transparent px-2 text-body text-muted-foreground transition-colors hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-0"
               />
               <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} className="mt-3" />
             </div>
             <div className="flex shrink-0 gap-2">
-              <PickImagesButton onSources={(s) => void importSources(s)} label="Загрузить" />
+              <PickImagesButton onSources={(s) => void importSources(s)} label="Завантажити" />
               <Button variant="lime" disabled={busy} onClick={() => setPickerOpen(true)}>
-                <Plus /> Добавить дизайны
+                <Plus /> Додати дизайни
               </Button>
             </div>
           </div>
@@ -262,11 +266,11 @@ function Board({ board }: { board: MoodboardDetails }) {
           {order.length === 0 ? (
             <EmptyState
               icon={LayoutGrid}
-              title="Подборка пуста"
-              hint="Добавьте дизайны из галереи или перетащите картинки прямо сюда."
+              title="Добірка порожня"
+              hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
               action={
                 <Button variant="lime" onClick={() => setPickerOpen(true)}>
-                  <Image /> Выбрать из галереи
+                  <Image /> Вибрати з галереї
                 </Button>
               }
             />
@@ -306,9 +310,9 @@ export function MoodboardPage() {
     return (
       <EmptyState
         icon={LayoutGrid}
-        title="Подборка не найдена"
-        hint="Возможно, она в корзине."
-        action={<Button onClick={() => navigate('/designs')}>К дизайнам</Button>}
+        title="Добірку не знайдено"
+        hint="Можливо, вона в кошику."
+        action={<Button onClick={() => navigate('/designs')}>До дизайнів</Button>}
       />
     )
   return <Board key={data.id} board={data} />

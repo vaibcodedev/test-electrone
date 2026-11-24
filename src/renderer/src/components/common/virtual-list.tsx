@@ -18,10 +18,10 @@ function ListEnd({ loading, total }: { loading: boolean; total: number }) {
     <div className="col-span-full flex items-center justify-center gap-2 py-4 text-caption text-muted-foreground">
       {loading ? (
         <>
-          <Spinner /> Загружаю ещё…
+          <Spinner /> Завантажую ще…
         </>
       ) : (
-        <>Это все записи · {total}</>
+        <>Це всі записи · {total}</>
       )}
     </div>
   )

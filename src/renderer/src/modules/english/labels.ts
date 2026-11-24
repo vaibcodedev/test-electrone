@@ -1,10 +1,10 @@
 import type { WordKind, WordStage } from '@shared/domain/english'
 
 export const STAGE_LABEL: Record<WordStage, string> = {
-  new: 'Новые',
-  learning: 'Учу',
-  review: 'Повторяю',
-  mastered: 'Выучено'
+  new: 'Нові',
+  learning: 'Вчу',
+  review: 'Повторюю',
+  mastered: 'Вивчено'
 }
 
 export const STAGE_BADGE: Record<WordStage, 'soft' | 'info' | 'warn' | 'lime'> = {
@@ -17,6 +17,6 @@ export const STAGE_BADGE: Record<WordStage, 'soft' | 'info' | 'warn' | 'lime'> =
 export const KIND_LABEL: Record<WordKind, string> = {
   word: 'Слово',
   phrase: 'Фраза',
-  idiom: 'Идиома',
-  term: 'Термин'
+  idiom: 'Ідіома',
+  term: 'Термін'
 }

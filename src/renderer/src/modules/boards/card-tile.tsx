@@ -2,7 +2,7 @@ import { forwardRef, type HTMLAttributes } from 'react'
 import { format } from 'date-fns'
 import { CalendarClock, ListChecks } from 'lucide-react'
 import type { Card } from '@shared/domain/boards'
-import { fmtDay } from '@/lib/format'
+import { fmtDay, mdPreview } from '@/lib/format'
 import { TagList } from '@/components/common/tags'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +51,11 @@ export const CardTile = forwardRef<
           {card.title}
         </span>
       </div>
+      {card.description.trim() && (
+        <p className={cn('mt-1 line-clamp-2 text-caption text-muted-foreground', card.priority !== 'none' && 'pl-4')}>
+          {mdPreview(card.description)}
+        </p>
+      )}
       {card.tags.length > 0 && <TagList tags={card.tags} max={3} className="mt-2" />}
       {(card.dueAt || card.checklistTotal > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">

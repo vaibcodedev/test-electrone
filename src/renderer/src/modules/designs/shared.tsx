@@ -24,9 +24,9 @@ export const KIND_LABEL: Record<DesignKind, string> = {
   site: 'Сайт',
   landing: 'Лендинг',
   shop: 'Магазин',
-  app: 'Приложение',
+  app: 'Застосунок',
   dashboard: 'Дашборд',
-  other: 'Другое'
+  other: 'Інше'
 }
 
 export function designTitle(d: Pick<Design, 'title' | 'sourceUrl'>): string {
@@ -34,7 +34,7 @@ export function designTitle(d: Pick<Design, 'title' | 'sourceUrl'>): string {
   try {
     return new URL(d.sourceUrl).hostname.replace(/^www\./, '')
   } catch {
-    return 'Без названия'
+    return 'Без назви'
   }
 }
 
@@ -73,7 +73,7 @@ export function useImportImages(onCreated?: (designs: Design[]) => Promise<void>
       }
       if (created.length) {
         await onCreated?.(created)
-        toast.success(created.length === 1 ? 'Картинка добавлена' : `Добавлено картинок: ${created.length}`)
+        toast.success(created.length === 1 ? 'Картинку додано' : `Додано картинок: ${created.length}`)
       }
     } finally {
       invalidateAll()
@@ -86,7 +86,7 @@ export function useImportImages(onCreated?: (designs: Design[]) => Promise<void>
 /** Hidden file input triggered by a shadcn Button. */
 export function PickImagesButton({
   onSources,
-  label = 'Загрузить',
+  label = 'Завантажити',
   multiple = true,
   variant = 'soft'
 }: {
@@ -161,21 +161,21 @@ export function AddToMoodboard({ designId }: { designId: string }) {
   const addTo = async (board: Pick<Moodboard, 'id' | 'title'>): Promise<void> => {
     await add.mutateAsync({ moodboardId: board.id, designIds: [designId] })
     setAdded((s) => new Set(s).add(board.id))
-    toast.success(`Добавлено в «${board.title}»`)
+    toast.success(`Додано в «${board.title}»`)
   }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="soft" size="sm">
-          <LayoutGrid /> В подборку
+          <LayoutGrid /> У добірку
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 rounded-2xl p-0">
         <Command>
           <CommandList>
-            <CommandEmpty>Подборок пока нет.</CommandEmpty>
+            <CommandEmpty>Добірок поки немає.</CommandEmpty>
             {boards.length > 0 && (
-              <CommandGroup heading="Подборки">
+              <CommandGroup heading="Добірки">
                 {boards.map((b) => (
                   <CommandItem key={b.id} value={`${b.title}-${b.id}`} onSelect={() => void addTo(b)}>
                     <span className="size-2 rounded-full" style={{ background: b.color ?? 'var(--lime)' }} />
@@ -194,11 +194,11 @@ export function AddToMoodboard({ designId }: { designId: string }) {
               <CommandItem
                 value="__new__"
                 onSelect={async () => {
-                  const board = await create.mutateAsync({ title: 'Новая подборка' })
+                  const board = await create.mutateAsync({ title: 'Нова добірка' })
                   await addTo(board)
                 }}
               >
-                <Plus /> Новая подборка
+                <Plus /> Нова добірка
               </CommandItem>
             </CommandGroup>
           </CommandList>
@@ -208,7 +208,7 @@ export function AddToMoodboard({ designId }: { designId: string }) {
   )
 }
 
-export function DropOverlay({ show, label = 'Отпустите, чтобы добавить картинки' }: { show: boolean; label?: string }) {
+export function DropOverlay({ show, label = 'Відпустіть, щоб додати картинки' }: { show: boolean; label?: string }) {
   if (!show) return null
   return (
     <div className="pointer-events-none absolute inset-3 z-30 grid place-items-center rounded-3xl border-2 border-dashed border-ring bg-lime-soft/80 backdrop-blur-sm">

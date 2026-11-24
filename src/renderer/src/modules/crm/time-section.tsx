@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format, isToday } from 'date-fns'
-import { Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react'
-import type { TimeEntry } from '@shared/domain/crm'
-import { useApi, useApiMutation } from '@/lib/query'
+import { Pencil, Play, Plus, Square, Trash2 } from 'lucide-react'
+import { timeEntryInputSchema, type RunningTimer, type TimeEntry } from '@shared/domain/crm'
+import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
+import { NumberInput } from '@/components/common/number-input'
+import { draftToNumber, numberToDraft } from './money'
+import { toast } from 'sonner'
+import { limitsOf } from '@/lib/limits'
 import { LOCALE, fmtMinutes, fmtMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,11 +14,14 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { Field as UiField, FieldLabel } from '@/components/ui/field'
-import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
+import { InputGroup, InputGroupInput } from '@/components/ui/input-group'
+import { useAutosave } from '@/hooks/use-autosave'
 import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
 import { cn } from '@/lib/utils'
 import { Section } from './parts'
+
+const DESC_MAX = limitsOf(timeEntryInputSchema).description
 
 const dayKey = (ts: number): string => format(ts, 'yyyy-MM-dd')
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
@@ -104,7 +111,7 @@ function EntryForm({
             onChange={(v) => v && set({ day: startOfDayMs(v) })}
           />
         </Field>
-        <Field label="С" className="w-24">
+        <Field label="З" className="w-24">
           <Input
             type="time"
             className="bg-card"
@@ -120,22 +127,26 @@ function EntryForm({
             onChange={(e) => set({ to: e.target.value })}
           />
         </Field>
-        <Field label="или минут" className="w-24">
-          <Input
-            inputMode="numeric"
+        <Field label="або хвилин" className="w-24">
+          <NumberInput
             className="bg-card"
-            value={d.minutes}
+            integer
+            allowEmpty
+            min={1}
+            max={1440}
+            value={draftToNumber(d.minutes)}
             disabled={!!d.to}
-            onChange={(e) => set({ minutes: e.target.value })}
+            onChange={(v) => set({ minutes: numberToDraft(v) })}
             placeholder="90"
           />
         </Field>
-        <Field label="Что делал" className="min-w-48 flex-1">
+        <Field label="Що робив" className="min-w-48 flex-1">
           <Input
             className="bg-card"
             value={d.description}
+            maxLength={DESC_MAX}
             onChange={(e) => set({ description: e.target.value })}
-            placeholder="Вёрстка корзины"
+            placeholder="Верстка кошика"
           />
         </Field>
         {showBillable && (
@@ -146,14 +157,14 @@ function EntryForm({
               onCheckedChange={(billable) => set({ billable })}
             />
             <FieldLabel htmlFor="entry-billable" className="text-foreground">
-              Оплачиваемо
+              Оплачувано
             </FieldLabel>
           </UiField>
         )}
         <div className="flex gap-1">
           {onCancel && (
             <Button type="button" variant="ghost" onClick={onCancel}>
-              Отмена
+              Скасувати
             </Button>
           )}
           <Button type="submit" variant="lime" disabled={!range}>
@@ -175,76 +186,121 @@ function useElapsed(startedAt: number | undefined): number {
   return startedAt ? Math.max(0, now - startedAt) : 0
 }
 
+/** "<1 хв" for short entries, otherwise «1 год 5 хв». */
+const fmtDuration = (min: number): string => (min < 1 ? '<1 хв' : fmtMinutes(min))
+
 function Clock({ ms }: { ms: number }) {
   const s = Math.floor(ms / 1000)
   const hh = String(Math.floor(s / 3600)).padStart(2, '0')
   const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
   const ss = String(s % 60).padStart(2, '0')
   return (
-    <span className="font-display text-stat leading-none tabular-nums">
+    <span className="font-display text-stat-sm leading-none tabular-nums">
       {hh}:{mm}
-      <span className="opacity-50">:{ss}</span>
+      <span className="text-muted-foreground">:{ss}</span>
     </span>
   )
 }
 
-function TimerBar({ projectId }: { projectId: string }) {
-  const { data: running } = useApi('time', 'running')
-  const [description, setDescription] = useState('')
-  const start = useApiMutation('time', 'start', { onSuccess: () => setDescription('') })
-  const stop = useApiMutation('time', 'stop', { successMessage: 'Время записано' })
-  const mine = running && running.projectId === projectId
-  const elapsed = useElapsed(mine ? running.startedAt : undefined)
-
-  if (mine) {
-    return (
-      <Card className="flex-row items-center gap-4 bg-lime px-5 py-4 text-lime-foreground">
-        <Clock ms={elapsed} />
-        <span className="min-w-0 flex-1 truncate text-body opacity-75">
-          {running.description || 'Таймер идёт'}
-        </span>
-        <Button
-          onClick={() => stop.mutate(undefined)}
-          className="bg-lime-foreground text-lime hover:bg-lime-foreground/90"
-        >
-          <Pause /> Остановить
-        </Button>
-      </Card>
-    )
-  }
+/** Running timer: calm raised bar, elapsed clock, inline-editable description saved to the entry. */
+function RunningBar({ running }: { running: RunningTimer }) {
+  const elapsed = useElapsed(running.startedAt)
+  const update = useApiMutation('time', 'update', { silent: true })
+  // The server drops a timer stopped in under a minute and returns null.
+  const stop = useApiMutation('time', 'stop', {
+    onSuccess: (entry) =>
+      entry ? toast.success('Час записано') : toast.info('Менше хвилини — запис не збережено')
+  })
+  const [description, setDescription] = useAutosave(running.description, (v) =>
+    update.mutate({ id: running.id, patch: { description: v.trim() } })
+  )
   return (
-    <Card className="bg-ink py-3 pr-4 pl-3 text-ink-foreground">
-      <form
-        className="flex items-center gap-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          start.mutate({ projectId, description: description.trim() || undefined })
-        }}
-      >
-        <Button
-          type="submit"
-          variant="lime"
-          size="icon-lg"
-          aria-label="Запустить таймер"
-          className="shrink-0"
-        >
-          <Play className="fill-current" />
-        </Button>
-        <Input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Над чем работаете? Enter — запустить таймер"
-          className="h-11 flex-1 border-0 bg-transparent text-lead text-ink-foreground shadow-none placeholder:text-ink-muted focus-visible:bg-transparent focus-visible:ring-0"
-        />
-        {running && (
-          <span className="shrink-0 text-caption text-ink-muted">
-            Сейчас идёт: {running.projectTitle} — будет остановлен
-          </span>
-        )}
-      </form>
+    <Card className="flex-row items-center gap-4 bg-card px-5 py-3.5 ring-1 ring-foreground/10">
+      <span
+        className="size-2 shrink-0 animate-pulse rounded-full bg-lime"
+        aria-label="Таймер іде"
+      />
+      <div className="flex shrink-0 flex-col gap-1">
+        <Clock ms={elapsed} />
+        <span className="text-meta text-muted-foreground tabular-nums">
+          з {format(running.startedAt, 'HH:mm')}
+        </span>
+      </div>
+      <Input
+        value={description}
+        maxLength={DESC_MAX}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Що робите? Можна дописати на ходу"
+        aria-label="Опис поточної роботи"
+        className="min-w-0 flex-1"
+      />
+      <Button variant="outline" onClick={() => stop.mutate(undefined)}>
+        <Square className="fill-current" /> Зупинити
+      </Button>
     </Card>
   )
 }
+
+/** Idle: one input + «Почати» (Enter starts); recent descriptions as quick-start chips. */
+function StartBar({
+  projectId,
+  recent,
+  otherRunning
+}: {
+  projectId: string
+  recent: string[]
+  otherRunning?: RunningTimer | null
+}) {
+  const [description, setDescription] = useState('')
+  const start = useApiMutation('time', 'start', { onSuccess: () => setDescription('') })
+  const go = (text: string): void =>
+    start.mutate({ projectId, description: text.trim() || undefined })
+  return (
+    <div className="flex flex-col gap-2">
+      <form
+        className="flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          go(description)
+        }}
+      >
+        <InputGroup className="flex-1">
+          <InputGroupInput
+            value={description}
+            maxLength={DESC_MAX}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Над чим працюєте?"
+            aria-label="Над чим працюєте"
+          />
+        </InputGroup>
+        <Button type="submit" disabled={start.isPending}>
+          <Play className="fill-current" /> Почати
+        </Button>
+      </form>
+      {(recent.length > 0 || otherRunning) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {recent.map((r) => (
+            <Button key={r} variant="subtle" size="xs" className="max-w-56" onClick={() => go(r)}>
+              <Play className="size-3" />
+              <span className="truncate">{r}</span>
+            </Button>
+          ))}
+          {otherRunning && (
+            <span className="text-caption text-muted-foreground">
+              Зараз іде таймер у «{otherRunning.projectTitle}» — його буде зупинено
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Shared grid: range · description · money/badge · duration · actions — day totals use the same columns. */
+/** Rows shown per day before «ще N». */
+const DAY_LIMIT = 8
+
+const ROW_GRID = 'grid grid-cols-[96px_minmax(0,1fr)_auto_84px_56px] items-center gap-3 px-3'
 
 function EntryRow({
   entry,
@@ -262,37 +318,38 @@ function EntryRow({
   const remove = useApiMutation('time', 'remove')
   if (editing) {
     return (
-      <TableRow className="hover:bg-transparent">
-        <TableCell colSpan={5} className="px-0">
-          <EntryForm
-            initial={draftOf(entry)}
-            submitLabel="Сохранить"
-            showBillable={showBillable}
-            onCancel={() => setEditing(false)}
-            onSubmit={(d) => {
-              const r = toRange(d)
-              if (r)
-                update.mutate({
-                  id: entry.id,
-                  patch: { ...r, description: d.description, billable: d.billable }
-                })
-            }}
-          />
-        </TableCell>
-      </TableRow>
+      <EntryForm
+        initial={draftOf(entry)}
+        submitLabel="Зберегти"
+        showBillable={showBillable}
+        onCancel={() => setEditing(false)}
+        onSubmit={(d) => {
+          const r = toRange(d)
+          if (r)
+            update.mutate({
+              id: entry.id,
+              patch: { ...r, description: d.description, billable: d.billable }
+            })
+        }}
+      />
     )
   }
   return (
-    <TableRow className="group">
-      <TableCell className="w-28 text-caption text-muted-foreground tabular-nums">
+    <div
+      className={cn(
+        ROW_GRID,
+        'group min-h-10 rounded-xl py-1.5 transition-colors hover:bg-foreground/5'
+      )}
+    >
+      <span className="text-caption text-muted-foreground tabular-nums">
         {format(entry.startedAt, 'HH:mm')}–{entry.endedAt ? format(entry.endedAt, 'HH:mm') : '…'}
-      </TableCell>
-      <TableCell className={cn('max-w-0 truncate', !entry.description && 'text-muted-foreground')}>
-        {entry.description || 'Без описания'}
-      </TableCell>
-      <TableCell className="w-36 text-right">
+      </span>
+      <span className={cn('truncate text-body', !entry.description && 'text-muted-foreground')}>
+        {entry.description || 'без опису'}
+      </span>
+      <span className="text-right">
         {showBillable && !entry.billable ? (
-          <Badge variant="soft">не оплачивается</Badge>
+          <Badge variant="soft">не оплачується</Badge>
         ) : (
           rate > 0 && (
             <span className="text-caption text-muted-foreground tabular-nums">
@@ -300,31 +357,31 @@ function EntryRow({
             </span>
           )
         )}
-      </TableCell>
-      <TableCell className="w-20 text-right tabular-nums">{fmtMinutes(entry.minutes)}</TableCell>
-      <TableCell className="w-16">
-        <div className="flex opacity-0 group-hover:opacity-100">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Изменить"
-            onClick={() => setEditing(true)}
-            disabled={!entry.endedAt}
-          >
-            <Pencil />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Удалить"
-            className="hover:text-destructive"
-            onClick={() => remove.mutate(entry.id)}
-          >
-            <Trash2 />
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
+      </span>
+      <span className="text-right text-body tabular-nums">{fmtDuration(entry.minutes)}</span>
+      <span
+        data-edit-only
+        className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+      >
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Змінити"
+          onClick={() => setEditing(true)}
+        >
+          <Pencil />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Видалити"
+          className="hover:text-destructive"
+          onClick={() => remove.mutate(entry.id)}
+        >
+          <Trash2 />
+        </Button>
+      </span>
+    </div>
   )
 }
 
@@ -334,53 +391,69 @@ function EntryRow({
  */
 export function TimeSection({
   projectId,
-  entries,
   rate,
   currency,
   hourly,
   secondary
 }: {
   projectId: string
-  entries: TimeEntry[]
+  /** @deprecated history is fetched here by date range; kept for call-site compatibility. */
+  entries?: TimeEntry[]
   rate: number
   currency: string
   hourly: boolean
   secondary?: boolean
 }) {
   const [adding, setAdding] = useState(false)
+  // History is bounded: the last 14 days first, «Показати раніші» adds a week at a time.
+  const [weeksBack, setWeeksBack] = useState(0)
+  const [today] = useState(() => startOfDayMs(Date.now()))
+  const from = today - (13 + weeksBack * 7) * 86_400_000
+  const { data: entries = [], isPending } = useApi('time', 'list', { projectId, from }, KEEP_PERIOD)
+  const [openDays, setOpenDays] = useState<Set<string>>(new Set())
   const create = useApiMutation('time', 'create', {
-    successMessage: 'Время добавлено',
+    successMessage: 'Час додано',
     onSuccess: () => setAdding(false)
   })
 
+  // The running entry is shown as the timer bar, not as a history row.
+  const { data: running } = useApi('time', 'running')
+  const finished = useMemo(() => entries.filter((e) => e.endedAt !== null), [entries])
   const days = useMemo(() => {
     const map = new Map<string, TimeEntry[]>()
-    for (const e of entries)
+    for (const e of finished)
       map.set(dayKey(e.startedAt), [...(map.get(dayKey(e.startedAt)) ?? []), e])
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
-  }, [entries])
+  }, [finished])
+  const recent = useMemo(
+    () => [...new Set(finished.map((e) => e.description.trim()).filter(Boolean))].slice(0, 3),
+    [finished]
+  )
+  const mine = running && running.projectId === projectId ? running : null
 
   return (
     <Section
-      title={secondary ? 'Учёт времени' : 'Время'}
+      title={secondary ? 'Облік часу' : 'Час'}
       hint={
-        secondary
-          ? 'Для себя: сколько на самом деле уходит на проект. На оплату не влияет.'
-          : undefined
+        secondary ? 'Для себе: скільки насправді йде на проєкт. На оплату не впливає.' : undefined
       }
       action={
         !adding && (
-          <Button variant="soft" size="sm" onClick={() => setAdding(true)}>
-            <Plus /> Вручную
+          <Button variant="soft" size="sm" data-edit-only onClick={() => setAdding(true)}>
+            <Plus /> Вручну
           </Button>
         )
       }
     >
-      <TimerBar projectId={projectId} />
+      {mine ? (
+        <RunningBar key={mine.id} running={mine} />
+      ) : (
+        <StartBar projectId={projectId} recent={recent} otherRunning={running} />
+      )}
       {adding && (
         <EntryForm
           initial={emptyDraft()}
-          submitLabel="Добавить"
+          submitLabel="Додати"
           showBillable={hourly}
           onCancel={() => setAdding(false)}
           onSubmit={(d) => {
@@ -390,42 +463,69 @@ export function TimeSection({
           }}
         />
       )}
-      {days.length === 0 && !adding && (
+      {days.length === 0 && !adding && !mine && weeksBack === 0 && !isPending && (
         <p className="text-body text-muted-foreground">
           {hourly
-            ? 'Запустите таймер или добавьте время вручную — часы попадут в расчёт оплаты.'
-            : 'Запустите таймер, чтобы видеть фактическую ставку проекта.'}
+            ? 'Запустіть таймер або додайте час вручну — години потраплять у розрахунок оплати.'
+            : 'Запустіть таймер, щоб бачити фактичну ставку проєкту.'}
         </p>
       )}
       <div className="flex flex-col gap-4">
-        {days.slice(0, 30).map(([day, list]) => {
-          const total = list.reduce((s, e) => s + e.minutes, 0)
+        {days.map(([day, list]) => {
+          const total = list.reduce((sum, e) => sum + e.minutes, 0)
+          const expanded = openDays.has(day)
+          const shown = expanded ? list : list.slice(0, DAY_LIMIT)
           return (
-            <div key={day}>
-              <div className="mb-1 flex items-center justify-between px-2 text-caption text-muted-foreground">
-                <span>
+            <div key={day} className="flex flex-col gap-0.5">
+              <div className={cn(ROW_GRID, 'pb-1 text-caption')}>
+                <span className="col-span-3 font-medium text-muted-foreground">
                   {capitalize(format(new Date(`${day}T00:00`), 'EEEE, d MMMM', { locale: LOCALE }))}
                 </span>
-                <span className="font-medium text-foreground tabular-nums">
-                  {fmtMinutes(total)}
-                </span>
+                <span className="text-right font-semibold tabular-nums">{fmtDuration(total)}</span>
+                <span />
               </div>
-              <Table>
-                <TableBody>
-                  {list.map((e) => (
-                    <EntryRow
-                      key={e.id}
-                      entry={e}
-                      rate={hourly ? rate : 0}
-                      currency={currency}
-                      showBillable={hourly}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+              {shown.map((e) => (
+                <EntryRow
+                  key={e.id}
+                  entry={e}
+                  rate={hourly ? rate : 0}
+                  currency={currency}
+                  showBillable={hourly}
+                />
+              ))}
+              {list.length > DAY_LIMIT && (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="ml-1 w-fit text-muted-foreground"
+                  onClick={() =>
+                    setOpenDays((prev) => {
+                      const next = new Set(prev)
+                      if (expanded) next.delete(day)
+                      else next.add(day)
+                      return next
+                    })
+                  }
+                >
+                  {expanded ? 'Згорнути' : `ще ${list.length - DAY_LIMIT}`}
+                </Button>
+              )}
             </div>
           )
         })}
+        {days.length === 0 && weeksBack > 0 && (
+          <p className="text-caption text-muted-foreground">За ці дні записів немає.</p>
+        )}
+        {(days.length > 0 || weeksBack > 0) && (
+          <Button
+            variant="subtle"
+            size="sm"
+            className="w-fit"
+            onClick={() => setWeeksBack((w) => w + 1)}
+          >
+            Показати раніші · ще тиждень
+          </Button>
+        )}
       </div>
     </Section>
   )

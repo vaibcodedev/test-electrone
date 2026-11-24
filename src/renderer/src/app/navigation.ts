@@ -95,20 +95,20 @@ export interface NavHub {
   platforms?: boolean
 }
 
-export const HOME: NavItem = { path: '/', label: 'Главная', icon: House }
-export const REVIEW: NavItem = { path: '/review', label: 'Итоги недели', icon: CalendarCheck }
+export const HOME: NavItem = { path: '/', label: 'Головна', icon: House }
+export const REVIEW: NavItem = { path: '/review', label: 'Підсумки тижня', icon: CalendarCheck }
 export const GUIDE: NavItem = { path: '/guide', label: 'Гайд', icon: BookOpen }
 
 export const HUBS: NavHub[] = [
   {
     id: 'work',
-    title: 'Работа',
+    title: 'Робота',
     icon: SquareKanban,
     items: [
-      { path: '/ideas', label: 'Идеи', icon: Lightbulb, countOf: 'idea' },
-      { path: '/boards', label: 'Доски', icon: SquareKanban, countOf: 'board' },
-      { path: '/calendar', label: 'Календарь', icon: CalendarDays },
-      { path: '/checklists', label: 'Чек-листы', icon: ListChecks, countOf: 'checklist' }
+      { path: '/ideas', label: 'Ідеї', icon: Lightbulb, countOf: 'idea' },
+      { path: '/boards', label: 'Дошки', icon: SquareKanban, countOf: 'board' },
+      { path: '/calendar', label: 'Календар', icon: CalendarDays },
+      { path: '/checklists', label: 'Чек-листи', icon: ListChecks, countOf: 'checklist' }
     ]
   },
   {
@@ -118,72 +118,72 @@ export const HUBS: NavHub[] = [
     overview: '/freelance',
     platforms: true,
     items: [
-      { path: '/clients', label: 'Клиенты и контракты', icon: Users, countOf: 'client' },
-      { path: '/freelance/templates', label: 'Шаблоны', icon: MessageSquareQuote, countOf: 'template' },
-      { path: '/freelance/portfolio', label: 'Портфолио', icon: BriefcaseBusiness, countOf: 'case' },
-      { path: '/freelance/flags', label: 'Красные флаги', icon: Flag, countOf: 'redflag' },
-      { path: '/freelance/goals', label: 'Цели', icon: Target },
+      { path: '/clients', label: 'Клієнти й контракти', icon: Users, countOf: 'client' },
+      { path: '/freelance/templates', label: 'Шаблони', icon: MessageSquareQuote, countOf: 'template' },
+      { path: '/freelance/portfolio', label: 'Портфоліо', icon: BriefcaseBusiness, countOf: 'case' },
+      { path: '/freelance/flags', label: 'Червоні прапорці', icon: Flag, countOf: 'redflag' },
+      { path: '/freelance/goals', label: 'Цілі', icon: Target },
       { path: '/freelance/calculator', label: 'Калькулятор ставки', icon: Calculator }
     ]
   },
   {
     id: 'jobs',
-    title: 'Поиск работы',
+    title: 'Пошук роботи',
     icon: FileUser,
     overview: '/jobs',
     items: [
-      { path: '/jobs/applications', label: 'Вакансии', icon: FileUser, countOf: 'application' },
-      { path: '/jobs/interviews', label: 'Собеседования', icon: CalendarDays },
-      { path: '/jobs/companies', label: 'Компании', icon: Building2, countOf: 'company' },
+      { path: '/jobs/applications', label: 'Вакансії', icon: FileUser, countOf: 'application' },
+      { path: '/jobs/interviews', label: 'Співбесіди', icon: CalendarDays },
+      { path: '/jobs/companies', label: 'Компанії', icon: Building2, countOf: 'company' },
       { path: '/jobs/resumes', label: 'Резюме', icon: FileText },
-      { path: '/jobs/questions', label: 'Вопросы и тренажёр', icon: MessageCircleQuestion, countOf: 'question' },
-      { path: '/jobs/boards', label: 'Площадки', icon: Globe },
+      { path: '/jobs/questions', label: 'Питання й тренажер', icon: MessageCircleQuestion, countOf: 'question' },
+      { path: '/jobs/boards', label: 'Майданчики', icon: Globe },
       { path: '/jobs/stats', label: 'Статистика', icon: ChartColumn },
-      { path: '/freelance/templates?situation=cover_letter', label: 'Шаблоны писем', icon: MessageSquareQuote }
+      { path: '/freelance/templates?situation=cover_letter', label: 'Шаблони листів', icon: MessageSquareQuote }
     ]
   },
   {
     id: 'finance',
-    title: 'Финансы',
+    title: 'Фінанси',
     icon: Wallet,
     overview: '/finance',
     items: [
-      { path: '/finance/income', label: 'Доходы', icon: TrendingUp },
-      { path: '/finance/expenses', label: 'Подписки и расходы', icon: Receipt },
-      { path: '/finance/withdrawals', label: 'Выводы', icon: ArrowDownToLine }
+      { path: '/finance/income', label: 'Доходи', icon: TrendingUp },
+      { path: '/finance/expenses', label: 'Підписки й витрати', icon: Receipt },
+      { path: '/finance/withdrawals', label: 'Виведення', icon: ArrowDownToLine }
     ]
   },
   {
     id: 'dev',
-    title: 'Разработка',
+    title: 'Розробка',
     icon: TerminalSquare,
     items: [
-      { path: '/dev', label: 'Мои проекты', icon: FolderGit2 },
+      { path: '/dev', label: 'Мої проєкти', icon: FolderGit2 },
       { path: '/dev/github', label: 'GitHub', icon: GitBranch }
     ]
   },
   {
     id: 'knowledge',
-    title: 'Знания',
+    title: 'Знання',
     icon: Library,
     overview: '/knowledge',
     items: [
-      { path: '/notes', label: 'Заметки', icon: NotebookPen, countOf: 'note' },
+      { path: '/notes', label: 'Нотатки', icon: NotebookPen, countOf: 'note' },
       { path: '/claude', label: 'Claude', icon: Sparkles, countOf: 'claude' },
-      { path: '/snippets', label: 'Сниппеты', icon: CodeXml, countOf: 'snippet' },
-      { path: '/components', label: 'Компоненты', icon: Component, countOf: 'component' },
-      { path: '/libraries', label: 'JS-библиотеки', icon: Package, countOf: 'library' },
-      { path: '/fixes', label: 'Ошибки и решения', icon: Bug, countOf: 'fix' }
+      { path: '/snippets', label: 'Сніпети', icon: CodeXml, countOf: 'snippet' },
+      { path: '/components', label: 'Компоненти', icon: Component, countOf: 'component' },
+      { path: '/libraries', label: 'JS-бібліотеки', icon: Package, countOf: 'library' },
+      { path: '/fixes', label: 'Помилки й рішення', icon: Bug, countOf: 'fix' }
     ]
   },
   {
     id: 'inspiration',
-    title: 'Вдохновение и учёба',
+    title: 'Натхнення й навчання',
     icon: GraduationCap,
     items: [
-      { path: '/designs', label: 'Дизайны', icon: Image, countOf: 'design' },
+      { path: '/designs', label: 'Дизайни', icon: Image, countOf: 'design' },
       { path: '/bookmarks', label: 'Закладки', icon: Bookmark, countOf: 'bookmark' },
-      { path: '/english', label: 'Английский', icon: Languages, countOf: 'word' }
+      { path: '/english', label: 'Англійська', icon: Languages, countOf: 'word' }
     ]
   }
 ]
@@ -196,7 +196,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   REVIEW,
   GUIDE,
   ...HUBS.flatMap((h) => [
-    ...(h.overview ? [{ path: h.overview, label: `${h.title}: обзор`, icon: h.icon }] : []),
+    ...(h.overview ? [{ path: h.overview, label: `${h.title}: огляд`, icon: h.icon }] : []),
     ...h.items
   ])
 ]

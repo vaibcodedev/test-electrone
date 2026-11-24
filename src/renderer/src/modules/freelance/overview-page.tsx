@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router'
-import { AlertTriangle, ArrowRight, BellRing, Plus, Target } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
+import { AlertTriangle, ArchiveRestore, ArrowRight, BellRing, Plus, Target } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { useApi } from '@/lib/query'
+import { useApi, useApiMutation } from '@/lib/query'
 import { fmtDay, fmtMoney, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -52,8 +52,8 @@ function CreditsRow({ platform }: { platform: Platform }) {
         <ItemTitle className="w-full truncate">{platform.name}</ItemTitle>
         <ItemDescription className="text-caption">
           {s.costPerContract !== null
-            ? `один контракт стоил ${fmtMoney(s.costPerContract, platform.currency)}`
-            : 'контрактов пока нет'}
+            ? `один контракт коштував ${fmtMoney(s.costPerContract, platform.currency)}`
+            : 'контрактів поки немає'}
         </ItemDescription>
       </ItemContent>
       <ItemActions className="gap-4">
@@ -69,7 +69,7 @@ function CreditsRow({ platform }: { platform: Platform }) {
           size="xs"
           onClick={() => navigate(`/freelance/p/${platform.id}?tab=credits`)}
         >
-          {low ? 'Пополнить' : 'Открыть'} <ArrowRight />
+          {low ? 'Поповнити' : 'Відкрити'} <ArrowRight />
         </Button>
       </ItemActions>
     </Item>
@@ -80,6 +80,17 @@ export function FreelanceOverviewPage() {
   const navigate = useNavigate()
   const [from] = useState(() => new Date().setHours(0, 0, 0, 0) - 29 * DAY)
   const { data: platformList = [] } = useApi('platforms', 'list')
+  const { data: allPlatforms = [] } = useApi('platforms', 'list', { includeArchived: true })
+  const archived = allPlatforms.filter((p) => p.archived)
+  const unarchive = useApiMutation('platforms', 'update', {
+    successMessage: 'Платформа знову в меню'
+  })
+  // Sidebar «Архів · N» links to /freelance#archived.
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash === '#archived' && archived.length)
+      document.getElementById('archived')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [hash, archived.length])
   const { data: goals = [] } = useApi('goals', 'progress')
   const { data: stats } = useApi('freelance', 'stats', { from })
   const { data: stale = [] } = useApi('proposals', 'stale', { days: 3 })
@@ -97,14 +108,14 @@ export function FreelanceOverviewPage() {
     <Page>
       <PageHeader
         title="Фриланс"
-        subtitle="Цели, воронка за 30 дней и то, что требует внимания."
+        subtitle="Цілі, воронка за 30 днів і те, що потребує уваги."
         actions={platformList.map((p) => (
           <Button
             key={p.id}
             variant="soft"
             onClick={() => navigate(`/freelance/p/${p.id}?tab=proposals&new=1`)}
           >
-            <Plus /> Отклик: {p.name}
+            <Plus /> Відгук: {p.name}
           </Button>
         ))}
       />
@@ -113,7 +124,7 @@ export function FreelanceOverviewPage() {
           {/* Money and contracts */}
           <Card className="col-span-4 bg-ink text-ink-foreground">
             <CardHeader>
-              <CardTitle className="text-ink-muted">На руки в этом месяце</CardTitle>
+              <CardTitle className="text-ink-muted">На руки цього місяця</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
               {netEntries.length ? (
@@ -128,9 +139,9 @@ export function FreelanceOverviewPage() {
               <div className="mt-2 text-caption text-ink-muted">
                 {contracts.length}{' '}
                 {plural(contracts.length, [
-                  'активный контракт',
-                  'активных контракта',
-                  'активных контрактов'
+                  'активний контракт',
+                  'активні контракти',
+                  'активних контрактів'
                 ])}
               </div>
             </CardContent>
@@ -138,32 +149,32 @@ export function FreelanceOverviewPage() {
 
           <Card className="col-span-8">
             <CardHeader>
-              <CardTitle>Воронка за 30 дней</CardTitle>
+              <CardTitle>Воронка за 30 днів</CardTitle>
               {totals && totals.sent > 0 && (
                 <CardDescription>
-                  {totals.sent} откликов → {totals.replied} ответов ({totals.replyRate}%) →{' '}
-                  {totals.hired} контрактов ({totals.hireRate}%)
+                  {totals.sent} відгуків → {totals.replied} відповідей ({totals.replyRate}%) →{' '}
+                  {totals.hired} контрактів ({totals.hireRate}%)
                   {stats?.avgReplyHours !== null &&
                     stats?.avgReplyHours !== undefined &&
-                    ` · отвечают в среднем за ${stats.avgReplyHours} ч`}
+                    ` · відповідають у середньому за ${stats.avgReplyHours} год`}
                 </CardDescription>
               )}
             </CardHeader>
             <CardContent>
               {!stats || stats.byPlatform.length === 0 ? (
                 <p className="text-body text-muted-foreground">
-                  За последние 30 дней откликов не было.
+                  За останні 30 днів відгуків не було.
                 </p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Платформа</TableHead>
-                      <TableHead className="text-right">Отклики</TableHead>
-                      <TableHead className="text-right">Ответы</TableHead>
-                      <TableHead className="text-right">Интервью</TableHead>
-                      <TableHead className="text-right">Контракты</TableHead>
-                      <TableHead className="text-right">Коннекты</TableHead>
+                      <TableHead className="text-right">Відгуки</TableHead>
+                      <TableHead className="text-right">Відповіді</TableHead>
+                      <TableHead className="text-right">Інтерв’ю</TableHead>
+                      <TableHead className="text-right">Контракти</TableHead>
+                      <TableHead className="text-right">Конекти</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -195,15 +206,15 @@ export function FreelanceOverviewPage() {
           {/* Attention */}
           <Card className="col-span-6">
             <CardHeader>
-              <CardTitle>Пора напомнить</CardTitle>
-              <CardDescription>Отклики без ответа больше 3 дней.</CardDescription>
+              <CardTitle>Час нагадати</CardTitle>
+              <CardDescription>Відгуки без відповіді понад 3 дні.</CardDescription>
               <CardAction>
                 <BellRing className="size-4 text-muted-foreground" />
               </CardAction>
             </CardHeader>
             <CardContent>
               {stale.length === 0 ? (
-                <p className="text-body text-muted-foreground">Никого не нужно догонять.</p>
+                <p className="text-body text-muted-foreground">Нікого не треба наздоганяти.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {stale.slice(0, 8).map((p) => (
@@ -226,7 +237,7 @@ export function FreelanceOverviewPage() {
                             {p.jobTitle}
                           </ItemTitle>
                           <ItemDescription className="text-caption">
-                            {platformName(p.platformId)} · отправлен {fmtDay(p.sentAt)}
+                            {platformName(p.platformId)} · надіслано {fmtDay(p.sentAt)}
                           </ItemDescription>
                         </ItemContent>
                       </button>
@@ -239,15 +250,13 @@ export function FreelanceOverviewPage() {
 
           <Card className="col-span-6">
             <CardHeader>
-              <CardTitle>Баланс коннектов</CardTitle>
-              <CardDescription>
-                Предупреждение, когда осталось меньше {LOW_CREDITS}.
-              </CardDescription>
+              <CardTitle>Баланс конектів</CardTitle>
+              <CardDescription>Попередження, коли лишилося менше {LOW_CREDITS}.</CardDescription>
             </CardHeader>
             <CardContent>
               {withCredits.length === 0 ? (
                 <p className="text-body text-muted-foreground">
-                  Ни на одной платформе нет платных откликов.
+                  На жодній платформі немає платних відгуків.
                 </p>
               ) : (
                 <ItemGroup className="gap-1.5">
@@ -261,23 +270,19 @@ export function FreelanceOverviewPage() {
 
           {/* Goals */}
           <div className="col-span-12 flex items-center justify-between pt-2">
-            <h2 className="text-body font-semibold">Цели</h2>
-            <Button
-              variant="subtle"
-              size="xs"
-              onClick={() => navigate('/freelance/goals')}
-            >
-              <Target /> Все цели
+            <h2 className="text-body font-semibold">Цілі</h2>
+            <Button variant="subtle" size="xs" onClick={() => navigate('/freelance/goals')}>
+              <Target /> Усі цілі
             </Button>
           </div>
           {goals.length === 0 ? (
             <Card className="col-span-12">
               <CardContent className="flex items-center justify-between gap-4">
                 <p className="text-body text-muted-foreground">
-                  Поставьте цель — например, 10 откликов в неделю.
+                  Поставте ціль — наприклад, 10 відгуків на тиждень.
                 </p>
                 <Button variant="lime" size="sm" onClick={() => navigate('/freelance/goals')}>
-                  <Plus /> Цель
+                  <Plus /> Ціль
                 </Button>
               </CardContent>
             </Card>
@@ -287,6 +292,43 @@ export function FreelanceOverviewPage() {
                 <GoalCard g={g} platformName={platformName(g.platformId)} />
               </div>
             ))
+          )}
+
+          {archived.length > 0 && (
+            <section id="archived" className="col-span-12 flex scroll-mt-4 flex-col gap-2 pt-2">
+              <h2 className="text-body font-semibold">Архівні платформи</h2>
+              <ItemGroup className="gap-1.5">
+                {archived.map((p) => (
+                  <Item key={p.id} variant="muted" size="sm">
+                    <ItemContent className="min-w-0">
+                      <ItemTitle className="flex items-center gap-2">
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ background: p.color ?? 'var(--muted-foreground)' }}
+                        />
+                        {p.name}
+                      </ItemTitle>
+                    </ItemContent>
+                    <ItemActions>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => navigate(`/freelance/p/${p.id}`)}
+                      >
+                        Відкрити
+                      </Button>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => unarchive.mutate({ id: p.id, patch: { archived: false } })}
+                      >
+                        <ArchiveRestore /> Повернути
+                      </Button>
+                    </ItemActions>
+                  </Item>
+                ))}
+              </ItemGroup>
+            </section>
           )}
         </div>
       </PageBody>
