@@ -19,7 +19,8 @@ const toggleVariants = cva(
       variant: {
         default:
           "bg-transparent text-muted-foreground hover:bg-surface hover:text-foreground on:bg-surface on:text-foreground",
-        chip: "bg-surface font-normal text-foreground hover:bg-accent on:bg-lime on:font-medium on:text-lime-foreground",
+        // Tinted, not bg-surface: an unselected chip on a surface card used to look like plain text.
+        chip: "bg-foreground/[0.06] font-normal text-foreground hover:bg-foreground/[0.1] on:bg-lime on:font-medium on:text-lime-foreground",
         segment:
           "font-normal text-muted-foreground hover:text-foreground on:bg-card on:font-medium on:text-foreground on:shadow-sm dark:on:bg-foreground/12",
         outline:

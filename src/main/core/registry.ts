@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm'
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core'
 import { DRAFT_TITLES, type EntityType } from '@shared/entity-types'
 import type { EntityRef, EntitySummary } from '@shared/domain/common'
@@ -33,6 +33,11 @@ export interface EntityDescriptor {
   summary(row: AnyRow): { title: string; subtitle?: string }
   /** Entities that live and die with this one (cards of a board…). */
   dependents?(id: string): EntityRef[]
+  /**
+   * For dependents: the row is alive only while its parent is (a card of a board in the trash keeps
+   * deletedAt = null, so it can't appear in the trash on its own). Applied everywhere through `live()`.
+   */
+  aliveWhere?: SQL
   /** Extra cleanup on permanent deletion (files on disk…). */
   onPurge?(row: AnyRow): void
   /**
@@ -73,11 +78,15 @@ export class EntityRegistry {
     return [...this.map.values()]
   }
 
+/** Not in the trash and (for dependents) the parent isn't either. */
+  live(d: EntityDescriptor): SQL {
+    return d.aliveWhere ? and(isNull(d.table.deletedAt), d.aliveWhere)! : isNull(d.table.deletedAt)
+  }
+
   findRow(ref: EntityRef, opts: { withDeleted?: boolean } = {}): AnyRow | undefined {
-    const { table } = this.get(ref.type)
-    const where = opts.withDeleted
-      ? eq(table.id, ref.id)
-      : and(eq(table.id, ref.id), isNull(table.deletedAt))
+    const d = this.get(ref.type)
+    const { table } = d
+    const where = opts.withDeleted ? eq(table.id, ref.id) : and(eq(table.id, ref.id), this.live(d))
     return this.ctx.orm.select().from(table).where(where).get() as AnyRow | undefined
   }
 
@@ -95,7 +104,7 @@ export class EntityRegistry {
       if (!d) continue
       const where = opts.withDeleted
         ? inArray(d.table.id, ids)
-        : and(inArray(d.table.id, ids), isNull(d.table.deletedAt))
+        : and(inArray(d.table.id, ids), this.live(d))
       const rows = this.ctx.orm.select().from(d.table).where(where).all() as AnyRow[]
       for (const row of rows) {
         found.set(`${type}:${row.id}`, {

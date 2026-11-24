@@ -10,6 +10,7 @@ import {
   type GoalPeriod,
   type GoalProgress
 } from '@shared/domain/freelance'
+import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { draftToNumber, numberToDraft } from '../crm/money'
@@ -64,8 +65,13 @@ const GOAL_R = rangesOf(goalInputSchema)
 const ALL = '__all__'
 const selectCls = 'w-full'
 
-export function formatGoalValue(metric: GoalMetric, value: number): string {
-  if (metric === 'net_income') return fmtMoney(value, 'USD')
+/** `currency` — from `GoalProgress.currency` (server picks it); USD only when nothing is known. */
+export function formatGoalValue(
+  metric: GoalMetric,
+  value: number,
+  currency?: Currency | null
+): string {
+  if (metric === 'net_income') return fmtMoney(value, currency ?? 'USD')
   if (metric === 'reply_rate' || metric === 'hire_rate') return `${Math.round(value * 10) / 10}%`
   return String(Math.round(value))
 }
@@ -178,7 +184,13 @@ function GoalDialog({
             <Field className="gap-2">
               <FieldLabel htmlFor="goal-target">
                 Ціль
-                {form.metric === 'net_income' ? ', $' : form.metric.endsWith('rate') ? ', %' : ''}
+                {form.metric === 'net_income'
+                  ? form.platformId
+                    ? `, ${platformList.find((p) => p.id === form.platformId)?.currency ?? ''}`
+                    : ''
+                  : form.metric.endsWith('rate')
+                    ? ', %'
+                    : ''}
               </FieldLabel>
               <NumberInput
                 id="goal-target"
@@ -277,10 +289,10 @@ export function GoalCard({
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-baseline gap-2">
           <span className="font-display text-stat leading-none tabular-nums">
-            {formatGoalValue(g.metric, g.current)}
+            {formatGoalValue(g.metric, g.current, g.currency)}
           </span>
           <span className="text-body text-muted-foreground">
-            з {formatGoalValue(g.metric, g.target)}
+            з {formatGoalValue(g.metric, g.target, g.currency)}
           </span>
         </div>
         <Progress
@@ -295,8 +307,8 @@ export function GoalCard({
         />
         <p className={cn('text-caption', done ? 'text-success' : 'text-muted-foreground')}>
           {done
-            ? `Виконано: ${formatGoalValue(g.metric, g.current)} з ${formatGoalValue(g.metric, g.target)}`
-            : `Ще ${formatGoalValue(g.metric, remaining)} · ${
+            ? `Виконано: ${formatGoalValue(g.metric, g.current, g.currency)} з ${formatGoalValue(g.metric, g.target, g.currency)}`
+            : `Ще ${formatGoalValue(g.metric, remaining, g.currency)} · ${
                 daysLeft > 0
                   ? `залишилось ${daysLeft} ${plural(daysLeft, ['день', 'дні', 'днів'])}`
                   : 'останній день'
@@ -370,6 +382,8 @@ export function GoalsPage() {
   const { data: platformList = [] } = useApi('platforms', 'list')
   const platformName = (id: string | null): string | undefined =>
     platformList.find((p) => p.id === id)?.name
+  const platformCurrency = (id: string | null): Currency | undefined =>
+    platformList.find((p) => p.id === id)?.currency
   const inactive = goals.filter((g) => !g.active)
 
   return (
@@ -416,7 +430,7 @@ export function GoalsPage() {
               <Card key={g.id} className="flex-row items-center gap-3 px-5 py-3 opacity-70">
                 <span className="flex-1 truncate text-body">{goalTitle(g)}</span>
                 <span className="text-caption text-muted-foreground">
-                  ціль {formatGoalValue(g.metric, g.target)}
+                  ціль {formatGoalValue(g.metric, g.target, platformCurrency(g.platformId))}
                 </span>
                 <Badge variant="soft">На паузі</Badge>
                 <GoalMenu goal={g} />

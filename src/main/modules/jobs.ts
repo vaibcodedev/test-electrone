@@ -59,7 +59,7 @@ import {
 } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { DAY_MS, newId, now, NotFoundError, startOfDay, startOfWeek } from '../core/util'
+import { addDays, DAY_MS, dayKey, newId, now, NotFoundError, startOfDay, startOfWeek } from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 import { schedule } from './english'
 import type { CalendarModule } from './calendar'
@@ -99,10 +99,6 @@ const CLOSED: ApplicationStatus[] = ['accepted', 'rejected', 'no_reply', 'withdr
 const INTERVIEW_COLOR = '#7c8cf8'
 const DEADLINE_COLOR = '#f5a524'
 
-export const dayKey = (ts: number): string => {
-  const d = new Date(ts)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 const pct = (a: number, b: number): number => (b ? Math.round((a / b) * 1000) / 10 : 0)
 
 export class JobsModule {
@@ -219,7 +215,7 @@ export class JobsModule {
   /** Board × day matrix for the last `days` days (today included). */
   daily(days = 28): DailyBoard[] {
     const today = startOfDay(now())
-    const from = today - (days - 1) * DAY_MS
+    const from = addDays(today, -(days - 1))
     const list = this.boards()
     if (!list.length) return []
     const applied = this.db
@@ -240,7 +236,7 @@ export class JobsModule {
       .all()
     return list.map((b) => {
       const history: BoardDay[] = []
-      for (let ts = from; ts <= today; ts += DAY_MS) {
+      for (let ts = from; ts <= today; ts = addDays(ts, 1)) {
         const day = dayKey(ts)
         const n = applied.filter((a) => a.boardId === b.id && a.at && dayKey(a.at) === day).length
         const checked = checks.some((c) => c.boardId === b.id && c.day === day)
@@ -519,7 +515,7 @@ export class JobsModule {
 
   stats(q: { from?: number; to?: number }): JobStats {
     const to = q.to ?? now()
-    const from = q.from ?? startOfDay(to) - 89 * DAY_MS
+    const from = q.from ?? addDays(startOfDay(to), -89)
     const rows = this.db
       .select()
       .from(applications)
@@ -572,12 +568,12 @@ export class JobsModule {
         .filter((f) => f.applied > 0)
         .sort((a, b) => b.applied - a.applied)
     }
-    const weeks = new Map<number, { applied: number; replied: number }>()
-    for (let w = startOfWeek(from); w <= to; w += 7 * DAY_MS)
-      weeks.set(w, { applied: 0, replied: 0 })
+    const weeks = new Map<string, { applied: number; replied: number }>()
+    for (let w = startOfWeek(from); w <= to; w = addDays(w, 7))
+      weeks.set(dayKey(w), { applied: 0, replied: 0 })
     for (const r of rows) {
       if (r.status === 'saved') continue
-      const b = weeks.get(startOfWeek(r.appliedAt ?? r.createdAt))
+      const b = weeks.get(dayKey(startOfWeek(r.appliedAt ?? r.createdAt)))
       if (!b) continue
       b.applied++
       if (r.repliedAt) b.replied++
@@ -607,10 +603,7 @@ export class JobsModule {
         (r) => r.templateId ?? '—',
         (k) => templateNames.get(k) ?? 'Без шаблону'
       ),
-      weekly: [...weeks.entries()].map(([w, v]) => ({
-        week: new Date(w).toISOString().slice(0, 10),
-        ...v
-      })),
+      weekly: [...weeks.entries()].map(([week, v]) => ({ week, ...v })),
       avgReplyDays: replyDays.length
         ? Math.round((replyDays.reduce((s, x) => s + x, 0) / replyDays.length) * 10) / 10
         : null,

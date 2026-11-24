@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { EditableScope } from '@/components/common/detail-mode-context'
 import { format, isToday } from 'date-fns'
 import { Pencil, Play, Plus, Square, Trash2 } from 'lucide-react'
 import { timeEntryInputSchema, type RunningTimer, type TimeEntry } from '@shared/domain/crm'
@@ -448,7 +449,10 @@ export function TimeSection({
       {mine ? (
         <RunningBar key={mine.id} running={mine} />
       ) : (
-        <StartBar projectId={projectId} recent={recent} otherRunning={running} />
+        // The timer is an action, not an edit of the project: it works while reading too.
+        <EditableScope>
+          <StartBar projectId={projectId} recent={recent} otherRunning={running} />
+        </EditableScope>
       )}
       {adding && (
         <EntryForm

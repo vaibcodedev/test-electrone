@@ -8,7 +8,7 @@ import { Copy, ExternalLink, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Client, ProjectSummary } from '@shared/domain/crm'
 import { api } from '@/lib/api'
-import { fmtDay, fmtMoney } from '@/lib/format'
+import { fmtDay, fmtMoney, fmtPercent } from '@/lib/format'
 import { copyText } from '@/components/common/copy-button'
 import { SectionLabel } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
@@ -187,7 +187,7 @@ export function SourceView({ c }: { c: Client }) {
       {c.totalSpent !== null && (
         <InfoRow label="Витрачено">{fmtMoney(c.totalSpent, c.currency)}</InfoRow>
       )}
-      {c.hireRate !== null && <InfoRow label="Найм">{c.hireRate}%</InfoRow>}
+      {c.hireRate !== null && <InfoRow label="Найм">{fmtPercent(c.hireRate)}</InfoRow>}
       {c.paymentVerified !== null && (
         <InfoRow label="Оплата">{c.paymentVerified ? 'верифікована' : 'не верифікована'}</InfoRow>
       )}

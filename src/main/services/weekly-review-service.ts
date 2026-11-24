@@ -1,4 +1,5 @@
 import { and, eq, gte, isNotNull, isNull, lte, sql } from 'drizzle-orm'
+import { CARD_ON_LIVE_BOARD } from '../modules/boards'
 import type { EntitySummary } from '@shared/domain/common'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import type { Currency } from '@shared/domain/crm'
@@ -16,13 +17,14 @@ import {
   ideas,
   interviewQuestions,
   notes,
+  projects,
   proposals,
   timeEntries,
   weeklyReviews,
   wordReviews,
   withdrawals
 } from '../db/schema'
-import { DAY_MS, newId, now, startOfWeek, overlapMinutes } from '../core/util'
+import { addDays, dayKey, newId, now, startOfWeek, overlapMinutes } from '../core/util'
 import type { FinanceModule } from '../modules/finance'
 import type { CalendarModule } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
@@ -30,7 +32,6 @@ import type { JobsModule } from '../modules/jobs'
 import type { FreelanceModule } from '../modules/freelance'
 import type { DevProjectsModule } from '../modules/dev-projects'
 import { commitsBetween } from '../modules/dev-projects'
-import { dayKey } from '../modules/jobs'
 
 const add = (m: MoneyByCurrency, c: Currency, v: number): void => {
   m[c] = Math.round(((m[c] ?? 0) + v) * 100) / 100
@@ -62,10 +63,19 @@ export class WeeklyReviewService {
   private async numbers(from: number, to: number): Promise<Record<string, number>> {
     const inRange = (col: Parameters<typeof gte>[0]) => and(gte(col, from), lte(col, to))
     // Finished entries, only the part inside the week (a session over Sunday midnight is split).
+    // Time of projects in the trash is not counted.
     const minutes = this.db
-      .select()
+      .select({ startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt, minutes: timeEntries.minutes })
       .from(timeEntries)
-      .where(and(isNotNull(timeEntries.endedAt), lte(timeEntries.startedAt, to), gte(timeEntries.endedAt, from)))
+      .innerJoin(projects, eq(projects.id, timeEntries.projectId))
+      .where(
+        and(
+          isNull(projects.deletedAt),
+          isNotNull(timeEntries.endedAt),
+          lte(timeEntries.startedAt, to),
+          gte(timeEntries.endedAt, from)
+        )
+      )
       .all()
       .reduce((s, t) => s + overlapMinutes(t, from, to, now()), 0)
     const sentProposals = this.db
@@ -80,7 +90,7 @@ export class WeeklyReviewService {
       .all()
     const commits = await commitsBetween(this.mods.dev.paths(), from, to)
     return {
-      cardsDone: this.count(cards, and(isNull(cards.deletedAt), inRange(cards.completedAt))),
+      cardsDone: this.count(cards, and(isNull(cards.deletedAt), CARD_ON_LIVE_BOARD, inRange(cards.completedAt))),
       checksDone: this.count(checklistItems, inRange(checklistItems.doneAt)),
       ideas: this.count(ideas, and(isNull(ideas.deletedAt), inRange(ideas.createdAt))),
       notes: this.count(notes, and(isNull(notes.deletedAt), inRange(notes.createdAt))),
@@ -115,8 +125,8 @@ export class WeeklyReviewService {
 
   async snapshot(weekStart: number): Promise<WeekSnapshot> {
     const from = startOfWeek(weekStart)
-    const to = from + 7 * DAY_MS - 1
-    const [cur, prev] = await Promise.all([this.numbers(from, to), this.numbers(from - 7 * DAY_MS, from - 1)])
+    const to = addDays(from, 7) - 1
+    const [cur, prev] = await Promise.all([this.numbers(from, to), this.numbers(addDays(from, -7), from - 1)])
     const metric = (key: string, label: string, unit: WeekMetric['unit'] = 'count', better: WeekMetric['better'] = 'up'): WeekMetric => ({
       key,
       label,
@@ -153,7 +163,7 @@ export class WeeklyReviewService {
     const doneCards = this.db
       .select({ id: cards.id, title: cards.title })
       .from(cards)
-      .where(and(isNull(cards.deletedAt), gte(cards.completedAt, from), lte(cards.completedAt, to)))
+      .where(and(isNull(cards.deletedAt), CARD_ON_LIVE_BOARD, gte(cards.completedAt, from), lte(cards.completedAt, to)))
       .all()
       .map((c): EntitySummary => ({ type: 'card', id: c.id, title: c.title }))
     const staleProposals = (await this.mods.freelance.proposalsApi().stale({ days: 3 })).map(
@@ -166,13 +176,15 @@ export class WeeklyReviewService {
       .due({ from: 0, to: Date.now() - 1 })
       .filter((c) => !c.columnIsDone)
       .map((c): EntitySummary => ({ type: 'card', id: c.id, title: c.title, subtitle: c.boardTitle }))
-    const month = dayKey(Date.now()).slice(0, 7)
-    const unpaid = this.mods.finance
-      .subscriptionMonth(month)
-      .filter((s) => !s.expenseId && s.dueAt <= Date.now())
+    // Subscriptions due within the reviewed week (it may span two months), not the current month.
+    const dueUntil = Math.min(to, Date.now())
+    const months = [...new Set([dayKey(from).slice(0, 7), dayKey(to).slice(0, 7)])]
+    const unpaid = months
+      .flatMap((m) => this.mods.finance.subscriptionMonth(m))
+      .filter((s) => !s.expenseId && s.dueAt >= from && s.dueAt <= dueUntil)
       .map((s): EntitySummary => ({ type: 'event', id: s.id, title: `${s.title} · ${s.amount} ${s.currency}`, subtitle: 'Підписку не позначено' }))
     const upcoming = this.mods.calendar
-      .feed(to + 1, to + 7 * DAY_MS)
+      .feed(to + 1, addDays(from, 14) - 1)
       .slice(0, 12)
       .map((i) => ({ title: i.title, at: i.startAt, route: i.route ?? ENTITY_META[i.ref.type].route(i.ref.id) }))
     return {
@@ -201,7 +213,7 @@ export class WeeklyReviewService {
     const start = weekStartKey ? new Date(`${weekStartKey}T00:00:00`).getTime() : startOfWeek(now())
     const key = dayKey(startOfWeek(start))
     const existing = this.db.select().from(weeklyReviews).where(eq(weeklyReviews.weekStart, key)).get()
-    const finished = startOfWeek(start) + 7 * DAY_MS <= now()
+    const finished = addDays(startOfWeek(start), 7) <= now()
     if (existing?.snapshot && finished) return this.toReview(existing, existing.snapshot as WeekSnapshot)
     const snapshot = await this.snapshot(start)
     const ts = now()

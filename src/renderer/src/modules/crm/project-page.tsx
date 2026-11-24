@@ -215,6 +215,23 @@ export function UrlField({
   onSave: (v: string) => void
 }) {
   const [bad, setBad] = useState(false)
+  const readOnly = useReadOnly()
+  // View mode: an empty link takes no space, a filled one is just a link to open.
+  if (readOnly) {
+    if (!value) return null
+    return (
+      <Field label={label}>
+        <Button
+          variant="link"
+          className="w-fit max-w-full justify-start truncate"
+          onClick={() => api.app.openExternal(value).catch((e: Error) => toast.error(e.message))}
+        >
+          <span className="truncate">{value.replace(/^https?:\/\//, '')}</span>
+          <ExternalLink />
+        </Button>
+      </Field>
+    )
+  }
   return (
     <Field label={label} error={bad ? URL_ERROR : undefined}>
       <ButtonGroup className="w-full">
@@ -486,19 +503,24 @@ export function ProjectPage() {
           <div className="flex flex-col gap-6">
             <Terms project={p} patch={patch} />
             <Separator />
-            <section className="flex flex-col gap-3">
-              <SectionLabel>Посилання</SectionLabel>
-              {LINK_FIELDS.map((f) => (
-                <UrlField
-                  key={f.key}
-                  label={f.label}
-                  value={p[f.key]}
-                  placeholder={f.placeholder}
-                  onSave={(v) => patch({ [f.key]: v })}
-                />
-              ))}
-            </section>
-            <Separator />
+            {/* Reading with no links at all: no empty «Посилання» heading. */}
+            {(mode.editing || LINK_FIELDS.some((f) => p[f.key])) && (
+              <>
+                <section className="flex flex-col gap-3">
+                  <SectionLabel>Посилання</SectionLabel>
+                  {LINK_FIELDS.map((f) => (
+                    <UrlField
+                      key={f.key}
+                      label={f.label}
+                      value={p[f.key]}
+                      placeholder={f.placeholder}
+                      onSave={(v) => patch({ [f.key]: v })}
+                    />
+                  ))}
+                </section>
+                <Separator />
+              </>
+            )}
             <EntityAside
               entity={{ type: 'project', id: p.id }}
               tags={p.tags}

@@ -8,7 +8,7 @@ const LIMITS = limitsOf(resumeInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fileUrl, toFileSources } from '@/lib/files'
-import { fmtBytes, fmtDateTime, fmtDay } from '@/lib/format'
+import { fmtBytes, fmtDateTime, fmtDay, fmtPercent } from '@/lib/format'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
 import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -141,7 +141,7 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
         </CardTitle>
         <CardDescription>
           {fmtDateTime(resume.createdAt)}
-          {resume.sent > 0 && ` · надіслано ${resume.sent}, відповіли ${resume.replied} (${resume.replyRate}%)`}
+          {resume.sent > 0 && ` · надіслано ${resume.sent}, відповіли ${resume.replied} (${fmtPercent(resume.replyRate)})`}
         </CardDescription>
         <CardAction className="flex gap-1">
           {!resume.isCurrent && (

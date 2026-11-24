@@ -1,3 +1,29 @@
+/* Onest ships with the extension (the popup can't load the app's fonts): the same type as Vault. */
+@font-face {
+  font-family: 'Onest Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('fonts/onest-cyrillic-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Onest Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('fonts/onest-cyrillic-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Onest Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('fonts/onest-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --lime: #d4f542;
   --lime-fg: #14160f;
@@ -30,12 +56,20 @@
   box-sizing: border-box;
 }
 
+html {
+  /* The popup scrolls when the preview is tall, but a bare grey scrollbar looked broken. */
+  scrollbar-width: none;
+}
+
 body {
   margin: 0;
-  width: 380px;
+  width: 420px;
   background: var(--bg);
   color: var(--fg);
-  font: 14px/1.4 'Onest Variable', 'Onest', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 14px/1.45 'Onest Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 .wrap {
@@ -47,6 +81,7 @@ body {
 
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -65,10 +100,12 @@ body {
 }
 
 .title {
-  font-size: 18px;
-  font-weight: 560;
-  letter-spacing: -0.03em;
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
 }
 
 .status {
@@ -90,8 +127,18 @@ body {
   background: #3d9a4f;
 }
 
+/* Problem = its own row under the title (it used to squeeze the title into two lines); click → settings. */
 .status[data-state='bad'] {
+  flex-basis: 100%;
+  order: 1;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
   color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
 }
 
 .status[data-state='bad'] .dot {
@@ -104,6 +151,21 @@ body {
   gap: 6px;
 }
 
+/* «Куди зберегти»: five equal columns in one row instead of a ragged wrap. */
+#targets {
+  display: grid;
+  /* auto columns: each as wide as its label, the spare width shared out — nothing gets cut. */
+  grid-template-columns: repeat(5, auto);
+  gap: 4px;
+}
+
+#targets .chip {
+  padding: 7px 6px;
+  font-size: 12.5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .chip {
   border: 0;
   border-radius: 999px;
@@ -112,6 +174,7 @@ body {
   color: var(--fg);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -122,7 +185,7 @@ body {
 .chip[aria-pressed='true'] {
   background: var(--lime);
   color: var(--lime-fg);
-  font-weight: 560;
+  font-weight: 600;
 }
 
 .chip.small {
@@ -132,9 +195,10 @@ body {
 
 .label {
   display: block;
-  margin-bottom: 4px;
-  font-size: 12px;
-  color: var(--muted);
+  margin-bottom: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--fg) 72%, transparent);
 }
 
 input,
@@ -142,12 +206,16 @@ textarea {
   width: 100%;
   border: 1px solid transparent;
   border-radius: 12px;
-  padding: 8px 11px;
+  padding: 9px 12px;
   background: var(--surface);
   color: var(--fg);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   outline: none;
+}
+
+::placeholder {
+  color: color-mix(in oklab, var(--muted) 85%, transparent);
 }
 
 textarea {
@@ -177,7 +245,9 @@ textarea:focus {
   background: transparent;
   color: var(--muted);
   font: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -192,7 +262,7 @@ textarea:focus {
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
-  max-height: 150px;
+  max-height: 120px;
 }
 
 .preview img {
@@ -200,7 +270,7 @@ textarea:focus {
   width: 100%;
   object-fit: cover;
   object-position: top;
-  max-height: 150px;
+  max-height: 120px;
 }
 
 .hint {
@@ -274,6 +344,11 @@ textarea:focus {
   font-weight: 700;
 }
 
+.done .actions {
+  width: 100%;
+  margin-top: 8px;
+}
+
 .done .what {
   font-size: 16px;
   font-weight: 560;
@@ -301,6 +376,31 @@ body.options {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.field {
+  display: none;
+}
+
+.field.on {
+  display: block;
+}
+
+#body {
+  min-height: 84px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+#body.code {
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#kinds .chip {
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 .tag-row {

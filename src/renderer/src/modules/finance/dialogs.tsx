@@ -429,7 +429,9 @@ export function WithdrawalDialog({
   const [fee, setFee] = useState(w ? String(w.fee) : '0')
   const [rate, setRate] = useState(w ? String(w.rate) : '1')
   const [receivedCurrency, setReceivedCurrency] = useState<Currency>(w?.receivedCurrency ?? 'UAH')
-  const [received, setReceived] = useState(w ? String(w.received) : '')
+  // A stored value equal to the calculation was auto → keep the field empty so edits recalculate it.
+  const autoReceived = w ? Math.max(0, Math.round((w.amount - w.fee) * w.rate * 100) / 100) : null
+  const [received, setReceived] = useState(w && w.received !== autoReceived ? String(w.received) : '')
   const [method, setMethod] = useState(w?.method ?? '')
   const [at, setAt] = useState<number | null>(w?.at ?? defaultAt)
   const [note, setNote] = useState(w?.note ?? '')

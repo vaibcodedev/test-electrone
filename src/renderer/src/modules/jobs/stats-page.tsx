@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { JobFunnelRow } from '@shared/domain/jobs'
 import { useApi } from '@/lib/query'
-import { LOCALE } from '@/lib/format'
+import { LOCALE, fmtPercent } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -80,11 +80,11 @@ function FunnelTable({ title, description, rows }: { title: string; description:
                   <TableCell className="max-w-48 truncate font-medium">{r.label}</TableCell>
                   <TableCell className="text-right tabular-nums">{r.applied}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {r.replied} <span className="text-muted-foreground">· {r.replyRate}%</span>
+                    {r.replied} <span className="text-muted-foreground">· {fmtPercent(r.replyRate)}</span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{r.interview}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {r.offer} <span className="text-muted-foreground">· {r.offerRate}%</span>
+                    {r.offer} <span className="text-muted-foreground">· {fmtPercent(r.offerRate)}</span>
                   </TableCell>
                 </TableRow>
               ))}
@@ -99,9 +99,11 @@ function FunnelTable({ title, description, rows }: { title: string; description:
 /** Job search analytics: funnel, weekly activity, which board / resume / letter works. */
 export function JobStatsPage() {
   const [range, setRange] = useState<Range>('90')
-  const [now] = useState(() => Date.now())
-  const { data } = useApi('jobs', 'stats', { from: now - Number(range) * 86_400_000, to: now })
-  const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(new Date(w.week), 'd MMM', { locale: LOCALE }) }))
+  // No `to`: the server counts up to "now" on every refetch, so new records show up without reopening.
+  // `from` is a local midnight — the query key stays stable within a day.
+  const from = startOfDay(subDays(new Date(), Number(range))).getTime()
+  const { data } = useApi('jobs', 'stats', { from })
+  const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }) }))
 
   return (
     <Page>

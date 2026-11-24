@@ -1,4 +1,3 @@
-import { isNull } from 'drizzle-orm'
 import type { EntityType } from '@shared/entity-types'
 import type { SearchHit, SearchQuery } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
@@ -72,7 +71,7 @@ export class SearchIndex {
     this.ctx.tx(() => {
       this.ctx.sqlite.prepare('DELETE FROM search_index').run()
       for (const d of this.registry.all()) {
-        const rows = this.ctx.orm.select().from(d.table).where(isNull(d.table.deletedAt)).all() as AnyRow[]
+        const rows = this.ctx.orm.select().from(d.table).where(this.registry.live(d)).all() as AnyRow[]
         for (const row of rows) this.upsert(d.type, row.id, d.searchDoc(row))
       }
     })

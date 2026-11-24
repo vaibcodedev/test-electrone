@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { FunnelRow, Platform } from '@shared/domain/freelance'
 import { useApi } from '@/lib/query'
-import { LOCALE } from '@/lib/format'
+import { LOCALE, fmtReplyTime, fmtPercent } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -106,10 +106,10 @@ function FunnelTable({
                   <TableCell className="max-w-[220px] truncate font-medium">{r.label}</TableCell>
                   <TableCell className="text-right tabular-nums">{r.sent}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {r.replied} <span className="text-muted-foreground">· {r.replyRate}%</span>
+                    {r.replied} <span className="text-muted-foreground">· {fmtPercent(r.replyRate)}</span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {r.hired} <span className="text-muted-foreground">· {r.hireRate}%</span>
+                    {r.hired} <span className="text-muted-foreground">· {fmtPercent(r.hireRate)}</span>
                   </TableCell>
                   {creditsName && (
                     <TableCell className="text-right tabular-nums">{r.credits}</TableCell>
@@ -127,15 +127,16 @@ function FunnelTable({
 /** Funnel, conversion by task type and template, weekly activity for one platform. */
 export function StatsTab({ platform }: { platform: Platform }) {
   const [range, setRange] = useState<Range>('90')
-  const [to] = useState(() => Date.now())
-  const from = to - Number(range) * 86_400_000
-  const { data: stats } = useApi('freelance', 'stats', { platformId: platform.id, from, to })
+  // No `to`: the server counts up to "now" on every refetch, so new proposals show up without reopening.
+  // `from` is a local midnight — the query key stays stable within a day.
+  const from = startOfDay(subDays(new Date(), Number(range))).getTime()
+  const { data: stats } = useApi('freelance', 'stats', { platformId: platform.id, from })
 
   if (!stats) return null
   const t = stats.totals
   const weekly = stats.weekly.map((w) => ({
     ...w,
-    label: format(new Date(w.week), 'd MMM', { locale: LOCALE })
+    label: format(parseISO(w.week), 'd MMM', { locale: LOCALE })
   }))
 
   return (
@@ -149,7 +150,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
         />
         <span className="text-caption text-muted-foreground">
           {stats.avgReplyHours !== null
-            ? `Клієнти відповідають у середньому за ${stats.avgReplyHours < 48 ? `${Math.round(stats.avgReplyHours)} год` : `${Math.round(stats.avgReplyHours / 24)} дн.`}`
+            ? `Клієнти відповідають у середньому ${fmtReplyTime(stats.avgReplyHours)}`
             : 'Відповідей поки немає'}
         </span>
       </div>
@@ -166,7 +167,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
               <CardHeader>
                 <CardTitle>Воронка</CardTitle>
                 <CardDescription>
-                  Відповіли на {t.replyRate}% відгуків, контракт у {t.hireRate}%
+                  Відповіли на {fmtPercent(t.replyRate)} відгуків, контракт у {fmtPercent(t.hireRate)}
                 </CardDescription>
               </CardHeader>
               <CardContent>

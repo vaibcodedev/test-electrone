@@ -3,6 +3,10 @@ import { randomUUID } from 'crypto'
 export const newId = (): string => randomUUID()
 export const now = (): number => Date.now()
 
+/**
+ * Nominal day length. Fine for durations ("3 days ago", TTLs), but NOT for stepping between calendar
+ * days — a DST day is 23 or 25 hours long. Use `addDays` / `startOfDay` for calendar arithmetic.
+ */
 export const DAY_MS = 24 * 60 * 60 * 1000
 
 export function startOfDay(ts: number): number {
@@ -11,14 +15,33 @@ export function startOfDay(ts: number): number {
   return d.getTime()
 }
 
+/** Same local wall-clock time `n` calendar days later (DST-safe: a day may be 23 or 25 hours). */
+export function addDays(ts: number, n: number): number {
+  const d = new Date(ts)
+  d.setDate(d.getDate() + n)
+  return d.getTime()
+}
+
 export function endOfDay(ts: number): number {
-  return startOfDay(ts) + DAY_MS - 1
+  return addDays(startOfDay(ts), 1) - 1
 }
 
 export function startOfWeek(ts: number): number {
   const d = new Date(startOfDay(ts))
   const day = (d.getDay() + 6) % 7 // Monday = 0
-  return d.getTime() - day * DAY_MS
+  return addDays(d.getTime(), -day)
+}
+
+/** Local calendar date `YYYY-MM-DD` (not UTC: `toISOString()` gives the previous day east of Greenwich). */
+export function dayKey(ts: number): string {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Whole local calendar days since 1970-01-01 — changes exactly at local midnight. */
+export function localDayNumber(ts: number): number {
+  const d = new Date(ts)
+  return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY_MS)
 }
 
 export function startOfMonth(ts: number): number {

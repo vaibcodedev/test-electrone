@@ -77,9 +77,9 @@ function IdentityCard() {
           <div className="text-meta opacity-65">{greeting()}</div>
         </div>
       </div>
-      <div className="font-display mt-3 truncate text-[24px] leading-tight">{name || 'Твоя база'}</div>
+      <div className="font-display mt-3 truncate text-stat-sm leading-tight">{name || 'Твоя база'}</div>
       <div className="mt-3">
-        <SegmentBar value={done} total={Math.max(cards.length, 1)} tone="ink" segments={5} />
+        <SegmentBar value={done} total={Math.max(cards.length, 1)} tone="ink" segments={Math.min(Math.max(cards.length, 1), 8)} />
         <div className="mt-1.5 flex justify-between text-meta opacity-70">
           <span>
             {cards.length

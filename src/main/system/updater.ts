@@ -1,4 +1,6 @@
 import { app } from 'electron'
+import { existsSync, readFileSync } from 'fs'
+import { join } from 'path'
 import electronUpdater from 'electron-updater'
 import type { UpdateStatus } from '@shared/domain/system'
 import type { EventBus } from '../core/event-bus'
@@ -17,6 +19,12 @@ export class Updater {
   ) {
     if (!app.isPackaged) {
       this.status = { state: 'disabled', reason: 'Оновлення працюють лише в зібраній версії' }
+      return
+    }
+    // Placeholder repo in electron-builder.yml → every check is a 404 in the log. Don't go to GitHub at all.
+    const feed = join(process.resourcesPath, 'app-update.yml')
+    if (!existsSync(feed) || readFileSync(feed, 'utf8').includes('your-github-name')) {
+      this.status = { state: 'disabled', reason: 'Репозиторій для оновлень ще не налаштовано' }
       return
     }
     autoUpdater.autoDownload = config.settings.autoUpdate

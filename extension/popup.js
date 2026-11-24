@@ -3,8 +3,38 @@ import { TARGETS, hostOf, isRestricted, suggestTarget, vaultFetch } from './shar
 const $ = (id) => document.getElementById(id)
 const TARGET_LABEL = Object.fromEntries(TARGETS.map((t) => [t.id, t.label]))
 
+/** What each target asks for: labels, the text field, the default screenshot mode. */
+const FIELDS = {
+  design: { title: 'Назва', note: 'Нотатка', notePh: 'Чим сподобалося, де знадобиться', shot: 'visible', shotRequired: true },
+  bookmark: { title: 'Назва', note: 'Нотатка', notePh: 'Навіщо зберігаю, що подивитися', body: 'Цитата зі сторінки', bodyPh: 'Виділіть текст на сторінці до відкриття — він з’явиться тут', shot: 'visible' },
+  library: { title: 'Пакет або назва', note: 'Нотатка', notePh: 'Для чого знадобиться', shot: 'none' },
+  component: { title: 'Назва компонента', note: 'Опис', notePh: 'Що робить, де підглянув', body: 'Код', bodyPh: 'Виділіть код на сторінці до відкриття або вставте сюди', code: true, shot: 'visible' },
+  application: { title: 'Посада', note: 'Нотатка', notePh: 'Зарплата, контакти, враження', body: 'Опис вакансії', bodyPh: 'Виділіть опис на сторінці до відкриття або вставте сюди', shot: 'none' }
+}
+
+const KINDS = [
+  ['article', 'Стаття'],
+  ['video', 'Відео'],
+  ['course', 'Курс'],
+  ['docs', 'Документація'],
+  ['repo', 'Репо'],
+  ['other', 'Інше']
+]
+
+/** Same guess as the Vault side, so the chip shows what would be saved anyway. */
+function guessKind(url) {
+  const host = hostOf(url)
+  if (/youtube\.com|youtu\.be|vimeo\.com/.test(host)) return 'video'
+  if (/github\.com/.test(host)) return 'repo'
+  if (/udemy|coursera|egghead|frontendmasters/.test(host)) return 'course'
+  if (/^docs\.|developer\.|\/docs/.test(host)) return 'docs'
+  return 'article'
+}
+
 const state = {
   tab: null,
+  kind: 'article',
+  modeTouched: false,
   target: 'bookmark',
   mode: 'visible',
   screenshot: null,
@@ -25,7 +55,10 @@ async function saveDraft() {
       title: $('title').value,
       note: $('note').value,
       tags: $('tags').value,
-      selection: state.selection
+      selection: $('body').value,
+      company: $('company').value,
+      kind: state.kind,
+      modeTouched: state.modeTouched
     }
   })
 }
@@ -67,7 +100,7 @@ function renderTargets() {
     b.addEventListener('click', () => {
       state.target = t.id
       renderTargets()
-      renderSelectionHint()
+      renderFields()
     })
     box.append(b)
   }
@@ -103,10 +136,43 @@ function renderMode() {
   }
 }
 
-function renderSelectionHint() {
-  const n = state.selection.trim().length
-  const useful = state.target === 'application' || state.target === 'component' || state.target === 'bookmark'
-  $('selection-hint').textContent = n && useful ? `Виділений на сторінці текст (${n} симв.) додасться як ${state.target === 'component' ? 'код' : 'опис'}.` : ''
+/** Labels, extra fields and the screenshot default follow the chosen type. */
+function renderFields() {
+  const f = FIELDS[state.target]
+  for (const el of document.querySelectorAll('.field')) el.classList.toggle('on', el.dataset.for.split(' ').includes(state.target))
+  $('title-label').textContent = f.title
+  $('note-label').textContent = f.note
+  $('note').placeholder = f.notePh
+  if (f.body) {
+    $('body-label').textContent = f.body
+    $('body').placeholder = f.bodyPh
+    $('body').classList.toggle('code', !!f.code)
+  }
+  // Design needs a picture: no «Без скриншота» there.
+  $('shot-mode').querySelector('[data-mode="none"]').style.display = f.shotRequired ? 'none' : ''
+  if (!state.modeTouched || (f.shotRequired && state.mode === 'none')) {
+    state.mode = f.shot
+    if (state.mode === 'visible' && !state.screenshot) void captureVisible()
+  }
+  renderKinds()
+  renderMode()
+}
+
+function renderKinds() {
+  const box = $('kinds')
+  box.replaceChildren()
+  for (const [id, label] of KINDS) {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = 'chip'
+    b.textContent = label
+    b.setAttribute('aria-pressed', String(state.kind === id))
+    b.addEventListener('click', () => {
+      state.kind = id
+      renderKinds()
+    })
+    box.append(b)
+  }
 }
 
 function parseTags(value) {
@@ -172,7 +238,9 @@ async function save() {
       note: $('note').value.trim(),
       tags,
       screenshot: state.mode === 'none' ? null : state.screenshot,
-      selection: state.selection
+      selection: FIELDS[state.target].body ? $('body').value : '',
+      company: state.target === 'application' ? $('company').value.trim() : '',
+      kind: state.target === 'bookmark' ? state.kind : undefined
     }
   })
   state.saving = false
@@ -188,7 +256,8 @@ async function save() {
   $('done').style.display = 'flex'
   $('done-title').textContent = res.title || $('title').value
   $('done-type').textContent = `${TARGET_LABEL[state.target]}: збережено у Vault`
-  setTimeout(() => window.close(), 2500)
+  // Closes itself unless the user goes back to save something else from this tab.
+  state.closeTimer = setTimeout(() => window.close(), 4000)
 }
 
 /* ───────── init ───────── */
@@ -210,10 +279,12 @@ async function init() {
   $('title').value = draft?.title ?? (tab.title || '')
   $('note').value = draft?.note ?? ''
   $('tags').value = draft?.tags ?? ''
-  state.selection = draft?.selection ?? (await readSelection())
+  $('body').value = draft?.selection ?? (await readSelection())
+  $('company').value = draft?.company ?? ''
+  state.kind = draft?.kind ?? guessKind(tab.url)
+  state.modeTouched = !!draft?.modeTouched
 
   renderTargets()
-  renderSelectionHint()
   void renderRecentTags()
 
   if (area) {
@@ -223,9 +294,11 @@ async function init() {
     await chrome.action.setBadgeText({ tabId: tab.id, text: '' })
   } else {
     state.mode = 'visible'
-    renderMode()
     void captureVisible()
   }
+  // After the area capture the mode stays «area»; otherwise the type decides.
+  if (area) state.modeTouched = true
+  renderFields()
 
   const ping = await vaultFetch('/ping')
   if (ping.ok) setStatus('ok', 'Vault під’єднано')
@@ -238,6 +311,7 @@ $('shot-mode').addEventListener('click', (e) => {
   const mode = e.target?.dataset?.mode
   if (!mode) return
   setError('')
+  state.modeTouched = true
   if (mode === 'area') return void startAreaSelection()
   state.mode = mode
   if (mode === 'visible' && !state.screenshot) void captureVisible()
@@ -245,7 +319,17 @@ $('shot-mode').addEventListener('click', (e) => {
 })
 $('save').addEventListener('click', () => void save())
 $('open-options').addEventListener('click', () => chrome.runtime.openOptionsPage())
+// The red «no key / no connection» banner leads straight to the fix.
+$('status').addEventListener('click', () => $('status').dataset.state === 'bad' && chrome.runtime.openOptionsPage())
 $('close').addEventListener('click', () => window.close())
+$('back').addEventListener('click', () => {
+  clearTimeout(state.closeTimer)
+  $('done').style.display = 'none'
+  $('form').style.display = ''
+  $('note').value = ''
+  $('body').value = ''
+  $('title').focus()
+})
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void save()
 })

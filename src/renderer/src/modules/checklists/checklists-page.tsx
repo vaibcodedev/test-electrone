@@ -33,7 +33,9 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
       tabIndex={0}
       onClick={() => navigate(`/checklists/${item.id}`)}
       onKeyDown={(e) => e.key === 'Enter' && navigate(`/checklists/${item.id}`)}
-      className="group tile min-h-[190px] justify-between gap-0 p-5"
+      // Fixed order top-down (icon → title → description), button pinned to the bottom: titles line up
+      // across a row whether a card has a description or not.
+      className="group tile h-full min-h-[190px] gap-0 p-5"
     >
       <div className="flex items-start justify-between gap-3">
         {/* Icon chip: lighter square, so it never reads as a second dark pill next to «Запустити». */}
@@ -46,18 +48,19 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
           {item.total} {plural(item.total, ['пункт', 'пункти', 'пунктів'])}
         </span>
       </div>
-      <div>
-        <div className="font-display text-stat-sm leading-tight">{item.title}</div>
+      <div className="mt-4 min-w-0">
+        <div className="font-display line-clamp-2 text-stat-sm leading-tight">{item.title}</div>
         {item.description && (
           <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
             {item.description}
           </p>
         )}
         <TagList tags={item.tags} className="mt-2" />
+      </div>
+      <div className="mt-auto pt-4">
         <Button
           variant="subtle"
           size="sm"
-          className="mt-4"
           onClick={(e) => {
             e.stopPropagation()
             onLaunch()

@@ -76,7 +76,10 @@ import {
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import {
+  addDays,
   DAY_MS,
+  dayKey,
+  defined,
   newId,
   now,
   NotFoundError,
@@ -356,14 +359,16 @@ export class FreelanceModule {
       create: async (input) => {
         const [data, tagIds] = splitTags(proposalInputSchema.parse(input))
         this.platform(data.platformId)
+        const stamps = this.stamps(data.status)
         return repo.insert(
           {
             ...data,
-            sentAt: data.sentAt ?? (data.status === 'draft' ? null : now()),
             repliedAt: null,
             hiredAt: null,
             projectId: null,
-            ...this.stamps(data.status)
+            ...stamps,
+            // An explicitly passed date wins over the automatic "now" stamp.
+            sentAt: data.sentAt ?? stamps.sentAt ?? null
           },
           tagIds
         )
@@ -372,7 +377,8 @@ export class FreelanceModule {
         const { id, patch } = updateArgs(proposalPatchSchema).parse(args)
         const [data, tagIds] = splitTags(patch)
         const current = repo.rowOrThrow(id)
-        return repo.patch(id, { ...data, ...this.stamps(data.status, current) }, tagIds)
+        // Automatic stamps only fill what the caller did not pass explicitly.
+        return repo.patch(id, { ...this.stamps(data.status, current), ...defined(data) }, tagIds)
       },
       remove: async (id) => repo.softDelete(idArg.parse(id)),
       niches: async () =>
@@ -741,7 +747,7 @@ export class FreelanceModule {
   stats(query: z.input<typeof statsQuerySchema>): FreelanceStats {
     const q = statsQuerySchema.parse(query ?? {})
     const to = q.to ?? now()
-    const from = q.from ?? startOfDay(to) - 89 * DAY_MS
+    const from = q.from ?? addDays(startOfDay(to), -89)
     const rows = this.db
       .select()
       .from(proposals)
@@ -780,13 +786,13 @@ export class FreelanceModule {
         .map((p) => [p.id, p.name])
     )
 
-    const weeks = new Map<number, { sent: number; replied: number; hired: number }>()
-    for (let w = startOfWeek(from); w <= to; w += 7 * DAY_MS)
-      weeks.set(w, { sent: 0, replied: 0, hired: 0 })
+    // Keyed by local date: a 25-hour DST week would knock numeric `+ 7 * DAY_MS` keys off Monday midnight.
+    const weeks = new Map<string, { sent: number; replied: number; hired: number }>()
+    for (let w = startOfWeek(from); w <= to; w = addDays(w, 7))
+      weeks.set(dayKey(w), { sent: 0, replied: 0, hired: 0 })
     for (const r of rows) {
       if (r.status === 'draft') continue
-      const w = startOfWeek(r.sentAt ?? r.createdAt)
-      const b = weeks.get(w)
+      const b = weeks.get(dayKey(startOfWeek(r.sentAt ?? r.createdAt)))
       if (!b) continue
       b.sent++
       if (r.repliedAt) b.replied++
@@ -810,10 +816,7 @@ export class FreelanceModule {
         (r) => r.platformId,
         (k) => platformNames.get(k) ?? '—'
       ),
-      weekly: [...weeks.entries()].map(([w, v]) => ({
-        week: new Date(w).toISOString().slice(0, 10),
-        ...v
-      })),
+      weekly: [...weeks.entries()].map(([week, v]) => ({ week, ...v })),
       avgReplyHours: replyTimes.length
         ? Math.round((replyTimes.reduce((s, x) => s + x, 0) / replyTimes.length) * 10) / 10
         : null
@@ -827,17 +830,26 @@ export class FreelanceModule {
   /* ───────── goals ───────── */
 
   private periodRange(period: GoalPeriod, at = now()): [number, number] {
-    if (period === 'week') return [startOfWeek(at), startOfWeek(at) + 7 * DAY_MS - 1]
+    if (period === 'week') return [startOfWeek(at), addDays(startOfWeek(at), 7) - 1]
     const start = startOfMonth(at)
     const d = new Date(start)
     return [start, new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime() - 1]
   }
 
-  /** Net paid (after platform fee) in range, in the main currency of the platforms involved. */
-  private netIncome(from: number, to: number, platformId: string | null): number {
+  /**
+   * Net paid (after platform fee) in range. Amounts in different currencies are never added up:
+   * a platform goal counts only payments in the platform's currency; a goal over all platforms
+   * counts the currency with the largest net income in the period (USD when nothing was paid).
+   */
+  private netIncome(
+    from: number,
+    to: number,
+    platformId: string | null
+  ): { value: number; currency: Currency } {
     const rows = this.db
       .select({
         amount: payments.amount,
+        currency: payments.currency,
         fee: projects.feePercent,
         platformFee: platforms.defaultFeePercent
       })
@@ -854,11 +866,22 @@ export class FreelanceModule {
         )
       )
       .all()
-    return (
-      Math.round(
-        rows.reduce((s, r) => s + r.amount * (1 - (r.fee ?? r.platformFee ?? 0) / 100), 0) * 100
-      ) / 100
-    )
+    const byCurrency = new Map<string, number>()
+    for (const r of rows) {
+      const net = r.amount * (1 - (r.fee ?? r.platformFee ?? 0) / 100)
+      byCurrency.set(r.currency, (byCurrency.get(r.currency) ?? 0) + net)
+    }
+    const platformCurrency = platformId
+      ? this.db
+          .select({ currency: platforms.currency })
+          .from(platforms)
+          .where(eq(platforms.id, platformId))
+          .get()?.currency
+      : undefined
+    const currency = ((platformCurrency ??
+      [...byCurrency.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]) ??
+      'USD') as Currency
+    return { value: Math.round((byCurrency.get(currency) ?? 0) * 100) / 100, currency }
   }
 
   private metricValue(
@@ -866,21 +889,17 @@ export class FreelanceModule {
     from: number,
     to: number,
     platformId: string | null
-  ): number {
+  ): { value: number; currency: Currency | null } {
     if (metric === 'net_income') return this.netIncome(from, to, platformId)
     const f = this.stats({ from, to, platformId: platformId ?? undefined }).totals
-    switch (metric) {
-      case 'proposals':
-        return f.sent
-      case 'replies':
-        return f.replied
-      case 'contracts':
-        return f.hired
-      case 'reply_rate':
-        return f.replyRate
-      case 'hire_rate':
-        return f.hireRate
-    }
+    const value = {
+      proposals: f.sent,
+      replies: f.replied,
+      contracts: f.hired,
+      reply_rate: f.replyRate,
+      hire_rate: f.hireRate
+    }[metric]
+    return { value, currency: null }
   }
 
   goalsApi(): GoalsApi {
@@ -903,10 +922,16 @@ export class FreelanceModule {
           .filter((g) => !platformId || g.platformId === null || g.platformId === platformId)
           .map((g): GoalProgress => {
             const [periodStart, periodEnd] = this.periodRange(g.period)
-            const current = this.metricValue(g.metric, periodStart, periodEnd, g.platformId)
+            const { value: current, currency } = this.metricValue(
+              g.metric,
+              periodStart,
+              periodEnd,
+              g.platformId
+            )
             return {
               ...g,
               current,
+              currency,
               ratio: g.target ? Math.min(1, current / g.target) : 0,
               periodStart,
               periodEnd

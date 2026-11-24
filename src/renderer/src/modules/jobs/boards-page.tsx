@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { fmtPercent } from '@/lib/format'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -53,7 +54,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
           <div className="ml-auto flex items-center gap-2">
             {stats && (
               <Badge variant="soft" className="bg-card font-normal">
-                {stats.applied} відг. · відповіді {stats.replyRate}% · офери {stats.offer}
+                {stats.applied} відг. · відповіді {fmtPercent(stats.replyRate)} · офери {stats.offer}
               </Badge>
             )}
             <label className="flex items-center gap-2 text-caption text-muted-foreground">

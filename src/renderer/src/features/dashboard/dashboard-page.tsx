@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ArrowUpRight, BookOpen, Pause, Pin, Star, Timer, X } from 'lucide-react'
 import { Bar, BarChart, XAxis } from 'recharts'
 import { ENTITY_META } from '@shared/entity-types'
@@ -67,14 +67,14 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
           </Badge>
         )}
       </div>
-      <h2 className="font-display mt-3 text-[40px] leading-[0.98]">
+      <h2 className="font-display mt-3 text-title">
         {open.length
           ? `${open.length} ${plural(open.length, ['завдання', 'завдання', 'завдань'])} на сьогодні`
           : all.length
             ? 'Усе зроблено'
             : 'Вільний день'}
       </h2>
-      {all.length > 0 && <SegmentBar value={done} total={all.length} segments={6} className="mt-4 text-ink-foreground" />}
+      {all.length > 0 && <SegmentBar value={done} total={all.length} segments={Math.min(all.length, 8)} className="mt-4 text-ink-foreground" />}
       <ItemGroup className="mt-5 gap-0.5">
         {open.slice(0, 6).map((c) => {
           const late = c.dueAt! < todayStart
@@ -266,7 +266,7 @@ const activityConfig = { count: { label: 'Зроблено', color: 'var(--chart
 /** Single series → one validated hue, no legend; exact values on hover (dataviz skill). */
 function Activity({ data }: { data: { day: string; count: number }[] }) {
   const total = data.reduce((s, d) => s + d.count, 0)
-  const rows = data.map((d) => ({ ...d, label: format(new Date(d.day), 'd MMM', { locale: LOCALE }) }))
+  const rows = data.map((d) => ({ ...d, label: format(parseISO(d.day), 'd MMM', { locale: LOCALE }) }))
   return (
     <Card className="col-span-4">
       <CardHeader>

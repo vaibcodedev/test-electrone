@@ -102,3 +102,19 @@ export function mdPreview(md: string): string {
 export function countLabel(n: number, hasMore: boolean, forms: [string, string, string]): string {
   return hasMore ? `${n}+ ${forms[2]}` : `${n} ${plural(n, forms)}`
 }
+
+/** «за 3 години», «за 2 дні», «менш ніж за годину» — average client reply time. */
+export function fmtReplyTime(hours: number): string {
+  if (hours < 1) return 'менш ніж за годину'
+  if (hours < 48) {
+    const h = Math.round(hours)
+    return `за ${h} ${plural(h, ['годину', 'години', 'годин'])}`
+  }
+  const d = Math.round(hours / 24)
+  return `за ${d} ${plural(d, ['день', 'дні', 'днів'])}`
+}
+
+/** Percent in the uk locale: 33,3 %. */
+export function fmtPercent(value: number): string {
+  return `${value.toLocaleString('uk-UA', { maximumFractionDigits: 1 })}%`
+}

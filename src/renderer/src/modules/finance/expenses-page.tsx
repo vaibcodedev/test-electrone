@@ -128,6 +128,8 @@ function SubscriptionsSection({ month }: { month: string }) {
   })
   const [editing, setEditing] = useState<Subscription | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // New key per opening: a form closed with «Скасувати» never shows its unsaved values again.
+  const [openSeq, setOpenSeq] = useState(0)
   const inactive = all.filter((s) => !s.active)
 
   const total: MoneyByCurrency = {}
@@ -139,6 +141,7 @@ function SubscriptionsSection({ month }: { month: string }) {
   }
   const openDialog = (s: Subscription | null): void => {
     setEditing(s)
+    setOpenSeq((n) => n + 1)
     setDialogOpen(true)
   }
 
@@ -270,7 +273,7 @@ function SubscriptionsSection({ month }: { month: string }) {
         )}
       </CardContent>
       <SubscriptionDialog
-        key={editing?.id ?? 'new'}
+        key={`${editing?.id ?? 'new'}-${openSeq}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         subscription={editing}
@@ -285,6 +288,8 @@ function ExpensesSection({ month }: { month: string }) {
   const remove = useApiMutation('finance', 'removeExpense', { successMessage: 'Витрату видалено' })
   const [editing, setEditing] = useState<Expense | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // New key per opening: a form closed with «Скасувати» never shows its unsaved values again.
+  const [openSeq, setOpenSeq] = useState(0)
   const [nowTs] = useState(() => Date.now())
   const defaultAt = nowTs >= from && nowTs <= to ? nowTs : from + 12 * 3600_000
 
@@ -298,6 +303,7 @@ function ExpensesSection({ month }: { month: string }) {
   }
   const openDialog = (e: Expense | null): void => {
     setEditing(e)
+    setOpenSeq((n) => n + 1)
     setDialogOpen(true)
   }
 
@@ -409,7 +415,7 @@ function ExpensesSection({ month }: { month: string }) {
         )}
       </CardContent>
       <ExpenseDialog
-        key={editing?.id ?? `new-${month}`}
+        key={`${editing?.id ?? 'new'}-${openSeq}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         expense={editing}

@@ -4,6 +4,7 @@
  */
 import { z } from 'zod'
 import { idSchema, patchOf, urlSchema } from './common'
+import { BOOKMARK_KINDS } from './bookmarks'
 
 /* ───────────── Local projects ───────────── */
 
@@ -149,8 +150,12 @@ export const captureSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
   /** data:image/png;base64,… */
   screenshot: z.string().max(25_000_000).nullable().default(null),
-  /** Selected text on the page (job description, code…). */
-  selection: z.string().max(200_000).default('')
+  /** Selected text on the page (job description, code…), editable in the popup. */
+  selection: z.string().max(200_000).default(''),
+  /** Vacancy: company name. */
+  company: z.string().trim().max(200).default(''),
+  /** Bookmark: type chosen in the popup (guessed from the site otherwise). */
+  kind: z.enum(BOOKMARK_KINDS).optional()
 })
 export type CaptureInput = z.input<typeof captureSchema>
 

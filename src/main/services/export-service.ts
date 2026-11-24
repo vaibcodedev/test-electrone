@@ -14,7 +14,7 @@ import type { AnyRow, EntityRegistry } from '../core/registry'
 import type { TagService } from './tag-service'
 import type { LinkService } from './link-service'
 import { collectFiles } from './backup-service'
-import { slugify } from '../core/util'
+import { dayKey, slugify } from '../core/util'
 
 const enc = new TextEncoder()
 
@@ -43,7 +43,7 @@ export class ExportService {
   ) {}
 
   async export(format: ExportFormat): Promise<string | null> {
-    const day = new Date().toISOString().slice(0, 10)
+    const day = dayKey(Date.now())
     const isJson = format === 'json'
     const res = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0], {
       title: isJson ? 'Експорт у JSON' : 'Експорт у Markdown',

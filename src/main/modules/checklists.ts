@@ -319,7 +319,9 @@ export class ChecklistsModule {
     return this.db
       .select({ doneAt: checklistItems.doneAt })
       .from(checklistItems)
-      .where(sql`${checklistItems.doneAt} >= ${from}`)
+      // Ticks of a checklist in the trash don't count as done work.
+      .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
+      .where(and(isNull(checklists.deletedAt), sql`${checklistItems.doneAt} >= ${from}`))
       .all() as { doneAt: number }[]
   }
 }

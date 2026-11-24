@@ -37,7 +37,7 @@ const itemVariants = cva(
       variant: {
         default: "bg-transparent [a]:hover:bg-surface [button]:hover:bg-surface",
         outline: "border-border",
-        muted: "bg-surface [a]:hover:bg-accent [button]:hover:bg-accent",
+        muted: "bg-surface [a]:hover:bg-(--tile-hover) [button]:hover:bg-(--tile-hover)",
         // Selected row in master lists (reference: black "Item return" row).
         active: "bg-ink text-ink-foreground [&_[data-slot=item-description]]:text-ink-muted",
       },
@@ -124,7 +124,8 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="item-title"
       className={cn(
-        "flex w-fit items-center gap-2 text-sm leading-snug font-medium",
+        // [&.truncate]:block — ellipsis doesn't work on a flex container, so a truncated title becomes a block.
+        "flex w-fit min-w-0 max-w-full items-center gap-2 text-sm leading-snug font-medium [&.truncate]:block",
         className
       )}
       {...props}

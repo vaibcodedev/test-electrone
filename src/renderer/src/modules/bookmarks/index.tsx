@@ -24,13 +24,14 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { api } from '@/lib/api'
-import { fmtDate, hostOf } from '@/lib/format'
+import { fmtDate, fmtRelative, hostOf, mdPreview } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Progress } from '@/components/ui/progress'
+import { Badge } from '@/components/ui/badge'
 import { ItemMedia } from '@/components/ui/item'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
@@ -51,10 +52,19 @@ import { ImportButton } from '@/components/common/import-dialog'
 const LIMITS = limitsOf(bookmarkInputSchema)
 
 const STATUS_LABEL: Record<BookmarkStatus, string> = {
-  queue: 'Прочитати',
+  // A state, not a call to action: «Прочитати» next to a dot read like a link.
+  queue: 'У черзі',
   in_progress: 'Читаю',
   done: 'Прочитано',
   dropped: 'Покинув'
+}
+
+/** Status reads at a glance: queue neutral, reading in progress blue, read green, dropped muted. */
+const STATUS_BADGE: Record<BookmarkStatus, 'soft' | 'info' | 'success' | 'outline'> = {
+  queue: 'soft',
+  in_progress: 'info',
+  done: 'success',
+  dropped: 'outline'
 }
 
 const KIND_LABEL: Record<BookmarkKind, string> = {
@@ -290,51 +300,59 @@ export function BookmarksPage() {
               renderItem={(b) => {
                 const active = b.id === openId
                 const Icon = KIND_ICON[b.kind]
+                const note = mdPreview(b.notes)
+                const reading = b.status === 'in_progress' || b.status === 'done'
                 return (
-                  <ListItem active={active} onClick={() => setOpen(b.id)}>
-                    <div className="flex items-center gap-3">
+                  <ListItem active={active} onClick={() => setOpen(b.id)} className="@container">
+                    <div className="flex items-center gap-3.5">
                       <ItemMedia
                         variant="icon"
-                        className={cn('size-9', active ? 'bg-ink-foreground/10 text-ink-foreground' : 'bg-card')}
+                        className={cn('size-10 rounded-xl', active ? 'bg-ink-foreground/10 text-ink-foreground' : 'bg-foreground/[0.07]')}
                       >
                         <Icon />
                       </ItemMedia>
                       <div className="min-w-0 flex-1">
-                        <div
-                          className={cn(
-                            'truncate text-body font-medium',
-                            b.status === 'done' && !active && 'text-muted-foreground'
-                          )}
-                        >
+                        <div className={cn('truncate text-body font-semibold', b.status === 'done' && !active && 'text-muted-foreground')}>
                           {b.title}
                         </div>
-                        <div className={cn('mt-0.5 flex items-center gap-2 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                          <span className="truncate">{b.url ? hostOf(b.url) : KIND_LABEL[b.kind]}</span>
-                          <span>·</span>
-                          <span className="shrink-0">{STATUS_LABEL[b.status]}</span>
-                          {b.rating > 0 && (
-                            <span className="flex shrink-0 items-center gap-0.5">
-                              <Star className="size-3 fill-current" />
-                              {b.rating}
-                            </span>
-                          )}
+                        <div className={cn('mt-0.5 flex min-w-0 items-center gap-1.5 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                          <span className="shrink-0">{b.url ? hostOf(b.url) : KIND_LABEL[b.kind]}</span>
+                          {/* Wide list only: the note's first line and when it was saved. */}
+                          {note && <span className="hidden min-w-0 truncate @2xl:inline">— {note}</span>}
                         </div>
                       </div>
-                      {b.status !== 'queue' && b.status !== 'dropped' && (
-                        <Progress
-                          value={b.progress}
-                          aria-label="Прогрес"
-                          className={cn(
-                            // chart-1 is contrast-checked against surfaces; on an ink row the bar uses ink colours.
-                            'h-1.5 w-16 shrink-0',
-                            active
-                              ? 'bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-ink-foreground'
-                              : 'bg-card [&>[data-slot=progress-indicator]]:bg-chart-1'
-                          )}
-                        />
-                      )}
+                      <div className="flex shrink-0 items-center gap-3">
+                        {b.rating > 0 && (
+                          <span className={cn('hidden items-center gap-1 text-caption tabular-nums @md:flex', active ? 'text-ink-foreground' : 'text-foreground')}>
+                            <Star className="size-3.5 fill-current text-warn" />
+                            {b.rating}
+                          </span>
+                        )}
+                        {reading && (
+                          <span className="hidden items-center gap-2 @lg:flex">
+                            <Progress
+                              value={b.progress}
+                              aria-label="Прогрес"
+                              className={cn(
+                                // chart-1 is contrast-checked against surfaces; on an ink row the bar uses ink colours.
+                                'h-1.5 w-20',
+                                active
+                                  ? 'bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-ink-foreground'
+                                  : 'bg-card [&>[data-slot=progress-indicator]]:bg-chart-1'
+                              )}
+                            />
+                            <span className={cn('w-9 text-right text-caption tabular-nums', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                              {b.progress}%
+                            </span>
+                          </span>
+                        )}
+                        <Badge variant={active ? 'ink' : STATUS_BADGE[b.status]}>{STATUS_LABEL[b.status]}</Badge>
+                        <span className={cn('hidden w-24 text-right text-meta @3xl:inline', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                          {fmtRelative(b.createdAt)}
+                        </span>
+                      </div>
                     </div>
-                    {!active && !openId && <TagList tags={b.tags} className="mt-2 pl-12" />}
+                    {!active && b.tags.length > 0 && <TagList tags={b.tags} className="mt-2 pl-[3.375rem]" />}
                   </ListItem>
                 )
               }}

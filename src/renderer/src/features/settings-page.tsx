@@ -265,10 +265,10 @@ export function SettingsPage() {
                   run('backup-as', () => createBackup.mutateAsync({ saveAs: true }), (r) => r && toast.success('Бекап збережено'))
                 }
               >
-                <Download /> Зберегти бекап як…
+                <Download /> Зберегти у файл
               </Button>
               <Button variant="outline" disabled={!!busy} onClick={() => run('restore', () => api.backup.restore({}))}>
-                <RotateCcw /> Відновити з файлу…
+                <RotateCcw /> Відновити з файлу
               </Button>
             </div>
             {backups.length > 0 && (

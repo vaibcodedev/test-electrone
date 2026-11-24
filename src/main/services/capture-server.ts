@@ -212,7 +212,7 @@ export class CaptureServer {
       case 'bookmark': {
         const host = new URL(input.url).hostname
         const kind = /youtube\.com|youtu\.be|vimeo\.com/.test(host) ? 'video' : /github\.com/.test(host) ? 'repo' : /udemy|coursera|egghead|frontendmasters/.test(host) ? 'course' : 'article'
-        const b = await api.bookmarks.create({ title, url: input.url, kind, notes: [input.note, input.selection].filter(Boolean).join('\n\n'), tagIds })
+        const b = await api.bookmarks.create({ title, url: input.url, kind: input.kind ?? kind, notes: [input.note, input.selection].filter(Boolean).join('\n\n'), tagIds })
         await attach('bookmark', b.id)
         return { type: 'bookmark', id: b.id, title: b.title }
       }
@@ -230,7 +230,7 @@ export class CaptureServer {
       case 'application': {
         const host = new URL(input.url).hostname.replace(/^www\./, '')
         const board = (await api.jobs.boards()).find((b) => b.url && new URL(b.url).hostname.replace(/^www\./, '') === host)
-        const a = await api.jobs.create({ title, url: input.url, description: input.selection, notes: input.note, boardId: board?.id ?? null, status: 'saved', tagIds })
+        const a = await api.jobs.create({ title, url: input.url, companyName: input.company, description: input.selection, notes: input.note, boardId: board?.id ?? null, status: 'saved', tagIds })
         await attach('application', a.id)
         return { type: 'application', id: a.id, title: a.title }
       }

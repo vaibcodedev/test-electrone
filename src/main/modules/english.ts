@@ -21,7 +21,7 @@ import { z } from 'zod'
 import { wordReviews, words } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { DAY_MS, newId, now, startOfDay } from '../core/util'
+import { addDays, localDayNumber, newId, now, startOfDay } from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 
 type WordRow = typeof words.$inferSelect
@@ -62,7 +62,7 @@ export function schedule(
     intervalDays,
     repetitions,
     lapses,
-    dueAt: startOfDay(at + intervalDays * DAY_MS) + 4 * 3600_000,
+    dueAt: startOfDay(addDays(at, intervalDays)) + 4 * 3600_000,
     lastReviewedAt: at
   }
 }
@@ -109,7 +109,8 @@ export class EnglishModule {
     if (!list.length) return null
     const pool = list.filter((w) => w.stage !== 'mastered')
     const source = pool.length ? pool : list
-    const day = Math.floor(now() / DAY_MS)
+    // Local day number: the word changes at local midnight, not at 00:00 UTC.
+    const day = localDayNumber(now())
     return source[day % source.length]
   }
 
@@ -121,15 +122,15 @@ export class EnglishModule {
     const reviews = this.db
       .select({ at: wordReviews.reviewedAt })
       .from(wordReviews)
-      .where(gte(wordReviews.reviewedAt, today - 400 * DAY_MS))
+      .where(gte(wordReviews.reviewedAt, addDays(today, -400)))
       .orderBy(desc(wordReviews.reviewedAt))
       .all()
     const days = new Set(reviews.map((r) => startOfDay(r.at)))
     let streak = 0
-    let cursor = days.has(today) ? today : today - DAY_MS
+    let cursor = days.has(today) ? today : addDays(today, -1)
     while (days.has(cursor)) {
       streak++
-      cursor -= DAY_MS
+      cursor = addDays(cursor, -1)
     }
     return {
       total: list.length,

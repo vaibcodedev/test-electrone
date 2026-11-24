@@ -434,7 +434,8 @@ export class FinanceModule {
       },
       createWithdrawal: async (input) => {
         const data = withdrawalInputSchema.parse(input)
-        const received = data.received ?? r2((data.amount - data.fee) * data.rate)
+        // Empty «Надійшло» = auto; never negative (fee bigger than the amount gives 0, not a minus).
+        const received = data.received ?? Math.max(0, r2((data.amount - data.fee) * data.rate))
         return this.toWithdrawal(
           this.db
             .insert(withdrawals)
@@ -448,11 +449,13 @@ export class FinanceModule {
         const cur = this.db.select().from(withdrawals).where(eq(withdrawals.id, id)).get()
         if (!cur) throw new NotFoundError('Виведення', id)
         const next = { ...cur, ...patch }
+        // null = the field was cleared → auto; undefined = untouched → recompute only when inputs changed.
         const recompute =
-          patch.received === undefined &&
-          (patch.amount !== undefined || patch.fee !== undefined || patch.rate !== undefined)
+          patch.received === null ||
+          (patch.received === undefined &&
+            (patch.amount !== undefined || patch.fee !== undefined || patch.rate !== undefined))
         const received =
-          patch.received ?? (recompute ? r2((next.amount - next.fee) * next.rate) : cur.received)
+          patch.received ?? (recompute ? Math.max(0, r2((next.amount - next.fee) * next.rate)) : cur.received)
         const row = this.db
           .update(withdrawals)
           .set({ ...patch, received: received ?? 0 })

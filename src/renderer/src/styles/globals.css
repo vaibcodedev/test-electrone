@@ -15,6 +15,11 @@
   Sage frame + paper panels + ink cards + one lime accent (from the reference set).
   Hierarchy is carried by radius: frame 28 → panel 24 → tile 18 → control 12 → chip full.
 */
+/* Hover fill for clickable tiles and list rows: visible on a dark surface (surface→accent was ~2%). */
+:root {
+  --tile-hover: color-mix(in oklab, var(--surface), var(--foreground) 7%);
+}
+
 @theme inline {
   --font-sans: 'Onest Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
@@ -264,7 +269,7 @@
     background-color 0.15s var(--ease-soft),
     box-shadow 0.15s var(--ease-soft);
   &:hover {
-    background-color: color-mix(in oklab, var(--surface), var(--foreground) 7%);
+    background-color: var(--tile-hover);
     box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 16%, transparent);
   }
   &:focus-visible {

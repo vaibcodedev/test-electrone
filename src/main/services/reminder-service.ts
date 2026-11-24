@@ -9,7 +9,7 @@ import { occurrences } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
 import type { JobsModule } from '../modules/jobs'
 import type { ConfigStore } from '../core/config-store'
-import { DAY_MS, now } from '../core/util'
+import { DAY_MS, now, startOfWeek } from '../core/util'
 
 const TICK_MS = 30_000
 /** Reminders older than this (app was closed) are skipped instead of spamming on startup. */
@@ -72,7 +72,7 @@ export class ReminderService {
           if (remindAt > t || remindAt < t - STALE_MS) continue
           if (slot.sent !== null && slot.sent >= start) continue
           const d = new Date(start)
-          const when = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+          const when = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })
           const isToday = new Date().toDateString() === d.toDateString()
           const body = e.allDay ? (isToday ? 'Сьогодні' : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })) : isToday ? `Сьогодні о ${when}` : `${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })} о ${when}`
           this.notify(e.title, body, ENTITY_META.event.route(e.id))
@@ -96,7 +96,7 @@ export class ReminderService {
     const d = new Date(t)
     const [h, m] = weeklyReviewTime.split(':').map(Number)
     if (d.getDay() !== weeklyReviewDay || d.getHours() * 60 + d.getMinutes() < h * 60 + m) return
-    const week = new Date(t - ((d.getDay() + 6) % 7) * DAY_MS).toDateString()
+    const week = new Date(startOfWeek(t)).toDateString()
     if (this.config.lastWeeklyReview === week) return
     this.config.lastWeeklyReview = week
     this.notify('Підсумки тижня готові', 'Що зроблено, гроші, відгуки без відповіді й плани на наступний тиждень', '/review')

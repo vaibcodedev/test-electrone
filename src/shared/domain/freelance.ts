@@ -364,6 +364,12 @@ export interface Goal {
 
 export interface GoalProgress extends Goal {
   current: number
+  /**
+   * Currency of `current` / `target` for money metrics (`net_income`), null otherwise.
+   * Only payments in this currency are summed: the platform's currency, or — for a goal over all
+   * platforms — the currency with the largest net income in the period.
+   */
+  currency: Currency | null
   /** 0..1 */
   ratio: number
   periodStart: number

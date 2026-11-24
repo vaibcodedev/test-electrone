@@ -33,6 +33,8 @@ export function WithdrawalsPage() {
   })
   const [editing, setEditing] = useState<Withdrawal | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // New key per opening: a form closed with «Скасувати» never shows its unsaved values again.
+  const [openSeq, setOpenSeq] = useState(0)
   const [nowTs] = useState(() => Date.now())
   const defaultAt = nowTs >= from && nowTs <= to ? nowTs : from + 12 * 3600_000
   const platformName = new Map(platformList.map((p) => [p.id, p.name]))
@@ -49,6 +51,7 @@ export function WithdrawalsPage() {
   }
   const openDialog = (w: Withdrawal | null): void => {
     setEditing(w)
+    setOpenSeq((n) => n + 1)
     setDialogOpen(true)
   }
 
@@ -131,7 +134,7 @@ export function WithdrawalsPage() {
                           {w.fee ? fmtMoney(w.fee, w.currency) : '—'}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground tabular-nums">
-                          {w.rate === 1 ? '—' : w.rate}
+                          {w.rate === 1 ? '—' : w.rate.toLocaleString('uk-UA', { maximumFractionDigits: 4 })}
                         </TableCell>
                         <TableCell className="text-right font-medium tabular-nums">
                           {fmtMoney(w.received, w.receivedCurrency)}
@@ -196,7 +199,7 @@ export function WithdrawalsPage() {
         )}
       </PageBody>
       <WithdrawalDialog
-        key={editing?.id ?? `new-${month}`}
+        key={`${editing?.id ?? 'new'}-${openSeq}`}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         withdrawal={editing}

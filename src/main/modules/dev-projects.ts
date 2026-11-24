@@ -306,13 +306,15 @@ export class DevProjectsModule {
     // On Windows the script runs through a shell: only plain script names (package.json keys).
     if (!/^[\w:.@/-]+$/.test(script)) throw new UserError(`Назва скрипта «${script}» містить недозволені символи`)
     this.push(run, `$ ${pm} run ${script}\n`, 'sys')
-    const child = spawn(pm, ['run', script], {
+    // Windows needs a shell for npm.cmd; with shell the command goes as one string (args + shell is DEP0190).
+    // Safe: pm comes from detectPm, the script name was checked above.
+    const child = (IS_WIN ? spawn(`${pm} run ${script}`, { shell: true, cwd: p.path, windowsHide: true, env: { ...process.env, FORCE_COLOR: '0', BROWSER: 'none' } }) : spawn(pm, ['run', script], {
       cwd: p.path,
-      shell: IS_WIN,
+      shell: false,
       detached: !IS_WIN,
       windowsHide: true,
       env: { ...process.env, FORCE_COLOR: '0', BROWSER: 'none' }
-    })
+    }))
     run.child = child
     run.pid = child.pid ?? null
     child.stdout?.on('data', (d: Buffer) => this.push(run, d.toString(), 'out'))
@@ -357,7 +359,8 @@ export class DevProjectsModule {
       throw new UserError('Шлях до папки містить спецсимволи (" % ^ & | < > $ ` !) — перейменуйте папку, щоб відкрити її звідси.')
     const quoted = `"${p.path}"`
     const launch = (cmd: string, args: string[], onFail?: () => void): void => {
-      const child = spawn(cmd, args, {
+      // One command string: args + shell:true is deprecated (DEP0190). The path is quoted and checked above.
+      const child = spawn([cmd, ...args].join(' '), {
         shell: true,
         detached: true,
         stdio: 'ignore',

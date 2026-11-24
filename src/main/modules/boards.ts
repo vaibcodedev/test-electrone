@@ -40,6 +40,9 @@ const PRIORITY_LABEL: Record<string, string> = {
   urgent: 'терміново'
 }
 
+/** A card counts only while its board isn't in the trash (cards keep deletedAt = null when the board goes). */
+export const CARD_ON_LIVE_BOARD = sql`${cards.boardId} IN (SELECT ${boards.id} FROM ${boards} WHERE ${boards.deletedAt} IS NULL)`
+
 export class BoardsModule {
   readonly boardRepo: SoftRepository<BoardRow, Board>
   readonly cardRepo: SoftRepository<CardRow, Card>
@@ -63,7 +66,9 @@ export class BoardsModule {
       type: 'card',
       table: cards,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({ title: r.title, subtitle: PRIORITY_LABEL[r.priority] || undefined })
+      summary: (r) => ({ title: r.title, subtitle: PRIORITY_LABEL[r.priority] || undefined }),
+      // Cards of a board in the trash stay deletedAt = null; this hides them from feeds, pins, links, search.
+      aliveWhere: CARD_ON_LIVE_BOARD
     }
     this.descriptors = [boardDescriptor, cardDescriptor]
     this.boardRepo = new SoftRepository<BoardRow, Board>(m.repo, boardDescriptor, (r, tags) => ({

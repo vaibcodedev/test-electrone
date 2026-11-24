@@ -1,11 +1,11 @@
-import { and, desc, eq, gte, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, isNotNull, sql } from 'drizzle-orm'
 import type { EntityType } from '@shared/entity-types'
 import type { EntitySummary } from '@shared/domain/common'
 import type { DashboardData } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { bookmarks, cards, ideas } from '../db/schema'
 import type { AnyRow, EntityRegistry } from '../core/registry'
-import { DAY_MS, endOfDay, now, startOfDay, startOfWeek } from '../core/util'
+import { addDays, dayKey, endOfDay, now, startOfDay, startOfWeek } from '../core/util'
 import type { PinService } from './pin-service'
 import type { BoardsModule } from '../modules/boards'
 import type { CalendarModule } from '../modules/calendar'
@@ -38,7 +38,7 @@ export class DashboardService {
       const rows = this.ctx.orm
         .select()
         .from(d.table)
-        .where(isNull(d.table.deletedAt))
+        .where(this.registry.live(d))
         .orderBy(desc(d.table.updatedAt))
         .limit(limit)
         .all() as AnyRow[]
@@ -54,29 +54,29 @@ export class DashboardService {
         this.ctx.orm
           .select({ c: sql<number>`count(*)` })
           .from(d.table)
-          .where(isNull(d.table.deletedAt))
+          .where(this.registry.live(d))
           .get()?.c ?? 0
     }
     return out
   }
 
   private activity(): { day: string; count: number }[] {
-    const from = startOfDay(now()) - 13 * DAY_MS
+    const from = addDays(startOfDay(now()), -13)
     const done = this.ctx.orm
       .select({ at: cards.completedAt })
       .from(cards)
-      .where(and(isNull(cards.deletedAt), isNotNull(cards.completedAt), gte(cards.completedAt, from)))
+      .where(and(this.registry.live(this.registry.get('card')), isNotNull(cards.completedAt), gte(cards.completedAt, from)))
       .all()
       .map((r) => r.at!)
     const checks = this.mods.checklists.doneSince(from).map((r) => r.doneAt)
-    const buckets = new Map<number, number>()
+    const buckets = new Map<string, number>()
     for (const at of [...done, ...checks]) {
-      const day = startOfDay(at)
+      const day = dayKey(at)
       buckets.set(day, (buckets.get(day) ?? 0) + 1)
     }
     return Array.from({ length: 14 }, (_, i) => {
-      const day = from + i * DAY_MS
-      return { day: new Date(day).toISOString().slice(0, 10), count: buckets.get(day) ?? 0 }
+      const day = dayKey(addDays(from, i))
+      return { day, count: buckets.get(day) ?? 0 }
     })
   }
 
@@ -93,7 +93,7 @@ export class DashboardService {
       today: {
         cards: dueToday,
         overdue,
-        agenda: this.mods.calendar.feed(todayStart, todayEnd + 2 * DAY_MS).filter((i) => i.source !== 'card')
+        agenda: this.mods.calendar.feed(todayStart, addDays(todayEnd, 2)).filter((i) => i.source !== 'card')
       },
       pinned: this.pins.list('pin'),
       favorites: this.pins.list('favorite'),

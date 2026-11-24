@@ -4,7 +4,7 @@ import { AlertTriangle, ArchiveRestore, ArrowRight, BellRing, Plus, Target } fro
 import type { Platform } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fmtDay, fmtMoney, plural } from '@/lib/format'
+import { fmtDay, fmtMoney, fmtPercent, fmtReplyTime, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -152,11 +152,12 @@ export function FreelanceOverviewPage() {
               <CardTitle>Воронка за 30 днів</CardTitle>
               {totals && totals.sent > 0 && (
                 <CardDescription>
-                  {totals.sent} відгуків → {totals.replied} відповідей ({totals.replyRate}%) →{' '}
-                  {totals.hired} контрактів ({totals.hireRate}%)
+                  {totals.sent} {plural(totals.sent, ['відгук', 'відгуки', 'відгуків'])} → {totals.replied}{' '}
+                  {plural(totals.replied, ['відповідь', 'відповіді', 'відповідей'])} ({fmtPercent(totals.replyRate)}) →{' '}
+                  {totals.hired} {plural(totals.hired, ['контракт', 'контракти', 'контрактів'])} ({fmtPercent(totals.hireRate)})
                   {stats?.avgReplyHours !== null &&
                     stats?.avgReplyHours !== undefined &&
-                    ` · відповідають у середньому за ${stats.avgReplyHours} год`}
+                    ` · відповідають у середньому ${fmtReplyTime(stats.avgReplyHours)}`}
                 </CardDescription>
               )}
             </CardHeader>
@@ -188,11 +189,11 @@ export function FreelanceOverviewPage() {
                         <TableCell className="text-right tabular-nums">{r.sent}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {r.replied}{' '}
-                          <span className="text-muted-foreground">· {r.replyRate}%</span>
+                          <span className="text-muted-foreground">· {fmtPercent(r.replyRate)}</span>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{r.interview}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {r.hired} <span className="text-muted-foreground">· {r.hireRate}%</span>
+                          {r.hired} <span className="text-muted-foreground">· {fmtPercent(r.hireRate)}</span>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{r.credits}</TableCell>
                       </TableRow>

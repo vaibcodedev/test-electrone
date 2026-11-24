@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
 import type { SQLiteColumn } from 'drizzle-orm/sqlite-core'
 import type { EntityType } from '@shared/entity-types'
 import type { Tag } from '@shared/domain/common'
@@ -88,7 +88,9 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
       .select()
       .from(this.table)
       .where(and(isNull(this.table.deletedAt), ...conditions))
-      .orderBy(...orderBy)
+      // id last: rows with equal sort keys (a JSON import stamps many in the same ms) keep a stable order,
+      // so LIMIT/OFFSET pages never repeat or skip a row at the boundary.
+      .orderBy(...orderBy, asc(this.table.id))
       .$dynamic()
     if (limit) q = q.limit(limit)
     // SQLite needs a LIMIT for OFFSET: -1 = "no limit".

@@ -96,6 +96,9 @@ src/renderer/
 - **Горячие клавиши** — единый реестр `app/shortcuts.ts` + обработчик `hooks/use-global-shortcuts.ts` + справка `Ctrl+/`. Страничные клавиши работают через атрибуты общих компонентов: `N` нажимает лаймовую кнопку в `PageHeader`, `/` фокусирует `SearchInput` (`data-page-search`), `Esc` закрывает `DetailPane` (`data-close-detail`). Новую клавишу — сначала в реестр.
 - **Журнал ошибок** — electron-log (`main/core/logger.ts`): `%APPDATA%/<app>/logs/main.log`. В main логировать через `log`, в renderer ошибки уходят через `reportError` → `api.app.logError`. Не глотать ошибки молча.
 - Каждая новая сущность: таблица в `db/schema`, `npm run db:generate`, дескриптор в модуле, регистрация в `container.ts`, маршрут в `ENTITY_META`.
+- Зависимые сущности (карточки доски) при удалении родителя остаются с `deletedAt = null` (иначе каждая всплыла бы в корзине отдельно). Поэтому у дескриптора есть `aliveWhere`, а сквозной код фильтрует через `registry.live(d)`, не через голый `isNull(deletedAt)`.
+- Даты: ключ дня — `dayKey(ts)` (локальный), шаг по дням/неделям — `addDays()` (`core/util.ts`). `toISOString().slice(0,10)` и `+ n * DAY_MS` для календаря запрещены: UTC-сдвиг и переход на летнее время.
+- Регистронезависимый поиск в SQL — `ulower()` (функция из `db/client`), не `lower()`.
 - Файлы — только в `<data>/files`, в БД относительный путь; в renderer — `fileUrl(path)` (`vault-file://`).
 - Безопасность: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, строгий CSP, внешние ссылки только через `api.app.openExternal`, пароли через `safeStorage`.
 

@@ -583,7 +583,8 @@ function Editor({
             </div>
           </div>
         </div>
-        <HireDialog open={hireOpen} onOpenChange={setHireOpen} proposal={p} platform={platform} />
+        {/* Mounted per opening: the form takes the proposal as it is now, not as it was when the editor opened. */}
+        {hireOpen && <HireDialog open onOpenChange={setHireOpen} proposal={p} platform={platform} />}
       </div>
     </RecordMode>
   )

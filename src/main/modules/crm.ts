@@ -310,10 +310,18 @@ export class CrmModule {
   /** Minutes worked inside [from, to]: entries crossing midnight / week boundaries count only their part. */
   minutesInRange(from: number, to: number): number {
     const at = now()
+    // Projects in the trash don't count (running() already hides them).
     return this.db
-      .select()
+      .select({ startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt, minutes: timeEntries.minutes })
       .from(timeEntries)
-      .where(and(lte(timeEntries.startedAt, to), or(isNull(timeEntries.endedAt), gte(timeEntries.endedAt, from))))
+      .innerJoin(projects, eq(projects.id, timeEntries.projectId))
+      .where(
+        and(
+          isNull(projects.deletedAt),
+          lte(timeEntries.startedAt, to),
+          or(isNull(timeEntries.endedAt), gte(timeEntries.endedAt, from))
+        )
+      )
       .all()
       .reduce((s, t) => s + overlapMinutes(t, from, to, at), 0)
   }
@@ -698,11 +706,12 @@ export class CrmModule {
     if (currency !== project.currency)
       throw new Error(`Етапи фіксованого проєкту — у валюті проєкту (${project.currency}).`)
     const others = this.db
-      .select({ id: payments.id, amount: payments.amount, currency: payments.currency })
+      .select({ id: payments.id, amount: payments.amount, currency: payments.currency, status: payments.status })
       .from(payments)
       .where(eq(payments.projectId, (project as { id?: string }).id ?? ''))
       .all()
-      .filter((p) => p.id !== exceptId && p.currency === currency)
+      // Cancelled stages free their share (the UI counts «не розподілено» the same way).
+      .filter((p) => p.id !== exceptId && p.currency === currency && p.status !== 'cancelled')
       .reduce((sum, p) => sum + p.amount, 0)
     const left = Math.round((project.fixedPrice - others) * 100) / 100
     if (amount > left + 0.005) {
