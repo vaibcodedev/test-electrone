@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
-import { BellRing, ExternalLink, Flame, Settings2 } from 'lucide-react'
+import { ArrowRight, BellRing, ExternalLink, Flame, Settings2 } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DailyBoard } from '@shared/domain/jobs'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -69,21 +69,17 @@ function TodayRow({ board }: { board: DailyBoard }) {
 
 function Counter({ label, value, hint, onClick, accent }: { label: string; value: number; hint?: string; onClick?: () => void; accent?: boolean }) {
   return (
-    <Card className={cn('gap-1 py-4', accent && 'bg-ink text-ink-foreground')}>
-      <CardContent className="flex flex-col gap-1">
-        <span className={cn('text-[12.5px]', accent ? 'text-ink-muted' : 'text-muted-foreground')}>{label}</span>
-        <span className="font-display text-[34px] leading-none tabular-nums">{value}</span>
-        {hint && onClick ? (
-          <Button
-            variant="link"
-            className={cn('mt-1 justify-start text-[12px] font-normal', accent ? 'text-ink-accent' : 'text-muted-foreground')}
-            onClick={onClick}
-          >
-            {hint}
-          </Button>
-        ) : (
-          hint && <span className="mt-1 text-[12px] text-muted-foreground">{hint}</span>
-        )}
+    <Card className={cn('gap-3 py-4', accent && 'bg-ink text-ink-foreground')}>
+      <CardContent className="flex flex-col gap-2">
+        <span className={cn('text-[13px] font-medium', accent ? 'text-ink-muted' : 'text-muted-foreground')}>{label}</span>
+        <div className="flex items-end justify-between gap-3">
+          <span className="font-display text-[34px] leading-none tabular-nums">{value}</span>
+          {hint && onClick && (
+            <Button variant="subtle" size="xs" className={cn(accent && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')} onClick={onClick}>
+              {hint} <ArrowRight />
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   )
@@ -155,13 +151,23 @@ export function JobsOverviewPage() {
                   ))}
                 </ItemGroup>
               )}
-              <p className="mt-3 flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                <BellRing className="size-3.5" />
-                {reminder ? `Вечернее напоминание в ${reminder}, если что-то не отмечено.` : 'Вечернее напоминание выключено.'}
-                <Button variant="link" className="text-[12px] font-normal text-muted-foreground" onClick={() => navigate('/settings')}>
-                  Настроить
+              <div className="mt-4 flex items-center gap-3 border-t pt-4">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-card">
+                  <BellRing className="size-4 text-muted-foreground" />
+                </span>
+                <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-muted-foreground">
+                  {reminder ? (
+                    <>
+                      Напомню в <span className="font-medium text-foreground tabular-nums">{reminder}</span>, если что-то не отмечено
+                    </>
+                  ) : (
+                    'Вечернее напоминание выключено'
+                  )}
+                </p>
+                <Button variant="subtle" size="xs" onClick={() => navigate('/settings')}>
+                  {reminder ? 'Изменить время' : 'Включить'}
                 </Button>
-              </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -170,7 +176,7 @@ export function JobsOverviewPage() {
               <CardTitle>Последние 4 недели</CardTitle>
               <CardDescription>Отклик засчитывается сам; галочка закрывает день, если подходящих вакансий не было.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-1 flex-col">
               <DailyHeatmap boards={data.today} />
             </CardContent>
           </Card>
@@ -190,7 +196,7 @@ export function JobsOverviewPage() {
             <CardHeader>
               <CardTitle>Ближайшие собеседования и тестовые</CardTitle>
               <CardAction>
-                <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => navigate('/calendar')}>
+                <Button variant="subtle" size="xs" onClick={() => navigate('/calendar')}>
                   Календарь
                 </Button>
               </CardAction>
@@ -202,23 +208,24 @@ export function JobsOverviewPage() {
                 <ItemGroup className="gap-1.5">
                   {data.upcoming.map((s) => {
                     const when = s.at ?? s.deadlineAt
+                    const kind = STAGE_KIND_LABEL[s.kind]
+                    const stage = s.title && s.title !== kind ? s.title : null
                     return (
-                      <Item key={s.id} asChild size="xs" className="cursor-pointer bg-card hover:ring-1 hover:ring-border">
+                      <Item key={s.id} asChild size="sm" className="cursor-pointer gap-3 bg-card p-2.5 pr-4 hover:ring-1 hover:ring-border">
                         <button type="button" className="w-full text-left" onClick={() => navigate(ENTITY_META.application.route(s.applicationId))}>
-                          <span className="w-20 shrink-0 text-[12px] text-muted-foreground tabular-nums">
-                            {when ? `${fmtDay(when)}${s.at ? `, ${format(s.at, 'HH:mm')}` : ''}` : '—'}
+                          <span className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch rounded-xl bg-surface py-1.5">
+                            <span className="text-[11px] leading-none text-muted-foreground">{when ? fmtDay(when) : '—'}</span>
+                            {s.at && <span className="text-[15px] leading-tight font-semibold tabular-nums">{format(s.at, 'HH:mm')}</span>}
                           </span>
-                          <ItemContent className="min-w-0">
-                            <ItemTitle className="w-full truncate font-normal">
-                              {s.title || STAGE_KIND_LABEL[s.kind]}
-                              {s.kind === 'test_task' && s.deadlineAt ? ' — сдать' : ''}
-                            </ItemTitle>
-                            <ItemDescription className="truncate text-[11.5px]">
-                              {s.applicationTitle}
-                              {s.company ? ` — ${s.company}` : ''}
+                          <ItemContent className="min-w-0 gap-1">
+                            <ItemTitle className="w-full truncate">{s.company || s.applicationTitle}</ItemTitle>
+                            <ItemDescription className="truncate text-[12px]">
+                              {s.company ? s.applicationTitle : ''}
+                              {stage ? `${s.company ? ' · ' : ''}${stage}` : ''}
+                              {s.kind === 'test_task' && s.deadlineAt ? ' · сдать до срока' : ''}
                             </ItemDescription>
                           </ItemContent>
-                          <Badge variant={s.kind === 'test_task' ? 'warn' : 'info'}>{STAGE_KIND_LABEL[s.kind]}</Badge>
+                          <Badge variant={s.kind === 'test_task' ? 'warn' : 'info'}>{kind}</Badge>
                         </button>
                       </Item>
                     )
@@ -233,7 +240,7 @@ export function JobsOverviewPage() {
               <CardTitle>Напомнить о себе</CardTitle>
               <CardDescription>Подошла дата напоминания или нет ответа неделю.</CardDescription>
               <CardAction>
-                <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => navigate('/freelance/templates?situation=follow_up')}>
+                <Button variant="subtle" size="xs" onClick={() => navigate('/freelance/templates?situation=follow_up')}>
                   Шаблоны
                 </Button>
               </CardAction>

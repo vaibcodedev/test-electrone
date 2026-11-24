@@ -7,12 +7,13 @@ import { Plus } from 'lucide-react'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { dayKey, itemColor, SOURCE_LABEL } from './items'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+/** Lines a month cell can show; when there are more items, the last line becomes "+N". */
 const MAX_IN_CELL = 3
 
 function timeLabel(item: CalendarItem): string {
@@ -39,6 +40,42 @@ function ItemChip({ item, onOpen }: { item: CalendarItem; onOpen: (item: Calenda
       {timeLabel(item) && <span className="shrink-0 text-muted-foreground tabular-nums">{timeLabel(item)}</span>}
       <span className="truncate">{item.title}</span>
     </Button>
+  )
+}
+
+/** "+N" in a full month cell: opens the whole day's list in a popover. */
+function MoreItems({
+  day,
+  items,
+  count,
+  onOpen
+}: {
+  day: Date
+  items: CalendarItem[]
+  count: number
+  onOpen: (item: CalendarItem) => void
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={(e) => e.stopPropagation()}
+          className="h-5 w-fit justify-start rounded-lg px-1.5 text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          ещё {count}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 p-2" onClick={(e) => e.stopPropagation()}>
+        <div className="px-1.5 pb-1.5 text-[12.5px] font-semibold capitalize">{format(day, 'EEEE, d MMMM', { locale: LOCALE })}</div>
+        <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
+          {items.map((item) => (
+            <ItemChip key={item.key} item={item} onOpen={onOpen} />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -80,17 +117,20 @@ export function MonthView({
               className={cn(
                 'group min-h-[92px] cursor-pointer gap-0.5 overflow-hidden rounded-2xl p-1.5 transition-colors',
                 inMonth ? 'bg-surface/60 hover:bg-surface' : 'bg-transparent opacity-55 hover:bg-surface/50',
-                today && 'bg-card ring-2 ring-lime'
+                today && 'bg-surface ring-1 ring-lime/70 ring-inset'
               )}
             >
               <div className="flex items-center justify-between pb-0.5">
-                {today ? (
-                  <Badge variant="ink" className="h-6 min-w-6 px-1.5 text-[12.5px] tabular-nums">
-                    {format(day, 'd')}
-                  </Badge>
-                ) : (
-                  <span className="grid h-6 min-w-6 place-items-center px-1 text-[12.5px] tabular-nums">{format(day, 'd')}</span>
-                )}
+                {/* Today = filled lime circle (one accent); other days keep the same box so numbers line up. */}
+                <span
+                  className={cn(
+                    'grid size-6 place-items-center rounded-full text-[12.5px] leading-none tabular-nums',
+                    today && 'bg-lime font-semibold text-lime-foreground'
+                  )}
+                  aria-current={today ? 'date' : undefined}
+                >
+                  {format(day, 'd')}
+                </span>
                 <Button
                   variant="ghost"
                   size="icon-xs"
@@ -104,12 +144,18 @@ export function MonthView({
                   <Plus />
                 </Button>
               </div>
-              {items.slice(0, MAX_IN_CELL).map((item) => (
-                <ItemChip key={item.key} item={item} onOpen={onItemClick} />
-              ))}
-              {items.length > MAX_IN_CELL && (
-                <span className="px-1.5 text-[11px] text-muted-foreground">ещё {items.length - MAX_IN_CELL}</span>
-              )}
+              {(() => {
+                const shown = items.length > MAX_IN_CELL ? items.slice(0, MAX_IN_CELL - 1) : items
+                const rest = items.length - shown.length
+                return (
+                  <>
+                    {shown.map((item) => (
+                      <ItemChip key={item.key} item={item} onOpen={onItemClick} />
+                    ))}
+                    {rest > 0 && <MoreItems day={day} items={items} count={rest} onOpen={onItemClick} />}
+                  </>
+                )
+              })()}
             </Card>
           )
         })}

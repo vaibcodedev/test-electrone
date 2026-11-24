@@ -83,7 +83,7 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
       />
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="xs" className="text-muted-foreground">
+          <Button variant="subtle" size="xs">
             {paid && row.paidAmount !== null && row.paidAmount !== row.amount
               ? fmtMoney(row.paidAmount, row.currency)
               : 'Другая сумма'}

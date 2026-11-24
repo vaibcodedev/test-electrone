@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { AlertTriangle, BellRing, Plus, Target } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BellRing, Plus, Target } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { useApi } from '@/lib/query'
 import { fmtDay, fmtMoney, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardAction,
@@ -48,26 +47,29 @@ function CreditsRow({ platform }: { platform: Platform }) {
   if (!s) return null
   const low = s.balance < LOW_CREDITS
   return (
-    <Item size="xs" variant="muted" className="bg-card">
-      <ItemContent className="min-w-0">
+    <Item size="sm" variant="muted" className="gap-4 bg-card px-4 py-3">
+      <ItemContent className="min-w-0 gap-1">
         <ItemTitle className="w-full truncate">{platform.name}</ItemTitle>
         <ItemDescription className="text-[12px]">
           {s.costPerContract !== null
-            ? `контракт стоил ${fmtMoney(s.costPerContract, platform.currency)}`
+            ? `один контракт стоил ${fmtMoney(s.costPerContract, platform.currency)}`
             : 'контрактов пока нет'}
         </ItemDescription>
       </ItemContent>
-      <ItemActions>
-        <Badge variant={low ? 'warn' : 'soft'}>
-          {low && <AlertTriangle />}
-          {s.balance} {platform.creditsName}
-        </Badge>
+      <ItemActions className="gap-4">
+        <div className={cn('flex flex-col items-end gap-0.5', low && 'text-warn')}>
+          <span className="flex items-center gap-1 font-display text-[22px] leading-none tabular-nums">
+            {low && <AlertTriangle className="size-4" />}
+            {s.balance}
+          </span>
+          <span className="text-[11px] text-muted-foreground">{platform.creditsName}</span>
+        </div>
         <Button
-          variant="ghost"
+          variant={low ? 'lime' : 'soft'}
           size="xs"
           onClick={() => navigate(`/freelance/p/${platform.id}?tab=credits`)}
         >
-          {low ? 'Пополнить' : 'Открыть'}
+          {low ? 'Пополнить' : 'Открыть'} <ArrowRight />
         </Button>
       </ItemActions>
     </Item>
@@ -259,11 +261,10 @@ export function FreelanceOverviewPage() {
 
           {/* Goals */}
           <div className="col-span-12 flex items-center justify-between pt-2">
-            <h2 className="text-[13px] font-medium text-muted-foreground">Цели</h2>
+            <h2 className="text-[13.5px] font-semibold">Цели</h2>
             <Button
-              variant="ghost"
+              variant="subtle"
               size="xs"
-              className="text-muted-foreground"
               onClick={() => navigate('/freelance/goals')}
             >
               <Target /> Все цели

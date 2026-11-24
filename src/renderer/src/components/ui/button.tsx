@@ -14,9 +14,12 @@ const buttonVariants = cva(
         lime: 'bg-lime text-lime-foreground hover:brightness-95 disabled:bg-surface disabled:text-muted-foreground',
         soft: 'bg-surface text-foreground hover:bg-accent disabled:text-muted-foreground',
         outline: 'border border-input bg-transparent hover:bg-surface disabled:opacity-50',
-        ghost: 'text-foreground hover:bg-surface disabled:opacity-40',
+        // Tinted hover: ghost buttons mostly sit on bg-surface cards, where hover:bg-surface was invisible.
+        ghost: 'text-foreground hover:bg-foreground/[0.07] disabled:opacity-40',
+        // Navigation from a card ("Все библиотеки", "Календарь"): a visible pill on bg-surface cards.
+        subtle: 'bg-card text-foreground hover:bg-accent disabled:opacity-50',
         destructive: 'bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50',
-        link: 'h-auto rounded-none px-0 text-foreground underline-offset-4 hover:underline disabled:opacity-50'
+        link: 'h-auto rounded-none px-0 text-foreground underline decoration-current/30 underline-offset-4 hover:decoration-current disabled:opacity-50'
       },
       size: {
         default: 'h-9 px-4 has-[>svg]:px-3.5',
@@ -29,6 +32,8 @@ const buttonVariants = cva(
         'icon-lg': 'size-11'
       }
     },
+    // Sizes add padding/height; a link must stay flush with the text around it.
+    compoundVariants: [{ variant: 'link', className: 'h-auto px-0 has-[>svg]:px-0' }],
     defaultVariants: {
       variant: 'default',
       size: 'default'

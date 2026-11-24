@@ -36,7 +36,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-[15px] text-foreground">
           {running.length > 0 && <span className="size-2 shrink-0 animate-pulse rounded-full bg-lime" aria-label="запущен" />}
-          <Button variant="link" className="h-auto truncate p-0 text-[15px] font-medium" onClick={onOpen}>
+          <Button variant="link" className="h-auto truncate p-0 text-[15px] font-medium no-underline hover:underline" onClick={onOpen}>
             {p.name}
           </Button>
         </CardTitle>
@@ -112,7 +112,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
             </Button>
           ) : (
             main && (
-              <Button size="sm" variant="lime" disabled={!p.exists || run.isPending} onClick={() => run.mutate({ projectId: p.id, script: main })}>
+              <Button size="sm" variant="default" disabled={!p.exists || run.isPending} onClick={() => run.mutate({ projectId: p.id, script: main })}>
                 <Play /> {main}
               </Button>
             )

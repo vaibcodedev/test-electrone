@@ -78,7 +78,7 @@ function Delta({ m }: { m: WeekMetric }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge variant={good ? 'lime' : 'soft'} className={cn(!good && 'text-muted-foreground')}>
+        <Badge variant={good ? 'success' : 'soft'} className={cn(!good && 'text-muted-foreground')}>
           <Icon />
           {fmtValue(m, Math.abs(diff))}
         </Badge>

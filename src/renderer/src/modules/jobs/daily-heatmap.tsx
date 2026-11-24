@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import type { BoardDay, DailyBoard } from '@shared/domain/jobs'
-import { LOCALE } from '@/lib/format'
+import { LOCALE, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -29,25 +29,68 @@ function describe(day: BoardDay, target: number): string {
   return parts.join(' · ')
 }
 
-/** Board × day grid (like a GitHub contribution graph) for the daily job-board habit. */
+const chunk = <T,>(arr: T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-2xl bg-card px-4 py-3">
+      <span className="text-[12px] text-muted-foreground">{label}</span>
+      <span className="font-display text-[22px] leading-none tabular-nums">{value}</span>
+    </div>
+  )
+}
+
+/** Board × day grid (like a GitHub contribution graph) for the daily job-board habit, grouped by weeks. */
 export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
   if (!boards.length) return null
   const days = boards[0].history
+  const weeks = chunk(days, 7)
+  const applied = boards.reduce((n, b) => n + b.history.reduce((m, d) => m + d.applied, 0), 0)
+  const expected = boards.reduce((n, b) => n + b.history.filter((d) => d.expected).length, 0)
+  const done = boards.reduce((n, b) => n + b.history.filter((d) => d.expected && d.done).length, 0)
+  const best = boards.reduce((n, b) => Math.max(n, b.streak), 0)
+  const cols = `minmax(84px, 112px) repeat(${weeks.length}, minmax(0, 1fr)) 48px`
+
   return (
-    <div className="flex flex-col gap-2 overflow-x-auto">
-      <div className="grid items-center gap-x-1 gap-y-2" style={{ gridTemplateColumns: `minmax(90px, 120px) repeat(${days.length}, minmax(10px, 1fr)) 56px` }}>
-        <span />
-        {days.map((d, i) => (
-          <span key={d.day} className="text-center text-[10px] text-muted-foreground tabular-nums">
-            {i % 7 === 0 || i === days.length - 1 ? format(parseDay(d.day), 'd') : ''}
-          </span>
-        ))}
-        <span className="text-right text-[10.5px] text-muted-foreground">серия</span>
+    <div className="flex flex-1 flex-col gap-5">
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Откликов" value={String(applied)} />
+        <Stat label="Дней с нормой" value={expected ? `${Math.round((done / expected) * 100)}%` : '—'} />
+        <Stat label="Лучшая серия" value={`${best} ${plural(best, ['день', 'дня', 'дней'])}`} />
+      </div>
+
+      <div className="flex flex-col gap-2 overflow-x-auto">
+        <div className="grid items-end gap-x-2.5" style={{ gridTemplateColumns: cols }}>
+          <span />
+          {weeks.map((w) => (
+            <span key={w[0].day} className="text-[11px] text-muted-foreground tabular-nums">
+              {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE })}
+            </span>
+          ))}
+          <span className="text-right text-[11px] text-muted-foreground">серия</span>
+        </div>
         {boards.map((b) => (
-          <BoardRow key={b.id} board={b} />
+          <div key={b.id} className="grid items-center gap-x-2.5" style={{ gridTemplateColumns: cols }}>
+            <span className="flex min-w-0 items-center gap-2 text-[13px] font-medium">
+              <span className="size-2 shrink-0 rounded-full" style={{ background: b.color ?? 'var(--muted-foreground)' }} />
+              <span className="truncate">{b.name}</span>
+            </span>
+            {chunk(b.history, 7).map((w) => (
+              <div key={w[0].day} className="grid grid-cols-7 gap-[3px]">
+                {w.map((d) => (
+                  <Cell key={d.day} board={b} day={d} />
+                ))}
+              </div>
+            ))}
+            <span className={cn('text-right text-[12.5px] tabular-nums', b.streak ? 'font-semibold' : 'text-muted-foreground')}>
+              {b.streak} дн.
+            </span>
+          </div>
         ))}
       </div>
-      <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+
+      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-[4px] bg-chart-1" /> норма выполнена
         </span>
@@ -65,29 +108,20 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
   )
 }
 
-function BoardRow({ board }: { board: DailyBoard }) {
+function Cell({ board, day: d }: { board: DailyBoard; day: BoardDay }) {
   return (
-    <>
-      <span className="flex min-w-0 items-center gap-2 text-[12.5px]">
-        <span className="size-2 shrink-0 rounded-full" style={{ background: board.color ?? 'var(--muted-foreground)' }} />
-        <span className="truncate">{board.name}</span>
-      </span>
-      {board.history.map((d) => (
-        <Tooltip key={d.day}>
-          <TooltipTrigger asChild>
-            <span
-              tabIndex={0}
-              aria-label={`${board.name}, ${d.day}: ${describe(d, board.dailyTarget)}`}
-              className={cn('aspect-square w-full min-w-2.5 rounded-[3px]', cellClass(d, board.dailyTarget))}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <div className="font-medium">{format(parseDay(d.day), 'EEEE, d MMMM', { locale: LOCALE })}</div>
-            <div className="opacity-80">{describe(d, board.dailyTarget)}</div>
-          </TooltipContent>
-        </Tooltip>
-      ))}
-      <span className="text-right text-[12px] tabular-nums">{board.streak} дн.</span>
-    </>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          aria-label={`${board.name}, ${d.day}: ${describe(d, board.dailyTarget)}`}
+          className={cn('h-7 w-full rounded-[5px] outline-none focus-visible:ring-2 focus-visible:ring-ring', cellClass(d, board.dailyTarget))}
+        />
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="font-medium">{format(parseDay(d.day), 'EEEE, d MMMM', { locale: LOCALE })}</div>
+        <div className="opacity-80">{describe(d, board.dailyTarget)}</div>
+      </TooltipContent>
+    </Tooltip>
   )
 }

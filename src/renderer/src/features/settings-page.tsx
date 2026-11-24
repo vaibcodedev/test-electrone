@@ -153,8 +153,8 @@ export function SettingsPage() {
   return (
     <Page>
       <PageHeader title="Настройки" subtitle={info ? `Vault ${info.version}` : undefined} />
-      <PageBody className="max-w-4xl">
-        <div className="flex flex-col gap-3">
+      <PageBody>
+        <div className="flex max-w-4xl flex-col gap-3">
           <Section title="Вы" hint="Имя показывается в приветствии.">
             <Row label="Как к вам обращаться">
               <Input

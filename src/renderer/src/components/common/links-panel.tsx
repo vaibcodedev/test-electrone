@@ -59,7 +59,7 @@ function LinkPicker({ entity }: { entity: EntityRef }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="xs" className="text-muted-foreground">
+        <Button variant="subtle" size="xs">
           <Plus /> Связать
         </Button>
       </PopoverTrigger>

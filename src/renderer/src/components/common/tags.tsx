@@ -60,7 +60,12 @@ export function TagList({ tags, max = 4, className }: { tags: Tag[]; max?: numbe
   return (
     <div className={cn('flex flex-wrap items-center gap-1', className)}>
       {tags.slice(0, max).map((t) => (
-        <TagChip key={t.id} tag={t} />
+        // Rows sit on the same surface as a soft badge, so the chip gets its own tint (and an ink one in active rows).
+        <TagChip
+          key={t.id}
+          tag={t}
+          className="h-5 px-2 bg-foreground/[0.07] [[data-active]_&]:bg-ink-foreground/12 [[data-active]_&]:text-ink-foreground"
+        />
       ))}
       {tags.length > max && <span className="text-[11px] text-muted-foreground">+{tags.length - max}</span>}
     </div>

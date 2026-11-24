@@ -109,7 +109,7 @@ function Agenda({ items }: { items: CalendarItem[] }) {
       <CardHeader>
         <CardTitle>Ближайшие 3 дня</CardTitle>
         <CardAction>
-          <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => navigate('/calendar')}>
+          <Button variant="subtle" size="xs" onClick={() => navigate('/calendar')}>
             Календарь
           </Button>
         </CardAction>
@@ -247,7 +247,7 @@ function EnglishTile({ due, word }: { due: number; word: { id: string; term: str
         {word ? (
           <Button
             variant="link"
-            className="flex-col items-start gap-1 text-left whitespace-normal hover:no-underline"
+            className="flex-col items-start gap-1 text-left whitespace-normal no-underline"
             onClick={() => navigate(ENTITY_META.word.route(word.id))}
           >
             <span className="font-display text-[26px] leading-tight">{word.term}</span>
@@ -408,7 +408,7 @@ export function DashboardPage() {
           title="Идеи во входящих"
           className="col-span-6"
           action={
-            <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => navigate('/ideas')}>
+            <Button variant="subtle" size="xs" onClick={() => navigate('/ideas')}>
               Все идеи
             </Button>
           }

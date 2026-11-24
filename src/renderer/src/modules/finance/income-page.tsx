@@ -92,7 +92,7 @@ export function IncomePage() {
                         <Button
                           asChild
                           variant="link"
-                          className="h-auto max-w-full justify-start truncate font-medium"
+                          className="h-auto max-w-full justify-start truncate font-medium no-underline hover:underline"
                         >
                           <Link to={`/projects/${r.projectId}`}>{r.projectTitle}</Link>
                         </Button>

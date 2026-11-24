@@ -41,7 +41,7 @@ export function AskedQuestions({
     <section className="flex flex-col gap-3">
       <SectionLabel
         action={
-          <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => navigate('/jobs/questions')}>
+          <Button variant="subtle" size="xs" onClick={() => navigate('/jobs/questions')}>
             Банк вопросов <ArrowUpRight />
           </Button>
         }

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { ArrowUpRight, Plus, SquareKanban } from 'lucide-react'
 import type { BoardSummary } from '@shared/domain/boards'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fmtRelative, plural } from '@/lib/format'
+import { fmtRelative } from '@/lib/format'
 import { EmptyState, Field, Page, PageBody, PageHeader, SegmentBar } from '@/components/common/page'
 import { TagList } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
@@ -84,11 +84,14 @@ function BoardTile({ board }: { board: BoardSummary }) {
       )}
       <div className="mt-auto pt-4">
         {board.tags.length > 0 && <TagList tags={board.tags} max={3} className="relative mb-3" />}
-        <SegmentBar value={board.doneCount} total={Math.max(board.cardCount, 1)} segments={5} />
+        {/* One segment per card (up to 8), so the bar reads as "how many are done". */}
+        {board.cardCount > 0 && (
+          <SegmentBar value={board.doneCount} total={board.cardCount} segments={Math.min(board.cardCount, 8)} />
+        )}
         <div className="mt-1.5 flex justify-between text-[11.5px] text-muted-foreground">
           <span>
             {board.cardCount
-              ? `${open} ${plural(open, ['открытая', 'открытые', 'открытых'])} из ${board.cardCount}`
+              ? `Готово ${board.doneCount} из ${board.cardCount}${open ? ` · ${open} в работе` : ''}`
               : 'Пока без карточек'}
           </span>
           <span>{fmtRelative(board.updatedAt)}</span>

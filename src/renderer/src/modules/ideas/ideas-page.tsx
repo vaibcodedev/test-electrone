@@ -64,7 +64,7 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
         )}
         <span>· {fmtRelative(idea.updatedAt)}</span>
       </div>
-      {idea.tags.length > 0 && <TagList tags={idea.tags} className="mt-2" max={3} />}
+      {idea.tags.length > 0 && <TagList tags={idea.tags} className="mt-1.5" max={3} />}
     </ListItem>
   )
 }
