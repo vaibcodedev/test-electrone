@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { GitCommitHorizontal, GitPullRequest, Lock, MessageSquare, CircleDot, RefreshCw, Star, Unplug } from 'lucide-react'
 import type { GithubIssue } from '@shared/domain/dev'
 import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
-import { LOCALE, fmtRelative } from '@/lib/format'
+import { LOCALE, dayKey, fmtRelative } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
@@ -185,7 +185,7 @@ function CommitsTab({ force }: { force: number }) {
   const days = useMemo(() => {
     const map = new Map<string, NonNullable<typeof commits>>()
     for (const c of commits ?? []) {
-      const key = format(c.at, 'yyyy-MM-dd')
+      const key = dayKey(c.at)
       map.set(key, [...(map.get(key) ?? []), c])
     }
     return [...map.entries()]

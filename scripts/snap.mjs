@@ -38,7 +38,7 @@ if (process.env.SNAP_SEED) {
   await seed(rpc)
 }
 
-/** Replaces {board} {project} {client} {component} {checklist} {moodboard} with real ids. */
+/** Replaces {board} {project} {client} {component} {checklist} {moodboard} {platform} … with real ids. */
 async function resolveRoute(route) {
   const lookups = {
     board: ['boards.list'],
@@ -50,13 +50,18 @@ async function resolveRoute(route) {
     idea: ['ideas.list'],
     claude: ['claude.list'],
     snippet: ['snippets.list'],
-    card: ['cards.due', { from: 0, to: 9e15 }]
+    card: ['cards.due', { from: 0, to: 9e15 }],
+    word: ['english.list'],
+    question: ['jobs.questions'],
+    // Upwork has the seeded proposals, credits and stats.
+    platform: ['platforms.list', undefined, (xs) => xs.find((x) => x.kind === 'upwork') ?? xs[0]]
   }
   let out = route
-  for (const [token, [path, arg]] of Object.entries(lookups)) {
+  for (const [token, [path, arg, pick = (xs) => xs[0]]] of Object.entries(lookups)) {
     if (!out.includes(`{${token}}`)) continue
     const r = await rpc(path, arg)
-    out = out.replace(`{${token}}`, r.ok && r.data[0] ? r.data[0].id : 'missing')
+    const hit = r.ok ? pick(r.data) : undefined
+    out = out.replace(`{${token}}`, hit ? hit.id : 'missing')
   }
   return out
 }

@@ -6,12 +6,12 @@ import {
   KeyboardSensor,
   PointerSensor,
   useDraggable,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent
 } from '@dnd-kit/core'
+import { DropZone } from '@/components/common/drop-zone'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Application, ApplicationStatus, JobBoard } from '@shared/domain/jobs'
 import { useApiMutation } from '@/lib/query'
@@ -49,33 +49,6 @@ function DraggableApplication({
       {...attributes}
       {...listeners}
     />
-  )
-}
-
-function DropZone({
-  status,
-  children,
-  className,
-  compact
-}: {
-  status: ApplicationStatus
-  children?: ReactNode
-  className?: string
-  compact?: boolean
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: `status:${status}` })
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'flex flex-col gap-2 rounded-2xl transition-colors',
-        compact ? 'min-h-14 p-2' : 'min-h-24 flex-1 p-1',
-        isOver && 'bg-lime-soft ring-2 ring-inset ring-ring/60',
-        className
-      )}
-    >
-      {children}
-    </div>
   )
 }
 
@@ -193,7 +166,7 @@ export function ApplicationBoard({
                 <span className="text-body font-medium">{APP_STATUS_LABEL[status]}</span>
                 <span className="text-caption text-muted-foreground tabular-nums">{list.length}</span>
               </div>
-              <DropZone status={status} className="overflow-y-auto">
+              <DropZone id={`status:${status}`} className="overflow-y-auto">
                 <PagedCards items={list} render={renderCard} />
               </DropZone>
             </Card>
@@ -231,7 +204,7 @@ export function ApplicationBoard({
                   <div className="flex items-center gap-2 px-2 text-caption text-muted-foreground">
                     {APP_STATUS_LABEL[status]} <span className="tabular-nums">{list.length}</span>
                   </div>
-                  <DropZone status={status} compact className="bg-surface">
+                  <DropZone id={`status:${status}`} compact className="bg-surface">
                     {list.map(renderCard)}
                   </DropZone>
                 </div>

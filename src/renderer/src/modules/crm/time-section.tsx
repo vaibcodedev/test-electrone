@@ -9,7 +9,7 @@ import { draftToNumber, numberToDraft } from './money'
 import { startOfDayMs, toRange, type EntryDraft } from './time-range'
 import { toast } from 'sonner'
 import { limitsOf } from '@/lib/limits'
-import { LOCALE, fmtMinutes, fmtMoney } from '@/lib/format'
+import { LOCALE, dayKey, fmtMinutes, fmtMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -25,7 +25,6 @@ import { Section } from './parts'
 
 const DESC_MAX = limitsOf(timeEntryInputSchema).description
 
-const dayKey = (ts: number): string => format(ts, 'yyyy-MM-dd')
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
 function emptyDraft(): EntryDraft {

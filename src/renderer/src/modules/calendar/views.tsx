@@ -11,7 +11,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { dayKey, itemColor, SOURCE_LABEL, timeOnDay } from './items'
+import { itemColor, SOURCE_LABEL, timeOnDay } from './items'
+import { dayKey } from '@/lib/format'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 /** Month cell geometry (px) for the «how many lines fit» count: padding, day header, one item line, gap. */

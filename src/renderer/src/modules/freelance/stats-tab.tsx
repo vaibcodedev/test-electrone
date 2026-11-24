@@ -5,15 +5,6 @@ import type { FunnelRow, Platform } from '@shared/domain/freelance'
 import { useApi } from '@/lib/query'
 import { LOCALE, fmtReplyTime, fmtPercent } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 import {
   ChartContainer,
   ChartLegend,
@@ -23,6 +14,7 @@ import {
   type ChartConfig
 } from '@/components/ui/chart'
 import { EmptyState, Segmented } from '@/components/common/page'
+import { Funnel, FunnelTable, WithRate, type FunnelColumn } from '@/components/common/funnel'
 
 const RANGES = [
   { value: '30', label: '30 днів' },
@@ -37,91 +29,14 @@ const weeklyConfig = {
   replied: { label: 'Відповіли', theme: { light: '#5b6be0', dark: '#8b98ff' } }
 } satisfies ChartConfig
 
-function Funnel({ totals }: { totals: FunnelRow }) {
-  const steps = [
-    { label: 'Надіслано', value: totals.sent },
-    { label: 'Відповіли', value: totals.replied },
-    { label: 'Інтерв’ю', value: totals.interview },
-    { label: 'Контракт', value: totals.hired }
+/** Group table columns; the credits column only for platforms that have credits (Connects). */
+function columns(creditsName: string): FunnelColumn<FunnelRow>[] {
+  return [
+    { header: 'Відгуків', cell: (r) => r.sent },
+    { header: 'Відповіді', cell: (r) => <WithRate value={r.replied} rate={r.replyRate} /> },
+    { header: 'Контракти', cell: (r) => <WithRate value={r.hired} rate={r.hireRate} /> },
+    ...(creditsName ? [{ header: creditsName, cell: (r: FunnelRow) => r.credits }] : [])
   ]
-  const max = Math.max(1, totals.sent)
-  return (
-    <div className="flex flex-col gap-3">
-      {steps.map((s, i) => (
-        <div key={s.label} className="grid grid-cols-[110px_1fr_90px] items-center gap-3">
-          <span className="text-body">{s.label}</span>
-          <Progress
-            value={(s.value / max) * 100}
-            aria-label={s.label}
-            className="h-3 bg-surface [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
-          />
-          <span className="text-right text-body tabular-nums">
-            <span className="font-medium">{s.value}</span>
-            {i > 0 && totals.sent > 0 && (
-              <span className="ml-1.5 text-muted-foreground">
-                {Math.round((s.value / totals.sent) * 100)}%
-              </span>
-            )}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function FunnelTable({
-  title,
-  description,
-  rows,
-  creditsName
-}: {
-  title: string
-  description: string
-  rows: FunnelRow[]
-  creditsName: string
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <p className="text-body text-muted-foreground">Немає даних за період.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Група</TableHead>
-                <TableHead className="text-right">Відгуків</TableHead>
-                <TableHead className="text-right">Відповіді</TableHead>
-                <TableHead className="text-right">Контракти</TableHead>
-                {creditsName && <TableHead className="text-right">{creditsName}</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.key}>
-                  <TableCell className="max-w-[220px] truncate font-medium">{r.label}</TableCell>
-                  <TableCell className="text-right tabular-nums">{r.sent}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.replied} <span className="text-muted-foreground">· {fmtPercent(r.replyRate)}</span>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.hired} <span className="text-muted-foreground">· {fmtPercent(r.hireRate)}</span>
-                  </TableCell>
-                  {creditsName && (
-                    <TableCell className="text-right tabular-nums">{r.credits}</TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  )
 }
 
 /** Funnel, conversion by task type and template, weekly activity for one platform. */
@@ -134,6 +49,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
 
   if (!stats) return null
   const t = stats.totals
+  const cols = columns(platform.creditsName)
   const weekly = stats.weekly.map((w) => ({
     ...w,
     label: format(parseISO(w.week), 'd MMM', { locale: LOCALE })
@@ -171,7 +87,14 @@ export function StatsTab({ platform }: { platform: Platform }) {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Funnel totals={t} />
+                <Funnel
+                  steps={[
+                    { label: 'Надіслано', value: t.sent },
+                    { label: 'Відповіли', value: t.replied },
+                    { label: 'Інтерв’ю', value: t.interview },
+                    { label: 'Контракт', value: t.hired }
+                  ]}
+                />
               </CardContent>
             </Card>
             <Card className="col-span-7">
@@ -208,14 +131,16 @@ export function StatsTab({ platform }: { platform: Platform }) {
             <FunnelTable
               title="За типами завдань"
               description="Де вас частіше обирають"
+              groupHeader="Група"
               rows={stats.byNiche}
-              creditsName={platform.creditsName}
+              columns={cols}
             />
             <FunnelTable
               title="За шаблонами"
               description="Які тексти відгуків працюють краще"
+              groupHeader="Група"
               rows={stats.byTemplate}
-              creditsName={platform.creditsName}
+              columns={cols}
             />
           </div>
         </>

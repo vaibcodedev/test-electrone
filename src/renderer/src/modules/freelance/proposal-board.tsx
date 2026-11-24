@@ -6,12 +6,12 @@ import {
   KeyboardSensor,
   PointerSensor,
   useDraggable,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent
 } from '@dnd-kit/core'
+import { DropZone } from '@/components/common/drop-zone'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { Proposal, ProposalStatus } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
@@ -61,33 +61,6 @@ function DraggableProposal({
       {...attributes}
       {...listeners}
     />
-  )
-}
-
-function DropZone({
-  status,
-  children,
-  className,
-  compact
-}: {
-  status: ProposalStatus
-  children?: ReactNode
-  className?: string
-  compact?: boolean
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id: `status:${status}` })
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'flex flex-col gap-2 rounded-2xl transition-colors',
-        compact ? 'min-h-14 p-2' : 'min-h-24 flex-1 p-1',
-        isOver && 'bg-lime-soft ring-2 ring-inset ring-ring/60',
-        className
-      )}
-    >
-      {children}
-    </div>
   )
 }
 
@@ -190,7 +163,7 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
                   {list.length}
                 </span>
               </div>
-              <DropZone status={status} className="overflow-y-auto">
+              <DropZone id={`status:${status}`} className="overflow-y-auto">
                 {visible(status, list).map((p) => (
                   <DraggableProposal
                     key={p.id}
@@ -247,7 +220,7 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
                     {PROPOSAL_STATUS_LABEL[status]}{' '}
                     <span className="tabular-nums">{list.length}</span>
                   </div>
-                  <DropZone status={status} compact className="bg-surface">
+                  <DropZone id={`status:${status}`} compact className="bg-surface">
                     {visible(status, list).map((p) => (
                       <DraggableProposal
                         key={p.id}

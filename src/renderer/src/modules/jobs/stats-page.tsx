@@ -3,13 +3,13 @@ import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { JobFunnelRow } from '@shared/domain/jobs'
 import { useApi } from '@/lib/query'
-import { LOCALE, fmtPercent } from '@/lib/format'
+import { LOCALE } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { Funnel, FunnelTable, WithRate, type FunnelColumn } from '@/components/common/funnel'
 import { STAGE_KIND_LABEL } from './j2-labels'
 
 const RANGES = [
@@ -25,76 +25,12 @@ const weeklyConfig = {
   replied: { label: 'Відповіли', theme: { light: '#5b6be0', dark: '#8b98ff' } }
 } satisfies ChartConfig
 
-function Funnel({ totals }: { totals: JobFunnelRow }) {
-  const steps = [
-    { label: 'Відгуки', value: totals.applied },
-    { label: 'Відповіли', value: totals.replied },
-    { label: 'Співбесіди', value: totals.interview },
-    { label: 'Офери', value: totals.offer }
-  ]
-  const max = Math.max(1, totals.applied)
-  return (
-    <div className="flex flex-col gap-3">
-      {steps.map((s, i) => (
-        <div key={s.label} className="grid grid-cols-[130px_1fr_90px] items-center gap-3">
-          <span className="text-body">{s.label}</span>
-          <Progress
-            value={(s.value / max) * 100}
-            aria-label={s.label}
-            className="h-3 bg-card [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
-          />
-          <span className="text-right text-body tabular-nums">
-            <span className="font-medium">{s.value}</span>
-            {i > 0 && totals.applied > 0 && <span className="ml-1.5 text-muted-foreground">{Math.round((s.value / totals.applied) * 100)}%</span>}
-          </span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function FunnelTable({ title, description, rows }: { title: string; description: string; rows: JobFunnelRow[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <p className="text-body text-muted-foreground">Поки немає даних за період.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead />
-                <TableHead className="text-right">Відгуків</TableHead>
-                <TableHead className="text-right">Відповіді</TableHead>
-                <TableHead className="text-right">Співбес.</TableHead>
-                <TableHead className="text-right">Офери</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.key}>
-                  <TableCell className="max-w-48 truncate font-medium">{r.label}</TableCell>
-                  <TableCell className="text-right tabular-nums">{r.applied}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.replied} <span className="text-muted-foreground">· {fmtPercent(r.replyRate)}</span>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{r.interview}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.offer} <span className="text-muted-foreground">· {fmtPercent(r.offerRate)}</span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+const COLUMNS: FunnelColumn<JobFunnelRow>[] = [
+  { header: 'Відгуків', cell: (r) => r.applied },
+  { header: 'Відповіді', cell: (r) => <WithRate value={r.replied} rate={r.replyRate} /> },
+  { header: 'Співбес.', cell: (r) => r.interview },
+  { header: 'Офери', cell: (r) => <WithRate value={r.offer} rate={r.offerRate} /> }
+]
 
 /** Job search analytics: funnel, weekly activity, which board / resume / letter works. */
 export function JobStatsPage() {
@@ -127,7 +63,14 @@ export function JobStatsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Funnel totals={data.totals} />
+                <Funnel
+                  steps={[
+                    { label: 'Відгуки', value: data.totals.applied },
+                    { label: 'Відповіли', value: data.totals.replied },
+                    { label: 'Співбесіди', value: data.totals.interview },
+                    { label: 'Офери', value: data.totals.offer }
+                  ]}
+                />
               </CardContent>
             </Card>
             <Card>
@@ -149,9 +92,9 @@ export function JobStatsPage() {
                 </ChartContainer>
               </CardContent>
             </Card>
-            <FunnelTable title="За майданчиками" description="Де відгукуватися вигідніше" rows={data.byBoard} />
-            <FunnelTable title="За версіями резюме" description="Яка версія частіше отримує відповідь" rows={data.byResume} />
-            <FunnelTable title="За шаблонами листів" description="Супровідні листи, які працюють" rows={data.byTemplate} />
+            <FunnelTable title="За майданчиками" description="Де відгукуватися вигідніше" rows={data.byBoard} columns={COLUMNS} />
+            <FunnelTable title="За версіями резюме" description="Яка версія частіше отримує відповідь" rows={data.byResume} columns={COLUMNS} />
+            <FunnelTable title="За шаблонами листів" description="Супровідні листи, які працюють" rows={data.byTemplate} columns={COLUMNS} />
             <Card>
               <CardHeader>
                 <CardTitle>Етапи</CardTitle>

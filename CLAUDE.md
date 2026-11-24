@@ -80,7 +80,7 @@ src/preload/           contextBridge: rpc, on(whitelist), pathForFile
 src/renderer/
   preview.html, preview/   песочница превью компонентов (iframe sandbox, свой CSP)
   src/app/             router, navigation
-  src/components/ui    shadcn (перестилизован), components/common — общие блоки, components/layout
+  src/components/ui    shadcn (перестилизован), components/common — общие блоки (список: docs/design-system.md §14), components/layout
   src/features/        dashboard, command-palette, quick-add, trash, settings, tags
   src/modules/<name>/  страницы модулей (index.tsx экспортирует страницы для роутера)
   src/lib/             api (типизированный Proxy), query (useApi/useApiMutation), format, files

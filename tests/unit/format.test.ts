@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   COMPACT_FROM,
   countLabel,
+  dayKey,
   fmtBytes,
   fmtHours,
   fmtMinutes,
@@ -156,5 +157,14 @@ describe('mdPreview', () => {
   // Regression (was a bug): same regex removes a lone `*` (multiplication) — «2 * 3» → «2 3».
   it('a lone asterisk in text survives', () => {
     expect(mdPreview('2 * 3 = 6')).toBe('2 * 3 = 6')
+  })
+})
+
+describe('dayKey', () => {
+  it('is the local day, zero-padded, and parses back to local midnight', () => {
+    const at = new Date(2026, 0, 5, 23, 59).getTime()
+    expect(dayKey(at)).toBe('2026-01-05')
+    expect(dayKey(new Date(2026, 10, 25))).toBe('2026-11-25')
+    expect(new Date(dayKey(at) + 'T00:00').getTime()).toBe(new Date(2026, 0, 5).getTime())
   })
 })

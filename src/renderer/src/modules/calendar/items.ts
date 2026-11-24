@@ -1,4 +1,5 @@
 import type { CalendarItem } from '@shared/domain/calendar'
+import { dayKey } from '@/lib/format'
 
 const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
   event: 'var(--lime)',
@@ -24,11 +25,6 @@ export function itemColor(item: CalendarItem): string {
   return item.color ?? SOURCE_COLOR[item.source]
 }
 
-/** Day key yyyy-mm-dd in local time. */
-export function dayKey(ts: number | Date): string {
-  const d = new Date(ts)
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
-}
 
 /** Groups items by every local day they touch (multi-day events appear on each day). */
 export function groupByDay(items: CalendarItem[]): Map<string, CalendarItem[]> {

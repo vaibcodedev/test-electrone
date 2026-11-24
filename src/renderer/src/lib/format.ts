@@ -83,6 +83,16 @@ export function plural(n: number, forms: [string, string, string]): string {
   return forms[2]
 }
 
+/**
+ * Local calendar day as «2026-01-05»: the key for grouping by day. Zero-padded, so keys sort as text
+ * and parse back as local midnight with `new Date(key + 'T00:00')`.
+ */
+export function dayKey(ts: number | Date): string {
+  const d = new Date(ts)
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 /** Value for <input type="datetime-local">. */
 export function toLocalInput(ts: number | null | undefined, withTime = true): string {
   if (!ts) return ''
