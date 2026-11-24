@@ -34,13 +34,13 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
   return (
     <Card className={cn('gap-3', !p.exists && 'opacity-60')}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-[15px] text-foreground">
+        <CardTitle className="flex items-center gap-2 text-lead text-foreground">
           {running.length > 0 && <span className="size-2 shrink-0 animate-pulse rounded-full bg-lime" aria-label="запущен" />}
-          <Button variant="link" className="h-auto truncate p-0 text-[15px] font-medium no-underline hover:underline" onClick={onOpen}>
+          <Button variant="link" className="h-auto truncate p-0 text-lead font-medium no-underline hover:underline" onClick={onOpen}>
             {p.name}
           </Button>
         </CardTitle>
-        <CardDescription className="truncate text-[11.5px]" title={p.path}>
+        <CardDescription className="truncate text-meta" title={p.path}>
           {p.exists ? p.path : `Папка не найдена: ${p.path}`}
         </CardDescription>
         <CardAction>
@@ -68,13 +68,13 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
           {!!p.git?.ahead && <Badge variant="info">↑{p.git.ahead}</Badge>}
           {!!p.git?.behind && <Badge variant="info">↓{p.git.behind}</Badge>}
           {p.githubRepo && (
-            <Button variant="link" size="xs" className="h-6 px-0 text-[11.5px] text-muted-foreground" onClick={() => api.app.openExternal(`https://github.com/${p.githubRepo}`)}>
+            <Button variant="link" size="xs" className="h-6 px-0 text-meta text-muted-foreground" onClick={() => api.app.openExternal(`https://github.com/${p.githubRepo}`)}>
               {p.githubRepo}
             </Button>
           )}
         </div>
         {p.git?.lastCommit && (
-          <p className="truncate text-[12.5px] text-muted-foreground" title={p.git.lastCommit.message}>
+          <p className="truncate text-caption text-muted-foreground" title={p.git.lastCommit.message}>
             <span className="text-foreground">{p.git.lastCommit.message}</span> · {fmtRelative(p.git.lastCommit.at)}
           </p>
         )}
@@ -138,7 +138,7 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
                     >
                       {r ? <Square /> : <Play />}
                       <span className="flex-1 truncate">{s}</span>
-                      <span className="max-w-28 truncate font-mono text-[11px] text-muted-foreground">{p.scripts[s]}</span>
+                      <span className="max-w-28 truncate font-mono text-meta text-muted-foreground">{p.scripts[s]}</span>
                     </DropdownMenuItem>
                   )
                 })}

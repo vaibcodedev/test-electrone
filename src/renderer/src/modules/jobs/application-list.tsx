@@ -64,7 +64,7 @@ export function ApplicationList({
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
         empty={
-          !loading && <div className="py-10 text-center text-[13px] text-muted-foreground">Под фильтр ничего не попало.</div>
+          !loading && <div className="py-10 text-center text-body text-muted-foreground">Под фильтр ничего не попало.</div>
         }
         renderItem={(a) => {
           const board = a.boardId ? boardById.get(a.boardId) : undefined
@@ -86,7 +86,7 @@ export function ApplicationList({
                       {APP_STATUS_LABEL[a.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell className={cn(COL.next, 'truncate text-[12.5px]')}>
+                  <TableCell className={cn(COL.next, 'truncate text-caption')}>
                     {a.nextStage ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}` : '—'}
                   </TableCell>
                   <TableCell className={cn(COL.salary, 'truncate tabular-nums')}>

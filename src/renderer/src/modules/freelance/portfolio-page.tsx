@@ -176,7 +176,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
               )}
             >
               <ImagePlus className="size-5 text-muted-foreground" />
-              <EmptyDescription className="text-[12.5px]">
+              <EmptyDescription className="text-caption">
                 Перетащите скриншот сюда или нажмите Ctrl+V
               </EmptyDescription>
             </Empty>
@@ -213,7 +213,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           <AutoTextarea
             value={c.textEn}
             onSave={(textEn) => save({ textEn })}
-            className="min-h-40 text-[14px] leading-relaxed"
+            className="min-h-40 text-lead leading-relaxed"
             placeholder="Built a … that …"
           />
         </Block>
@@ -294,11 +294,11 @@ export function PortfolioPage() {
                       )}
                     </div>
                     <CardContent className="flex flex-col gap-1.5 px-4 py-3">
-                      <div className="truncate text-[13.5px] font-medium">{c.title}</div>
+                      <div className="truncate text-body font-medium">{c.title}</div>
                       <div className="flex flex-wrap gap-1">
                         {c.niche && <Badge variant="soft">{c.niche}</Badge>}
                         {c.stack && (
-                          <span className="truncate text-[11.5px] text-muted-foreground">
+                          <span className="truncate text-meta text-muted-foreground">
                             {c.stack}
                           </span>
                         )}

@@ -163,17 +163,17 @@ export function EventDialog({
               value={form.title}
               onChange={(e) => set('title', e.target.value)}
               placeholder="Созвон, дедлайн, напоминание…"
-              className="h-11 text-[15px]"
+              className="h-11 text-lead"
               readOnly={linked}
             />
           </Field>
           {linked && (
-            <p className="-mt-2 rounded-xl bg-surface px-3 py-2 text-[12.5px] text-muted-foreground">
+            <p className="-mt-2 rounded-xl bg-surface px-3 py-2 text-caption text-muted-foreground">
               Создано из вакансии — время синхронизируется с этапом собеседования.
             </p>
           )}
           <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5">
-            <Label htmlFor="event-all-day" className="text-[13px] text-foreground">
+            <Label htmlFor="event-all-day" className="text-body text-foreground">
               Весь день
             </Label>
             <Switch

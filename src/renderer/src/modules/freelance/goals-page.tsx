@@ -222,7 +222,7 @@ export function GoalCard({
           <span className="font-display text-[30px] leading-none tabular-nums">
             {formatGoalValue(g.metric, g.current)}
           </span>
-          <span className={cn('text-[13px]', done ? 'opacity-70' : 'text-muted-foreground')}>
+          <span className={cn('text-body', done ? 'opacity-70' : 'text-muted-foreground')}>
             из {formatGoalValue(g.metric, g.target)}
           </span>
         </div>
@@ -237,7 +237,7 @@ export function GoalCard({
         />
         <div
           className={cn(
-            'flex flex-wrap items-center gap-1.5 text-[11.5px]',
+            'flex flex-wrap items-center gap-1.5 text-meta',
             done ? 'opacity-70' : 'text-muted-foreground'
           )}
         >
@@ -326,11 +326,11 @@ export function GoalsPage() {
         )}
         {inactive.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-[12.5px] font-medium text-muted-foreground">На паузе</h2>
+            <h2 className="text-caption font-semibold text-muted-foreground">На паузе</h2>
             {inactive.map((g) => (
               <Card key={g.id} className="flex-row items-center gap-3 px-5 py-3">
-                <span className="flex-1 text-[13px]">{goalTitle(g)}</span>
-                <span className="text-[12px] text-muted-foreground">
+                <span className="flex-1 text-body">{goalTitle(g)}</span>
+                <span className="text-caption text-muted-foreground">
                   цель {formatGoalValue(g.metric, g.target)}
                 </span>
                 <Switch

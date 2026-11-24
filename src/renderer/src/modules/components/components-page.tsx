@@ -41,8 +41,8 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
         </Badge>
       </div>
       <CardContent className="flex flex-col gap-2 p-4">
-        <div className="truncate text-[14px] font-medium">{item.title}</div>
-        {item.description && <div className="line-clamp-2 text-[12.5px] text-muted-foreground">{item.description}</div>}
+        <div className="truncate text-lead font-medium">{item.title}</div>
+        {item.description && <div className="line-clamp-2 text-caption text-muted-foreground">{item.description}</div>}
         <TagList tags={item.tags} />
       </CardContent>
     </Card>

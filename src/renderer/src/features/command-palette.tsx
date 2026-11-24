@@ -106,7 +106,7 @@ export function CommandPalette() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{h.title}</div>
                     {h.snippet && (
-                      <div className="truncate text-[12px] text-muted-foreground">
+                      <div className="truncate text-caption text-muted-foreground">
                         <Snippet text={h.snippet} />
                       </div>
                     )}

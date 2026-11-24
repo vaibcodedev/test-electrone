@@ -86,7 +86,7 @@ export function MarkdownField({
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <div className="flex items-center justify-between gap-2">
-        {label ? <span className="text-[12.5px] font-medium text-muted-foreground">{label}</span> : <span />}
+        {label ? <span className="text-caption font-medium text-muted-foreground">{label}</span> : <span />}
         <Segmented
           size="xs"
           value={mode}
@@ -103,7 +103,7 @@ export function MarkdownField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           style={{ minHeight }}
-          className="px-4 py-3 text-[14px] leading-relaxed"
+          className="px-4 py-3 text-lead leading-relaxed"
         />
       ) : (
         <div
@@ -115,7 +115,7 @@ export function MarkdownField({
           {value.trim() ? (
             <Markdown source={value} />
           ) : (
-            <span className="text-[13px] text-muted-foreground">Пусто. Переключитесь на «Текст», чтобы написать.</span>
+            <span className="text-body text-muted-foreground">Пусто. Переключитесь на «Текст», чтобы написать.</span>
           )}
         </div>
       )}

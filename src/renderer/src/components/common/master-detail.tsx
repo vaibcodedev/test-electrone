@@ -156,7 +156,7 @@ export function DetailPane({
 export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex min-h-6 items-center justify-between gap-2">
-      <h3 className="text-[12.5px] font-medium text-muted-foreground">{children}</h3>
+      <h3 className="text-caption font-semibold text-muted-foreground">{children}</h3>
       {action}
     </div>
   )
@@ -192,7 +192,7 @@ export function EntityAside({
       <LinksPanel entity={entity} />
       {files && <AttachmentsPanel entity={entity} />}
       {(createdAt || updatedAt) && (
-        <div className="text-[11.5px] leading-relaxed text-muted-foreground">
+        <div className="text-meta leading-relaxed text-muted-foreground">
           {createdAt && <div>Создано {fmtDateTime(createdAt)}</div>}
           {updatedAt && <div>Изменено {fmtDateTime(updatedAt)}</div>}
         </div>

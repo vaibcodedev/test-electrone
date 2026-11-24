@@ -85,7 +85,7 @@ function NewVersionDialog({
           }}
         >
           {fileName && (
-            <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-[13px]">
+            <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-body">
               <FileText className="size-4 text-muted-foreground" /> {fileName}
             </div>
           )}
@@ -99,7 +99,7 @@ function NewVersionDialog({
           </Field>
           <div className="flex items-center gap-2">
             <Checkbox id="resume-current" checked={isCurrent} onCheckedChange={(v) => setIsCurrent(v === true)} />
-            <Label htmlFor="resume-current" className="text-[13px] text-foreground">
+            <Label htmlFor="resume-current" className="text-body text-foreground">
               Сделать текущей — её буду отправлять
             </Label>
           </div>
@@ -161,11 +161,11 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {resume.changes && <p className="text-[13px] whitespace-pre-wrap">{resume.changes}</p>}
+        {resume.changes && <p className="text-body whitespace-pre-wrap">{resume.changes}</p>}
         <div className="flex items-center gap-2 rounded-xl bg-card px-3 py-2">
           <FileText className="size-4 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate text-[13px]">{resume.fileName || 'Файл не прикреплён'}</span>
-          {resume.size > 0 && <span className="text-[12px] text-muted-foreground">{fmtBytes(resume.size)}</span>}
+          <span className="min-w-0 flex-1 truncate text-body">{resume.fileName || 'Файл не прикреплён'}</span>
+          {resume.size > 0 && <span className="text-caption text-muted-foreground">{fmtBytes(resume.size)}</span>}
           {resume.filePath && isPdf && (
             <Button variant="ghost" size="xs" onClick={onPreview}>
               <Eye /> Открыть
@@ -177,7 +177,7 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
           {picker.input}
         </div>
         <div className="flex flex-col gap-2">
-          <span className="text-[12.5px] font-medium text-muted-foreground">Где залита эта версия</span>
+          <span className="text-caption font-medium text-muted-foreground">Где залита эта версия</span>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {boards.map((b) => {
               const id = `rb-${resume.id}-${b.id}`
@@ -189,9 +189,9 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
                     checked={!!at}
                     onCheckedChange={(v) => setUploaded.mutate({ resumeId: resume.id, boardId: b.id, uploaded: v === true })}
                   />
-                  <Label htmlFor={id} className="text-[13px] font-normal text-foreground">
+                  <Label htmlFor={id} className="text-body font-normal text-foreground">
                     {b.name}
-                    {at && <span className="ml-1 text-[11.5px] text-muted-foreground">{fmtDay(at)}</span>}
+                    {at && <span className="ml-1 text-meta text-muted-foreground">{fmtDay(at)}</span>}
                   </Label>
                 </div>
               )
@@ -267,7 +267,7 @@ export function ResumesPage() {
             </div>
           )}
           {resumes.length > 0 && (
-            <p className="text-center text-[12px] text-muted-foreground">Перетащите файл сюда, чтобы добавить новую версию.</p>
+            <p className="text-center text-caption text-muted-foreground">Перетащите файл сюда, чтобы добавить новую версию.</p>
           )}
         </div>
       </PageBody>

@@ -177,7 +177,7 @@ export function CodeBlock({
   return (
     <pre
       className={cn(
-        'selectable overflow-x-auto rounded-2xl bg-[var(--code-bg)] p-4 font-mono text-[12px] leading-relaxed text-[var(--code-fg)]',
+        'selectable overflow-x-auto rounded-2xl bg-[var(--code-bg)] p-4 font-mono text-caption leading-relaxed text-[var(--code-fg)]',
         className
       )}
     >

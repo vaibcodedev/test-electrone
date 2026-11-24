@@ -19,7 +19,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
 
   return (
     <section className="flex flex-col gap-2">
-      <h3 className="text-[12.5px] font-medium text-muted-foreground">Файлы</h3>
+      <h3 className="text-caption font-semibold text-muted-foreground">Файлы</h3>
       <div {...props} className={cn('flex flex-col gap-1 rounded-2xl transition-colors', isOver && 'bg-lime-soft')}>
         {files.map((f) => (
           <Item key={f.id} size="xs" className="group hover:bg-surface">
@@ -27,8 +27,8 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
               {f.mime.startsWith('image/') ? <img src={fileUrl(f.path)} alt="" /> : <Paperclip className="size-4" />}
             </ItemMedia>
             <ItemContent className="min-w-0 gap-0">
-              <ItemTitle className="w-full truncate text-[12.5px] font-normal">{f.originalName}</ItemTitle>
-              <ItemDescription className="text-[11px]">{fmtBytes(f.size)}</ItemDescription>
+              <ItemTitle className="w-full truncate text-caption font-normal">{f.originalName}</ItemTitle>
+              <ItemDescription className="text-meta">{fmtBytes(f.size)}</ItemDescription>
             </ItemContent>
             <ItemActions className="gap-0 opacity-0 group-hover:opacity-100">
               <Button variant="ghost" size="icon-xs" aria-label="Открыть" onClick={() => api.files.open(f.id)}>
@@ -44,7 +44,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
           </Item>
         ))}
         <Empty className={cn('gap-0 border border-dashed border-input p-3 md:p-3', isOver && 'border-ring')}>
-          <EmptyDescription className="text-[11.5px]">Перетащите файлы сюда</EmptyDescription>
+          <EmptyDescription className="text-meta">Перетащите файлы сюда</EmptyDescription>
         </Empty>
       </div>
     </section>

@@ -65,7 +65,7 @@ function Checklist({ card }: { card: CardDetails }) {
         <SectionLabel
           action={
             card.checklist.length > 0 && (
-              <span className="text-[12px] text-muted-foreground tabular-nums">
+              <span className="text-caption text-muted-foreground tabular-nums">
                 {done}/{card.checklist.length}
               </span>
             )
@@ -114,7 +114,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
         <PinButtons entity={{ type: 'card', id: card.id }} />
-        <span className="flex-1 truncate text-[12px] text-muted-foreground">
+        <span className="flex-1 truncate text-caption text-muted-foreground">
           {card.boardTitle} · {card.columnTitle}
         </span>
         <Tooltip>
@@ -196,7 +196,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
         <div className="mt-6 flex flex-col gap-6">
           <LinksPanel entity={{ type: 'card', id: card.id }} />
           <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
-          <div className="text-[11.5px] text-muted-foreground">
+          <div className="text-meta text-muted-foreground">
             Создано {fmtDateTime(card.createdAt)}
             {card.completedAt && ` · выполнено ${fmtDateTime(card.completedAt)}`}
           </div>

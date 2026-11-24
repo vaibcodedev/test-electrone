@@ -165,7 +165,7 @@ function UnpaidSubscriptions({ month }: { month: string }) {
       </CardHeader>
       <CardContent>
         {unpaid.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             {rows.length
               ? 'Все подписки этого месяца оплачены.'
               : 'Подписок нет. Добавьте Claude, телефон, хостинг — они будут появляться каждый месяц.'}
@@ -179,7 +179,7 @@ function UnpaidSubscriptions({ month }: { month: string }) {
                 </ItemMedia>
                 <ItemContent className="min-w-0">
                   <ItemTitle className="w-full truncate">{s.title}</ItemTitle>
-                  <ItemDescription className="text-[12px]">
+                  <ItemDescription className="text-caption">
                     {fmtMoney(s.amount, s.currency)} ·{' '}
                     {s.dueAt < nowTs ? 'списание было ' : 'спишется '}
                     {fmtDay(s.dueAt)}
@@ -225,7 +225,7 @@ function PlatformBalances() {
       </CardHeader>
       <CardContent>
         {list.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             Всё выведено — на платформах ничего не осталось.
           </p>
         ) : (
@@ -269,12 +269,12 @@ function ExpensesByCategory({ month }: { month: string }) {
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">В этом месяце расходов нет.</p>
+          <p className="text-body text-muted-foreground">В этом месяце расходов нет.</p>
         ) : (
           <div className="flex flex-col gap-3">
             {rows.map((r) => (
               <div key={`${r.category}:${r.currency}`} className="flex flex-col gap-1.5">
-                <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                <div className="flex items-baseline justify-between gap-3 text-body">
                   <span>{CATEGORY_LABEL[r.category]}</span>
                   <span className="font-medium tabular-nums">{fmtMoney(r.amount, r.currency)}</span>
                 </div>

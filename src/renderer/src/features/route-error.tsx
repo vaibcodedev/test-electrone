@@ -27,8 +27,8 @@ export function RouteError() {
           <EmptyMedia variant="icon" className="size-14 rounded-full bg-destructive/10 text-destructive">
             <TriangleAlert className="size-6" />
           </EmptyMedia>
-          <EmptyTitle className="text-[15px] font-medium">Экран не открылся</EmptyTitle>
-          <EmptyDescription className="text-[13px] break-words">
+          <EmptyTitle className="text-lead font-medium">Экран не открылся</EmptyTitle>
+          <EmptyDescription className="text-body break-words">
             {message}. Ошибка записана в журнал — данные не пострадали.
           </EmptyDescription>
         </EmptyHeader>

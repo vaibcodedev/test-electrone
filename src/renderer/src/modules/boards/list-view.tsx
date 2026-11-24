@@ -17,12 +17,12 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
           const cards = details.cards.filter((c) => c.columnId === col.id).sort((a, b) => a.position - b.position)
           return (
             <section key={col.id} className="flex flex-col gap-2">
-              <SectionLabel action={<span className="text-[12px] text-muted-foreground tabular-nums">{cards.length}</span>}>
-                <span className="text-[13px] text-foreground">{col.title}</span>
+              <SectionLabel action={<span className="text-caption text-muted-foreground tabular-nums">{cards.length}</span>}>
+                <span className="text-body text-foreground">{col.title}</span>
               </SectionLabel>
               {cards.length === 0 ? (
                 <Empty className="items-start rounded-2xl bg-surface p-3 md:p-3">
-                  <EmptyDescription className="text-[12.5px]">Пусто</EmptyDescription>
+                  <EmptyDescription className="text-caption">Пусто</EmptyDescription>
                 </Empty>
               ) : (
                 <div className="overflow-hidden rounded-2xl bg-surface">
@@ -44,14 +44,14 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
                             />
                           </TableCell>
                           <TableCell
-                            className={cn('w-full max-w-0 truncate text-[13px]', col.isDone && 'text-muted-foreground line-through')}
+                            className={cn('w-full max-w-0 truncate text-body', col.isDone && 'text-muted-foreground line-through')}
                           >
                             {c.title}
                           </TableCell>
                           <TableCell>
                             <TagList tags={c.tags} max={2} className="flex-nowrap" />
                           </TableCell>
-                          <TableCell className="text-[11.5px] text-muted-foreground tabular-nums">
+                          <TableCell className="text-meta text-muted-foreground tabular-nums">
                             {c.checklistTotal > 0 && (
                               <span className="inline-flex items-center gap-1">
                                 <ListChecks className="size-3.5" /> {c.checklistDone}/{c.checklistTotal}

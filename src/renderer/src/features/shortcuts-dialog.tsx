@@ -24,19 +24,19 @@ export function ShortcutsDialog() {
         <div className="grid gap-6 sm:grid-cols-2">
           {groups.map((g) => (
             <section key={g.title} className="flex flex-col gap-1">
-              <h3 className="text-[12.5px] font-medium text-muted-foreground">{g.title}</h3>
+              <h3 className="text-caption font-semibold text-muted-foreground">{g.title}</h3>
               <Separator className="mb-1" />
               <ItemGroup className="gap-0">
                 {g.items.map((s) => (
                   <Item key={s.label} size="xs" className="px-0">
                     <ItemContent>
-                      <ItemTitle className="text-[13px] font-normal">{s.label}</ItemTitle>
+                      <ItemTitle className="text-body font-normal">{s.label}</ItemTitle>
                     </ItemContent>
                     <ItemActions>
                       <KbdGroup>
                         {s.keys.map((k, i) => (
                           <Fragment key={`${k}-${i}`}>
-                            {i > 0 && s.sequence && <span className="text-[11px] text-muted-foreground">затем</span>}
+                            {i > 0 && s.sequence && <span className="text-meta text-muted-foreground">затем</span>}
                             <Kbd>{k}</Kbd>
                           </Fragment>
                         ))}

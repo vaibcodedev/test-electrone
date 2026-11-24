@@ -27,8 +27,8 @@ export const ApplicationCard = forwardRef<
       {...rest}
     >
       <div className="flex flex-col gap-0.5">
-        <span className="line-clamp-2 text-[13px] leading-snug font-medium">{a.title}</span>
-        {a.company && <span className="truncate text-[12px] text-muted-foreground">{a.company}</span>}
+        <span className="line-clamp-2 text-body leading-snug font-medium">{a.title}</span>
+        {a.company && <span className="truncate text-caption text-muted-foreground">{a.company}</span>}
       </div>
       {(salary || a.nextStage) && (
         <div className="flex flex-wrap items-center gap-1">
@@ -43,7 +43,7 @@ export const ApplicationCard = forwardRef<
           {salary && <Badge variant="outline">{salary}</Badge>}
         </div>
       )}
-      <div className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
+      <div className="flex items-center gap-2 text-meta text-muted-foreground">
         {board && (
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="size-2 shrink-0 rounded-full" style={{ background: board.color ?? 'var(--muted-foreground)' }} />

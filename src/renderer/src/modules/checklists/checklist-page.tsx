@@ -121,7 +121,7 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
               onBlur={(e) => {
                 if (!e.currentTarget.parentElement?.contains(e.relatedTarget as Node)) save()
               }}
-              className="text-[12px]"
+              className="text-caption"
             />
           </div>
         ) : (
@@ -133,14 +133,14 @@ function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }) {
           >
             <span
               className={cn(
-                'text-[14px] leading-snug',
+                'text-lead leading-snug',
                 item.done && isRun && 'text-muted-foreground line-through'
               )}
             >
               {item.text}
             </span>
             {item.hint && (
-              <span className="mt-0.5 block text-[12px] text-muted-foreground">{item.hint}</span>
+              <span className="mt-0.5 block text-caption text-muted-foreground">{item.hint}</span>
             )}
           </Button>
         )}
@@ -193,7 +193,7 @@ function AddItem({
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={section === undefined ? 'Новый пункт' : 'Добавить пункт'}
-        className="min-w-0 flex-1 border-0 bg-transparent px-1 text-[13.5px] shadow-none focus-visible:bg-transparent focus-visible:ring-0"
+        className="min-w-0 flex-1 border-0 bg-transparent px-1 text-body shadow-none focus-visible:bg-transparent focus-visible:ring-0"
       />
       {section === undefined && (
         <>
@@ -286,7 +286,7 @@ export function ChecklistPage() {
       <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={data.id}>
         <Link
           to={isRun ? '/checklists?tab=runs' : '/checklists'}
-          className="mb-4 flex w-fit items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
+          className="mb-4 flex w-fit items-center gap-1 text-caption text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" /> {isRun ? 'Прогоны' : 'Шаблоны'}
         </Link>
@@ -348,7 +348,7 @@ export function ChecklistPage() {
               tone={done === items.length && items.length ? 'ink' : 'lime'}
               className="flex-1"
             />
-            <span className="text-[13px] tabular-nums opacity-75">
+            <span className="text-body tabular-nums opacity-75">
               {items.length ? Math.round((done / items.length) * 100) : 0}%
             </span>
           </Card>
@@ -373,7 +373,7 @@ export function ChecklistPage() {
                     <div className="mb-1.5 flex items-baseline justify-between px-2">
                       <h2 className="font-display text-[19px]">{section || NO_SECTION}</h2>
                       {isRun && (
-                        <span className="text-[12px] text-muted-foreground tabular-nums">
+                        <span className="text-caption text-muted-foreground tabular-nums">
                           {sectionDone}/{list.length}
                         </span>
                       )}

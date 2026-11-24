@@ -82,8 +82,8 @@ export function ImportDialog({ scan, onClose }: { scan: ScanResult | null; onClo
                   <label htmlFor={`imp-${it.path}`} className="cursor-pointer">
                     <Checkbox id={`imp-${it.path}`} checked={picked.has(it.path)} onCheckedChange={(v) => toggle(it.path, v === true)} />
                     <ItemContent className="min-w-0 gap-0">
-                      <ItemTitle className="text-[13px]">{it.name}</ItemTitle>
-                      <ItemDescription className="truncate text-[11px]">{it.path}</ItemDescription>
+                      <ItemTitle className="text-body">{it.name}</ItemTitle>
+                      <ItemDescription className="truncate text-meta">{it.path}</ItemDescription>
                     </ItemContent>
                     <ItemActions className="gap-1">
                       {it.hasGit && <Badge variant="outline">git</Badge>}

@@ -82,7 +82,7 @@ export function ReviewPage() {
           <ArrowLeft /> К словарю
         </Button>
         <SegmentBar value={done} total={Math.max(total, 1)} segments={Math.min(Math.max(total, 1), 12)} className="flex-1" />
-        <span className="w-16 text-right text-[13px] text-muted-foreground tabular-nums">
+        <span className="w-16 text-right text-body text-muted-foreground tabular-nums">
           {Math.min(done + (finished ? 0 : 1), total)}/{total}
         </span>
       </div>
@@ -93,7 +93,7 @@ export function ReviewPage() {
         ) : queue.length === 0 ? (
           <div className="text-center">
             <div className="font-display text-title">Всё повторено</div>
-            <p className="mt-2 text-[13px] text-muted-foreground">Новые слова появятся в очереди, когда подойдёт их интервал.</p>
+            <p className="mt-2 text-body text-muted-foreground">Новые слова появятся в очереди, когда подойдёт их интервал.</p>
             <Button className="mt-5" onClick={exit}>
               Вернуться к словарю
             </Button>
@@ -106,14 +106,14 @@ export function ReviewPage() {
               </AvatarFallback>
             </Avatar>
             <div className="font-display text-title mt-5">Сессия завершена</div>
-            <p className="mt-2 text-[13px] text-muted-foreground">
+            <p className="mt-2 text-body text-muted-foreground">
               {uniqueTotal} {plural(uniqueTotal, ['слово', 'слова', 'слов'])}, ответов: {done}
             </p>
             <div className="mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
                 <Card key={g.grade} className={cn('gap-1 rounded-2xl px-3 py-3', g.tile)}>
                   <div className="font-display text-[26px] leading-none">{results[g.grade]}</div>
-                  <div className="text-[12px]">{g.label}</div>
+                  <div className="text-caption">{g.label}</div>
                 </Card>
               ))}
             </div>
@@ -131,20 +131,20 @@ export function ReviewPage() {
               )}
             >
               {current.context && (
-                <Badge variant="soft" className={cn('text-[12px] font-normal', revealed ? 'bg-card text-muted-foreground' : 'bg-ink-foreground/8 text-ink-muted')}>
+                <Badge variant="soft" className={cn('text-caption font-normal', revealed ? 'bg-card text-muted-foreground' : 'bg-ink-foreground/8 text-ink-muted')}>
                   {current.context}
                 </Badge>
               )}
               <div className="font-display text-display">{current.term}</div>
               {current.transcription && (
-                <div className={cn('text-[14px]', revealed ? 'text-muted-foreground' : 'text-ink-muted')}>{current.transcription}</div>
+                <div className={cn('text-lead', revealed ? 'text-muted-foreground' : 'text-ink-muted')}>{current.transcription}</div>
               )}
               {revealed ? (
                 <div className="selectable mt-4 flex animate-rise flex-col items-center gap-3">
-                  <div className="text-[22px] font-medium">{current.translation || '—'}</div>
-                  {current.example && <div className="max-w-xl text-[15px] italic">«{current.example}»</div>}
+                  <div className="text-stat-sm font-medium">{current.translation || '—'}</div>
+                  {current.example && <div className="max-w-xl text-lead italic">«{current.example}»</div>}
                   {current.exampleTranslation && (
-                    <div className="max-w-xl text-[13px] text-muted-foreground">{current.exampleTranslation}</div>
+                    <div className="max-w-xl text-body text-muted-foreground">{current.exampleTranslation}</div>
                   )}
                 </div>
               ) : (
@@ -167,10 +167,10 @@ export function ReviewPage() {
                   variant={GRADE_VARIANT[g.grade]}
                   disabled={!revealed || busy}
                   onClick={() => void grade(g.grade)}
-                  className={cn('h-16 flex-col gap-0.5 rounded-2xl text-[14px]', g.cls)}
+                  className={cn('h-16 flex-col gap-0.5 rounded-2xl text-lead', g.cls)}
                 >
                   <span>{g.label}</span>
-                  <span className="flex items-center gap-1.5 text-[11px] font-normal opacity-70">
+                  <span className="flex items-center gap-1.5 text-meta font-normal opacity-70">
                     <Kbd className="h-4 min-w-4 bg-transparent text-current ring-current/30">{g.grade + 1}</Kbd>
                     {g.hint}
                   </span>

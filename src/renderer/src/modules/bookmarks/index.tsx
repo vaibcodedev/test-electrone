@@ -85,7 +85,7 @@ function ProgressSlider({ value, onSave }: { value: number; onSave: (value: numb
         aria-label="Прогресс"
         className="flex-1 [&_[data-slot=slider-range]]:bg-lime [&_[data-slot=slider-thumb]]:border-lime-foreground/40"
       />
-      <span className="w-10 text-right text-[13px] tabular-nums">{draft}%</span>
+      <span className="w-10 text-right text-body tabular-nums">{draft}%</span>
     </div>
   )
 }
@@ -154,7 +154,7 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
             />
           </Block>
           {item.finishedAt && (
-            <p className="text-[12px] text-muted-foreground">Закончил {fmtDate(item.finishedAt)}</p>
+            <p className="text-caption text-muted-foreground">Закончил {fmtDate(item.finishedAt)}</p>
           )}
         </EntityAside>
       }
@@ -293,13 +293,13 @@ export function BookmarksPage() {
                       <div className="min-w-0 flex-1">
                         <div
                           className={cn(
-                            'truncate text-[13.5px] font-medium',
+                            'truncate text-body font-medium',
                             b.status === 'done' && !active && 'text-muted-foreground'
                           )}
                         >
                           {b.title}
                         </div>
-                        <div className={cn('mt-0.5 flex items-center gap-2 text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        <div className={cn('mt-0.5 flex items-center gap-2 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                           <span className="truncate">{b.url ? hostOf(b.url) : KIND_LABEL[b.kind]}</span>
                           <span>·</span>
                           <span className="shrink-0">{STATUS_LABEL[b.status]}</span>

@@ -37,13 +37,13 @@ function Funnel({ totals }: { totals: JobFunnelRow }) {
     <div className="flex flex-col gap-3">
       {steps.map((s, i) => (
         <div key={s.label} className="grid grid-cols-[130px_1fr_90px] items-center gap-3">
-          <span className="text-[13px]">{s.label}</span>
+          <span className="text-body">{s.label}</span>
           <Progress
             value={(s.value / max) * 100}
             aria-label={s.label}
             className="h-3 bg-card [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
           />
-          <span className="text-right text-[13px] tabular-nums">
+          <span className="text-right text-body tabular-nums">
             <span className="font-medium">{s.value}</span>
             {i > 0 && totals.applied > 0 && <span className="ml-1.5 text-muted-foreground">{Math.round((s.value / totals.applied) * 100)}%</span>}
           </span>
@@ -62,7 +62,7 @@ function FunnelTable({ title, description, rows }: { title: string; description:
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">Пока нет данных за период.</p>
+          <p className="text-body text-muted-foreground">Пока нет данных за период.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -157,18 +157,18 @@ export function JobStatsPage() {
               </CardHeader>
               <CardContent>
                 {data.stagesByKind.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground">Этапов за период не было.</p>
+                  <p className="text-body text-muted-foreground">Этапов за период не было.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
                     {data.stagesByKind.map((s) => (
                       <div key={s.kind} className="grid grid-cols-[110px_1fr_70px] items-center gap-3">
-                        <span className="text-[13px]">{STAGE_KIND_LABEL[s.kind]}</span>
+                        <span className="text-body">{STAGE_KIND_LABEL[s.kind]}</span>
                         <Progress
                           value={s.total ? (s.passed / s.total) * 100 : 0}
                           aria-label={STAGE_KIND_LABEL[s.kind]}
                           className="h-2.5 bg-card [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
                         />
-                        <span className="text-right text-[13px] tabular-nums">
+                        <span className="text-right text-body tabular-nums">
                           {s.passed}/{s.total}
                         </span>
                       </div>

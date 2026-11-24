@@ -246,7 +246,7 @@ function Board({ board }: { board: MoodboardDetails }) {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="О чём эта подборка: стиль, настроение, для какого проекта"
                 aria-label="Описание подборки"
-                className="mt-2 h-8 rounded-none border-0 bg-transparent px-0 text-[13px] text-muted-foreground focus-visible:bg-transparent focus-visible:ring-0"
+                className="mt-2 h-8 rounded-none border-0 bg-transparent px-0 text-body text-muted-foreground focus-visible:bg-transparent focus-visible:ring-0"
               />
               <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} className="mt-3" />
             </div>

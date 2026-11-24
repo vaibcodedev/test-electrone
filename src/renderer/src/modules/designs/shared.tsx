@@ -144,8 +144,8 @@ export function MoodboardTile({ board }: { board: Moodboard }) {
         )}
       </div>
       <div className="flex items-center justify-between px-2 pb-1">
-        <span className="truncate text-[13.5px] font-medium">{board.title}</span>
-        <span className="text-[12px] text-muted-foreground tabular-nums">{board.itemCount}</span>
+        <span className="truncate text-body font-medium">{board.title}</span>
+        <span className="text-caption text-muted-foreground tabular-nums">{board.itemCount}</span>
       </div>
     </Card>
   )
@@ -183,7 +183,7 @@ export function AddToMoodboard({ designId }: { designId: string }) {
                     {added.has(b.id) ? (
                       <Check className="size-3.5" />
                     ) : (
-                      <span className="text-[11px] text-muted-foreground">{b.itemCount}</span>
+                      <span className="text-meta text-muted-foreground">{b.itemCount}</span>
                     )}
                   </CommandItem>
                 ))}
@@ -212,7 +212,7 @@ export function DropOverlay({ show, label = 'Отпустите, чтобы до
   if (!show) return null
   return (
     <div className="pointer-events-none absolute inset-3 z-30 grid place-items-center rounded-3xl border-2 border-dashed border-ring bg-lime-soft/80 backdrop-blur-sm">
-      <Badge variant="ink" className="h-10 gap-2 px-5 text-[14px] [&>svg]:size-4">
+      <Badge variant="ink" className="h-10 gap-2 px-5 text-lead [&>svg]:size-4">
         <ImagePlus className="text-ink-accent" /> {label}
       </Badge>
     </div>

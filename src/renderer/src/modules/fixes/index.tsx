@@ -185,11 +185,11 @@ export function FixesPage() {
                         title={f.resolved ? 'Решено' : 'Не решено'}
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13.5px] font-medium">{f.title}</div>
+                        <div className="truncate text-body font-medium">{f.title}</div>
                         {line && (
                           <div
                             className={cn(
-                              'mt-1 truncate font-mono text-[11.5px]',
+                              'mt-1 truncate font-mono text-meta',
                               active ? 'text-ink-muted' : 'text-muted-foreground'
                             )}
                           >
@@ -203,7 +203,7 @@ export function FixesPage() {
                             </Badge>
                           )}
                           {!active && <TagList tags={f.tags} max={3} />}
-                          <span className={cn('ml-auto text-[11px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                          <span className={cn('ml-auto text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                             {fmtRelative(f.updatedAt)}
                           </span>
                         </div>

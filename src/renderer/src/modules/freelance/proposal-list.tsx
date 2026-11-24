@@ -67,7 +67,7 @@ export function ProposalList({
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
         empty={
-          !loading && <div className="py-10 text-center text-[13px] text-muted-foreground">Под фильтр ничего не попало.</div>
+          !loading && <div className="py-10 text-center text-body text-muted-foreground">Под фильтр ничего не попало.</div>
         }
         renderItem={(p) => {
           const days = daysSince(p.sentAt, now)

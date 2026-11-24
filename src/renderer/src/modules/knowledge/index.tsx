@@ -52,7 +52,7 @@ function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> 
             </span>
             <span>
               <span className="font-display block text-[28px] leading-none tabular-nums">{n}</span>
-              <span className={cn('mt-1 block text-[13px] font-medium', inverted ? 'text-ink-muted' : 'text-muted-foreground')}>
+              <span className={cn('mt-1 block text-body font-medium', inverted ? 'text-ink-muted' : 'text-muted-foreground')}>
                 {s.label}
               </span>
             </span>
@@ -86,7 +86,7 @@ function ListCard({
 }
 
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="text-[13.5px] leading-relaxed text-muted-foreground">{children}</p>
+  return <p className="text-body leading-relaxed text-muted-foreground">{children}</p>
 }
 
 /** Snippets and Claude prompts ordered by how often they were copied. */
@@ -118,11 +118,11 @@ function MostCopied() {
                 <Icon className="size-4 text-muted-foreground" />
                 <ItemContent className="min-w-0 gap-0">
                   <ItemTitle className="w-full truncate font-normal">
-                    <Button variant="link" className="h-auto truncate p-0 text-[13px] font-normal no-underline hover:underline" onClick={() => navigate(ENTITY_META[x.type].route(x.id))}>
+                    <Button variant="link" className="h-auto truncate p-0 text-body font-normal no-underline hover:underline" onClick={() => navigate(ENTITY_META[x.type].route(x.id))}>
                       {x.title}
                     </Button>
                   </ItemTitle>
-                  <ItemDescription className="text-[11.5px]">
+                  <ItemDescription className="text-meta">
                     {x.sub} · {x.count} {plural(x.count, ['раз', 'раза', 'раз'])}
                   </ItemDescription>
                 </ItemContent>
@@ -178,7 +178,7 @@ export function KnowledgeOverviewPage() {
                     <EntityRow
                       key={`${r.type}:${r.id}`}
                       item={r}
-                      trailing={<span className="text-[11px] text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
+                      trailing={<span className="text-meta text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
                     />
                   ))}
                 </div>

@@ -210,7 +210,7 @@ function PreChecklist({ platform, proposal, patch }: { platform: Platform; propo
           return (
             <li key={c.id} className="flex items-start gap-2.5">
               <Checkbox id={id} checked={checked.has(c.id)} onCheckedChange={(v) => toggle(c.id, !!v)} className="mt-0.5" />
-              <Label htmlFor={id} className={cn('text-[13px] leading-snug font-normal text-foreground', checked.has(c.id) && 'text-muted-foreground line-through')}>
+              <Label htmlFor={id} className={cn('text-body leading-snug font-normal text-foreground', checked.has(c.id) && 'text-muted-foreground line-through')}>
                 {c.label}
               </Label>
             </li>
@@ -387,7 +387,7 @@ function Editor({ proposal: p, platform, onClose }: { proposal: Proposal; platfo
             )}
           </div>
           {platform.kind === 'upwork' && (
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Точную комиссию Upwork видно при отклике — запишите её сюда, она перейдёт в контракт.
             </p>
           )}
@@ -417,7 +417,7 @@ function Editor({ proposal: p, platform, onClose }: { proposal: Proposal; platfo
               checked={!!p.paymentVerified}
               onCheckedChange={(paymentVerified) => patch({ paymentVerified })}
             />
-            <Label htmlFor={`verified-${p.id}`} className="text-[13px] font-normal text-foreground">
+            <Label htmlFor={`verified-${p.id}`} className="text-body font-normal text-foreground">
               Оплата верифицирована
             </Label>
             {p.paymentVerified && <BadgeCheck className="size-4 text-success" />}
@@ -448,7 +448,7 @@ function Editor({ proposal: p, platform, onClose }: { proposal: Proposal; platfo
             <TagPicker value={p.tags} onChange={(tagIds) => patch({ tagIds })} />
           </section>
           <LinksPanel entity={{ type: 'proposal', id: p.id }} />
-          <div className="text-[11.5px] text-muted-foreground">
+          <div className="text-meta text-muted-foreground">
             Создан {fmtDateTime(p.createdAt)}
             {p.repliedAt && ` · ответили ${fmtDateTime(p.repliedAt)}`}
             {p.hiredAt && ` · контракт ${fmtDateTime(p.hiredAt)}`}

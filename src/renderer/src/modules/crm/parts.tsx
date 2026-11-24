@@ -52,7 +52,7 @@ export function Choice<T extends string>({
       <SelectTrigger
         size={size}
         className={cn(
-          'w-full rounded-xl border-transparent bg-surface text-[13px] shadow-none dark:bg-surface',
+          'w-full rounded-xl border-transparent bg-surface text-body shadow-none dark:bg-surface',
           className
         )}
       >
@@ -96,7 +96,7 @@ export function StatTile({
       <CardHeader>
         <CardDescription
           className={cn(
-            'text-[12.5px]',
+            'text-caption',
             tone === 'ink' ? 'text-ink-muted' : tone === 'lime' && 'text-lime-foreground/70'
           )}
         >
@@ -108,7 +108,7 @@ export function StatTile({
         {hint && (
           <div
             className={cn(
-              'mt-1.5 text-[12px]',
+              'mt-1.5 text-caption',
               tone === 'surface'
                 ? 'text-muted-foreground'
                 : tone === 'ink'
@@ -143,7 +143,7 @@ export function Section({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-[20px]">{title}</h2>
-          {hint && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{hint}</p>}
+          {hint && <p className="mt-0.5 text-caption text-muted-foreground">{hint}</p>}
         </div>
         {action}
       </div>
@@ -206,11 +206,11 @@ export function BillingPicker({
             className={cn('items-start gap-2.5', compact ? 'p-3!' : 'p-3.5!')}
           >
             <FieldContent className="gap-0.5">
-              <FieldTitle className="text-[13px] text-foreground">
+              <FieldTitle className="text-body text-foreground">
                 {BILLING_INFO[b].title}
               </FieldTitle>
               {!compact && (
-                <FieldDescription className="text-[11.5px] leading-snug">
+                <FieldDescription className="text-meta leading-snug">
                   {BILLING_INFO[b].description}
                 </FieldDescription>
               )}

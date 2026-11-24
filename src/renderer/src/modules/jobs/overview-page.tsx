@@ -37,7 +37,7 @@ function TodayRow({ board }: { board: DailyBoard }) {
           <span className="size-2 rounded-full" style={{ background: board.color ?? 'var(--muted-foreground)' }} />
           {board.name}
         </ItemTitle>
-        <ItemDescription className="text-[12px]">
+        <ItemDescription className="text-caption">
           {target > 0
             ? `${t.applied} из ${target} ${plural(target, ['отклика', 'откликов', 'откликов'])}`
             : t.applied
@@ -71,9 +71,9 @@ function Counter({ label, value, hint, onClick, accent }: { label: string; value
   return (
     <Card className={cn('gap-3 py-4', accent && 'bg-ink text-ink-foreground')}>
       <CardContent className="flex flex-col gap-2">
-        <span className={cn('text-[13px] font-medium', accent ? 'text-ink-muted' : 'text-muted-foreground')}>{label}</span>
+        <span className={cn('text-body font-medium', accent ? 'text-ink-muted' : 'text-muted-foreground')}>{label}</span>
         <div className="flex items-end justify-between gap-3">
-          <span className="font-display text-[34px] leading-none tabular-nums">{value}</span>
+          <span className="font-display text-stat leading-none tabular-nums">{value}</span>
           {hint && onClick && (
             <Button variant="subtle" size="xs" className={cn(accent && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')} onClick={onClick}>
               {hint} <ArrowRight />
@@ -155,7 +155,7 @@ export function JobsOverviewPage() {
                 <span className="grid size-8 shrink-0 place-items-center rounded-full bg-card">
                   <BellRing className="size-4 text-muted-foreground" />
                 </span>
-                <p className="min-w-0 flex-1 text-[12.5px] leading-snug text-muted-foreground">
+                <p className="min-w-0 flex-1 text-caption leading-snug text-muted-foreground">
                   {reminder ? (
                     <>
                       Напомню в <span className="font-medium text-foreground tabular-nums">{reminder}</span>, если что-то не отмечено
@@ -203,7 +203,7 @@ export function JobsOverviewPage() {
             </CardHeader>
             <CardContent>
               {data.upcoming.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">Ничего не запланировано. Добавьте этап в вакансии — он сразу появится в календаре.</p>
+                <p className="text-body text-muted-foreground">Ничего не запланировано. Добавьте этап в вакансии — он сразу появится в календаре.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {data.upcoming.map((s) => {
@@ -214,12 +214,12 @@ export function JobsOverviewPage() {
                       <Item key={s.id} asChild size="sm" className="cursor-pointer gap-3 bg-card p-2.5 pr-4 hover:ring-1 hover:ring-border">
                         <button type="button" className="w-full text-left" onClick={() => navigate(ENTITY_META.application.route(s.applicationId))}>
                           <span className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch rounded-xl bg-surface py-1.5">
-                            <span className="text-[11px] leading-none text-muted-foreground">{when ? fmtDay(when) : '—'}</span>
-                            {s.at && <span className="text-[15px] leading-tight font-semibold tabular-nums">{format(s.at, 'HH:mm')}</span>}
+                            <span className="text-meta leading-none text-muted-foreground">{when ? fmtDay(when) : '—'}</span>
+                            {s.at && <span className="text-lead leading-tight font-semibold tabular-nums">{format(s.at, 'HH:mm')}</span>}
                           </span>
                           <ItemContent className="min-w-0 gap-1">
                             <ItemTitle className="w-full truncate">{s.company || s.applicationTitle}</ItemTitle>
-                            <ItemDescription className="truncate text-[12px]">
+                            <ItemDescription className="truncate text-caption">
                               {s.company ? s.applicationTitle : ''}
                               {stage ? `${s.company ? ' · ' : ''}${stage}` : ''}
                               {s.kind === 'test_task' && s.deadlineAt ? ' · сдать до срока' : ''}
@@ -247,7 +247,7 @@ export function JobsOverviewPage() {
             </CardHeader>
             <CardContent>
               {data.followUps.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">Никого не нужно догонять.</p>
+                <p className="text-body text-muted-foreground">Никого не нужно догонять.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {data.followUps.slice(0, 8).map((a) => (
@@ -255,7 +255,7 @@ export function JobsOverviewPage() {
                       <button type="button" className="w-full text-left" onClick={() => navigate(ENTITY_META.application.route(a.id))}>
                         <ItemContent className="min-w-0">
                           <ItemTitle className="w-full truncate font-normal">{a.title}</ItemTitle>
-                          <ItemDescription className="truncate text-[11.5px]">
+                          <ItemDescription className="truncate text-meta">
                             {a.company || 'Компания не указана'}
                             {a.appliedAt ? ` · отправлено ${fmtDay(a.appliedAt)}` : ''}
                           </ItemDescription>

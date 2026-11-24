@@ -16,11 +16,11 @@ export function LinksPanel({ entity }: { entity: EntityRef }) {
   return (
     <section className="flex flex-col gap-1">
       <div className="flex min-h-6 items-center justify-between">
-        <h3 className="text-[12.5px] font-medium text-muted-foreground">Связи</h3>
+        <h3 className="text-caption font-semibold text-muted-foreground">Связи</h3>
         <LinkPicker entity={entity} />
       </div>
       {links.length === 0 ? (
-        <p className="py-1 text-[12px] text-muted-foreground/80">Свяжите с проектом, доской, сниппетом или дизайном.</p>
+        <p className="py-1 text-caption text-muted-foreground/80">Свяжите с проектом, доской, сниппетом или дизайном.</p>
       ) : (
         <div className="-mx-2.5 flex flex-col">
           {links.map((l) => (
@@ -83,7 +83,7 @@ function LinkPicker({ entity }: { entity: EntityRef }) {
                   >
                     <Icon />
                     <span className="flex-1 truncate">{item.title}</span>
-                    <span className="text-[11px] text-muted-foreground">{ENTITY_META[item.type].label}</span>
+                    <span className="text-meta text-muted-foreground">{ENTITY_META[item.type].label}</span>
                   </CommandItem>
                 )
               })}

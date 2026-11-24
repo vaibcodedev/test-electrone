@@ -83,7 +83,7 @@ function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
       className={cn('h-8 font-mono', onInk ? 'bg-ink-foreground/8 text-ink-foreground' : 'bg-card')}
     >
       <InputGroupAddon className={cn('font-mono', onInk ? 'text-ink-accent' : 'text-muted-foreground')}>$</InputGroupAddon>
-      <InputGroupInput readOnly value={cmd} aria-label="Команда установки" className="font-mono text-[12px]" />
+      <InputGroupInput readOnly value={cmd} aria-label="Команда установки" className="font-mono text-caption" />
       <InputGroupAddon align="inline-end">
         <CopyButton text={cmd} variant="ghost" size="xs" className="size-6 rounded-full text-inherit" />
       </InputGroupAddon>
@@ -171,7 +171,7 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
     >
       <CardHeader className="gap-1 px-4">
         <div className="font-display truncate text-[20px] leading-tight">{lib.name}</div>
-        <div className={cn('flex items-center gap-1.5 text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+        <div className={cn('flex items-center gap-1.5 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
           <span className={cn('size-1.5 rounded-full', STATUS_DOT[lib.status])} />
           {STATUS_LABEL[lib.status]}
         </div>
@@ -179,7 +179,7 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
       {(lib.purpose || (!compact && lib.installCmd.trim())) && (
         <CardContent className="flex flex-col gap-3 px-4">
           {lib.purpose && (
-            <p className={cn('line-clamp-2 text-[13px]', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>{lib.purpose}</p>
+            <p className={cn('line-clamp-2 text-body', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>{lib.purpose}</p>
           )}
           {!compact && <InstallCommand cmd={lib.installCmd} onInk={active} />}
         </CardContent>

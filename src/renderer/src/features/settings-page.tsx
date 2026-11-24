@@ -35,8 +35,8 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle className="text-[15px] text-foreground">{title}</CardTitle>
-        {hint && <CardDescription className="text-[12.5px]">{hint}</CardDescription>}
+        <CardTitle className="text-lead text-foreground">{title}</CardTitle>
+        {hint && <CardDescription className="text-caption">{hint}</CardDescription>}
       </CardHeader>
       <CardContent className="flex flex-col gap-2">{children}</CardContent>
     </Card>
@@ -48,8 +48,8 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   return (
     <Item size="sm" className="bg-card">
       <ItemContent className="min-w-0">
-        <ItemTitle className="w-full truncate text-[13.5px] font-normal">{label}</ItemTitle>
-        {hint && <ItemDescription className="text-[12px]">{hint}</ItemDescription>}
+        <ItemTitle className="w-full truncate text-body font-normal">{label}</ItemTitle>
+        {hint && <ItemDescription className="text-caption">{hint}</ItemDescription>}
       </ItemContent>
       <ItemActions>{children}</ItemActions>
     </Item>
@@ -180,7 +180,7 @@ export function SettingsPage() {
                     key={t.value}
                     htmlFor={`theme-${t.value}`}
                     className={cn(
-                      'flex h-20 flex-col items-start justify-between rounded-2xl p-3 text-[13px] font-normal transition-colors',
+                      'flex h-20 flex-col items-start justify-between rounded-2xl p-3 text-body font-normal transition-colors',
                       active ? 'bg-ink text-ink-foreground' : 'bg-card text-foreground hover:bg-accent'
                     )}
                   >
@@ -278,7 +278,7 @@ export function SettingsPage() {
               </Button>
             </div>
             {backups.length > 0 && (
-              <Table className="mt-1 text-[12.5px]">
+              <Table className="mt-1 text-caption">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Файл</TableHead>
@@ -324,7 +324,7 @@ export function SettingsPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle className="font-normal">Markdown</ItemTitle>
-                  <ItemDescription className="text-[12px]">Zip: папка на раздел, файл на запись, картинки рядом</ItemDescription>
+                  <ItemDescription className="text-caption">Zip: папка на раздел, файл на запись, картинки рядом</ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button
@@ -343,7 +343,7 @@ export function SettingsPage() {
                 </ItemMedia>
                 <ItemContent>
                   <ItemTitle className="font-normal">JSON</ItemTitle>
-                  <ItemDescription className="text-[12px]">Один файл со всеми таблицами</ItemDescription>
+                  <ItemDescription className="text-caption">Один файл со всеми таблицами</ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button
@@ -357,7 +357,7 @@ export function SettingsPage() {
                 </ItemActions>
               </Item>
             </ItemGroup>
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               Пароли из «Доступов» в экспорт не попадают — они зашифрованы ключом Windows и расшифровываются только на этом
               компьютере.
             </p>

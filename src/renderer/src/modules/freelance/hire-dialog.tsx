@@ -93,7 +93,7 @@ export function HireDialog({
             </Field>
           </div>
           {!Number.isNaN(amountNum) && amountNum > 0 && !Number.isNaN(feeNum) && (
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               На руки {billing === 'hourly' ? 'за час' : 'за проект'}:{' '}
               <span className="font-medium text-foreground tabular-nums">
                 {(amountNum * (1 - feeNum / 100)).toFixed(2)} {platform.currency}

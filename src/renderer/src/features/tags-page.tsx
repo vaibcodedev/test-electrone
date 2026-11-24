@@ -69,7 +69,7 @@ export function TagsPage() {
                 </InputGroup>
               </form>
               {tags.length === 0 ? (
-                <p className="px-1 text-[12.5px] text-muted-foreground">Меток пока нет. Создайте первую выше или прямо в любой записи.</p>
+                <p className="px-1 text-caption text-muted-foreground">Меток пока нет. Создайте первую выше или прямо в любой записи.</p>
               ) : (
                 <ItemGroup className="gap-1">
                   {tags.map((t) => {
@@ -111,7 +111,7 @@ export function TagsPage() {
             ) : (
               <>
                 <CardHeader>
-                  <CardTitle className="font-display text-[22px] text-foreground">{current.name}</CardTitle>
+                  <CardTitle className="font-display text-stat-sm text-foreground">{current.name}</CardTitle>
                   <CardDescription>
                     {entities.length
                       ? `${entities.length} ${plural(entities.length, ['запись', 'записи', 'записей'])}`
@@ -167,7 +167,7 @@ export function TagsPage() {
                     </ToggleGroup>
                   </Field>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[12.5px] font-medium text-muted-foreground">Помечено</span>
+                    <span className="text-caption font-medium text-muted-foreground">Помечено</span>
                     {entities.length ? (
                       // Height follows the content up to 60vh, then scrolls; rows are virtualized.
                       <VirtualList
@@ -179,7 +179,7 @@ export function TagsPage() {
                         renderItem={(e) => <EntityRow item={e} />}
                       />
                     ) : (
-                      <p className="text-[12.5px] text-muted-foreground">
+                      <p className="text-caption text-muted-foreground">
                         Добавьте эту метку к идее, сниппету или дизайну — запись появится здесь.
                       </p>
                     )}

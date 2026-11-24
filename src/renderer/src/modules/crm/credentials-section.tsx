@@ -141,7 +141,7 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
         <KeyRound />
       </ItemMedia>
       <ItemContent className="min-w-0 gap-0.5">
-        <ItemTitle className="text-[13.5px]">
+        <ItemTitle className="text-body">
           {item.label}
           {item.url && (
             <Button
@@ -157,12 +157,12 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
             </Button>
           )}
         </ItemTitle>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
           {item.login && (
             <Button
               variant="link"
               size="xs"
-              className="selectable text-[12px] font-normal text-muted-foreground hover:text-foreground"
+              className="selectable text-caption font-normal text-muted-foreground hover:text-foreground"
               title="Скопировать логин"
               onClick={() => copyText(item.login, 'Логин скопирован')}
             >
@@ -183,7 +183,7 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
             </span>
           )}
         </div>
-        {item.notes && <ItemDescription className="text-[12px]">{item.notes}</ItemDescription>}
+        {item.notes && <ItemDescription className="text-caption">{item.notes}</ItemDescription>}
       </ItemContent>
       <ItemActions>
         {item.hasSecret && (
@@ -249,7 +249,7 @@ export function CredentialsSection({ items, owner }: { items: Credential[]; owne
         </ItemGroup>
       )}
       {!items.length && !adding && (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           Логины от админок, хостинга и FTP. Пароли шифруются ключом Windows и показываются по
           кнопке.
         </p>

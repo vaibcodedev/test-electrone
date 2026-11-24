@@ -97,7 +97,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
       <section className="flex flex-col gap-2">
         <SectionLabel>Скрипты package.json</SectionLabel>
         {scripts.length === 0 ? (
-          <p className="text-[12.5px] text-muted-foreground">В папке нет package.json или в нём нет скриптов.</p>
+          <p className="text-caption text-muted-foreground">В папке нет package.json или в нём нет скриптов.</p>
         ) : (
           <ItemGroup className="gap-1">
             {scripts.map((s) => {
@@ -105,8 +105,8 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
               return (
                 <Item key={s} size="xs" variant="muted">
                   <ItemContent className="min-w-0 gap-0">
-                    <ItemTitle className="font-mono text-[12.5px]">{s}</ItemTitle>
-                    <ItemDescription className="truncate font-mono text-[11px]">{p.scripts[s]}</ItemDescription>
+                    <ItemTitle className="font-mono text-caption">{s}</ItemTitle>
+                    <ItemDescription className="truncate font-mono text-meta">{p.scripts[s]}</ItemDescription>
                   </ItemContent>
                   <ItemActions>
                     {r ? (

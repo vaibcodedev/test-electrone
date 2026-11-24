@@ -50,8 +50,8 @@ export function TrashPage() {
                   <Icon />
                 </ItemMedia>
                 <ItemContent className="min-w-0">
-                  <ItemTitle className="w-full truncate text-[13.5px]">{item.title}</ItemTitle>
-                  <ItemDescription className="text-[12px]">
+                  <ItemTitle className="w-full truncate text-body">{item.title}</ItemTitle>
+                  <ItemDescription className="text-caption">
                     {ENTITY_META[item.type].label} · удалено {fmtRelative(item.deletedAt)} · исчезнет {fmtDay(item.purgeAt)}
                   </ItemDescription>
                 </ItemContent>

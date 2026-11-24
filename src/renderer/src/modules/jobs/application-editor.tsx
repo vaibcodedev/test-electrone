@@ -211,7 +211,7 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
           </section>
           <LinksPanel entity={{ type: 'application', id: a.id }} />
           <AttachmentsPanel entity={{ type: 'application', id: a.id }} />
-          <div className="text-[11.5px] text-muted-foreground">
+          <div className="text-meta text-muted-foreground">
             Создано {fmtDateTime(a.createdAt)}
             {a.repliedAt && ` · ответили ${fmtDateTime(a.repliedAt)}`}
             {a.closedAt && ` · закрыто ${fmtDateTime(a.closedAt)}`}

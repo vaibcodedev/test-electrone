@@ -32,7 +32,7 @@ function ItemChip({ item, onOpen }: { item: CalendarItem; onOpen: (item: Calenda
       }}
       title={`${SOURCE_LABEL[item.source]}: ${item.title}`}
       className={cn(
-        'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-[11.5px] leading-tight font-normal hover:bg-card',
+        'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card',
         item.done && 'text-muted-foreground line-through'
       )}
     >
@@ -62,13 +62,13 @@ function MoreItems({
           variant="ghost"
           size="xs"
           onClick={(e) => e.stopPropagation()}
-          className="h-5 w-fit justify-start rounded-lg px-1.5 text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
+          className="h-5 w-fit justify-start rounded-lg px-1.5 text-meta font-medium text-muted-foreground hover:text-foreground"
         >
           ещё {count}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-2" onClick={(e) => e.stopPropagation()}>
-        <div className="px-1.5 pb-1.5 text-[12.5px] font-semibold capitalize">{format(day, 'EEEE, d MMMM', { locale: LOCALE })}</div>
+        <div className="px-1.5 pb-1.5 text-caption font-semibold capitalize">{format(day, 'EEEE, d MMMM', { locale: LOCALE })}</div>
         <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
           {items.map((item) => (
             <ItemChip key={item.key} item={item} onOpen={onOpen} />
@@ -100,7 +100,7 @@ export function MonthView({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid grid-cols-7 gap-1.5 pb-1.5">
         {WEEKDAYS.map((d, i) => (
-          <div key={d} className={cn('px-2 text-[12px] text-muted-foreground', i >= 5 && 'text-muted-foreground/70')}>
+          <div key={d} className={cn('px-2 text-caption text-muted-foreground', i >= 5 && 'text-muted-foreground/70')}>
             {d}
           </div>
         ))}
@@ -125,7 +125,7 @@ export function MonthView({
                 <span
                   className={cn(
                     // text-box trims the font's ascender/descender gap, so digits sit in the optical center.
-                    'grid size-6 place-items-center rounded-full text-[12.5px] leading-none tabular-nums [text-box:trim-both_cap_alphabetic]',
+                    'grid size-6 place-items-center rounded-full text-caption leading-none tabular-nums [text-box:trim-both_cap_alphabetic]',
                     today && 'bg-lime font-semibold text-lime-foreground'
                   )}
                   aria-current={today ? 'date' : undefined}
@@ -190,7 +190,7 @@ export function WeekView({
             className={cn('min-h-0 gap-0 rounded-3xl p-3', today && 'bg-ink text-ink-foreground')}
           >
             <div className="flex items-baseline justify-between px-1">
-              <span className={cn('text-[12px] capitalize', today ? 'text-ink-muted' : 'text-muted-foreground')}>
+              <span className={cn('text-caption capitalize', today ? 'text-ink-muted' : 'text-muted-foreground')}>
                 {format(day, 'EEEEEE', { locale: LOCALE })}
               </span>
               <span className={cn('font-display text-[28px] leading-none', today && 'text-ink-accent')}>{format(day, 'd')}</span>
@@ -207,11 +207,11 @@ export function WeekView({
                   )}
                   style={{ boxShadow: `inset 3px 0 0 ${itemColor(item)}` }}
                 >
-                  <span className={cn('text-[11px] tabular-nums', today ? 'text-ink-muted' : 'text-muted-foreground')}>
+                  <span className={cn('text-meta tabular-nums', today ? 'text-ink-muted' : 'text-muted-foreground')}>
                     {item.allDay ? SOURCE_LABEL[item.source] : format(item.startAt, 'HH:mm')}
                     {item.endAt && !item.allDay ? `–${format(item.endAt, 'HH:mm')}` : ''}
                   </span>
-                  <span className={cn('text-[12.5px] leading-snug', item.done && 'line-through opacity-60')}>{item.title}</span>
+                  <span className={cn('text-caption leading-snug', item.done && 'line-through opacity-60')}>{item.title}</span>
                 </Button>
               ))}
               <Button

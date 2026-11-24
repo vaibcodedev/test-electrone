@@ -46,7 +46,7 @@ function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void
             <span className="font-mono text-[10.5px] font-normal text-muted-foreground">{c}</span>
           </Button>
         ))}
-        {!colors.length && <span className="text-[12px] text-muted-foreground">Определяется…</span>}
+        {!colors.length && <span className="text-caption text-muted-foreground">Определяется…</span>}
       </div>
     </section>
   )

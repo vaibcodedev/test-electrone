@@ -32,8 +32,8 @@ function toForm(w: Word): Form {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Card className="gap-0.5 rounded-2xl px-3 py-2.5">
-      <div className="text-[11.5px] text-muted-foreground">{label}</div>
-      <div className="text-[14px] font-medium tabular-nums">{value}</div>
+      <div className="text-meta text-muted-foreground">{label}</div>
+      <div className="text-lead font-medium tabular-nums">{value}</div>
     </Card>
   )
 }
@@ -77,7 +77,7 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
               <Stat label="Лёгкость" value={word.ease.toFixed(2)} />
               <Stat label="Последний" value={word.lastReviewedAt ? fmtDay(word.lastReviewedAt) : '—'} />
             </div>
-            <p className="text-[11.5px] text-muted-foreground">Повтор: {fmtDateTime(word.dueAt)}</p>
+            <p className="text-meta text-muted-foreground">Повтор: {fmtDateTime(word.dueAt)}</p>
           </section>
         </EntityAside>
       }

@@ -32,7 +32,7 @@ export function PageHeader({
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           <h1 className="font-display text-title max-w-[18ch] text-balance">{title}</h1>
-          {subtitle && <div className="mt-2 text-[13px] text-muted-foreground">{subtitle}</div>}
+          {subtitle && <div className="mt-2 text-body text-muted-foreground">{subtitle}</div>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2 pt-1">{actions}</div>}
       </div>
@@ -72,8 +72,8 @@ export function EmptyState({
             <Icon className="size-6 text-muted-foreground" />
           </EmptyMedia>
         )}
-        <EmptyTitle className="text-[15px] font-medium">{title}</EmptyTitle>
-        {hint && <EmptyDescription className="text-[13px]">{hint}</EmptyDescription>}
+        <EmptyTitle className="text-lead font-medium">{title}</EmptyTitle>
+        {hint && <EmptyDescription className="text-body">{hint}</EmptyDescription>}
       </EmptyHeader>
       {action && <EmptyContent>{action}</EmptyContent>}
     </Empty>

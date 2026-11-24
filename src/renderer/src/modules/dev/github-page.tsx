@@ -24,7 +24,7 @@ const ALL = '__all'
 
 function ErrorNote({ error }: { error: unknown }) {
   if (!error) return null
-  return <p className="rounded-xl bg-destructive/10 px-4 py-3 text-[13px] text-destructive">{(error as Error).message}</p>
+  return <p className="rounded-xl bg-destructive/10 px-4 py-3 text-body text-destructive">{(error as Error).message}</p>
 }
 
 function ReposTab({ force }: { force: number }) {
@@ -61,7 +61,7 @@ function ReposTab({ force }: { force: number }) {
                   )}
                   {r.fork && <Badge variant="soft">fork</Badge>}
                 </div>
-                {r.description && <div className="truncate text-[12px] text-muted-foreground">{r.description}</div>}
+                {r.description && <div className="truncate text-caption text-muted-foreground">{r.description}</div>}
               </TableCell>
               <TableCell className="text-muted-foreground">{r.language ?? '—'}</TableCell>
               <TableCell className="text-right tabular-nums">{r.stars}</TableCell>
@@ -80,7 +80,7 @@ function ReposTab({ force }: { force: number }) {
                     Локально
                   </Button>
                 ) : (
-                  <span className="text-[12px] text-muted-foreground" title="Добавьте папку репозитория в «Мои проекты» — связь определится по git remote">
+                  <span className="text-caption text-muted-foreground" title="Добавьте папку репозитория в «Мои проекты» — связь определится по git remote">
                     нет папки
                   </span>
                 )}
@@ -107,7 +107,7 @@ function IssueRow({ issue: i }: { issue: GithubIssue }) {
           <ItemTitle className="w-full truncate">
             {i.title} <span className="font-normal text-muted-foreground">#{i.number}</span>
           </ItemTitle>
-          <ItemDescription className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
+          <ItemDescription className="flex flex-wrap items-center gap-1.5 text-meta">
             <Badge variant="outline">{i.repo}</Badge>
             {i.labels.map((l) => (
               <Badge key={l.name} variant="soft" className="bg-card">
@@ -211,7 +211,7 @@ function CommitsTab({ force }: { force: number }) {
       ) : days.length ? (
         days.map(([day, list]) => (
           <section key={day} className="flex flex-col gap-1.5">
-            <h3 className="text-[12.5px] font-medium text-muted-foreground capitalize">{format(new Date(day), 'EEEE, d MMMM', { locale: LOCALE })}</h3>
+            <h3 className="text-caption font-semibold text-muted-foreground capitalize">{format(new Date(day), 'EEEE, d MMMM', { locale: LOCALE })}</h3>
             <ItemGroup className="gap-1">
               {list.map((c) => (
                 <Item key={`${c.repo}:${c.sha}`} asChild size="xs" variant="muted" className="cursor-pointer">
@@ -221,7 +221,7 @@ function CommitsTab({ force }: { force: number }) {
                     </ItemMedia>
                     <ItemContent className="min-w-0 gap-0">
                       <ItemTitle className="w-full truncate font-normal">{c.message}</ItemTitle>
-                      <ItemDescription className="text-[11.5px]">
+                      <ItemDescription className="text-meta">
                         {c.author} · {format(c.at, 'HH:mm')} · <span className="font-mono">{c.sha.slice(0, 7)}</span>
                       </ItemDescription>
                     </ItemContent>
@@ -255,8 +255,8 @@ export function GithubPage() {
         <PageBody>
           <Card className="max-w-2xl">
             <CardHeader>
-              <CardTitle className="text-[15px] text-foreground">Подключите GitHub</CardTitle>
-              <CardDescription className="text-[12.5px]">
+              <CardTitle className="text-lead text-foreground">Подключите GitHub</CardTitle>
+              <CardDescription className="text-caption">
                 Нужен fine-grained токен только на чтение. Vault ничего не меняет в ваших репозиториях.
                 {status?.error && <span className="mt-1 block text-destructive">{status.error}</span>}
               </CardDescription>

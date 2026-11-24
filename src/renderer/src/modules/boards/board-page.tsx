@@ -40,7 +40,7 @@ function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boo
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-6 sm:max-w-[480px]">
         <SheetTitle className="font-display text-xl">О доске</SheetTitle>
-        <SheetDescription className="text-[12.5px]">Описание, метки, связи и файлы.</SheetDescription>
+        <SheetDescription className="text-caption">Описание, метки, связи и файлы.</SheetDescription>
         <div className="mt-5 flex flex-col gap-6">
           <MarkdownField
             label="Описание"
@@ -78,7 +78,7 @@ function BoardHeader({ board }: { board: Board }) {
   return (
     <header className="flex items-start gap-4 px-8 pt-6 pb-4">
       <div className="min-w-0 flex-1">
-        <InlineTitle value={title} onChange={setTitle} className="font-display text-[34px] leading-none" />
+        <InlineTitle value={title} onChange={setTitle} className="font-display text-stat leading-none" />
         {board.archived && <Badge variant="outline" className="mt-2">В архиве</Badge>}
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-1">

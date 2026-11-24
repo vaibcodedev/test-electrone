@@ -41,7 +41,7 @@ export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenC
   return (
     <div className="flex h-full min-h-0 flex-col px-8 pb-6">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="font-display min-w-48 text-[22px] capitalize">{format(month, 'LLLL yyyy', { locale: LOCALE })}</h2>
+        <h2 className="font-display min-w-48 text-stat-sm capitalize">{format(month, 'LLLL yyyy', { locale: LOCALE })}</h2>
         <Button variant="soft" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Предыдущий месяц">
           <ChevronLeft />
         </Button>
@@ -51,11 +51,11 @@ export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenC
         <Button variant="ghost" size="sm" onClick={() => setMonth(startOfMonth(new Date()))}>
           Сегодня
         </Button>
-        {noDate && <span className="ml-auto text-[12.5px] text-muted-foreground">В этом месяце нет карточек с дедлайном</span>}
+        {noDate && <span className="ml-auto text-caption text-muted-foreground">В этом месяце нет карточек с дедлайном</span>}
       </div>
       <div className="grid grid-cols-7 gap-1.5 pb-1.5">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="px-2 text-[11.5px] text-muted-foreground">
+          <div key={d} className="px-2 text-meta text-muted-foreground">
             {d}
           </div>
         ))}
@@ -73,7 +73,7 @@ export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenC
             >
               <span
                 className={cn(
-                  'grid size-6 place-items-center rounded-full text-[12px] tabular-nums',
+                  'grid size-6 place-items-center rounded-full text-caption tabular-nums',
                   isToday(day) ? 'bg-ink font-medium text-ink-accent' : !isSameMonth(day, month) && 'text-muted-foreground'
                 )}
               >
@@ -88,7 +88,7 @@ export function CalendarView({ boardId, onOpenCard }: { boardId: string; onOpenC
                     onClick={() => onOpenCard(c.id)}
                     title={c.title}
                     className={cn(
-                      'h-auto w-full justify-start gap-1.5 rounded-lg bg-card px-1.5 py-1 text-left text-[11.5px] font-normal hover:bg-card hover:ring-1 hover:ring-border',
+                      'h-auto w-full justify-start gap-1.5 rounded-lg bg-card px-1.5 py-1 text-left text-meta font-normal hover:bg-card hover:ring-1 hover:ring-border',
                       c.columnIsDone && 'text-muted-foreground line-through',
                       isOverdue(c.dueAt, c.columnIsDone) && 'text-destructive'
                     )}

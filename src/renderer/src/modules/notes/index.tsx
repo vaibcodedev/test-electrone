@@ -152,9 +152,9 @@ export function NotesPage() {
                 const text = excerpt(n.body)
                 return (
                   <ListItem active={active} onClick={() => setOpen(n.id)}>
-                    <div className="truncate text-[13.5px] font-medium">{n.title}</div>
+                    <div className="truncate text-body font-medium">{n.title}</div>
                     {text && (
-                      <div className={cn('mt-1 line-clamp-2 text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <div className={cn('mt-1 line-clamp-2 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {text}
                       </div>
                     )}
@@ -165,7 +165,7 @@ export function NotesPage() {
                         </Badge>
                       )}
                       {!active && <TagList tags={n.tags} max={3} />}
-                      <span className={cn('ml-auto text-[11px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <span className={cn('ml-auto text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {fmtRelative(n.updatedAt)}
                       </span>
                     </div>

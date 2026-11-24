@@ -39,14 +39,14 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
             <ListChecks className="size-4" />
           </AvatarFallback>
         </Avatar>
-        <span className="text-[12px] text-muted-foreground tabular-nums">
+        <span className="text-caption text-muted-foreground tabular-nums">
           {item.total} {plural(item.total, ['пункт', 'пункта', 'пунктов'])}
         </span>
       </div>
       <div>
-        <div className="font-display text-[22px] leading-tight">{item.title}</div>
+        <div className="font-display text-stat-sm leading-tight">{item.title}</div>
         {item.description && (
-          <p className="mt-1 line-clamp-2 text-[12.5px] text-muted-foreground">
+          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
             {item.description}
           </p>
         )}
@@ -80,7 +80,7 @@ function RunCard({ item }: { item: Checklist }) {
     >
       <button type="button" onClick={() => navigate(`/checklists/${item.id}`)}>
         <div className="flex items-start justify-between gap-3">
-          <span className={cn('text-[12px]', complete ? 'opacity-70' : 'text-ink-muted')}>
+          <span className={cn('text-caption', complete ? 'opacity-70' : 'text-ink-muted')}>
             {complete ? 'Готово' : 'В процессе'} · {fmtRelative(item.updatedAt)}
           </span>
           <ArrowUpRight className="size-4 opacity-60 transition-transform group-hover:rotate-45" />
@@ -95,7 +95,7 @@ function RunCard({ item }: { item: Checklist }) {
               tone={complete ? 'ink' : 'lime'}
               className="flex-1"
             />
-            <span className="text-[12px] tabular-nums">
+            <span className="text-caption tabular-nums">
               {item.done}/{item.total}
             </span>
           </div>

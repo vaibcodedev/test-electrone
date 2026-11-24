@@ -139,9 +139,9 @@ export function RedFlagsPage() {
                   <ListItem key={f.id} active={f.id === open} onClick={() => setOpen(f.id)}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-[13.5px] font-medium">{f.title}</div>
+                        <div className="truncate text-body font-medium">{f.title}</div>
                         {f.signs && (
-                          <div className="mt-1 line-clamp-2 text-[12px] opacity-70">{f.signs}</div>
+                          <div className="mt-1 line-clamp-2 text-caption opacity-70">{f.signs}</div>
                         )}
                       </div>
                       <SeverityBadge severity={f.severity} />

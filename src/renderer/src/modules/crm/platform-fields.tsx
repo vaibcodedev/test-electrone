@@ -160,7 +160,7 @@ export function ClientPlatformFields({
           checked={!!value.paymentVerified}
           onCheckedChange={(paymentVerified) => onChange({ paymentVerified })}
         />
-        <Label htmlFor="payment-verified" className="text-[13px] font-normal text-foreground">
+        <Label htmlFor="payment-verified" className="text-body font-normal text-foreground">
           Оплата верифицирована
         </Label>
       </div>
@@ -204,7 +204,7 @@ export function FeeField({
           }}
         />
       )}
-      <span className="text-[11.5px] text-muted-foreground">{FEE_HINT}</span>
+      <span className="text-meta text-muted-foreground">{FEE_HINT}</span>
     </Field>
   )
 }
@@ -213,7 +213,7 @@ export function FeeField({
 export function NetPaid({ project: p, className }: { project: ProjectSummary; className?: string }) {
   if (!p.platformId || p.billing === 'none') return null
   return (
-    <span className={cn('text-[12px] text-muted-foreground', className)}>
+    <span className={cn('text-caption text-muted-foreground', className)}>
       на руки <span className="text-foreground">{fmtMoney(p.netPaidAmount, p.currency)}</span>
       {p.effectiveFeePercent > 0 && ` (−${p.effectiveFeePercent}%)`}
     </span>

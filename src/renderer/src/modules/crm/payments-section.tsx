@@ -129,7 +129,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
       </TableCell>
       <TableCell
         className={cn(
-          'text-[12.5px]',
+          'text-caption',
           payment.overdue ? 'text-destructive' : 'text-muted-foreground'
         )}
       >
@@ -234,7 +234,7 @@ export function PaymentsSection({
         </Card>
       )}
       {!payments.length && !adding && (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           {stages
             ? 'Разбейте стоимость на этапы со сроками — просрочки появятся на главной и в календаре.'
             : 'Добавьте ожидаемые платежи со сроком — просрочки появятся на главной и в календаре.'}

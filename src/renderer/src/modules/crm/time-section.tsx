@@ -181,7 +181,7 @@ function Clock({ ms }: { ms: number }) {
   const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
   const ss = String(s % 60).padStart(2, '0')
   return (
-    <span className="font-display text-[34px] leading-none tabular-nums">
+    <span className="font-display text-stat leading-none tabular-nums">
       {hh}:{mm}
       <span className="opacity-50">:{ss}</span>
     </span>
@@ -200,7 +200,7 @@ function TimerBar({ projectId }: { projectId: string }) {
     return (
       <Card className="flex-row items-center gap-4 bg-lime px-5 py-4 text-lime-foreground">
         <Clock ms={elapsed} />
-        <span className="min-w-0 flex-1 truncate text-[13px] opacity-75">
+        <span className="min-w-0 flex-1 truncate text-body opacity-75">
           {running.description || 'Таймер идёт'}
         </span>
         <Button
@@ -234,10 +234,10 @@ function TimerBar({ projectId }: { projectId: string }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Над чем работаете? Enter — запустить таймер"
-          className="h-11 flex-1 border-0 bg-transparent text-[14px] text-ink-foreground shadow-none placeholder:text-ink-muted focus-visible:bg-transparent focus-visible:ring-0"
+          className="h-11 flex-1 border-0 bg-transparent text-lead text-ink-foreground shadow-none placeholder:text-ink-muted focus-visible:bg-transparent focus-visible:ring-0"
         />
         {running && (
-          <span className="shrink-0 text-[12px] text-ink-muted">
+          <span className="shrink-0 text-caption text-ink-muted">
             Сейчас идёт: {running.projectTitle} — будет остановлен
           </span>
         )}
@@ -284,7 +284,7 @@ function EntryRow({
   }
   return (
     <TableRow className="group">
-      <TableCell className="w-28 text-[12px] text-muted-foreground tabular-nums">
+      <TableCell className="w-28 text-caption text-muted-foreground tabular-nums">
         {format(entry.startedAt, 'HH:mm')}–{entry.endedAt ? format(entry.endedAt, 'HH:mm') : '…'}
       </TableCell>
       <TableCell className={cn('max-w-0 truncate', !entry.description && 'text-muted-foreground')}>
@@ -295,7 +295,7 @@ function EntryRow({
           <Badge variant="soft">не оплачивается</Badge>
         ) : (
           rate > 0 && (
-            <span className="text-[12px] text-muted-foreground tabular-nums">
+            <span className="text-caption text-muted-foreground tabular-nums">
               {fmtMoney((entry.minutes / 60) * rate, currency)}
             </span>
           )
@@ -391,7 +391,7 @@ export function TimeSection({
         />
       )}
       {days.length === 0 && !adding && (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-body text-muted-foreground">
           {hourly
             ? 'Запустите таймер или добавьте время вручную — часы попадут в расчёт оплаты.'
             : 'Запустите таймер, чтобы видеть фактическую ставку проекта.'}
@@ -402,7 +402,7 @@ export function TimeSection({
           const total = list.reduce((s, e) => s + e.minutes, 0)
           return (
             <div key={day}>
-              <div className="mb-1 flex items-center justify-between px-2 text-[12px] text-muted-foreground">
+              <div className="mb-1 flex items-center justify-between px-2 text-caption text-muted-foreground">
                 <span>
                   {capitalize(format(new Date(`${day}T00:00`), 'EEEE, d MMMM', { locale: LOCALE }))}
                 </span>

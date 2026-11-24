@@ -277,7 +277,7 @@ export function SubscriptionDialog({
       </Field>
       <div className="flex items-center gap-3">
         <Switch id="sub-active" checked={active} onCheckedChange={setActive} />
-        <Label htmlFor="sub-active" className="text-[13px] text-foreground">
+        <Label htmlFor="sub-active" className="text-body text-foreground">
           Активна — показывать в списке месяца
         </Label>
       </div>
@@ -480,7 +480,7 @@ export function WithdrawalDialog({
           <CurrencySelect value={receivedCurrency} onChange={setReceivedCurrency} />
         </Field>
       </div>
-      <div className="rounded-xl bg-surface px-4 py-3 text-[13px]">
+      <div className="rounded-xl bg-surface px-4 py-3 text-body">
         <span className="text-muted-foreground">Придёт ≈ </span>
         <span className="font-medium tabular-nums">
           {fmtMoney(receivedValue ?? estimate, receivedCurrency)}

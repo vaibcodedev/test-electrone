@@ -99,7 +99,7 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
                 setPaid.mutate({ id: row.id, month, paid: true, amount: n })
             }}
           >
-            <span className="text-[12.5px] text-muted-foreground">
+            <span className="text-caption text-muted-foreground">
               Сколько списали в {monthName(month)}, {row.currency}
             </span>
             <Input
@@ -241,7 +241,7 @@ function SubscriptionsSection({ month }: { month: string }) {
           </Table>
         )}
         {inactive.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 px-3 text-[12.5px] text-muted-foreground">
+          <div className="mt-4 flex flex-wrap items-center gap-2 px-3 text-caption text-muted-foreground">
             Отключённые:
             {inactive.map((s) => (
               <span key={s.id} className="inline-flex items-center gap-0.5">
@@ -358,7 +358,7 @@ function ExpensesSection({ month }: { month: string }) {
                         </Badge>
                       )}
                       {e.note && (
-                        <div className="truncate text-[12px] font-normal text-muted-foreground">
+                        <div className="truncate text-caption font-normal text-muted-foreground">
                           {e.note}
                         </div>
                       )}

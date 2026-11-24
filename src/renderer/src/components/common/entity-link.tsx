@@ -33,8 +33,8 @@ export function EntityRow({
           <Icon />
         </ItemMedia>
         <ItemContent className="min-w-0 gap-0.5">
-          <ItemTitle className="w-full truncate text-[13px]">{item.title}</ItemTitle>
-          <ItemDescription className="truncate text-[11.5px]">
+          <ItemTitle className="w-full truncate text-body">{item.title}</ItemTitle>
+          <ItemDescription className="truncate text-meta">
             {ENTITY_META[item.type].label}
             {item.subtitle ? ` — ${item.subtitle}` : ''}
           </ItemDescription>

@@ -53,7 +53,7 @@ function Money({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-[12px] text-muted-foreground">{label}</span>
+      <span className="text-caption text-muted-foreground">{label}</span>
       <span
         className={cn(
           'font-display w-fit text-[28px] leading-tight tabular-nums',
@@ -63,7 +63,7 @@ function Money({
       >
         {value}
       </span>
-      {hint && <span className="text-[12px] text-muted-foreground">{hint}</span>}
+      {hint && <span className="text-caption text-muted-foreground">{hint}</span>}
     </div>
   )
 }
@@ -74,7 +74,7 @@ function MoneyHeader({ p }: { p: ProjectSummary }) {
   const rate = p.effectiveRate ? `${m(p.effectiveRate)} / ч` : '—'
   const hours = (
     <div className="flex flex-col gap-1">
-      <span className="text-[12px] text-muted-foreground">Часы</span>
+      <span className="text-caption text-muted-foreground">Часы</span>
       <span className="font-display text-[28px] leading-tight tabular-nums">
         {fmtHours(p.trackedMinutes)}
         {p.budgetHours > 0 && (
@@ -147,7 +147,7 @@ function MoneyHeader({ p }: { p: ProjectSummary }) {
       cells = (
         <>
           {hours}
-          <div className="col-span-3 self-center text-[13px] text-muted-foreground">
+          <div className="col-span-3 self-center text-body text-muted-foreground">
             Проект без оплаты — ведётся только учёт времени.
           </div>
         </>
@@ -326,7 +326,7 @@ export function ProjectPage() {
     <div className="flex h-full min-h-0">
       <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={p.id}>
         <Breadcrumb className="mb-4">
-          <BreadcrumbList className="text-[12.5px]">
+          <BreadcrumbList className="text-caption">
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Link to="/clients?tab=projects" className="flex items-center gap-1">

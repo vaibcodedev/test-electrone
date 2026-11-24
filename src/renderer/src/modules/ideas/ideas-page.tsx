@@ -26,7 +26,7 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
       }}
     >
       <InputGroup className="h-11 pr-1">
-        <InputGroupInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Новая идея…" className="pl-4 text-[13.5px]" />
+        <InputGroupInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Новая идея…" className="pl-4 text-body" />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
             type="submit"
@@ -48,14 +48,14 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
   return (
     <ListItem active={active} onClick={onClick}>
       <div className="flex items-start gap-2">
-        <span className="min-w-0 flex-1 text-[13.5px] leading-snug font-medium">{idea.title}</span>
+        <span className="min-w-0 flex-1 text-body leading-snug font-medium">{idea.title}</span>
         {idea.impact > 0 && (
           <span className={cn('shrink-0 text-[10px] tracking-widest', active ? 'text-ink-accent' : 'text-muted-foreground')}>
             {'●'.repeat(idea.impact)}
           </span>
         )}
       </div>
-      <div className={cn('mt-1.5 flex flex-wrap items-center gap-2 text-[11.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+      <div className={cn('mt-1.5 flex flex-wrap items-center gap-2 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
         <span>{IDEA_STATUS_LABEL[idea.status]}</span>
         {idea.boardId && (
           <span className="inline-flex items-center gap-1">

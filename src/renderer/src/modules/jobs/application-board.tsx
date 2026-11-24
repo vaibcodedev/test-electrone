@@ -170,8 +170,8 @@ export function ApplicationBoard({
           return (
             <Card key={status} className="flex w-65 shrink-0 flex-col gap-2 rounded-3xl px-2 py-3">
               <div className="flex items-center gap-2 px-2">
-                <span className="text-[13px] font-medium">{APP_STATUS_LABEL[status]}</span>
-                <span className="text-[12px] text-muted-foreground tabular-nums">{list.length}</span>
+                <span className="text-body font-medium">{APP_STATUS_LABEL[status]}</span>
+                <span className="text-caption text-muted-foreground tabular-nums">{list.length}</span>
               </div>
               <DropZone status={status} className="overflow-y-auto">
                 {list.map(renderCard)}
@@ -185,7 +185,7 @@ export function ApplicationBoard({
             variant="ghost"
             size="sm"
             onClick={() => setClosedOpen(!closedOpen)}
-            className={cn('text-[13px]', showClosed ? 'justify-between' : 'h-auto flex-col gap-2 px-1 py-2')}
+            className={cn('text-body', showClosed ? 'justify-between' : 'h-auto flex-col gap-2 px-1 py-2')}
             aria-expanded={showClosed}
           >
             {showClosed ? (
@@ -208,7 +208,7 @@ export function ApplicationBoard({
               const list = byStatus.get(status) ?? []
               return (
                 <div key={status} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 px-2 text-[12px] text-muted-foreground">
+                  <div className="flex items-center gap-2 px-2 text-caption text-muted-foreground">
                     {APP_STATUS_LABEL[status]} <span className="tabular-nums">{list.length}</span>
                   </div>
                   <DropZone status={status} compact className="bg-surface">

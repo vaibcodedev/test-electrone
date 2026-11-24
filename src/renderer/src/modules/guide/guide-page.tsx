@@ -50,13 +50,13 @@ function Keys({ keys }: { keys: string[] }) {
 }
 
 function P({ children }: { children: ReactNode }) {
-  return <p className="max-w-[68ch] text-[14px] leading-relaxed text-foreground/85">{children}</p>
+  return <p className="max-w-[68ch] text-lead leading-relaxed text-foreground/85">{children}</p>
 }
 
 /** A titled bullet list of practical points. */
 function Points({ items }: { items: ReactNode[] }) {
   return (
-    <ul className="flex max-w-[70ch] flex-col gap-2 text-[14px] leading-relaxed text-foreground/85">
+    <ul className="flex max-w-[70ch] flex-col gap-2 text-lead leading-relaxed text-foreground/85">
       {items.map((it, i) => (
         <li key={i} className="flex gap-2.5">
           <span className="mt-2 size-1.5 shrink-0 rounded-full bg-chart-1" />
@@ -68,7 +68,7 @@ function Points({ items }: { items: ReactNode[] }) {
 }
 
 function Where({ children }: { children: ReactNode }) {
-  return <p className="text-[12.5px] text-muted-foreground">Где: {children}</p>
+  return <p className="text-caption text-muted-foreground">Где: {children}</p>
 }
 
 function DataPaths() {
@@ -90,8 +90,8 @@ function DataPaths() {
             </ItemMedia>
             <ItemContent className="min-w-0">
               <ItemTitle>{r.label}</ItemTitle>
-              <ItemDescription className="selectable truncate font-mono text-[12px]">{r.path}</ItemDescription>
-              <ItemDescription className="text-[12px]">{r.hint}</ItemDescription>
+              <ItemDescription className="selectable truncate font-mono text-caption">{r.path}</ItemDescription>
+              <ItemDescription className="text-caption">{r.hint}</ItemDescription>
             </ItemContent>
             <ItemActions>
               <CopyButton text={r.path} />
@@ -103,7 +103,7 @@ function DataPaths() {
         <Button variant="lime" onClick={() => void api.settings.openDataDir()}>
           <FolderOpen /> Открыть папку данных
         </Button>
-        {info && <span className="text-[12.5px] text-muted-foreground">Размер базы: {fmtBytes(info.dbSizeBytes)}</span>}
+        {info && <span className="text-caption text-muted-foreground">Размер базы: {fmtBytes(info.dbSizeBytes)}</span>}
       </div>
     </div>
   )

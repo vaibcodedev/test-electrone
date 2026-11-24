@@ -142,7 +142,7 @@ export function DesignsPage() {
           </div>
           {palette.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[12.5px] font-medium text-muted-foreground">Цвет</span>
+              <span className="mr-1 text-caption font-medium text-muted-foreground">Цвет</span>
               <ToggleGroup
                 type="single"
                 spacing={1}

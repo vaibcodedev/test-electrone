@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 /** Pill buttons. `default` = ink (lime in dark), `lime` = primary call to action, `soft` = surface. */
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-[background-color,color,box-shadow,transform] outline-none select-none active:translate-y-px focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-body font-medium whitespace-nowrap transition-[background-color,color,box-shadow,transform] outline-none select-none active:translate-y-px focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {

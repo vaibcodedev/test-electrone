@@ -131,7 +131,7 @@ export function StatTile({
       <CardContent className="flex flex-col gap-1">
         <MoneyLines value={value} className="font-display text-[26px] leading-tight" />
         {hint && (
-          <div className={cn('text-[12px]', ink ? 'text-ink-muted' : 'text-muted-foreground')}>
+          <div className={cn('text-caption', ink ? 'text-ink-muted' : 'text-muted-foreground')}>
             {hint}
           </div>
         )}

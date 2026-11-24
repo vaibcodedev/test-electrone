@@ -15,7 +15,7 @@ import { StatsTab } from './stats-tab'
 import { PlatformSettingsTab } from './platform-dialog'
 
 const TAB_TRIGGER =
-  'rounded-full px-4 text-[13px] data-[state=active]:bg-ink data-[state=active]:text-ink-foreground data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-ink dark:data-[state=active]:text-ink-foreground'
+  'rounded-full px-4 text-body data-[state=active]:bg-ink data-[state=active]:text-ink-foreground data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-ink dark:data-[state=active]:text-ink-foreground'
 
 type Tab = 'proposals' | 'contracts' | 'credits' | 'stats' | 'settings'
 

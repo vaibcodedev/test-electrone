@@ -98,7 +98,7 @@ export function EnglishPage() {
         actions={
           <div className="flex items-center gap-3">
             {stats && stats.streakDays > 0 && (
-              <Badge variant="soft" className="h-8 px-3 text-[12.5px] font-normal">
+              <Badge variant="soft" className="h-8 px-3 text-caption font-normal">
                 <Flame className="size-4! text-warn" />
                 {stats.streakDays} {plural(stats.streakDays, ['день', 'дня', 'дней'])} подряд
               </Badge>
@@ -108,7 +108,7 @@ export function EnglishPage() {
                 <Brain /> {due ? `Повторить ${due}` : 'Нечего повторять'}
               </Button>
               {!due && nextDue && (
-                <span className="mt-1 text-[11.5px] text-muted-foreground">Следующий повтор {fmtDay(nextDue)}</span>
+                <span className="mt-1 text-meta text-muted-foreground">Следующий повтор {fmtDay(nextDue)}</span>
               )}
             </div>
           </div>
@@ -167,17 +167,17 @@ export function EnglishPage() {
                     <div className="flex items-baseline gap-2">
                       <span className="font-display truncate text-[18px]">{w.term}</span>
                       {w.transcription && (
-                        <span className={cn('truncate text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        <span className={cn('truncate text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                           {w.transcription}
                         </span>
                       )}
                     </div>
-                    <div className={cn('mt-0.5 truncate text-[13px]', active ? 'text-ink-foreground/80' : 'text-muted-foreground')}>
+                    <div className={cn('mt-0.5 truncate text-body', active ? 'text-ink-foreground/80' : 'text-muted-foreground')}>
                       {w.translation || 'без перевода'}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
                       <Badge variant={active ? 'lime' : STAGE_BADGE[w.stage]}>{STAGE_LABEL[w.stage]}</Badge>
-                      <span className={cn('text-[11.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <span className={cn('text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {w.dueAt <= Date.now() ? 'пора повторить' : `повтор ${fmtDay(w.dueAt)}`}
                       </span>
                     </div>

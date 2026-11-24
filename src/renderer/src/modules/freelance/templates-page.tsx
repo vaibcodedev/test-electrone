@@ -112,7 +112,7 @@ export function CopyTemplateDialog({
           <Textarea
             readOnly
             value={filled}
-            className="max-h-72 min-h-32 text-[13px] leading-relaxed"
+            className="max-h-72 min-h-32 text-body leading-relaxed"
           />
         </Field>
         <DialogFooter>
@@ -222,7 +222,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
             value={t.body}
             onSave={(body) => save({ body })}
             placeholder="Hi {client}, …"
-            className="min-h-48 text-[14px] leading-relaxed"
+            className="min-h-48 text-lead leading-relaxed"
           />
         </Block>
         <Block label="Заметка для себя">
@@ -309,18 +309,18 @@ export function TemplatesPage() {
                 <ListItem active={t.id === open} onClick={() => setOpen(t.id)}>
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="text-[11.5px] opacity-60">
+                      <div className="text-meta opacity-60">
                         {SITUATION_LABEL[t.situation]}
                       </div>
-                      <div className="truncate text-[13.5px] font-medium">{t.title}</div>
+                      <div className="truncate text-body font-medium">{t.title}</div>
                       {t.situation === 'small_talk' ? (
-                        <div className="mt-1 flex items-center gap-1.5 text-[12px] opacity-70">
+                        <div className="mt-1 flex items-center gap-1.5 text-caption opacity-70">
                           <span className="truncate">{t.trigger || '—'}</span>
                           <ArrowRight className="size-3 shrink-0" />
                           <span className="truncate">{t.body || '—'}</span>
                         </div>
                       ) : (
-                        <div className="mt-1 line-clamp-2 text-[12px] opacity-70">{t.body}</div>
+                        <div className="mt-1 line-clamp-2 text-caption opacity-70">{t.body}</div>
                       )}
                     </div>
                     {t.usedIn > 0 && (

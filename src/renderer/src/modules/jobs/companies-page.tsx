@@ -59,7 +59,7 @@ function CompanyApplications({ companyId }: { companyId: string }) {
     <section className="flex flex-col gap-3">
       <SectionLabel>Вакансии в компании</SectionLabel>
       {list.length === 0 ? (
-        <p className="text-[12.5px] text-muted-foreground">Откликов в эту компанию пока не было.</p>
+        <p className="text-caption text-muted-foreground">Откликов в эту компанию пока не было.</p>
       ) : (
         <ItemGroup className="gap-1.5">
           {list.map((a) => {
@@ -69,7 +69,7 @@ function CompanyApplications({ companyId }: { companyId: string }) {
                 <button type="button" className="w-full text-left" onClick={() => navigate(`/jobs/applications?open=${a.id}`)}>
                   <ItemContent className="min-w-0">
                     <ItemTitle className="w-full truncate">{a.title}</ItemTitle>
-                    {salary && <ItemDescription className="text-[11.5px]">{salary}</ItemDescription>}
+                    {salary && <ItemDescription className="text-meta">{salary}</ItemDescription>}
                   </ItemContent>
                   <ItemActions>
                     <Badge variant={a.status === 'offer' || a.status === 'accepted' ? 'lime' : CLOSED_APP_STATUSES.includes(a.status) ? 'outline' : 'soft'}>
@@ -190,15 +190,15 @@ export function CompaniesPage() {
         {list.map((c) => (
           <ListItem key={c.id} active={c.id === openId} onClick={() => setOpenId(c.id)}>
             <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{c.name}</span>
+              <span className="min-w-0 flex-1 truncate text-body font-medium">{c.name}</span>
               {c.rating > 0 && (
-                <span className="flex items-center gap-0.5 text-[12px] opacity-70">
+                <span className="flex items-center gap-0.5 text-caption opacity-70">
                   <Star className="size-3" />
                   {c.rating}
                 </span>
               )}
             </div>
-            <div className="mt-0.5 flex gap-2 text-[12px] opacity-65">
+            <div className="mt-0.5 flex gap-2 text-caption opacity-65">
               <span className="truncate">{c.stack || c.location || 'Без описания'}</span>
               {c.applicationCount > 0 && (
                 <span className="ml-auto shrink-0 tabular-nums">

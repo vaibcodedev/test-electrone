@@ -112,8 +112,8 @@ function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }
               )}
             />
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[13.5px] font-medium">{stage.title || STAGE_KIND_LABEL[stage.kind]}</span>
-              <span className="text-[12px] text-muted-foreground">
+              <span className="truncate text-body font-medium">{stage.title || STAGE_KIND_LABEL[stage.kind]}</span>
+              <span className="text-caption text-muted-foreground">
                 {stage.kind === 'test_task' ? (stage.deadlineAt ? `сдать ${whenLabel(stage.deadlineAt)}` : 'без срока') : whenLabel(when)}
               </span>
             </span>
@@ -225,7 +225,7 @@ export function StageSection({ applicationId, stages }: { applicationId: string;
         Этапы
       </SectionLabel>
       {stages.length === 0 ? (
-        <p className="text-[12.5px] text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Скрининг, техническое, тестовое — добавьте этап, и он сразу появится в календаре.
         </p>
       ) : (

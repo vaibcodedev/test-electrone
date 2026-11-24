@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { ArrowUpRight, Plus, SquareKanban } from 'lucide-react'
 import type { BoardSummary } from '@shared/domain/boards'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fmtRelative } from '@/lib/format'
+import { fmtRelative, mdPreview } from '@/lib/format'
 import { EmptyState, Field, Page, PageBody, PageHeader, SegmentBar } from '@/components/common/page'
 import { TagList } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
@@ -58,7 +58,6 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 }
 
 function BoardTile({ board }: { board: BoardSummary }) {
-  const open = board.cardCount - board.doneCount
   return (
     <Card
       className={cn(
@@ -76,11 +75,11 @@ function BoardTile({ board }: { board: BoardSummary }) {
           {board.archived && <Badge variant="outline">Архив</Badge>}
         </div>
       </div>
-      <CardTitle className="font-display mt-4 line-clamp-2 text-[22px] leading-tight font-normal text-foreground">
+      <CardTitle className="font-display mt-4 line-clamp-2 text-stat-sm leading-tight font-normal text-foreground">
         {board.title}
       </CardTitle>
       {board.description && (
-        <CardDescription className="mt-1 line-clamp-2 text-[12.5px]">{board.description}</CardDescription>
+        <CardDescription className="mt-1 line-clamp-2 text-caption">{mdPreview(board.description)}</CardDescription>
       )}
       <div className="mt-auto pt-4">
         {board.tags.length > 0 && <TagList tags={board.tags} max={3} className="relative mb-3" />}
@@ -88,13 +87,13 @@ function BoardTile({ board }: { board: BoardSummary }) {
         {board.cardCount > 0 && (
           <SegmentBar value={board.doneCount} total={board.cardCount} segments={Math.min(board.cardCount, 8)} />
         )}
-        <div className="mt-1.5 flex justify-between text-[11.5px] text-muted-foreground">
-          <span>
+        <div className="mt-1.5 flex justify-between gap-3 text-meta text-muted-foreground">
+          <span className="min-w-0 truncate">
             {board.cardCount
-              ? `Готово ${board.doneCount} из ${board.cardCount}${open ? ` · ${open} в работе` : ''}`
+              ? `Готово ${board.doneCount} из ${board.cardCount}`
               : 'Пока без карточек'}
           </span>
-          <span>{fmtRelative(board.updatedAt)}</span>
+          <span className="shrink-0">{fmtRelative(board.updatedAt)}</span>
         </div>
       </div>
     </Card>

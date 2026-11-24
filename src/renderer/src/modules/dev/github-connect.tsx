@@ -45,7 +45,7 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      <p className="text-[12px] text-muted-foreground">Токен хранится зашифрованным ключом Windows и используется только для чтения.</p>
+      <p className="text-caption text-muted-foreground">Токен хранится зашифрованным ключом Windows и используется только для чтения.</p>
     </div>
   )
 }
@@ -54,7 +54,7 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
 export function GithubGuide() {
   return (
     <div className="flex flex-col gap-4">
-      <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-[13px]">
+      <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-body">
         {TOKEN_STEPS.map((s) => (
           <li key={s}>{s}</li>
         ))}

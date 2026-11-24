@@ -106,7 +106,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
           rows={2}
           onChange={(e) => setText(e.target.value)}
           placeholder={PLACEHOLDER[target]}
-          className="max-h-40 min-h-12 px-4 text-[15px]"
+          className="max-h-40 min-h-12 px-4 text-lead"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
@@ -133,7 +133,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
-      <div className="flex flex-wrap items-center gap-3 text-[11.5px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3 text-meta text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Kbd>Enter</Kbd> сохранить
         </span>
@@ -185,7 +185,7 @@ export function QuickAddWindow() {
       <div className="drag flex h-full flex-col rounded-[26px] bg-card p-5 shadow-2xl ring-1 ring-border">
         <div className="mb-3 flex items-center gap-2">
           <Avatar className="size-7">
-            <AvatarFallback className="bg-lime text-[12px] font-semibold text-lime-foreground">V</AvatarFallback>
+            <AvatarFallback className="bg-lime text-caption font-semibold text-lime-foreground">V</AvatarFallback>
           </Avatar>
           <span className="font-display text-[18px]">Быстро добавить</span>
         </div>

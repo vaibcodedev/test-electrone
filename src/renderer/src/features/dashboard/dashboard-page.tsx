@@ -59,7 +59,7 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
   const [todayStart] = useState(() => new Date().setHours(0, 0, 0, 0))
   return (
     <Card className="col-span-7 min-h-[300px] gap-0 bg-ink p-6 text-ink-foreground">
-      <div className="flex items-center justify-between text-[12.5px] text-ink-muted">
+      <div className="flex items-center justify-between text-caption text-ink-muted">
         <span>{capitalize(format(new Date(), 'EEEE, d MMMM', { locale: LOCALE }))}</span>
         {all.length > 0 && (
           <Badge variant="lime">
@@ -84,9 +84,9 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
                 <span className={cn('size-2 rounded-full', PRIORITY_DOT[c.priority])} />
               </ItemMedia>
               <ItemContent className="min-w-0">
-                <ItemTitle className="w-full truncate text-[14px] font-normal">{c.title}</ItemTitle>
+                <ItemTitle className="w-full truncate text-lead font-normal">{c.title}</ItemTitle>
               </ItemContent>
-              <span className={cn('shrink-0 text-[12px]', late ? 'text-destructive' : 'text-ink-muted')}>
+              <span className={cn('shrink-0 text-caption', late ? 'text-destructive' : 'text-ink-muted')}>
                 {late ? 'просрочено' : c.boardTitle}
               </span>
             </NavItem>
@@ -94,7 +94,7 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
         })}
       </ItemGroup>
       {!all.length && (
-        <p className="mt-4 max-w-sm text-[13px] text-ink-muted">
+        <p className="mt-4 max-w-sm text-body text-ink-muted">
           Поставьте дедлайн карточке на доске — она появится здесь в нужный день.
         </p>
       )}
@@ -116,12 +116,12 @@ function Agenda({ items }: { items: CalendarItem[] }) {
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">Событий нет. Добавьте встречу или напоминание в календаре.</p>
+          <p className="text-body text-muted-foreground">Событий нет. Добавьте встречу или напоминание в календаре.</p>
         ) : (
           <ItemGroup className="gap-2">
             {items.slice(0, 7).map((i) => (
               <NavItem key={i.key} to={ENTITY_META[i.ref.type].route(i.ref.id)} className="bg-card hover:ring-1 hover:ring-border">
-                <span className="w-14 shrink-0 text-[12px] text-muted-foreground tabular-nums">
+                <span className="w-14 shrink-0 text-caption text-muted-foreground tabular-nums">
                   {i.allDay ? format(i.startAt, 'd MMM', { locale: LOCALE }) : format(i.startAt, 'HH:mm')}
                 </span>
                 <span className="h-6 w-1 shrink-0 rounded-full" style={{ background: i.color ?? 'var(--chart-bar)' }} />
@@ -169,7 +169,7 @@ function QuickTiles() {
               </span>
               <Icon className={inverted ? 'text-ink-accent' : 'text-muted-foreground'} />
             </span>
-            <span className="text-[15px] leading-tight font-medium">{q.label}</span>
+            <span className="text-lead leading-tight font-medium">{q.label}</span>
           </Button>
         )
       })}
@@ -205,10 +205,10 @@ function TimerTile({
         {timer ? (
           <>
             <div>
-              <div className="font-display text-[34px] leading-none tabular-nums">{fmtMinutes(elapsed)}</div>
+              <div className="font-display text-stat leading-none tabular-nums">{fmtMinutes(elapsed)}</div>
               <Button
                 variant="link"
-                className="mt-1 text-[12.5px] font-normal text-lime-foreground/75"
+                className="mt-1 text-caption font-normal text-lime-foreground/75"
                 onClick={() => navigate(`/projects/${timer.projectId}`)}
               >
                 {timer.projectTitle}
@@ -220,8 +220,8 @@ function TimerTile({
           </>
         ) : (
           <div>
-            <div className="font-display text-[34px] leading-none">{fmtMinutes(weekMinutes)}</div>
-            <div className="mt-1 text-[12.5px] text-muted-foreground">за эту неделю</div>
+            <div className="font-display text-stat leading-none">{fmtMinutes(weekMinutes)}</div>
+            <div className="mt-1 text-caption text-muted-foreground">за эту неделю</div>
           </div>
         )}
       </CardContent>
@@ -251,10 +251,10 @@ function EnglishTile({ due, word }: { due: number; word: { id: string; term: str
             onClick={() => navigate(ENTITY_META.word.route(word.id))}
           >
             <span className="font-display text-[26px] leading-tight">{word.term}</span>
-            <span className="text-[13px] font-normal text-muted-foreground">{word.translation}</span>
+            <span className="text-body font-normal text-muted-foreground">{word.translation}</span>
           </Button>
         ) : (
-          <p className="text-[13px] text-muted-foreground">Добавьте слова из рабочей переписки — здесь будет одно каждый день.</p>
+          <p className="text-body text-muted-foreground">Добавьте слова из рабочей переписки — здесь будет одно каждый день.</p>
         )}
       </CardContent>
     </Card>
@@ -273,7 +273,7 @@ function Activity({ data }: { data: { day: string; count: number }[] }) {
         <CardTitle>Сделано за 2 недели</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
-        <div className="font-display text-[34px] leading-none">{total}</div>
+        <div className="font-display text-stat leading-none">{total}</div>
         <ChartContainer config={activityConfig} className="aspect-auto h-28 w-full">
           <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
             <XAxis dataKey="label" hide />
@@ -325,8 +325,8 @@ function GuideHint() {
         <BookOpen className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-medium">Впервые здесь?</div>
-        <div className="text-[13px] text-muted-foreground">
+        <div className="text-lead font-medium">Впервые здесь?</div>
+        <div className="text-body text-muted-foreground">
           Гайд за пару минут: разделы, горячие клавиши и где лежат ваши данные.
         </div>
       </div>
@@ -385,7 +385,7 @@ export function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Нажмите на булавку у любой записи, чтобы она появилась здесь.</p>
+            <p className="text-body text-muted-foreground">Нажмите на булавку у любой записи, чтобы она появилась здесь.</p>
           )}
         </ListCard>
 
@@ -395,10 +395,10 @@ export function DashboardPage() {
               <EntityRow
                 key={`${r.type}:${r.id}`}
                 item={r}
-                trailing={<span className="text-[11px] text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
+                trailing={<span className="text-meta text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
               />
             ))}
-            {!data.recent.length && <p className="px-2.5 text-[13px] text-muted-foreground">Пока пусто.</p>}
+            {!data.recent.length && <p className="px-2.5 text-body text-muted-foreground">Пока пусто.</p>}
           </div>
         </ListCard>
 
@@ -428,7 +428,7 @@ export function DashboardPage() {
               ))}
             </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               Входящие пусты. Глобальная клавиша быстрого добавления работает даже из трея.
             </p>
           )}
@@ -447,7 +447,7 @@ export function DashboardPage() {
               ))}
             </ItemGroup>
           ) : (
-            <p className="text-[13px] text-muted-foreground">Отметьте закладку «читаю» — прогресс будет здесь.</p>
+            <p className="text-body text-muted-foreground">Отметьте закладку «читаю» — прогресс будет здесь.</p>
           )}
         </ListCard>
       </div>

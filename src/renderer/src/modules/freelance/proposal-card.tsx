@@ -28,7 +28,7 @@ export const ProposalCard = forwardRef<
       {...rest}
     >
       <div className="flex items-start gap-2">
-        <span className="line-clamp-2 min-w-0 flex-1 text-[13px] leading-snug font-medium">{p.jobTitle}</span>
+        <span className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium">{p.jobTitle}</span>
         {p.starred && <Star className="mt-0.5 size-3.5 shrink-0 fill-warn text-warn" aria-label="Сильный отклик" />}
       </div>
       <div className="flex flex-wrap items-center gap-1">
@@ -47,7 +47,7 @@ export const ProposalCard = forwardRef<
           </Badge>
         )}
       </div>
-      <div className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
+      <div className="flex items-center gap-2 text-meta text-muted-foreground">
         {days !== null ? (
           <span>{days === 0 ? 'сегодня' : `${days} ${plural(days, ['день', 'дня', 'дней'])} назад`}</span>
         ) : (

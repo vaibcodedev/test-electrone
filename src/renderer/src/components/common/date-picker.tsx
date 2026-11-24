@@ -70,7 +70,7 @@ export function DatePicker({
           <Calendar mode="single" selected={date} onSelect={setDay} defaultMonth={date} locale={ru} weekStartsOn={1} />
           {withTime && (
             <div className="flex items-center gap-2 border-t border-border p-3">
-              <span className="text-[12.5px] text-muted-foreground">Время</span>
+              <span className="text-caption text-muted-foreground">Время</span>
               <Input
                 type="time"
                 value={time}

@@ -50,7 +50,7 @@ function CreditsRow({ platform }: { platform: Platform }) {
     <Item size="sm" variant="muted" className="gap-4 bg-card px-4 py-3">
       <ItemContent className="min-w-0 gap-1">
         <ItemTitle className="w-full truncate">{platform.name}</ItemTitle>
-        <ItemDescription className="text-[12px]">
+        <ItemDescription className="text-caption">
           {s.costPerContract !== null
             ? `один контракт стоил ${fmtMoney(s.costPerContract, platform.currency)}`
             : 'контрактов пока нет'}
@@ -58,11 +58,11 @@ function CreditsRow({ platform }: { platform: Platform }) {
       </ItemContent>
       <ItemActions className="gap-4">
         <div className={cn('flex flex-col items-end gap-0.5', low && 'text-warn')}>
-          <span className="flex items-center gap-1 font-display text-[22px] leading-none tabular-nums">
+          <span className="flex items-center gap-1 font-display text-stat-sm leading-none tabular-nums">
             {low && <AlertTriangle className="size-4" />}
             {s.balance}
           </span>
-          <span className="text-[11px] text-muted-foreground">{platform.creditsName}</span>
+          <span className="text-meta text-muted-foreground">{platform.creditsName}</span>
         </div>
         <Button
           variant={low ? 'lime' : 'soft'}
@@ -118,14 +118,14 @@ export function FreelanceOverviewPage() {
             <CardContent className="flex flex-col gap-1">
               {netEntries.length ? (
                 netEntries.map(([cur, v]) => (
-                  <div key={cur} className="font-display text-[34px] leading-none tabular-nums">
+                  <div key={cur} className="font-display text-stat leading-none tabular-nums">
                     {fmtMoney(v, cur)}
                   </div>
                 ))
               ) : (
-                <div className="font-display text-[34px] leading-none">—</div>
+                <div className="font-display text-stat leading-none">—</div>
               )}
-              <div className="mt-2 text-[12.5px] text-ink-muted">
+              <div className="mt-2 text-caption text-ink-muted">
                 {contracts.length}{' '}
                 {plural(contracts.length, [
                   'активный контракт',
@@ -151,7 +151,7 @@ export function FreelanceOverviewPage() {
             </CardHeader>
             <CardContent>
               {!stats || stats.byPlatform.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   За последние 30 дней откликов не было.
                 </p>
               ) : (
@@ -203,7 +203,7 @@ export function FreelanceOverviewPage() {
             </CardHeader>
             <CardContent>
               {stale.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">Никого не нужно догонять.</p>
+                <p className="text-body text-muted-foreground">Никого не нужно догонять.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {stale.slice(0, 8).map((p) => (
@@ -225,7 +225,7 @@ export function FreelanceOverviewPage() {
                           <ItemTitle className="w-full truncate font-normal">
                             {p.jobTitle}
                           </ItemTitle>
-                          <ItemDescription className="text-[12px]">
+                          <ItemDescription className="text-caption">
                             {platformName(p.platformId)} · отправлен {fmtDay(p.sentAt)}
                           </ItemDescription>
                         </ItemContent>
@@ -246,7 +246,7 @@ export function FreelanceOverviewPage() {
             </CardHeader>
             <CardContent>
               {withCredits.length === 0 ? (
-                <p className="text-[13px] text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   Ни на одной платформе нет платных откликов.
                 </p>
               ) : (
@@ -261,7 +261,7 @@ export function FreelanceOverviewPage() {
 
           {/* Goals */}
           <div className="col-span-12 flex items-center justify-between pt-2">
-            <h2 className="text-[13.5px] font-semibold">Цели</h2>
+            <h2 className="text-body font-semibold">Цели</h2>
             <Button
               variant="subtle"
               size="xs"
@@ -273,7 +273,7 @@ export function FreelanceOverviewPage() {
           {goals.length === 0 ? (
             <Card className="col-span-12">
               <CardContent className="flex items-center justify-between gap-4">
-                <p className="text-[13px] text-muted-foreground">
+                <p className="text-body text-muted-foreground">
                   Поставьте цель — например, 10 откликов в неделю.
                 </p>
                 <Button variant="lime" size="sm" onClick={() => navigate('/freelance/goals')}>

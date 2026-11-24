@@ -50,7 +50,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
                 {stats.applied} откл. · ответы {stats.replyRate}% · офферы {stats.offer}
               </Badge>
             )}
-            <label className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            <label className="flex items-center gap-2 text-caption text-muted-foreground">
               Активна
               <Switch checked={board.active} onCheckedChange={(active) => save({ active })} />
             </label>
@@ -91,7 +91,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
             />
           </Field>
         </div>
-        <p className="-mt-2 text-[11.5px] text-muted-foreground">0 — просто зайти и проверить, день закрывается галочкой.</p>
+        <p className="-mt-2 text-meta text-muted-foreground">0 — просто зайти и проверить, день закрывается галочкой.</p>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <Field className="w-auto gap-2">
             <FieldLabel>Дни</FieldLabel>
@@ -188,7 +188,7 @@ export function JobBoardsPage() {
             </SortableContext>
           </DndContext>
         )}
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           Отключённая площадка пропадает с обзора, но её история и статистика сохраняются.
         </p>
       </PageBody>

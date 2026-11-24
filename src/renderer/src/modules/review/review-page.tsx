@@ -61,7 +61,8 @@ function headline(s: WeekSnapshot): string {
   if (sent) parts.push(`${sent} ${plural(sent, ['отклик', 'отклика', 'откликов'])}`)
   const minutes = metric('minutes')
   if (!cards && minutes) parts.push(`${fmtMinutes(minutes)} работы`)
-  return parts.length ? parts.slice(0, 3).join(', ') : 'Тихая неделя'
+  // Non-breaking spaces keep "1 собеседование" on one line; lines break only between facts.
+  return parts.length ? parts.slice(0, 3).map((p) => p.replace(/ /g, ' ')).join(', ') : 'Тихая неделя'
 }
 
 function Delta({ m }: { m: WeekMetric }) {
@@ -98,7 +99,7 @@ function SectionCard({ section }: { section: WeekSection }) {
       <CardContent className="grid grid-cols-2 gap-3">
         {section.metrics.map((m) => (
           <div key={m.key} className="flex flex-col gap-1.5 rounded-2xl bg-card p-3">
-            <span className="text-[12px] text-muted-foreground">{m.label}</span>
+            <span className="text-caption text-muted-foreground">{m.label}</span>
             <span className="font-display text-[26px] leading-none tabular-nums">{fmtValue(m, m.value)}</span>
             <Delta m={m} />
           </div>
@@ -245,7 +246,7 @@ export function ReviewPage() {
         ) : (
           <div className="grid animate-rise grid-cols-12 gap-3">
             <div className="col-span-12 pb-2">
-              <h2 className="font-display max-w-[24ch] text-[44px] leading-[1.02] text-balance">{title}</h2>
+              <h2 className="font-display max-w-[28ch] text-[36px] leading-[1.08] text-balance">{title}</h2>
             </div>
 
             {snapshot.sections.map((s) => (
@@ -260,13 +261,13 @@ export function ReviewPage() {
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 {snapshot.pending.length === 0 && (
-                  <p className="text-[13px] text-muted-foreground">Ничего не висит — отклики отвечены, задачи в срок.</p>
+                  <p className="text-body text-muted-foreground">Ничего не висит — отклики отвечены, задачи в срок.</p>
                 )}
                 {snapshot.pending.map((g) => {
                   const isSubscription = g.title.toLowerCase().includes('подпис')
                   return (
                     <section key={g.title} className="flex flex-col gap-1">
-                      <h3 className="flex items-center gap-2 text-[12.5px] font-medium text-muted-foreground">
+                      <h3 className="flex items-center gap-2 text-caption font-semibold text-muted-foreground">
                         {g.title}
                         <Badge variant="soft">{g.items.length}</Badge>
                       </h3>
@@ -297,7 +298,7 @@ export function ReviewPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[13px] text-muted-foreground">Закрытые задачи недели появятся здесь.</p>
+                  <p className="text-body text-muted-foreground">Закрытые задачи недели появятся здесь.</p>
                 )}
               </CardContent>
             </Card>
@@ -314,7 +315,7 @@ export function ReviewPage() {
                         <button type="button" className="w-full text-left" onClick={() => navigate(u.route)}>
                           <ItemContent className="min-w-0">
                             <ItemTitle className="w-full truncate font-normal">{u.title}</ItemTitle>
-                            <ItemDescription className="text-[11.5px]">
+                            <ItemDescription className="text-meta">
                               {fmtDay(u.at)}, {format(u.at, 'HH:mm')}
                             </ItemDescription>
                           </ItemContent>
@@ -323,7 +324,7 @@ export function ReviewPage() {
                     ))}
                   </ItemGroup>
                 ) : (
-                  <p className="text-[13px] text-muted-foreground">В календаре на следующую неделю пусто.</p>
+                  <p className="text-body text-muted-foreground">В календаре на следующую неделю пусто.</p>
                 )}
               </CardContent>
             </Card>

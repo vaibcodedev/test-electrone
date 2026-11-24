@@ -87,7 +87,7 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
                 title: IMPACT_LABEL[n]
               }))}
             />
-            <span className="text-[11.5px] text-muted-foreground">{IMPACT_LABEL[idea.impact]}</span>
+            <span className="text-meta text-muted-foreground">{IMPACT_LABEL[idea.impact]}</span>
           </Field>
         </EntityAside>
       }

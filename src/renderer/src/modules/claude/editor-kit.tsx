@@ -130,7 +130,7 @@ export function Block({
     <Field className={cn('gap-2', className)}>
       <FieldLabel>{label}</FieldLabel>
       {children}
-      {hint && <FieldDescription className="text-[12px]">{hint}</FieldDescription>}
+      {hint && <FieldDescription className="text-caption">{hint}</FieldDescription>}
     </Field>
   )
 }

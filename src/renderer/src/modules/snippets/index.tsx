@@ -123,8 +123,8 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
     >
       <CardHeader className="grid-cols-[1fr_auto] items-start gap-3 px-4">
         <div className="min-w-0">
-          <div className="truncate text-[14px] font-medium">{item.title}</div>
-          <div className={cn('mt-0.5 truncate text-[12px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+          <div className="truncate text-lead font-medium">{item.title}</div>
+          <div className={cn('mt-0.5 truncate text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
             {LANGUAGE_LABEL[item.language]}
             {item.description ? ` — ${item.description}` : ''}
           </div>
@@ -139,7 +139,7 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
       {!compact && (item.code.trim() || item.tags.length > 0) && (
         <CardContent className="flex flex-col gap-3 px-4">
           {item.code.trim() && (
-            <CodeBlock code={item.code} language={item.language} maxLines={6} className="rounded-xl text-[11.5px]" />
+            <CodeBlock code={item.code} language={item.language} maxLines={6} className="rounded-xl text-meta" />
           )}
           <TagList tags={item.tags} />
         </CardContent>
@@ -186,7 +186,7 @@ export function SnippetsPage() {
           value={search}
           onChange={setSearch}
           placeholder="Ищите по названию, описанию и самому коду"
-          className="h-11 text-[14px]"
+          className="h-11 text-lead"
         />
         <div className="flex flex-wrap items-center gap-2">
           {used.length > 0 && (

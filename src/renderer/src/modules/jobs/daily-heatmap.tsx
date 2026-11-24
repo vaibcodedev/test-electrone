@@ -35,8 +35,8 @@ const chunk = <T,>(arr: T[], size: number): T[][] =>
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-2xl bg-card px-4 py-3">
-      <span className="text-[12px] text-muted-foreground">{label}</span>
-      <span className="font-display text-[22px] leading-none tabular-nums">{value}</span>
+      <span className="text-caption text-muted-foreground">{label}</span>
+      <span className="font-display text-stat-sm leading-none tabular-nums">{value}</span>
     </div>
   )
 }
@@ -64,15 +64,15 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
         <div className="grid items-end gap-x-2.5" style={{ gridTemplateColumns: cols }}>
           <span />
           {weeks.map((w) => (
-            <span key={w[0].day} className="text-[11px] text-muted-foreground tabular-nums">
+            <span key={w[0].day} className="text-meta text-muted-foreground tabular-nums">
               {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE })}
             </span>
           ))}
-          <span className="text-right text-[11px] text-muted-foreground">серия</span>
+          <span className="text-right text-meta text-muted-foreground">серия</span>
         </div>
         {boards.map((b) => (
           <div key={b.id} className="grid items-center gap-x-2.5" style={{ gridTemplateColumns: cols }}>
-            <span className="flex min-w-0 items-center gap-2 text-[13px] font-medium">
+            <span className="flex min-w-0 items-center gap-2 text-body font-medium">
               <span className="size-2 shrink-0 rounded-full" style={{ background: b.color ?? 'var(--muted-foreground)' }} />
               <span className="truncate">{b.name}</span>
             </span>
@@ -83,14 +83,14 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
                 ))}
               </div>
             ))}
-            <span className={cn('text-right text-[12.5px] tabular-nums', b.streak ? 'font-semibold' : 'text-muted-foreground')}>
+            <span className={cn('text-right text-caption tabular-nums', b.streak ? 'font-semibold' : 'text-muted-foreground')}>
               {b.streak} дн.
             </span>
           </div>
         ))}
       </div>
 
-      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground">
+      <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-[4px] bg-chart-1" /> норма выполнена
         </span>

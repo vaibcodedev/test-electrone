@@ -20,15 +20,15 @@ export function GithubSettingsCard() {
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle className="text-[15px] text-foreground">GitHub</CardTitle>
-        <CardDescription className="text-[12.5px]">Репозитории, issues и коммиты в разделе «Разработка → GitHub». Токен только на чтение.</CardDescription>
+        <CardTitle className="text-lead text-foreground">GitHub</CardTitle>
+        <CardDescription className="text-caption">Репозитории, issues и коммиты в разделе «Разработка → GitHub». Токен только на чтение.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {status?.connected ? (
           <Item size="sm" className="bg-card">
             <ItemContent>
               <ItemTitle className="font-normal">Подключён как @{status.login}</ItemTitle>
-              {status.rateRemaining !== null && <ItemDescription className="text-[12px]">Осталось запросов: {status.rateRemaining}</ItemDescription>}
+              {status.rateRemaining !== null && <ItemDescription className="text-caption">Осталось запросов: {status.rateRemaining}</ItemDescription>}
             </ItemContent>
             <ItemActions>
               <Button size="sm" variant="soft" onClick={() => navigate('/dev/github')}>
@@ -43,9 +43,9 @@ export function GithubSettingsCard() {
           </Item>
         ) : (
           <>
-            {status?.error && <p className="text-[12.5px] text-destructive">{status.error}</p>}
+            {status?.error && <p className="text-caption text-destructive">{status.error}</p>}
             <GithubTokenField compact />
-            <Button variant="link" className="self-start text-[12.5px]" onClick={() => navigate('/dev/github')}>
+            <Button variant="link" className="self-start text-caption" onClick={() => navigate('/dev/github')}>
               Как создать токен — пошаговый гайд
             </Button>
           </>
@@ -73,13 +73,13 @@ export function ExtensionSettingsCard() {
   return (
     <Card className="gap-3">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-[15px] text-foreground">
+        <CardTitle className="flex items-center gap-2 text-lead text-foreground">
           Расширение для Chrome
           {info && (
             <Badge variant={info.running ? 'lime' : 'soft'}>{info.running ? 'принимает' : settings.captureEnabled ? 'не запущено' : 'выключено'}</Badge>
           )}
         </CardTitle>
-        <CardDescription className="text-[12.5px]">
+        <CardDescription className="text-caption">
           Сохраняйте сайты, дизайны, библиотеки, компоненты и вакансии одной кнопкой — со ссылкой и скриншотом. Связь только локальная (127.0.0.1) по секретному ключу.
         </CardDescription>
       </CardHeader>
@@ -87,7 +87,7 @@ export function ExtensionSettingsCard() {
         <Item size="sm" className="bg-card">
           <ItemContent>
             <ItemTitle className="font-normal">Принимать данные из расширения</ItemTitle>
-            <ItemDescription className="text-[12px]">Порт {info?.port ?? settings.capturePort}</ItemDescription>
+            <ItemDescription className="text-caption">Порт {info?.port ?? settings.capturePort}</ItemDescription>
           </ItemContent>
           <ItemActions>
             <Switch checked={settings.captureEnabled} onCheckedChange={(captureEnabled) => save.mutate({ captureEnabled })} />
@@ -96,7 +96,7 @@ export function ExtensionSettingsCard() {
         {info && (
           <InputGroup className="bg-card">
             <InputGroupAddon>Ключ</InputGroupAddon>
-            <InputGroupInput readOnly value={info.token} className="font-mono text-[12px]" />
+            <InputGroupInput readOnly value={info.token} className="font-mono text-caption" />
             <InputGroupAddon align="inline-end">
               <CopyButton text={info.token} variant="ghost" size="xs" />
               <Button size="icon-xs" variant="ghost" aria-label="Сгенерировать новый ключ" title="Сгенерировать новый" onClick={() => regenerate.mutate(undefined)}>
@@ -105,7 +105,7 @@ export function ExtensionSettingsCard() {
             </InputGroupAddon>
           </InputGroup>
         )}
-        <ol className="flex list-decimal flex-col gap-1 pl-5 text-[12.5px] text-muted-foreground">
+        <ol className="flex list-decimal flex-col gap-1 pl-5 text-caption text-muted-foreground">
           {STEPS.map((s) => (
             <li key={s}>{s}</li>
           ))}

@@ -15,7 +15,7 @@ export function DueChip({ dueAt, done, className }: { dueAt: number; done: boole
   return (
     <Badge
       variant={late ? 'destructive' : done ? 'success' : 'outline'}
-      className={cn('h-5 px-2 text-[11px]', !late && !done && 'text-muted-foreground', className)}
+      className={cn('h-5 px-2 text-meta', !late && !done && 'text-muted-foreground', className)}
     >
       <CalendarClock />
       {fmtDay(dueAt)}
@@ -47,7 +47,7 @@ export const CardTile = forwardRef<
             className={cn('mt-[5px] size-2 shrink-0 rounded-full', PRIORITY_DOT[card.priority])}
           />
         )}
-        <span className={cn('min-w-0 flex-1 text-[13px] leading-snug', done && 'text-muted-foreground line-through')}>
+        <span className={cn('min-w-0 flex-1 text-body leading-snug', done && 'text-muted-foreground line-through')}>
           {card.title}
         </span>
       </div>
@@ -58,7 +58,7 @@ export const CardTile = forwardRef<
           {card.checklistTotal > 0 && (
             <Badge
               variant={card.checklistDone === card.checklistTotal ? 'lime' : 'soft'}
-              className={cn('h-5 px-2 text-[11px]', card.checklistDone !== card.checklistTotal && 'text-muted-foreground')}
+              className={cn('h-5 px-2 text-meta', card.checklistDone !== card.checklistTotal && 'text-muted-foreground')}
             >
               <ListChecks />
               {card.checklistDone}/{card.checklistTotal}

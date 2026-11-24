@@ -72,7 +72,7 @@ export function CalendarPage() {
       <header className="flex items-end justify-between gap-6 px-8 pt-7 pb-5">
         <div>
           <h1 className="font-display text-title">{title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
             {legend.length ? (
               legend.map((s) => (
                 <Badge key={s} variant="soft" className="font-normal text-muted-foreground">

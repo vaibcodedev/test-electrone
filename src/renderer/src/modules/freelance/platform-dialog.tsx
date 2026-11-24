@@ -155,11 +155,11 @@ function CreatePlatformForm({ onDone }: { onDone: () => void }) {
               kind === k && 'ring-2 ring-foreground'
             )}
           >
-            <span className="flex w-full items-center gap-2 text-[13.5px] font-medium">
+            <span className="flex w-full items-center gap-2 text-body font-medium">
               <RadioGroupItem id={`kind-${k}`} value={k} />
               {PLATFORM_KIND_LABEL[k]}
             </span>
-            <span className="text-[12px] leading-snug font-normal text-muted-foreground">{PRESETS[k].hint}</span>
+            <span className="text-caption leading-snug font-normal text-muted-foreground">{PRESETS[k].hint}</span>
           </Label>
         ))}
       </RadioGroup>
@@ -372,8 +372,8 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }) {
           </Field>
           <div className="flex items-center justify-between gap-4 rounded-2xl bg-card px-4 py-3">
             <Label htmlFor={`archive-${platform.id}`} className="flex flex-col items-start gap-1 text-foreground">
-              <span className="text-[13.5px] font-normal">В архиве</span>
-              <span className="text-[12px] font-normal text-muted-foreground">Скрыть из меню. Отклики и контракты сохранятся.</span>
+              <span className="text-body font-normal">В архиве</span>
+              <span className="text-caption font-normal text-muted-foreground">Скрыть из меню. Отклики и контракты сохранятся.</span>
             </Label>
             <Switch
               id={`archive-${platform.id}`}

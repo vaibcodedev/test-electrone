@@ -70,17 +70,17 @@ function IdentityCard() {
       </div>
       <div className="flex items-center gap-2 pr-20">
         <Avatar className="size-8">
-          <AvatarFallback className="bg-lime-foreground text-[13px] font-semibold text-lime">V</AvatarFallback>
+          <AvatarFallback className="bg-lime-foreground text-body font-semibold text-lime">V</AvatarFallback>
         </Avatar>
         <div className="leading-tight">
-          <div className="text-[13px] font-semibold">Vault</div>
-          <div className="text-[11px] opacity-65">{greeting()}</div>
+          <div className="text-body font-semibold">Vault</div>
+          <div className="text-meta opacity-65">{greeting()}</div>
         </div>
       </div>
       <div className="font-display mt-3 truncate text-[24px] leading-tight">{name || 'Твоя база'}</div>
       <div className="mt-3">
         <SegmentBar value={done} total={Math.max(cards.length, 1)} tone="ink" segments={5} />
-        <div className="mt-1.5 flex justify-between text-[11px] opacity-70">
+        <div className="mt-1.5 flex justify-between text-meta opacity-70">
           <span>
             {cards.length
               ? `Сегодня ${done} из ${cards.length} ${plural(cards.length, ['задачи', 'задач', 'задач'])}`
@@ -97,7 +97,7 @@ function NavCount({ type }: { type?: EntityType }) {
   const { data: dash } = useApi('app', 'dashboard')
   const n = type ? dash?.counts?.[type] : undefined
   if (!n) return null
-  return <span className="ml-auto text-[11px] font-normal text-muted-foreground tabular-nums">{n}</span>
+  return <span className="ml-auto text-meta font-normal text-muted-foreground tabular-nums">{n}</span>
 }
 
 /** One collapsible hub (shadcn Collapsible + SidebarMenuSub). */

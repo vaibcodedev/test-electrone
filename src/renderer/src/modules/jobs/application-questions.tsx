@@ -55,7 +55,7 @@ export function AskedQuestions({
               <button type="button" className="w-full text-left" onClick={() => navigate(`/jobs/questions?open=${q.id}`)}>
                 <ItemContent className="min-w-0">
                   <ItemTitle className="line-clamp-2 w-full font-normal">{q.question}</ItemTitle>
-                  <ItemDescription className="text-[11.5px]">
+                  <ItemDescription className="text-meta">
                     {q.answer.trim() ? 'есть ответ' : 'ответ ещё не записан'}
                   </ItemDescription>
                 </ItemContent>

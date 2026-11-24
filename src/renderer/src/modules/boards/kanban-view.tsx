@@ -70,7 +70,7 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
         variant="ghost"
         size="sm"
         onClick={() => setOpen(true)}
-        className="w-full justify-start rounded-xl px-2 text-[12.5px] font-normal text-muted-foreground hover:bg-card hover:text-foreground"
+        className="w-full justify-start rounded-xl px-2 text-caption font-normal text-muted-foreground hover:bg-card hover:text-foreground"
       >
         <Plus /> Карточка
       </Button>
@@ -98,7 +98,7 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
         }
       }}
       aria-label="Название новой карточки"
-      className="min-h-16 rounded-2xl bg-card p-3 text-[13px] ring-1 ring-ring/40"
+      className="min-h-16 rounded-2xl bg-card p-3 text-body ring-1 ring-ring/40"
     />
   )
 }

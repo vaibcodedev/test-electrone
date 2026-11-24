@@ -81,3 +81,15 @@ export function hostOf(url: string): string {
     return url
   }
 }
+
+/** Markdown → one line of plain text for previews (cards, rows). Not a parser: strips the common marks. */
+export function mdPreview(md: string): string {
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
+    .replace(/(\*\*|__|\*|_|~~|`)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}

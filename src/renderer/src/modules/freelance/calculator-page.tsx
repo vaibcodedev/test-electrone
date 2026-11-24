@@ -69,7 +69,7 @@ function NumberField({
           onChange(Math.max(min, Math.min(max ?? Infinity, Number(e.target.value) || 0)))
         }
       />
-      {hint && <FieldDescription className="text-[12px]">{hint}</FieldDescription>}
+      {hint && <FieldDescription className="text-caption">{hint}</FieldDescription>}
     </Field>
   )
 }
@@ -145,7 +145,7 @@ export function CalculatorPage() {
                   onValueChange={([v]) => set('billableShare', v)}
                   aria-label="Доля оплачиваемого времени"
                 />
-                <FieldDescription className="text-[12px]">
+                <FieldDescription className="text-caption">
                   Остальное — отклики, созвоны, правки без оплаты, учёба.
                 </FieldDescription>
               </Field>
@@ -200,7 +200,7 @@ export function CalculatorPage() {
                 <div className="font-display text-[56px] leading-none tabular-nums">
                   {usd(r.hourlyRate)}
                 </div>
-                <div className="text-[13px] text-ink-muted">
+                <div className="text-body text-ink-muted">
                   {usd(r.grossNeeded)} в месяц до всех вычетов ·{' '}
                   {Math.round(r.billableHoursPerMonth)} оплачиваемых часов
                 </div>
@@ -218,7 +218,7 @@ export function CalculatorPage() {
                       <ItemContent>
                         <ItemTitle className="font-normal">{b.label}</ItemTitle>
                       </ItemContent>
-                      <span className="text-[13px] tabular-nums">{usd(b.amount)}</span>
+                      <span className="text-body tabular-nums">{usd(b.amount)}</span>
                     </Item>
                   ))}
                   <Separator className="my-1" />
@@ -226,7 +226,7 @@ export function CalculatorPage() {
                     <ItemContent>
                       <ItemTitle>Нужно заработать</ItemTitle>
                     </ItemContent>
-                    <span className="text-[13px] font-medium tabular-nums">
+                    <span className="text-body font-medium tabular-nums">
                       {usd(r.grossNeeded)}
                     </span>
                   </Item>
@@ -253,7 +253,7 @@ export function CalculatorPage() {
                   <div className="font-display text-[28px] leading-none tabular-nums">
                     {usd(r.hourlyRate * fixedHours)}
                   </div>
-                  <div className="mt-1 text-[12px] text-muted-foreground">
+                  <div className="mt-1 text-caption text-muted-foreground">
                     + запас на правки 15–20% → {usd(r.hourlyRate * fixedHours * 1.2)}
                   </div>
                 </div>

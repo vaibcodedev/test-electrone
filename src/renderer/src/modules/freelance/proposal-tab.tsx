@@ -61,7 +61,7 @@ function NewProposalButton({ platform, onCreated }: { platform: Platform; onCrea
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
-        <p className="mt-2 px-1 text-[12px] text-muted-foreground">Остальное — ставку, коннекты, клиента — заполните в карточке.</p>
+        <p className="mt-2 px-1 text-caption text-muted-foreground">Остальное — ставку, коннекты, клиента — заполните в карточке.</p>
       </PopoverContent>
     </Popover>
   )

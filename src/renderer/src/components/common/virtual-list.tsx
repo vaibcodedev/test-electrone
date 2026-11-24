@@ -73,7 +73,7 @@ export function VirtualList<T>({
             {row.index < items.length ? (
               renderItem(items[row.index], row.index)
             ) : (
-              <div className="flex items-center justify-center gap-2 py-4 text-[12.5px] text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 py-4 text-caption text-muted-foreground">
                 <Spinner /> Загружаю ещё…
               </div>
             )}
@@ -161,7 +161,7 @@ export function VirtualGrid<T>({
               {row.index < rows ? (
                 slice.map((item, i) => <div key={getKey(item)}>{renderItem(item, start + i)}</div>)
               ) : (
-                <div className="col-span-full flex items-center justify-center gap-2 py-4 text-[12.5px] text-muted-foreground">
+                <div className="col-span-full flex items-center justify-center gap-2 py-4 text-caption text-muted-foreground">
                   <Spinner /> Загружаю ещё…
                 </div>
               )}

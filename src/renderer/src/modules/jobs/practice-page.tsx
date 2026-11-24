@@ -92,7 +92,7 @@ export function PracticePage() {
           <ArrowLeft /> К вопросам
         </Button>
         <SegmentBar value={done} total={Math.max(total, 1)} segments={Math.min(Math.max(total, 1), 12)} className="flex-1" />
-        <span className="w-16 text-right text-[13px] text-muted-foreground tabular-nums">
+        <span className="w-16 text-right text-body text-muted-foreground tabular-nums">
           {Math.min(done + (finished ? 0 : 1), total)}/{total}
         </span>
       </div>
@@ -110,7 +110,7 @@ export function PracticePage() {
         ) : queue.length === 0 ? (
           <div className="text-center">
             <div className="font-display text-title">Всё повторено</div>
-            <p className="mt-2 text-[13px] text-muted-foreground">Вопросы вернутся, когда подойдёт их интервал. Можно добавить новые.</p>
+            <p className="mt-2 text-body text-muted-foreground">Вопросы вернутся, когда подойдёт их интервал. Можно добавить новые.</p>
             <Button className="mt-5" onClick={exit}>
               К банку вопросов
             </Button>
@@ -123,14 +123,14 @@ export function PracticePage() {
               </AvatarFallback>
             </Avatar>
             <div className="font-display text-title mt-5">Тренировка завершена</div>
-            <p className="mt-2 text-[13px] text-muted-foreground">
+            <p className="mt-2 text-body text-muted-foreground">
               {uniqueTotal} {plural(uniqueTotal, ['вопрос', 'вопроса', 'вопросов'])}, ответов: {done}
             </p>
             <div className="mt-6 grid w-full grid-cols-4 gap-2">
               {GRADES.map((g) => (
                 <Card key={g.grade} className={cn('gap-1 rounded-2xl px-3 py-3', g.tile)}>
                   <div className="font-display text-[26px] leading-none">{results[g.grade]}</div>
-                  <div className="text-[12px]">{g.label}</div>
+                  <div className="text-caption">{g.label}</div>
                 </Card>
               ))}
             </div>
@@ -166,12 +166,12 @@ export function PracticePage() {
                   {current.answer.trim() ? (
                     <Markdown source={current.answer} className="rounded-2xl bg-card p-5" />
                   ) : (
-                    <p className="text-center text-[13px] text-muted-foreground">Ответа пока нет — допиши его в банке вопросов.</p>
+                    <p className="text-center text-body text-muted-foreground">Ответа пока нет — допиши его в банке вопросов.</p>
                   )}
                 </div>
               ) : (
                 <>
-                  <p className="text-[13px] text-ink-muted">Ответь вслух, затем открой свой ответ.</p>
+                  <p className="text-body text-ink-muted">Ответь вслух, затем открой свой ответ.</p>
                   <Button
                     variant="lime"
                     className="mt-2"
@@ -192,10 +192,10 @@ export function PracticePage() {
                   variant={g.grade === 3 ? 'lime' : 'soft'}
                   disabled={!revealed || busy}
                   onClick={() => void grade(g.grade)}
-                  className={cn('h-16 flex-col gap-0.5 rounded-2xl text-[14px]', g.cls)}
+                  className={cn('h-16 flex-col gap-0.5 rounded-2xl text-lead', g.cls)}
                 >
                   <span>{g.label}</span>
-                  <span className="flex items-center gap-1.5 text-[11px] font-normal opacity-70">
+                  <span className="flex items-center gap-1.5 text-meta font-normal opacity-70">
                     <Kbd className="h-4 min-w-4 bg-transparent text-current ring-current/30">{g.grade + 1}</Kbd>
                     {g.hint}
                   </span>

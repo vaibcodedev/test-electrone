@@ -48,14 +48,14 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
             }
           }}
           aria-label="Название колонки"
-          className="h-7 min-w-0 flex-1 rounded-lg bg-card px-2 text-[13px] font-medium"
+          className="h-7 min-w-0 flex-1 rounded-lg bg-card px-2 text-body font-medium"
         />
       ) : (
         <Button
           variant="ghost"
           size="sm"
           onDoubleClick={() => setEditing(true)}
-          className="min-w-0 flex-1 justify-start gap-2 px-1 text-[13px] hover:bg-transparent"
+          className="min-w-0 flex-1 justify-start gap-2 px-1 text-body hover:bg-transparent"
           title="Двойной клик — переименовать"
         >
           {column.isDone && (
@@ -64,7 +64,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
             </Badge>
           )}
           <span className="truncate">{column.title}</span>
-          <span className="text-[12px] font-normal text-muted-foreground tabular-nums">{count}</span>
+          <span className="text-caption font-normal text-muted-foreground tabular-nums">{count}</span>
         </Button>
       )}
       <DropdownMenu>

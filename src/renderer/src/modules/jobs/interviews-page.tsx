@@ -41,15 +41,15 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
   return (
     <Item variant="muted" size="sm" className={cn('gap-3', past && stage.status === 'cancelled' && 'opacity-60')}>
       <ItemMedia className="w-16 flex-col items-start gap-0 self-center text-left">
-        <span className="text-[13px] font-medium tabular-nums">{t ? format(t, 'HH:mm') : '—'}</span>
-        <span className="text-[11px] text-muted-foreground">{t ? fmtDate(t, 'd MMM') : 'без даты'}</span>
+        <span className="text-body font-medium tabular-nums">{t ? format(t, 'HH:mm') : '—'}</span>
+        <span className="text-meta text-muted-foreground">{t ? fmtDate(t, 'd MMM') : 'без даты'}</span>
       </ItemMedia>
       <ItemContent className="min-w-0">
         <ItemTitle className="w-full truncate">
           {stage.kind === 'test_task' ? 'Сдать тестовое' : stage.title || STAGE_KIND_LABEL[stage.kind]}
           <span className="font-normal text-muted-foreground"> — {stage.company || stage.applicationTitle}</span>
         </ItemTitle>
-        <ItemDescription className="truncate text-[12px]">
+        <ItemDescription className="truncate text-caption">
           {stage.applicationTitle}
           {stage.interviewers ? ` · ${stage.interviewers}` : ''}
         </ItemDescription>
@@ -121,12 +121,12 @@ export function InterviewsPage() {
           <>
             {groups.length === 0 ? (
               <Card className="py-5">
-                <CardContent className="text-[13px] text-muted-foreground">Ближайших этапов нет.</CardContent>
+                <CardContent className="text-body text-muted-foreground">Ближайших этапов нет.</CardContent>
               </Card>
             ) : (
               groups.map((g) => (
                 <section key={g.title} className="flex flex-col gap-2">
-                  <h2 className={cn('text-[13px] font-medium', g.title === 'Сегодня' ? 'text-foreground' : 'text-muted-foreground')}>
+                  <h2 className={cn('text-body font-medium', g.title === 'Сегодня' ? 'text-foreground' : 'text-muted-foreground')}>
                     {g.title}
                     {g.title === 'Сегодня' && ` · ${format(now, 'd MMMM', { locale: LOCALE })}`}
                   </h2>
@@ -141,7 +141,7 @@ export function InterviewsPage() {
 
             {past.length > 0 && (
               <section className="flex flex-col gap-2 pt-2">
-                <h2 className="text-[13px] font-medium text-muted-foreground">
+                <h2 className="text-body font-medium text-muted-foreground">
                   Прошедшие · {past.length}
                   {(passed > 0 || failed > 0) && ` — успешно ${passed}, не прошёл ${failed}`}
                 </h2>

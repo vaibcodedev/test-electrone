@@ -67,7 +67,7 @@ export function TagList({ tags, max = 4, className }: { tags: Tag[]; max?: numbe
           className="h-5 px-2 bg-foreground/[0.07] [[data-active]_&]:bg-ink-foreground/12 [[data-active]_&]:text-ink-foreground"
         />
       ))}
-      {tags.length > max && <span className="text-[11px] text-muted-foreground">+{tags.length - max}</span>}
+      {tags.length > max && <span className="text-meta text-muted-foreground">+{tags.length - max}</span>}
     </div>
   )
 }
@@ -184,7 +184,7 @@ export function TagFilter({ value, onChange }: { value: string | undefined; onCh
                 >
                   <span className="size-2 rounded-full" style={{ background: t.color ?? 'var(--muted-foreground)' }} />
                   <span className="flex-1">{t.name}</span>
-                  <span className="text-[11px] text-muted-foreground">{t.usage}</span>
+                  <span className="text-meta text-muted-foreground">{t.usage}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

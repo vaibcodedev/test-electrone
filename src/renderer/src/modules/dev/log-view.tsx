@@ -80,7 +80,7 @@ export function LogView({ runId, className }: { runId: string; className?: strin
         const el = e.currentTarget
         stick.current = el.scrollTop + el.clientHeight >= el.scrollHeight - ROW_HEIGHT * 2
       }}
-      className={cn('selectable min-h-0 overflow-auto rounded-xl bg-[var(--code-bg)] font-mono text-[12px] text-[var(--code-fg)]', className)}
+      className={cn('selectable min-h-0 overflow-auto rounded-xl bg-[var(--code-bg)] font-mono text-caption text-[var(--code-fg)]', className)}
     >
       {rows.length === 0 ? (
         <div className="p-3 text-[var(--code-muted)]">Лог пуст…</div>

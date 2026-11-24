@@ -43,8 +43,8 @@ const toForm = (q: InterviewQuestion): Form => ({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Card className="gap-0.5 rounded-2xl px-3 py-2.5">
-      <div className="text-[11.5px] text-muted-foreground">{label}</div>
-      <div className="text-[14px] font-medium tabular-nums">{value}</div>
+      <div className="text-meta text-muted-foreground">{label}</div>
+      <div className="text-lead font-medium tabular-nums">{value}</div>
     </Card>
   )
 }
@@ -280,8 +280,8 @@ export function QuestionsPage() {
                 const active = q.id === open
                 return (
                   <ListItem active={active} onClick={() => setOpen(active ? null : q.id)}>
-                    <div className="line-clamp-2 text-[13.5px] font-medium">{q.question}</div>
-                    <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] ${active ? 'text-ink-muted' : 'text-muted-foreground'}`}>
+                    <div className="line-clamp-2 text-body font-medium">{q.question}</div>
+                    <div className={`mt-1 flex flex-wrap items-center gap-1.5 text-meta ${active ? 'text-ink-muted' : 'text-muted-foreground'}`}>
                       <span>{QUESTION_CATEGORY_LABEL[q.category]}</span>
                       {q.topic && <span>· {q.topic}</span>}
                       <span>· {LANG_LABEL[q.lang]}</span>

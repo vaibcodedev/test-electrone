@@ -28,7 +28,7 @@ function Stat({ label, value, hint, accent }: { label: string; value: string; hi
       </CardHeader>
       <CardContent>
         <div className="font-display text-[30px] leading-none tabular-nums">{value}</div>
-        {hint && <div className={accent ? 'mt-1.5 text-[12px] text-ink-muted' : 'mt-1.5 text-[12px] text-muted-foreground'}>{hint}</div>}
+        {hint && <div className={accent ? 'mt-1.5 text-caption text-ink-muted' : 'mt-1.5 text-caption text-muted-foreground'}>{hint}</div>}
       </CardContent>
     </Card>
   )

@@ -74,13 +74,13 @@ export function ClientPage() {
       <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={c.id}>
         <Link
           to="/clients"
-          className="mb-4 flex w-fit items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
+          className="mb-4 flex w-fit items-center gap-1 text-caption text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" /> Клиенты
         </Link>
         <div className="flex items-start gap-4">
           <Avatar className="size-14 shrink-0">
-            <AvatarFallback className="bg-lime text-[22px] font-semibold text-lime-foreground">
+            <AvatarFallback className="bg-lime text-stat-sm font-semibold text-lime-foreground">
               {c.name.slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -146,7 +146,7 @@ export function ClientPage() {
           ) : (
             <StatTile
               label="Как работаете"
-              value={<span className="text-[22px]">{BILLING_INFO[c.defaultBilling].title}</span>}
+              value={<span className="text-stat-sm">{BILLING_INFO[c.defaultBilling].title}</span>}
               hint={
                 BILLING_INFO[c.defaultBilling].amountLabel && c.defaultRate > 0
                   ? `${BILLING_INFO[c.defaultBilling].amountLabel}: ${fmtMoney(c.defaultRate, c.currency)}`
@@ -172,7 +172,7 @@ export function ClientPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-[13px] text-muted-foreground">У клиента пока нет проектов.</p>
+              <p className="text-body text-muted-foreground">У клиента пока нет проектов.</p>
             )}
           </Section>
           <Section title="Как общаться">
@@ -259,7 +259,7 @@ export function ClientPage() {
                 </Field>
               )}
             </div>
-            <p className="text-[11.5px] text-muted-foreground">
+            <p className="text-meta text-muted-foreground">
               Новые проекты клиента заполнятся этими условиями.
             </p>
           </section>

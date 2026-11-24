@@ -240,18 +240,18 @@ export function ClaudePage() {
                 return (
                   <div className="relative">
                     <ListItem active={active} onClick={() => setOpen(i.id)} className={cn(isPrompt && 'pr-14')}>
-                      <div className={cn('mb-0.5 text-[11.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <div className={cn('mb-0.5 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {KIND_SINGLE[i.kind]}
                         {i.works && <span className={cn('ml-1.5', active ? 'text-ink-accent' : 'text-success')}>● работает</span>}
                       </div>
-                      <div className="truncate text-[13.5px] font-medium">{i.title}</div>
+                      <div className="truncate text-body font-medium">{i.title}</div>
                       {i.summary && (
-                        <div className={cn('mt-0.5 line-clamp-2 text-[12.5px]', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                        <div className={cn('mt-0.5 line-clamp-2 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                           {i.summary}
                         </div>
                       )}
                       {!active && <TagList tags={i.tags} className="mt-2" />}
-                      {!openId && <div className="mt-1.5 text-[11px] text-muted-foreground">{fmtRelative(i.updatedAt)}</div>}
+                      {!openId && <div className="mt-1.5 text-meta text-muted-foreground">{fmtRelative(i.updatedAt)}</div>}
                     </ListItem>
                     {isPrompt && (
                       <Tooltip>

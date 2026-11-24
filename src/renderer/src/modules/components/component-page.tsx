@@ -78,7 +78,7 @@ function CoverField({ item }: { item: UiComponent }) {
             <EmptyMedia variant="icon" className="size-9 rounded-full bg-card">
               <ImagePlus className="size-4 text-muted-foreground" />
             </EmptyMedia>
-            <EmptyDescription className="text-[12px]">Перетащите картинку или нажмите Ctrl+V</EmptyDescription>
+            <EmptyDescription className="text-caption">Перетащите картинку или нажмите Ctrl+V</EmptyDescription>
           </Empty>
         )}
       </div>
@@ -164,7 +164,7 @@ function Editor({ item }: { item: UiComponent }) {
         {layout !== 'code' && (
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="text-[12.5px] font-medium text-muted-foreground">Живое превью</span>
+              <span className="text-caption font-medium text-muted-foreground">Живое превью</span>
               <Segmented<PreviewBackground>
                 size="xs"
                 value={item.previewBg}
@@ -211,12 +211,12 @@ function Editor({ item }: { item: UiComponent }) {
             <SectionLabel>Доступно в превью</SectionLabel>
             <div className="flex flex-wrap gap-1">
               {PREVIEW_IMPORTS.map((m) => (
-                <Badge key={m} variant="outline" className="bg-card font-mono text-[11px] font-normal">
+                <Badge key={m} variant="outline" className="bg-card font-mono text-meta font-normal">
                   {m}
                 </Badge>
               ))}
             </div>
-            <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+            <p className="text-meta leading-relaxed text-muted-foreground">
               Tailwind-классы работают. Покажется <code className="font-mono">export default</code> или компонент с именем
               App / Demo / Preview, либо вызов <code className="font-mono">render(&lt;X /&gt;)</code>.
             </p>

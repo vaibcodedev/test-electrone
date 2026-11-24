@@ -88,7 +88,7 @@ function ClientCard({ client }: { client: ClientSummary }) {
       <button type="button" onClick={() => navigate(`/clients/${client.id}`)} className="text-left">
         <div className="flex items-start justify-between gap-3">
           <Avatar className="size-10">
-            <AvatarFallback className="bg-card text-[14px] font-semibold">
+            <AvatarFallback className="bg-card text-lead font-semibold">
               {client.name.slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -96,7 +96,7 @@ function ClientCard({ client }: { client: ClientSummary }) {
         </div>
         <ItemContent className="gap-1">
           <ItemTitle className="w-full truncate text-[16px]">{client.name}</ItemTitle>
-          <ItemDescription className="truncate text-[12.5px]">
+          <ItemDescription className="truncate text-caption">
             {client.company || CLIENT_STATUS_LABEL[client.status]} ·{' '}
             {BILLING_LABEL[client.defaultBilling]}
             {client.country && ` · ${client.country}`}
@@ -107,7 +107,7 @@ function ClientCard({ client }: { client: ClientSummary }) {
               {client.status === 'avoid' && <AvoidBadge link={false} />}
             </div>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-muted-foreground">
             <span>
               {client.activeProjectCount}/{client.projectCount}{' '}
               {plural(client.projectCount, ['проект', 'проекта', 'проектов'])}
@@ -131,7 +131,7 @@ function BillingProgress({ project: p }: { project: ProjectSummary }) {
   if (p.billing === 'hourly') {
     return (
       <>
-        <div className="flex justify-between text-[12px]">
+        <div className="flex justify-between text-caption">
           <span>{fmtHours(p.trackedMinutes)}</span>
           {p.budgetHours > 0 && <span className="text-muted-foreground">из {p.budgetHours} ч</span>}
         </div>
@@ -144,7 +144,7 @@ function BillingProgress({ project: p }: { project: ProjectSummary }) {
   if (p.billing === 'fixed') {
     return (
       <>
-        <div className="flex justify-between text-[12px]">
+        <div className="flex justify-between text-caption">
           <span>
             оплачено {p.fixedPrice ? Math.round((p.paidAmount / p.fixedPrice) * 100) : 0}%
           </span>
@@ -156,7 +156,7 @@ function BillingProgress({ project: p }: { project: ProjectSummary }) {
   }
   if (p.billing === 'retainer') {
     return (
-      <div className="text-[12px]">
+      <div className="text-caption">
         {fmtMoney(p.fixedPrice, p.currency)} <span className="text-muted-foreground">/ мес</span>
         <div className="text-muted-foreground">
           {p.retainerMonths} {plural(p.retainerMonths, ['месяц', 'месяца', 'месяцев'])}
@@ -165,7 +165,7 @@ function BillingProgress({ project: p }: { project: ProjectSummary }) {
     )
   }
   return (
-    <div className="text-[12px] text-muted-foreground">{fmtHours(p.trackedMinutes)} учтено</div>
+    <div className="text-caption text-muted-foreground">{fmtHours(p.trackedMinutes)} учтено</div>
   )
 }
 
@@ -189,13 +189,13 @@ export function ProjectRow({
       >
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[14px] font-medium">{project.title}</span>
+            <span className="truncate text-lead font-medium">{project.title}</span>
             <Badge variant={PROJECT_STATUS_BADGE[project.status]}>
               {PROJECT_STATUS_LABEL[project.status]}
             </Badge>
             <PlatformBadge platformId={project.platformId} name={project.platformName} />
           </div>
-          <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          <div className="mt-0.5 truncate text-caption text-muted-foreground">
             {showClient && `${project.clientName ?? 'Без клиента'} · `}
             {BILLING_LABEL[project.billing]}
           </div>
@@ -204,7 +204,7 @@ export function ProjectRow({
         <div className="min-w-0">
           <BillingProgress project={project} />
         </div>
-        <div className="min-w-0 text-[12px] leading-relaxed">
+        <div className="min-w-0 text-caption leading-relaxed">
           {paid ? (
             <>
               <div>
@@ -226,7 +226,7 @@ export function ProjectRow({
         </div>
         <div
           className={cn(
-            'text-right text-[12px]',
+            'text-right text-caption',
             overdue ? 'text-destructive' : 'text-muted-foreground'
           )}
         >

@@ -69,6 +69,13 @@
   --radius-2xl: 24px;
   --radius-3xl: 28px;
 
+  /* Type roles (docs/design-system.md). Size only: line-height stays contextual (leading-*). */
+  --text-meta: 0.71875rem; /* 11.5px — timestamps, counters, legends, badges */
+  --text-caption: 0.78125rem; /* 12.5px — descriptions, hints, secondary lines */
+  --text-body: 0.84375rem; /* 13.5px — body, list titles, buttons, card titles */
+  --text-lead: 0.9375rem; /* 15px — emphasized titles inside panels */
+  --text-stat-sm: 1.375rem; /* 22px — small stat numbers */
+  --text-stat: 2.125rem; /* 34px — stat tiles */
   --text-display: 3.25rem;
   --text-display--line-height: 0.98;
   --text-display--letter-spacing: -0.045em;

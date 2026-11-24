@@ -74,7 +74,7 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
           <Button type="submit" variant="lime" disabled={!title.trim() || create.isPending}>
             Добавить и открыть
           </Button>
-          <p className="text-[12px] text-muted-foreground">Статус «Отправлено» и сегодняшняя дата — площадка сразу отметится в дневной норме.</p>
+          <p className="text-caption text-muted-foreground">Статус «Отправлено» и сегодняшняя дата — площадка сразу отметится в дневной норме.</p>
         </form>
       </PopoverContent>
     </Popover>

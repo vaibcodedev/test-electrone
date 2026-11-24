@@ -35,13 +35,13 @@ function Funnel({ totals }: { totals: FunnelRow }) {
     <div className="flex flex-col gap-3">
       {steps.map((s, i) => (
         <div key={s.label} className="grid grid-cols-[110px_1fr_90px] items-center gap-3">
-          <span className="text-[13px]">{s.label}</span>
+          <span className="text-body">{s.label}</span>
           <Progress
             value={(s.value / max) * 100}
             aria-label={s.label}
             className="h-3 bg-surface [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
           />
-          <span className="text-right text-[13px] tabular-nums">
+          <span className="text-right text-body tabular-nums">
             <span className="font-medium">{s.value}</span>
             {i > 0 && totals.sent > 0 && (
               <span className="ml-1.5 text-muted-foreground">{Math.round((s.value / totals.sent) * 100)}%</span>
@@ -62,7 +62,7 @@ function FunnelTable({ title, description, rows, creditsName }: { title: string;
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-[13px] text-muted-foreground">Нет данных за период.</p>
+          <p className="text-body text-muted-foreground">Нет данных за период.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -111,7 +111,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} />
-        <span className="text-[12.5px] text-muted-foreground">
+        <span className="text-caption text-muted-foreground">
           {stats.avgReplyHours !== null
             ? `Клиенты отвечают в среднем за ${stats.avgReplyHours < 48 ? `${Math.round(stats.avgReplyHours)} ч` : `${Math.round(stats.avgReplyHours / 24)} дн.`}`
             : 'Ответов пока нет'}
