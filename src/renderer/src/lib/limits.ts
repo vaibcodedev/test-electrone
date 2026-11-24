@@ -39,8 +39,11 @@ export function isLikelyUrl(value: string): boolean {
   const v = value.trim()
   if (!v) return true
   if (/\s/.test(v)) return false
-  if (/^(https?|mailto|ftp):/i.test(v)) return true
-  return /^[\w-]+(\.[\w-]+)+(:\d+)?([/?#].*)?$/.test(v) || /^localhost(:\d+)?/.test(v)
+  if (/^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(v)) return true
+  // A real host: a domain with a dot (and a 2+ letter TLD), localhost or an IPv4 — «http://lol» is not a link.
+  const host = /^(?:(?:https?|ftp):\/\/)?([^/?#:\s]+)(?::\d+)?(?:[/?#].*)?$/i.exec(v)?.[1]
+  if (!host) return false
+  return /^([\w-]+\.)+[a-zЀ-ӿ]{2,}$/i.test(host) || host === 'localhost' || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
 }
 
 export const URL_ERROR = 'Не схоже на посилання — наприклад, https://example.com'

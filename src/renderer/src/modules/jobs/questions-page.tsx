@@ -290,6 +290,7 @@ export function QuestionsPage() {
             <VirtualList
               className="pr-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(q) => q.id}
               estimateSize={72}
               hasMore={list.hasMore}

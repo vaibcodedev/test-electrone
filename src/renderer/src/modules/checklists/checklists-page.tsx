@@ -160,6 +160,7 @@ export function ChecklistsPage() {
       <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
         <VirtualGrid
           items={page.items}
+          loading={page.isLoading}
           getKey={(c) => c.id}
           minColumnWidth={260}
           rowHeight={tab === 'template' ? 200 : 160}

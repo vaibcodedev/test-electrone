@@ -172,8 +172,9 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
       <EditorStack>
         <div {...props}>
           {c.coverPath ? (
-            <Card className={cn('overflow-hidden p-0', isOver && 'ring-2 ring-inset ring-ring')}>
-              <img src={fileUrl(c.coverPath)} alt="" className="max-h-72 w-full object-cover" />
+            // Framed like a design preview: the whole screenshot is visible and never melts into the pane.
+            <Card className={cn('overflow-hidden bg-surface p-2', isOver && 'ring-2 ring-inset ring-ring')}>
+              <img src={fileUrl(c.coverPath)} alt="" className="max-h-80 w-full rounded-2xl object-contain ring-1 ring-foreground/8" />
             </Card>
           ) : (
             <Empty
@@ -279,6 +280,7 @@ export function PortfolioPage() {
             <VirtualGrid
               className="pr-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(c) => c.id}
               minColumnWidth={220}
               rowHeight={230}
@@ -301,22 +303,27 @@ export function PortfolioPage() {
                   onClick={() => setOpen(c.id)}
                   onKeyDown={(e) => e.key === 'Enter' && setOpen(c.id)}
                   className={cn(
-                    'cursor-pointer gap-0 overflow-hidden py-0 transition-shadow hover:ring-1 hover:ring-border',
-                    c.id === open && 'outline-2 -outline-offset-2 outline-chart-1'
+                    // Same tile language as Дизайни: a surface frame, so a dark cover never melts into the page.
+                    'h-full cursor-pointer gap-0 overflow-hidden bg-surface p-1.5 transition-colors hover:bg-accent',
+                    c.id === open && 'bg-accent outline-2 -outline-offset-2 outline-chart-1'
                   )}
                 >
-                  <div className="aspect-[16/10] bg-card">
+                  <div className="aspect-[16/10] overflow-hidden rounded-[18px] bg-card ring-1 ring-foreground/8 ring-inset">
                     {c.coverPath ? (
-                      <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover" />
+                      <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover object-top" />
                     ) : (
-                      <div className="grid size-full place-items-center text-muted-foreground">
-                        <BriefcaseBusiness className="size-6" />
+                      <div className="m-2 grid h-[calc(100%-1rem)] place-items-center rounded-xl border border-dashed border-foreground/12 text-muted-foreground">
+                        <div className="flex flex-col items-center gap-1.5 text-caption">
+                          <BriefcaseBusiness className="size-5" />
+                          Без обкладинки
+                        </div>
                       </div>
                     )}
                   </div>
-                  <CardContent className="flex flex-col gap-1.5 px-4 py-3">
-                    <div className="truncate text-body font-medium">{c.title}</div>
-                    <div className="flex min-w-0 flex-wrap gap-1">
+                  <CardContent className="flex flex-1 flex-col gap-1.5 px-2.5 pt-3 pb-1.5">
+                    <div className="truncate text-body font-semibold">{c.title}</div>
+                    {/* Reserved line: cards stay the same height with or without niche/stack. */}
+                    <div className="flex h-6 min-w-0 items-center gap-1.5">
                       {c.niche && <Badge variant="soft">{c.niche}</Badge>}
                       {c.stack && <span className="min-w-0 truncate text-meta text-muted-foreground">{c.stack}</span>}
                     </div>

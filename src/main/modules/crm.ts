@@ -37,7 +37,7 @@ import { pageSchema } from '@shared/domain/common'
 import { clients, credentials, payments, platforms, projects, timeEntries } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { newId, now, NotFoundError, startOfMonth, startOfWeek, UserError } from '../core/util'
+import { newId, now, NotFoundError, startOfMonth, startOfWeek, UserError, overlapMinutes } from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 
 type ClientRow = typeof clients.$inferSelect
@@ -280,7 +280,7 @@ export class CrmModule {
       .select({ entry: timeEntries, projectTitle: projects.title })
       .from(timeEntries)
       .innerJoin(projects, eq(projects.id, timeEntries.projectId))
-      .where(isNull(timeEntries.endedAt))
+      .where(and(isNull(timeEntries.endedAt), isNull(projects.deletedAt)))
       .orderBy(desc(timeEntries.startedAt))
       .get()
     return row ? { ...this.toTime(row.entry), projectTitle: row.projectTitle } : null
@@ -307,13 +307,15 @@ export class CrmModule {
     return last
   }
 
+  /** Minutes worked inside [from, to]: entries crossing midnight / week boundaries count only their part. */
   minutesInRange(from: number, to: number): number {
+    const at = now()
     return this.db
       .select()
       .from(timeEntries)
-      .where(and(gte(timeEntries.startedAt, from), lte(timeEntries.startedAt, to)))
+      .where(and(lte(timeEntries.startedAt, to), or(isNull(timeEntries.endedAt), gte(timeEntries.endedAt, from))))
       .all()
-      .reduce((s, t) => s + this.toTime(t).minutes, 0)
+      .reduce((s, t) => s + overlapMinutes(t, from, to, at), 0)
   }
 
   /* ───────── APIs ───────── */

@@ -117,7 +117,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
   const [title, setTitle] = useAutosave(card.title, (t) => t.trim() && patch({ title: t.trim() }))
   const [description, setDescription] = useAutosave(card.description, (d) => patch({ description: d }))
 
-  const mode = useRecordMode(card.id)
+  const mode = useRecordMode(card.id, 'card')
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
@@ -136,7 +136,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
               <X />
             </Button>
           </TooltipTrigger>

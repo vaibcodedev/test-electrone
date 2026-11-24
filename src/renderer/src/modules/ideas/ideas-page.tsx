@@ -115,6 +115,7 @@ export function IdeasPage() {
               <VirtualList
                 className="pr-1"
                 items={list.items}
+                loading={list.isLoading}
                 getKey={(idea) => idea.id}
                 estimateSize={84}
                 hasMore={list.hasMore}

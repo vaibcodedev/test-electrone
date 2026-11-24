@@ -2,7 +2,8 @@ import { useState, type ComponentProps } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
-import { Eye, Pencil } from 'lucide-react'
+import { Eye, Image as ImageIcon, Pencil } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from './detail-mode'
@@ -35,6 +36,29 @@ function extractText(node: unknown): string {
   return ''
 }
 
+/**
+ * Images from the internet don't load by themselves (they would reveal your IP and work as tracking pixels,
+ * e.g. in text captured by the Chrome extension): a quiet placeholder loads the image on click.
+ */
+function ExternalImage({ src, alt }: { src?: string; alt?: string }) {
+  const [shown, setShown] = useState(false)
+  const external = !!src && /^https?:/i.test(src)
+  if (!src) return null
+  if (!external || shown) return <img src={src} alt={alt ?? ''} className="max-w-full rounded-xl" />
+  let host = src
+  try {
+    host = new URL(src).host
+  } catch {
+    /* keep raw */
+  }
+  return (
+    <Button variant="subtle" size="sm" className="my-1 max-w-full" onClick={() => setShown(true)} title={src}>
+      <ImageIcon />
+      <span className="truncate">Показати зображення{alt ? ` «${alt}»` : ''} з {host}</span>
+    </Button>
+  )
+}
+
 /** Renders GitHub-flavoured markdown with highlighted code blocks; links open in the system browser. */
 export function Markdown({ source, className }: { source: string; className?: string }) {
   return (
@@ -44,6 +68,7 @@ export function Markdown({ source, className }: { source: string; className?: st
         rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
         components={{
           pre: Pre,
+          img: ({ src, alt }) => <ExternalImage src={typeof src === 'string' ? src : undefined} alt={alt} />,
           a: ({ href, children }) => (
             <a
               href={href}
@@ -87,7 +112,8 @@ export function MarkdownField({
   /** From the schema (limitsOf); the counter appears in the label row after 80%. */
   maxLength?: number
 }) {
-  const near = maxLength ? value.length >= maxLength * 0.8 : false
+  // Long fields always show how much room is left once there is text; it turns warn near the limit.
+  const near = maxLength ? value.length > 0 : false
   const viewMode = useReadOnly()
   const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? (value.trim() ? 'preview' : 'edit'))
   // Record view mode: rendered text only; an empty field disappears.
@@ -108,10 +134,10 @@ export function MarkdownField({
         {label ? <FieldLabel>{label}</FieldLabel> : <span />}
         {near && (
           <span
-            className={cn('ml-auto text-meta tabular-nums', value.length >= maxLength! ? 'text-warn' : 'text-muted-foreground')}
+            className={cn('ml-auto text-meta tabular-nums', value.length >= maxLength! * 0.9 ? 'text-warn' : 'text-muted-foreground')}
             aria-live="polite"
           >
-            {value.length} / {maxLength}
+            {value.length.toLocaleString('uk-UA')} / {maxLength!.toLocaleString('uk-UA')}
           </span>
         )}
         <Segmented

@@ -8,7 +8,7 @@ export const claudeInputSchema = z.object({
   kind: z.enum(CLAUDE_KINDS),
   title: z.string().trim().min(1).max(300),
   summary: z.string().max(1000).default(''),
-  content: z.string().max(500_000).default(''),
+  content: z.string().max(100_000).default(''),
   url: urlSchema.default(''),
   /** For prompts: marks prompts that worked well. */
   works: z.boolean().default(false),

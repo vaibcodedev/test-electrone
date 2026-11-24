@@ -551,6 +551,19 @@ export interface SearchApi {
   recent(limit?: number): Promise<EntitySummary[]>
 }
 
+/** A record's own row + tags at the moment editing started (see RevisionService). */
+export interface RecordSnapshot {
+  row: Record<string, unknown>
+  tagIds: string[]
+}
+
+/** «Скасувати» in the view/edit mode. */
+export interface RecordsApi {
+  snapshot(ref: EntityRef): Promise<RecordSnapshot>
+  changed(args: { ref: EntityRef; snapshot: RecordSnapshot }): Promise<boolean>
+  revert(args: { ref: EntityRef; snapshot: RecordSnapshot }): Promise<void>
+}
+
 export interface TrashApi {
   list(args?: PageQuery): Promise<TrashItem[]>
   count(): Promise<number>
@@ -652,6 +665,7 @@ export interface Api {
   pins: PinsApi
   search: SearchApi
   trash: TrashApi
+  records: RecordsApi
   files: FilesApi
   backup: BackupApi
   settings: SettingsApi

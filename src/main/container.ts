@@ -24,6 +24,7 @@ import { LinkService } from './services/link-service'
 import { PinService } from './services/pin-service'
 import { FileStorage } from './services/file-storage'
 import { AttachmentService } from './services/attachment-service'
+import { RevisionService } from './services/revision-service'
 import { TrashService } from './services/trash-service'
 import { SecretBox } from './services/secret-box'
 import { BackupService } from './services/backup-service'
@@ -69,12 +70,14 @@ export class Container {
   readonly files = new FileStorage(this.paths.filesDir)
   readonly attachments = new AttachmentService(this.db, this.files)
   readonly secrets = new SecretBox()
+  readonly revisions = new RevisionService(this.db, this.registry, this.tags, this.search)
   readonly trash = new TrashService(this.db, this.registry, {
     tags: this.tags,
     links: this.links,
     pins: this.pins,
     attachments: this.attachments,
-    search: this.search
+    search: this.search,
+    files: this.files
   })
 
   private readonly moduleCtx: ModuleContext = {
@@ -328,6 +331,7 @@ export class Container {
     importer.register('bookmark', createEach(modulesApi.bookmarks.create))
     importer.register('library', createEach(modulesApi.libraries.create))
     const refArg = entityRefSchema
+    const snapshotArg = z.object({ row: z.record(z.string(), z.unknown()), tagIds: z.array(z.string().max(40)).max(200) })
 
     return {
       ...modulesApi,
@@ -370,6 +374,15 @@ export class Container {
             .map((h) => ({ ...h, ...subtitles.get(`${h.type}:${h.id}`)!, snippet: h.snippet, rank: h.rank }))
         },
         recent: async (limit) => this.dashboard.recent(z.number().int().min(1).max(50).optional().parse(limit))
+      },
+      records: {
+        snapshot: async (ref) => this.revisions.snapshot(refArg.parse(ref)),
+        changed: async (args) => this.revisions.changed(refArg.parse(args.ref), snapshotArg.parse(args.snapshot)),
+        revert: async (args) => {
+          const ref = refArg.parse(args.ref)
+          this.revisions.revert(ref, snapshotArg.parse(args.snapshot))
+          this.bus.dataChanged([ref.type])
+        }
       },
       trash: {
         list: async (args) => {

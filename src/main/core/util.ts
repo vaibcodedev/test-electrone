@@ -80,3 +80,23 @@ export function excerpt(md: string, max = 80): string | undefined {
   if (!text) return undefined
   return text.length > max ? text.slice(0, max - 1) + '…' : text
 }
+
+/**
+ * Minutes of a time entry that fall inside [from, to]. An entry crossing midnight or a week boundary
+ * counts in each period only for its own part; a manual entry whose minutes differ from its clock span
+ * is scaled proportionally. Running entries (endedAt null) count up to `at`.
+ */
+export function overlapMinutes(
+  e: { startedAt: number; endedAt: number | null; minutes: number },
+  from: number,
+  to: number,
+  at: number
+): number {
+  const end = e.endedAt ?? at
+  const span = end - e.startedAt
+  const minutes = e.endedAt ? e.minutes : Math.max(0, Math.round(span / 60_000))
+  if (span <= 0) return e.startedAt >= from && e.startedAt <= to ? minutes : 0
+  const overlap = Math.min(end, to) - Math.max(e.startedAt, from)
+  if (overlap <= 0) return 0
+  return Math.round((minutes * overlap) / span)
+}

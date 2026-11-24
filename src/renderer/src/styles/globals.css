@@ -89,10 +89,10 @@
 
   /* Motion (docs/design-system.md → Движение): one soft ease-out, short durations, nothing bounces. */
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --animate-rise: rise 0.42s var(--ease-soft) backwards;
-  --animate-enter: enter 0.32s var(--ease-soft) backwards;
-  --animate-page: page 0.24s var(--ease-soft) backwards;
-  --animate-pane: pane 0.28s var(--ease-soft) backwards;
+  --animate-rise: rise 0.3s var(--ease-soft) backwards;
+  --animate-enter: enter 0.22s var(--ease-soft) backwards;
+  --animate-page: page 0.18s ease-out backwards;
+  --animate-pane: pane 0.22s var(--ease-soft) backwards;
 
   --animate-leave: leave 0.22s var(--ease-soft) forwards;
   --animate-trash-bump: trash-bump 0.55s var(--ease-soft);
@@ -120,7 +120,7 @@
   @keyframes enter {
     from {
       opacity: 0;
-      transform: translateY(6px) scale(0.985);
+      transform: translateY(3px);
     }
     to {
       opacity: 1;
@@ -128,9 +128,9 @@
     }
   }
   @keyframes page {
+    /* Fade only: moving the whole page on every route change read as a jump. */
     from {
       opacity: 0;
-      transform: translateY(4px);
     }
     to {
       opacity: 1;
@@ -140,7 +140,7 @@
   @keyframes pane {
     from {
       opacity: 0;
-      transform: translateX(14px);
+      transform: translateX(6px);
     }
     to {
       opacity: 1;
@@ -151,7 +151,7 @@
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
@@ -250,8 +250,8 @@
 @utility stagger {
   & > * {
     /* backwards: affects only the start, so transforms (dnd-kit, hover, active) stay free afterwards. */
-    animation: enter 0.34s var(--ease-soft) backwards;
-    animation-delay: calc(min(sibling-index() - 1, 10) * 40ms);
+    animation: enter 0.24s var(--ease-soft) backwards;
+    animation-delay: calc(min(sibling-index() - 1, 8) * 25ms);
   }
 }
 

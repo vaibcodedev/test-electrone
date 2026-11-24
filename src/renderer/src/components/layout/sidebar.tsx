@@ -111,7 +111,12 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
   const { data: allPlatforms = [] } = useApi('platforms', 'list', { includeArchived: true }, { enabled: !!hub.platforms })
   const archivedCount = allPlatforms.length - platformList.length
   const activeHub = hubOf(pathname) === hub.id
-  const isActive = (path: string): boolean => pathname === path || pathname.startsWith(path + '/')
+  const matches = (path: string): boolean => pathname === path || pathname.startsWith(path + '/')
+  // Only the most specific match is active: on /dev/github, «GitHub» — not «Мої проєкти» (/dev) too.
+  const best = [...(hub.items ?? []).map((i) => i.path)]
+    .filter(matches)
+    .sort((a, b) => b.length - a.length)[0]
+  const isActive = (path: string): boolean => (path === best ? true : !best && matches(path))
 
   return (
     <Collapsible open={open} onOpenChange={(o) => setHubOpen(hub.id, o)} asChild>

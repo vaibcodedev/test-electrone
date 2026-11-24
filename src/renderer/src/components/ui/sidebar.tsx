@@ -689,7 +689,9 @@ function SidebarMenuSubButton({
       className={cn(
         "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
         // Current page must be obvious: stronger tint, semibold, and a short accent bar on the left.
-        "relative data-[active=true]:bg-foreground/12 data-[active=true]:font-semibold data-[active=true]:text-foreground data-[active=true]:before:absolute data-[active=true]:before:top-1/2 data-[active=true]:before:left-0.5 data-[active=true]:before:h-4 data-[active=true]:before:w-[3px] data-[active=true]:before:-translate-y-1/2 data-[active=true]:before:rounded-full data-[active=true]:before:bg-chart-1",
+        "relative transition-[background-color,color] duration-200 before:absolute before:top-1/2 before:left-0.5 before:h-0 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-chart-1 before:transition-[height] before:duration-300 before:ease-[var(--ease-soft)]",
+        // Active: tinted pill with a soft accent glow, icon in the accent colour, the bar grows in.
+        "data-[active=true]:bg-[linear-gradient(90deg,color-mix(in_oklab,var(--chart-1)_16%,transparent),color-mix(in_oklab,var(--foreground)_6%,transparent)_70%)] data-[active=true]:font-semibold data-[active=true]:text-foreground data-[active=true]:before:h-4 data-[active=true]:[&>svg]:text-chart-1",
         size === "sm" && "text-xs",
         size === "md" && "text-sm",
         "group-data-[collapsible=icon]:hidden",

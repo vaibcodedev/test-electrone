@@ -297,6 +297,7 @@ export function TemplatesPage() {
             <VirtualList
               className="pr-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(t) => t.id}
               estimateSize={84}
               gap={8}

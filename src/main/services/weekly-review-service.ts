@@ -22,7 +22,7 @@ import {
   wordReviews,
   withdrawals
 } from '../db/schema'
-import { DAY_MS, newId, now, startOfWeek } from '../core/util'
+import { DAY_MS, newId, now, startOfWeek, overlapMinutes } from '../core/util'
 import type { FinanceModule } from '../modules/finance'
 import type { CalendarModule } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
@@ -61,12 +61,13 @@ export class WeeklyReviewService {
   /** Raw numbers for a week (used for the current and the previous week). */
   private async numbers(from: number, to: number): Promise<Record<string, number>> {
     const inRange = (col: Parameters<typeof gte>[0]) => and(gte(col, from), lte(col, to))
-    const minutes =
-      this.db
-        .select({ m: sql<number>`coalesce(sum(${timeEntries.minutes}), 0)` })
-        .from(timeEntries)
-        .where(and(inRange(timeEntries.startedAt), isNotNull(timeEntries.endedAt)))
-        .get()?.m ?? 0
+    // Finished entries, only the part inside the week (a session over Sunday midnight is split).
+    const minutes = this.db
+      .select()
+      .from(timeEntries)
+      .where(and(isNotNull(timeEntries.endedAt), lte(timeEntries.startedAt, to), gte(timeEntries.endedAt, from)))
+      .all()
+      .reduce((s, t) => s + overlapMinutes(t, from, to, now()), 0)
     const sentProposals = this.db
       .select()
       .from(proposals)

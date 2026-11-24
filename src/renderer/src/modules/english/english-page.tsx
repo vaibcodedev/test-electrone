@@ -180,6 +180,7 @@ export function EnglishPage() {
             <VirtualGrid
               className="pr-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(w) => w.id}
               minColumnWidth={open ? 10_000 : 260}
               rowHeight={96}

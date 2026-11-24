@@ -86,7 +86,7 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
   const [notes, setNotes] = useAutosave(a.notes, (v) => patch({ notes: v }))
   const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
 
-  const mode = useRecordMode(a.id)
+  const mode = useRecordMode(a.id, 'application')
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
@@ -111,7 +111,7 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
         </Confirm>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
               <X />
             </Button>
           </TooltipTrigger>

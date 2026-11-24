@@ -232,6 +232,7 @@ export function CompaniesPage() {
       <VirtualList
         className="pb-4"
         items={list.items}
+        loading={list.isLoading}
         getKey={(c) => c.id}
         estimateSize={64}
         hasMore={list.hasMore}

@@ -161,6 +161,7 @@ export function FixesPage() {
             <VirtualList
               className="-mx-1 px-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(x) => x.id}
               estimateSize={76}
               hasMore={list.hasMore}

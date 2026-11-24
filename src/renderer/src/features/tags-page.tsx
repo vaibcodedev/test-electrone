@@ -26,7 +26,7 @@ export function TagsPage() {
   const [params, setParams] = useSearchParams()
   const selected = params.get('tag')
   const { data: tags = [] } = useApi('tags', 'list')
-  const { data: entities = [] } = useApi('tags', 'entities', selected ?? '', { enabled: !!selected })
+  const { data: entities = [], isLoading: entitiesLoading } = useApi('tags', 'entities', selected ?? '', { enabled: !!selected })
   const create = useApiMutation('tags', 'create')
   const update = useApiMutation('tags', 'update')
   const remove = useApiMutation('tags', 'remove', { successMessage: 'Мітку видалено' })
@@ -178,6 +178,7 @@ export function TagsPage() {
                       <VirtualList
                         className="-mx-2.5 max-h-[60vh] flex-none"
                         items={entities}
+                        loading={entitiesLoading}
                         getKey={(e) => `${e.type}:${e.id}`}
                         estimateSize={40}
                         gap={0}

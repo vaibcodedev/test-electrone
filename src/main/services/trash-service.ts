@@ -10,6 +10,7 @@ import type { LinkService } from './link-service'
 import type { PinService } from './pin-service'
 import type { AttachmentService } from './attachment-service'
 import type { SearchIndex } from './search-index'
+import type { FileStorage } from './file-storage'
 
 export const TRASH_TTL_MS = 30 * DAY_MS
 
@@ -24,6 +25,7 @@ export class TrashService {
       pins: PinService
       attachments: AttachmentService
       search: SearchIndex
+      files: FileStorage
     }
   ) {}
 
@@ -111,12 +113,15 @@ export class TrashService {
     const row = this.registry.findRow(ref, { withDeleted: true })
     if (!row) return
     const dependents = d.dependents?.(ref.id) ?? []
-    this.ctx.tx(() => {
-      for (const dep of dependents) this.clearTraces(dep)
-      this.clearTraces(ref)
-      d.onPurge?.(row)
-      this.ctx.orm.delete(d.table).where(eq(d.table.id, ref.id)).run()
-    })
+    // Files are deleted only after the DB transaction commits (FileStorage.afterCommit).
+    this.cleaners.files.afterCommit(() =>
+      this.ctx.tx(() => {
+        for (const dep of dependents) this.clearTraces(dep)
+        this.clearTraces(ref)
+        d.onPurge?.(row)
+        this.ctx.orm.delete(d.table).where(eq(d.table.id, ref.id)).run()
+      })
+    )
   }
 
   private clearTraces(ref: EntityRef): void {

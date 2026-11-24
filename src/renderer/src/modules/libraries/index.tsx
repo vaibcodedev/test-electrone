@@ -286,6 +286,7 @@ export function LibrariesPage() {
             <VirtualGrid
               className="-mx-1 px-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(l) => l.id}
               minColumnWidth={openId ? 10_000 : 300}
               rowHeight={openId ? 52 : 200}

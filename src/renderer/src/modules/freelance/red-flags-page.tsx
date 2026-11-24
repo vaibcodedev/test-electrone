@@ -156,6 +156,7 @@ export function RedFlagsPage() {
             <VirtualList
               className="pr-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(f) => f.id}
               estimateSize={76}
               hasMore={list.hasMore}

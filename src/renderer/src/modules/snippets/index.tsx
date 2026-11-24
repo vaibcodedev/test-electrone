@@ -279,6 +279,7 @@ export function SnippetsPage() {
             <VirtualGrid
               className="-mx-1 px-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(s) => s.id}
               minColumnWidth={openId ? 10_000 : 380}
               rowHeight={openId ? 92 : 290}

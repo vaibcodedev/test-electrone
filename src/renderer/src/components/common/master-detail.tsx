@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
-import { Check, Pencil, Trash2, X } from 'lucide-react'
+import { Pencil, Trash2, X } from 'lucide-react'
 import type { EntityRef, Tag } from '@shared/domain/common'
 import { fmtDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useUi } from '@/stores/ui-store'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
-import { DetailModeContext, useReadOnly } from './detail-mode'
+import { DetailModeContext, EditToggle, useReadOnly, useRecordMode } from './detail-mode'
 import { PinButtons } from './pin-buttons'
 import { TagPicker } from './tags'
 import { LinksPanel } from './links-panel'
@@ -142,9 +142,9 @@ export function DetailPane({
 }) {
   const leaving = useUi((s) => !!s.leaving[entity.id])
   const setLeaving = useUi((s) => s.setLeaving)
-  // View first; a record created a moment ago opens straight in edit mode.
-  const [editing, setEditing] = useState(() => useUi.getState().takeCreated(entity.id))
-  const mode = useMemo(() => ({ editing, setEditing }), [editing])
+  // View first; a record created a moment ago opens straight in edit mode. Snapshot → «Скасувати».
+  const mode = useRecordMode(entity.id, entity.type)
+  const { editing } = mode
 
   // Closing an untouched empty draft discards it (server re-checks, so a late autosave wins).
   useEffect(() => {
@@ -193,23 +193,10 @@ export function DetailPane({
           </Tooltip>
         )}
         {/* E edits, Esc leaves edit mode first and closes the pane on the second press. */}
+        <EditToggle mode={mode} />
         <Tooltip>
           <TooltipTrigger asChild>
-            {editing ? (
-              <Button variant="subtle" size="sm" data-close-detail onClick={() => setEditing(false)}>
-                <Check className="text-success" /> Готово
-              </Button>
-            ) : (
-              <Button variant="subtle" size="sm" data-edit-detail onClick={() => setEditing(true)}>
-                <Pencil /> Редагувати
-              </Button>
-            )}
-          </TooltipTrigger>
-          <TooltipContent>{editing ? 'Зберігається саме · Esc' : 'Редагувати · E'}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрити" data-close-detail={editing ? undefined : true} onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрити" data-close-detail={editing ? undefined : true} onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
               <X />
             </Button>
           </TooltipTrigger>

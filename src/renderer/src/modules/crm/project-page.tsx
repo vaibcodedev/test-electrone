@@ -356,7 +356,7 @@ export function ProjectPage() {
   const p = data?.project
   const patch = (patchValue: ProjectPatch): void => update.mutate({ id, patch: patchValue })
   // Click opens the project for reading; «Редагувати» switches the whole record to editing.
-  const mode = useRecordMode(id)
+  const mode = useRecordMode(id, 'project')
   const [title, setTitle] = useAutosave(
     p?.title ?? '',
     (t) => t.trim() && patch({ title: t.trim() })

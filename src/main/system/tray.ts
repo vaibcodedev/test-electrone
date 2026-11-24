@@ -1,4 +1,4 @@
-import { app, Menu, nativeImage, Tray } from 'electron'
+import { app, Menu, nativeImage, Notification, Tray } from 'electron'
 import type { ConfigStore } from '../core/config-store'
 import type { WindowManager } from './window-manager'
 
@@ -36,8 +36,27 @@ export class TrayController {
       pending = setTimeout(() => this.refresh(), 300)
     })
     setInterval(() => {
-      if (this.timer?.running()) this.refresh()
+      const run = this.timer?.running()
+      if (!run) return
+      this.refresh()
+      this.warnIfForgotten(run)
     }, 60_000)
+  }
+
+  /** Start time of the run we already warned about (one notification per forgotten run). */
+  private warnedFor = 0
+
+  /** A timer running 12+ hours is most likely forgotten: say so once, click opens the project. */
+  private warnIfForgotten(run: { projectId: string; projectTitle: string; startedAt: number }): void {
+    if (Date.now() - run.startedAt < 12 * 3600_000 || this.warnedFor === run.startedAt) return
+    this.warnedFor = run.startedAt
+    if (!Notification.isSupported()) return
+    const n = new Notification({
+      title: 'Таймер іде вже понад 12 годин',
+      body: `${run.projectTitle} · ${elapsed(run.startedAt)}. Можливо, його забули зупинити — відкрийте проєкт і виправте час.`
+    })
+    n.on('click', () => this.windows.showMain(`/projects/${run.projectId}`))
+    n.show()
   }
 
   private timerItems(): Electron.MenuItemConstructorOptions[] {

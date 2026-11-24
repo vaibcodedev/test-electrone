@@ -140,6 +140,7 @@ export function NotesPage() {
             <VirtualList
               className="-mx-1 px-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(x) => x.id}
               estimateSize={84}
               hasMore={list.hasMore}

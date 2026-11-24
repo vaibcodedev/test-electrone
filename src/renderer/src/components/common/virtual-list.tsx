@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import { Spinner } from '@/components/ui/spinner'
 import { useUi } from '@/stores/ui-store'
+import { CardSkeleton, Delayed, RowSkeleton } from './page-skeleton'
 
 /**
  * Entrance motion for list rows: rows that mount right after the list's leading items change
@@ -34,8 +35,8 @@ function useEntering(signature: string): (index: number, key: string) => { class
   return (index, key) =>
     leaving[key]
       ? { className: 'pointer-events-none animate-leave' }
-      : index < 16 && performance.now() - state.since < ENTER_WINDOW_MS
-        ? { className: 'animate-enter', style: { animationDelay: `${Math.min(index, 12) * 28}ms` } }
+      : index < 10 && performance.now() - state.since < ENTER_WINDOW_MS
+        ? { className: 'animate-enter', style: { animationDelay: `${Math.min(index, 8) * 18}ms` } }
         : {}
 }
 
@@ -61,6 +62,7 @@ export function VirtualList<T>({
   className,
   innerClassName,
   empty,
+  loading,
   hasMore,
   loadingMore,
   onLoadMore
@@ -74,6 +76,8 @@ export function VirtualList<T>({
   className?: string
   innerClassName?: string
   empty?: ReactNode
+  /** First page is loading: skeleton rows/cards of the real size instead of an empty state. */
+  loading?: boolean
 } & InfiniteProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   // Last row: "loading more" while pages remain, "that's all · N" once a long list is complete.
@@ -96,6 +100,18 @@ export function VirtualList<T>({
     if (last && last.index >= items.length - 1 && hasMore && !loadingMore) onLoadMore?.()
   }, [last, items.length, hasMore, loadingMore, onLoadMore])
 
+  if (loading && !items.length)
+    return (
+      <div className={cn('min-h-0 flex-1 overflow-hidden', className)} aria-busy="true">
+        <Delayed delay={150}>
+          <div className={cn('flex flex-col', innerClassName)} style={{ gap }}>
+            {Array.from({ length: 8 }, (_, i) => (
+              <RowSkeleton key={i} height={estimateSize} />
+            ))}
+          </div>
+        </Delayed>
+      </div>
+    )
   if (!items.length && !hasMore) return <div className={cn('min-h-0 flex-1 overflow-y-auto', className)}>{empty}</div>
 
   return (
@@ -135,6 +151,7 @@ export function VirtualGrid<T>({
   gap = 12,
   className,
   empty,
+  loading,
   hasMore,
   loadingMore,
   onLoadMore
@@ -148,6 +165,8 @@ export function VirtualGrid<T>({
   gap?: number
   className?: string
   empty?: ReactNode
+  /** First page is loading: skeleton rows/cards of the real size instead of an empty state. */
+  loading?: boolean
 } & InfiniteProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(3)
@@ -182,6 +201,22 @@ export function VirtualGrid<T>({
     if (last && last.index >= rows - 1 && hasMore && !loadingMore) onLoadMore?.()
   }, [last, rows, hasMore, loadingMore, onLoadMore])
 
+  if (loading && !items.length)
+    return (
+      <div className={cn('min-h-0 flex-1 overflow-hidden', className)} aria-busy="true">
+        <Delayed delay={150}>
+          {/* Same column rule as the real grid (auto-fill by minColumnWidth), cards of the estimated row height. */}
+          <div
+            className="grid"
+            style={{ gap, gridTemplateColumns: `repeat(auto-fill, minmax(min(${minColumnWidth}px, 100%), 1fr))` }}
+          >
+            {Array.from({ length: 8 }, (_, i) => (
+              <CardSkeleton key={i} height={rowHeight} />
+            ))}
+          </div>
+        </Delayed>
+      </div>
+    )
   if (!items.length && !hasMore) return <div className={cn('min-h-0 flex-1 overflow-y-auto', className)}>{empty}</div>
 
   return (

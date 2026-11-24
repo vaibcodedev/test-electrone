@@ -1,6 +1,7 @@
+import { CloseConfirmHost } from '@/components/common/detail-mode'
 import { useCallback, Suspense, type CSSProperties } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
-import { PageSkeleton } from '@/components/common/page-skeleton'
+import { Outlet, useLocation, useMatches, useNavigate } from 'react-router'
+import { PageSkeleton, SKELETON_KINDS, type SkeletonKind } from '@/components/common/page-skeleton'
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
 import { AppSidebar } from './sidebar'
 import { Button } from '@/components/ui/button'
@@ -65,6 +66,10 @@ function TitleBar() {
 /** Window layout: custom title bar on the sage frame, sidebar, and the main paper panel. */
 export function AppShell() {
   const { pathname } = useLocation()
+  // The route says what the page looks like (handle.skeleton in app/router.tsx); default — a list.
+  const matches = useMatches()
+  const declared = (matches[matches.length - 1]?.handle as { skeleton?: SkeletonKind } | undefined)?.skeleton
+  const skeleton: SkeletonKind = declared && SKELETON_KINDS.includes(declared) ? declared : 'list'
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
   useMainEventsBridge()
   // Background messages from main (e.g. «команда code не найдена»).
@@ -88,7 +93,7 @@ export function AppShell() {
         <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Keyed by path: every page enters with the same short fade-up. */}
           <div key={pathname} className="flex min-h-0 flex-1 animate-page flex-col">
-            <Suspense fallback={<PageSkeleton />}>
+            <Suspense fallback={<PageSkeleton kind={skeleton} />}>
               <Outlet />
             </Suspense>
           </div>
@@ -97,6 +102,7 @@ export function AppShell() {
       <CommandPalette />
       <QuickAddDialog />
       <ShortcutsDialog />
+      <CloseConfirmHost />
       <Suspense fallback={null}>
         <PlatformDialogHost />
       </Suspense>

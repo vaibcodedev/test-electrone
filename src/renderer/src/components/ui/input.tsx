@@ -28,7 +28,7 @@ function Input({ className, type, readOnly, ...props }: React.ComponentProps<'in
         // No native number spinners: they look foreign and invite typing nonsense with the mouse wheel.
         '[&[type=number]]:[appearance:textfield] [&[type=number]::-webkit-inner-spin-button]:appearance-none [&[type=number]::-webkit-outer-spin-button]:appearance-none',
         className,
-        viewMode && 'pointer-events-auto h-auto cursor-text border-transparent bg-transparent px-0 py-0.5 focus-visible:bg-transparent focus-visible:ring-0 placeholder:text-transparent'
+        viewMode && 'pointer-events-auto h-auto cursor-text border-transparent bg-transparent px-0 aria-invalid:border-transparent aria-invalid:ring-0 focus-visible:border-transparent hover:border-transparent py-0.5 focus-visible:bg-transparent focus-visible:ring-0 placeholder:text-transparent'
       )}
       {...props}
     />

@@ -307,7 +307,7 @@ function Editor({
   const [notes, setNotes] = useAutosave(p.notes, (v) => patch({ notes: v }))
   const hasCredits = !!platform.creditsName
   // Click opens the proposal for reading; «Редагувати» switches it to editing.
-  const mode = useRecordMode(p.id)
+  const mode = useRecordMode(p.id, 'proposal')
 
   return (
     <RecordMode mode={mode}>

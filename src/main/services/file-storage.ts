@@ -132,8 +132,33 @@ export class FileStorage {
     return { path: rel, originalName, mime, size, width, height }
   }
 
+  /** Paths queued by remove() while a DB transaction runs (see afterCommit). */
+  private deferred: string[] | null = null
+
+  /**
+   * Runs `fn` (a DB transaction) and deletes files queued by remove() only if it succeeded:
+   * a rolled-back purge must not leave records pointing at files already gone from disk.
+   */
+  afterCommit<T>(fn: () => T): T {
+    const outer = this.deferred
+    this.deferred = []
+    let queued: string[] = []
+    try {
+      const result = fn()
+      queued = this.deferred
+      return result
+    } finally {
+      this.deferred = outer
+      for (const p of queued) this.remove(p)
+    }
+  }
+
   remove(relPath: string | null | undefined): void {
     if (!relPath) return
+    if (this.deferred) {
+      this.deferred.push(relPath)
+      return
+    }
     try {
       rmSync(this.resolve(relPath), { force: true })
     } catch {

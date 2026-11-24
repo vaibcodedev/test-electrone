@@ -41,6 +41,7 @@ export function TrashPage() {
       <PageBody className="flex min-h-0 flex-col">
         <VirtualList
           items={items}
+          loading={isLoading}
           getKey={(item) => `${item.type}:${item.id}`}
           estimateSize={60}
           gap={8}

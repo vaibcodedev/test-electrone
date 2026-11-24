@@ -244,5 +244,17 @@ export default function Demo() {
   const imported = await call('english.list', { search: 'no term' })
   console.log('import ok:', Object.keys(samples).length, 'kinds, invalid rejected, partial words:', imported.length)
 
+  // View/edit «Скасувати»: snapshot → edit → revert restores the row
+  {
+    const n = await call('notes.create', { title: 'Revert test', body: 'before' })
+    const ref = { type: 'note', id: n.id }
+    const snap = await call('records.snapshot', ref)
+    await call('notes.update', { id: n.id, patch: { body: 'after' } })
+    if (!(await call('records.changed', { ref, snapshot: snap }))) throw new Error('records.changed missed an edit')
+    await call('records.revert', { ref, snapshot: snap })
+    const back = await call('notes.get', n.id)
+    if (back.body !== 'before') throw new Error('records.revert did not restore: ' + back.body)
+    console.log('revert ok')
+  }
   console.log('seed ok; search hits:', hits.length, 'week minutes:', ov.weekMinutes)
 }

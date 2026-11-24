@@ -233,6 +233,7 @@ export function ClaudePage() {
             <VirtualList
               className="-mx-1 px-1"
               items={list.items}
+              loading={list.isLoading}
               getKey={(i) => i.id}
               estimateSize={92}
               hasMore={list.hasMore}

@@ -57,6 +57,7 @@ export function ApplicationList({
       </Table>
       <VirtualList
         items={applications}
+        loading={loading}
         getKey={(a) => a.id}
         estimateSize={45}
         gap={0}

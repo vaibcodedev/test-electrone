@@ -30,6 +30,9 @@ interface UiState {
   leaving: Record<string, true>
   setLeaving: (id: string, on: boolean) => void
   /** Records created a moment ago: their detail pane opens straight in edit mode. */
+  /** Pending «Залишити зміни?» question (CloseConfirmHost). */
+  closeAsk: { keep: () => void; discard: () => void } | null
+  askClose: (ask: { keep: () => void; discard: () => void } | null) => void
   justCreated: Record<string, true>
   markCreated: (id: string) => void
   takeCreated: (id: string) => boolean
@@ -56,6 +59,8 @@ export const useUi = create<UiState>()(
       setHubOpen: (id, open) => set((s) => ({ openHubs: { ...s.openHubs, [id]: open } })),
       trashBump: 0,
       bumpTrash: () => set((s) => ({ trashBump: s.trashBump + 1 })),
+      closeAsk: null,
+      askClose: (closeAsk) => set({ closeAsk }),
       justCreated: {},
       markCreated: (id) => set((s) => ({ justCreated: { ...s.justCreated, [id]: true } })),
       takeCreated: (id) => {

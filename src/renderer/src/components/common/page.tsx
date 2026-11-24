@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { Search, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useReadOnly } from './detail-mode'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -262,6 +263,9 @@ export function Field({
   /** Character counter: appears next to the label once 80% of the limit is used. */
   count?: { length: number; max?: number }
 }) {
+  // View mode shows values, not validation: an error appears only while editing.
+  const viewMode = useReadOnly()
+  if (viewMode) error = undefined
   const near = count?.max ? count.length >= count.max * 0.8 : false
   return (
     <UiField className={cn('min-w-0 gap-2', className)} data-invalid={error ? true : undefined}>

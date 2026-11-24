@@ -345,6 +345,7 @@ export function ClientsPage() {
         {tab === 'clients' ? (
           <VirtualGrid
             items={clients}
+            loading={clientList.isLoading}
             getKey={(c) => c.id}
             minColumnWidth={260}
             rowHeight={200}
@@ -372,6 +373,7 @@ export function ClientsPage() {
         ) : (
           <VirtualList
             items={projects}
+            loading={projectList.isLoading}
             getKey={(p) => p.id}
             estimateSize={88}
             gap={8}

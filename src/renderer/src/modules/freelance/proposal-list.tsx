@@ -67,6 +67,7 @@ export function ProposalList({
       </Table>
       <VirtualList
         items={proposals}
+        loading={loading}
         getKey={(p) => p.id}
         estimateSize={45}
         gap={0}

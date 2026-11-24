@@ -80,7 +80,7 @@ export function ClientPage() {
     patch({ howToCommunicate: v })
   )
   // Click opens the client for reading; «Редагувати» switches the whole record to editing.
-  const mode = useRecordMode(id)
+  const mode = useRecordMode(id, 'client')
 
   if (isLoading) return null
   if (!data || !c) {

@@ -147,6 +147,7 @@ export function ComponentsPage() {
       <PageBody className="flex min-h-0 flex-col">
         <VirtualGrid
           items={list.items}
+          loading={list.isLoading}
           getKey={(c) => c.id}
           minColumnWidth={260}
           rowHeight={290}
