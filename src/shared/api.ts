@@ -580,6 +580,8 @@ export interface AppApi {
   copyText(text: string): Promise<void>
   /** Renderer errors go to the main log file. */
   logError(args: { message: string; stack?: string; source?: string }): Promise<void>
+  /** Renderer reports the theme it actually shows, so the native window buttons match it. */
+  setWindowTheme(theme: 'light' | 'dark'): Promise<void>
 }
 
 export interface Api {

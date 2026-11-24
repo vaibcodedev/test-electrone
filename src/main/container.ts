@@ -413,7 +413,8 @@ export class Container {
         logError: async (args) => {
           const e = z.object({ message: z.string().max(5000), stack: z.string().max(20_000).optional(), source: z.string().max(200).optional() }).parse(args)
           log.error(`[renderer${e.source ? `:${e.source}` : ''}] ${e.message}${e.stack ? `\n${e.stack}` : ''}`)
-        }
+        },
+        setWindowTheme: async (theme) => this.windows.applyOverlay(z.enum(['light', 'dark']).parse(theme))
       }
     }
   }

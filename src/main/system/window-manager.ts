@@ -43,7 +43,10 @@ export class WindowManager {
     app.on('before-quit', () => {
       this.quitting = true
     })
-    nativeTheme.on('updated', () => this.applyOverlay())
+    nativeTheme.on('updated', () => {
+      this.shownTheme = null
+      this.applyOverlay()
+    })
   }
 
   private secure(win: BrowserWindow): void {
@@ -72,9 +75,14 @@ export class WindowManager {
     }
   }
 
-  applyOverlay(): void {
+  /** Last theme the renderer reported; it wins over nativeTheme because it is what the user actually sees. */
+  private shownTheme: 'light' | 'dark' | null = null
+
+  applyOverlay(theme?: 'light' | 'dark'): void {
+    if (theme) this.shownTheme = theme
     if (!this.main || this.main.isDestroyed() || process.platform === 'darwin') return
-    const palette = nativeTheme.shouldUseDarkColors ? OVERLAY.dark : OVERLAY.light
+    const dark = (this.shownTheme ?? (nativeTheme.shouldUseDarkColors ? 'dark' : 'light')) === 'dark'
+    const palette = dark ? OVERLAY.dark : OVERLAY.light
     try {
       this.main.setTitleBarOverlay({ ...palette, height: 44 })
     } catch {
