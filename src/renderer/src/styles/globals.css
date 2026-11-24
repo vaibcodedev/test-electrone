@@ -1,0 +1,312 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/onest';
+@import '@fontsource-variable/jetbrains-mono';
+@import './code.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Vault design tokens.
+  Sage frame + paper panels + ink cards + one lime accent (from the reference set).
+  Hierarchy is carried by radius: frame 28 → panel 24 → tile 18 → control 12 → chip full.
+*/
+@theme inline {
+  --font-sans: 'Onest Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Vault-specific */
+  --color-frame: var(--frame);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-muted: var(--ink-muted);
+  --color-lime: var(--lime);
+  --color-lime-foreground: var(--lime-foreground);
+  --color-lime-soft: var(--lime-soft);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --color-success: var(--success);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
+
+  --text-display: 3.25rem;
+  --text-display--line-height: 0.98;
+  --text-display--letter-spacing: -0.045em;
+  --text-title: 2.25rem;
+  --text-title--line-height: 1;
+  --text-title--letter-spacing: -0.035em;
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+:root {
+  --radius: 14px;
+  --frame: #d8dcd2;
+  --background: #d8dcd2;
+  --foreground: #14160f;
+  --card: #f7f8f4;
+  --card-foreground: #14160f;
+  --surface: #eceee7;
+  --popover: #fbfcf8;
+  --popover-foreground: #14160f;
+  --primary: #14160f;
+  --primary-foreground: #f2f4ec;
+  --secondary: #eceee7;
+  --secondary-foreground: #14160f;
+  --muted: #eceee7;
+  --muted-foreground: #676c60;
+  --accent: #e4e7de;
+  --accent-foreground: #14160f;
+  --destructive: #d9363e;
+  --border: rgb(20 22 15 / 0.09);
+  --input: rgb(20 22 15 / 0.14);
+  --ring: #9bbb12;
+
+  --ink: #14160f;
+  --ink-foreground: #eef1e6;
+  --ink-muted: #8f9587;
+  --lime: #d4f542;
+  --lime-foreground: #14160f;
+  --lime-soft: #eef8c4;
+  --warn: #e8930c;
+  --info: #6f7ff0;
+  --success: #3d9a4f;
+}
+
+.dark {
+  --frame: #0c0d0b;
+  --background: #0c0d0b;
+  --foreground: #eceee6;
+  --card: #161814;
+  --card-foreground: #eceee6;
+  --surface: #1f221c;
+  --popover: #1b1d18;
+  --popover-foreground: #eceee6;
+  --primary: #d4f542;
+  --primary-foreground: #14160f;
+  --secondary: #23261f;
+  --secondary-foreground: #eceee6;
+  --muted: #23261f;
+  --muted-foreground: #8e9388;
+  --accent: #262a22;
+  --accent-foreground: #eceee6;
+  --destructive: #f0545b;
+  --border: rgb(236 238 230 / 0.08);
+  --input: rgb(236 238 230 / 0.13);
+  --ring: #c3e62c;
+
+  --ink: #262a21;
+  --ink-foreground: #eef1e6;
+  --ink-muted: #9aa092;
+  --lime: #d4f542;
+  --lime-foreground: #14160f;
+  --lime-soft: #2b3312;
+  --warn: #f5a524;
+  --info: #8b98ff;
+  --success: #5cc46f;
+}
+
+/* Display type: tight tracking, medium weight — headlines carry the personality. */
+@utility font-display {
+  font-weight: 520;
+  letter-spacing: -0.04em;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-size: 14px;
+    font-feature-settings: 'ss01', 'cv11';
+    overflow: hidden;
+    user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable],
+  .selectable,
+  .cm-editor,
+  .prose-vault {
+    user-select: text;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--lime) 70%, transparent);
+    color: var(--lime-foreground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--foreground) 16%, transparent);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Window drag regions (custom title bar). */
+  .drag {
+    -webkit-app-region: drag;
+  }
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Main content panel sitting on the sage frame. */
+  .panel {
+    @apply bg-card text-card-foreground rounded-3xl;
+  }
+  .tile {
+    @apply bg-surface rounded-xl;
+  }
+  .ink-card {
+    @apply bg-ink text-ink-foreground rounded-2xl;
+  }
+
+  /*
+    Notched card (signature element): a top-right cut-out in the frame colour with
+    inverted corners, where round action buttons sit. Works on any solid background.
+  */
+  .notch-card {
+    position: relative;
+    border-radius: var(--radius-3xl);
+  }
+  .notch {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    gap: 6px;
+    padding: 0 0 8px 8px;
+    background: var(--notch-bg, var(--frame));
+    border-bottom-left-radius: 22px;
+  }
+  .notch::before,
+  .notch::after {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: radial-gradient(circle at 0 100%, transparent 21.5px, var(--notch-bg, var(--frame)) 22px);
+  }
+  .notch::before {
+    top: 0;
+    left: -22px;
+  }
+  .notch::after {
+    right: 0;
+    bottom: -22px;
+  }
+
+  /* Markdown */
+  .prose-vault {
+    @apply text-[14px] leading-relaxed;
+  }
+  .prose-vault > * + * {
+    margin-top: 0.7em;
+  }
+  .prose-vault h1 {
+    @apply font-display text-2xl;
+  }
+  .prose-vault h2 {
+    @apply font-display mt-6 text-xl;
+  }
+  .prose-vault h3 {
+    @apply mt-4 text-base font-semibold;
+  }
+  .prose-vault a {
+    @apply underline decoration-[color-mix(in_oklab,var(--foreground)_30%,transparent)] underline-offset-3 hover:decoration-current;
+  }
+  .prose-vault ul {
+    @apply list-disc pl-5;
+  }
+  .prose-vault ol {
+    @apply list-decimal pl-5;
+  }
+  .prose-vault li + li {
+    margin-top: 0.25em;
+  }
+  .prose-vault blockquote {
+    @apply border-l-2 border-lime pl-4 text-muted-foreground;
+  }
+  .prose-vault :not(pre) > code {
+    @apply rounded-md bg-surface px-1.5 py-0.5 font-mono text-[0.86em];
+  }
+  .prose-vault pre {
+    @apply overflow-x-auto rounded-xl p-4 font-mono text-[12.5px] leading-relaxed;
+    background: var(--code-bg);
+    color: var(--code-fg);
+  }
+  .prose-vault table {
+    @apply w-full border-collapse text-sm;
+  }
+  .prose-vault th,
+  .prose-vault td {
+    @apply border border-border px-3 py-1.5 text-left;
+  }
+  .prose-vault hr {
+    @apply border-border;
+  }
+  .prose-vault input[type='checkbox'] {
+    @apply mr-1.5 accent-[var(--lime)];
+  }
+}

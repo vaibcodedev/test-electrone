@@ -1,0 +1,55 @@
+appId: dev.vault.app
+productName: Vault
+copyright: Copyright © 2026
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!**/.claude/*'
+  - '!src/*'
+  - '!docs/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!drizzle.config.ts'
+  - '!components.json'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md,CLAUDE.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+# SQL migrations are applied at startup from resources/migrations.
+extraResources:
+  - from: src/main/db/migrations
+    to: migrations
+asarUnpack:
+  - resources/**
+  - '**/*.node'
+win:
+  executableName: Vault
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  deleteAppDataOnUninstall: false
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target: [AppImage]
+  category: Utility
+# better-sqlite3 v13 ships N-API prebuilds for Electron, no rebuild needed.
+npmRebuild: false
+# Auto-updates: create a GitHub repo, set owner/repo below and publish with
+#   GH_TOKEN=... npm run release:win
+publish:
+  provider: github
+  owner: your-github-name
+  repo: vault
+  releaseType: release

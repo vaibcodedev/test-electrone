@@ -1,0 +1,139 @@
+import { app, BrowserWindow, dialog } from 'electron'
+import { writeFileSync } from 'fs'
+import { join } from 'path'
+import type { AsyncZippable } from 'fflate'
+import { zipAsync } from '../core/zip'
+import { getTableName, isTable } from 'drizzle-orm'
+import { asc, eq, isNull } from 'drizzle-orm'
+import { ENTITY_META, type EntityType } from '@shared/entity-types'
+import type { ExportFormat } from '@shared/domain/system'
+import type { DbContext } from '../db/client'
+import * as schema from '../db/schema'
+import type { AppPaths } from '../core/paths'
+import type { AnyRow, EntityRegistry } from '../core/registry'
+import type { TagService } from './tag-service'
+import type { LinkService } from './link-service'
+import { collectFiles } from './backup-service'
+import { slugify } from '../core/util'
+
+const enc = new TextEncoder()
+
+/** Fields that are bookkeeping and stay out of the markdown body/frontmatter. */
+const HIDDEN = new Set(['deletedAt', 'secret', 'ease', 'intervalDays', 'repetitions', 'lapses', 'remindedFor'])
+
+function yamlValue(v: unknown): string {
+  if (v === null || v === undefined) return 'null'
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  if (Array.isArray(v)) return `[${v.map((x) => yamlValue(x)).join(', ')}]`
+  return JSON.stringify(String(v))
+}
+
+function iso(ts: unknown): string | null {
+  return typeof ts === 'number' && ts > 0 ? new Date(ts).toISOString() : null
+}
+
+/** Exports everything so data is never locked inside the app: one JSON file or a zip of Markdown files. */
+export class ExportService {
+  constructor(
+    private readonly ctx: DbContext,
+    private readonly paths: AppPaths,
+    private readonly registry: EntityRegistry,
+    private readonly tags: TagService,
+    private readonly links: LinkService
+  ) {}
+
+  async export(format: ExportFormat): Promise<string | null> {
+    const day = new Date().toISOString().slice(0, 10)
+    const isJson = format === 'json'
+    const res = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0], {
+      title: isJson ? 'Экспорт в JSON' : 'Экспорт в Markdown',
+      defaultPath: join(app.getPath('documents'), `vault-export-${day}.${isJson ? 'json' : 'zip'}`),
+      filters: isJson ? [{ name: 'JSON', extensions: ['json'] }] : [{ name: 'ZIP', extensions: ['zip'] }]
+    })
+    if (res.canceled || !res.filePath) return null
+    if (isJson) writeFileSync(res.filePath, JSON.stringify(this.json(), null, 2))
+    else writeFileSync(res.filePath, await this.markdownZip())
+    return res.filePath
+  }
+
+  /** Every table, raw. Credential secrets are excluded (they are OS-encrypted anyway). */
+  json(): Record<string, unknown> {
+    const tables: Record<string, unknown[]> = {}
+    for (const value of Object.values(schema)) {
+      if (!isTable(value)) continue
+      const name = getTableName(value)
+      const rows = this.ctx.orm.select().from(value).all() as Record<string, unknown>[]
+      tables[name] = name === 'credentials' ? rows.map((r) => ({ ...r, secret: undefined })) : rows
+    }
+    return { format: 'vault-export', version: 1, appVersion: app.getVersion(), exportedAt: new Date().toISOString(), tables }
+  }
+
+  private markdownFor(type: EntityType, row: AnyRow): string {
+    const d = this.registry.get(type)
+    const { title } = d.summary(row)
+    const tagNames = (this.tags.forMany(type, [row.id]).get(row.id) ?? []).map((t) => t.name)
+    const links = this.links.list({ type, id: row.id }).map((l) => `${ENTITY_META[l.type].label}: ${l.title}`)
+    const front: string[] = [`id: ${row.id}`, `type: ${type}`, `title: ${yamlValue(title)}`]
+    const body: string[] = [`# ${title}`, '']
+    for (const [key, value] of Object.entries(row)) {
+      if (HIDDEN.has(key) || key === 'id') continue
+      if (key.endsWith('At') && typeof value === 'number') {
+        front.push(`${key}: ${yamlValue(iso(value))}`)
+      } else if (typeof value === 'string' && (value.includes('\n') || value.length > 120)) {
+        const isCode = key === 'code'
+        body.push(`## ${key}`, '', isCode ? `\`\`\`${row.language ?? ''}\n${value}\n\`\`\`` : value, '')
+      } else if (key.endsWith('Path') && typeof value === 'string') {
+        front.push(`${key}: ${yamlValue(value)}`)
+        body.push(`![](../files/${value})`, '')
+      } else {
+        front.push(`${key}: ${yamlValue(value)}`)
+      }
+    }
+    if (tagNames.length) front.push(`tags: ${yamlValue(tagNames)}`)
+    if (links.length) body.push('## Связи', '', ...links.map((l) => `- ${l}`), '')
+    if (type === 'board') body.push(...this.boardBody(row.id))
+    return `---\n${front.join('\n')}\n---\n\n${body.join('\n')}`
+  }
+
+  private boardBody(boardId: string): string[] {
+    const cols = this.ctx.orm
+      .select()
+      .from(schema.boardColumns)
+      .where(eq(schema.boardColumns.boardId, boardId))
+      .orderBy(asc(schema.boardColumns.position))
+      .all()
+    const out: string[] = []
+    for (const col of cols) {
+      out.push(`## ${col.title}`, '')
+      const list = this.ctx.orm
+        .select()
+        .from(schema.cards)
+        .where(eq(schema.cards.columnId, col.id))
+        .orderBy(asc(schema.cards.position))
+        .all()
+      for (const c of list) if (!c.deletedAt) out.push(`- [${col.isDone ? 'x' : ' '}] ${c.title}`)
+      out.push('')
+    }
+    return out
+  }
+
+  async markdownZip(): Promise<Uint8Array> {
+    const entries: AsyncZippable = {}
+    for (const d of this.registry.all()) {
+      const rows = this.ctx.orm.select().from(d.table).where(isNull(d.table.deletedAt)).all() as AnyRow[]
+      const folder = slugify(ENTITY_META[d.type].plural, d.type)
+      const used = new Set<string>()
+      for (const row of rows) {
+        let name = slugify(d.summary(row).title, d.type)
+        while (used.has(name)) name = `${name}-${row.id.slice(0, 4)}`
+        used.add(name)
+        entries[`${folder}/${name}.md`] = enc.encode(this.markdownFor(d.type, row))
+      }
+    }
+    entries['README.md'] = enc.encode(
+      `# Vault export\n\nЭкспортировано ${new Date().toLocaleString('ru-RU')}.\nКаждая папка — модуль, каждый файл — запись с frontmatter. Картинки лежат в files/.\n`
+    )
+    collectFiles(this.paths.filesDir, 'files', entries)
+    return zipAsync(entries, { level: 6 })
+  }
+}

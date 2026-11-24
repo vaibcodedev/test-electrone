@@ -1,0 +1,73 @@
+/* Code colours shared by highlight.js (markdown/code blocks) and CodeMirror. Ink background in both themes. */
+:root {
+  --code-bg: #14160f;
+  --code-fg: #e3e7d9;
+  --code-muted: #7d8475;
+  --code-keyword: #d4f542;
+  --code-string: #f2c879;
+  --code-number: #ff9f7a;
+  --code-fn: #9fb4ff;
+  --code-type: #7ee0c3;
+  --code-attr: #e5a3ff;
+  --code-line: rgb(255 255 255 / 0.04);
+  --code-selection: rgb(212 245 66 / 0.22);
+}
+.dark {
+  --code-bg: #0f110d;
+}
+
+.hljs {
+  color: var(--code-fg);
+  background: transparent;
+}
+.hljs-comment,
+.hljs-quote {
+  color: var(--code-muted);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-literal,
+.hljs-meta .hljs-keyword {
+  color: var(--code-keyword);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-template-tag,
+.hljs-addition {
+  color: var(--code-string);
+}
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--code-number);
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-section {
+  color: var(--code-fn);
+}
+.hljs-type,
+.hljs-title.class_,
+.hljs-class .hljs-title {
+  color: var(--code-type);
+}
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-property,
+.hljs-tag .hljs-name,
+.hljs-name {
+  color: var(--code-attr);
+}
+.hljs-deletion {
+  color: #ff7b7b;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 700;
+}

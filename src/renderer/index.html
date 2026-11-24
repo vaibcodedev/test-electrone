@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Vault</title>
+    <!--
+      Strict CSP: only our own scripts. User files come from vault-file://.
+      frame-src 'self' allows the sandboxed component preview (preview.html).
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: vault-file: https:; media-src 'self' blob: vault-file:; font-src 'self' data:; connect-src 'self' vault-file: ws://localhost:* http://localhost:*; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

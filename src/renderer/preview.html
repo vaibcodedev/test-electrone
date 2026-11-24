@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Preview</title>
+    <!--
+      Runs inside <iframe sandbox="allow-scripts"> (opaque origin, no preload, no API access).
+      'unsafe-eval' is allowed ONLY here, to execute the user's component code.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' 'unsafe-eval' app: http://localhost:*; style-src 'self' 'unsafe-inline' app: http://localhost:*; img-src * data: blob:; media-src * data: blob:; font-src * data:; connect-src ws://localhost:* http://localhost:*"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        font-family: 'Onest Variable', system-ui, sans-serif;
+      }
+      body[data-bg='light'] {
+        background: #ffffff;
+        color: #14160f;
+      }
+      body[data-bg='dark'] {
+        background: #111210;
+        color: #eceee6;
+      }
+      body[data-bg='grid'] {
+        background-color: #f6f7f3;
+        background-image:
+          linear-gradient(rgb(20 22 15 / 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgb(20 22 15 / 0.06) 1px, transparent 1px);
+        background-size: 16px 16px;
+        color: #14160f;
+      }
+      #root {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      #error {
+        position: fixed;
+        inset: auto 12px 12px 12px;
+        margin: 0;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: #2a0f10;
+        color: #ffb4b4;
+        font: 12px/1.5 'JetBrains Mono Variable', monospace;
+        white-space: pre-wrap;
+        max-height: 40vh;
+        overflow: auto;
+      }
+      #error:empty {
+        display: none;
+      }
+    </style>
+  </head>
+  <body data-bg="light">
+    <div id="root"></div>
+    <pre id="error"></pre>
+    <script type="module" src="/preview/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+import { and, asc, eq, max } from 'drizzle-orm'
+import type { EntityType } from '@shared/entity-types'
+import type { EntityRef } from '@shared/domain/common'
+import type { PinKind, PinnedEntity } from '@shared/domain/system'
+import type { DbContext } from '../db/client'
+import { pins } from '../db/schema'
+import type { EntityRegistry } from '../core/registry'
+import { now } from '../core/util'
+
+/** "Pinned to dashboard" and "favorite" marks for any entity. */
+export class PinService {
+  constructor(
+    private readonly ctx: DbContext,
+    private readonly registry: EntityRegistry
+  ) {}
+
+  list(kind?: PinKind): PinnedEntity[] {
+    const rows = this.ctx.orm
+      .select()
+      .from(pins)
+      .where(kind ? eq(pins.kind, kind) : undefined)
+      .orderBy(asc(pins.position), asc(pins.createdAt))
+      .all()
+    const summaries = this.registry.summarize(
+      rows.map((r) => ({ type: r.entityType as EntityType, id: r.entityId }))
+    )
+    const byKey = new Map(summaries.map((s) => [`${s.type}:${s.id}`, s]))
+    return rows.flatMap((r) => {
+      const s = byKey.get(`${r.entityType}:${r.entityId}`)
+      return s ? [{ ...s, kind: r.kind, position: r.position }] : []
+    })
+  }
+
+  private where(ref: EntityRef, kind: PinKind) {
+    return and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id), eq(pins.kind, kind))
+  }
+
+  toggle(ref: EntityRef, kind: PinKind): boolean {
+    const exists = this.ctx.orm.select().from(pins).where(this.where(ref, kind)).get()
+    if (exists) {
+      this.ctx.orm.delete(pins).where(this.where(ref, kind)).run()
+      return false
+    }
+    const last = this.ctx.orm.select({ m: max(pins.position) }).from(pins).where(eq(pins.kind, kind)).get()
+    this.ctx.orm
+      .insert(pins)
+      .values({ entityType: ref.type, entityId: ref.id, kind, position: (last?.m ?? 0) + 1, createdAt: now() })
+      .run()
+    return true
+  }
+
+  state(ref: EntityRef): Record<PinKind, boolean> {
+    const rows = this.ctx.orm
+      .select({ kind: pins.kind })
+      .from(pins)
+      .where(and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id)))
+      .all()
+    return { pin: rows.some((r) => r.kind === 'pin'), favorite: rows.some((r) => r.kind === 'favorite') }
+  }
+
+  reorder(kind: PinKind, refs: EntityRef[]): void {
+    this.ctx.tx(() => {
+      refs.forEach((ref, i) => {
+        this.ctx.orm.update(pins).set({ position: i }).where(this.where(ref, kind)).run()
+      })
+    })
+  }
+
+  clearFor(ref: EntityRef): void {
+    this.ctx.orm
+      .delete(pins)
+      .where(and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id)))
+      .run()
+  }
+}

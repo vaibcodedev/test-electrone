@@ -1,0 +1,440 @@
+/**
+ * Database schema. Conventions:
+ * - ids are random text (crypto.randomUUID), timestamps are integer epoch ms;
+ * - top-level entities have created_at/updated_at/deleted_at (soft delete → trash);
+ * - cross-cutting relations (tags, links, pins, attachments) are polymorphic on (entity_type, entity_id);
+ * - child rows (columns, checklist items, time entries…) cascade with their parent.
+ * Full-text search lives in the FTS5 table `search_index` (custom migration, not modelled here).
+ */
+import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+
+const base = {
+  id: text().primaryKey(),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull(),
+  deletedAt: integer()
+}
+
+/* ───────────── Cross-cutting ───────────── */
+
+export const tags = sqliteTable(
+  'tags',
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    color: text(),
+    createdAt: integer().notNull()
+  },
+  (t) => [uniqueIndex('tags_name_unique').on(t.name)]
+)
+
+export const entityTags = sqliteTable(
+  'entity_tags',
+  {
+    entityType: text().notNull(),
+    entityId: text().notNull(),
+    tagId: text()
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' })
+  },
+  (t) => [
+    primaryKey({ columns: [t.entityType, t.entityId, t.tagId] }),
+    index('entity_tags_tag_idx').on(t.tagId)
+  ]
+)
+
+export const entityLinks = sqliteTable(
+  'entity_links',
+  {
+    id: text().primaryKey(),
+    fromType: text().notNull(),
+    fromId: text().notNull(),
+    toType: text().notNull(),
+    toId: text().notNull(),
+    createdAt: integer().notNull()
+  },
+  (t) => [
+    uniqueIndex('entity_links_unique').on(t.fromType, t.fromId, t.toType, t.toId),
+    index('entity_links_to_idx').on(t.toType, t.toId)
+  ]
+)
+
+export const pins = sqliteTable(
+  'pins',
+  {
+    entityType: text().notNull(),
+    entityId: text().notNull(),
+    kind: text().$type<'pin' | 'favorite'>().notNull(),
+    position: real().notNull().default(0),
+    createdAt: integer().notNull()
+  },
+  (t) => [primaryKey({ columns: [t.entityType, t.entityId, t.kind] })]
+)
+
+export const attachments = sqliteTable(
+  'attachments',
+  {
+    id: text().primaryKey(),
+    entityType: text().notNull(),
+    entityId: text().notNull(),
+    path: text().notNull(),
+    originalName: text().notNull(),
+    mime: text().notNull(),
+    size: integer().notNull(),
+    createdAt: integer().notNull()
+  },
+  (t) => [index('attachments_entity_idx').on(t.entityType, t.entityId)]
+)
+
+/* ───────────── Ideas & boards ───────────── */
+
+export const ideas = sqliteTable(
+  'ideas',
+  {
+    ...base,
+    title: text().notNull(),
+    body: text().notNull().default(''),
+    status: text().notNull().default('inbox'),
+    impact: integer().notNull().default(0),
+    boardId: text()
+  },
+  (t) => [index('ideas_status_idx').on(t.status)]
+)
+
+export const boards = sqliteTable('boards', {
+  ...base,
+  title: text().notNull(),
+  description: text().notNull().default(''),
+  color: text(),
+  projectId: text(),
+  ideaId: text(),
+  archived: integer({ mode: 'boolean' }).notNull().default(false)
+})
+
+export const boardColumns = sqliteTable(
+  'board_columns',
+  {
+    id: text().primaryKey(),
+    boardId: text()
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    title: text().notNull(),
+    color: text(),
+    isDone: integer({ mode: 'boolean' }).notNull().default(false),
+    position: real().notNull()
+  },
+  (t) => [index('board_columns_board_idx').on(t.boardId)]
+)
+
+export const cards = sqliteTable(
+  'cards',
+  {
+    ...base,
+    boardId: text()
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    columnId: text().notNull(),
+    title: text().notNull(),
+    description: text().notNull().default(''),
+    priority: text().notNull().default('none'),
+    dueAt: integer(),
+    position: real().notNull(),
+    completedAt: integer()
+  },
+  (t) => [index('cards_board_idx').on(t.boardId, t.columnId), index('cards_due_idx').on(t.dueAt)]
+)
+
+export const cardChecklist = sqliteTable(
+  'card_checklist',
+  {
+    id: text().primaryKey(),
+    cardId: text()
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    text: text().notNull(),
+    done: integer({ mode: 'boolean' }).notNull().default(false),
+    position: real().notNull()
+  },
+  (t) => [index('card_checklist_card_idx').on(t.cardId)]
+)
+
+/* ───────────── Knowledge ───────────── */
+
+export const claudeItems = sqliteTable(
+  'claude_items',
+  {
+    ...base,
+    kind: text().notNull(),
+    title: text().notNull(),
+    summary: text().notNull().default(''),
+    content: text().notNull().default(''),
+    url: text().notNull().default(''),
+    works: integer({ mode: 'boolean' }).notNull().default(false),
+    copyCount: integer().notNull().default(0)
+  },
+  (t) => [index('claude_kind_idx').on(t.kind)]
+)
+
+export const libraries = sqliteTable('libraries', {
+  ...base,
+  name: text().notNull(),
+  purpose: text().notNull().default(''),
+  notes: text().notNull().default(''),
+  npmUrl: text().notNull().default(''),
+  githubUrl: text().notNull().default(''),
+  docsUrl: text().notNull().default(''),
+  installCmd: text().notNull().default(''),
+  status: text().notNull().default('want')
+})
+
+export const uiComponents = sqliteTable('ui_components', {
+  ...base,
+  title: text().notNull(),
+  description: text().notNull().default(''),
+  code: text().notNull().default(''),
+  language: text().notNull().default('tsx'),
+  sourceUrl: text().notNull().default(''),
+  previewBg: text().notNull().default('light'),
+  coverPath: text()
+})
+
+export const designs = sqliteTable('designs', {
+  ...base,
+  title: text().notNull().default(''),
+  kind: text().notNull().default('site'),
+  sourceUrl: text().notNull().default(''),
+  notes: text().notNull().default(''),
+  colors: text({ mode: 'json' }).$type<string[]>().notNull().default([]),
+  imagePath: text(),
+  imageWidth: integer(),
+  imageHeight: integer()
+})
+
+export const moodboards = sqliteTable('moodboards', {
+  ...base,
+  title: text().notNull(),
+  description: text().notNull().default(''),
+  color: text()
+})
+
+export const moodboardItems = sqliteTable(
+  'moodboard_items',
+  {
+    moodboardId: text()
+      .notNull()
+      .references(() => moodboards.id, { onDelete: 'cascade' }),
+    designId: text()
+      .notNull()
+      .references(() => designs.id, { onDelete: 'cascade' }),
+    position: real().notNull()
+  },
+  (t) => [primaryKey({ columns: [t.moodboardId, t.designId] })]
+)
+
+export const snippets = sqliteTable('snippets', {
+  ...base,
+  title: text().notNull(),
+  description: text().notNull().default(''),
+  code: text().notNull().default(''),
+  language: text().notNull().default('typescript'),
+  copyCount: integer().notNull().default(0)
+})
+
+export const fixes = sqliteTable('fixes', {
+  ...base,
+  title: text().notNull(),
+  errorText: text().notNull().default(''),
+  cause: text().notNull().default(''),
+  solution: text().notNull().default(''),
+  context: text().notNull().default(''),
+  resolved: integer({ mode: 'boolean' }).notNull().default(true),
+  projectId: text()
+})
+
+export const bookmarks = sqliteTable(
+  'bookmarks',
+  {
+    ...base,
+    title: text().notNull(),
+    url: text().notNull().default(''),
+    kind: text().notNull().default('article'),
+    status: text().notNull().default('queue'),
+    progress: integer().notNull().default(0),
+    rating: integer().notNull().default(0),
+    notes: text().notNull().default(''),
+    finishedAt: integer()
+  },
+  (t) => [index('bookmarks_status_idx').on(t.status)]
+)
+
+/* ───────────── Clients & projects ───────────── */
+
+export const clients = sqliteTable('clients', {
+  ...base,
+  name: text().notNull(),
+  company: text().notNull().default(''),
+  email: text().notNull().default(''),
+  phone: text().notNull().default(''),
+  messenger: text().notNull().default(''),
+  website: text().notNull().default(''),
+  notes: text().notNull().default(''),
+  status: text().notNull().default('active'),
+  currency: text().notNull().default('USD'),
+  defaultRate: real().notNull().default(0)
+})
+
+export const projects = sqliteTable(
+  'projects',
+  {
+    ...base,
+    clientId: text().references(() => clients.id, { onDelete: 'set null' }),
+    title: text().notNull(),
+    description: text().notNull().default(''),
+    status: text().notNull().default('active'),
+    billing: text().notNull().default('hourly'),
+    rate: real().notNull().default(0),
+    fixedPrice: real().notNull().default(0),
+    currency: text().notNull().default('USD'),
+    budgetHours: real().notNull().default(0),
+    startAt: integer(),
+    dueAt: integer(),
+    repoUrl: text().notNull().default(''),
+    stagingUrl: text().notNull().default(''),
+    prodUrl: text().notNull().default(''),
+    adminUrl: text().notNull().default('')
+  },
+  (t) => [index('projects_client_idx').on(t.clientId)]
+)
+
+export const credentials = sqliteTable('credentials', {
+  id: text().primaryKey(),
+  projectId: text().references(() => projects.id, { onDelete: 'cascade' }),
+  clientId: text().references(() => clients.id, { onDelete: 'cascade' }),
+  label: text().notNull(),
+  url: text().notNull().default(''),
+  login: text().notNull().default(''),
+  /** base64 of safeStorage-encrypted bytes (or "plain:" prefix when OS encryption is unavailable). */
+  secret: text().notNull().default(''),
+  notes: text().notNull().default(''),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})
+
+export const timeEntries = sqliteTable(
+  'time_entries',
+  {
+    id: text().primaryKey(),
+    projectId: text()
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    description: text().notNull().default(''),
+    startedAt: integer().notNull(),
+    endedAt: integer(),
+    minutes: integer().notNull().default(0),
+    billable: integer({ mode: 'boolean' }).notNull().default(true),
+    createdAt: integer().notNull()
+  },
+  (t) => [index('time_project_idx').on(t.projectId), index('time_started_idx').on(t.startedAt)]
+)
+
+export const payments = sqliteTable(
+  'payments',
+  {
+    id: text().primaryKey(),
+    projectId: text()
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    amount: real().notNull(),
+    currency: text().notNull().default('USD'),
+    status: text().notNull().default('expected'),
+    dueAt: integer(),
+    paidAt: integer(),
+    note: text().notNull().default(''),
+    createdAt: integer().notNull()
+  },
+  (t) => [index('payments_project_idx').on(t.projectId)]
+)
+
+/* ───────────── Checklists ───────────── */
+
+export const checklists = sqliteTable('checklists', {
+  ...base,
+  title: text().notNull(),
+  description: text().notNull().default(''),
+  kind: text().notNull().default('template'),
+  templateId: text(),
+  projectId: text()
+})
+
+export const checklistItems = sqliteTable(
+  'checklist_items',
+  {
+    id: text().primaryKey(),
+    checklistId: text()
+      .notNull()
+      .references(() => checklists.id, { onDelete: 'cascade' }),
+    text: text().notNull(),
+    hint: text().notNull().default(''),
+    section: text().notNull().default(''),
+    done: integer({ mode: 'boolean' }).notNull().default(false),
+    doneAt: integer(),
+    position: real().notNull()
+  },
+  (t) => [index('checklist_items_list_idx').on(t.checklistId)]
+)
+
+/* ───────────── English ───────────── */
+
+export const words = sqliteTable(
+  'words',
+  {
+    ...base,
+    term: text().notNull(),
+    translation: text().notNull().default(''),
+    kind: text().notNull().default('word'),
+    transcription: text().notNull().default(''),
+    example: text().notNull().default(''),
+    exampleTranslation: text().notNull().default(''),
+    context: text().notNull().default(''),
+    notes: text().notNull().default(''),
+    ease: real().notNull().default(2.5),
+    intervalDays: real().notNull().default(0),
+    repetitions: integer().notNull().default(0),
+    lapses: integer().notNull().default(0),
+    dueAt: integer().notNull(),
+    lastReviewedAt: integer()
+  },
+  (t) => [index('words_due_idx').on(t.dueAt)]
+)
+
+export const wordReviews = sqliteTable(
+  'word_reviews',
+  {
+    id: text().primaryKey(),
+    wordId: text()
+      .notNull()
+      .references(() => words.id, { onDelete: 'cascade' }),
+    grade: integer().notNull(),
+    reviewedAt: integer().notNull()
+  },
+  (t) => [index('word_reviews_at_idx').on(t.reviewedAt)]
+)
+
+/* ───────────── Calendar ───────────── */
+
+export const events = sqliteTable(
+  'events',
+  {
+    ...base,
+    title: text().notNull(),
+    description: text().notNull().default(''),
+    startAt: integer().notNull(),
+    endAt: integer(),
+    allDay: integer({ mode: 'boolean' }).notNull().default(false),
+    remindMinutes: integer(),
+    recurrence: text().notNull().default('none'),
+    color: text(),
+    remindedFor: integer()
+  },
+  (t) => [index('events_start_idx').on(t.startAt)]
+)

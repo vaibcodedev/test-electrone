@@ -1,0 +1,38 @@
+import { z } from 'zod'
+import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags } from './common'
+
+export const LIBRARY_STATUSES = ['used', 'favorite', 'want', 'testing', 'dropped'] as const
+export type LibraryStatus = (typeof LIBRARY_STATUSES)[number]
+
+export const libraryInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  purpose: z.string().max(2000).default(''),
+  notes: z.string().max(100_000).default(''),
+  npmUrl: urlSchema.default(''),
+  githubUrl: urlSchema.default(''),
+  docsUrl: urlSchema.default(''),
+  installCmd: z.string().max(500).default(''),
+  status: z.enum(LIBRARY_STATUSES).default('want'),
+  ...withTagIds
+})
+export const libraryPatchSchema = libraryInputSchema.partial()
+export type LibraryInput = z.input<typeof libraryInputSchema>
+export type LibraryPatch = z.input<typeof libraryPatchSchema>
+
+export const libraryListQuerySchema = z.object({
+  status: z.enum(LIBRARY_STATUSES).optional(),
+  search: z.string().max(200).optional(),
+  tagId: idSchema.optional()
+})
+export type LibraryListQuery = z.infer<typeof libraryListQuerySchema>
+
+export interface Library extends EntityBase, WithTags {
+  name: string
+  purpose: string
+  notes: string
+  npmUrl: string
+  githubUrl: string
+  docsUrl: string
+  installCmd: string
+  status: LibraryStatus
+}

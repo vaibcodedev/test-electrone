@@ -1,0 +1,4 @@
+provider: github
+owner: your-github-name
+repo: vault
+updaterCacheDirName: vault-updater
