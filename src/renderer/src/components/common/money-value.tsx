@@ -12,7 +12,10 @@ export function MoneyValue({ amount, currency, sign = false }: { amount: number;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="cursor-help tabular-nums">{short}</span>
+        {/* Focusable with a full label: the exact amount reaches keyboard and screen-reader users too. */}
+        <span tabIndex={0} aria-label={`${prefix}${fmtMoney(amount, currency)}`} className="cursor-help rounded-sm tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
+          {short}
+        </span>
       </TooltipTrigger>
       <TooltipContent>{`${prefix}${fmtMoney(amount, currency)}`}</TooltipContent>
     </Tooltip>

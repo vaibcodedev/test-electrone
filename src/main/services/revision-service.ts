@@ -9,6 +9,11 @@ import type { SearchIndex } from './search-index'
 
 /** Columns a revert may never touch. */
 const FIXED = new Set(['id', 'createdAt', 'deletedAt'])
+/**
+ * Bookkeeping the app changes on its own while you edit (copy counter, reminders, last opened…):
+ * not «your changes» — never a reason to ask «Зберегти зміни?», never rolled back.
+ */
+const SYSTEM = new Set(['updatedAt', 'copyCount', 'lastOpenedAt', 'lastReviewedAt', 'remindedFor', 'reminded2For'])
 
 /**
  * «Скасувати» for the view/edit mode: a snapshot of a record (its row + tags) taken when editing starts,
@@ -34,8 +39,9 @@ export class RevisionService {
   changed(ref: EntityRef, snap: RecordSnapshot): boolean {
     const now = this.snapshot(ref)
     if (now.tagIds.join() !== [...snap.tagIds].sort().join()) return true
+    // createdAt too: «+ Створити» may reuse this very draft and re-stamp it while it's open.
     return Object.keys(now.row).some(
-      (k) => k !== 'updatedAt' && JSON.stringify(now.row[k]) !== JSON.stringify(snap.row[k])
+      (k) => !SYSTEM.has(k) && !FIXED.has(k) && JSON.stringify(now.row[k]) !== JSON.stringify(snap.row[k])
     )
   }
 
@@ -47,11 +53,16 @@ export class RevisionService {
     // Only columns the row really has, with the same primitive type: the snapshot came from the renderer.
     const values: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(snap.row)) {
-      if (FIXED.has(k) || !(k in current)) continue
+      if (FIXED.has(k) || SYSTEM.has(k) || !(k in current)) continue
       const cur = (current as AnyRow)[k]
       if (cur !== null && v !== null && typeof cur !== typeof v) continue
       values[k] = v
     }
+    // A record untouched at snapshot time stays a draft after the revert (createdAt === updatedAt), even if
+    // draft reuse re-stamped createdAt meanwhile; otherwise updatedAt never goes below createdAt.
+    const snapAt = Number(snap.row.updatedAt)
+    const createdAt = Number((current as AnyRow).createdAt)
+    values.updatedAt = snapAt === Number(snap.row.createdAt) ? createdAt : Math.max(snapAt, createdAt)
     this.ctx.tx(() => {
       this.ctx.orm.update(d.table).set(values).where(eq(d.table.id, ref.id)).run()
       this.tags.setFor(ref.type, ref.id, snap.tagIds)

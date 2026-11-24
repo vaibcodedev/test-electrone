@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Check, ChevronsUpDown, Folder, FolderPlus, X } from 'lucide-react'
 import { useApi } from '@/lib/query'
 import { Button } from '@/components/ui/button'
@@ -16,6 +17,8 @@ import { cn } from '@/lib/utils'
 
 /** Folder combobox: pick an existing folder or create one by typing (shadcn Popover + Command). */
 export function FolderPicker({ value, onChange }: { value: string; onChange: (folder: string) => void }) {
+  // View mode: the value as plain text, no picker (it would change the record outside «Редагувати»).
+  const readOnly = useReadOnly()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const { data: folders = [] } = useApi('notes', 'folders')
@@ -36,7 +39,8 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
             variant="soft"
             role="combobox"
             aria-expanded={open}
-            className={cn('flex-1 justify-between font-normal', !value && 'text-muted-foreground')}
+            disabled={readOnly}
+            className={cn('flex-1 justify-between font-normal', !value && 'text-muted-foreground', readOnly && 'pointer-events-none bg-transparent px-0 shadow-none disabled:opacity-100 [&>svg:last-child]:hidden')}
           >
             <span className="flex min-w-0 items-center gap-2">
               <Folder />

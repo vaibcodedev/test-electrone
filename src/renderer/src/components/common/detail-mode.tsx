@@ -12,8 +12,7 @@ import { toast } from 'sonner'
 import type { RecordSnapshot } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import { api } from '@/lib/api'
-import { invalidateAll } from '@/lib/query'
-import { flushAllAutosaves } from '@/hooks/use-autosave'
+import { flushAndSettle, invalidateAll } from '@/lib/query'
 import { Check, Pencil, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -39,29 +38,24 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
   const [isNew] = useState(() => useUi.getState().takeCreated(id))
   const [editing, setEditing] = useState(isNew)
   const fresh = useRef(isNew)
-  const snap = useRef<RecordSnapshot | null>(null)
+  // The snapshot is a promise: «Скасувати» pressed before it arrived waits for it instead of reverting nothing.
+  const snap = useRef<Promise<RecordSnapshot | null>>(Promise.resolve(null))
 
   useEffect(() => {
-    snap.current = null
-    if (!editing || !type) return
-    let alive = true
-    api.records
-      .snapshot({ type, id })
-      .then((s) => {
-        if (alive) snap.current = s
-      })
-      .catch(() => undefined)
-    return () => {
-      alive = false
+    if (!editing || !type) {
+      snap.current = Promise.resolve(null)
+      return
     }
+    snap.current = api.records.snapshot({ type, id }).catch(() => null)
   }, [editing, id, type])
 
   return useMemo<DetailMode>(() => {
     const ref = type ? { type, id } : null
     /** Pending autosaves first, then ask the server whether anything differs from the snapshot. */
     const hasChanges = async (): Promise<boolean> => {
-      flushAllAutosaves()
-      const s = snap.current
+      // Wait for the saves to land: otherwise «changed» is asked before the last keystrokes reach main.
+      await flushAndSettle()
+      const s = await snap.current
       if (!ref || !s) return false
       return api.records.changed({ ref, snapshot: s }).catch(() => false)
     }
@@ -73,9 +67,17 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     }
     const cancel = ref
       ? async (close?: () => void): Promise<void> => {
-          flushAllAutosaves()
-          const s = snap.current
-          if (s) await api.records.revert({ ref, snapshot: s })
+          // Pending saves must land before the revert, or they'd arrive after it and undo it.
+          await flushAndSettle()
+          const s = await snap.current
+          if (s) {
+            try {
+              await api.records.revert({ ref, snapshot: s })
+            } catch (e) {
+              toast.error(`Не вдалося скасувати: ${(e as Error).message}`)
+              return
+            }
+          }
           // A record created a moment ago and then cancelled shouldn't stay as an empty leftover.
           if (fresh.current) {
             const discarded = await api.trash.discardDraft(ref).catch(() => false)

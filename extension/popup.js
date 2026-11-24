@@ -331,7 +331,8 @@ $('back').addEventListener('click', () => {
   $('title').focus()
 })
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void save()
+  // Only from the form: on the «Збережено» screen Ctrl+Enter used to save the same page a second time.
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && $('done').style.display !== 'flex') void save()
 })
 
 void init()

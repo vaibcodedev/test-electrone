@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
 import { Building2, Check, ChevronsUpDown, ExternalLink, Plus, X } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -159,6 +160,8 @@ export function CompanyCombobox({
   onChange: (value: CompanyValue) => void
   showLink?: boolean
 }) {
+  // View mode: the value as plain text, no picker (it would change the record outside «Редагувати»).
+  const readOnly = useReadOnly()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -182,7 +185,11 @@ export function CompanyCombobox({
     <div className="flex gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="soft" className={cn('min-w-0 flex-1 justify-between rounded-xl font-normal', !label && 'text-muted-foreground')}>
+          <Button
+            variant="soft"
+            disabled={readOnly}
+            className={cn('min-w-0 flex-1 justify-between rounded-xl font-normal', !label && 'text-muted-foreground', readOnly && 'pointer-events-none bg-transparent px-0 shadow-none disabled:opacity-100 [&>svg:last-child]:hidden')}
+          >
             <span className="flex min-w-0 items-center gap-2">
               <Building2 className="shrink-0 opacity-60" />
               <span className="truncate">{label || 'Компанія'}</span>

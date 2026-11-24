@@ -506,8 +506,6 @@
 [data-detail-mode='view'] [data-edit-only] {
   display: none;
 }
-[data-detail-mode='view'] [data-slot='toggle-group'],
-[data-detail-mode='view'] [data-slot='select-trigger'],
 /* One accent while editing: «Зберегти» stays lime, the record's other lime buttons step back to soft. */
 [data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]) {
   background: var(--surface);
@@ -517,6 +515,8 @@
   background: var(--accent);
 }
 /* Checkbox is not here on purpose: it marks progress (pre-bid checks, subtasks) and works while reading. */
+[data-detail-mode='view'] [data-slot='toggle-group'],
+[data-detail-mode='view'] [data-slot='select-trigger'],
 [data-detail-mode='view'] [data-slot='switch'],
 [data-detail-mode='view'] [data-slot='radio-group'],
 [data-detail-mode='view'] [data-slot='slider'],

@@ -24,8 +24,7 @@ import {
   PillSelect,
   TextareaBlock,
   UrlBlock,
-  countBy,
-  useEscapeToClose
+  countBy
 } from './editor-kit'
 
 const LIMITS = limitsOf(claudeInputSchema)
@@ -83,7 +82,6 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
   const save = (patch: ClaudePatch): void => update.mutate({ id: item.id, patch })
   const entity = { type: 'claude' as const, id: item.id }
   const isPrompt = item.kind === 'prompt'
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

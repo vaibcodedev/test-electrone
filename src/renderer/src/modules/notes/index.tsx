@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
-import { AutoMarkdown, AutoTitle, EditorStack, useEscapeToClose } from '../claude/editor-kit'
+import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
 import { FolderPicker } from './folder-picker'
 
 /** Filter key for notes without a folder (backend matches folder === ''). */
@@ -36,7 +36,6 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
   const remove = useApiMutation('notes', 'remove', { successMessage: 'Нотатку переміщено в кошик' })
   const save = (patch: NotePatch): void => update.mutate({ id: note.id, patch })
   const entity = { type: 'note' as const, id: note.id }
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane
@@ -190,7 +189,7 @@ export function NotesPage() {
               }}
             />
           }
-          detail={openItem ? <NoteDetail note={openItem} onClose={() => setOpen(null)} /> : null}
+          detail={openItem ? <NoteDetail key={openItem.id} note={openItem} onClose={() => setOpen(null)} /> : null}
         />
       </PageBody>
     </Page>

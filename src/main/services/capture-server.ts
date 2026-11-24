@@ -1,4 +1,6 @@
 import { log } from '../core/logger'
+import { MAX } from '@shared/domain/limits'
+import { formatError } from '../ipc/rpc'
 import { app, Notification, net } from 'electron'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
 import { randomBytes, timingSafeEqual } from 'crypto'
@@ -18,6 +20,18 @@ const MAX_BODY = 30 * 1024 * 1024
  * - every request must carry the secret key shown in Settings (X-Vault-Key), compared in constant time;
  * - only chrome-extension:// origins get CORS headers.
  */
+
+/** Host without «www.»; never throws (a URL saved without a scheme gets https:// for parsing). */
+function hostOf(url: string): string {
+  try {
+    return new URL(/^[a-z][\w+.-]*:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '')
+  } catch {
+    return ''
+  }
+}
+
+const clip = (text: string, max: number): string => (text.length > max ? text.slice(0, max) : text)
+
 export class CaptureServer {
   private server: Server | null = null
   private listening = false
@@ -142,7 +156,8 @@ export class CaptureServer {
       }
       return this.json(res, 404, { ok: false, error: 'Not found' })
     } catch (e) {
-      return this.json(res, 400, { ok: false, error: (e as Error).message })
+      // Same wording as the app (zod issues → «Назва: занадто довго…»), never a raw JSON dump in the popup.
+      return this.json(res, 400, { ok: false, error: formatError(e).error })
     }
   }
 
@@ -199,7 +214,8 @@ export class CaptureServer {
     const api = this.api()
     const tagIds = await this.tagIds(input.tags)
     const shot = this.screenshotSource(input.screenshot, 'screenshot')
-    const title = input.title || new URL(input.url).hostname
+    // Clip to the target section's limits: a long page title or a Ctrl+A selection must not fail the save.
+    const title = clip(input.title || hostOf(input.url), MAX.title)
     const attach = async (type: EntityType, id: string): Promise<void> => {
       if (shot) await api.files.add({ ref: { type, id }, source: shot })
     }
@@ -210,27 +226,28 @@ export class CaptureServer {
         return { type: 'design', id: d.id, title: d.title || title }
       }
       case 'bookmark': {
-        const host = new URL(input.url).hostname
+        const host = hostOf(input.url)
         const kind = /youtube\.com|youtu\.be|vimeo\.com/.test(host) ? 'video' : /github\.com/.test(host) ? 'repo' : /udemy|coursera|egghead|frontendmasters/.test(host) ? 'course' : 'article'
-        const b = await api.bookmarks.create({ title, url: input.url, kind: input.kind ?? kind, notes: [input.note, input.selection].filter(Boolean).join('\n\n'), tagIds })
+        const b = await api.bookmarks.create({ title, url: input.url, kind: input.kind ?? kind, notes: clip([input.note, input.selection].filter(Boolean).join('\n\n'), 100_000), tagIds })
         await attach('bookmark', b.id)
         return { type: 'bookmark', id: b.id, title: b.title }
       }
       case 'library': {
-        const lib = await this.libraryFrom(input.url, title)
+        const lib = await this.libraryFrom(input.url, clip(title, MAX.name))
         const l = await api.libraries.create({ ...lib, docsUrl: lib.npmUrl || lib.githubUrl ? '' : input.url, notes: input.note, status: 'want', tagIds })
         await attach('library', l.id)
         return { type: 'library', id: l.id, title: l.name }
       }
       case 'component': {
-        const c = await api.components.create({ title, sourceUrl: input.url, description: input.note, code: input.selection, language: input.selection.trim().startsWith('<') ? 'html' : 'tsx', tagIds })
+        const c = await api.components.create({ title, sourceUrl: input.url, description: clip(input.note, 20_000), code: input.selection, language: input.selection.trim().startsWith('<') ? 'html' : 'tsx', tagIds })
         if (shot) await api.components.setCover({ id: c.id, source: shot })
         return { type: 'component', id: c.id, title: c.title }
       }
       case 'application': {
-        const host = new URL(input.url).hostname.replace(/^www\./, '')
-        const board = (await api.jobs.boards()).find((b) => b.url && new URL(b.url).hostname.replace(/^www\./, '') === host)
-        const a = await api.jobs.create({ title, url: input.url, companyName: input.company, description: input.selection, notes: input.note, boardId: board?.id ?? null, status: 'saved', tagIds })
+        const host = hostOf(input.url)
+        // hostOf never throws: a job board saved as «djinni.co» (no scheme) used to fail every vacancy capture.
+        const board = (await api.jobs.boards()).find((b) => b.url && hostOf(b.url) === host)
+        const a = await api.jobs.create({ title, url: input.url, companyName: input.company, description: clip(input.selection, 100_000), notes: input.note, boardId: board?.id ?? null, status: 'saved', tagIds })
         await attach('application', a.id)
         return { type: 'application', id: a.id, title: a.title }
       }

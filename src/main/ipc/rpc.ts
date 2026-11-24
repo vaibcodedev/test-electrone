@@ -64,7 +64,7 @@ function trustedSender(event: IpcMainInvokeEvent): boolean {
   return is.dev && !!dev && url.startsWith(dev)
 }
 
-function formatError(e: unknown): { error: string; code?: string } {
+export function formatError(e: unknown): { error: string; code?: string } {
   if (e instanceof ZodError) {
     const first = e.issues[0]
     const key = String(first?.path[first.path.length - 1] ?? '')

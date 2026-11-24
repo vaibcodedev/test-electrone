@@ -44,8 +44,7 @@ import {
   EditorStack,
   InputField,
   TextareaBlock,
-  UrlBlock,
-  useEscapeToClose
+  UrlBlock
 } from '../claude/editor-kit'
 
 const CASE_L = limitsOf(caseInputSchema)
@@ -75,7 +74,6 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
   const { data: projectList = [] } = useApi('projects', 'list')
   const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
   const entity = { type: 'case' as const, id: c.id }
-  useEscapeToClose(onClose)
 
   const onFiles = (sources: FileSource[]): void => {
     if (sources[0]) setCover.mutate({ id: c.id, source: sources[0] })

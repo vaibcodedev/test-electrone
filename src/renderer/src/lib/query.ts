@@ -24,6 +24,23 @@ export const queryClient = new QueryClient({
   }
 })
 
+/**
+ * Saves every pending autosave and waits until all mutations are really done. A mutation reaches IPC a
+ * microtask after mutate(), so revert/changed sent right after a plain flush ran before the last save.
+ */
+export async function flushAndSettle(): Promise<void> {
+  flushAllAutosaves()
+  const cache = queryClient.getMutationCache()
+  if (queryClient.isMutating() === 0) return
+  await new Promise<void>((resolve) => {
+    const unsubscribe = cache.subscribe(() => {
+      if (queryClient.isMutating() > 0) return
+      unsubscribe()
+      resolve()
+    })
+  })
+}
+
 let invalidateTimer: ReturnType<typeof setTimeout> | null = null
 
 /**

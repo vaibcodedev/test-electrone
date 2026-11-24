@@ -19,8 +19,7 @@ import {
   AutoTitle,
   Block,
   EditorStack,
-  InputField,
-  useEscapeToClose
+  InputField
 } from '../claude/editor-kit'
 
 const LIMITS = limitsOf(fixInputSchema)
@@ -36,7 +35,6 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
   const remove = useApiMutation('fixes', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: FixPatch): void => update.mutate({ id: fix.id, patch })
   const entity = { type: 'fix' as const, id: fix.id }
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

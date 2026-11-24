@@ -49,8 +49,7 @@ import {
   EditorStack,
   EnumSelect,
   InputField,
-  TextareaBlock,
-  useEscapeToClose
+  TextareaBlock
 } from '../claude/editor-kit'
 import { fillTemplate, pct, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
@@ -162,7 +161,6 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
   const save = (patch: TemplatePatch): void => update.mutate({ id: t.id, patch })
   const entity = { type: 'template' as const, id: t.id }
   const isTalk = t.situation === 'small_talk'
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

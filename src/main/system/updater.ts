@@ -17,11 +17,16 @@ export class Updater {
     private readonly bus: EventBus,
     private readonly config: ConfigStore
   ) {
-    // Screenshot tests only (scripts/snap.mjs): show the update plate without a real release.
-    const fake = process.env.VAULT_SNAP_UPDATE
+    // Screenshot tests only (scripts/snap.mjs), never in an installed build: shows the update plate
+    // without a real release. A broken value is ignored instead of breaking the app start.
+    const fake = app.isPackaged ? undefined : process.env.VAULT_SNAP_UPDATE
     if (fake) {
-      this.status = JSON.parse(fake) as UpdateStatus
-      return
+      try {
+        this.status = JSON.parse(fake) as UpdateStatus
+        return
+      } catch {
+        /* fall through to the normal dev status */
+      }
     }
     if (!app.isPackaged) {
       this.status = { state: 'disabled', reason: 'Оновлення працюють лише в зібраній версії' }
@@ -36,7 +41,11 @@ export class Updater {
     autoUpdater.autoDownload = config.settings.autoUpdate
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.on('checking-for-update', () => this.set({ state: 'checking' }))
-    autoUpdater.on('update-available', (i) => this.set({ state: 'available', version: i.version }))
+    // With auto-download the download starts right away: show progress, not a «Завантажити» button that
+    // would start a second download on top of it.
+    autoUpdater.on('update-available', (i) =>
+      this.set(autoUpdater.autoDownload ? { state: 'downloading', percent: 0 } : { state: 'available', version: i.version })
+    )
     autoUpdater.on('update-not-available', () => this.set({ state: 'none' }))
     autoUpdater.on('download-progress', (p) => this.set({ state: 'downloading', percent: Math.round(p.percent) }))
     autoUpdater.on('update-downloaded', (i) => this.set({ state: 'ready', version: i.version }))

@@ -1,5 +1,5 @@
-import { lazy, type ComponentType } from 'react'
-import { createHashRouter } from 'react-router'
+import { Fragment, lazy, type ComponentType, type ReactNode } from 'react'
+import { createHashRouter, useParams } from 'react-router'
 import { AppShell } from '@/components/layout/app-shell'
 import { QuickAddWindow } from '@/features/quick-add'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
@@ -62,6 +62,16 @@ const TrashPage = page(() => import('@/features/trash-page'), 'TrashPage')
 const SettingsPage = page(() => import('@/features/settings-page'), 'SettingsPage')
 const TagsPage = page(() => import('@/features/tags-page'), 'TagsPage')
 
+
+/**
+ * Remounts a record page when only :id changes (/projects/A → /projects/B via a link or Ctrl+K):
+ * otherwise edit mode, its snapshot and pending autosaves of A carried over to B.
+ */
+function KeyedById({ children }: { children: ReactNode }) {
+  const { id } = useParams()
+  return <Fragment key={id}>{children}</Fragment>
+}
+
 export const router = createHashRouter([
   { path: '/quick-add', element: <QuickAddWindow />, errorElement: <RouteError /> },
   {
@@ -85,8 +95,8 @@ export const router = createHashRouter([
           { path: 'designs/boards/:id', element: <MoodboardPage />, handle: { skeleton: 'grid' } },
           { path: 'snippets', element: <SnippetsPage />, handle: { skeleton: 'grid' } },
           { path: 'clients', element: <ClientsPage />, handle: { skeleton: 'list' } },
-          { path: 'clients/:id', element: <ClientPage />, handle: { skeleton: 'detail' } },
-          { path: 'projects/:id', element: <ProjectPage />, handle: { skeleton: 'detail' } },
+          { path: 'clients/:id', element: <KeyedById><ClientPage /></KeyedById>, handle: { skeleton: 'detail' } },
+          { path: 'projects/:id', element: <KeyedById><ProjectPage /></KeyedById>, handle: { skeleton: 'detail' } },
           { path: 'checklists', element: <ChecklistsPage />, handle: { skeleton: 'grid' } },
           { path: 'checklists/:id', element: <ChecklistPage />, handle: { skeleton: 'detail' } },
           { path: 'fixes', element: <FixesPage />, handle: { skeleton: 'list' } },

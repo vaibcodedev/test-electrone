@@ -5,6 +5,7 @@
  * Usage: GH_TOKEN=… node scripts/publish-release.mjs
  */
 import { readFileSync, existsSync, statSync } from 'fs'
+import { execSync } from 'child_process'
 import { join } from 'path'
 
 const token = process.env.GH_TOKEN
@@ -32,16 +33,25 @@ const api = async (method, url, body, headers = {}) => {
   return res.status === 204 || res.status === 404 ? null : res.json()
 }
 
-// One release per tag: reuse an existing one (a retry), otherwise create it.
-let release = await api('GET', `/releases/tags/${tag}`)
+// The tag must point at the code that was built: the exact local commit, and it has to be on GitHub.
+// ('main' tagged whatever the remote branch was, often dozens of commits behind.)
+const sha = execSync('git rev-parse HEAD').toString().trim()
+if (!(await api('GET', `/commits/${sha}`))) {
+  throw new Error(`Commit ${sha.slice(0, 7)} is not on GitHub yet: run \`git push\` first, then publish again.`)
+}
+
+// One release per tag. Drafts aren't found by /releases/tags, so a retry looks through the list.
+const all = (await api('GET', '/releases?per_page=30')) ?? []
+let release = all.find((r) => r.tag_name === tag)
 if (!release) {
+  // Created as a draft: installed betas must not see a release whose installer is still uploading.
   release = await api(
     'POST',
     '/releases',
-    JSON.stringify({ tag_name: tag, name: version, prerelease, draft: false, target_commitish: 'main' }),
+    JSON.stringify({ tag_name: tag, name: version, prerelease, draft: true, target_commitish: sha }),
     { 'Content-Type': 'application/json' }
   )
-  console.log(`created release ${tag}`)
+  console.log(`created draft ${tag} at ${sha.slice(0, 7)}`)
 }
 
 for (const file of files) {
@@ -58,4 +68,5 @@ for (const file of files) {
   )
   console.log('ok')
 }
+if (release.draft) release = await api('PATCH', `/releases/${release.id}`, JSON.stringify({ draft: false }), { 'Content-Type': 'application/json' })
 console.log(`published ${release.html_url}`)

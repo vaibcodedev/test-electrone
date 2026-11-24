@@ -194,7 +194,7 @@ export function DesignsPage() {
             <MasterDetail
               listSize="38%"
               list={gallery}
-              detail={open ? <DesignDetail id={open} onClose={() => setOpen(null)} /> : null}
+              detail={open ? <DesignDetail key={open} id={open} onClose={() => setOpen(null)} /> : null}
             />
           )}
         </PageBody>

@@ -29,6 +29,8 @@ export function useHotkey(combo: string, handler: (e: KeyboardEvent) => void, op
     const wantShift = parts.includes('shift')
     const isMac = window.vault.platform === 'darwin'
     const onKey = (e: KeyboardEvent): void => {
+      // Already handled (a dialog closed on Esc, the global layer clicked «close»): don't act twice.
+      if (e.defaultPrevented) return
       const mod = isMac ? e.metaKey : e.ctrlKey
       if (mod !== wantMod || e.altKey !== wantAlt || e.shiftKey !== wantShift) return
       const pressed = e.code.startsWith('Digit') ? e.code.slice(5) : e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() : e.key.toLowerCase()

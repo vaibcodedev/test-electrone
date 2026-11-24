@@ -23,8 +23,7 @@ import {
   PillSelect,
   TextareaBlock,
   UrlBlock,
-  countBy,
-  useEscapeToClose
+  countBy
 } from '../claude/editor-kit'
 import { ImportButton } from '@/components/common/import-dialog'
 
@@ -112,7 +111,6 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
   const remove = useApiMutation('libraries', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: LibraryPatch): void => update.mutate({ id: lib.id, patch })
   const entity = { type: 'library' as const, id: lib.id }
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

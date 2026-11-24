@@ -24,7 +24,7 @@ import {
   MasterDetail,
   useOpenParam
 } from '@/components/common/master-detail'
-import { AutoMarkdown, AutoTitle, Block, EditorStack, useEscapeToClose } from '../claude/editor-kit'
+import { AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-kit'
 import { SEVERITY_LABEL } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
 
@@ -57,7 +57,6 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
   const remove = useApiMutation('redflags', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: RedFlagPatch): void => update.mutate({ id: flag.id, patch })
   const entity = { type: 'redflag' as const, id: flag.id }
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

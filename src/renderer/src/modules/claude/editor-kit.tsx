@@ -8,7 +8,6 @@
 import { useId, useMemo, useState, type ComponentProps, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
-import { useHotkey } from '@/hooks/use-hotkey'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
@@ -321,10 +320,6 @@ export function EnumSelect<T extends string>({
   )
 }
 
-/** Closes the open detail with Esc (ignored while typing). */
-export function useEscapeToClose(onClose: () => void, enabled = true): void {
-  useHotkey('escape', onClose, { enabled })
-}
 
 /** Counts items per key, for chip counters. */
 export function countBy<T, K extends string>(items: T[], key: (item: T) => K): Partial<Record<K, number>> {

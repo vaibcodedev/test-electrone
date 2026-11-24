@@ -4,7 +4,7 @@ import type { TrashItem } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { hasTraces } from '../core/traces'
 import { isDraft, type AnyRow, type EntityRegistry, type EntityDescriptor } from '../core/registry'
-import { DAY_MS, now, NotFoundError } from '../core/util'
+import { DAY_MS, now, NotFoundError, UserError } from '../core/util'
 import type { TagService } from './tag-service'
 import type { LinkService } from './link-service'
 import type { PinService } from './pin-service'
@@ -93,13 +93,19 @@ export class TrashService {
 
   restore(ref: EntityRef): void {
     const d = this.registry.get(ref.type)
-    const row = this.ctx.orm
-      .update(d.table)
-      .set({ deletedAt: null, updatedAt: now() })
-      .where(and(eq(d.table.id, ref.id), isNotNull(d.table.deletedAt)))
-      .returning()
-      .get() as AnyRow | undefined
-    if (!row) throw new NotFoundError(ref.type, ref.id)
+    const row = this.ctx.tx(() => {
+      const restored = this.ctx.orm
+        .update(d.table)
+        .set({ deletedAt: null, updatedAt: now() })
+        .where(and(eq(d.table.id, ref.id), isNotNull(d.table.deletedAt)))
+        .returning()
+        .get() as AnyRow | undefined
+      if (!restored) throw new NotFoundError(ref.type, ref.id)
+      // A card whose board is still in the trash would vanish (hidden by aliveWhere) while the UI says «restored».
+      if (d.aliveWhere && !this.registry.findRow(ref))
+        throw new UserError('Спершу відновіть дошку, до якої належить ця картка')
+      return restored
+    })
     this.cleaners.search.indexRow(ref.type, row)
     for (const dep of d.dependents?.(ref.id) ?? []) {
       const depRow = this.registry.findRow(dep)

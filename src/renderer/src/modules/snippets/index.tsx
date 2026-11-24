@@ -23,8 +23,7 @@ import {
   EnumSelect,
   LanguageSuggestion,
   TextareaBlock,
-  countBy,
-  useEscapeToClose
+  countBy
 } from '../claude/editor-kit'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
@@ -67,7 +66,6 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
   const markCopied = useApiMutation('snippets', 'markCopied', { silent: true })
   const save = (patch: SnippetPatch): void => update.mutate({ id: item.id, patch })
   const entity = { type: 'snippet' as const, id: item.id }
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

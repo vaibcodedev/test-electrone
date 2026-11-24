@@ -1,4 +1,5 @@
 import { useState, type RefObject } from 'react'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import {
@@ -81,6 +82,8 @@ const R = rangesOf(proposalInputSchema)
 /** Number input that commits on blur/Enter (null when empty). */
 /** Combobox for the task type: suggestions from previous proposals + free text. */
 function NicheCombobox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  // View mode: the value as plain text, no picker (it would change the record outside «Редагувати»).
+  const readOnly = useReadOnly()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const { data: niches = [] } = useApi('proposals', 'niches', undefined, { enabled: open })
@@ -91,9 +94,11 @@ function NicheCombobox({ value, onChange }: { value: string; onChange: (v: strin
       <PopoverTrigger asChild>
         <Button
           variant="soft"
+          disabled={readOnly}
           className={cn(
             'w-full justify-between rounded-xl font-normal',
-            !value && 'text-muted-foreground'
+            !value && 'text-muted-foreground',
+            readOnly && 'pointer-events-none bg-transparent px-0 shadow-none disabled:opacity-100 [&>svg:last-child]:hidden'
           )}
         >
           {value || 'Next.js, верстка, боти…'}

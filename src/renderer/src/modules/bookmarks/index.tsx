@@ -44,8 +44,7 @@ import {
   EditorStack,
   PillSelect,
   UrlBlock,
-  countBy,
-  useEscapeToClose
+  countBy
 } from '../claude/editor-kit'
 import { ImportButton } from '@/components/common/import-dialog'
 
@@ -135,7 +134,6 @@ function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () => void
   const remove = useApiMutation('bookmarks', 'remove', { successMessage: 'Переміщено в кошик' })
   const save = (patch: BookmarkPatch): void => update.mutate({ id: item.id, patch })
   const entity = { type: 'bookmark' as const, id: item.id }
-  useEscapeToClose(onClose)
 
   return (
     <DetailPane

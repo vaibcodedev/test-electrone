@@ -22,6 +22,7 @@ const elapsed = (from: number): string => {
 /** System tray icon with quick actions. */
 export class TrayController {
   private tray: Tray | null = null
+  private ticker: NodeJS.Timeout | null = null
 
   constructor(
     private readonly windows: WindowManager,
@@ -38,7 +39,7 @@ export class TrayController {
       pending = setTimeout(() => this.refresh(), 300)
     })
     // Tooltip follows every 5 s while running; the menu itself is rebuilt each time it opens (see create()).
-    setInterval(() => {
+    this.ticker = setInterval(() => {
       const run = this.timer?.running()
       if (!run) return
       this.refresh()
@@ -90,7 +91,8 @@ export class TrayController {
     this.tray.setToolTip('Vault')
     this.tray.on('click', () => this.windows.toggleMain())
     // Windows shows a snapshot of the context menu: build it at the moment of opening, so the time is current.
-    if (process.platform !== 'darwin') this.tray.on('right-click', () => this.tray?.popUpContextMenu(this.menu()))
+    // Windows only: Linux trays have no right-click event (they get setContextMenu in refresh, like macOS).
+    if (process.platform === 'win32') this.tray.on('right-click', () => this.tray?.popUpContextMenu(this.menu()))
     this.refresh()
   }
 
@@ -98,7 +100,7 @@ export class TrayController {
     if (!this.tray) return
     const run = this.timer?.running()
     this.tray.setToolTip(run ? `Vault · ⏱ ${run.projectTitle} ${elapsed(run.startedAt)}` : 'Vault')
-    if (process.platform === 'darwin') this.tray.setContextMenu(this.menu())
+    if (process.platform !== 'win32') this.tray.setContextMenu(this.menu())
   }
 
   private menu(): Menu {
@@ -123,6 +125,8 @@ export class TrayController {
   }
 
   destroy(): void {
+    if (this.ticker) clearInterval(this.ticker)
+    this.ticker = null
     this.tray?.destroy()
     this.tray = null
   }
