@@ -55,7 +55,8 @@ export function CalendarPage() {
   useHotkey('t', () => setCursor(new Date()))
 
   const openItem = (item: CalendarItem): void => {
-    if (item.source === 'event') setOpen(item.ref.id)
+    if (item.route) navigate(item.route)
+    else if (item.source === 'event') setOpen(item.ref.id)
     else navigate(ENTITY_META[item.ref.type].route(item.ref.id))
   }
 
@@ -64,7 +65,7 @@ export function CalendarPage() {
       ? `${format(from, 'd MMM', { locale: LOCALE })} — ${format(to, 'd MMM yyyy', { locale: LOCALE })}`
       : capitalize(format(cursor, 'LLLL yyyy', { locale: LOCALE }))
 
-  const legend = (['event', 'card', 'payment', 'project'] as const).filter((s) => items.some((i) => i.source === s))
+  const legend = (Object.keys(SOURCE_LABEL) as CalendarItem['source'][]).filter((s) => items.some((i) => i.source === s))
 
   return (
     <Page>
@@ -83,7 +84,7 @@ export function CalendarPage() {
                 </Badge>
               ))
             ) : (
-              <span>События, дедлайны карточек, оплаты и сроки проектов — в одном месте.</span>
+              <span>События, дедлайны, оплаты, подписки и собеседования — в одном месте.</span>
             )}
           </div>
         </div>

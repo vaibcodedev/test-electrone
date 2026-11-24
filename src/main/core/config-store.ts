@@ -13,6 +13,9 @@ interface ConfigShape {
   settings: Settings
   window: WindowState
   lastBackupAt: number | null
+  /** Encrypted secrets (github token…) and generated keys (capture token). */
+  secrets: Record<string, string>
+  lastWeeklyReview: string | null
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -25,13 +28,19 @@ export const DEFAULT_SETTINGS: Settings = {
   autoBackup: true,
   backupKeep: 14,
   autoUpdate: true,
-  jobReminderTime: '19:00'
+  jobReminderTime: '19:00',
+  weeklyReviewDay: 0,
+  weeklyReviewTime: '18:00',
+  captureEnabled: true,
+  capturePort: 47219
 }
 
 const DEFAULTS: ConfigShape = {
   settings: DEFAULT_SETTINGS,
   window: { width: 1360, height: 860, maximized: false },
-  lastBackupAt: null
+  lastBackupAt: null,
+  secrets: {},
+  lastWeeklyReview: null
 }
 
 type Listener = (settings: Settings) => void
@@ -56,7 +65,9 @@ export class ConfigStore {
       return {
         settings: settings.success ? settings.data : DEFAULT_SETTINGS,
         window: { ...DEFAULTS.window, ...raw.window },
-        lastBackupAt: typeof raw.lastBackupAt === 'number' ? raw.lastBackupAt : null
+        lastBackupAt: typeof raw.lastBackupAt === 'number' ? raw.lastBackupAt : null,
+        secrets: raw.secrets && typeof raw.secrets === 'object' ? raw.secrets : {},
+        lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null
       }
     } catch {
       return structuredClone(DEFAULTS)
@@ -98,6 +109,25 @@ export class ConfigStore {
 
   set windowState(state: WindowState) {
     this.data.window = state
+    this.scheduleWrite()
+  }
+
+  secret(key: string): string | null {
+    return this.data.secrets[key] ?? null
+  }
+
+  setSecret(key: string, value: string | null): void {
+    if (value) this.data.secrets[key] = value
+    else delete this.data.secrets[key]
+    this.scheduleWrite()
+  }
+
+  get lastWeeklyReview(): string | null {
+    return this.data.lastWeeklyReview
+  }
+
+  set lastWeeklyReview(week: string | null) {
+    this.data.lastWeeklyReview = week
     this.scheduleWrite()
   }
 

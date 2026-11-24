@@ -89,6 +89,19 @@ import type {
 import type { CalendarEvent, CalendarItem, DateRange, EventInput, EventPatch } from './domain/calendar'
 import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
 import type {
+  CaptureInfo,
+  DevProject,
+  DevProjectInput,
+  DevProjectPatch,
+  GithubCommit,
+  GithubIssue,
+  GithubRepo,
+  GithubStatus,
+  LogChunk,
+  RunningScript
+} from './domain/dev'
+import type { ReviewNotesInput, WeeklyReview } from './domain/review'
+import type {
   Application,
   ApplicationDetails,
   ApplicationInput,
@@ -415,6 +428,8 @@ export interface JobsApi {
   updateStage(args: { id: string; patch: StagePatch }): Promise<Stage>
   removeStage(id: string): Promise<void>
   upcoming(limit?: number): Promise<StageWithApplication[]>
+  /** Finished or past stages, newest first (interview history). */
+  pastStages(limit?: number): Promise<StageWithApplication[]>
 
   companies(query?: { search?: string }): Promise<Company[]>
   company(id: string): Promise<Company | null>
@@ -440,6 +455,47 @@ export interface JobsApi {
 
   stats(args?: { from?: number; to?: number }): Promise<JobStats>
   overview(): Promise<JobsOverview>
+}
+
+export interface DevProjectsApi {
+  list(): Promise<DevProject[]>
+  get(id: string): Promise<DevProject | null>
+  create(input: DevProjectInput): Promise<DevProject>
+  update(args: { id: string; patch: DevProjectPatch }): Promise<DevProject>
+  remove(id: string): Promise<void>
+  /** Native folder picker; null if cancelled. */
+  pickFolder(): Promise<string | null>
+  /** Sub-folders of `root` that look like projects and are not added yet. */
+  scan(root: string): Promise<{ name: string; path: string; hasGit: boolean; hasPackage: boolean }[]>
+  open(args: { projectId: string; target: 'vscode' | 'cursor' | 'terminal' | 'folder' }): Promise<void>
+  /** Runs a package.json script (only scripts that exist there). Logs stream via the "dev:log" event. */
+  run(args: { projectId: string; script: string }): Promise<RunningScript>
+  stop(runId: string): Promise<void>
+  runs(): Promise<RunningScript[]>
+  logs(runId: string): Promise<LogChunk[]>
+  clearFinished(): Promise<void>
+}
+
+export interface GithubApi {
+  status(): Promise<GithubStatus>
+  /** Empty string disconnects. Stored encrypted. */
+  setToken(args: { token: string }): Promise<GithubStatus>
+  repos(args?: { force?: boolean }): Promise<GithubRepo[]>
+  issues(args?: { repo?: string; force?: boolean }): Promise<GithubIssue[]>
+  commits(args?: { repo?: string; force?: boolean }): Promise<GithubCommit[]>
+}
+
+export interface ReviewApi {
+  /** Week by its Monday (yyyy-mm-dd); current week when omitted. */
+  get(args?: { weekStart?: string }): Promise<WeeklyReview>
+  saveNotes(input: ReviewNotesInput): Promise<void>
+  list(): Promise<{ weekStart: string; hasNotes: boolean }[]>
+}
+
+export interface CaptureApi {
+  info(): Promise<CaptureInfo>
+  regenerateKey(): Promise<CaptureInfo>
+  openExtensionDir(): Promise<void>
 }
 
 export interface TagsApi {
@@ -551,6 +607,10 @@ export interface Api {
   freelance: FreelanceApi
   finance: FinanceApi
   jobs: JobsApi
+  devProjects: DevProjectsApi
+  github: GithubApi
+  review: ReviewApi
+  capture: CaptureApi
   tags: TagsApi
   links: LinksApi
   pins: PinsApi
@@ -575,6 +635,10 @@ export interface MainEvents {
   'settings:changed': Settings
   'quick-add:open': { target?: string }
   'command:search': Record<string, never>
+  'dev:log': LogChunk[]
+  'dev:status': RunningScript
+  /** Messages from background work (e.g. editor not found). */
+  toast: { kind: 'error' | 'success' | 'info'; message: string }
 }
 
 export type MainEventName = keyof MainEvents
@@ -584,7 +648,10 @@ export const MAIN_EVENTS: MainEventName[] = [
   'updates:status',
   'settings:changed',
   'quick-add:open',
-  'command:search'
+  'command:search',
+  'dev:log',
+  'dev:status',
+  'toast'
 ]
 
 /** Shape of the RPC envelope; errors are serialised explicitly to keep messages intact. */

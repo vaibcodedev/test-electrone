@@ -43,6 +43,7 @@ if (!app.requestSingleInstanceLock()) {
     c.reminders.start()
     c.backup.startAuto()
     c.updater.startAuto()
+    c.capture.start()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) c.windows.createMain({ show: true })
@@ -58,6 +59,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     container?.reminders.stop()
+    container?.devProjects.killAll()
+    container?.capture.stop()
     container?.backup.stop()
     container?.updater.stop()
     container?.config.flush()

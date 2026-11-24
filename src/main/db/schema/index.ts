@@ -770,3 +770,31 @@ export const interviewQuestions = sqliteTable('interview_questions', {
   dueAt: integer().notNull(),
   lastReviewedAt: integer()
 })
+
+/* ───────────── Developer workspace ───────────── */
+
+export const devProjects = sqliteTable('dev_projects', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  path: text().notNull(),
+  notes: text().notNull().default(''),
+  editor: text().notNull().default('vscode'),
+  mainScript: text().notNull().default(''),
+  favorite: integer({ mode: 'boolean' }).notNull().default(false),
+  githubRepo: text().notNull().default(''),
+  lastOpenedAt: integer(),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})
+
+/* ───────────── Weekly review ───────────── */
+
+export const weeklyReviews = sqliteTable('weekly_reviews', {
+  id: text().primaryKey(),
+  weekStart: text().notNull().unique(),
+  snapshot: text({ mode: 'json' }).$type<unknown>(),
+  summary: text().notNull().default(''),
+  plan: text().notNull().default(''),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})

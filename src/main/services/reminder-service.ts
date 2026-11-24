@@ -84,7 +84,21 @@ export class ReminderService {
       this.notify(`Дедлайн: ${c.title}`, c.boardTitle, ENTITY_META.card.route(c.id))
     }
     this.jobNudge(t)
+    this.weeklyNudge(t)
     this.lastTick = t
+  }
+
+  /** Weekly review notification (default: Sunday 18:00), once per week. */
+  private weeklyNudge(t: number): void {
+    const { weeklyReviewDay, weeklyReviewTime } = this.config.settings
+    if (!weeklyReviewTime) return
+    const d = new Date(t)
+    const [h, m] = weeklyReviewTime.split(':').map(Number)
+    if (d.getDay() !== weeklyReviewDay || d.getHours() * 60 + d.getMinutes() < h * 60 + m) return
+    const week = new Date(t - ((d.getDay() + 6) % 7) * DAY_MS).toDateString()
+    if (this.config.lastWeeklyReview === week) return
+    this.config.lastWeeklyReview = week
+    this.notify('Итоги недели готовы', 'Что сделано, деньги, отклики без ответа и планы на следующую неделю', '/review')
   }
 
   /** Evening reminder: job boards expected today that are not marked yet. */

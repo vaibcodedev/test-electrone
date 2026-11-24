@@ -24,6 +24,14 @@ const REMINDERS: { value: string; label: string }[] = [
   { value: '1440', label: 'За день' }
 ]
 
+const SECOND_REMINDERS: { value: string; label: string }[] = [
+  { value: 'none', label: 'Нет' },
+  { value: '60', label: 'За 1 час' },
+  { value: '180', label: 'За 3 часа' },
+  { value: '1440', label: 'За день' },
+  { value: '2880', label: 'За 2 дня' }
+]
+
 const RECURRENCE_LABEL: Record<Recurrence, string> = {
   none: 'Не повторять',
   daily: 'Каждый день',
@@ -42,6 +50,7 @@ interface FormState {
   startAt: number | null
   endAt: number | null
   remind: string
+  remind2: string
   recurrence: Recurrence
   color: string | null
 }
@@ -54,6 +63,7 @@ function fromEvent(e: CalendarEvent): FormState {
     startAt: e.startAt,
     endAt: e.endAt,
     remind: e.remindMinutes === null ? 'none' : String(e.remindMinutes),
+    remind2: e.remind2Minutes === null ? 'none' : String(e.remind2Minutes),
     recurrence: e.recurrence,
     color: e.color
   }
@@ -69,6 +79,7 @@ function blank(date: Date): FormState {
     startAt: start.getTime(),
     endAt: null,
     remind: '15',
+    remind2: 'none',
     recurrence: 'none',
     color: null
   }
@@ -107,6 +118,7 @@ export function EventDialog({
     if (open) setForm(event ? fromEvent(event) : blank(date ?? new Date()))
   }, [open, event, date])
 
+  const linked = !!event?.sourceType
   const set = <K extends keyof FormState>(key: K, value: FormState[K]): void => setForm((f) => ({ ...f, [key]: value }))
   const { startAt, endAt } = form
   const endBeforeStart = endAt !== null && startAt !== null && endAt < startAt
@@ -121,11 +133,13 @@ export function EventDialog({
       startAt,
       endAt,
       remindMinutes: form.remind === 'none' ? null : Number(form.remind),
+      remind2Minutes: form.remind2 === 'none' ? null : Number(form.remind2),
       recurrence: form.recurrence,
       color: form.color
     }
     const done = { onSuccess: () => onOpenChange(false) }
-    if (event) update.mutate({ id: event.id, patch: input }, done)
+    // Synced events: the owning module controls the title.
+    if (event) update.mutate({ id: event.id, patch: linked ? { ...input, title: event.title } : input }, done)
     else create.mutate(input, done)
   }
 
@@ -150,8 +164,14 @@ export function EventDialog({
               onChange={(e) => set('title', e.target.value)}
               placeholder="Созвон, дедлайн, напоминание…"
               className="h-11 text-[15px]"
+              readOnly={linked}
             />
           </Field>
+          {linked && (
+            <p className="-mt-2 rounded-xl bg-surface px-3 py-2 text-[12.5px] text-muted-foreground">
+              Создано из вакансии — время синхронизируется с этапом собеседования.
+            </p>
+          )}
           <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5">
             <Label htmlFor="event-all-day" className="text-[13px] text-foreground">
               Весь день
@@ -197,6 +217,22 @@ export function EventDialog({
                 </SelectContent>
               </Select>
             </Field>
+            <Field label="Второе напоминание">
+              <Select value={form.remind2} onValueChange={(v) => set('remind2', v)}>
+                <SelectTrigger className="w-full rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SECOND_REMINDERS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Повтор">
               <Select value={form.recurrence} onValueChange={(v) => set('recurrence', v as Recurrence)}>
                 <SelectTrigger className="w-full rounded-xl">

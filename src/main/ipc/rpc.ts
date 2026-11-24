@@ -52,7 +52,7 @@ const NS_TYPES: Partial<Record<keyof Api, EntityType[]>> = {
   jobs: ['application', 'company', 'question', 'event']
 }
 const READ_METHODS =
-  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|companies|company|resumes|questions|question|topics|practiceQueue)$/
+  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|resumes|questions|question|topics|practiceQueue|runs|logs|repos|issues|commits|pickFolder|scan)$/
 
 /**
  * Single IPC entry point: `rpc("ns.method", arg)` → api[ns][method](arg).

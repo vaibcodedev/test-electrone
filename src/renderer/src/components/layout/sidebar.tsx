@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
-import { HOME, HUBS, hubOf, type NavHub } from '@/app/navigation'
+import { GUIDE, HOME, HUBS, REVIEW, hubOf, type NavHub } from '@/app/navigation'
 import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useApi } from '@/lib/query'
@@ -204,6 +204,14 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname.startsWith('/review')}>
+                  <NavLink to={REVIEW.path}>
+                    <REVIEW.icon />
+                    <span>{REVIEW.label}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {HUBS.map((hub) => (
                 <HubGroup key={hub.id} hub={hub} pathname={pathname} />
               ))}
@@ -212,6 +220,7 @@ export function AppSidebar() {
         </SidebarContent>
         <SidebarFooter className="flex-row gap-1 border-t border-sidebar-border p-2">
           {[
+            { to: GUIDE.path, icon: GUIDE.icon, label: GUIDE.label },
             { to: '/tags', icon: Tags, label: 'Метки' },
             { to: '/trash', icon: Trash2, label: 'Корзина' },
             { to: '/settings', icon: Settings, label: 'Настройки' }

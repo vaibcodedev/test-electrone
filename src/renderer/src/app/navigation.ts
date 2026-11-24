@@ -33,6 +33,11 @@ import {
   ArrowDownToLine,
   FileUser,
   FileText,
+  TerminalSquare,
+  FolderGit2,
+  GitBranch,
+  CalendarCheck,
+  BookOpen,
   Globe,
   ChartColumn,
   Building2,
@@ -91,6 +96,8 @@ export interface NavHub {
 }
 
 export const HOME: NavItem = { path: '/', label: 'Главная', icon: House }
+export const REVIEW: NavItem = { path: '/review', label: 'Итоги недели', icon: CalendarCheck }
+export const GUIDE: NavItem = { path: '/guide', label: 'Гайд', icon: BookOpen }
 
 export const HUBS: NavHub[] = [
   {
@@ -147,6 +154,15 @@ export const HUBS: NavHub[] = [
     ]
   },
   {
+    id: 'dev',
+    title: 'Разработка',
+    icon: TerminalSquare,
+    items: [
+      { path: '/dev', label: 'Мои проекты', icon: FolderGit2 },
+      { path: '/dev/github', label: 'GitHub', icon: GitBranch }
+    ]
+  },
+  {
     id: 'knowledge',
     title: 'Знания',
     icon: Library,
@@ -177,6 +193,8 @@ export const PLATFORM_ICON = Landmark
 /** Flat list for the command palette and Alt+N shortcuts (overviews first, then sections). */
 export const ALL_NAV_ITEMS: NavItem[] = [
   HOME,
+  REVIEW,
+  GUIDE,
   ...HUBS.flatMap((h) => [
     ...(h.overview ? [{ path: h.overview, label: `${h.title}: обзор`, icon: h.icon }] : []),
     ...h.items
@@ -186,6 +204,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
 /** Hub that owns a pathname (for auto-expanding the sidebar). */
 export function hubOf(pathname: string): string | undefined {
   if (pathname.startsWith('/jobs')) return 'jobs'
+  if (pathname.startsWith('/dev')) return 'dev'
   if (pathname.startsWith('/freelance') || pathname.startsWith('/clients') || pathname.startsWith('/projects')) return 'freelance'
   for (const h of HUBS) {
     if (h.overview && pathname === h.overview) return h.id

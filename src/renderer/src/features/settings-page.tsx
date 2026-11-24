@@ -207,6 +207,14 @@ export function SettingsPage() {
             <Row label="Закрытие окна сворачивает в трей" hint="Выйти полностью — через меню иконки в трее">
               <Switch checked={settings.closeToTray} onCheckedChange={(closeToTray) => set({ closeToTray })} />
             </Row>
+            <Row label="Вечернее напоминание о площадках" hint="Поиск работы: если сегодня не отмечены площадки. Пусто — выключено">
+              <Input
+                type="time"
+                defaultValue={settings.jobReminderTime}
+                onBlur={(e) => e.target.value !== settings.jobReminderTime && set({ jobReminderTime: e.target.value })}
+                className="w-28 bg-card"
+              />
+            </Row>
           </Section>
 
           <Section title="Данные" hint="База и файлы лежат в одной папке. В базе хранятся только пути к картинкам.">

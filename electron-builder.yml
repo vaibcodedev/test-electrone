@@ -19,6 +19,9 @@ files:
 extraResources:
   - from: src/main/db/migrations
     to: migrations
+  # Unpacked Chrome extension (load via chrome://extensions → «Загрузить распакованное»).
+  - from: extension
+    to: extension
 asarUnpack:
   - resources/**
   - '**/*.node'

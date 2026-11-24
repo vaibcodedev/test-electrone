@@ -38,6 +38,12 @@ import { CalendarModule } from './modules/calendar'
 import { FreelanceModule } from './modules/freelance'
 import { FinanceModule } from './modules/finance'
 import { JobsModule } from './modules/jobs'
+import { DevProjectsModule } from './modules/dev-projects'
+import { GithubService } from './services/github-service'
+import { WeeklyReviewService } from './services/weekly-review-service'
+import { CaptureServer } from './services/capture-server'
+import { githubTokenSchema } from '@shared/domain/dev'
+import { reviewNotesSchema } from '@shared/domain/review'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { idArg, type ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
@@ -89,6 +95,16 @@ export class Container {
   readonly freelance = new FreelanceModule(this.moduleCtx, this.crm)
   readonly finance = new FinanceModule(this.moduleCtx, this.freelance)
   readonly jobs = new JobsModule(this.moduleCtx, this.calendar)
+  readonly devProjects = new DevProjectsModule(this.moduleCtx)
+  readonly github = new GithubService(this.config, this.secrets)
+  readonly review = new WeeklyReviewService(this.db, {
+    finance: this.finance,
+    calendar: this.calendar,
+    boards: this.boards,
+    jobs: this.jobs,
+    freelance: this.freelance,
+    dev: this.devProjects
+  })
 
   readonly backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus)
   readonly exporter = new ExportService(this.db, this.paths, this.registry, this.tags, this.links)
@@ -107,6 +123,7 @@ export class Container {
   readonly shortcuts: ShortcutController
   readonly updater: Updater
   readonly reminders: ReminderService
+  readonly capture: CaptureServer
   readonly api: Api
 
   constructor(readonly iconPath: string) {
@@ -141,6 +158,7 @@ export class Container {
       this.config
     )
     this.api = this.buildApi()
+    this.capture = new CaptureServer(this.config, () => this.api, this.bus, (route) => this.windows.showMain(route), iconPath)
     this.config.onSettingsChange((s) => {
       applyAutostart(s.launchAtLogin)
       this.bus.emit('settings:changed', s)
@@ -240,7 +258,36 @@ export class Container {
       goals: this.freelance.goalsApi(),
       freelance: this.freelance.freelanceApi(),
       finance: this.finance.api(),
-      jobs: this.jobs.api()
+      jobs: this.jobs.api(),
+      devProjects: this.devProjects.api(),
+      github: {
+        status: async () => this.github.status(),
+        setToken: async (args) => {
+          this.github.setToken(githubTokenSchema.parse(args).token)
+          return this.github.status()
+        },
+        repos: async (args) => this.github.repos(this.devProjects.repoIndex(), !!args?.force),
+        issues: async (args) => this.github.issues(args?.repo, !!args?.force),
+        commits: async (args) => this.github.commits(this.devProjects.repoIndex(), args?.repo, !!args?.force)
+      },
+      review: {
+        get: async (args) => this.review.get(args?.weekStart),
+        saveNotes: async (input) => {
+          const { weekStart, summary, plan } = reviewNotesSchema.parse(input)
+          this.review.saveNotes(weekStart, { summary, plan })
+        },
+        list: async () => this.review.list()
+      },
+      capture: {
+        info: async () => this.capture.info(),
+        regenerateKey: async () => {
+          this.capture.regenerate()
+          return this.capture.info()
+        },
+        openExtensionDir: async () => {
+          await shell.openPath(this.capture.extensionDir)
+        }
+      }
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)
     const refArg = entityRefSchema

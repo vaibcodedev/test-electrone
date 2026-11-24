@@ -509,6 +509,29 @@ export class JobsModule {
     }))
   }
 
+  /** Past or finished stages (newest first) — interview history with outcomes. */
+  pastStages(limit = 50): StageWithApplication[] {
+    const t = now() - 2 * 3600_000
+    const rows = this.db
+      .select({ stage: applicationStages, title: applications.title, companyName: applications.companyName, companyId: applications.companyId })
+      .from(applicationStages)
+      .innerJoin(applications, eq(applications.id, applicationStages.applicationId))
+      .where(
+        and(
+          isNull(applications.deletedAt),
+          sql`(${applicationStages.status} != 'planned' OR coalesce(${applicationStages.deadlineAt}, ${applicationStages.at}, ${t + 1}) < ${t})`
+        )
+      )
+      .orderBy(sql`coalesce(${applicationStages.at}, ${applicationStages.deadlineAt}, ${applicationStages.createdAt}) DESC`)
+      .limit(limit)
+      .all()
+    return rows.map((r) => ({
+      ...this.toStage(r.stage),
+      applicationTitle: r.title,
+      company: r.companyId ? this.appTitle(r.stage.applicationId).company : r.companyName
+    }))
+  }
+
   questionsDue(): number {
     return (
       this.db
@@ -679,6 +702,7 @@ export class JobsModule {
         this.db.delete(applicationStages).where(eq(applicationStages.id, row.id)).run()
       },
       upcoming: async (limit) => this.upcomingStages(z.number().int().min(1).max(100).optional().parse(limit)),
+      pastStages: async (limit) => this.pastStages(z.number().int().min(1).max(500).optional().parse(limit)),
 
       /* companies */
       companies: async (query) => {

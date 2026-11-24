@@ -24,7 +24,13 @@ export const settingsSchema = z.object({
   backupKeep: z.number().int().min(1).max(100),
   autoUpdate: z.boolean(),
   /** "19:00" — evening reminder about unmarked job boards; "" = off. */
-  jobReminderTime: z.string().regex(/^(\d{2}:\d{2})?$/)
+  jobReminderTime: z.string().regex(/^(\d{2}:\d{2})?$/),
+  /** Weekly review notification: weekday (0 = Sunday) and time; empty time = off. */
+  weeklyReviewDay: z.number().int().min(0).max(6),
+  weeklyReviewTime: z.string().regex(/^(\d{2}:\d{2})?$/),
+  /** Local bridge for the Chrome extension. */
+  captureEnabled: z.boolean(),
+  capturePort: z.number().int().min(1024).max(65535)
 })
 export type Settings = z.infer<typeof settingsSchema>
 export const settingsPatchSchema = settingsSchema.partial()

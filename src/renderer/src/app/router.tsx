@@ -53,6 +53,10 @@ const QuestionsPage = page(() => import('@/modules/jobs'), 'QuestionsPage')
 const PracticePage = page(() => import('@/modules/jobs'), 'PracticePage')
 const JobBoardsPage = page(() => import('@/modules/jobs'), 'JobBoardsPage')
 const JobStatsPage = page(() => import('@/modules/jobs'), 'JobStatsPage')
+const DevProjectsPage = page(() => import('@/modules/dev'), 'DevProjectsPage')
+const GithubPage = page(() => import('@/modules/dev'), 'GithubPage')
+const WeeklyReviewPage = page(() => import('@/modules/review'), 'ReviewPage')
+const GuidePage = page(() => import('@/modules/guide'), 'GuidePage')
 const TrashPage = page(() => import('@/features/trash-page'), 'TrashPage')
 const SettingsPage = page(() => import('@/features/settings-page'), 'SettingsPage')
 const TagsPage = page(() => import('@/features/tags-page'), 'TagsPage')
@@ -108,6 +112,10 @@ export const router = createHashRouter([
       { path: 'jobs/questions/practice', element: <PracticePage /> },
       { path: 'jobs/boards', element: <JobBoardsPage /> },
       { path: 'jobs/stats', element: <JobStatsPage /> },
+      { path: 'dev', element: <DevProjectsPage /> },
+      { path: 'dev/github', element: <GithubPage /> },
+      { path: 'review', element: <WeeklyReviewPage /> },
+      { path: 'guide', element: <GuidePage /> },
       { path: 'tags', element: <TagsPage /> },
       { path: 'trash', element: <TrashPage /> },
       { path: 'settings', element: <SettingsPage /> }
