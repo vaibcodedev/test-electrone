@@ -9,6 +9,7 @@ import {
   type Currency,
   type ProjectInput
 } from '@shared/domain/crm'
+import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { limitsOf, rangesOf } from '@/lib/limits'
@@ -25,12 +26,14 @@ import { Input } from '@/components/ui/input'
 import { FieldGroup } from '@/components/ui/field'
 import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
-import { BILLING_INFO } from './labels'
+import { BILLING_INFO, DUE_BEFORE_START } from './labels'
 import { BillingPicker, Choice } from './parts'
 import { amountPatch } from './money'
 import { ClientPlatformFields, FeeField, PlatformSelect, usePlatforms } from './platform-fields'
+import { useInvalidFields } from './number-field'
 
 const CLIENT_L = limitsOf(clientInputSchema)
+const CLIENT_R = rangesOf(clientInputSchema)
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
 
@@ -88,13 +91,16 @@ export function AmountField({
   value,
   onChange,
   currency,
-  forClient
+  forClient,
+  max
 }: {
   billing: BillingType
   value: number
   onChange: (v: number) => void
   currency: Currency
   forClient?: boolean
+  /** Max of the schema field this input edits (rate, fixedPrice, defaultRate). */
+  max: number | undefined
 }) {
   const label = BILLING_INFO[billing].amountLabel
   if (!label) return null
@@ -106,7 +112,7 @@ export function AmountField({
         value={value || null}
         allowEmpty
         min={0}
-        max={PROJECT_R.fixedPrice?.max}
+        max={max}
         onChange={(v) => onChange(v ?? 0)}
         placeholder="0"
       />
@@ -138,24 +144,28 @@ export function ClientDialog({
 }) {
   const navigate = useNavigate()
   const [form, setForm] = useState<ClientInput>(EMPTY_CLIENT)
+  const [emailBlurred, setEmailBlurred] = useState(false)
+  const numbers = useInvalidFields()
   const create = useApiMutation('clients', 'create', {
     successMessage: 'Клієнта додано',
     onSuccess: (c) => {
       onOpenChange(false)
       setForm(EMPTY_CLIENT)
+      setEmailBlurred(false)
       navigate(`/clients/${c.id}`)
     }
   })
   const set = (patch: Partial<ClientInput>): void => setForm((f) => ({ ...f, ...patch }))
   const billing = (form.defaultBilling ?? 'fixed') as BillingType
+  const emailOk = isLikelyEmail(form.email ?? '')
   return (
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Новий клієнт"
       submitLabel="Додати клієнта"
-      disabled={!form.name.trim() || create.isPending}
-      onSubmit={() => create.mutate(form)}
+      disabled={!form.name.trim() || !emailOk || numbers.invalid || create.isPending}
+      onSubmit={() => create.mutate({ ...form, email: (form.email ?? '').trim() })}
     >
       <Field label="Ім’я або назва">
         <Input
@@ -175,12 +185,14 @@ export function ClientDialog({
             placeholder="Bloom Store"
           />
         </Field>
-        <Field label="Email">
+        <Field label="Email" error={emailBlurred && !emailOk ? EMAIL_ERROR : undefined}>
           <Input
             type="email"
             value={form.email}
             maxLength={CLIENT_L.email}
+            aria-invalid={(emailBlurred && !emailOk) || undefined}
             onChange={(e) => set({ email: e.target.value })}
+            onBlur={() => setEmailBlurred(true)}
             placeholder="name@company.com"
           />
         </Field>
@@ -199,6 +211,7 @@ export function ClientDialog({
             paymentVerified: form.paymentVerified ?? null
           }}
           onChange={(patch) => set(patch)}
+          onInvalidChange={numbers.report}
         />
       )}
       <Field label="Як зазвичай працюєте">
@@ -216,6 +229,7 @@ export function ClientDialog({
           forClient
           billing={billing}
           value={form.defaultRate ?? 0}
+          max={CLIENT_R.defaultRate?.max}
           onChange={(defaultRate) => set({ defaultRate })}
           currency={(form.currency ?? 'USD') as Currency}
         />
@@ -278,6 +292,10 @@ export function ProjectDialog({
   const currency = (form.currency ?? 'USD') as Currency
   const platforms = usePlatforms()
   const platform = platforms.find((x) => x.id === form.platformId)
+  const numbers = useInvalidFields()
+  // A retainer without a start date starts today (see onSubmit).
+  const startAt = form.startAt ?? (billing === 'retainer' ? new Date().setHours(0, 0, 0, 0) : null)
+  const dueBeforeStart = !!startAt && !!form.dueAt && form.dueAt < startAt
 
   return (
     <FormDialog
@@ -286,7 +304,7 @@ export function ProjectDialog({
       title="Новий проєкт"
       description="Спершу оберіть, як оплачується робота, — поля підлаштуються."
       submitLabel="Створити проєкт"
-      disabled={!form.title.trim() || create.isPending}
+      disabled={!form.title.trim() || dueBeforeStart || numbers.invalid || create.isPending}
       onSubmit={() =>
         create.mutate({
           ...form,
@@ -331,6 +349,7 @@ export function ProjectDialog({
             value={form.feePercent}
             platformDefault={platform?.defaultFeePercent}
             onChange={(feePercent) => set({ feePercent })}
+            onInvalidChange={numbers.report('feePercent')}
           />
         )}
       </div>
@@ -351,6 +370,7 @@ export function ProjectDialog({
           billing={billing}
           currency={currency}
           value={billing === 'hourly' ? (form.rate ?? 0) : (form.fixedPrice ?? 0)}
+          max={(billing === 'hourly' ? PROJECT_R.rate : PROJECT_R.fixedPrice)?.max}
           onChange={(v) => set(billing === 'hourly' ? { rate: v } : { fixedPrice: v })}
         />
         {billing === 'hourly' && (
@@ -374,9 +394,14 @@ export function ProjectDialog({
             />
           </Field>
         )}
-        <Field label={billing === 'retainer' ? 'До (необов’язково)' : 'Дедлайн'}>
+        <Field
+          label={billing === 'retainer' ? 'До (необов’язково)' : 'Дедлайн'}
+          error={dueBeforeStart ? DUE_BEFORE_START : undefined}
+        >
           <DatePicker
             value={form.dueAt ?? null}
+            min={startAt}
+            invalid={dueBeforeStart}
             onChange={(dueAt) => set({ dueAt })}
             placeholder="Без терміну"
           />

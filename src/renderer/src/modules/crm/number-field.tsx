@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Field } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode'
 import {
@@ -34,7 +34,8 @@ export function NumberField({
   integer,
   unit,
   placeholder,
-  className
+  className,
+  onValidityChange
 }: {
   label: string
   value: number | null | undefined
@@ -48,6 +49,11 @@ export function NumberField({
   unit?: string
   placeholder?: string
   className?: string
+  /**
+   * Tells a dialog that the typed value is out of range (it is never committed), so the dialog can
+   * block its submit button instead of silently saving the old value. Reports `false` on unmount.
+   */
+  onValidityChange?: (invalid: boolean) => void
 }) {
   const readOnly = useReadOnly()
   const [text, setText] = useState(toText(value))
@@ -60,6 +66,15 @@ export function NumberField({
     (Number.isNaN(parsed) ||
       (min !== undefined && parsed < min) ||
       (max !== undefined && parsed > max))
+
+  const report = useRef(onValidityChange)
+  useEffect(() => {
+    report.current = onValidityChange
+  })
+  useEffect(() => {
+    report.current?.(invalid)
+  }, [invalid])
+  useEffect(() => () => report.current?.(false), [])
 
   const commit = (): void => {
     if (invalid) return
@@ -115,4 +130,16 @@ export function NumberField({
       </InputGroup>
     </Field>
   )
+}
+
+/**
+ * Collects `onValidityChange` of several NumberFields in a dialog: `invalid` is true while any of
+ * them holds an out-of-range value, so the dialog disables its submit button.
+ */
+export function useInvalidFields(): { invalid: boolean; report: (key: string) => (invalid: boolean) => void } {
+  const [bad, setBad] = useState<Record<string, boolean>>({})
+  return {
+    invalid: Object.values(bad).some(Boolean),
+    report: (key) => (invalid) => setBad((b) => (!!b[key] === invalid ? b : { ...b, [key]: invalid }))
+  }
 }

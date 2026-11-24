@@ -17,6 +17,7 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }) {
   const create = useApiMutation('english', 'create', { successMessage: 'Слово додано' })
 
   const submit = (): void => {
+    if (create.isPending) return
     if (!form.term.trim()) return termRef.current?.focus()
     create.mutate(form, {
       onSuccess: () => {

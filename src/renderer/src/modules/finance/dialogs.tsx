@@ -443,13 +443,16 @@ export function WithdrawalDialog({
   })
 
   const estimate = Math.max(0, Math.round((num(amount) - num(fee)) * num(rate) * 100) / 100)
+  // A rate of 0 / empty was silently saved as 1, a fee above the amount as «received 0»: both are typos.
+  const rateBad = !(num(rate) > 0)
+  const feeBad = num(fee) > num(amount) && num(amount) > 0
   const receivedValue = received.trim() ? num(received) : null
   const payload = {
     platformId: platformId === NO_PLATFORM ? null : platformId,
     amount: num(amount),
     currency,
     fee: num(fee),
-    rate: num(rate) || 1,
+    rate: num(rate),
     receivedCurrency,
     received: receivedValue,
     method: method.trim(),
@@ -464,7 +467,7 @@ export function WithdrawalDialog({
       title={w ? 'Виведення' : 'Нове виведення'}
       description="Скільки вивів із платформи, скільки пішло на комісію і скільки реально надійшло."
       submitLabel={w ? 'Зберегти' : 'Додати виведення'}
-      canSubmit={payload.amount > 0}
+      canSubmit={payload.amount > 0 && !rateBad && !feeBad}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
         if (w) await update.mutateAsync({ id: w.id, patch: payload })
@@ -504,10 +507,11 @@ export function WithdrawalDialog({
             placeholder="0"
           />
         </Field>
-        <Field label="Комісія за виведення">
+        <Field label="Комісія за виведення" error={feeBad ? 'Комісія більша за суму виведення' : undefined}>
           <NumberInput
             allowEmpty
-            min={0}
+            {...WD_R.fee}
+            aria-invalid={feeBad || undefined}
             value={draftToNumber(fee)}
             onChange={(v) => setFee(numberToDraft(v))}
           />
@@ -517,10 +521,11 @@ export function WithdrawalDialog({
         </Field>
       </div>
       <div className="grid grid-cols-[1fr_1fr_110px] gap-3">
-        <Field label={`Курс: 1 ${currency} =`}>
+        <Field label={`Курс: 1 ${currency} =`} error={rateBad ? 'Курс має бути більше 0' : undefined}>
           <NumberInput
             allowEmpty
-            min={0}
+            {...WD_R.rate}
+            aria-invalid={rateBad || undefined}
             value={draftToNumber(rate)}
             onChange={(v) => setRate(numberToDraft(v))}
           />
@@ -528,7 +533,7 @@ export function WithdrawalDialog({
         <Field label="Надійшло (якщо знаєш)">
           <NumberInput
             allowEmpty
-            min={0}
+            {...WD_R.received}
             value={draftToNumber(received)}
             onChange={(v) => setReceived(numberToDraft(v))}
             placeholder={String(estimate)}
@@ -545,7 +550,7 @@ export function WithdrawalDialog({
         </span>
         <span className="text-muted-foreground">
           {' '}
-          = ({fmtMoney(num(amount), currency)} − {fmtMoney(num(fee), currency)}) × {num(rate) || 1}
+          = ({fmtMoney(num(amount), currency)} − {fmtMoney(num(fee), currency)}) × {num(rate)}
         </span>
       </div>
       <Field label="Спосіб">

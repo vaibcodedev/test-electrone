@@ -129,7 +129,10 @@ function GoalDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens
   }, [open])
 
-  const submit = async (): Promise<void> => {
+  const pending = create.isPending || update.isPending
+  const submit = (): void => {
+    // A second click while saving must not add a duplicate goal.
+    if (pending || !(Number(form.target) > 0)) return
     const input: GoalInput = {
       title: form.title,
       metric: form.metric,
@@ -137,9 +140,9 @@ function GoalDialog({
       target: Math.max(0, Number(form.target) || 0),
       platformId: form.platformId
     }
-    if (goal) await update.mutateAsync({ id: goal.id, patch: input })
-    else await create.mutateAsync(input)
-    setOpen(false)
+    const done = { onSuccess: () => setOpen(false) }
+    if (goal) update.mutate({ id: goal.id, patch: input }, done)
+    else create.mutate(input, done)
   }
 
   return (
@@ -238,8 +241,8 @@ function GoalDialog({
           </Button>
           <Button
             variant="lime"
-            onClick={() => void submit()}
-            disabled={!(Number(form.target) > 0)}
+            onClick={submit}
+            disabled={!(Number(form.target) > 0) || pending}
           >
             {goal ? 'Зберегти' : 'Додати ціль'}
           </Button>

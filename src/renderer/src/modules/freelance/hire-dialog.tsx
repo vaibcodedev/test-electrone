@@ -52,10 +52,14 @@ export function HireDialog({
   })
   const amountNum = Number(amount.replace(',', '.'))
   const feeNum = Number(fee.replace(',', '.'))
+  // An hourly rate has a lower ceiling than a project price: switching to «Погодинно» re-checks it.
+  const amountMax = (billing === 'hourly' ? PROJECT_R.rate : PROJECT_R.fixedPrice)?.max ?? Infinity
+  const amountOver = !Number.isNaN(amountNum) && amountNum > amountMax
   const valid =
     title.trim() &&
     !Number.isNaN(amountNum) &&
     amountNum >= 0 &&
+    !amountOver &&
     !Number.isNaN(feeNum) &&
     feeNum >= 0 &&
     feeNum <= 100
@@ -75,7 +79,7 @@ export function HireDialog({
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault()
-            if (!valid) return
+            if (!valid || hire.isPending) return
             hire.mutate({
               proposalId: proposal.id,
               clientId: proposal.clientId,
@@ -106,14 +110,18 @@ export function HireDialog({
             />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label={billing === 'hourly' ? 'Ставка за годину' : 'Вартість проєкту'}>
+            <Field
+              label={billing === 'hourly' ? 'Ставка за годину' : 'Вартість проєкту'}
+              error={amountOver ? `Не більше ${amountMax.toLocaleString('uk-UA')} ${platform.currency}` : undefined}
+            >
               <InputGroup>
                 <NumberInput
                   data-slot="input-group-control"
                   className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
                   allowEmpty
                   min={0}
-                  max={PROJECT_R.fixedPrice?.max}
+                  max={amountMax}
+                  aria-invalid={amountOver || undefined}
                   value={draftToNumber(amount)}
                   onChange={(v) => setAmount(numberToDraft(v))}
                 />

@@ -181,7 +181,7 @@ function CreatePlatformForm({ onDone }: { onDone: () => void }) {
       className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!valid) return
+        if (!valid || create.isPending) return
         create.mutate({
           name: name.trim(),
           kind,
@@ -281,12 +281,14 @@ function CreatePlatformForm({ onDone }: { onDone: () => void }) {
 
 /* ───────── settings tab ───────── */
 
+/** Shared NumberInput (schema range via rangesOf, clamped on blur) with a unit addon. */
 function NumberSetting({
   label,
   value,
   onCommit,
   suffix,
-  step = 1,
+  step,
+  min,
   max
 }: {
   label: string
@@ -294,26 +296,20 @@ function NumberSetting({
   onCommit: (n: number) => void
   suffix?: string
   step?: number
+  min?: number
   max?: number
 }) {
-  const [text, setText] = useState(String(value))
-  const commit = (): void => {
-    const n = Number(text.replace(',', '.'))
-    if (Number.isNaN(n) || n < 0 || (max !== undefined && n > max)) return setText(String(value))
-    if (n !== value) onCommit(n)
-  }
   return (
     <Field label={label}>
       <InputGroup>
-        <InputGroupInput
-          type="number"
-          min={0}
+        <NumberInput
+          data-slot="input-group-control"
+          className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+          min={min}
           max={max}
           step={step}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => e.key === 'Enter' && commit()}
+          value={value}
+          onChange={(n) => n !== null && n !== value && onCommit(n)}
         />
         {suffix && <InputGroupAddon align="inline-end">{suffix}</InputGroupAddon>}
       </InputGroup>
@@ -469,7 +465,7 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }) {
               onCommit={(defaultFeePercent) => patch({ defaultFeePercent })}
               suffix="%"
               step={0.5}
-              max={100}
+              {...PLATFORM_R.defaultFeePercent}
             />
             <Field label="Платні відгуки називаються">
               <Input
@@ -485,6 +481,7 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }) {
               onCommit={(creditPrice) => patch({ creditPrice })}
               suffix={platform.currency}
               step={0.01}
+              {...PLATFORM_R.creditPrice}
             />
           </div>
           <Field label="Колір">

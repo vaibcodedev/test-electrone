@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type KeyboardEvent } from 'react'
+import { useState } from 'react'
 import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { useNavigate } from 'react-router'
@@ -16,57 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Field } from '@/components/common/page'
 import { FieldError } from '@/components/ui/field'
 import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
-
-/** Number input that commits on blur/Enter (null when empty). */
-export function NumberInput({
-  value,
-  onCommit,
-  placeholder,
-  min = 0,
-  max,
-  step = 1,
-  suffix,
-  id
-}: {
-  value: number | null
-  onCommit: (value: number | null) => void
-  placeholder?: string
-  min?: number
-  max?: number
-  step?: number
-  suffix?: string
-  id?: string
-}) {
-  const [text, setText] = useState(value === null ? '' : String(value))
-  useEffect(() => setText(value === null ? '' : String(value)), [value])
-  const commit = (): void => {
-    const trimmed = text.trim().replace(',', '.')
-    const next = trimmed === '' ? null : Number(trimmed)
-    if (next !== null && Number.isNaN(next)) return setText(value === null ? '' : String(value))
-    if (next !== value) onCommit(next)
-  }
-  const common = {
-    id,
-    type: 'number' as const,
-    inputMode: 'decimal' as const,
-    min,
-    max,
-    step,
-    value: text,
-    placeholder,
-    onChange: (e: ChangeEvent<HTMLInputElement>) => setText(e.target.value),
-    onBlur: commit,
-    onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && commit(),
-    className: 'tabular-nums'
-  }
-  if (!suffix) return <Input {...common} />
-  return (
-    <InputGroup>
-      <InputGroupInput {...common} />
-      <InputGroupAddon align="inline-end">{suffix}</InputGroupAddon>
-    </InputGroup>
-  )
-}
+import { MAX } from '@shared/domain/limits'
 
 /** Text field with autosave and a label. */
 export function TextField({
@@ -199,7 +149,7 @@ export function CompanyCombobox({
         </PopoverTrigger>
         <PopoverContent className="w-72 rounded-2xl p-0" align="start">
           <Command>
-            <CommandInput placeholder="Знайти або створити…" value={query} onValueChange={setQuery} />
+            <CommandInput placeholder="Знайти або створити…" value={query} onValueChange={setQuery} maxLength={MAX.name} />
             <CommandList>
               <CommandEmpty>Компаній поки немає</CommandEmpty>
               <CommandGroup>
@@ -219,9 +169,10 @@ export function CompanyCombobox({
                   <>
                     <CommandItem
                       value={`__create__${q}`}
-                      onSelect={async () => {
-                        const c = await create.mutateAsync({ name: q })
-                        pick({ companyId: c.id, companyName: c.name })
+                      disabled={create.isPending}
+                      onSelect={() => {
+                        if (create.isPending) return
+                        create.mutate({ name: q }, { onSuccess: (c) => pick({ companyId: c.id, companyName: c.name }) })
                       }}
                     >
                       <Plus /> Створити картку «{q}»

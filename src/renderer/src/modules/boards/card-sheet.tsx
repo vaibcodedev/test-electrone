@@ -99,13 +99,13 @@ function Checklist({ card }: { card: CardDetails }) {
         className="flex items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!text.trim()) return
-          add.mutate({ cardId: card.id, text: text.trim() })
-          setText('')
+          if (!text.trim() || add.isPending) return
+          // Cleared only after the server accepted it: a rejected item stays in the field.
+          add.mutate({ cardId: card.id, text: text.trim() }, { onSuccess: () => setText('') })
         }}
       >
         <Input value={text} maxLength={ENTRY_MAX} onChange={(e) => setText(e.target.value)} placeholder="Додати пункт" />
-        <Button type="submit" variant="soft" size="icon" disabled={!text.trim()} aria-label="Додати пункт">
+        <Button type="submit" variant="soft" size="icon" disabled={!text.trim() || add.isPending} aria-label="Додати пункт">
           <Plus />
         </Button>
       </form>
@@ -214,6 +214,7 @@ function CardEditor({
             value={description}
             onChange={setDescription}
             placeholder="Опис, посилання, деталі…"
+            maxLength={LIMITS.description}
             minHeight="160px"
           />
         </section>

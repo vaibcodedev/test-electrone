@@ -72,7 +72,7 @@ function PaymentForm({
         className="grid grid-cols-[minmax(150px,190px)_100px_170px_1fr] items-start gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (value > 0 && !over)
+          if (value > 0 && !over && !create.isPending)
             create.mutate({ projectId, amount: value, currency: cur, status, dueAt: due, note })
         }}
       >
@@ -124,7 +124,7 @@ function PaymentForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="lime" disabled={value <= 0 || over}>
+          <Button type="submit" variant="lime" disabled={value <= 0 || over || create.isPending}>
             Додати
           </Button>
         </div>

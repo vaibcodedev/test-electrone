@@ -37,7 +37,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb'
-import { BILLING_INFO, PROJECT_STATUS_LABEL } from './labels'
+import { BILLING_INFO, DUE_BEFORE_START, PROJECT_STATUS_LABEL } from './labels'
 import { BillingPicker, Choice, Meter } from './parts'
 import { amountPatch } from './money'
 import { TimeSection } from './time-section'
@@ -292,6 +292,7 @@ function TermsEditor({
   const amount = project.billing === 'hourly' ? project.rate : project.fixedPrice
   const platforms = usePlatforms()
   const platform = platforms.find((x) => x.id === project.platformId)
+  const dueBeforeStart = !!project.startAt && !!project.dueAt && project.dueAt < project.startAt
   return (
     <section className="flex flex-col gap-3">
       <SectionLabel>Платформа</SectionLabel>
@@ -354,9 +355,14 @@ function TermsEditor({
           placeholder="Не вказано"
         />
       </Field>
-      <Field label={project.billing === 'retainer' ? 'До' : 'Дедлайн'}>
+      <Field
+        label={project.billing === 'retainer' ? 'До' : 'Дедлайн'}
+        error={dueBeforeStart ? DUE_BEFORE_START : undefined}
+      >
         <DatePicker
           value={project.dueAt}
+          min={project.startAt}
+          invalid={dueBeforeStart}
           onChange={(dueAt) => patch({ dueAt })}
           placeholder="Без терміну"
         />
@@ -497,6 +503,7 @@ export function ProjectPage() {
               value={description}
               onChange={setDescription}
               placeholder="Завдання, домовленості, контакти з боку клієнта…"
+              maxLength={PROJECT_L.description}
             />
           </div>
         </div>

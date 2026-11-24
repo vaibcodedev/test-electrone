@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { CalendarCheck, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { STAGE_KINDS, STAGE_STATUSES, stageInputSchema, type Stage, type StageKind, type StagePatch } from '@shared/domain/jobs'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, rangesOf } from '@/lib/limits'
 
 const LIMITS = limitsOf(stageInputSchema)
+const RANGES = rangesOf(stageInputSchema)
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
@@ -20,7 +21,9 @@ import { SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '../crm/parts'
-import { LinkInput, NumberInput, TextField } from './j1-fields'
+import { NumberInput } from '@/components/common/number-input'
+import { DUE_BEFORE_START } from '../crm/labels'
+import { LinkInput, TextField } from './j1-fields'
 import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, whenLabel } from './j1-labels'
 
 const KIND_OPTIONS = STAGE_KINDS.map((k) => ({ value: k, label: STAGE_KIND_LABEL[k] }))
@@ -54,6 +57,7 @@ function StageEditor({ stage }: { stage: Stage }) {
   const patch = (p: StagePatch): void => update.mutate({ id: stage.id, patch: p })
   const [notes, setNotes] = useAutosave(stage.notes, (v) => patch({ notes: v }))
   const isTest = stage.kind === 'test_task'
+  const deadlineBeforeStart = !!stage.at && !!stage.deadlineAt && stage.deadlineAt < stage.at
   return (
     <div className="flex flex-col gap-4 pt-3">
       <div className="grid grid-cols-2 gap-4">
@@ -71,12 +75,24 @@ function StageEditor({ stage }: { stage: Stage }) {
           <DatePicker withTime value={stage.at} onChange={(at) => patch({ at })} placeholder="Призначити" />
         </Field>
         {isTest ? (
-          <Field label="Здати до">
-            <DatePicker withTime value={stage.deadlineAt} onChange={(deadlineAt) => patch({ deadlineAt })} placeholder="Без терміну" />
+          <Field label="Здати до" error={deadlineBeforeStart ? DUE_BEFORE_START : undefined}>
+            <DatePicker
+              withTime
+              value={stage.deadlineAt}
+              min={stage.at}
+              invalid={deadlineBeforeStart}
+              onChange={(deadlineAt) => patch({ deadlineAt })}
+              placeholder="Без терміну"
+            />
           </Field>
         ) : (
-          <Field label="Тривалість">
-            <NumberInput value={stage.durationMin} onCommit={(v) => patch({ durationMin: Math.round(v ?? 60) })} suffix="хв" max={1440} />
+          <Field label="Тривалість, хв">
+            <NumberInput
+              integer
+              {...RANGES.durationMin}
+              value={stage.durationMin}
+              onChange={(v) => patch({ durationMin: v ?? 60 })}
+            />
           </Field>
         )}
         <Field label={isTest ? 'Посилання на завдання / репозиторій' : 'Посилання на дзвінок або адреса'}>
@@ -210,6 +226,7 @@ export function AddStageDialog({
   })
   const isTest = kind === 'test_task'
   const missingDate = isTest ? !deadlineAt : !at
+  const deadlineEarly = isTest && !!at && !!deadlineAt && deadlineAt < at
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
@@ -242,12 +259,12 @@ export function AddStageDialog({
               <DatePicker withTime value={at} onChange={setAt} clearable={isTest} />
             </Field>
             {isTest ? (
-              <Field label="Здати до" error={!deadlineAt ? 'Вкажіть термін здачі' : undefined}>
-                <DatePicker withTime value={deadlineAt} onChange={setDeadlineAt} placeholder="Без терміну" min={at} />
+              <Field label="Здати до" error={!deadlineAt ? 'Вкажіть термін здачі' : deadlineEarly ? DUE_BEFORE_START : undefined}>
+                <DatePicker withTime value={deadlineAt} onChange={setDeadlineAt} placeholder="Без терміну" min={at} invalid={deadlineEarly} />
               </Field>
             ) : (
-              <Field label="Тривалість">
-                <NumberInput value={durationMin} onCommit={setDurationMin} suffix="хв" max={1440} />
+              <Field label="Тривалість, хв">
+                <NumberInput integer allowEmpty {...RANGES.durationMin} value={durationMin} onChange={setDurationMin} placeholder="60" />
               </Field>
             )}
           </div>
@@ -267,7 +284,7 @@ export function AddStageDialog({
           </Button>
           <Button
             variant="lime"
-            disabled={add.isPending || missingDate}
+            disabled={add.isPending || missingDate || deadlineEarly}
             onClick={() =>
               add.mutate({
                 applicationId,

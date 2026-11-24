@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { EditableScope } from '@/components/common/detail-mode-context'
-import { format, isToday } from 'date-fns'
+import { format } from 'date-fns'
 import { Pencil, Play, Plus, Square, Trash2 } from 'lucide-react'
 import { timeEntryInputSchema, type RunningTimer, type TimeEntry } from '@shared/domain/crm'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { draftToNumber, numberToDraft } from './money'
+import { startOfDayMs, toRange, type EntryDraft } from './time-range'
 import { toast } from 'sonner'
 import { limitsOf } from '@/lib/limits'
 import { LOCALE, fmtMinutes, fmtMoney } from '@/lib/format'
@@ -26,25 +27,6 @@ const DESC_MAX = limitsOf(timeEntryInputSchema).description
 
 const dayKey = (ts: number): string => format(ts, 'yyyy-MM-dd')
 const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
-const startOfDayMs = (ts: number): number => new Date(ts).setHours(0, 0, 0, 0)
-
-function combine(day: number, time: string): number | null {
-  if (!time) return null
-  const [h, m] = time.split(':').map(Number)
-  if (Number.isNaN(h)) return null
-  const d = new Date(day)
-  d.setHours(h, m || 0, 0, 0)
-  return d.getTime()
-}
-
-interface EntryDraft {
-  day: number
-  from: string
-  to: string
-  minutes: string
-  description: string
-  billable: boolean
-}
 
 function emptyDraft(): EntryDraft {
   return {
@@ -68,41 +50,33 @@ function draftOf(e: TimeEntry): EntryDraft {
   }
 }
 
-/** Converts a draft to start/end: either explicit from–to, or "minutes" ending now (or at 18:00 of a past day). */
-function toRange(d: EntryDraft): { startedAt: number; endedAt: number } | null {
-  const from = combine(d.day, d.from)
-  const to = combine(d.day, d.to)
-  if (from !== null && to !== null) return to > from ? { startedAt: from, endedAt: to } : null
-  const minutes = Number(d.minutes.replace(',', '.'))
-  if (!minutes || minutes <= 0) return null
-  const end =
-    from !== null ? from + minutes * 60_000 : isToday(d.day) ? Date.now() : combine(d.day, '18:00')!
-  return { startedAt: from ?? end - minutes * 60_000, endedAt: end }
-}
-
 function EntryForm({
   initial,
   submitLabel,
   showBillable,
+  pending,
   onSubmit,
   onCancel
 }: {
   initial: EntryDraft
   submitLabel: string
   showBillable: boolean
+  /** The save is in flight: a second Enter / click must not add a duplicate. */
+  pending: boolean
   onSubmit: (d: EntryDraft) => void
   onCancel?: () => void
 }) {
   const [d, setD] = useState(initial)
   const set = (patch: Partial<EntryDraft>): void => setD((x) => ({ ...x, ...patch }))
   const range = toRange(d)
+  const overnight = !!range && !!d.from && !!d.to && d.to < d.from
   return (
     <Card className="p-4">
       <form
         className="flex flex-wrap items-end gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (range) onSubmit(d)
+          if (range && !pending) onSubmit(d)
         }}
       >
         <Field label="Дата" className="w-44">
@@ -168,10 +142,15 @@ function EntryForm({
               Скасувати
             </Button>
           )}
-          <Button type="submit" variant="lime" disabled={!range}>
+          <Button type="submit" variant="lime" disabled={!range || pending}>
             {submitLabel}
           </Button>
         </div>
+        {overnight && (
+          <p className="w-full text-caption text-muted-foreground">
+            Кінець раніше за початок — рахуємо до {d.to} наступного дня.
+          </p>
+        )}
       </form>
     </Card>
   )
@@ -254,8 +233,10 @@ function StartBar({
 }) {
   const [description, setDescription] = useState('')
   const start = useApiMutation('time', 'start', { onSuccess: () => setDescription('') })
-  const go = (text: string): void =>
+  const go = (text: string): void => {
+    if (start.isPending) return
     start.mutate({ projectId, description: text.trim() || undefined })
+  }
   return (
     <div className="flex flex-col gap-2">
       <form
@@ -323,10 +304,11 @@ function EntryRow({
         initial={draftOf(entry)}
         submitLabel="Зберегти"
         showBillable={showBillable}
+        pending={update.isPending}
         onCancel={() => setEditing(false)}
         onSubmit={(d) => {
           const r = toRange(d)
-          if (r)
+          if (r && !update.isPending)
             update.mutate({
               id: entry.id,
               patch: { ...r, description: d.description, billable: d.billable }
@@ -459,10 +441,11 @@ export function TimeSection({
           initial={emptyDraft()}
           submitLabel="Додати"
           showBillable={hourly}
+          pending={create.isPending}
           onCancel={() => setAdding(false)}
           onSubmit={(d) => {
             const r = toRange(d)
-            if (r)
+            if (r && !create.isPending)
               create.mutate({ projectId, ...r, description: d.description, billable: d.billable })
           }}
         />

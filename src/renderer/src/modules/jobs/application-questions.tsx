@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowUpRight, Plus } from 'lucide-react'
-import { QUESTION_CATEGORIES, type InterviewQuestion, type QuestionCategory } from '@shared/domain/jobs'
+import { QUESTION_CATEGORIES, questionInputSchema, type InterviewQuestion, type QuestionCategory } from '@shared/domain/jobs'
+import { limitsOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,8 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
 import { SectionLabel } from '@/components/common/master-detail'
 import { Choice } from '../crm/parts'
 import { QUESTION_CATEGORY_LABEL } from './j1-labels'
+
+const QUESTION_MAX = limitsOf(questionInputSchema).question
 
 /**
  * «Какие вопросы задавали»: questions asked at this vacancy/company, with a quick add
@@ -34,7 +37,7 @@ export function AskedQuestions({
     onSuccess: () => setText('')
   })
   const submit = (): void => {
-    if (!text.trim()) return
+    if (!text.trim() || create.isPending) return
     create.mutate({ question: text.trim(), category, applicationId: applicationId ?? null, companyId })
   }
   return (
@@ -71,6 +74,7 @@ export function AskedQuestions({
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
+          maxLength={QUESTION_MAX}
           placeholder="Питання, яке поставили…"
           className="min-h-12"
           onKeyDown={(e) => {

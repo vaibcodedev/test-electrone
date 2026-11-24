@@ -11,6 +11,7 @@ import {
   type BillingType,
   type ClientPatch
 } from '@shared/domain/crm'
+import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { limitsOf, rangesOf } from '@/lib/limits'
@@ -62,6 +63,29 @@ const CONTACT_FIELDS: {
   { key: 'messenger', label: 'Месенджер', placeholder: 'Telegram @username' },
   { key: 'website', label: 'Сайт', placeholder: 'https://' }
 ]
+
+/** Email saved on blur; a value that isn't an email stays in the field with an error and isn't saved. */
+function EmailField({ value, placeholder, onSave }: { value: string; placeholder: string; onSave: (v: string) => void }) {
+  const [bad, setBad] = useState(false)
+  return (
+    <Field label="Email" error={bad ? EMAIL_ERROR : undefined}>
+      <Input
+        type="email"
+        defaultValue={value}
+        placeholder={placeholder}
+        maxLength={CLIENT_L.email}
+        aria-invalid={bad || undefined}
+        onChange={(e) => bad && setBad(!isLikelyEmail(e.target.value))}
+        onBlur={(e) => {
+          const v = e.target.value.trim()
+          if (!isLikelyEmail(v)) return setBad(true)
+          setBad(false)
+          if (v !== value) onSave(v)
+        }}
+      />
+    </Field>
+  )
+}
 
 export function ClientPage() {
   const { id = '' } = useParams()
@@ -246,6 +270,7 @@ export function ClientPage() {
               value={howTo}
               onChange={setHowTo}
               placeholder="Тон, часовий пояс, коли відповідає, що дратує, як краще здавати роботу…"
+              maxLength={CLIENT_L.howToCommunicate}
             />
             <CredentialsSection items={data.credentials} owner={{ clientId: c.id }} />
             <MarkdownField
@@ -253,6 +278,7 @@ export function ClientPage() {
               value={notes}
               onChange={setNotes}
               placeholder="Реквізити для рахунків, історія, домовленості…"
+              maxLength={CLIENT_L.notes}
             />
           </div>
         </div>
@@ -275,10 +301,11 @@ export function ClientPage() {
                       placeholder={f.placeholder}
                       onSave={(website) => patch({ website })}
                     />
+                  ) : f.key === 'email' ? (
+                    <EmailField key={f.key} value={c.email} placeholder={f.placeholder} onSave={(email) => patch({ email })} />
                   ) : (
                     <Field key={f.key} label={f.label}>
                       <Input
-                        type={f.key === 'email' ? 'email' : 'text'}
                         defaultValue={c[f.key]}
                         placeholder={f.placeholder}
                         maxLength={CLIENT_L[f.key]}

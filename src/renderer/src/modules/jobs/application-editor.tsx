@@ -1,10 +1,12 @@
-import { useState, type RefObject } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { FileText, Trash2, X } from 'lucide-react'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, rangesOf } from '@/lib/limits'
+import { NumberInput } from '@/components/common/number-input'
 
 const LIMITS = limitsOf(applicationInputSchema)
+const RANGES = rangesOf(applicationInputSchema)
 import { CURRENCIES } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
@@ -35,10 +37,60 @@ import {
 } from '@/components/common/detail-mode'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '../crm/parts'
-import { CompanyCombobox, LinkInput, NumberInput, TextField } from './j1-fields'
+import { CompanyCombobox, LinkInput, TextField } from './j1-fields'
 import { APP_STATUS_LABEL, FORMAT_LABEL } from './j1-labels'
 import { StageSection } from './stage-section'
 import { AskedQuestions } from './application-questions'
+
+/**
+ * Salary «від … до …». The pair is saved only when it makes sense: «від» above «до» stays in the
+ * fields with an error under «до» and isn't saved until one of them is fixed.
+ */
+function SalaryFields({
+  min,
+  max,
+  patch
+}: {
+  min: number | null
+  max: number | null
+  patch: (p: ApplicationPatch) => void
+}) {
+  const [draft, setDraft] = useState({ min, max })
+  useEffect(() => setDraft({ min, max }), [min, max])
+  const inverted = draft.min !== null && draft.max !== null && draft.min > draft.max
+  const commit = (next: { min: number | null; max: number | null }): void => {
+    setDraft(next)
+    if (next.min !== null && next.max !== null && next.min > next.max) return
+    const p: ApplicationPatch = {}
+    if (next.min !== min) p.salaryMin = next.min
+    if (next.max !== max) p.salaryMax = next.max
+    if (Object.keys(p).length) patch(p)
+  }
+  return (
+    <>
+      <Field label="Зарплата від">
+        <NumberInput
+          allowEmpty
+          integer
+          {...RANGES.salaryMin}
+          value={draft.min}
+          aria-invalid={inverted || undefined}
+          onChange={(v) => commit({ ...draft, min: v })}
+        />
+      </Field>
+      <Field label="до" error={inverted ? '«До» менше, ніж «від»' : undefined}>
+        <NumberInput
+          allowEmpty
+          integer
+          {...RANGES.salaryMax}
+          value={draft.max}
+          aria-invalid={inverted || undefined}
+          onChange={(v) => commit({ ...draft, max: v })}
+        />
+      </Field>
+    </>
+  )
+}
 
 function CoverTemplatePicker({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }) {
   const { data: letters = [] } = useApi('templates', 'list', { situation: 'cover_letter' })
@@ -173,12 +225,7 @@ function Editor({
         <section className="flex flex-col gap-4">
           <SectionLabel>Умови</SectionLabel>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Зарплата від">
-              <NumberInput value={a.salaryMin} onCommit={(salaryMin) => patch({ salaryMin })} />
-            </Field>
-            <Field label="до">
-              <NumberInput value={a.salaryMax} onCommit={(salaryMax) => patch({ salaryMax })} />
-            </Field>
+            <SalaryFields min={a.salaryMin} max={a.salaryMax} patch={patch} />
             <Field label="Валюта">
               <Choice value={a.currency} onChange={(v) => v && patch({ currency: v })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
             </Field>
@@ -222,7 +269,7 @@ function Editor({
             />
           </Field>
           <CoverTemplatePicker key={a.id} application={a} patch={patch} />
-          <MarkdownField label="Супровідний лист" value={cover} onChange={setCover} placeholder="Cover letter…" minHeight="160px" />
+          <MarkdownField label="Супровідний лист" value={cover} onChange={setCover} placeholder="Cover letter…" minHeight="160px" maxLength={LIMITS.coverLetter} />
           <Field label="Контакт (рекрутер, HR)" count={{ length: contact.length, max: LIMITS.contact }}>
             <Textarea
               value={contact}
@@ -241,8 +288,8 @@ function Editor({
         <Separator className="my-6" />
 
         <section className="flex flex-col gap-4">
-          <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Скопіюйте опис вакансії" minHeight="120px" />
-          <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Враження, домовленості, питання до оферу" minHeight="100px" />
+          <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Скопіюйте опис вакансії" minHeight="120px" maxLength={LIMITS.description} />
+          <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Враження, домовленості, питання до оферу" minHeight="100px" maxLength={LIMITS.notes} />
         </section>
 
         <div className="mt-6 flex flex-col gap-6">

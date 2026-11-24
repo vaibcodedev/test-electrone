@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { ExternalLink, Pencil, Plus, Receipt, Trash2 } from 'lucide-react'
-import type {
-  Expense,
-  MoneyByCurrency,
-  Subscription,
-  SubscriptionMonthRow
+import {
+  expenseInputSchema,
+  type Expense,
+  type MoneyByCurrency,
+  type Subscription,
+  type SubscriptionMonthRow
 } from '@shared/domain/finance'
+import { rangesOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { draftToNumber, numberToDraft } from '../crm/money'
@@ -69,11 +71,17 @@ function IconAction({
   )
 }
 
+const AMOUNT_RANGE = rangesOf(expenseInputSchema).amount
+
 /** Paid checkbox + optional "paid a different amount" popover. */
 function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) {
   const setPaid = useApiMutation('finance', 'setSubscriptionPaid')
   const [amount, setAmount] = useState(String(row.paidAmount ?? row.amount))
+  const [open, setOpen] = useState(false)
   const paid = !!row.expenseId
+  // An empty field is not «paid 0»: the button waits for a number.
+  const typed = draftToNumber(amount)
+  const canSubmit = typed !== null && Number.isFinite(typed) && typed >= 0 && !setPaid.isPending
   return (
     <div className="flex items-center gap-2">
       <Checkbox
@@ -82,7 +90,7 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
         onCheckedChange={(v) => setPaid.mutate({ id: row.id, month, paid: v === true })}
         className="size-5 rounded-full data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground"
       />
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="subtle" size="xs">
             {paid && row.paidAmount !== null && row.paidAmount !== row.amount
@@ -95,9 +103,11 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
             className="flex flex-col gap-3"
             onSubmit={(e) => {
               e.preventDefault()
-              const n = Number(amount.replace(',', '.'))
-              if (Number.isFinite(n) && n >= 0)
-                setPaid.mutate({ id: row.id, month, paid: true, amount: n })
+              if (!canSubmit || typed === null) return
+              setPaid.mutate(
+                { id: row.id, month, paid: true, amount: typed },
+                { onSuccess: () => setOpen(false) }
+              )
             }}
           >
             <span className="text-caption text-muted-foreground">
@@ -106,11 +116,11 @@ function PaidCell({ row, month }: { row: SubscriptionMonthRow; month: string }) 
             <NumberInput
               autoFocus
               allowEmpty
-              min={0}
-              value={draftToNumber(amount)}
+              {...AMOUNT_RANGE}
+              value={typed}
               onChange={(v) => setAmount(numberToDraft(v))}
             />
-            <Button type="submit" size="sm" variant="lime">
+            <Button type="submit" size="sm" variant="lime" disabled={!canSubmit}>
               Позначити оплаченим
             </Button>
           </form>

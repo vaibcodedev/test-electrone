@@ -122,13 +122,16 @@ export type ClientPlatformData = Pick<
 export function ClientPlatformFields({
   value,
   onChange,
-  currency = 'USD'
+  currency = 'USD',
+  onInvalidChange
 }: {
   value: ClientPlatformData
   onChange: (patch: Partial<ClientPatch>) => void
   /** @deprecated fields commit on blur in every context. */
   saveOnBlur?: boolean
   currency?: string
+  /** Dialog: per-field «out of range» flags (see useInvalidFields) to block the submit button. */
+  onInvalidChange?: (field: string) => (invalid: boolean) => void
 }) {
   // Short labels + the unit inside the input (InputGroup addon): labels never wrap into different
   // heights, and `items-end` keeps the inputs on one line even if one does (docs/design-system.md → Формы).
@@ -148,6 +151,7 @@ export function ClientPlatformFields({
           placeholder="4.9"
           unit="★"
           onCommit={(rating) => onChange({ rating })}
+          onValidityChange={onInvalidChange?.('rating')}
         />
         <NumberField
           label="Витрачено"
@@ -156,6 +160,7 @@ export function ClientPlatformFields({
           placeholder="25000"
           unit={(CURRENCY_SIGN as Record<string, string>)[currency] ?? currency}
           onCommit={(totalSpent) => onChange({ totalSpent })}
+          onValidityChange={onInvalidChange?.('totalSpent')}
         />
         <NumberField
           label="Найм, %"
@@ -164,6 +169,7 @@ export function ClientPlatformFields({
           placeholder="70"
           unit="%"
           onCommit={(hireRate) => onChange({ hireRate })}
+          onValidityChange={onInvalidChange?.('hireRate')}
         />
       </div>
       <div className="flex h-9 items-center gap-2">
@@ -184,13 +190,16 @@ export function ClientPlatformFields({
 export function FeeField({
   value,
   onChange,
-  platformDefault
+  platformDefault,
+  onInvalidChange
 }: {
   value: number | null | undefined
   onChange: (feePercent: number | null) => void
   /** @deprecated NumberField commits on blur in both cases. */
   saveOnBlur?: boolean
   platformDefault?: number
+  /** Dialog: the typed fee is out of range, block submit. */
+  onInvalidChange?: (invalid: boolean) => void
 }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -202,6 +211,7 @@ export function FeeField({
         unit="%"
         placeholder={platformDefault !== undefined ? `${platformDefault}` : '10'}
         onCommit={onChange}
+        onValidityChange={onInvalidChange}
       />
       <span className="text-meta text-muted-foreground">{FEE_HINT}</span>
     </div>

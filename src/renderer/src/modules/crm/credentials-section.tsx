@@ -47,13 +47,14 @@ function CredentialForm({
   })
   const set = (patch: Partial<typeof form>): void => setForm((f) => ({ ...f, ...patch }))
   const urlBad = !isLikelyUrl(form.url)
+  const pending = create.isPending || update.isPending
   return (
     <Card className="p-4">
       <form
         className="grid grid-cols-2 gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (!form.label.trim() || urlBad) return
+          if (!form.label.trim() || urlBad || pending) return
           if (initial) {
             const { secret, ...rest } = form
             update.mutate({ id: initial.id, patch: secret ? form : rest })
@@ -117,7 +118,7 @@ function CredentialForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="lime" disabled={!form.label.trim() || urlBad}>
+          <Button type="submit" variant="lime" disabled={!form.label.trim() || urlBad || pending}>
             Зберегти
           </Button>
         </div>

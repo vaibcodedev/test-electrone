@@ -188,7 +188,7 @@ function AddItem({
       )}
       onSubmit={(e) => {
         e.preventDefault()
-        if (!text.trim()) return
+        if (!text.trim() || add.isPending) return
         add.mutate({ checklistId, text: text.trim(), section: section ?? newSection.trim() })
       }}
     >
@@ -220,7 +220,7 @@ function AddItem({
               <option key={s} value={s} />
             ))}
           </datalist>
-          <Button type="submit" variant="lime" size="sm" disabled={!text.trim()}>
+          <Button type="submit" variant="lime" size="sm" disabled={!text.trim() || add.isPending}>
             Додати
           </Button>
         </>
@@ -421,6 +421,7 @@ export function ChecklistPage() {
             value={description}
             onChange={setDescription}
             placeholder="Коли й навіщо використовувати цей чек-лист"
+            maxLength={LIMITS.description}
             minHeight="100px"
           />
         </div>

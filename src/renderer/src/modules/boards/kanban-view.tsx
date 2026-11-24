@@ -215,9 +215,9 @@ function AddColumn({ boardId }: { boardId: string }) {
       className="w-[260px] shrink-0"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!title.trim()) return
-        add.mutate({ boardId, input: { title: title.trim() } })
-        setTitle('')
+        if (!title.trim() || add.isPending) return
+        // Cleared only after the server accepted it: a rejected title stays for fixing.
+        add.mutate({ boardId, input: { title: title.trim() } }, { onSuccess: () => setTitle('') })
       }}
     >
       {/* Dashed = an empty slot; once you type it becomes a normal field (no dashed border under the focus ring). */}
@@ -234,7 +234,7 @@ function AddColumn({ boardId }: { boardId: string }) {
         />
         {title.trim() && (
           <InputGroupAddon align="inline-end">
-            <InputGroupButton type="submit" size="xs" variant="default" className="rounded-full">
+            <InputGroupButton type="submit" size="xs" variant="default" className="rounded-full" disabled={add.isPending}>
               Додати
             </InputGroupButton>
           </InputGroupAddon>

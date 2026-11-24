@@ -81,3 +81,6 @@ export const CURRENCY_SIGN: Record<Currency, string> = {
   PLN: 'zł',
   GBP: '£'
 }
+
+/** A deadline / end date before the start date (project, stage). */
+export const DUE_BEFORE_START = 'Кінцева дата раніша за початок'
