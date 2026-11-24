@@ -21,7 +21,10 @@ export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   cancelled: 'Отменён'
 }
 
-export const PROJECT_STATUS_BADGE: Record<ProjectStatus, 'lime' | 'soft' | 'warn' | 'success' | 'outline'> = {
+export const PROJECT_STATUS_BADGE: Record<
+  ProjectStatus,
+  'lime' | 'soft' | 'warn' | 'success' | 'outline'
+> = {
   lead: 'outline',
   active: 'lime',
   paused: 'warn',

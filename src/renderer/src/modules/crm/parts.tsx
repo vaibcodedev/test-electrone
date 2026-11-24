@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { fmtMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export interface ChoiceOption<T extends string> {
@@ -32,7 +31,10 @@ export function Choice<T extends string>({
 }) {
   const NONE = '__none__'
   return (
-    <Select value={value ?? (none ? NONE : undefined)} onValueChange={(v) => onChange(v === NONE ? null : (v as T))}>
+    <Select
+      value={value ?? (none ? NONE : undefined)}
+      onValueChange={(v) => onChange(v === NONE ? null : (v as T))}
+    >
       <SelectTrigger
         className={cn(
           'h-9 w-full rounded-xl border-transparent bg-surface text-[13px] shadow-none dark:bg-surface',
@@ -77,23 +79,33 @@ export function StatTile({
         className
       )}
     >
-      <span className={cn('text-[12.5px]', tone === 'ink' ? 'text-ink-muted' : tone === 'lime' ? 'opacity-70' : 'text-muted-foreground')}>
+      <span
+        className={cn(
+          'text-[12.5px]',
+          tone === 'ink'
+            ? 'text-ink-muted'
+            : tone === 'lime'
+              ? 'opacity-70'
+              : 'text-muted-foreground'
+        )}
+      >
         {label}
       </span>
       <div>
         <div className="font-display text-[30px] leading-none tabular-nums">{value}</div>
-        {hint && <div className={cn('mt-1.5 text-[12px]', tone === 'surface' ? 'text-muted-foreground' : 'opacity-70')}>{hint}</div>}
+        {hint && (
+          <div
+            className={cn(
+              'mt-1.5 text-[12px]',
+              tone === 'surface' ? 'text-muted-foreground' : 'opacity-70'
+            )}
+          >
+            {hint}
+          </div>
+        )}
       </div>
     </section>
   )
-}
-
-/** Formats a per-currency sum map: "$1 200 · €300" or a dash. */
-export function moneyMap(map: Partial<Record<string, number>>): string {
-  const parts = Object.entries(map)
-    .filter(([, v]) => (v ?? 0) > 0)
-    .map(([cur, v]) => fmtMoney(v ?? 0, cur))
-  return parts.length ? parts.join(' · ') : '—'
 }
 
 /** Section block on detail pages. */
@@ -120,7 +132,15 @@ export function Section({
 }
 
 /** Thin progress bar (hours vs budget). Turns warn when over budget. */
-export function Meter({ value, max, className }: { value: number; max: number; className?: string }) {
+export function Meter({
+  value,
+  max,
+  className
+}: {
+  value: number
+  max: number
+  className?: string
+}) {
   const ratio = max > 0 ? value / max : 0
   return (
     <div className={cn('h-1.5 w-full overflow-hidden rounded-full bg-foreground/10', className)}>
@@ -130,9 +150,4 @@ export function Meter({ value, max, className }: { value: number; max: number; c
       />
     </div>
   )
-}
-
-export const numberOrZero = (v: string): number => {
-  const n = Number(v.replace(',', '.'))
-  return Number.isFinite(n) && n >= 0 ? n : 0
 }

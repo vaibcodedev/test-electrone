@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { cn } from '@/lib/utils'
 import { PAYMENT_STATUS_LABEL } from './labels'
-import { Choice, Section, numberOrZero } from './parts'
+import { Choice, Section } from './parts'
+import { numberOrZero } from './money'
 
 const STATUS_STYLE: Record<PaymentStatus, string> = {
   expected: 'bg-card',
@@ -23,27 +24,58 @@ const STATUS_STYLE: Record<PaymentStatus, string> = {
   cancelled: 'bg-card text-muted-foreground line-through'
 }
 
-function PaymentForm({ projectId, currency, onDone }: { projectId: string; currency: Currency; onDone: () => void }) {
+function PaymentForm({
+  projectId,
+  currency,
+  onDone
+}: {
+  projectId: string
+  currency: Currency
+  onDone: () => void
+}) {
   const [amount, setAmount] = useState('')
   const [cur, setCur] = useState<Currency>(currency)
   const [status, setStatus] = useState<PaymentStatus>('expected')
   const [due, setDue] = useState('')
   const [note, setNote] = useState('')
-  const create = useApiMutation('payments', 'create', { successMessage: 'Оплата добавлена', onSuccess: onDone })
+  const create = useApiMutation('payments', 'create', {
+    successMessage: 'Оплата добавлена',
+    onSuccess: onDone
+  })
   const value = numberOrZero(amount)
   return (
     <form
       className="flex flex-wrap items-end gap-2 rounded-2xl bg-surface p-3"
       onSubmit={(e) => {
         e.preventDefault()
-        if (value > 0) create.mutate({ projectId, amount: value, currency: cur, status, dueAt: fromLocalInput(due), note })
+        if (value > 0)
+          create.mutate({
+            projectId,
+            amount: value,
+            currency: cur,
+            status,
+            dueAt: fromLocalInput(due),
+            note
+          })
       }}
     >
       <Field label="Сумма">
-        <Input autoFocus inputMode="decimal" className="w-28 bg-card" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="500" />
+        <Input
+          autoFocus
+          inputMode="decimal"
+          className="w-28 bg-card"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="500"
+        />
       </Field>
       <Field label="Валюта">
-        <Choice className="w-24 bg-card" value={cur} onChange={(v) => v && setCur(v)} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
+        <Choice
+          className="w-24 bg-card"
+          value={cur}
+          onChange={(v) => v && setCur(v)}
+          options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+        />
       </Field>
       <Field label="Статус">
         <Choice
@@ -54,10 +86,20 @@ function PaymentForm({ projectId, currency, onDone }: { projectId: string; curre
         />
       </Field>
       <Field label="Срок">
-        <Input type="date" className="w-36 bg-card" value={due} onChange={(e) => setDue(e.target.value)} />
+        <Input
+          type="date"
+          className="w-36 bg-card"
+          value={due}
+          onChange={(e) => setDue(e.target.value)}
+        />
       </Field>
       <Field label="Комментарий" className="min-w-40 flex-1">
-        <Input className="bg-card" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Предоплата 50%" />
+        <Input
+          className="bg-card"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Предоплата 50%"
+        />
       </Field>
       <Button type="button" variant="ghost" onClick={onDone}>
         Отмена
@@ -79,10 +121,19 @@ function PaymentRow({ payment }: { payment: Payment }) {
         payment.overdue && 'ring-1 ring-destructive/50'
       )}
     >
-      <span className="font-display w-36 shrink-0 text-[20px] tabular-nums">{fmtMoney(payment.amount, payment.currency)}</span>
+      <span className="font-display w-36 shrink-0 text-[20px] tabular-nums">
+        {fmtMoney(payment.amount, payment.currency)}
+      </span>
       <div className="min-w-0 flex-1 text-[12.5px]">
-        <div className="truncate">{payment.note || <span className="text-muted-foreground">Без комментария</span>}</div>
-        <div className={cn('text-[12px]', payment.overdue ? 'text-destructive' : 'text-muted-foreground')}>
+        <div className="truncate">
+          {payment.note || <span className="text-muted-foreground">Без комментария</span>}
+        </div>
+        <div
+          className={cn(
+            'text-[12px]',
+            payment.overdue ? 'text-destructive' : 'text-muted-foreground'
+          )}
+        >
           {payment.status === 'paid' && payment.paidAt
             ? `оплачено ${fmtDate(payment.paidAt)}`
             : payment.dueAt
@@ -95,24 +146,42 @@ function PaymentRow({ payment }: { payment: Payment }) {
           <button
             key={s}
             type="button"
-            onClick={() => s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })}
+            onClick={() =>
+              s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })
+            }
             className={cn(
               'h-7 rounded-full px-2.5 text-[11.5px] transition-colors',
-              s === payment.status ? STATUS_STYLE[s] + ' font-medium' : 'text-muted-foreground hover:bg-card hover:text-foreground'
+              s === payment.status
+                ? STATUS_STYLE[s] + ' font-medium'
+                : 'text-muted-foreground hover:bg-card hover:text-foreground'
             )}
           >
             {PAYMENT_STATUS_LABEL[s]}
           </button>
         ))}
       </div>
-      <Button variant="ghost" size="icon-xs" title="Удалить" className="opacity-0 group-hover:opacity-100" onClick={() => remove.mutate(payment.id)}>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        title="Удалить"
+        className="opacity-0 group-hover:opacity-100"
+        onClick={() => remove.mutate(payment.id)}
+      >
         <Trash2 />
       </Button>
     </div>
   )
 }
 
-export function PaymentsSection({ projectId, currency, payments }: { projectId: string; currency: Currency; payments: Payment[] }) {
+export function PaymentsSection({
+  projectId,
+  currency,
+  payments
+}: {
+  projectId: string
+  currency: Currency
+  payments: Payment[]
+}) {
   const [adding, setAdding] = useState(false)
   return (
     <Section
@@ -125,12 +194,16 @@ export function PaymentsSection({ projectId, currency, payments }: { projectId: 
         )
       }
     >
-      {adding && <PaymentForm projectId={projectId} currency={currency} onDone={() => setAdding(false)} />}
+      {adding && (
+        <PaymentForm projectId={projectId} currency={currency} onDone={() => setAdding(false)} />
+      )}
       {payments.map((p) => (
         <PaymentRow key={p.id} payment={p} />
       ))}
       {!payments.length && !adding && (
-        <p className="text-[13px] text-muted-foreground">Добавьте ожидаемые платежи со сроком — просрочки появятся на главной и в календаре.</p>
+        <p className="text-[13px] text-muted-foreground">
+          Добавьте ожидаемые платежи со сроком — просрочки появятся на главной и в календаре.
+        </p>
       )}
     </Section>
   )

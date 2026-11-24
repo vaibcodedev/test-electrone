@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import {
   BILLING_TYPES,
@@ -10,12 +10,19 @@ import {
 } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fromLocalInput } from '@/lib/format'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { BILLING_LABEL } from './labels'
-import { Choice, numberOrZero } from './parts'
+import { Choice } from './parts'
+import { numberOrZero } from './money'
 
 function FormDialog({
   open,
@@ -62,9 +69,21 @@ function FormDialog({
   )
 }
 
-export function ClientDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function ClientDialog({
+  open,
+  onOpenChange
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const navigate = useNavigate()
-  const [form, setForm] = useState<ClientInput>({ name: '', company: '', email: '', currency: 'USD', defaultRate: 0 })
+  const [form, setForm] = useState<ClientInput>({
+    name: '',
+    company: '',
+    email: '',
+    currency: 'USD',
+    defaultRate: 0
+  })
   const create = useApiMutation('clients', 'create', {
     successMessage: 'Клиент добавлен',
     onSuccess: (c) => {
@@ -84,7 +103,12 @@ export function ClientDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       onSubmit={() => create.mutate(form)}
     >
       <Field label="Имя или название">
-        <Input autoFocus value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="Анна Петренко" />
+        <Input
+          autoFocus
+          value={form.name}
+          onChange={(e) => set({ name: e.target.value })}
+          placeholder="Анна Петренко"
+        />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Компания">
@@ -139,6 +163,13 @@ export function ProjectDialog({
   }
   const [form, setForm] = useState<ProjectInput>(initial)
   const [due, setDue] = useState('')
+  const clientsLoaded = clients.length > 0
+  useEffect(() => {
+    if (!open) return
+    setForm(initial())
+    setDue('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opened / clients first arrive
+  }, [open, clientsLoaded])
   const create = useApiMutation('projects', 'create', {
     successMessage: 'Проект создан',
     onSuccess: (p) => {
@@ -151,20 +182,19 @@ export function ProjectDialog({
   return (
     <FormDialog
       open={open}
-      onOpenChange={(o) => {
-        if (o) {
-          setForm(initial())
-          setDue('')
-        }
-        onOpenChange(o)
-      }}
+      onOpenChange={onOpenChange}
       title="Новый проект"
       submitLabel="Создать проект"
       disabled={!form.title.trim() || create.isPending}
       onSubmit={() => create.mutate({ ...form, dueAt: fromLocalInput(due) })}
     >
       <Field label="Название">
-        <Input autoFocus value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="Редизайн магазина" />
+        <Input
+          autoFocus
+          value={form.title}
+          onChange={(e) => set({ title: e.target.value })}
+          placeholder="Редизайн магазина"
+        />
       </Field>
       <Field label="Клиент">
         <Choice
@@ -174,7 +204,10 @@ export function ProjectDialog({
             const c = clients.find((x) => x.id === v)
             set({ clientId: v, ...(c ? { currency: c.currency, rate: c.defaultRate } : {}) })
           }}
-          options={clients.map((c) => ({ value: c.id, label: c.company ? `${c.name} — ${c.company}` : c.name }))}
+          options={clients.map((c) => ({
+            value: c.id,
+            label: c.company ? `${c.name} — ${c.company}` : c.name
+          }))}
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">

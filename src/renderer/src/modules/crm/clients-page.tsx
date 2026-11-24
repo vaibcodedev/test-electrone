@@ -1,16 +1,34 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ArrowUpRight, Briefcase, Plus, UserRound } from 'lucide-react'
-import { PROJECT_STATUSES, type ClientSummary, type ProjectStatus, type ProjectSummary } from '@shared/domain/crm'
+import {
+  PROJECT_STATUSES,
+  type ClientSummary,
+  type ProjectStatus,
+  type ProjectSummary
+} from '@shared/domain/crm'
 import { useApi } from '@/lib/query'
 import { fmtDay, fmtHours, fmtMinutes, fmtMoney, plural } from '@/lib/format'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import {
+  EmptyState,
+  FilterChips,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput
+} from '@/components/common/page'
 import { TagList } from '@/components/common/tags'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { BILLING_LABEL, CLIENT_STATUS_LABEL, PROJECT_STATUS_BADGE, PROJECT_STATUS_LABEL } from './labels'
-import { Meter, StatTile, moneyMap } from './parts'
+import {
+  BILLING_LABEL,
+  CLIENT_STATUS_LABEL,
+  PROJECT_STATUS_BADGE,
+  PROJECT_STATUS_LABEL
+} from './labels'
+import { Meter, StatTile } from './parts'
+import { moneyMap } from './money'
 import { ClientDialog, ProjectDialog } from './dialogs'
 
 type Tab = 'clients' | 'projects'
@@ -20,18 +38,34 @@ function Overview() {
   if (!data) return <div className="grid h-[118px] grid-cols-4 gap-3" />
   return (
     <div className="grid grid-cols-4 gap-3">
-      <StatTile tone="ink" label="Часы за месяц" value={fmtHours(data.monthMinutes)} hint={`${fmtMinutes(data.weekMinutes)} на этой неделе`} />
-      <StatTile label="Оплачено в этом месяце" value={<span className="text-[24px]">{moneyMap(data.paidThisMonth)}</span>} />
+      <StatTile
+        tone="ink"
+        label="Часы за месяц"
+        value={fmtHours(data.monthMinutes)}
+        hint={`${fmtMinutes(data.weekMinutes)} на этой неделе`}
+      />
+      <StatTile
+        label="Оплачено в этом месяце"
+        value={<span className="text-[24px]">{moneyMap(data.paidThisMonth)}</span>}
+      />
       <StatTile
         label="Ожидается к оплате"
         value={<span className="text-[24px]">{moneyMap(data.outstanding)}</span>}
-        hint={data.overduePayments ? `${data.overduePayments} ${plural(data.overduePayments, ['просрочена', 'просрочены', 'просрочено'])}` : 'Просрочек нет'}
+        hint={
+          data.overduePayments
+            ? `${data.overduePayments} ${plural(data.overduePayments, ['просрочена', 'просрочены', 'просрочено'])}`
+            : 'Просрочек нет'
+        }
       />
       <StatTile
         label="Проекты в работе"
         value={data.activeProjects}
         tone={data.overduePayments ? 'surface' : 'surface'}
-        hint={plural(data.activeProjects, ['активный проект', 'активных проекта', 'активных проектов'])}
+        hint={plural(data.activeProjects, [
+          'активный проект',
+          'активных проекта',
+          'активных проектов'
+        ])}
       />
     </div>
   )
@@ -60,12 +94,15 @@ function ClientCard({ client }: { client: ClientSummary }) {
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
           <span>
-            {client.activeProjectCount}/{client.projectCount} {plural(client.projectCount, ['проект', 'проекта', 'проектов'])}
+            {client.activeProjectCount}/{client.projectCount}{' '}
+            {plural(client.projectCount, ['проект', 'проекта', 'проектов'])}
           </span>
           <span>{fmtHours(client.trackedMinutes)}</span>
           <span className="text-foreground">{fmtMoney(client.paidTotal, client.currency)}</span>
           {client.outstandingTotal > 0 && (
-            <span className="text-warn">ждём {fmtMoney(client.outstandingTotal, client.currency)}</span>
+            <span className="text-warn">
+              ждём {fmtMoney(client.outstandingTotal, client.currency)}
+            </span>
           )}
         </div>
       </div>
@@ -73,7 +110,13 @@ function ClientCard({ client }: { client: ClientSummary }) {
   )
 }
 
-export function ProjectRow({ project, showClient = true }: { project: ProjectSummary; showClient?: boolean }) {
+export function ProjectRow({
+  project,
+  showClient = true
+}: {
+  project: ProjectSummary
+  showClient?: boolean
+}) {
   const navigate = useNavigate()
   const overdue = project.dueAt && project.dueAt < Date.now() && project.status === 'active'
   return (
@@ -85,7 +128,9 @@ export function ProjectRow({ project, showClient = true }: { project: ProjectSum
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate text-[14px] font-medium">{project.title}</span>
-          <Badge variant={PROJECT_STATUS_BADGE[project.status]}>{PROJECT_STATUS_LABEL[project.status]}</Badge>
+          <Badge variant={PROJECT_STATUS_BADGE[project.status]}>
+            {PROJECT_STATUS_LABEL[project.status]}
+          </Badge>
         </div>
         <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
           {showClient && (project.clientName ?? 'Без клиента')}
@@ -97,9 +142,13 @@ export function ProjectRow({ project, showClient = true }: { project: ProjectSum
       <div className="min-w-0">
         <div className="flex justify-between text-[12px]">
           <span>{fmtHours(project.trackedMinutes)}</span>
-          {project.budgetHours > 0 && <span className="text-muted-foreground">из {project.budgetHours} ч</span>}
+          {project.budgetHours > 0 && (
+            <span className="text-muted-foreground">из {project.budgetHours} ч</span>
+          )}
         </div>
-        {project.budgetHours > 0 && <Meter value={project.trackedMinutes / 60} max={project.budgetHours} className="mt-1.5" />}
+        {project.budgetHours > 0 && (
+          <Meter value={project.trackedMinutes / 60} max={project.budgetHours} className="mt-1.5" />
+        )}
       </div>
       <div className="min-w-0 text-[12px] leading-relaxed">
         <div>
@@ -110,11 +159,19 @@ export function ProjectRow({ project, showClient = true }: { project: ProjectSum
           <span className="text-muted-foreground">Оплачено </span>
           {fmtMoney(project.paidAmount, project.currency)}
           {project.outstandingAmount > 0 && (
-            <span className="text-warn"> · долг {fmtMoney(project.outstandingAmount, project.currency)}</span>
+            <span className="text-warn">
+              {' '}
+              · долг {fmtMoney(project.outstandingAmount, project.currency)}
+            </span>
           )}
         </div>
       </div>
-      <div className={cn('text-right text-[12px]', overdue ? 'text-destructive' : 'text-muted-foreground')}>
+      <div
+        className={cn(
+          'text-right text-[12px]',
+          overdue ? 'text-destructive' : 'text-muted-foreground'
+        )}
+      >
         {project.dueAt ? `до ${fmtDay(project.dueAt)}` : '—'}
       </div>
     </button>
@@ -129,7 +186,10 @@ export function ClientsPage() {
   const [clientOpen, setClientOpen] = useState(false)
   const [projectOpen, setProjectOpen] = useState(false)
   const { data: clients = [] } = useApi('clients', 'list')
-  const { data: projects = [] } = useApi('projects', 'list', { status, search: search || undefined })
+  const { data: projects = [] } = useApi('projects', 'list', {
+    status,
+    search: search || undefined
+  })
 
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -158,12 +218,23 @@ export function ClientsPage() {
           <FilterChips<Tab>
             options={[
               { value: 'clients', label: 'Клиенты', count: clients.length },
-              { value: 'projects', label: 'Проекты', count: tab === 'projects' ? projects.length : undefined }
+              {
+                value: 'projects',
+                label: 'Проекты',
+                count: tab === 'projects' ? projects.length : undefined
+              }
             ]}
             value={tab}
-            onChange={(v) => setParams(v === 'projects' ? { tab: 'projects' } : {}, { replace: true })}
+            onChange={(v) =>
+              setParams(v === 'projects' ? { tab: 'projects' } : {}, { replace: true })
+            }
           />
-          <SearchInput value={search} onChange={setSearch} placeholder={tab === 'clients' ? 'Найти клиента' : 'Найти проект'} className="w-64" />
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder={tab === 'clients' ? 'Найти клиента' : 'Найти проект'}
+            className="w-64"
+          />
           {tab === 'projects' && (
             <FilterChips<ProjectStatus>
               allLabel="Все статусы"

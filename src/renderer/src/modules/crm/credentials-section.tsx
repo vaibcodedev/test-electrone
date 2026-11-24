@@ -30,8 +30,14 @@ function CredentialForm({
     secret: '',
     notes: initial?.notes ?? ''
   })
-  const create = useApiMutation('credentials', 'create', { successMessage: 'Доступ сохранён', onSuccess: onDone })
-  const update = useApiMutation('credentials', 'update', { successMessage: 'Доступ обновлён', onSuccess: onDone })
+  const create = useApiMutation('credentials', 'create', {
+    successMessage: 'Доступ сохранён',
+    onSuccess: onDone
+  })
+  const update = useApiMutation('credentials', 'update', {
+    successMessage: 'Доступ обновлён',
+    onSuccess: onDone
+  })
   const set = (patch: Partial<typeof form>): void => setForm((f) => ({ ...f, ...patch }))
   return (
     <form
@@ -48,19 +54,44 @@ function CredentialForm({
       }}
     >
       <Field label="Название">
-        <Input autoFocus className="bg-card" value={form.label} onChange={(e) => set({ label: e.target.value })} placeholder="Shopify admin" />
+        <Input
+          autoFocus
+          className="bg-card"
+          value={form.label}
+          onChange={(e) => set({ label: e.target.value })}
+          placeholder="Shopify admin"
+        />
       </Field>
       <Field label="Ссылка">
-        <Input className="bg-card" value={form.url} onChange={(e) => set({ url: e.target.value })} placeholder="https://" />
+        <Input
+          className="bg-card"
+          value={form.url}
+          onChange={(e) => set({ url: e.target.value })}
+          placeholder="https://"
+        />
       </Field>
       <Field label="Логин">
-        <Input className="bg-card" value={form.login} onChange={(e) => set({ login: e.target.value })} />
+        <Input
+          className="bg-card"
+          value={form.login}
+          onChange={(e) => set({ login: e.target.value })}
+        />
       </Field>
       <Field label={initial?.hasSecret ? 'Новый пароль (пусто — оставить)' : 'Пароль / токен'}>
-        <Input className="bg-card" type="password" autoComplete="new-password" value={form.secret} onChange={(e) => set({ secret: e.target.value })} />
+        <Input
+          className="bg-card"
+          type="password"
+          autoComplete="new-password"
+          value={form.secret}
+          onChange={(e) => set({ secret: e.target.value })}
+        />
       </Field>
       <Field label="Заметка" className="col-span-2">
-        <Textarea className="min-h-12 bg-card" value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
+        <Textarea
+          className="min-h-12 bg-card"
+          value={form.notes}
+          onChange={(e) => set({ notes: e.target.value })}
+        />
       </Field>
       <div className="col-span-2 flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onDone}>
@@ -89,7 +120,8 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
     }
   }
 
-  if (editing) return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
+  if (editing)
+    return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
 
   return (
     <div className="group flex items-center gap-3 rounded-2xl bg-surface px-4 py-3">
@@ -104,7 +136,9 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
               type="button"
               title={item.url}
               className="text-muted-foreground hover:text-foreground"
-              onClick={() => api.app.openExternal(item.url).catch((e: Error) => toast.error(e.message))}
+              onClick={() =>
+                api.app.openExternal(item.url).catch((e: Error) => toast.error(e.message))
+              }
             >
               <ExternalLink className="size-3.5" />
             </button>
@@ -112,7 +146,12 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
           {item.login && (
-            <button type="button" className="selectable hover:text-foreground" title="Скопировать логин" onClick={() => copyText(item.login, 'Логин скопирован')}>
+            <button
+              type="button"
+              className="selectable hover:text-foreground"
+              title="Скопировать логин"
+              onClick={() => copyText(item.login, 'Логин скопирован')}
+            >
               {item.login}
             </button>
           )}
@@ -149,7 +188,11 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }) {
         <Button variant="ghost" size="icon-sm" title="Изменить" onClick={() => setEditing(true)}>
           <Pencil />
         </Button>
-        <Confirm title={`Удалить доступ «${item.label}»?`} description="Пароль будет удалён без возможности восстановления." onConfirm={() => remove.mutate(item.id)}>
+        <Confirm
+          title={`Удалить доступ «${item.label}»?`}
+          description="Пароль будет удалён без возможности восстановления."
+          onConfirm={() => remove.mutate(item.id)}
+        >
           <Button variant="ghost" size="icon-sm" title="Удалить">
             <Trash2 />
           </Button>
@@ -179,7 +222,8 @@ export function CredentialsSection({ items, owner }: { items: Credential[]; owne
       ))}
       {!items.length && !adding && (
         <p className="text-[13px] text-muted-foreground">
-          Логины от админок, хостинга и FTP. Пароли шифруются ключом Windows и показываются по кнопке.
+          Логины от админок, хостинга и FTP. Пароли шифруются ключом Windows и показываются по
+          кнопке.
         </p>
       )}
     </Section>

@@ -30,7 +30,14 @@ interface EntryDraft {
 }
 
 function emptyDraft(): EntryDraft {
-  return { date: format(Date.now(), 'yyyy-MM-dd'), from: '', to: '', minutes: '', description: '', billable: true }
+  return {
+    date: format(Date.now(), 'yyyy-MM-dd'),
+    from: '',
+    to: '',
+    minutes: '',
+    description: '',
+    billable: true
+  }
 }
 
 function draftOf(e: TimeEntry): EntryDraft {
@@ -52,7 +59,8 @@ function toRange(d: EntryDraft): { startedAt: number; endedAt: number } | null {
   const minutes = Number(d.minutes.replace(',', '.'))
   if (!minutes || minutes <= 0) return null
   const isToday = d.date === format(Date.now(), 'yyyy-MM-dd')
-  const end = from !== null ? from + minutes * 60_000 : isToday ? Date.now() : combine(d.date, '18:00')!
+  const end =
+    from !== null ? from + minutes * 60_000 : isToday ? Date.now() : combine(d.date, '18:00')!
   return { startedAt: from ?? end - minutes * 60_000, endedAt: end }
 }
 
@@ -79,13 +87,28 @@ function EntryForm({
       }}
     >
       <Field label="Дата">
-        <Input type="date" className="w-36 bg-card" value={d.date} onChange={(e) => set({ date: e.target.value })} />
+        <Input
+          type="date"
+          className="w-36 bg-card"
+          value={d.date}
+          onChange={(e) => set({ date: e.target.value })}
+        />
       </Field>
       <Field label="С">
-        <Input type="time" className="w-24 bg-card" value={d.from} onChange={(e) => set({ from: e.target.value })} />
+        <Input
+          type="time"
+          className="w-24 bg-card"
+          value={d.from}
+          onChange={(e) => set({ from: e.target.value })}
+        />
       </Field>
       <Field label="До">
-        <Input type="time" className="w-24 bg-card" value={d.to} onChange={(e) => set({ to: e.target.value })} />
+        <Input
+          type="time"
+          className="w-24 bg-card"
+          value={d.to}
+          onChange={(e) => set({ to: e.target.value })}
+        />
       </Field>
       <Field label="или минут">
         <Input
@@ -98,7 +121,12 @@ function EntryForm({
         />
       </Field>
       <Field label="Что делал" className="min-w-48 flex-1">
-        <Input className="bg-card" value={d.description} onChange={(e) => set({ description: e.target.value })} placeholder="Вёрстка корзины" />
+        <Input
+          className="bg-card"
+          value={d.description}
+          onChange={(e) => set({ description: e.target.value })}
+          placeholder="Вёрстка корзины"
+        />
       </Field>
       <label className="flex h-9 items-center gap-2 px-1 text-[12.5px]">
         <Switch checked={d.billable} onCheckedChange={(billable) => set({ billable })} />
@@ -119,7 +147,7 @@ function EntryForm({
 }
 
 function useElapsed(startedAt: number | undefined): number {
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!startedAt) return
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -153,8 +181,13 @@ function TimerBar({ projectId }: { projectId: string }) {
     return (
       <div className="flex items-center gap-4 rounded-3xl bg-lime px-5 py-4 text-lime-foreground">
         <Clock ms={elapsed} />
-        <span className="min-w-0 flex-1 truncate text-[13px] opacity-75">{running.description || 'Таймер идёт'}</span>
-        <Button onClick={() => stop.mutate(undefined)} className="bg-ink text-ink-foreground hover:bg-ink/90">
+        <span className="min-w-0 flex-1 truncate text-[13px] opacity-75">
+          {running.description || 'Таймер идёт'}
+        </span>
+        <Button
+          onClick={() => stop.mutate(undefined)}
+          className="bg-ink text-ink-foreground hover:bg-ink/90"
+        >
           <Pause /> Остановить
         </Button>
       </div>
@@ -182,7 +215,9 @@ function TimerBar({ projectId }: { projectId: string }) {
         className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-muted"
       />
       {running && (
-        <span className="shrink-0 text-[12px] text-ink-muted">Сейчас идёт: {running.projectTitle} — будет остановлен</span>
+        <span className="shrink-0 text-[12px] text-ink-muted">
+          Сейчас идёт: {running.projectTitle} — будет остановлен
+        </span>
       )}
     </form>
   )
@@ -200,7 +235,11 @@ function EntryRow({ entry, rate, currency }: { entry: TimeEntry; rate: number; c
         onCancel={() => setEditing(false)}
         onSubmit={(d) => {
           const r = toRange(d)
-          if (r) update.mutate({ id: entry.id, patch: { ...r, description: d.description, billable: d.billable } })
+          if (r)
+            update.mutate({
+              id: entry.id,
+              patch: { ...r, description: d.description, billable: d.billable }
+            })
         }}
       />
     )
@@ -210,19 +249,39 @@ function EntryRow({ entry, rate, currency }: { entry: TimeEntry; rate: number; c
       <span className="w-24 shrink-0 text-[12px] text-muted-foreground tabular-nums">
         {format(entry.startedAt, 'HH:mm')}–{entry.endedAt ? format(entry.endedAt, 'HH:mm') : '…'}
       </span>
-      <span className={cn('min-w-0 flex-1 truncate text-[13px]', !entry.description && 'text-muted-foreground')}>
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate text-[13px]',
+          !entry.description && 'text-muted-foreground'
+        )}
+      >
         {entry.description || 'Без описания'}
       </span>
-      {!entry.billable && <span className="text-[11.5px] text-muted-foreground">не оплачивается</span>}
+      {!entry.billable && (
+        <span className="text-[11.5px] text-muted-foreground">не оплачивается</span>
+      )}
       {entry.billable && rate > 0 && (
-        <span className="text-[12px] text-muted-foreground tabular-nums">{fmtMoney((entry.minutes / 60) * rate, currency)}</span>
+        <span className="text-[12px] text-muted-foreground tabular-nums">
+          {fmtMoney((entry.minutes / 60) * rate, currency)}
+        </span>
       )}
       <span className="w-20 text-right text-[13px] tabular-nums">{fmtMinutes(entry.minutes)}</span>
       <div className="flex opacity-0 group-hover:opacity-100">
-        <Button variant="ghost" size="icon-xs" title="Изменить" onClick={() => setEditing(true)} disabled={!entry.endedAt}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          title="Изменить"
+          onClick={() => setEditing(true)}
+          disabled={!entry.endedAt}
+        >
           <Pencil />
         </Button>
-        <Button variant="ghost" size="icon-xs" title="Удалить" onClick={() => remove.mutate(entry.id)}>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          title="Удалить"
+          onClick={() => remove.mutate(entry.id)}
+        >
           <Trash2 />
         </Button>
       </div>
@@ -245,11 +304,15 @@ export function TimeSection({
   hourly: boolean
 }) {
   const [adding, setAdding] = useState(false)
-  const create = useApiMutation('time', 'create', { successMessage: 'Время добавлено', onSuccess: () => setAdding(false) })
+  const create = useApiMutation('time', 'create', {
+    successMessage: 'Время добавлено',
+    onSuccess: () => setAdding(false)
+  })
 
   const days = useMemo(() => {
     const map = new Map<string, TimeEntry[]>()
-    for (const e of entries) map.set(dayKey(e.startedAt), [...(map.get(dayKey(e.startedAt)) ?? []), e])
+    for (const e of entries)
+      map.set(dayKey(e.startedAt), [...(map.get(dayKey(e.startedAt)) ?? []), e])
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
   }, [entries])
 
@@ -272,12 +335,15 @@ export function TimeSection({
           onCancel={() => setAdding(false)}
           onSubmit={(d) => {
             const r = toRange(d)
-            if (r) create.mutate({ projectId, ...r, description: d.description, billable: d.billable })
+            if (r)
+              create.mutate({ projectId, ...r, description: d.description, billable: d.billable })
           }}
         />
       )}
       {days.length === 0 && !adding && (
-        <p className="text-[13px] text-muted-foreground">Запустите таймер или добавьте время вручную — часы попадут в расчёт оплаты.</p>
+        <p className="text-[13px] text-muted-foreground">
+          Запустите таймер или добавьте время вручную — часы попадут в расчёт оплаты.
+        </p>
       )}
       <div className="flex flex-col gap-3">
         {days.slice(0, 30).map(([day, list]) => {
@@ -285,8 +351,12 @@ export function TimeSection({
           return (
             <div key={day}>
               <div className="mb-1 flex items-center justify-between px-3 text-[12px] text-muted-foreground">
-                <span>{capitalize(format(new Date(`${day}T00:00`), 'EEEE, d MMMM', { locale: LOCALE }))}</span>
-                <span className="font-medium text-foreground tabular-nums">{fmtMinutes(total)}</span>
+                <span>
+                  {capitalize(format(new Date(`${day}T00:00`), 'EEEE, d MMMM', { locale: LOCALE }))}
+                </span>
+                <span className="font-medium text-foreground tabular-nums">
+                  {fmtMinutes(total)}
+                </span>
               </div>
               {list.map((e) => (
                 <EntryRow key={e.id} entry={e} rate={hourly ? rate : 0} currency={currency} />

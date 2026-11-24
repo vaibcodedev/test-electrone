@@ -21,12 +21,21 @@ import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BILLING_LABEL, PROJECT_STATUS_LABEL } from './labels'
-import { Choice, Meter, Section, numberOrZero } from './parts'
+import { Choice, Meter, Section } from './parts'
+import { numberOrZero } from './money'
 import { TimeSection } from './time-section'
 import { PaymentsSection } from './payments-section'
 import { CredentialsSection } from './credentials-section'
 
-function Money({ label, value, tone }: { label: string; value: ReactNode; tone?: 'lime' | 'warn' }) {
+function Money({
+  label,
+  value,
+  tone
+}: {
+  label: string
+  value: ReactNode
+  tone?: 'lime' | 'warn'
+}) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[12px] text-muted-foreground">{label}</span>
@@ -45,18 +54,36 @@ function Money({ label, value, tone }: { label: string; value: ReactNode; tone?:
   )
 }
 
-const LINK_FIELDS: { key: 'repoUrl' | 'stagingUrl' | 'prodUrl' | 'adminUrl'; label: string; placeholder: string }[] = [
+const LINK_FIELDS: {
+  key: 'repoUrl' | 'stagingUrl' | 'prodUrl' | 'adminUrl'
+  label: string
+  placeholder: string
+}[] = [
   { key: 'prodUrl', label: 'Прод', placeholder: 'https://store.com' },
   { key: 'stagingUrl', label: 'Стейджинг', placeholder: 'https://staging…' },
   { key: 'adminUrl', label: 'Админка', placeholder: 'https://admin.shopify.com/…' },
   { key: 'repoUrl', label: 'Репозиторий', placeholder: 'https://github.com/…' }
 ]
 
-function UrlField({ label, value, placeholder, onSave }: { label: string; value: string; placeholder: string; onSave: (v: string) => void }) {
+function UrlField({
+  label,
+  value,
+  placeholder,
+  onSave
+}: {
+  label: string
+  value: string
+  placeholder: string
+  onSave: (v: string) => void
+}) {
   return (
     <Field label={label}>
       <div className="flex gap-1">
-        <Input defaultValue={value} placeholder={placeholder} onBlur={(e) => e.target.value !== value && onSave(e.target.value.trim())} />
+        <Input
+          defaultValue={value}
+          placeholder={placeholder}
+          onBlur={(e) => e.target.value !== value && onSave(e.target.value.trim())}
+        />
         {value && (
           <Button
             variant="soft"
@@ -72,7 +99,13 @@ function UrlField({ label, value, placeholder, onSave }: { label: string; value:
   )
 }
 
-function Settings({ project, patch }: { project: ProjectSummary; patch: (p: ProjectPatch) => void }) {
+function Settings({
+  project,
+  patch
+}: {
+  project: ProjectSummary
+  patch: (p: ProjectPatch) => void
+}) {
   return (
     <section className="flex flex-col gap-3">
       <h3 className="text-[12px] text-muted-foreground">Условия</h3>
@@ -86,24 +119,49 @@ function Settings({ project, patch }: { project: ProjectSummary; patch: (p: Proj
       <div className="grid grid-cols-2 gap-2">
         {project.billing === 'fixed' ? (
           <Field label="Стоимость">
-            <Input inputMode="decimal" defaultValue={project.fixedPrice || ''} onBlur={(e) => patch({ fixedPrice: numberOrZero(e.target.value) })} />
+            <Input
+              inputMode="decimal"
+              defaultValue={project.fixedPrice || ''}
+              onBlur={(e) => patch({ fixedPrice: numberOrZero(e.target.value) })}
+            />
           </Field>
         ) : (
           <Field label="Ставка/час">
-            <Input inputMode="decimal" defaultValue={project.rate || ''} onBlur={(e) => patch({ rate: numberOrZero(e.target.value) })} />
+            <Input
+              inputMode="decimal"
+              defaultValue={project.rate || ''}
+              onBlur={(e) => patch({ rate: numberOrZero(e.target.value) })}
+            />
           </Field>
         )}
         <Field label="Валюта">
-          <Choice value={project.currency} onChange={(v) => v && patch({ currency: v })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
+          <Choice
+            value={project.currency}
+            onChange={(v) => v && patch({ currency: v })}
+            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+          />
         </Field>
         <Field label="Бюджет, ч">
-          <Input inputMode="decimal" defaultValue={project.budgetHours || ''} placeholder="—" onBlur={(e) => patch({ budgetHours: numberOrZero(e.target.value) })} />
+          <Input
+            inputMode="decimal"
+            defaultValue={project.budgetHours || ''}
+            placeholder="—"
+            onBlur={(e) => patch({ budgetHours: numberOrZero(e.target.value) })}
+          />
         </Field>
         <Field label="Начало">
-          <Input type="date" defaultValue={toLocalInput(project.startAt, false)} onBlur={(e) => patch({ startAt: fromLocalInput(e.target.value) })} />
+          <Input
+            type="date"
+            defaultValue={toLocalInput(project.startAt, false)}
+            onBlur={(e) => patch({ startAt: fromLocalInput(e.target.value) })}
+          />
         </Field>
         <Field label="Дедлайн" className="col-span-2">
-          <Input type="date" defaultValue={toLocalInput(project.dueAt, false)} onBlur={(e) => patch({ dueAt: fromLocalInput(e.target.value) })} />
+          <Input
+            type="date"
+            defaultValue={toLocalInput(project.dueAt, false)}
+            onBlur={(e) => patch({ dueAt: fromLocalInput(e.target.value) })}
+          />
         </Field>
       </div>
     </section>
@@ -122,19 +180,33 @@ export function ProjectPage() {
   })
   const p = data?.project
   const patch = (patchValue: ProjectPatch): void => update.mutate({ id, patch: patchValue })
-  const [title, setTitle] = useAutosave(p?.title ?? '', (t) => t.trim() && patch({ title: t.trim() }))
-  const [description, setDescription] = useAutosave(p?.description ?? '', (d) => patch({ description: d }))
+  const [title, setTitle] = useAutosave(
+    p?.title ?? '',
+    (t) => t.trim() && patch({ title: t.trim() })
+  )
+  const [description, setDescription] = useAutosave(p?.description ?? '', (d) =>
+    patch({ description: d })
+  )
 
   if (isLoading) return null
   if (!data || !p) {
-    return <EmptyState title="Проект не найден" hint="Возможно, он в корзине." action={<Button onClick={() => navigate('/clients?tab=projects')}>К проектам</Button>} />
+    return (
+      <EmptyState
+        title="Проект не найден"
+        hint="Возможно, он в корзине."
+        action={<Button onClick={() => navigate('/clients?tab=projects')}>К проектам</Button>}
+      />
+    )
   }
 
   return (
     <div className="flex h-full min-h-0">
       <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={p.id}>
         <div className="mb-4 flex items-center gap-3 text-[12.5px] text-muted-foreground">
-          <Link to="/clients?tab=projects" className="flex items-center gap-1 hover:text-foreground">
+          <Link
+            to="/clients?tab=projects"
+            className="flex items-center gap-1 hover:text-foreground"
+          >
             <ArrowLeft className="size-3.5" /> Проекты
           </Link>
           {data.client && (
@@ -151,7 +223,11 @@ export function ProjectPage() {
           <InlineTitle value={title} onChange={setTitle} className="text-[40px]" />
           <div className="flex shrink-0 items-center gap-2 pt-2">
             <PinButtons entity={{ type: 'project', id }} />
-            <Confirm title="Удалить проект?" description="Проект уйдёт в корзину на 30 дней вместе с часами и оплатами." onConfirm={() => remove.mutate(id)}>
+            <Confirm
+              title="Удалить проект?"
+              description="Проект уйдёт в корзину на 30 дней вместе с часами и оплатами."
+              onConfirm={() => remove.mutate(id)}
+            >
               <Button variant="ghost" size="icon-sm" title="В корзину">
                 <Trash2 />
               </Button>
@@ -178,34 +254,59 @@ export function ProjectPage() {
         <div className="mt-6 grid grid-cols-4 gap-6 rounded-3xl bg-surface p-6">
           <Money label="Заработано" value={fmtMoney(p.earnedAmount, p.currency)} />
           <Money label="Оплачено" value={fmtMoney(p.paidAmount, p.currency)} tone="lime" />
-          <Money label="Ожидается" value={fmtMoney(p.outstandingAmount, p.currency)} tone={p.outstandingAmount > 0 ? 'warn' : undefined} />
+          <Money
+            label="Ожидается"
+            value={fmtMoney(p.outstandingAmount, p.currency)}
+            tone={p.outstandingAmount > 0 ? 'warn' : undefined}
+          />
           <div className="flex flex-col gap-1">
             <span className="text-[12px] text-muted-foreground">Часы</span>
             <span className="font-display text-[28px] leading-tight tabular-nums">
               {fmtHours(p.trackedMinutes)}
-              {p.budgetHours > 0 && <span className="text-[16px] text-muted-foreground"> / {p.budgetHours} ч</span>}
+              {p.budgetHours > 0 && (
+                <span className="text-[16px] text-muted-foreground"> / {p.budgetHours} ч</span>
+              )}
             </span>
             {p.budgetHours > 0 && <Meter value={p.trackedMinutes / 60} max={p.budgetHours} />}
           </div>
         </div>
 
         <div className="mt-8 flex flex-col gap-10">
-          <TimeSection projectId={p.id} entries={data.timeEntries} rate={p.rate} currency={p.currency} hourly={p.billing === 'hourly'} />
+          <TimeSection
+            projectId={p.id}
+            entries={data.timeEntries}
+            rate={p.rate}
+            currency={p.currency}
+            hourly={p.billing === 'hourly'}
+          />
           <PaymentsSection projectId={p.id} currency={p.currency} payments={data.payments} />
           <CredentialsSection items={data.credentials} owner={{ projectId: p.id }} />
           <Section title="Описание">
-            <MarkdownField value={description} onChange={setDescription} placeholder="Задачи, договорённости, контакты на стороне клиента…" />
+            <MarkdownField
+              value={description}
+              onChange={setDescription}
+              placeholder="Задачи, договорённости, контакты на стороне клиента…"
+            />
           </Section>
         </div>
       </div>
 
-      <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-border px-5 py-6" key={`aside-${p.id}`}>
+      <aside
+        className="w-[300px] shrink-0 overflow-y-auto border-l border-border px-5 py-6"
+        key={`aside-${p.id}`}
+      >
         <div className="flex flex-col gap-6">
           <Settings project={p} patch={patch} />
           <section className="flex flex-col gap-3">
             <h3 className="text-[12px] text-muted-foreground">Ссылки</h3>
             {LINK_FIELDS.map((f) => (
-              <UrlField key={f.key} label={f.label} value={p[f.key]} placeholder={f.placeholder} onSave={(v) => patch({ [f.key]: v })} />
+              <UrlField
+                key={f.key}
+                label={f.label}
+                value={p[f.key]}
+                placeholder={f.placeholder}
+                onSave={(v) => patch({ [f.key]: v })}
+              />
             ))}
           </section>
           <EntityAside
