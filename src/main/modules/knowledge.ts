@@ -55,7 +55,15 @@ import {
   type BookmarkStatus
 } from '@shared/domain/bookmarks'
 import { bookmarks, claudeItems, fixes, libraries, notes, snippets } from '../db/schema'
-import { noteInputSchema, noteListQuerySchema, notePatchSchema, type Note, type NoteInput, type NoteListQuery, type NotePatch } from '@shared/domain/notes'
+import {
+  noteInputSchema,
+  noteListQuerySchema,
+  notePatchSchema,
+  type Note,
+  type NoteInput,
+  type NoteListQuery,
+  type NotePatch
+} from '@shared/domain/notes'
 import type { NotesApi } from '@shared/api'
 import { and, isNull } from 'drizzle-orm'
 import { SoftRepository } from '../core/soft-repository'
@@ -101,7 +109,10 @@ export class KnowledgeModule {
       type: 'library',
       table: libraries,
       searchDoc: (r) => ({ title: r.name, body: `${r.purpose}\n${r.installCmd}\n${r.notes}` }),
-      summary: (r) => ({ title: r.name, subtitle: r.purpose || LIB_STATUS_LABEL[r.status as LibraryStatus] })
+      summary: (r) => ({
+        title: r.name,
+        subtitle: r.purpose || LIB_STATUS_LABEL[r.status as LibraryStatus]
+      })
     }
     const snippet: EntityDescriptor = {
       type: 'snippet',
@@ -133,7 +144,11 @@ export class KnowledgeModule {
     this.descriptors = [claude, library, snippet, fix, bookmark, note]
     this.noteRepo = new SoftRepository(m.repo, note, (r, tags) => ({ ...r, tags }))
 
-    this.claudeRepo = new SoftRepository(m.repo, claude, (r, tags) => ({ ...r, kind: r.kind as ClaudeKind, tags }))
+    this.claudeRepo = new SoftRepository(m.repo, claude, (r, tags) => ({
+      ...r,
+      kind: r.kind as ClaudeKind,
+      tags
+    }))
     this.libraryRepo = new SoftRepository(m.repo, library, (r, tags) => ({
       ...r,
       status: r.status as LibraryStatus,
@@ -156,7 +171,13 @@ export class KnowledgeModule {
   claudeApi(): ClaudeApi {
     const repo = this.claudeRepo
     return {
-      ...createCrudApi<typeof claudeItems.$inferSelect, ClaudeItem, ClaudeInput, ClaudePatch, ClaudeListQuery>({
+      ...createCrudApi<
+        typeof claudeItems.$inferSelect,
+        ClaudeItem,
+        ClaudeInput,
+        ClaudePatch,
+        ClaudeListQuery
+      >({
         repo,
         input: claudeInputSchema,
         patch: claudePatchSchema,
@@ -180,7 +201,13 @@ export class KnowledgeModule {
 
   librariesApi(): LibrariesApi {
     const repo = this.libraryRepo
-    return createCrudApi<typeof libraries.$inferSelect, Library, LibraryInput, LibraryPatch, LibraryListQuery>({
+    return createCrudApi<
+      typeof libraries.$inferSelect,
+      Library,
+      LibraryInput,
+      LibraryPatch,
+      LibraryListQuery
+    >({
       repo,
       input: libraryInputSchema,
       patch: libraryPatchSchema,
@@ -197,7 +224,13 @@ export class KnowledgeModule {
   snippetsApi(): SnippetsApi {
     const repo = this.snippetRepo
     return {
-      ...createCrudApi<typeof snippets.$inferSelect, Snippet, SnippetInput, SnippetPatch, SnippetListQuery>({
+      ...createCrudApi<
+        typeof snippets.$inferSelect,
+        Snippet,
+        SnippetInput,
+        SnippetPatch,
+        SnippetListQuery
+      >({
         repo,
         input: snippetInputSchema,
         patch: snippetPatchSchema,
@@ -260,7 +293,13 @@ export class KnowledgeModule {
 
   bookmarksApi(): BookmarksApi {
     const repo = this.bookmarkRepo
-    return createCrudApi<typeof bookmarks.$inferSelect, Bookmark, BookmarkInput, BookmarkPatch, BookmarkListQuery>({
+    return createCrudApi<
+      typeof bookmarks.$inferSelect,
+      Bookmark,
+      BookmarkInput,
+      BookmarkPatch,
+      BookmarkListQuery
+    >({
       repo,
       input: bookmarkInputSchema,
       patch: bookmarkPatchSchema,

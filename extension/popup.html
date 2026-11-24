@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src http://127.0.0.1:*; style-src 'self'; script-src 'self'" />
+    <title>Сохранить в Vault</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="wrap" id="form">
+      <div class="head">
+        <span class="logo">V</span>
+        <span class="title">Сохранить в Vault</span>
+        <span class="status" id="status" data-state="pending"><span class="dot"></span><span id="status-text">Проверяю…</span></span>
+      </div>
+
+      <div class="chips" id="targets" role="group" aria-label="Куда сохранить"></div>
+
+      <div>
+        <label class="label" for="title">Название</label>
+        <input id="title" maxlength="500" />
+      </div>
+      <div>
+        <label class="label" for="note">Заметка</label>
+        <textarea id="note" rows="2" maxlength="10000" placeholder="Чем понравилось, где пригодится"></textarea>
+      </div>
+      <div>
+        <label class="label" for="tags">Метки через запятую</label>
+        <input id="tags" placeholder="shopify, анимации" />
+        <div class="chips tag-row" id="recent-tags"></div>
+      </div>
+
+      <div>
+        <span class="label">Скриншот</span>
+        <div class="segment" id="shot-mode" role="group" aria-label="Скриншот">
+          <button type="button" data-mode="visible" aria-pressed="true">Видимая область</button>
+          <button type="button" data-mode="area" aria-pressed="false">Выделить область</button>
+          <button type="button" data-mode="none" aria-pressed="false">Без скриншота</button>
+        </div>
+      </div>
+      <div class="preview" id="preview"><img id="preview-img" alt="Скриншот" /></div>
+      <div class="hint" id="selection-hint"></div>
+
+      <div class="error" id="error" role="alert"></div>
+      <div class="actions">
+        <button type="button" class="ghost" id="open-options">Настройки</button>
+        <button type="button" class="primary" id="save">Сохранить в Vault</button>
+      </div>
+    </main>
+
+    <section class="done" id="done" aria-live="polite">
+      <span class="big">✓</span>
+      <span class="what" id="done-title"></span>
+      <span class="hint" id="done-type"></span>
+      <button type="button" class="ghost" id="close">Закрыть</button>
+    </section>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

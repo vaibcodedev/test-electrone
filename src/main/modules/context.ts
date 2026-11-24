@@ -28,7 +28,9 @@ export function updateArgs<T extends z.ZodType>(patch: T) {
 }
 
 /** Splits tagIds from the rest of a parsed input. */
-export function splitTags<T extends { tagIds?: string[] }>(input: T): [Omit<T, 'tagIds'>, string[] | undefined] {
+export function splitTags<T extends { tagIds?: string[] }>(
+  input: T
+): [Omit<T, 'tagIds'>, string[] | undefined] {
   const { tagIds, ...rest } = input
   return [rest, tagIds]
 }

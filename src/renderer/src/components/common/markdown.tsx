@@ -102,7 +102,6 @@ export function MarkdownField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          autoFocus={!value}
           style={{ minHeight }}
           className="px-4 py-3 text-[14px] leading-relaxed"
         />

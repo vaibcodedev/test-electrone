@@ -1,3 +1,4 @@
+import { pageSchema } from '@shared/domain/common'
 import { and, asc, eq, sql } from 'drizzle-orm'
 import type { IdeasApi } from '@shared/api'
 import {
@@ -50,13 +51,16 @@ export class IdeasModule {
     return {
       list: async (query) => {
         const q = ideaListQuerySchema.parse(query ?? {})
+        const page = pageSchema.parse(query ?? {})
         return this.repo.listWhere(
           [
             q.status ? eq(ideas.status, q.status) : undefined,
             this.repo.hasTag(q.tagId),
             this.repo.matches(q.search, [ideas.title, ideas.body])
           ],
-          [sql`${ideas.impact} DESC`, sql`${ideas.updatedAt} DESC`]
+          [sql`${ideas.impact} DESC`, sql`${ideas.updatedAt} DESC`],
+          page.limit,
+          page.offset
         )
       },
       get: async (id) => this.repo.get(idArg.parse(id)),
@@ -99,7 +103,12 @@ export class IdeasModule {
             })
           }
           this.repo.patch(idea.id, { boardId: board.id, status: 'in_progress' })
-          this.m.links.create({ fromType: 'idea', fromId: idea.id, toType: 'board', toId: board.id })
+          this.m.links.create({
+            fromType: 'idea',
+            fromId: idea.id,
+            toType: 'board',
+            toId: board.id
+          })
           return board
         })
       }

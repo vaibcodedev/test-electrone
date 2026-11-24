@@ -2,12 +2,14 @@ import { app, BrowserWindow, nativeTheme } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { Container } from './container'
+import { setupLogging } from './core/logger'
 import { registerRpc } from './ipc/rpc'
 import { handleAppProtocol, handleFileProtocol, registerSchemes } from './system/protocols'
 import { applyAutostart, launchedHidden } from './system/autostart'
 
 const APP_ID = 'dev.vault.app'
 
+setupLogging()
 registerSchemes()
 
 if (!app.requestSingleInstanceLock()) {

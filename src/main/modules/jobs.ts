@@ -1,3 +1,4 @@
+import { pageSchema } from '@shared/domain/common'
 /**
  * Job search backend: job boards with a daily habit, applications pipeline, interview stages synced
  * to calendar events (both directions), companies, resume versions with upload tracking, and a
@@ -106,8 +107,14 @@ const pct = (a: number, b: number): number => (b ? Math.round((a / b) * 1000) / 
 
 export class JobsModule {
   readonly descriptors: EntityDescriptor[]
-  readonly appRepo: SoftRepository<AppRow, Omit<Application, 'company' | 'nextStage' | 'stageCount'>>
-  private readonly companyRepo: SoftRepository<CompanyRow, Omit<Company, 'applicationCount' | 'activeCount'>>
+  readonly appRepo: SoftRepository<
+    AppRow,
+    Omit<Application, 'company' | 'nextStage' | 'stageCount'>
+  >
+  private readonly companyRepo: SoftRepository<
+    CompanyRow,
+    Omit<Company, 'applicationCount' | 'activeCount'>
+  >
   private readonly questionRepo: SoftRepository<QuestionRow, InterviewQuestion>
 
   constructor(
@@ -121,13 +128,21 @@ export class JobsModule {
         title: r.title,
         body: `${r.companyName}\n${r.description}\n${r.coverLetter}\n${r.notes}\n${r.contact}`
       }),
-      summary: (r) => ({ title: r.title, subtitle: [r.companyName, STATUS_LABEL[r.status as ApplicationStatus]].filter(Boolean).join(' — ') }),
+      summary: (r) => ({
+        title: r.title,
+        subtitle: [r.companyName, STATUS_LABEL[r.status as ApplicationStatus]]
+          .filter(Boolean)
+          .join(' — ')
+      }),
       onPurge: (r) => this.removeStageEvents(r.id)
     }
     const company: EntityDescriptor = {
       type: 'company',
       table: companies,
-      searchDoc: (r) => ({ title: r.name, body: `${r.stack}\n${r.location}\n${r.contacts}\n${r.notes}` }),
+      searchDoc: (r) => ({
+        title: r.name,
+        body: `${r.stack}\n${r.location}\n${r.contacts}\n${r.notes}`
+      }),
       summary: (r) => ({ title: r.name, subtitle: r.stack || r.location || undefined })
     }
     const question: EntityDescriptor = {
@@ -173,7 +188,13 @@ export class JobsModule {
     seed.forEach((b, i) =>
       this.db
         .insert(jobBoards)
-        .values({ ...jobBoardInputSchema.parse(b), id: newId(), position: i, createdAt: ts, updatedAt: ts })
+        .values({
+          ...jobBoardInputSchema.parse(b),
+          id: newId(),
+          position: i,
+          createdAt: ts,
+          updatedAt: ts
+        })
         .run()
     )
   }
@@ -203,9 +224,19 @@ export class JobsModule {
     const applied = this.db
       .select({ boardId: applications.boardId, at: applications.appliedAt })
       .from(applications)
-      .where(and(isNull(applications.deletedAt), isNotNull(applications.boardId), gte(applications.appliedAt, from)))
+      .where(
+        and(
+          isNull(applications.deletedAt),
+          isNotNull(applications.boardId),
+          gte(applications.appliedAt, from)
+        )
+      )
       .all()
-    const checks = this.db.select().from(boardCheckins).where(gte(boardCheckins.day, dayKey(from))).all()
+    const checks = this.db
+      .select()
+      .from(boardCheckins)
+      .where(gte(boardCheckins.day, dayKey(from)))
+      .all()
     return list.map((b) => {
       const history: BoardDay[] = []
       for (let ts = from; ts <= today; ts += DAY_MS) {
@@ -239,7 +270,11 @@ export class JobsModule {
     const a = this.db.select().from(applications).where(eq(applications.id, applicationId)).get()
     if (!a) return { title: '', company: '' }
     const company = a.companyId
-      ? (this.db.select({ name: companies.name }).from(companies).where(eq(companies.id, a.companyId)).get()?.name ?? a.companyName)
+      ? (this.db
+          .select({ name: companies.name })
+          .from(companies)
+          .where(eq(companies.id, a.companyId))
+          .get()?.name ?? a.companyName)
       : a.companyName
     return { title: a.title, company }
   }
@@ -253,7 +288,14 @@ export class JobsModule {
     const upsert = (
       eventId: string | null,
       want: boolean,
-      values: { title: string; startAt: number; endAt: number | null; allDay: boolean; color: string; source: string }
+      values: {
+        title: string
+        startAt: number
+        endAt: number | null
+        allDay: boolean
+        color: string
+        source: string
+      }
     ): string | null => {
       if (!want) {
         if (eventId) this.calendar.repo.softDelete(eventId)
@@ -270,7 +312,10 @@ export class JobsModule {
       }
       if (existing) {
         const timeChanged = existing.startAt !== values.startAt
-        this.calendar.repo.patch(existing.id, { ...data, ...(timeChanged ? { remindedFor: null, reminded2For: null } : {}) })
+        this.calendar.repo.patch(existing.id, {
+          ...data,
+          ...(timeChanged ? { remindedFor: null, reminded2For: null } : {})
+        })
         return existing.id
       }
       return this.calendar.repo.insert({
@@ -292,35 +337,68 @@ export class JobsModule {
       color: INTERVIEW_COLOR,
       source: STAGE_SOURCE
     })
-    const deadlineEventId = upsert(stage.deadlineEventId, !!stage.deadlineAt && !cancelled && stage.status === 'planned', {
-      title: `Сдать тестовое: ${who}`,
-      startAt: stage.deadlineAt ?? 0,
-      endAt: null,
-      allDay: false,
-      color: DEADLINE_COLOR,
-      source: STAGE_DEADLINE_SOURCE
-    })
+    const deadlineEventId = upsert(
+      stage.deadlineEventId,
+      !!stage.deadlineAt && !cancelled && stage.status === 'planned',
+      {
+        title: `Сдать тестовое: ${who}`,
+        startAt: stage.deadlineAt ?? 0,
+        endAt: null,
+        allDay: false,
+        color: DEADLINE_COLOR,
+        source: STAGE_DEADLINE_SOURCE
+      }
+    )
     if (eventId !== stage.eventId || deadlineEventId !== stage.deadlineEventId) {
-      this.db.update(applicationStages).set({ eventId, deadlineEventId }).where(eq(applicationStages.id, stage.id)).run()
+      this.db
+        .update(applicationStages)
+        .set({ eventId, deadlineEventId })
+        .where(eq(applicationStages.id, stage.id))
+        .run()
     }
   }
 
   /** Calendar → stage: the user moved the event in the calendar. */
-  private syncFromEvent(e: { id: string; sourceType: string | null; sourceId: string | null; startAt: number; endAt: number | null }): void {
-    if (!e.sourceId || (e.sourceType !== STAGE_SOURCE && e.sourceType !== STAGE_DEADLINE_SOURCE)) return
-    const stage = this.db.select().from(applicationStages).where(eq(applicationStages.id, e.sourceId)).get()
+  private syncFromEvent(e: {
+    id: string
+    sourceType: string | null
+    sourceId: string | null
+    startAt: number
+    endAt: number | null
+  }): void {
+    if (!e.sourceId || (e.sourceType !== STAGE_SOURCE && e.sourceType !== STAGE_DEADLINE_SOURCE))
+      return
+    const stage = this.db
+      .select()
+      .from(applicationStages)
+      .where(eq(applicationStages.id, e.sourceId))
+      .get()
     if (!stage) return
     const patch =
       e.sourceType === STAGE_SOURCE
-        ? { at: e.startAt, durationMin: e.endAt ? Math.max(15, Math.round((e.endAt - e.startAt) / 60_000)) : stage.durationMin }
+        ? {
+            at: e.startAt,
+            durationMin: e.endAt
+              ? Math.max(15, Math.round((e.endAt - e.startAt) / 60_000))
+              : stage.durationMin
+          }
         : { deadlineAt: e.startAt }
-    this.db.update(applicationStages).set({ ...patch, updatedAt: now() }).where(eq(applicationStages.id, stage.id)).run()
+    this.db
+      .update(applicationStages)
+      .set({ ...patch, updatedAt: now() })
+      .where(eq(applicationStages.id, stage.id))
+      .run()
   }
 
   private removeStageEvents(applicationId: string): void {
-    const stages = this.db.select().from(applicationStages).where(eq(applicationStages.applicationId, applicationId)).all()
+    const stages = this.db
+      .select()
+      .from(applicationStages)
+      .where(eq(applicationStages.applicationId, applicationId))
+      .all()
     for (const s of stages) {
-      for (const id of [s.eventId, s.deadlineEventId]) if (id && this.calendar.repo.row(id)) this.calendar.repo.softDelete(id)
+      for (const id of [s.eventId, s.deadlineEventId])
+        if (id && this.calendar.repo.row(id)) this.calendar.repo.softDelete(id)
     }
   }
 
@@ -350,12 +428,16 @@ export class JobsModule {
     return list.map((a) => {
       const mine = stages.filter((s) => s.applicationId === a.id)
       const next =
-        mine.find((s) => s.status === 'planned' && ((s.at ?? 0) >= t - 2 * 3600_000 || (s.deadlineAt ?? 0) >= t)) ??
-        mine.find((s) => s.status === 'planned')
+        mine.find(
+          (s) =>
+            s.status === 'planned' && ((s.at ?? 0) >= t - 2 * 3600_000 || (s.deadlineAt ?? 0) >= t)
+        ) ?? mine.find((s) => s.status === 'planned')
       return {
         ...a,
         company: (a.companyId && names.get(a.companyId)) || a.companyName,
-        nextStage: next ? { id: next.id, kind: next.kind as StageKind, at: next.at ?? next.deadlineAt } : null,
+        nextStage: next
+          ? { id: next.id, kind: next.kind as StageKind, at: next.at ?? next.deadlineAt }
+          : null,
         stageCount: mine.length
       }
     })
@@ -388,14 +470,22 @@ export class JobsModule {
         replied: sql<number>`sum(CASE WHEN ${applications.repliedAt} IS NOT NULL THEN 1 ELSE 0 END)`
       })
       .from(applications)
-      .where(and(isNull(applications.deletedAt), isNotNull(applications.resumeId), sql`${applications.status} != 'saved'`))
+      .where(
+        and(
+          isNull(applications.deletedAt),
+          isNotNull(applications.resumeId),
+          sql`${applications.status} != 'saved'`
+        )
+      )
       .groupBy(applications.resumeId)
       .all()
     return rows.map((r) => {
       const s = stats.find((x) => x.resumeId === r.id)
       return {
         ...r,
-        boards: uploads.filter((u) => u.resumeId === r.id).map((u) => ({ boardId: u.boardId, uploadedAt: u.uploadedAt })),
+        boards: uploads
+          .filter((u) => u.resumeId === r.id)
+          .map((u) => ({ boardId: u.boardId, uploadedAt: u.uploadedAt })),
         sent: s?.sent ?? 0,
         replied: s?.replied ?? 0,
         replyRate: pct(s?.replied ?? 0, s?.sent ?? 0)
@@ -407,8 +497,12 @@ export class JobsModule {
 
   private funnel(key: string, label: string, rows: AppRow[], stageApps: Set<string>): JobFunnelRow {
     const sent = rows.filter((r) => r.status !== 'saved')
-    const replied = sent.filter((r) => r.repliedAt !== null || REPLIED.includes(r.status as ApplicationStatus)).length
-    const interview = sent.filter((r) => stageApps.has(r.id) || ['interview', 'offer', 'accepted'].includes(r.status)).length
+    const replied = sent.filter(
+      (r) => r.repliedAt !== null || REPLIED.includes(r.status as ApplicationStatus)
+    ).length
+    const interview = sent.filter(
+      (r) => stageApps.has(r.id) || ['interview', 'offer', 'accepted'].includes(r.status)
+    ).length
     const offer = sent.filter((r) => r.status === 'offer' || r.status === 'accepted').length
     return {
       key,
@@ -440,16 +534,36 @@ export class JobsModule {
       ? this.db
           .select()
           .from(applicationStages)
-          .where(inArray(applicationStages.applicationId, rows.map((r) => r.id)))
+          .where(
+            inArray(
+              applicationStages.applicationId,
+              rows.map((r) => r.id)
+            )
+          )
           .all()
       : []
-    const interviewApps = new Set(stages.filter((s) => s.kind !== 'test_task').map((s) => s.applicationId))
-    const boardNames = new Map(this.boards(true).map((b) => [b.id, b.name]))
-    const resumeNames = new Map(this.db.select({ id: resumes.id, title: resumes.title }).from(resumes).all().map((r) => [r.id, r.title]))
-    const templateNames = new Map(
-      this.db.select({ id: messageTemplates.id, title: messageTemplates.title }).from(messageTemplates).all().map((t) => [t.id, t.title])
+    const interviewApps = new Set(
+      stages.filter((s) => s.kind !== 'test_task').map((s) => s.applicationId)
     )
-    const group = (keyOf: (r: AppRow) => string, labelOf: (k: string) => string): JobFunnelRow[] => {
+    const boardNames = new Map(this.boards(true).map((b) => [b.id, b.name]))
+    const resumeNames = new Map(
+      this.db
+        .select({ id: resumes.id, title: resumes.title })
+        .from(resumes)
+        .all()
+        .map((r) => [r.id, r.title])
+    )
+    const templateNames = new Map(
+      this.db
+        .select({ id: messageTemplates.id, title: messageTemplates.title })
+        .from(messageTemplates)
+        .all()
+        .map((t) => [t.id, t.title])
+    )
+    const group = (
+      keyOf: (r: AppRow) => string,
+      labelOf: (k: string) => string
+    ): JobFunnelRow[] => {
       const map = new Map<string, AppRow[]>()
       for (const r of rows) map.set(keyOf(r), [...(map.get(keyOf(r)) ?? []), r])
       return [...map.entries()]
@@ -458,7 +572,8 @@ export class JobsModule {
         .sort((a, b) => b.applied - a.applied)
     }
     const weeks = new Map<number, { applied: number; replied: number }>()
-    for (let w = startOfWeek(from); w <= to; w += 7 * DAY_MS) weeks.set(w, { applied: 0, replied: 0 })
+    for (let w = startOfWeek(from); w <= to; w += 7 * DAY_MS)
+      weeks.set(w, { applied: 0, replied: 0 })
     for (const r of rows) {
       if (r.status === 'saved') continue
       const b = weeks.get(startOfWeek(r.appliedAt ?? r.createdAt))
@@ -466,7 +581,9 @@ export class JobsModule {
       b.applied++
       if (r.repliedAt) b.replied++
     }
-    const replyDays = rows.filter((r) => r.repliedAt && r.appliedAt).map((r) => (r.repliedAt! - r.appliedAt!) / DAY_MS)
+    const replyDays = rows
+      .filter((r) => r.repliedAt && r.appliedAt)
+      .map((r) => (r.repliedAt! - r.appliedAt!) / DAY_MS)
     const kinds = new Map<StageKind, { total: number; passed: number }>()
     for (const s of stages) {
       const k = kinds.get(s.kind as StageKind) ?? { total: 0, passed: 0 }
@@ -477,11 +594,25 @@ export class JobsModule {
     return {
       range: { from, to },
       totals: this.funnel('all', 'Все', rows, interviewApps),
-      byBoard: group((r) => r.boardId ?? '—', (k) => boardNames.get(k) ?? 'Без площадки'),
-      byResume: group((r) => r.resumeId ?? '—', (k) => resumeNames.get(k) ?? 'Без резюме'),
-      byTemplate: group((r) => r.templateId ?? '—', (k) => templateNames.get(k) ?? 'Без шаблона'),
-      weekly: [...weeks.entries()].map(([w, v]) => ({ week: new Date(w).toISOString().slice(0, 10), ...v })),
-      avgReplyDays: replyDays.length ? Math.round((replyDays.reduce((s, x) => s + x, 0) / replyDays.length) * 10) / 10 : null,
+      byBoard: group(
+        (r) => r.boardId ?? '—',
+        (k) => boardNames.get(k) ?? 'Без площадки'
+      ),
+      byResume: group(
+        (r) => r.resumeId ?? '—',
+        (k) => resumeNames.get(k) ?? 'Без резюме'
+      ),
+      byTemplate: group(
+        (r) => r.templateId ?? '—',
+        (k) => templateNames.get(k) ?? 'Без шаблона'
+      ),
+      weekly: [...weeks.entries()].map(([w, v]) => ({
+        week: new Date(w).toISOString().slice(0, 10),
+        ...v
+      })),
+      avgReplyDays: replyDays.length
+        ? Math.round((replyDays.reduce((s, x) => s + x, 0) / replyDays.length) * 10) / 10
+        : null,
       stagesByKind: [...kinds.entries()].map(([kind, v]) => ({ kind, ...v }))
     }
   }
@@ -489,7 +620,12 @@ export class JobsModule {
   upcomingStages(limit = 10): StageWithApplication[] {
     const t = now() - 2 * 3600_000
     const rows = this.db
-      .select({ stage: applicationStages, title: applications.title, companyName: applications.companyName, companyId: applications.companyId })
+      .select({
+        stage: applicationStages,
+        title: applications.title,
+        companyName: applications.companyName,
+        companyId: applications.companyId
+      })
       .from(applicationStages)
       .innerJoin(applications, eq(applications.id, applicationStages.applicationId))
       .where(
@@ -513,7 +649,12 @@ export class JobsModule {
   pastStages(limit = 50): StageWithApplication[] {
     const t = now() - 2 * 3600_000
     const rows = this.db
-      .select({ stage: applicationStages, title: applications.title, companyName: applications.companyName, companyId: applications.companyId })
+      .select({
+        stage: applicationStages,
+        title: applications.title,
+        companyName: applications.companyName,
+        companyId: applications.companyId
+      })
       .from(applicationStages)
       .innerJoin(applications, eq(applications.id, applicationStages.applicationId))
       .where(
@@ -522,7 +663,9 @@ export class JobsModule {
           sql`(${applicationStages.status} != 'planned' OR coalesce(${applicationStages.deadlineAt}, ${applicationStages.at}, ${t + 1}) < ${t})`
         )
       )
-      .orderBy(sql`coalesce(${applicationStages.at}, ${applicationStages.deadlineAt}, ${applicationStages.createdAt}) DESC`)
+      .orderBy(
+        sql`coalesce(${applicationStages.at}, ${applicationStages.deadlineAt}, ${applicationStages.createdAt}) DESC`
+      )
       .limit(limit)
       .all()
     return rows.map((r) => ({
@@ -549,7 +692,9 @@ export class JobsModule {
     const qs = this.questionRepo
     const cos = this.companyRepo
     const appOne = (id: string): Application => this.enrich([apps.getOrThrow(id)])[0]
-    const companyWithCounts = (list: Omit<Company, 'applicationCount' | 'activeCount'>[]): Company[] => {
+    const companyWithCounts = (
+      list: Omit<Company, 'applicationCount' | 'activeCount'>[]
+    ): Company[] => {
       if (!list.length) return []
       const counts = this.db
         .select({
@@ -558,7 +703,15 @@ export class JobsModule {
           active: sql<number>`sum(CASE WHEN ${applications.closedAt} IS NULL THEN 1 ELSE 0 END)`
         })
         .from(applications)
-        .where(and(isNull(applications.deletedAt), inArray(applications.companyId, list.map((c) => c.id))))
+        .where(
+          and(
+            isNull(applications.deletedAt),
+            inArray(
+              applications.companyId,
+              list.map((c) => c.id)
+            )
+          )
+        )
         .groupBy(applications.companyId)
         .all()
       return list.map((c) => {
@@ -569,35 +722,71 @@ export class JobsModule {
 
     return {
       /* boards */
-      boards: async (args) => this.boards(z.object({ includeInactive: z.boolean().optional() }).parse(args ?? {}).includeInactive),
+      boards: async (args) =>
+        this.boards(
+          z.object({ includeInactive: z.boolean().optional() }).parse(args ?? {}).includeInactive
+        ),
       createBoard: async (input) => {
         const data = jobBoardInputSchema.parse(input)
-        const last = this.db.select({ m: max(jobBoards.position) }).from(jobBoards).get()
+        const last = this.db
+          .select({ m: max(jobBoards.position) })
+          .from(jobBoards)
+          .get()
         const ts = now()
         return this.toBoard(
-          this.db.insert(jobBoards).values({ ...data, id: newId(), position: (last?.m ?? 0) + 1, createdAt: ts, updatedAt: ts }).returning().get()
+          this.db
+            .insert(jobBoards)
+            .values({
+              ...data,
+              id: newId(),
+              position: (last?.m ?? 0) + 1,
+              createdAt: ts,
+              updatedAt: ts
+            })
+            .returning()
+            .get()
         )
       },
       updateBoard: async (args) => {
         const { id, patch } = updateArgs(jobBoardPatchSchema).parse(args)
-        const row = this.db.update(jobBoards).set({ ...patch, updatedAt: now() }).where(eq(jobBoards.id, id)).returning().get()
+        const row = this.db
+          .update(jobBoards)
+          .set({ ...patch, updatedAt: now() })
+          .where(eq(jobBoards.id, id))
+          .returning()
+          .get()
         if (!row) throw new NotFoundError('Площадка', id)
         return this.toBoard(row)
       },
       reorderBoards: async (ids) => {
         const list = z.array(idArg).parse(ids)
-        this.m.db.tx(() => list.forEach((id, i) => this.db.update(jobBoards).set({ position: i }).where(eq(jobBoards.id, id)).run()))
+        this.m.db.tx(() =>
+          list.forEach((id, i) =>
+            this.db.update(jobBoards).set({ position: i }).where(eq(jobBoards.id, id)).run()
+          )
+        )
       },
-      daily: async (args) => this.daily(z.object({ days: z.number().int().min(1).max(370).optional() }).parse(args ?? {}).days),
+      daily: async (args) =>
+        this.daily(
+          z.object({ days: z.number().int().min(1).max(370).optional() }).parse(args ?? {}).days
+        ),
       checkin: async (input) => {
         const data = checkinSchema.parse(input)
-        this.db.delete(boardCheckins).where(and(eq(boardCheckins.boardId, data.boardId), eq(boardCheckins.day, data.day))).run()
-        if (data.checked) this.db.insert(boardCheckins).values({ ...data, createdAt: now() }).run()
+        this.db
+          .delete(boardCheckins)
+          .where(and(eq(boardCheckins.boardId, data.boardId), eq(boardCheckins.day, data.day)))
+          .run()
+        if (data.checked)
+          this.db
+            .insert(boardCheckins)
+            .values({ ...data, createdAt: now() })
+            .run()
       },
 
       /* applications */
       list: async (query) => {
         const q = applicationListQuerySchema.parse(query ?? {})
+        const page = pageSchema.parse(query ?? {})
         return this.enrich(
           apps.listWhere(
             [
@@ -606,9 +795,16 @@ export class JobsModule {
               q.companyId ? eq(applications.companyId, q.companyId) : undefined,
               q.resumeId ? eq(applications.resumeId, q.resumeId) : undefined,
               apps.hasTag(q.tagId),
-              apps.matches(q.search, [applications.title, applications.companyName, applications.notes, applications.description])
+              apps.matches(q.search, [
+                applications.title,
+                applications.companyName,
+                applications.notes,
+                applications.description
+              ])
             ],
-            [sql`coalesce(${applications.appliedAt}, ${applications.createdAt}) DESC`]
+            [sql`coalesce(${applications.appliedAt}, ${applications.createdAt}) DESC`],
+            page.limit,
+            page.offset
           )
         )
       },
@@ -621,16 +817,29 @@ export class JobsModule {
             .select()
             .from(applicationStages)
             .where(eq(applicationStages.applicationId, a.id))
-            .orderBy(asc(sql`coalesce(${applicationStages.at}, ${applicationStages.deadlineAt}, ${applicationStages.createdAt})`))
+            .orderBy(
+              asc(
+                sql`coalesce(${applicationStages.at}, ${applicationStages.deadlineAt}, ${applicationStages.createdAt})`
+              )
+            )
             .all()
             .map((s) => this.toStage(s)),
-          questions: qs.listWhere([eq(interviewQuestions.applicationId, a.id)], [asc(interviewQuestions.createdAt)])
+          questions: qs.listWhere(
+            [eq(interviewQuestions.applicationId, a.id)],
+            [asc(interviewQuestions.createdAt)]
+          )
         }
       },
       create: async (input) => {
         const [data, tagIds] = splitTags(applicationInputSchema.parse(input))
         const created = apps.insert(
-          { ...data, appliedAt: data.appliedAt ?? (data.status === 'saved' ? null : now()), repliedAt: null, closedAt: null, ...this.stamps(data.status) },
+          {
+            ...data,
+            appliedAt: data.appliedAt ?? (data.status === 'saved' ? null : now()),
+            repliedAt: null,
+            closedAt: null,
+            ...this.stamps(data.status)
+          },
           tagIds
         )
         return appOne(created.id)
@@ -640,8 +849,16 @@ export class JobsModule {
         const [data, tagIds] = splitTags(patch)
         const current = apps.rowOrThrow(id)
         apps.patch(id, { ...data, ...this.stamps(data.status, current) }, tagIds)
-        if (data.title !== undefined || data.companyId !== undefined || data.companyName !== undefined) {
-          for (const s of this.db.select().from(applicationStages).where(eq(applicationStages.applicationId, id)).all()) {
+        if (
+          data.title !== undefined ||
+          data.companyId !== undefined ||
+          data.companyName !== undefined
+        ) {
+          for (const s of this.db
+            .select()
+            .from(applicationStages)
+            .where(eq(applicationStages.applicationId, id))
+            .all()) {
             this.syncStageEvents(s)
           }
         }
@@ -671,7 +888,14 @@ export class JobsModule {
         const ts = now()
         const row = this.db
           .insert(applicationStages)
-          .values({ ...data, id: newId(), eventId: null, deadlineEventId: null, createdAt: ts, updatedAt: ts })
+          .values({
+            ...data,
+            id: newId(),
+            eventId: null,
+            deadlineEventId: null,
+            createdAt: ts,
+            updatedAt: ts
+          })
           .returning()
           .get()
         this.syncStageEvents(row)
@@ -680,7 +904,9 @@ export class JobsModule {
         if (!CLOSED.includes(app.status as ApplicationStatus) && app.status !== 'offer') {
           apps.patch(app.id, { status: nextStatus, ...this.stamps(nextStatus, app) })
         } else apps.touch(app.id)
-        return this.toStage(this.db.select().from(applicationStages).where(eq(applicationStages.id, row.id)).get()!)
+        return this.toStage(
+          this.db.select().from(applicationStages).where(eq(applicationStages.id, row.id)).get()!
+        )
       },
       updateStage: async (args) => {
         const { id, patch } = updateArgs(stagePatchSchema).parse(args)
@@ -693,21 +919,35 @@ export class JobsModule {
         if (!row) throw new NotFoundError('Этап', id)
         this.syncStageEvents(row)
         apps.touch(row.applicationId)
-        return this.toStage(this.db.select().from(applicationStages).where(eq(applicationStages.id, id)).get()!)
+        return this.toStage(
+          this.db.select().from(applicationStages).where(eq(applicationStages.id, id)).get()!
+        )
       },
       removeStage: async (id) => {
-        const row = this.db.select().from(applicationStages).where(eq(applicationStages.id, idArg.parse(id))).get()
+        const row = this.db
+          .select()
+          .from(applicationStages)
+          .where(eq(applicationStages.id, idArg.parse(id)))
+          .get()
         if (!row) return
-        for (const e of [row.eventId, row.deadlineEventId]) if (e && this.calendar.repo.row(e)) this.calendar.repo.softDelete(e)
+        for (const e of [row.eventId, row.deadlineEventId])
+          if (e && this.calendar.repo.row(e)) this.calendar.repo.softDelete(e)
         this.db.delete(applicationStages).where(eq(applicationStages.id, row.id)).run()
       },
-      upcoming: async (limit) => this.upcomingStages(z.number().int().min(1).max(100).optional().parse(limit)),
-      pastStages: async (limit) => this.pastStages(z.number().int().min(1).max(500).optional().parse(limit)),
+      upcoming: async (limit) =>
+        this.upcomingStages(z.number().int().min(1).max(100).optional().parse(limit)),
+      pastStages: async (limit) =>
+        this.pastStages(z.number().int().min(1).max(500).optional().parse(limit)),
 
       /* companies */
       companies: async (query) => {
         const q = z.object({ search: z.string().max(200).optional() }).parse(query ?? {})
-        return companyWithCounts(cos.listWhere([cos.matches(q.search, [companies.name, companies.stack, companies.notes])], [asc(companies.name)]))
+        return companyWithCounts(
+          cos.listWhere(
+            [cos.matches(q.search, [companies.name, companies.stack, companies.notes])],
+            [asc(companies.name)]
+          )
+        )
       },
       company: async (id) => {
         const c = cos.get(idArg.parse(id))
@@ -727,7 +967,9 @@ export class JobsModule {
       /* resumes */
       resumes: async () => this.resumeList(),
       createResume: async (args) => {
-        const { input, source } = z.object({ input: resumeInputSchema, source: fileSourceSchema.optional() }).parse(args)
+        const { input, source } = z
+          .object({ input: resumeInputSchema, source: fileSourceSchema.optional() })
+          .parse(args)
         const stored = source ? await this.m.files.import(source) : null
         const ts = now()
         const id = newId()
@@ -753,7 +995,11 @@ export class JobsModule {
         const { id, patch } = updateArgs(resumePatchSchema).parse(args)
         this.m.db.tx(() => {
           if (patch.isCurrent) this.db.update(resumes).set({ isCurrent: false }).run()
-          this.db.update(resumes).set({ ...patch, updatedAt: now() }).where(eq(resumes.id, id)).run()
+          this.db
+            .update(resumes)
+            .set({ ...patch, updatedAt: now() })
+            .where(eq(resumes.id, id))
+            .run()
         })
         const r = this.resumeList().find((x) => x.id === id)
         if (!r) throw new NotFoundError('Резюме', id)
@@ -766,28 +1012,45 @@ export class JobsModule {
         const stored = await this.m.files.import(source)
         this.db
           .update(resumes)
-          .set({ filePath: stored.path, fileName: stored.originalName, mime: stored.mime, size: stored.size, updatedAt: now() })
+          .set({
+            filePath: stored.path,
+            fileName: stored.originalName,
+            mime: stored.mime,
+            size: stored.size,
+            updatedAt: now()
+          })
           .where(eq(resumes.id, id))
           .run()
         this.m.files.remove(cur.filePath)
         return this.resumeList().find((r) => r.id === id)!
       },
       removeResume: async (id) => {
-        const cur = this.db.select().from(resumes).where(eq(resumes.id, idArg.parse(id))).get()
+        const cur = this.db
+          .select()
+          .from(resumes)
+          .where(eq(resumes.id, idArg.parse(id)))
+          .get()
         if (!cur) return
         this.db.delete(resumeBoards).where(eq(resumeBoards.resumeId, cur.id)).run()
         this.db.delete(resumes).where(eq(resumes.id, cur.id)).run()
         this.m.files.remove(cur.filePath)
       },
       setResumeUploaded: async (args) => {
-        const { resumeId, boardId, uploaded } = z.object({ resumeId: idArg, boardId: idArg, uploaded: z.boolean() }).parse(args)
-        this.db.delete(resumeBoards).where(and(eq(resumeBoards.resumeId, resumeId), eq(resumeBoards.boardId, boardId))).run()
-        if (uploaded) this.db.insert(resumeBoards).values({ resumeId, boardId, uploadedAt: now() }).run()
+        const { resumeId, boardId, uploaded } = z
+          .object({ resumeId: idArg, boardId: idArg, uploaded: z.boolean() })
+          .parse(args)
+        this.db
+          .delete(resumeBoards)
+          .where(and(eq(resumeBoards.resumeId, resumeId), eq(resumeBoards.boardId, boardId)))
+          .run()
+        if (uploaded)
+          this.db.insert(resumeBoards).values({ resumeId, boardId, uploadedAt: now() }).run()
       },
 
       /* questions */
       questions: async (query) => {
         const q = questionListQuerySchema.parse(query ?? {})
+        const page = pageSchema.parse(query ?? {})
         return qs.listWhere(
           [
             q.category ? eq(interviewQuestions.category, q.category) : undefined,
@@ -795,15 +1058,36 @@ export class JobsModule {
             q.companyId ? eq(interviewQuestions.companyId, q.companyId) : undefined,
             q.applicationId ? eq(interviewQuestions.applicationId, q.applicationId) : undefined,
             qs.hasTag(q.tagId),
-            qs.matches(q.search, [interviewQuestions.question, interviewQuestions.answer, interviewQuestions.topic])
+            qs.matches(q.search, [
+              interviewQuestions.question,
+              interviewQuestions.answer,
+              interviewQuestions.topic
+            ])
           ],
-          [asc(interviewQuestions.category), asc(interviewQuestions.topic), desc(interviewQuestions.updatedAt)]
+          [
+            asc(interviewQuestions.category),
+            asc(interviewQuestions.topic),
+            desc(interviewQuestions.updatedAt)
+          ],
+          page.limit,
+          page.offset
         )
       },
       question: async (id) => qs.get(idArg.parse(id)),
       createQuestion: async (input) => {
         const [data, tagIds] = splitTags(questionInputSchema.parse(input))
-        return qs.insert({ ...data, ease: 2.5, intervalDays: 0, repetitions: 0, lapses: 0, dueAt: now(), lastReviewedAt: null }, tagIds)
+        return qs.insert(
+          {
+            ...data,
+            ease: 2.5,
+            intervalDays: 0,
+            repetitions: 0,
+            lapses: 0,
+            dueAt: now(),
+            lastReviewedAt: null
+          },
+          tagIds
+        )
       },
       updateQuestion: async (args) => {
         const { id, patch } = updateArgs(questionPatchSchema).parse(args)
@@ -821,10 +1105,16 @@ export class JobsModule {
           .sort((a, b) => a.localeCompare(b, 'ru')),
       practiceQueue: async (args) => {
         const q = z
-          .object({ limit: z.number().int().min(1).max(200).optional(), category: z.enum(['technical', 'behavioral', 'company', 'salary', 'other']).optional() })
+          .object({
+            limit: z.number().int().min(1).max(200).optional(),
+            category: z.enum(['technical', 'behavioral', 'company', 'salary', 'other']).optional()
+          })
           .parse(args ?? {})
         return qs.listWhere(
-          [lte(interviewQuestions.dueAt, now()), q.category ? eq(interviewQuestions.category, q.category) : undefined],
+          [
+            lte(interviewQuestions.dueAt, now()),
+            q.category ? eq(interviewQuestions.category, q.category) : undefined
+          ],
           [asc(interviewQuestions.dueAt)],
           q.limit ?? 30
         )
@@ -832,12 +1122,19 @@ export class JobsModule {
       reviewQuestion: async (args) => {
         const { id, grade } = questionReviewSchema.parse(args)
         const row = qs.rowOrThrow(id)
-        this.db.update(interviewQuestions).set(schedule(row, grade as ReviewGrade, now())).where(eq(interviewQuestions.id, id)).run()
+        this.db
+          .update(interviewQuestions)
+          .set(schedule(row, grade as ReviewGrade, now()))
+          .where(eq(interviewQuestions.id, id))
+          .run()
         return qs.getOrThrow(id)
       },
 
       /* stats & overview */
-      stats: async (args) => this.stats(z.object({ from: z.number().optional(), to: z.number().optional() }).parse(args ?? {})),
+      stats: async (args) =>
+        this.stats(
+          z.object({ from: z.number().optional(), to: z.number().optional() }).parse(args ?? {})
+        ),
       overview: async () => ({
         today: this.daily(28),
         upcoming: this.upcomingStages(6),
@@ -846,7 +1143,13 @@ export class JobsModule {
           this.db
             .select({ c: sql<number>`count(*)` })
             .from(applications)
-            .where(and(isNull(applications.deletedAt), isNull(applications.closedAt), sql`${applications.status} != 'saved'`))
+            .where(
+              and(
+                isNull(applications.deletedAt),
+                isNull(applications.closedAt),
+                sql`${applications.status} != 'saved'`
+              )
+            )
             .get()?.c ?? 0,
         offers:
           this.db
@@ -860,7 +1163,13 @@ export class JobsModule {
   }
 
   applicationOfStage(stageId: string): string | null {
-    return this.db.select({ a: applicationStages.applicationId }).from(applicationStages).where(eq(applicationStages.id, stageId)).get()?.a ?? null
+    return (
+      this.db
+        .select({ a: applicationStages.applicationId })
+        .from(applicationStages)
+        .where(eq(applicationStages.id, stageId))
+        .get()?.a ?? null
+    )
   }
 
   /** Interview events are identified for the calendar feed. */

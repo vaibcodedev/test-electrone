@@ -8,6 +8,9 @@ import { router } from '@/app/router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { useApplyTheme } from '@/hooks/use-theme'
+import { installErrorReporting } from '@/lib/error-reporting'
+
+installErrorReporting()
 
 function Root() {
   useApplyTheme()

@@ -7,6 +7,8 @@ interface UiState {
   paletteOpen: boolean
   setPaletteOpen: (open: boolean) => void
   quickAddOpen: boolean
+  shortcutsOpen: boolean
+  setShortcutsOpen: (open: boolean) => void
   /** Target preselected when the quick-add dialog opens (e.g. 'card' from the «Новая задача» tile). */
   quickAddTarget: QuickAddTarget | undefined
   setQuickAddOpen: (open: boolean, target?: QuickAddTarget) => void
@@ -29,6 +31,8 @@ export const useUi = create<UiState>()(
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       quickAddOpen: false,
+      shortcutsOpen: false,
+      setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
       quickAddTarget: undefined,
       setQuickAddOpen: (quickAddOpen, quickAddTarget) =>
         set(quickAddOpen ? { quickAddOpen, quickAddTarget } : { quickAddOpen }),

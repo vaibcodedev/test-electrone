@@ -40,7 +40,11 @@ function addInterval(ts: number, rec: Recurrence, n: number): number {
 }
 
 /** Start times of every occurrence of an event overlapping [from, to]. Pure, exported for tests. */
-export function occurrences(e: Pick<EventRow, 'startAt' | 'endAt' | 'recurrence'>, from: number, to: number): number[] {
+export function occurrences(
+  e: Pick<EventRow, 'startAt' | 'endAt' | 'recurrence'>,
+  from: number,
+  to: number
+): number[] {
   const duration = e.endAt ? e.endAt - e.startAt : 0
   const rec = e.recurrence as Recurrence
   if (rec === 'none') return e.startAt <= to && e.startAt + duration >= from ? [e.startAt] : []
@@ -98,7 +102,10 @@ export class CalendarModule {
       searchDoc: (r) => ({ title: r.title, body: r.description }),
       summary: (r) => ({
         title: r.title,
-        subtitle: new Date(r.startAt).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: r.allDay ? undefined : 'short' })
+        subtitle: new Date(r.startAt).toLocaleString('ru-RU', {
+          dateStyle: 'medium',
+          timeStyle: r.allDay ? undefined : 'short'
+        })
       })
     }
     this.repo = new SoftRepository(m.repo, this.descriptor, (r, tags) => ({
@@ -113,7 +120,11 @@ export class CalendarModule {
     return this.repo.listWhere(
       [
         or(
-          and(eq(events.recurrence, 'none'), lte(events.startAt, to), or(gte(events.startAt, from), gte(events.endAt, from))),
+          and(
+            eq(events.recurrence, 'none'),
+            lte(events.startAt, to),
+            or(gte(events.startAt, from), gte(events.endAt, from))
+          ),
           and(ne(events.recurrence, 'none'), lte(events.startAt, to))
         )
       ],
@@ -167,7 +178,12 @@ export class CalendarModule {
       })
     }
     const deadlines = this.m.db.orm
-      .select({ id: projects.id, title: projects.title, dueAt: projects.dueAt, status: projects.status })
+      .select({
+        id: projects.id,
+        title: projects.title,
+        dueAt: projects.dueAt,
+        status: projects.status
+      })
       .from(projects)
       .where(and(isNull(projects.deletedAt), gte(projects.dueAt, from), lte(projects.dueAt, to)))
       .all()
@@ -195,15 +211,25 @@ export class CalendarModule {
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
         const [data, tagIds] = splitTags(eventInputSchema.parse(input))
-        return repo.insert({ ...data, remindedFor: null, reminded2For: null, sourceType: null, sourceId: null }, tagIds)
+        return repo.insert(
+          { ...data, remindedFor: null, reminded2For: null, sourceType: null, sourceId: null },
+          tagIds
+        )
       },
       update: async (args) => {
         const { id, patch } = updateArgs(eventPatchSchema).parse(args)
         const [data, tagIds] = splitTags(patch)
         // Changing time or reminder re-arms the reminder.
         const rearm =
-          data.startAt !== undefined || data.remindMinutes !== undefined || data.remind2Minutes !== undefined || data.recurrence !== undefined
-        const updated = repo.patch(id, { ...data, ...(rearm ? { remindedFor: null, reminded2For: null } : {}) }, tagIds)
+          data.startAt !== undefined ||
+          data.remindMinutes !== undefined ||
+          data.remind2Minutes !== undefined ||
+          data.recurrence !== undefined
+        const updated = repo.patch(
+          id,
+          { ...data, ...(rearm ? { remindedFor: null, reminded2For: null } : {}) },
+          tagIds
+        )
         if (data.startAt !== undefined || data.endAt !== undefined) {
           const row = repo.row(id)
           if (row) for (const l of this.listeners) l(row)

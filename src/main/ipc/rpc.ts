@@ -4,6 +4,7 @@ import { ZodError } from 'zod'
 import { RPC_CHANNEL, type Api, type RpcResult } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import type { EventBus } from '../core/event-bus'
+import { log } from '../core/logger'
 
 /** Only our own pages may call the API (defence against a navigated/injected frame). */
 function trustedSender(event: IpcMainInvokeEvent): boolean {
@@ -75,7 +76,9 @@ export function registerRpc(api: Api, bus: EventBus): void {
       }
       return { ok: true, data }
     } catch (e) {
-      if (is.dev) console.error(`[rpc] ${path}`, e)
+      // Validation/user errors are expected (warn); anything else is a bug (error with stack).
+      if (e instanceof ZodError || (e as { code?: string }).code) log.warn(`[rpc] ${path}: ${(e as Error).message}`)
+      else log.error(`[rpc] ${path}`, e)
       return { ok: false, ...formatError(e) }
     }
   })

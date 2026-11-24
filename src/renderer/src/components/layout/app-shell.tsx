@@ -1,4 +1,4 @@
-import { Suspense, useEffect, type CSSProperties } from 'react'
+import { useCallback, Suspense, type CSSProperties } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
 import { AppSidebar } from './sidebar'
@@ -13,9 +13,12 @@ const PlatformDialogHost = lazy(async () => ({
   default: (await import('@/modules/freelance')).PlatformDialogHost
 }))
 import { useUi } from '@/stores/ui-store'
-import { useMainEventsBridge } from '@/hooks/use-main-events'
+import { useMainEvent, useMainEventsBridge } from '@/hooks/use-main-events'
+import { toast } from 'sonner'
+import type { MainEvents } from '@shared/api'
 import { useHotkey } from '@/hooks/use-hotkey'
-import { ALL_NAV_ITEMS } from '@/app/navigation'
+import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts'
+import { ShortcutsDialog } from '@/features/shortcuts-dialog'
 
 function TitleBar() {
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
@@ -60,21 +63,16 @@ function TitleBar() {
 
 /** Window layout: custom title bar on the sage frame, sidebar, and the main paper panel. */
 export function AppShell() {
-  const navigate = useNavigate()
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
   useMainEventsBridge()
-  // Alt+1…9 → first nine sections.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || !/^Digit[1-9]$/.test(e.code)) return
-      const item = ALL_NAV_ITEMS[Number(e.code.slice(5)) - 1]
-      if (!item) return
-      e.preventDefault()
-      navigate(item.path)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [navigate])
+  // Background messages from main (e.g. «команда code не найдена»).
+  const onToast = useCallback((t: MainEvents['toast']) => {
+    if (t.kind === 'error') toast.error(t.message)
+    else if (t.kind === 'success') toast.success(t.message)
+    else toast.info(t.message)
+  }, [])
+  useMainEvent('toast', onToast)
+  useGlobalShortcuts()
   useHotkey('mod+n', () => setQuickAddOpen(true), { allowInInputs: true })
 
   return (
@@ -93,6 +91,7 @@ export function AppShell() {
       </SidebarProvider>
       <CommandPalette />
       <QuickAddDialog />
+      <ShortcutsDialog />
       <Suspense fallback={null}>
         <PlatformDialogHost />
       </Suspense>

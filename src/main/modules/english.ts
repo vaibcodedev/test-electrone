@@ -1,3 +1,4 @@
+import { pageSchema } from '@shared/domain/common'
 /**
  * English vocabulary from work with spaced repetition (SM-2 variant with 4 grades).
  * Grades: 0 forgot · 1 hard · 2 good · 3 easy.
@@ -25,7 +26,9 @@ import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 
 type WordRow = typeof words.$inferSelect
 
-export function stageOf(r: Pick<WordRow, 'repetitions' | 'intervalDays' | 'lastReviewedAt'>): WordStage {
+export function stageOf(
+  r: Pick<WordRow, 'repetitions' | 'intervalDays' | 'lastReviewedAt'>
+): WordStage {
   if (!r.lastReviewedAt) return 'new'
   if (r.intervalDays >= 30) return 'mastered'
   if (r.intervalDays >= 7) return 'review'
@@ -54,7 +57,14 @@ export function schedule(
   else intervalDays = Math.round(intervalDays * ease * (q === 3 ? 0.8 : q === 5 ? 1.3 : 1))
   intervalDays = Math.min(intervalDays, 365)
   repetitions += 1
-  return { ease, intervalDays, repetitions, lapses, dueAt: startOfDay(at + intervalDays * DAY_MS) + 4 * 3600_000, lastReviewedAt: at }
+  return {
+    ease,
+    intervalDays,
+    repetitions,
+    lapses,
+    dueAt: startOfDay(at + intervalDays * DAY_MS) + 4 * 3600_000,
+    lastReviewedAt: at
+  }
 }
 
 export class EnglishModule {
@@ -135,18 +145,29 @@ export class EnglishModule {
     return {
       list: async (query) => {
         const q = wordListQuerySchema.parse(query ?? {})
+        const page = pageSchema.parse(query ?? {})
         const list = repo.listWhere([
           q.kind ? eq(words.kind, q.kind) : undefined,
           repo.hasTag(q.tagId),
           repo.matches(q.search, [words.term, words.translation, words.example, words.context])
         ])
-        return q.stage ? list.filter((w) => w.stage === q.stage) : list
+        const filtered = q.stage ? list.filter((w) => w.stage === q.stage) : list
+        const start = page.offset ?? 0
+        return page.limit ? filtered.slice(start, start + page.limit) : filtered.slice(start)
       },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
         const [data, tagIds] = splitTags(wordInputSchema.parse(input))
         return repo.insert(
-          { ...data, ease: 2.5, intervalDays: 0, repetitions: 0, lapses: 0, dueAt: now(), lastReviewedAt: null },
+          {
+            ...data,
+            ease: 2.5,
+            intervalDays: 0,
+            repetitions: 0,
+            lapses: 0,
+            dueAt: now(),
+            lastReviewedAt: null
+          },
           tagIds
         )
       },

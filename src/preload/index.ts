@@ -6,7 +6,7 @@ import { MAIN_EVENTS, RPC_CHANNEL, type MainEventName, type RpcResult } from '@s
  * - rpc: one invoke channel, path validated here and again (with zod) in main.
  * - on: whitelisted main → renderer events.
  */
-const RPC_PATH = /^[a-z]+\.[a-zA-Z]+$/
+const RPC_PATH = /^[a-z][a-zA-Z]*\.[a-zA-Z]+$/
 
 const bridge = {
   rpc(path: string, arg?: unknown): Promise<RpcResult> {

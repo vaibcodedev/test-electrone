@@ -182,5 +182,33 @@ export default function Demo() {
   const resumes = await call('jobs.resumes')
   console.log('jobs ok: applied', js.totals.applied, 'interviews', js.totals.interview, 'upcoming', jo.upcoming.length, 'resume sent', resumes[0].sent)
 
+  // ── dev projects, capture bridge, weekly review
+  const { resolve: res } = await import('path')
+  const proj = await call('devProjects.create', { name: 'Vault', path: res('.') })
+  if (!proj.scripts.dev || !proj.git) throw new Error('project scan failed ' + JSON.stringify({ scripts: Object.keys(proj.scripts), git: proj.git }))
+  const cap = await call('capture.info')
+  const base = `http://127.0.0.1:${cap.port}`
+  let ping = null
+  for (let i = 0; i < 10 && !ping; i++) {
+    try {
+      ping = await (await fetch(`${base}/ping`, { headers: { 'X-Vault-Key': cap.token } })).json()
+    } catch {
+      await new Promise((r) => setTimeout(r, 300))
+    }
+  }
+  if (!ping?.ok) throw new Error('capture /ping failed')
+  const bad = await fetch(`${base}/ping`, { headers: { 'X-Vault-Key': 'wrong' } })
+  if (bad.status !== 401) throw new Error('capture accepted a wrong key')
+  const saved = await (
+    await fetch(`${base}/capture`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vault-Key': cap.token },
+      body: JSON.stringify({ target: 'bookmark', url: 'https://www.youtube.com/watch?v=abc', title: 'Видео про Electron', tags: ['electron'] })
+    })
+  ).json()
+  if (!saved.ok || saved.type !== 'bookmark') throw new Error('capture failed ' + JSON.stringify(saved))
+  const week = await call('review.get')
+  console.log('dev ok: scripts', Object.keys(proj.scripts).length, 'branch', proj.git.branch, '| capture ok', saved.title, '| review sections', week.snapshot.sections.length)
+
   console.log('seed ok; search hits:', hits.length, 'week minutes:', ov.weekMinutes)
 }

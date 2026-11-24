@@ -1,5 +1,6 @@
 import {
   QueryClient,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   type UseMutationOptions,
@@ -71,4 +72,32 @@ export function useApiMutation<N extends ApiNamespace, M extends MethodOf<N>>(
     },
     ...rest
   })
+}
+
+/**
+ * Infinite (paged) list bound to an API list method that accepts { limit, offset }.
+ * Pair with <VirtualList hasMore loadingMore onLoadMore …/>. Filters go in `query`.
+ */
+export function useInfiniteApi<N extends ApiNamespace, M extends MethodOf<N>>(
+  ns: N,
+  method: M,
+  query: Record<string, unknown> = {},
+  pageSize = 100
+) {
+  const result = useInfiniteQuery({
+    queryKey: [ns, method, 'infinite', query, pageSize],
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      call(ns, method, { ...query, limit: pageSize, offset: pageParam } as ArgOf<N, M>) as Promise<unknown[]>,
+    getNextPageParam: (lastPage: unknown[], pages) => (lastPage.length === pageSize ? pages.length * pageSize : undefined)
+  })
+  type Item = ResultOf<N, M> extends (infer I)[] ? I : never
+  const items = (result.data?.pages.flat() ?? []) as Item[]
+  return {
+    ...result,
+    items,
+    hasMore: !!result.hasNextPage,
+    loadingMore: result.isFetchingNextPage,
+    loadMore: () => void result.fetchNextPage()
+  }
 }

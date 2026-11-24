@@ -1,3 +1,4 @@
+import { pageSchema } from '@shared/domain/common'
 /**
  * Freelance hub backend: platforms, proposals pipeline, bid credits ledger, message templates,
  * portfolio cases, red flags, goals and funnel statistics.
@@ -74,7 +75,16 @@ import {
 } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { DAY_MS, newId, now, NotFoundError, startOfDay, startOfMonth, startOfWeek, UserError } from '../core/util'
+import {
+  DAY_MS,
+  newId,
+  now,
+  NotFoundError,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
+  UserError
+} from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 import { createCrudApi } from './crud'
 import type { CrmModule } from './crm'
@@ -115,7 +125,14 @@ const SITUATION_LABEL: Record<TemplateSituation, string> = {
 }
 
 /** Pipeline rank: how far a status got. Terminal "negative" statuses rank by timestamps instead. */
-const RANK: Partial<Record<ProposalStatus, number>> = { sent: 1, viewed: 2, replied: 3, interview: 4, offer: 5, hired: 6 }
+const RANK: Partial<Record<ProposalStatus, number>> = {
+  sent: 1,
+  viewed: 2,
+  replied: 3,
+  interview: 4,
+  offer: 5,
+  hired: 6
+}
 const REPLIED_STATUSES: ProposalStatus[] = ['replied', 'interview', 'offer', 'hired']
 
 const pct = (a: number, b: number): number => (b ? Math.round((a / b) * 1000) / 10 : 0)
@@ -123,7 +140,10 @@ const pct = (a: number, b: number): number => (b ? Math.round((a / b) * 1000) / 
 export class FreelanceModule {
   readonly descriptors: EntityDescriptor[]
   readonly proposalRepo: SoftRepository<ProposalRow, Proposal>
-  private readonly templateRepo: SoftRepository<TemplateRow, Omit<MessageTemplate, 'usedIn' | 'replied' | 'hired'>>
+  private readonly templateRepo: SoftRepository<
+    TemplateRow,
+    Omit<MessageTemplate, 'usedIn' | 'replied' | 'hired'>
+  >
   private readonly caseRepo: SoftRepository<CaseRow, PortfolioCase>
   private readonly flagRepo: SoftRepository<RedFlagRow, RedFlag>
 
@@ -138,13 +158,22 @@ export class FreelanceModule {
         title: r.jobTitle,
         body: `${r.niche}\n${r.clientName}\n${r.clientCountry}\n${r.coverLetter}\n${r.jobDescription}\n${r.notes}`
       }),
-      summary: (r) => ({ title: r.jobTitle, subtitle: PROPOSAL_STATUS_LABEL[r.status as ProposalStatus] })
+      summary: (r) => ({
+        title: r.jobTitle,
+        subtitle: PROPOSAL_STATUS_LABEL[r.status as ProposalStatus]
+      })
     }
     const template: EntityDescriptor = {
       type: 'template',
       table: messageTemplates,
-      searchDoc: (r) => ({ title: r.title, body: `${r.trigger}\n${r.body}\n${r.note}\n${r.niche}` }),
-      summary: (r) => ({ title: r.title, subtitle: SITUATION_LABEL[r.situation as TemplateSituation] })
+      searchDoc: (r) => ({
+        title: r.title,
+        body: `${r.trigger}\n${r.body}\n${r.note}\n${r.niche}`
+      }),
+      summary: (r) => ({
+        title: r.title,
+        subtitle: SITUATION_LABEL[r.situation as TemplateSituation]
+      })
     }
     const portfolioCase: EntityDescriptor = {
       type: 'case',
@@ -192,10 +221,17 @@ export class FreelanceModule {
       FREELANCE_SEED.platforms.forEach((p, i) => {
         this.db
           .insert(platforms)
-          .values({ ...platformInputSchema.parse(p), id: newId(), position: i, createdAt: ts, updatedAt: ts })
+          .values({
+            ...platformInputSchema.parse(p),
+            id: newId(),
+            position: i,
+            createdAt: ts,
+            updatedAt: ts
+          })
           .run()
       })
-      for (const t of FREELANCE_SEED.templates) this.templateRepo.insert({ ...templateInputSchema.parse(t), copyCount: 0 })
+      for (const t of FREELANCE_SEED.templates)
+        this.templateRepo.insert({ ...templateInputSchema.parse(t), copyCount: 0 })
       for (const f of FREELANCE_SEED.redFlags) this.flagRepo.insert(redFlagInputSchema.parse(f))
     })
   }
@@ -215,7 +251,9 @@ export class FreelanceModule {
   platformsApi(): PlatformsApi {
     return {
       list: async (args) => {
-        const { includeArchived } = z.object({ includeArchived: z.boolean().optional() }).parse(args ?? {})
+        const { includeArchived } = z
+          .object({ includeArchived: z.boolean().optional() })
+          .parse(args ?? {})
         return this.db
           .select()
           .from(platforms)
@@ -225,16 +263,29 @@ export class FreelanceModule {
           .map((r) => this.toPlatform(r))
       },
       get: async (id) => {
-        const r = this.db.select().from(platforms).where(eq(platforms.id, idArg.parse(id))).get()
+        const r = this.db
+          .select()
+          .from(platforms)
+          .where(eq(platforms.id, idArg.parse(id)))
+          .get()
         return r ? this.toPlatform(r) : null
       },
       create: async (input) => {
         const data = platformInputSchema.parse(input)
-        const last = this.db.select({ m: max(platforms.position) }).from(platforms).get()
+        const last = this.db
+          .select({ m: max(platforms.position) })
+          .from(platforms)
+          .get()
         const ts = now()
         const row = this.db
           .insert(platforms)
-          .values({ ...data, id: newId(), position: (last?.m ?? 0) + 1, createdAt: ts, updatedAt: ts })
+          .values({
+            ...data,
+            id: newId(),
+            position: (last?.m ?? 0) + 1,
+            createdAt: ts,
+            updatedAt: ts
+          })
           .returning()
           .get()
         return this.toPlatform(row)
@@ -252,7 +303,11 @@ export class FreelanceModule {
       },
       reorder: async (ids) => {
         const list = z.array(idArg).parse(ids)
-        this.m.db.tx(() => list.forEach((id, i) => this.db.update(platforms).set({ position: i }).where(eq(platforms.id, id)).run()))
+        this.m.db.tx(() =>
+          list.forEach((id, i) =>
+            this.db.update(platforms).set({ position: i }).where(eq(platforms.id, id)).run()
+          )
+        )
       }
     }
   }
@@ -275,6 +330,7 @@ export class FreelanceModule {
     return {
       list: async (query) => {
         const q = proposalListQuerySchema.parse(query ?? {})
+        const page = pageSchema.parse(query ?? {})
         return repo.listWhere(
           [
             q.platformId ? eq(proposals.platformId, q.platformId) : undefined,
@@ -282,9 +338,16 @@ export class FreelanceModule {
             q.niche ? eq(proposals.niche, q.niche) : undefined,
             q.starred ? eq(proposals.starred, true) : undefined,
             repo.hasTag(q.tagId),
-            repo.matches(q.search, [proposals.jobTitle, proposals.clientName, proposals.coverLetter, proposals.niche])
+            repo.matches(q.search, [
+              proposals.jobTitle,
+              proposals.clientName,
+              proposals.coverLetter,
+              proposals.niche
+            ])
           ],
-          [sql`coalesce(${proposals.sentAt}, ${proposals.createdAt}) DESC`]
+          [sql`coalesce(${proposals.sentAt}, ${proposals.createdAt}) DESC`],
+          page.limit,
+          page.offset
         )
       },
       get: async (id) => repo.get(idArg.parse(id)),
@@ -320,7 +383,10 @@ export class FreelanceModule {
           .sort((a, b) => a.localeCompare(b, 'ru')),
       stale: async (args) => {
         const { days, platformId } = z
-          .object({ days: z.number().int().min(1).max(60).optional(), platformId: idArg.optional() })
+          .object({
+            days: z.number().int().min(1).max(60).optional(),
+            platformId: idArg.optional()
+          })
           .parse(args ?? {})
         const cutoff = now() - (days ?? 3) * DAY_MS
         return repo.listWhere(
@@ -382,10 +448,20 @@ export class FreelanceModule {
             feePercent: data.feePercent,
             proposalId: p.id
           })
-          repo.patch(p.id, { status: 'hired', clientId, projectId: project.id, ...this.stamps('hired', p) })
+          repo.patch(p.id, {
+            status: 'hired',
+            clientId,
+            projectId: project.id,
+            ...this.stamps('hired', p)
+          })
           return { projectId: project.id, clientId }
         })
-        this.m.links.create({ fromType: 'proposal', fromId: p.id, toType: 'project', toId: ids.projectId })
+        this.m.links.create({
+          fromType: 'proposal',
+          fromId: p.id,
+          toType: 'project',
+          toId: ids.projectId
+        })
         return ids
       },
       toTemplate: async (id) => {
@@ -417,7 +493,13 @@ export class FreelanceModule {
         hired: sql<number>`coalesce(sum(CASE WHEN ${proposals.status} = 'hired' OR ${proposals.hiredAt} IS NOT NULL THEN 1 ELSE 0 END), 0)`
       })
       .from(proposals)
-      .where(and(eq(proposals.platformId, platformId), isNull(proposals.deletedAt), sql`${proposals.status} != 'draft'`))
+      .where(
+        and(
+          eq(proposals.platformId, platformId),
+          isNull(proposals.deletedAt),
+          sql`${proposals.status} != 'draft'`
+        )
+      )
       .get()
     const purchased = sum('purchase')
     const moneySpent = sum('purchase', 'cost')
@@ -454,14 +536,23 @@ export class FreelanceModule {
       add: async (input) => {
         const data = creditTxInputSchema.parse(input)
         this.platform(data.platformId)
-        if (data.kind !== 'adjust' && data.amount < 0) throw new UserError('Количество должно быть положительным')
-        const row = this.db.insert(creditTxs).values({ ...data, id: newId(), createdAt: now() }).returning().get()
+        if (data.kind !== 'adjust' && data.amount < 0)
+          throw new UserError('Количество должно быть положительным')
+        const row = this.db
+          .insert(creditTxs)
+          .values({ ...data, id: newId(), createdAt: now() })
+          .returning()
+          .get()
         return row as CreditTx
       },
       remove: async (id) => {
-        this.db.delete(creditTxs).where(eq(creditTxs.id, idArg.parse(id))).run()
+        this.db
+          .delete(creditTxs)
+          .where(eq(creditTxs.id, idArg.parse(id)))
+          .run()
       },
-      summary: async (args) => this.creditsSummary(z.object({ platformId: idArg }).parse(args).platformId)
+      summary: async (args) =>
+        this.creditsSummary(z.object({ platformId: idArg }).parse(args).platformId)
     }
   }
 
@@ -478,7 +569,9 @@ export class FreelanceModule {
 
   /* ───────── templates ───────── */
 
-  private withTemplateStats(list: Omit<MessageTemplate, 'usedIn' | 'replied' | 'hired'>[]): MessageTemplate[] {
+  private withTemplateStats(
+    list: Omit<MessageTemplate, 'usedIn' | 'replied' | 'hired'>[]
+  ): MessageTemplate[] {
     if (!list.length) return []
     const rows = this.db
       .select({
@@ -488,7 +581,13 @@ export class FreelanceModule {
         hired: sql<number>`sum(CASE WHEN ${proposals.hiredAt} IS NOT NULL THEN 1 ELSE 0 END)`
       })
       .from(proposals)
-      .where(and(isNull(proposals.deletedAt), isNotNull(proposals.templateId), sql`${proposals.status} != 'draft'`))
+      .where(
+        and(
+          isNull(proposals.deletedAt),
+          isNotNull(proposals.templateId),
+          sql`${proposals.status} != 'draft'`
+        )
+      )
       .groupBy(proposals.templateId)
       .all()
     const byId = new Map(rows.map((r) => [r.templateId, r]))
@@ -506,16 +605,30 @@ export class FreelanceModule {
     return {
       list: async (query) => {
         const q = z
-          .object({ situation: z.enum(TEMPLATE_SITUATIONS).optional(), search: z.string().max(200).optional(), tagId: idArg.optional() })
+          .object({
+            situation: z.enum(TEMPLATE_SITUATIONS).optional(),
+            search: z.string().max(200).optional(),
+            tagId: idArg.optional()
+          })
           .parse(query ?? {})
         return this.withTemplateStats(
           repo.listWhere(
             [
               q.situation ? eq(messageTemplates.situation, q.situation) : undefined,
               repo.hasTag(q.tagId),
-              repo.matches(q.search, [messageTemplates.title, messageTemplates.trigger, messageTemplates.body])
+              repo.matches(q.search, [
+                messageTemplates.title,
+                messageTemplates.trigger,
+                messageTemplates.body
+              ])
             ],
-            [asc(messageTemplates.situation), desc(messageTemplates.copyCount), desc(messageTemplates.updatedAt)]
+            [
+              asc(messageTemplates.situation),
+              desc(messageTemplates.copyCount),
+              desc(messageTemplates.updatedAt)
+            ],
+            pageSchema.parse(query ?? {}).limit,
+            pageSchema.parse(query ?? {}).offset
           )
         )
       },
@@ -549,15 +662,30 @@ export class FreelanceModule {
   casesApi(): CasesApi {
     const repo = this.caseRepo
     return {
-      ...createCrudApi<CaseRow, PortfolioCase, CaseInput, CasePatch, { search?: string; niche?: string; tagId?: string }>({
+      ...createCrudApi<
+        CaseRow,
+        PortfolioCase,
+        CaseInput,
+        CasePatch,
+        { search?: string; niche?: string; tagId?: string }
+      >({
         repo,
         input: caseInputSchema,
         patch: casePatchSchema,
-        query: z.object({ search: z.string().max(200).optional(), niche: z.string().max(100).optional(), tagId: idArg.optional() }),
+        query: z.object({
+          search: z.string().max(200).optional(),
+          niche: z.string().max(100).optional(),
+          tagId: idArg.optional()
+        }),
         where: (q) => [
           q.niche ? eq(portfolioCases.niche, q.niche) : undefined,
           repo.hasTag(q.tagId),
-          repo.matches(q.search, [portfolioCases.title, portfolioCases.whatDone, portfolioCases.textEn, portfolioCases.stack])
+          repo.matches(q.search, [
+            portfolioCases.title,
+            portfolioCases.whatDone,
+            portfolioCases.textEn,
+            portfolioCases.stack
+          ])
         ],
         beforeWrite: (data, current) => (current ? data : { ...data, coverPath: null })
       }),
@@ -588,8 +716,12 @@ export class FreelanceModule {
 
   private funnel(key: string, label: string, rows: ProposalRow[]): FunnelRow {
     const sent = rows.filter((r) => r.status !== 'draft')
-    const replied = sent.filter((r) => r.repliedAt !== null || (RANK[r.status as ProposalStatus] ?? 0) >= 3).length
-    const interview = sent.filter((r) => (RANK[r.status as ProposalStatus] ?? 0) >= 4 || r.hiredAt !== null).length
+    const replied = sent.filter(
+      (r) => r.repliedAt !== null || (RANK[r.status as ProposalStatus] ?? 0) >= 3
+    ).length
+    const interview = sent.filter(
+      (r) => (RANK[r.status as ProposalStatus] ?? 0) >= 4 || r.hiredAt !== null
+    ).length
     const hired = sent.filter((r) => r.status === 'hired' || r.hiredAt !== null).length
     return {
       key,
@@ -620,7 +752,10 @@ export class FreelanceModule {
         )
       )
       .all()
-    const group = (keyOf: (r: ProposalRow) => string, labelOf: (k: string) => string): FunnelRow[] => {
+    const group = (
+      keyOf: (r: ProposalRow) => string,
+      labelOf: (k: string) => string
+    ): FunnelRow[] => {
       const map = new Map<string, ProposalRow[]>()
       for (const r of rows) map.set(keyOf(r), [...(map.get(keyOf(r)) ?? []), r])
       return [...map.entries()]
@@ -629,12 +764,23 @@ export class FreelanceModule {
         .sort((a, b) => b.sent - a.sent)
     }
     const templateTitles = new Map(
-      this.db.select({ id: messageTemplates.id, title: messageTemplates.title }).from(messageTemplates).all().map((t) => [t.id, t.title])
+      this.db
+        .select({ id: messageTemplates.id, title: messageTemplates.title })
+        .from(messageTemplates)
+        .all()
+        .map((t) => [t.id, t.title])
     )
-    const platformNames = new Map(this.db.select({ id: platforms.id, name: platforms.name }).from(platforms).all().map((p) => [p.id, p.name]))
+    const platformNames = new Map(
+      this.db
+        .select({ id: platforms.id, name: platforms.name })
+        .from(platforms)
+        .all()
+        .map((p) => [p.id, p.name])
+    )
 
     const weeks = new Map<number, { sent: number; replied: number; hired: number }>()
-    for (let w = startOfWeek(from); w <= to; w += 7 * DAY_MS) weeks.set(w, { sent: 0, replied: 0, hired: 0 })
+    for (let w = startOfWeek(from); w <= to; w += 7 * DAY_MS)
+      weeks.set(w, { sent: 0, replied: 0, hired: 0 })
     for (const r of rows) {
       if (r.status === 'draft') continue
       const w = startOfWeek(r.sentAt ?? r.createdAt)
@@ -644,15 +790,31 @@ export class FreelanceModule {
       if (r.repliedAt) b.replied++
       if (r.hiredAt) b.hired++
     }
-    const replyTimes = rows.filter((r) => r.repliedAt && r.sentAt).map((r) => (r.repliedAt! - r.sentAt!) / 3600_000)
+    const replyTimes = rows
+      .filter((r) => r.repliedAt && r.sentAt)
+      .map((r) => (r.repliedAt! - r.sentAt!) / 3600_000)
     return {
       range: { from, to },
       totals: this.funnel('all', 'Все', rows),
-      byNiche: group((r) => r.niche || '—', (k) => (k === '—' ? 'Без типа' : k)),
-      byTemplate: group((r) => r.templateId ?? '—', (k) => (k === '—' ? 'Без шаблона' : (templateTitles.get(k) ?? 'Удалённый шаблон'))),
-      byPlatform: group((r) => r.platformId, (k) => platformNames.get(k) ?? '—'),
-      weekly: [...weeks.entries()].map(([w, v]) => ({ week: new Date(w).toISOString().slice(0, 10), ...v })),
-      avgReplyHours: replyTimes.length ? Math.round((replyTimes.reduce((s, x) => s + x, 0) / replyTimes.length) * 10) / 10 : null
+      byNiche: group(
+        (r) => r.niche || '—',
+        (k) => (k === '—' ? 'Без типа' : k)
+      ),
+      byTemplate: group(
+        (r) => r.templateId ?? '—',
+        (k) => (k === '—' ? 'Без шаблона' : (templateTitles.get(k) ?? 'Удалённый шаблон'))
+      ),
+      byPlatform: group(
+        (r) => r.platformId,
+        (k) => platformNames.get(k) ?? '—'
+      ),
+      weekly: [...weeks.entries()].map(([w, v]) => ({
+        week: new Date(w).toISOString().slice(0, 10),
+        ...v
+      })),
+      avgReplyHours: replyTimes.length
+        ? Math.round((replyTimes.reduce((s, x) => s + x, 0) / replyTimes.length) * 10) / 10
+        : null
     }
   }
 
@@ -672,7 +834,11 @@ export class FreelanceModule {
   /** Net paid (after platform fee) in range, in the main currency of the platforms involved. */
   private netIncome(from: number, to: number, platformId: string | null): number {
     const rows = this.db
-      .select({ amount: payments.amount, fee: projects.feePercent, platformFee: platforms.defaultFeePercent })
+      .select({
+        amount: payments.amount,
+        fee: projects.feePercent,
+        platformFee: platforms.defaultFeePercent
+      })
       .from(payments)
       .innerJoin(projects, eq(projects.id, payments.projectId))
       .leftJoin(platforms, eq(platforms.id, projects.platformId))
@@ -686,10 +852,19 @@ export class FreelanceModule {
         )
       )
       .all()
-    return Math.round(rows.reduce((s, r) => s + r.amount * (1 - (r.fee ?? r.platformFee ?? 0) / 100), 0) * 100) / 100
+    return (
+      Math.round(
+        rows.reduce((s, r) => s + r.amount * (1 - (r.fee ?? r.platformFee ?? 0) / 100), 0) * 100
+      ) / 100
+    )
   }
 
-  private metricValue(metric: GoalMetric, from: number, to: number, platformId: string | null): number {
+  private metricValue(
+    metric: GoalMetric,
+    from: number,
+    to: number,
+    platformId: string | null
+  ): number {
     if (metric === 'net_income') return this.netIncome(from, to, platformId)
     const f = this.stats({ from, to, platformId: platformId ?? undefined }).totals
     switch (metric) {
@@ -707,9 +882,14 @@ export class FreelanceModule {
   }
 
   goalsApi(): GoalsApi {
-    const toGoal = (r: typeof goals.$inferSelect): Goal => ({ ...r, metric: r.metric as GoalMetric, period: r.period as GoalPeriod })
+    const toGoal = (r: typeof goals.$inferSelect): Goal => ({
+      ...r,
+      metric: r.metric as GoalMetric,
+      period: r.period as GoalPeriod
+    })
     return {
-      list: async () => this.db.select().from(goals).orderBy(asc(goals.createdAt)).all().map(toGoal),
+      list: async () =>
+        this.db.select().from(goals).orderBy(asc(goals.createdAt)).all().map(toGoal),
       progress: async (args) => {
         const { platformId } = z.object({ platformId: idArg.optional() }).parse(args ?? {})
         return this.db
@@ -722,12 +902,22 @@ export class FreelanceModule {
           .map((g): GoalProgress => {
             const [periodStart, periodEnd] = this.periodRange(g.period)
             const current = this.metricValue(g.metric, periodStart, periodEnd, g.platformId)
-            return { ...g, current, ratio: g.target ? Math.min(1, current / g.target) : 0, periodStart, periodEnd }
+            return {
+              ...g,
+              current,
+              ratio: g.target ? Math.min(1, current / g.target) : 0,
+              periodStart,
+              periodEnd
+            }
           })
       },
       create: async (input) => {
         const data = goalInputSchema.parse(input)
-        const row = this.db.insert(goals).values({ ...data, id: newId(), createdAt: now() }).returning().get()
+        const row = this.db
+          .insert(goals)
+          .values({ ...data, id: newId(), createdAt: now() })
+          .returning()
+          .get()
         return toGoal(row)
       },
       update: async (args) => {
@@ -737,7 +927,10 @@ export class FreelanceModule {
         return toGoal(row)
       },
       remove: async (id) => {
-        this.db.delete(goals).where(eq(goals.id, idArg.parse(id))).run()
+        this.db
+          .delete(goals)
+          .where(eq(goals.id, idArg.parse(id)))
+          .run()
       }
     }
   }

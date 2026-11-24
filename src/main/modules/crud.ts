@@ -4,6 +4,7 @@ import type { CrudApi } from '@shared/api'
 import type { SoftRepository } from '../core/soft-repository'
 import type { AnyRow } from '../core/registry'
 import { idArg, splitTags, updateArgs } from './context'
+import { pageSchema } from '@shared/domain/common'
 
 interface CrudOptions<TRow extends AnyRow, TEntity extends { id: string }, TQuery> {
   repo: SoftRepository<TRow, TEntity>
@@ -21,13 +22,18 @@ interface CrudOptions<TRow extends AnyRow, TEntity extends { id: string }, TQuer
  * Builds the standard CRUD API for a module from its repository + zod schemas.
  * Keeps simple modules declarative (DRY) while complex ones can still write their own.
  */
-export function createCrudApi<TRow extends AnyRow, TEntity extends { id: string }, TInput, TPatch, TQuery>(
-  o: CrudOptions<TRow, TEntity, TQuery>
-): CrudApi<TEntity, TInput, TPatch, TQuery> {
+export function createCrudApi<
+  TRow extends AnyRow,
+  TEntity extends { id: string },
+  TInput,
+  TPatch,
+  TQuery
+>(o: CrudOptions<TRow, TEntity, TQuery>): CrudApi<TEntity, TInput, TPatch, TQuery> {
   return {
     list: async (query) => {
       const q = (o.query ? o.query.parse(query ?? {}) : {}) as TQuery
-      return o.repo.listWhere(o.where?.(q) ?? [], o.orderBy)
+      const page = pageSchema.parse(query ?? {})
+      return o.repo.listWhere(o.where?.(q) ?? [], o.orderBy, page.limit, page.offset)
     },
     get: async (id) => o.repo.get(idArg.parse(id)),
     create: async (input) => {

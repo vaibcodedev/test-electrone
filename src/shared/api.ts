@@ -4,7 +4,7 @@
  * Every method takes at most ONE argument so that the transport stays trivial: rpc(path, arg).
  */
 import type { EntityType } from './entity-types'
-import type { EntityRef, EntitySummary, Tag, TagWithUsage } from './domain/common'
+import type { EntityRef, EntitySummary, PageQuery, Tag, TagWithUsage } from './domain/common'
 import type { Idea, IdeaInput, IdeaListQuery, IdeaPatch } from './domain/ideas'
 import type {
   Board,
@@ -196,7 +196,8 @@ import type {
 
 /** Standard CRUD surface shared by most modules (Interface Segregation: modules add their own extras). */
 export interface CrudApi<TEntity, TInput, TPatch, TQuery = void> {
-  list(query?: TQuery): Promise<TEntity[]>
+  /** Supports paging: pass { limit, offset } together with filters. */
+  list(query?: TQuery & PageQuery): Promise<TEntity[]>
   get(id: string): Promise<TEntity | null>
   create(input: TInput): Promise<TEntity>
   update(args: { id: string; patch: TPatch }): Promise<TEntity>
@@ -362,7 +363,8 @@ export interface CreditsApi {
   summary(args: { platformId: string }): Promise<CreditsSummary>
 }
 
-export interface TemplatesApi extends CrudApi<MessageTemplate, TemplateInput, TemplatePatch, { situation?: TemplateSituation; search?: string; tagId?: string }> {
+export interface TemplatesApi
+  extends CrudApi<MessageTemplate, TemplateInput, TemplatePatch, { situation?: TemplateSituation; search?: string; tagId?: string }> {
   markCopied(id: string): Promise<void>
 }
 
@@ -415,7 +417,7 @@ export interface JobsApi {
   /** Manual «проверил сегодня» mark. */
   checkin(input: CheckinInput): Promise<void>
 
-  list(query?: ApplicationListQuery): Promise<Application[]>
+  list(query?: ApplicationListQuery & PageQuery): Promise<Application[]>
   get(id: string): Promise<ApplicationDetails | null>
   create(input: ApplicationInput): Promise<Application>
   update(args: { id: string; patch: ApplicationPatch }): Promise<Application>
@@ -444,7 +446,7 @@ export interface JobsApi {
   removeResume(id: string): Promise<void>
   setResumeUploaded(args: { resumeId: string; boardId: string; uploaded: boolean }): Promise<void>
 
-  questions(query?: QuestionListQuery): Promise<InterviewQuestion[]>
+  questions(query?: QuestionListQuery & PageQuery): Promise<InterviewQuestion[]>
   question(id: string): Promise<InterviewQuestion | null>
   createQuestion(input: QuestionInput): Promise<InterviewQuestion>
   updateQuestion(args: { id: string; patch: QuestionPatch }): Promise<InterviewQuestion>
@@ -558,6 +560,8 @@ export interface SettingsApi {
   update(patch: SettingsPatch): Promise<Settings>
   info(): Promise<AppInfo>
   openDataDir(): Promise<void>
+  /** Opens the log file folder. */
+  openLogs(): Promise<void>
 }
 
 export interface UpdatesApi {
@@ -574,6 +578,8 @@ export interface AppApi {
   showMain(args?: { route?: string }): Promise<void>
   openExternal(url: string): Promise<void>
   copyText(text: string): Promise<void>
+  /** Renderer errors go to the main log file. */
+  logError(args: { message: string; stack?: string; source?: string }): Promise<void>
 }
 
 export interface Api {

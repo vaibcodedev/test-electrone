@@ -44,6 +44,7 @@ export interface AppInfo {
   platform: string
   lastBackupAt: number | null
   dbSizeBytes: number
+  logFile: string
 }
 
 /* ───────────── Tags / links / pins ───────────── */

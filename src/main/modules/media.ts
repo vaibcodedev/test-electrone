@@ -1,3 +1,4 @@
+import { pageSchema } from '@shared/domain/common'
 /** Visual modules: UI components (code + live preview + cover) and design references with moodboards. */
 import { and, asc, eq, inArray, isNull, max } from 'drizzle-orm'
 import { z } from 'zod'
@@ -65,7 +66,10 @@ export class MediaModule {
   readonly descriptors: EntityDescriptor[]
   readonly componentRepo: SoftRepository<ComponentRow, UiComponent>
   readonly designRepo: SoftRepository<DesignRow, Design>
-  readonly moodboardRepo: SoftRepository<MoodboardRow, Omit<Moodboard, 'itemCount' | 'previewPaths'>>
+  readonly moodboardRepo: SoftRepository<
+    MoodboardRow,
+    Omit<Moodboard, 'itemCount' | 'previewPaths'>
+  >
 
   constructor(private readonly m: ModuleContext) {
     const component: EntityDescriptor = {
@@ -101,7 +105,11 @@ export class MediaModule {
       previewBg: r.previewBg as PreviewBackground,
       tags
     }))
-    this.designRepo = new SoftRepository(m.repo, design, (r, tags) => ({ ...r, kind: r.kind as DesignKind, tags }))
+    this.designRepo = new SoftRepository(m.repo, design, (r, tags) => ({
+      ...r,
+      kind: r.kind as DesignKind,
+      tags
+    }))
     this.moodboardRepo = new SoftRepository(m.repo, moodboard, (r, tags) => ({ ...r, tags }))
   }
 
@@ -114,7 +122,13 @@ export class MediaModule {
   componentsApi(): ComponentsApi {
     const repo = this.componentRepo
     return {
-      ...createCrudApi<ComponentRow, UiComponent, ComponentInput, ComponentPatch, ComponentListQuery>({
+      ...createCrudApi<
+        ComponentRow,
+        UiComponent,
+        ComponentInput,
+        ComponentPatch,
+        ComponentListQuery
+      >({
         repo,
         input: componentInputSchema,
         patch: componentPatchSchema,
@@ -148,6 +162,7 @@ export class MediaModule {
     return {
       list: async (query) => {
         const q = designListQuerySchema.parse(query ?? {})
+        const page = pageSchema.parse(query ?? {})
         const inBoard = q.moodboardId
           ? inArray(
               designs.id,
@@ -167,12 +182,16 @@ export class MediaModule {
           const target = q.color
           list = list.filter((d) => d.colors.some((c) => colorDistance(c, target) < 90))
         }
-        return list
+        const start = page.offset ?? 0
+        return page.limit ? list.slice(start, start + page.limit) : list.slice(start)
       },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
         const [data, tagIds] = splitTags(designInputSchema.parse(input))
-        return repo.insert({ ...data, imagePath: null, imageWidth: null, imageHeight: null }, tagIds)
+        return repo.insert(
+          { ...data, imagePath: null, imageWidth: null, imageHeight: null },
+          tagIds
+        )
       },
       update: async (args) => {
         const { id, patch } = updateArgs(designPatchSchema).parse(args)
@@ -186,7 +205,8 @@ export class MediaModule {
           .parse(args)
         const stored = await this.m.files.import(source, { imagesOnly: true })
         const [data, tagIds] = splitTags(input ?? designInputSchema.parse({}))
-        const title = data.title || stored.originalName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ')
+        const title =
+          data.title || stored.originalName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ')
         return repo.insert(
           {
             ...data,
@@ -212,10 +232,19 @@ export class MediaModule {
         return updated
       },
       palette: async () => {
-        const rows = this.db.select({ colors: designs.colors }).from(designs).where(isNull(designs.deletedAt)).all()
+        const rows = this.db
+          .select({ colors: designs.colors })
+          .from(designs)
+          .where(isNull(designs.deletedAt))
+          .all()
         const counts = new Map<string, number>()
-        for (const r of rows) for (const c of r.colors) counts.set(c.toLowerCase(), (counts.get(c.toLowerCase()) ?? 0) + 1)
-        return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40).map(([c]) => c)
+        for (const r of rows)
+          for (const c of r.colors)
+            counts.set(c.toLowerCase(), (counts.get(c.toLowerCase()) ?? 0) + 1)
+        return [...counts.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 40)
+          .map(([c]) => c)
       }
     }
   }
@@ -245,7 +274,10 @@ export class MediaModule {
       return {
         ...b,
         itemCount: mine.length,
-        previewPaths: mine.map((i) => i.path).filter((p): p is string => !!p).slice(0, 4)
+        previewPaths: mine
+          .map((i) => i.path)
+          .filter((p): p is string => !!p)
+          .slice(0, 4)
       }
     })
   }
@@ -290,7 +322,9 @@ export class MediaModule {
         return { ...board, designs: rows.flatMap((r) => byId.get(r.id) ?? []) }
       },
       addDesigns: async (args) => {
-        const { moodboardId, designIds } = z.object({ moodboardId: idArg, designIds: z.array(idArg) }).parse(args)
+        const { moodboardId, designIds } = z
+          .object({ moodboardId: idArg, designIds: z.array(idArg) })
+          .parse(args)
         repo.rowOrThrow(moodboardId)
         const last = this.db
           .select({ m: max(moodboardItems.position) })
@@ -310,21 +344,32 @@ export class MediaModule {
         repo.touch(moodboardId)
       },
       removeDesign: async (args) => {
-        const { moodboardId, designId } = z.object({ moodboardId: idArg, designId: idArg }).parse(args)
+        const { moodboardId, designId } = z
+          .object({ moodboardId: idArg, designId: idArg })
+          .parse(args)
         this.db
           .delete(moodboardItems)
-          .where(and(eq(moodboardItems.moodboardId, moodboardId), eq(moodboardItems.designId, designId)))
+          .where(
+            and(eq(moodboardItems.moodboardId, moodboardId), eq(moodboardItems.designId, designId))
+          )
           .run()
         repo.touch(moodboardId)
       },
       reorder: async (args) => {
-        const { moodboardId, designIds } = z.object({ moodboardId: idArg, designIds: z.array(idArg) }).parse(args)
+        const { moodboardId, designIds } = z
+          .object({ moodboardId: idArg, designIds: z.array(idArg) })
+          .parse(args)
         this.m.db.tx(() => {
           designIds.forEach((designId, i) => {
             this.db
               .update(moodboardItems)
               .set({ position: i })
-              .where(and(eq(moodboardItems.moodboardId, moodboardId), eq(moodboardItems.designId, designId)))
+              .where(
+                and(
+                  eq(moodboardItems.moodboardId, moodboardId),
+                  eq(moodboardItems.designId, designId)
+                )
+              )
               .run()
           })
         })
@@ -332,4 +377,3 @@ export class MediaModule {
     }
   }
 }
-

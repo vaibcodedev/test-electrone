@@ -28,7 +28,7 @@ export function PageHeader({
   children?: ReactNode
 }) {
   return (
-    <header className={cn('flex flex-col gap-4 px-8 pt-7 pb-5', className)}>
+    <header data-slot="page-header" className={cn('flex flex-col gap-4 px-8 pt-7 pb-5', className)}>
       <div className="flex items-start justify-between gap-6">
         <div className="min-w-0">
           <h1 className="font-display text-title max-w-[18ch] text-balance">{title}</h1>
@@ -100,6 +100,7 @@ export function SearchInput({
         <Search />
       </InputGroupAddon>
       <InputGroupInput
+        data-page-search
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}

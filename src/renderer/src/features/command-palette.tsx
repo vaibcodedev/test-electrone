@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Moon, Plus, Settings, Sun, Trash2 } from 'lucide-react'
+import { Keyboard, Moon, Plus, Settings, Sun, Trash2 } from 'lucide-react'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import type { SearchHit } from '@shared/domain/system'
 import {
@@ -43,6 +43,7 @@ export function CommandPalette() {
   const open = useUi((s) => s.paletteOpen)
   const setOpen = useUi((s) => s.setPaletteOpen)
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
+  const setShortcutsOpen = useUi((s) => s.setShortcutsOpen)
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const theme = useResolvedTheme()
@@ -158,6 +159,16 @@ export function CommandPalette() {
             <CommandItem value="action:theme" onSelect={() => updateSettings.mutate({ theme: theme === 'dark' ? 'light' : 'dark' })}>
               {theme === 'dark' ? <Sun /> : <Moon />}
               {theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+            </CommandItem>
+            <CommandItem
+              value="action:shortcuts"
+              onSelect={() => {
+                close()
+                setShortcutsOpen(true)
+              }}
+            >
+              <Keyboard /> Горячие клавиши
+              <CommandShortcut>Ctrl /</CommandShortcut>
             </CommandItem>
             <CommandItem value="action:trash" onSelect={() => go('/trash')}>
               <Trash2 /> Корзина

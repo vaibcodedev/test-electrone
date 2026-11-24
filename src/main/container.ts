@@ -3,6 +3,8 @@
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
 import { app, clipboard, shell } from 'electron'
+import { dirname } from 'path'
+import { log, logFilePath } from './core/logger'
 import { statSync } from 'fs'
 import { z } from 'zod'
 import type { Api } from '@shared/api'
@@ -373,6 +375,7 @@ export class Container {
           backupsDir: this.paths.backupsDir,
           platform: process.platform,
           lastBackupAt: this.config.lastBackupAt,
+          logFile: logFilePath(),
           dbSizeBytes: (() => {
             try {
               return statSync(this.paths.dbFile).size
@@ -383,6 +386,9 @@ export class Container {
         }),
         openDataDir: async () => {
           await shell.openPath(this.paths.dataDir)
+        },
+        openLogs: async () => {
+          await shell.openPath(dirname(logFilePath()))
         }
       },
       updates: {
@@ -403,7 +409,11 @@ export class Container {
           if (!/^(https?|mailto):/i.test(u)) throw new Error('Можно открывать только http(s) и mailto ссылки')
           await shell.openExternal(u)
         },
-        copyText: async (text) => clipboard.writeText(z.string().max(5_000_000).parse(text))
+        copyText: async (text) => clipboard.writeText(z.string().max(5_000_000).parse(text)),
+        logError: async (args) => {
+          const e = z.object({ message: z.string().max(5000), stack: z.string().max(20_000).optional(), source: z.string().max(200).optional() }).parse(args)
+          log.error(`[renderer${e.source ? `:${e.source}` : ''}] ${e.message}${e.stack ? `\n${e.stack}` : ''}`)
+        }
       }
     }
   }

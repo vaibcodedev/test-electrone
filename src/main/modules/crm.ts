@@ -55,7 +55,12 @@ const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
 const round2 = (n: number): number => Math.round(n * 100) / 100
 
 /** Months a retainer has been billed: every started calendar month from start until due/now. */
-export function monthsBilled(start: number, due: number | null, status: string, at = Date.now()): number {
+export function monthsBilled(
+  start: number,
+  due: number | null,
+  status: string,
+  at = Date.now()
+): number {
   if (status === 'lead') return 0
   const end = Math.min(at, due ?? at)
   if (end < start) return 0
@@ -88,7 +93,10 @@ export class CrmModule {
         title: r.title,
         body: `${r.description}\n${r.repoUrl}\n${r.stagingUrl}\n${r.prodUrl}`
       }),
-      summary: (r) => ({ title: r.title, subtitle: PROJECT_STATUS_LABEL[r.status as ProjectStatus] })
+      summary: (r) => ({
+        title: r.title,
+        subtitle: PROJECT_STATUS_LABEL[r.status as ProjectStatus]
+      })
     }
     this.descriptors = [client, project]
     this.clientRepo = new SoftRepository(m.repo, client, (r, tags) => ({
@@ -130,7 +138,11 @@ export class CrmModule {
   private summarizeProjects(list: Project[]): ProjectSummary[] {
     if (!list.length) return []
     const ids = list.map((p) => p.id)
-    const times = this.db.select().from(timeEntries).where(inArray(timeEntries.projectId, ids)).all()
+    const times = this.db
+      .select()
+      .from(timeEntries)
+      .where(inArray(timeEntries.projectId, ids))
+      .all()
     const pays = this.db.select().from(payments).where(inArray(payments.projectId, ids)).all()
     const clientIds = [...new Set(list.map((p) => p.clientId).filter((x): x is string => !!x))]
     const clientNames = new Map(
@@ -159,7 +171,8 @@ export class CrmModule {
       const openAmount = myPays
         .filter((x) => x.status === 'expected' || x.status === 'invoiced')
         .reduce((s, x) => s + x.amount, 0)
-      const retainerMonths = p.billing === 'retainer' ? monthsBilled(p.startAt ?? p.createdAt, p.dueAt, p.status) : 0
+      const retainerMonths =
+        p.billing === 'retainer' ? monthsBilled(p.startAt ?? p.createdAt, p.dueAt, p.status) : 0
       const earnedAmount = round2(
         p.billing === 'hourly'
           ? (billableMinutes / 60) * p.rate
@@ -170,9 +183,13 @@ export class CrmModule {
               : 0
       )
       const outstandingAmount =
-        p.billing === 'none' ? 0 : Math.max(0, round2(earnedAmount - paidAmount), round2(openAmount))
+        p.billing === 'none'
+          ? 0
+          : Math.max(0, round2(earnedAmount - paidAmount), round2(openAmount))
       const effectiveRate =
-        trackedMinutes >= 30 && earnedAmount > 0 ? round2(earnedAmount / (trackedMinutes / 60)) : null
+        trackedMinutes >= 30 && earnedAmount > 0
+          ? round2(earnedAmount / (trackedMinutes / 60))
+          : null
       return {
         ...p,
         clientName: p.clientId ? (clientNames.get(p.clientId) ?? null) : null,
@@ -425,11 +442,18 @@ export class CrmModule {
       },
       create: async (input) => {
         const data = credentialInputSchema.parse(input)
-        if (!data.projectId && !data.clientId) throw new UserError('Доступ должен относиться к клиенту или проекту')
+        if (!data.projectId && !data.clientId)
+          throw new UserError('Доступ должен относиться к клиенту или проекту')
         const ts = now()
         const row = this.db
           .insert(credentials)
-          .values({ ...data, id: newId(), secret: this.m.secrets.encrypt(data.secret), createdAt: ts, updatedAt: ts })
+          .values({
+            ...data,
+            id: newId(),
+            secret: this.m.secrets.encrypt(data.secret),
+            createdAt: ts,
+            updatedAt: ts
+          })
           .returning()
           .get()
         return this.toCredential(row)
@@ -442,11 +466,19 @@ export class CrmModule {
           ...(patch.secret !== undefined ? { secret: this.m.secrets.encrypt(patch.secret) } : {}),
           updatedAt: now()
         }
-        const row = this.db.update(credentials).set(values).where(eq(credentials.id, id)).returning().get()
+        const row = this.db
+          .update(credentials)
+          .set(values)
+          .where(eq(credentials.id, id))
+          .returning()
+          .get()
         return this.toCredential(row!)
       },
       remove: async (id) => {
-        this.db.delete(credentials).where(eq(credentials.id, idArg.parse(id))).run()
+        this.db
+          .delete(credentials)
+          .where(eq(credentials.id, idArg.parse(id)))
+          .run()
       },
       reveal: async (id) => this.m.secrets.decrypt(find(idArg.parse(id)).secret)
     }
@@ -461,7 +493,11 @@ export class CrmModule {
     return {
       list: async (args) => {
         const q = z
-          .object({ projectId: idArg.optional(), from: z.number().optional(), to: z.number().optional() })
+          .object({
+            projectId: idArg.optional(),
+            from: z.number().optional(),
+            to: z.number().optional()
+          })
           .parse(args ?? {})
         return this.db
           .select()
@@ -540,7 +576,10 @@ export class CrmModule {
         return this.toTime(row!)
       },
       remove: async (id) => {
-        this.db.delete(timeEntries).where(eq(timeEntries.id, idArg.parse(id))).run()
+        this.db
+          .delete(timeEntries)
+          .where(eq(timeEntries.id, idArg.parse(id)))
+          .run()
       }
     }
   }
@@ -553,7 +592,12 @@ export class CrmModule {
           .select({ pay: payments })
           .from(payments)
           .innerJoin(projects, eq(projects.id, payments.projectId))
-          .where(and(isNull(projects.deletedAt), projectId ? eq(payments.projectId, projectId) : undefined))
+          .where(
+            and(
+              isNull(projects.deletedAt),
+              projectId ? eq(payments.projectId, projectId) : undefined
+            )
+          )
           .orderBy(desc(payments.createdAt))
           .all()
           .map((r) => this.toPayment(r.pay))
@@ -578,13 +622,23 @@ export class CrmModule {
         const cur = this.db.select().from(payments).where(eq(payments.id, id)).get()
         if (!cur) throw new NotFoundError('Оплата', id)
         const values = { ...patch }
-        if (patch.status === 'paid' && !cur.paidAt && patch.paidAt === undefined) values.paidAt = now()
-        if (patch.status && patch.status !== 'paid' && patch.paidAt === undefined) values.paidAt = null
-        const row = this.db.update(payments).set(values).where(eq(payments.id, id)).returning().get()
+        if (patch.status === 'paid' && !cur.paidAt && patch.paidAt === undefined)
+          values.paidAt = now()
+        if (patch.status && patch.status !== 'paid' && patch.paidAt === undefined)
+          values.paidAt = null
+        const row = this.db
+          .update(payments)
+          .set(values)
+          .where(eq(payments.id, id))
+          .returning()
+          .get()
         return this.toPayment(row!)
       },
       remove: async (id) => {
-        this.db.delete(payments).where(eq(payments.id, idArg.parse(id))).run()
+        this.db
+          .delete(payments)
+          .where(eq(payments.id, idArg.parse(id)))
+          .run()
       }
     }
   }
@@ -596,7 +650,12 @@ export class CrmModule {
       .from(payments)
       .innerJoin(projects, eq(projects.id, payments.projectId))
       .where(
-        and(isNull(projects.deletedAt), isNotNull(payments.dueAt), gte(payments.dueAt, from), lte(payments.dueAt, to))
+        and(
+          isNull(projects.deletedAt),
+          isNotNull(payments.dueAt),
+          gte(payments.dueAt, from),
+          lte(payments.dueAt, to)
+        )
       )
       .all()
       .map((r) => ({ ...this.toPayment(r.pay), projectTitle: r.projectTitle }))

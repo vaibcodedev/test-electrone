@@ -77,7 +77,12 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
   }
 
   /** Lists non-deleted rows matching all conditions. */
-  listWhere(conditions: (SQL | undefined)[], orderBy: SQL[] = [desc(this.table.updatedAt)], limit?: number): TEntity[] {
+  listWhere(
+    conditions: (SQL | undefined)[],
+    orderBy: SQL[] = [desc(this.table.updatedAt)],
+    limit?: number,
+    offset?: number
+  ): TEntity[] {
     let q = this.db
       .select()
       .from(this.table)
@@ -85,6 +90,7 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
       .orderBy(...orderBy)
       .$dynamic()
     if (limit) q = q.limit(limit)
+    if (offset) q = q.offset(offset)
     return this.hydrate(q.all() as TRow[])
   }
 

@@ -37,6 +37,13 @@ export interface WithTags {
 /** Tag ids may be sent together with any create/update payload. */
 export const withTagIds = { tagIds: z.array(idSchema).max(50).optional() }
 
+/** Optional paging for any list method (infinite scroll). Absent = everything. */
+export const pageSchema = z.object({
+  limit: z.number().int().min(1).max(1000).optional(),
+  offset: z.number().int().min(0).max(10_000_000).optional()
+})
+export type PageQuery = z.infer<typeof pageSchema>
+
 export const listQuerySchema = z.object({
   search: z.string().max(200).optional(),
   tagId: idSchema.optional(),

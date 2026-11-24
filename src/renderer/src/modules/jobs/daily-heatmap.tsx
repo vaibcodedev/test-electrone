@@ -17,7 +17,8 @@ function cellClass(day: BoardDay, target: number): string {
   if (day.done) return 'bg-chart-1'
   if (day.applied > 0 && target > 0) return 'bg-chart-1/35'
   if (!day.expected) return 'bg-transparent ring-1 ring-inset ring-border'
-  return 'bg-surface'
+  // Missed day: visible on the surface card in both themes.
+  return 'bg-foreground/10'
 }
 
 function describe(day: BoardDay, target: number): string {
@@ -34,7 +35,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
   const days = boards[0].history
   return (
     <div className="flex flex-col gap-2 overflow-x-auto">
-      <div className="grid items-center gap-x-3 gap-y-2" style={{ gridTemplateColumns: `120px repeat(${days.length}, minmax(12px, 1fr)) 64px` }}>
+      <div className="grid items-center gap-x-1 gap-y-2" style={{ gridTemplateColumns: `minmax(90px, 120px) repeat(${days.length}, minmax(10px, 1fr)) 56px` }}>
         <span />
         {days.map((d, i) => (
           <span key={d.day} className="text-center text-[10px] text-muted-foreground tabular-nums">
@@ -54,7 +55,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
           <span className="size-3 rounded-[4px] bg-chart-1/35" /> частично
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-[4px] bg-surface" /> пропуск
+          <span className="size-3 rounded-[4px] bg-foreground/10" /> пропуск
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-[4px] ring-1 ring-inset ring-border" /> выходной
@@ -77,7 +78,7 @@ function BoardRow({ board }: { board: DailyBoard }) {
             <span
               tabIndex={0}
               aria-label={`${board.name}, ${d.day}: ${describe(d, board.dailyTarget)}`}
-              className={cn('aspect-square w-full min-w-3 rounded-[4px]', cellClass(d, board.dailyTarget))}
+              className={cn('aspect-square w-full min-w-2.5 rounded-[3px]', cellClass(d, board.dailyTarget))}
             />
           </TooltipTrigger>
           <TooltipContent>

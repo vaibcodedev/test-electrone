@@ -42,7 +42,9 @@ interface Run extends RunningScript {
   lines: LogChunk[]
 }
 
-function readPackage(path: string): { scripts: Record<string, string>; deps: Record<string, string> } | null {
+function readPackage(
+  path: string
+): { scripts: Record<string, string>; deps: Record<string, string> } | null {
   try {
     const pkg = JSON.parse(readFileSync(join(path, 'package.json'), 'utf8')) as {
       scripts?: Record<string, string>
@@ -69,7 +71,8 @@ function detectFramework(deps: Record<string, string>): string | null {
   if (has('next')) return 'Next.js'
   if (has('nuxt')) return 'Nuxt'
   if (has('astro')) return 'Astro'
-  if (has('@remix-run/react') || has('react-router')) return has('electron') ? 'Electron' : 'React Router'
+  if (has('@remix-run/react') || has('react-router'))
+    return has('electron') ? 'Electron' : 'React Router'
   if (has('electron')) return 'Electron'
   if (has('@sveltejs/kit')) return 'SvelteKit'
   if (has('vite')) return has('react') ? 'Vite + React' : has('vue') ? 'Vite + Vue' : 'Vite'
@@ -87,7 +90,10 @@ export function githubRepoOf(remote: string | null): string {
 
 async function git(path: string, args: string[]): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('git', ['-C', path, ...args], { timeout: 4000, windowsHide: true })
+    const { stdout } = await execFileAsync('git', ['-C', path, ...args], {
+      timeout: 4000,
+      windowsHide: true
+    })
     return stdout
   } catch {
     return null
@@ -130,7 +136,13 @@ export async function gitInfo(path: string): Promise<GitInfo | null> {
 export async function commitsBetween(paths: string[], from: number, to: number): Promise<number> {
   let total = 0
   for (const p of paths) {
-    const out = await git(p, ['log', '--all', `--since=${new Date(from).toISOString()}`, `--until=${new Date(to).toISOString()}`, '--oneline'])
+    const out = await git(p, [
+      'log',
+      '--all',
+      `--since=${new Date(from).toISOString()}`,
+      `--until=${new Date(to).toISOString()}`,
+      '--oneline'
+    ])
     if (out) total += out.split('\n').filter(Boolean).length
   }
   return total
@@ -154,7 +166,8 @@ export class DevProjectsModule {
   }
 
   private validFolder(path: string): void {
-    if (!existsSync(path) || !statSync(path).isDirectory()) throw new UserError(`Папка не найдена: ${path}`)
+    if (!existsSync(path) || !statSync(path).isDirectory())
+      throw new UserError(`Папка не найдена: ${path}`)
   }
 
   async describe(r: Row): Promise<DevProject> {
@@ -170,25 +183,42 @@ export class DevProjectsModule {
       framework: pkg ? detectFramework(pkg.deps) : null,
       git: g,
       githubRepo: r.githubRepo || githubRepoOf(g?.remoteUrl ?? null),
-      running: [...this.runs.values()].filter((x) => x.projectId === r.id && x.status === 'running').map((x) => this.publicRun(x))
+      running: [...this.runs.values()]
+        .filter((x) => x.projectId === r.id && x.status === 'running')
+        .map((x) => this.publicRun(x))
     }
   }
 
   paths(): string[] {
-    return this.db.select({ p: devProjects.path }).from(devProjects).all().map((r) => r.p).filter((p) => existsSync(p))
+    return this.db
+      .select({ p: devProjects.path })
+      .from(devProjects)
+      .all()
+      .map((r) => r.p)
+      .filter((p) => existsSync(p))
   }
 
   /** owner/repo → local project id (for GitHub page). */
   repoIndex(): Map<string, string> {
     const out = new Map<string, string>()
-    for (const r of this.db.select().from(devProjects).all()) if (r.githubRepo) out.set(r.githubRepo.toLowerCase(), r.id)
+    for (const r of this.db.select().from(devProjects).all())
+      if (r.githubRepo) out.set(r.githubRepo.toLowerCase(), r.id)
     return out
   }
 
   /* ───────── processes ───────── */
 
   private publicRun(r: Run): RunningScript {
-    return { runId: r.runId, projectId: r.projectId, script: r.script, pid: r.pid, startedAt: r.startedAt, status: r.status, exitCode: r.exitCode, url: r.url }
+    return {
+      runId: r.runId,
+      projectId: r.projectId,
+      script: r.script,
+      pid: r.pid,
+      startedAt: r.startedAt,
+      status: r.status,
+      exitCode: r.exitCode,
+      url: r.url
+    }
   }
 
   private push(run: Run, text: string, stream: LogChunk['stream']): void {
@@ -240,9 +270,12 @@ export class DevProjectsModule {
     const p = this.row(projectId)
     this.validFolder(p.path)
     const pkg = readPackage(p.path)
-    if (!pkg || !(script in pkg.scripts)) throw new UserError(`В package.json нет скрипта «${script}»`)
+    if (!pkg || !(script in pkg.scripts))
+      throw new UserError(`В package.json нет скрипта «${script}»`)
     if (!SCRIPT_NAME.test(script)) throw new UserError('Недопустимое имя скрипта')
-    const already = [...this.runs.values()].find((r) => r.projectId === projectId && r.script === script && r.status === 'running')
+    const already = [...this.runs.values()].find(
+      (r) => r.projectId === projectId && r.script === script && r.status === 'running'
+    )
     if (already) return this.publicRun(already)
     const pm = detectPm(p.path) ?? 'npm'
     const run: Run = {
@@ -282,7 +315,11 @@ export class DevProjectsModule {
       this.push(run, `\nПроцесс завершён (код ${code ?? '—'})\n`, 'sys')
       this.m.bus.emit('dev:status', this.publicRun(run))
     })
-    this.db.update(devProjects).set({ lastOpenedAt: now() }).where(eq(devProjects.id, projectId)).run()
+    this.db
+      .update(devProjects)
+      .set({ lastOpenedAt: now() })
+      .where(eq(devProjects.id, projectId))
+      .run()
     this.m.bus.emit('dev:status', this.publicRun(run))
     return this.publicRun(run)
   }
@@ -292,43 +329,101 @@ export class DevProjectsModule {
   private openIn(projectId: string, target: 'vscode' | 'cursor' | 'terminal' | 'folder'): void {
     const p = this.row(projectId)
     this.validFolder(p.path)
-    this.db.update(devProjects).set({ lastOpenedAt: now() }).where(eq(devProjects.id, projectId)).run()
+    this.db
+      .update(devProjects)
+      .set({ lastOpenedAt: now() })
+      .where(eq(devProjects.id, projectId))
+      .run()
     if (target === 'folder') {
       void shell.openPath(p.path)
       return
     }
     const quoted = `"${p.path.replace(/"/g, '')}"`
     const launch = (cmd: string, args: string[], onFail?: () => void): void => {
-      const child = spawn(cmd, args, { shell: true, detached: true, stdio: 'ignore', windowsHide: true })
+      const child = spawn(cmd, args, {
+        shell: true,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true
+      })
       child.on('error', () => onFail?.())
       child.on('exit', (code) => code && code !== 0 && onFail?.())
       child.unref()
     }
     const fail = (message: string) => () => this.m.bus.emit('toast', { kind: 'error', message })
-    if (target === 'vscode') launch('code', [quoted], fail('Команда code не найдена. В VS Code: Ctrl+Shift+P → «Shell Command: Install \'code\' command in PATH».'))
-    else if (target === 'cursor') launch('cursor', [quoted], fail('Команда cursor не найдена. В Cursor: Ctrl+Shift+P → «Install \'cursor\' command in PATH».'))
-    else if (IS_WIN) launch('wt', ['-d', quoted], () => launch('cmd', ['/c', 'start', '""', 'cmd', '/K', `cd /d ${quoted}`]))
-    else launch(process.platform === 'darwin' ? 'open' : 'x-terminal-emulator', process.platform === 'darwin' ? ['-a', 'Terminal', quoted] : ['--working-directory', quoted])
+    if (target === 'vscode')
+      launch(
+        'code',
+        [quoted],
+        fail(
+          "Команда code не найдена. В VS Code: Ctrl+Shift+P → «Shell Command: Install 'code' command in PATH»."
+        )
+      )
+    else if (target === 'cursor')
+      launch(
+        'cursor',
+        [quoted],
+        fail(
+          "Команда cursor не найдена. В Cursor: Ctrl+Shift+P → «Install 'cursor' command in PATH»."
+        )
+      )
+    else if (IS_WIN)
+      launch('wt', ['-d', quoted], () =>
+        launch('cmd', ['/c', 'start', '""', 'cmd', '/K', `cd /d ${quoted}`])
+      )
+    else
+      launch(
+        process.platform === 'darwin' ? 'open' : 'x-terminal-emulator',
+        process.platform === 'darwin' ? ['-a', 'Terminal', quoted] : ['--working-directory', quoted]
+      )
   }
 
   /** Folders under `root` (and root itself) that look like projects and are not added yet. */
   scan(root: string): { name: string; path: string; hasGit: boolean; hasPackage: boolean }[] {
     this.validFolder(root)
-    const known = new Set(this.db.select({ p: devProjects.path }).from(devProjects).all().map((r) => r.p.toLowerCase()))
-    const candidates = [root, ...readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules').map((d) => join(root, d.name))]
+    const known = new Set(
+      this.db
+        .select({ p: devProjects.path })
+        .from(devProjects)
+        .all()
+        .map((r) => r.p.toLowerCase())
+    )
+    const candidates = [
+      root,
+      ...readdirSync(root, { withFileTypes: true })
+        .filter((d) => d.isDirectory() && !d.name.startsWith('.') && d.name !== 'node_modules')
+        .map((d) => join(root, d.name))
+    ]
     return candidates
-      .map((path) => ({ name: basename(path), path, hasGit: existsSync(join(path, '.git')), hasPackage: existsSync(join(path, 'package.json')) }))
+      .map((path) => ({
+        name: basename(path),
+        path,
+        hasGit: existsSync(join(path, '.git')),
+        hasPackage: existsSync(join(path, 'package.json'))
+      }))
       .filter((c) => (c.hasGit || c.hasPackage) && !known.has(c.path.toLowerCase()))
   }
 
   api(): DevProjectsApi {
     return {
       list: async () => {
-        const rows = this.db.select().from(devProjects).orderBy(desc(devProjects.favorite), desc(devProjects.lastOpenedAt), asc(devProjects.name)).all()
+        const rows = this.db
+          .select()
+          .from(devProjects)
+          .orderBy(
+            desc(devProjects.favorite),
+            desc(devProjects.lastOpenedAt),
+            asc(devProjects.name)
+          )
+          .all()
         return Promise.all(rows.map((r) => this.describe(r)))
       },
       get: async (id) => {
-        const r = this.db.select().from(devProjects).where(eq(devProjects.id, idArg.parse(id))).get()
+        const r = this.db
+          .select()
+          .from(devProjects)
+          .where(eq(devProjects.id, idArg.parse(id)))
+          .get()
         return r ? this.describe(r) : null
       },
       create: async (input) => {
@@ -338,7 +433,14 @@ export class DevProjectsModule {
         const ts = now()
         const row = this.db
           .insert(devProjects)
-          .values({ ...data, githubRepo: data.githubRepo || githubRepoOf(g?.remoteUrl ?? null), id: newId(), lastOpenedAt: null, createdAt: ts, updatedAt: ts })
+          .values({
+            ...data,
+            githubRepo: data.githubRepo || githubRepoOf(g?.remoteUrl ?? null),
+            id: newId(),
+            lastOpenedAt: null,
+            createdAt: ts,
+            updatedAt: ts
+          })
           .returning()
           .get()
         return this.describe(row)
@@ -346,20 +448,29 @@ export class DevProjectsModule {
       update: async (args) => {
         const { id, patch } = updateArgs(devProjectPatchSchema).parse(args)
         if (patch.path) this.validFolder(patch.path)
-        const row = this.db.update(devProjects).set({ ...patch, updatedAt: now() }).where(eq(devProjects.id, id)).returning().get()
+        const row = this.db
+          .update(devProjects)
+          .set({ ...patch, updatedAt: now() })
+          .where(eq(devProjects.id, id))
+          .returning()
+          .get()
         if (!row) throw new NotFoundError('Проект', id)
         return this.describe(row)
       },
       remove: async (id) => {
         const pid = idArg.parse(id)
-        for (const r of this.runs.values()) if (r.projectId === pid && r.status === 'running') this.kill(r)
+        for (const r of this.runs.values())
+          if (r.projectId === pid && r.status === 'running') this.kill(r)
         this.db.delete(devProjects).where(eq(devProjects.id, pid)).run()
       },
       pickFolder: async () => {
-        const res = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0], {
-          title: 'Выберите папку',
-          properties: ['openDirectory']
-        })
+        const res = await dialog.showOpenDialog(
+          BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0],
+          {
+            title: 'Выберите папку',
+            properties: ['openDirectory']
+          }
+        )
         return res.canceled ? null : (res.filePaths[0] ?? null)
       },
       scan: async (root) => this.scan(z.string().min(1).max(1000).parse(root)),
@@ -375,7 +486,10 @@ export class DevProjectsModule {
         const run = this.runs.get(z.string().parse(runId))
         if (run?.status === 'running') this.kill(run)
       },
-      runs: async () => [...this.runs.values()].map((r) => this.publicRun(r)).sort((a, b) => b.startedAt - a.startedAt),
+      runs: async () =>
+        [...this.runs.values()]
+          .map((r) => this.publicRun(r))
+          .sort((a, b) => b.startedAt - a.startedAt),
       logs: async (runId) => this.runs.get(z.string().parse(runId))?.lines ?? [],
       clearFinished: async () => {
         for (const [id, r] of this.runs) if (r.status !== 'running') this.runs.delete(id)

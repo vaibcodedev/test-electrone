@@ -31,6 +31,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "better-sqlite3": "^13.2.0",
     "drizzle-orm": "^0.45.4",
+    "electron-log": "^5.4.4",
     "electron-updater": "^6.8.11",
     "fflate": "^0.8.3",
     "zod": "^4.6.7"
@@ -58,6 +59,7 @@
     "@tailwindcss/browser": "^4.3.5",
     "@tailwindcss/vite": "^4.3.5",
     "@tanstack/react-query": "^5.108.4",
+    "@tanstack/react-virtual": "^3.14.28",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",

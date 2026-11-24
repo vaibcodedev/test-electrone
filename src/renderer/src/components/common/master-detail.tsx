@@ -131,7 +131,7 @@ export function DetailPane({
         )}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" aria-label="Закрыть" data-close-detail onClick={onClose}>
               <X />
             </Button>
           </TooltipTrigger>

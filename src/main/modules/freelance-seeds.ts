@@ -1,7 +1,11 @@
 import type { PlatformInput, RedFlagInput, TemplateInput } from '@shared/domain/freelance'
 
 /** Starter content for the freelance hub (created once, fully editable). Variables use {braces}. */
-export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateInput[]; redFlags: RedFlagInput[] } = {
+export const FREELANCE_SEED: {
+  platforms: PlatformInput[]
+  templates: TemplateInput[]
+  redFlags: RedFlagInput[]
+} = {
   platforms: [
     {
       name: 'Upwork',
@@ -21,7 +25,8 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
         { id: 'flags', label: 'Нет красных флагов в описании и отзывах' },
         { id: 'personal', label: 'Первые 2 строки отклика — про задачу клиента, а не про меня' }
       ],
-      notes: 'Комиссия Upwork плавающая (0–15%) — точную видно в момент отклика, записывай её в отклик и контракт.'
+      notes:
+        'Комиссия Upwork плавающая (0–15%) — точную видно в момент отклика, записывай её в отклик и контракт.'
     },
     {
       name: 'Прямые заказы',
@@ -43,8 +48,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'proposal',
       title: 'Отклик: короткий, про задачу клиента',
       trigger: 'Базовый отклик на любую вакансию',
-      body:
-        'Hi {client},\n\nI read your post about {task}. The key part for you seems to be {main_goal} — I have done exactly this for {similar_project}.\n\nHow I would approach it:\n1. {step_1}\n2. {step_2}\n3. {step_3}\n\nI can start {start_date} and deliver the first version in {timeline}.\n\nOne question to make sure I estimate correctly: {question}\n\nBest,\n{my_name}',
+      body: 'Hi {client},\n\nI read your post about {task}. The key part for you seems to be {main_goal} — I have done exactly this for {similar_project}.\n\nHow I would approach it:\n1. {step_1}\n2. {step_2}\n3. {step_3}\n\nI can start {start_date} and deliver the first version in {timeline}.\n\nOne question to make sure I estimate correctly: {question}\n\nBest,\n{my_name}',
       note: 'Первые две строки видны в превью — там должна быть задача клиента, а не «Hello, I am a developer with 5 years…».',
       niche: ''
     },
@@ -52,8 +56,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'first_message',
       title: 'Первое сообщение после ответа клиента',
       trigger: 'Клиент ответил на отклик',
-      body:
-        'Hi {client}, thanks for getting back to me!\n\nTo give you an accurate plan, could you share:\n- {question_1}\n- {question_2}\n\nIf it is easier, I am happy to jump on a short call — {my_availability}.',
+      body: 'Hi {client}, thanks for getting back to me!\n\nTo give you an accurate plan, could you share:\n- {question_1}\n- {question_2}\n\nIf it is easier, I am happy to jump on a short call — {my_availability}.',
       note: '',
       niche: ''
     },
@@ -61,8 +64,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'estimate',
       title: 'Оценка сроков и стоимости',
       trigger: 'How long will it take? / What is your estimate?',
-      body:
-        'Based on what we discussed, here is my estimate:\n\n- {part_1}: {hours_1}h\n- {part_2}: {hours_2}h\n- Testing & fixes: {hours_3}h\n\nTotal: {total} ({timeline}). This includes {included}. Anything outside this scope I will flag before starting.',
+      body: 'Based on what we discussed, here is my estimate:\n\n- {part_1}: {hours_1}h\n- {part_2}: {hours_2}h\n- Testing & fixes: {hours_3}h\n\nTotal: {total} ({timeline}). This includes {included}. Anything outside this scope I will flag before starting.',
       note: 'Всегда закладывай время на тесты и правки отдельной строкой.',
       niche: ''
     },
@@ -70,8 +72,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'tz_questions',
       title: 'Уточняющие вопросы по ТЗ',
       trigger: 'ТЗ размытое',
-      body:
-        'Before I start, a few questions so nothing gets lost:\n1. Do you have designs (Figma) or should I propose the layout?\n2. Which devices/browsers matter most?\n3. Is there an existing codebase or are we starting fresh?\n4. What does "done" look like for you?\n5. Who will give feedback and how quickly?',
+      body: 'Before I start, a few questions so nothing gets lost:\n1. Do you have designs (Figma) or should I propose the layout?\n2. Which devices/browsers matter most?\n3. Is there an existing codebase or are we starting fresh?\n4. What does "done" look like for you?\n5. Who will give feedback and how quickly?',
       note: '',
       niche: ''
     },
@@ -79,8 +80,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'revisions',
       title: 'Правки сверх объёма',
       trigger: 'Клиент просит то, чего не было в задаче',
-      body:
-        'Happy to add this! It was not part of the original scope, so it would take about {hours} more hours ({price}). Should I go ahead, or would you prefer to keep it for the next milestone?',
+      body: 'Happy to add this! It was not part of the original scope, so it would take about {hours} more hours ({price}). Should I go ahead, or would you prefer to keep it for the next milestone?',
       note: 'Вежливо, но всегда называй цену дополнительной работы.',
       niche: ''
     },
@@ -88,8 +88,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'follow_up',
       title: 'Напоминание через 3–4 дня',
       trigger: 'Клиент не отвечает',
-      body:
-        'Hi {client}, just checking in on {task}. I am still available and can start {start_date}. If the project is on hold, no worries — let me know if anything changes.',
+      body: 'Hi {client}, just checking in on {task}. I am still available and can start {start_date}. If the project is on hold, no worries — let me know if anything changes.',
       note: 'Одно напоминание, не больше.',
       niche: ''
     },
@@ -121,8 +120,7 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
       situation: 'closing',
       title: 'Сдача работы и просьба об отзыве',
       trigger: 'Проект завершён',
-      body:
-        'Everything is delivered: {summary}. Thanks a lot for working with me! If you are happy with the result, I would really appreciate a short review on {platform} — it helps a lot. And of course, I am here if you need anything else.',
+      body: 'Everything is delivered: {summary}. Thanks a lot for working with me! If you are happy with the result, I would really appreciate a short review on {platform} — it helps a lot. And of course, I am here if you need anything else.',
       note: '',
       niche: ''
     }
@@ -131,7 +129,8 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
     {
       title: 'Оплата не верифицирована',
       signs: 'На Upwork нет значка «Payment verified», ноль потраченных денег.',
-      action: 'Не тратить коннекты, если только вакансия не идеальна. Если откликаюсь — фиксированные этапы с эскроу.',
+      action:
+        'Не тратить коннекты, если только вакансия не идеальна. Если откликаюсь — фиксированные этапы с эскроу.',
       severity: 3
     },
     {
@@ -154,7 +153,8 @@ export const FREELANCE_SEED: { platforms: PlatformInput[]; templates: TemplateIn
     },
     {
       title: 'Плохие отзывы фрилансеров о клиенте',
-      signs: 'Низкие оценки, «не платит», «постоянно меняет требования», много отменённых контрактов.',
+      signs:
+        'Низкие оценки, «не платит», «постоянно меняет требования», много отменённых контрактов.',
       action: 'Пропустить. Если очень нужно — только с предоплаченными этапами.',
       severity: 2
     },

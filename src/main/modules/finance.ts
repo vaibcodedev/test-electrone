@@ -25,7 +25,15 @@ import {
   type SubscriptionPeriod,
   type Withdrawal
 } from '@shared/domain/finance'
-import { clients, expenses, payments, platforms, projects, subscriptions, withdrawals } from '../db/schema'
+import {
+  clients,
+  expenses,
+  payments,
+  platforms,
+  projects,
+  subscriptions,
+  withdrawals
+} from '../db/schema'
 import { newId, now, NotFoundError } from '../core/util'
 import { idArg, updateArgs, type ModuleContext } from './context'
 import type { FreelanceModule } from './freelance'
@@ -81,7 +89,12 @@ export class FinanceModule {
       .leftJoin(platforms, eq(platforms.id, projects.platformId))
       .leftJoin(clients, eq(clients.id, projects.clientId))
       .where(
-        and(isNull(projects.deletedAt), eq(payments.status, 'paid'), gte(payments.paidAt, from), lte(payments.paidAt, to))
+        and(
+          isNull(projects.deletedAt),
+          eq(payments.status, 'paid'),
+          gte(payments.paidAt, from),
+          lte(payments.paidAt, to)
+        )
       )
       .orderBy(desc(payments.paidAt))
       .all()
@@ -121,14 +134,23 @@ export class FinanceModule {
   }
 
   private toWithdrawal(r: typeof withdrawals.$inferSelect): Withdrawal {
-    return { ...r, currency: r.currency as Currency, receivedCurrency: r.receivedCurrency as Currency }
+    return {
+      ...r,
+      currency: r.currency as Currency,
+      receivedCurrency: r.receivedCurrency as Currency
+    }
   }
 
   subscriptionMonth(month: string): SubscriptionMonthRow[] {
     const [from, to] = monthRange(month)
     const [y, mm] = month.split('-').map(Number)
     const daysInMonth = new Date(y, mm, 0).getDate()
-    const subs = this.db.select().from(subscriptions).orderBy(asc(subscriptions.billingDay)).all().map((r) => this.toSub(r))
+    const subs = this.db
+      .select()
+      .from(subscriptions)
+      .orderBy(asc(subscriptions.billingDay))
+      .all()
+      .map((r) => this.toSub(r))
     const paid = this.db
       .select()
       .from(expenses)
@@ -136,7 +158,11 @@ export class FinanceModule {
       .all()
       .filter((e) => e.subscriptionId)
     return subs
-      .filter((s) => (s.active || paid.some((e) => e.subscriptionId === s.id)) && (!s.startedAt || s.startedAt <= to))
+      .filter(
+        (s) =>
+          (s.active || paid.some((e) => e.subscriptionId === s.id)) &&
+          (!s.startedAt || s.startedAt <= to)
+      )
       .filter((s) => s.period === 'monthly' || s.billingMonth === mm - 1)
       .map((s) => {
         const e = paid.find((x) => x.subscriptionId === s.id)
@@ -169,7 +195,10 @@ export class FinanceModule {
       .all()
       .map((e) => this.toExpense(e))
     const expensesSum: MoneyByCurrency = {}
-    const byCat = new Map<string, { category: ExpenseCategory; amount: number; currency: Currency }>()
+    const byCat = new Map<
+      string,
+      { category: ExpenseCategory; amount: number; currency: Currency }
+    >()
     for (const e of exp) {
       add(expensesSum, e.currency, e.amount)
       const k = `${e.category}:${e.currency}`
@@ -181,7 +210,11 @@ export class FinanceModule {
     for (const c of this.freelance.creditPurchases(from, to)) {
       add(creditPurchases, c.currency, c.cost)
       const k = `connects:${c.currency}`
-      const cur = byCat.get(k) ?? { category: 'connects' as ExpenseCategory, amount: 0, currency: c.currency }
+      const cur = byCat.get(k) ?? {
+        category: 'connects' as ExpenseCategory,
+        amount: 0,
+        currency: c.currency
+      }
       cur.amount = r2(cur.amount + c.cost)
       byCat.set(k, cur)
     }
@@ -226,14 +259,17 @@ export class FinanceModule {
       const key = monthKey(new Date(d.getFullYear(), d.getMonth() - i, 1).getTime())
       const r = this.month(key)
       months.push({ month: key, net: r.net, expenses: minus(r.expenses, {}), profit: r.profit })
-      for (const [c, v] of Object.entries(r.creditPurchases)) add(months[months.length - 1].expenses, c as Currency, v ?? 0)
+      for (const [c, v] of Object.entries(r.creditPurchases))
+        add(months[months.length - 1].expenses, c as Currency, v ?? 0)
     }
     const allIncome = this.income(0, now())
     const plats = this.db.select().from(platforms).where(eq(platforms.archived, false)).all()
     const platformBalances = plats
       .filter((p) => p.kind !== 'direct')
       .map((p) => {
-        const earned = allIncome.filter((i) => i.platformId === p.id && i.currency === p.currency).reduce((s, i) => s + i.net, 0)
+        const earned = allIncome
+          .filter((i) => i.platformId === p.id && i.currency === p.currency)
+          .reduce((s, i) => s + i.net, 0)
         const out = this.db
           .select()
           .from(withdrawals)
@@ -241,11 +277,24 @@ export class FinanceModule {
           .all()
           .filter((w) => w.currency === p.currency)
           .reduce((s, w) => s + w.amount, 0)
-        return { platformId: p.id, name: p.name, currency: p.currency as Currency, balance: r2(earned - out) }
+        return {
+          platformId: p.id,
+          name: p.name,
+          currency: p.currency as Currency,
+          balance: r2(earned - out)
+        }
       })
     const monthlySubscriptions: MoneyByCurrency = {}
-    for (const s of this.db.select().from(subscriptions).where(eq(subscriptions.active, true)).all()) {
-      add(monthlySubscriptions, s.currency as Currency, s.period === 'yearly' ? s.amount / 12 : s.amount)
+    for (const s of this.db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.active, true))
+      .all()) {
+      add(
+        monthlySubscriptions,
+        s.currency as Currency,
+        s.period === 'yearly' ? s.amount / 12 : s.amount
+      )
     }
     return { months, platformBalances, monthlySubscriptions }
   }
@@ -273,7 +322,11 @@ export class FinanceModule {
         const data = subscriptionInputSchema.parse(input)
         const ts = now()
         return this.toSub(
-          this.db.insert(subscriptions).values({ ...data, id: newId(), createdAt: ts, updatedAt: ts }).returning().get()
+          this.db
+            .insert(subscriptions)
+            .values({ ...data, id: newId(), createdAt: ts, updatedAt: ts })
+            .returning()
+            .get()
         )
       },
       updateSubscription: async (args) => {
@@ -289,14 +342,24 @@ export class FinanceModule {
       },
       removeSubscription: async (id) => {
         // Past expenses stay (history); only the template goes.
-        this.db.delete(subscriptions).where(eq(subscriptions.id, idArg.parse(id))).run()
+        this.db
+          .delete(subscriptions)
+          .where(eq(subscriptions.id, idArg.parse(id)))
+          .run()
       },
       setSubscriptionPaid: async (args) => {
         const { id, month, paid, amount } = z
-          .object({ id: idArg, month: z.string().regex(/^\d{4}-\d{2}$/), paid: z.boolean(), amount: z.number().min(0).optional() })
+          .object({
+            id: idArg,
+            month: z.string().regex(/^\d{4}-\d{2}$/),
+            paid: z.boolean(),
+            amount: z.number().min(0).optional()
+          })
           .parse(args)
         const row = this.subscriptionMonth(month).find((s) => s.id === id)
-        const sub = row ?? this.toSub(this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()!)
+        const sub =
+          row ??
+          this.toSub(this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()!)
         if (!sub) throw new NotFoundError('Подписка', id)
         const [from, to] = monthRange(month)
         this.db
@@ -332,7 +395,13 @@ export class FinanceModule {
       },
       createExpense: async (input) => {
         const data = expenseInputSchema.parse(input)
-        return this.toExpense(this.db.insert(expenses).values({ ...data, id: newId(), createdAt: now() }).returning().get())
+        return this.toExpense(
+          this.db
+            .insert(expenses)
+            .values({ ...data, id: newId(), createdAt: now() })
+            .returning()
+            .get()
+        )
       },
       updateExpense: async (args) => {
         const { id, patch } = updateArgs(expensePatchSchema).parse(args)
@@ -341,10 +410,15 @@ export class FinanceModule {
         return this.toExpense(row)
       },
       removeExpense: async (id) => {
-        this.db.delete(expenses).where(eq(expenses.id, idArg.parse(id))).run()
+        this.db
+          .delete(expenses)
+          .where(eq(expenses.id, idArg.parse(id)))
+          .run()
       },
       withdrawals: async (args) => {
-        const q = z.object({ from: z.number().optional(), to: z.number().optional() }).parse(args ?? {})
+        const q = z
+          .object({ from: z.number().optional(), to: z.number().optional() })
+          .parse(args ?? {})
         return this.db
           .select()
           .from(withdrawals)
@@ -362,7 +436,11 @@ export class FinanceModule {
         const data = withdrawalInputSchema.parse(input)
         const received = data.received ?? r2((data.amount - data.fee) * data.rate)
         return this.toWithdrawal(
-          this.db.insert(withdrawals).values({ ...data, received, id: newId(), createdAt: now() }).returning().get()
+          this.db
+            .insert(withdrawals)
+            .values({ ...data, received, id: newId(), createdAt: now() })
+            .returning()
+            .get()
         )
       },
       updateWithdrawal: async (args) => {
@@ -370,8 +448,11 @@ export class FinanceModule {
         const cur = this.db.select().from(withdrawals).where(eq(withdrawals.id, id)).get()
         if (!cur) throw new NotFoundError('Вывод', id)
         const next = { ...cur, ...patch }
-        const recompute = patch.received === undefined && (patch.amount !== undefined || patch.fee !== undefined || patch.rate !== undefined)
-        const received = patch.received ?? (recompute ? r2((next.amount - next.fee) * next.rate) : cur.received)
+        const recompute =
+          patch.received === undefined &&
+          (patch.amount !== undefined || patch.fee !== undefined || patch.rate !== undefined)
+        const received =
+          patch.received ?? (recompute ? r2((next.amount - next.fee) * next.rate) : cur.received)
         const row = this.db
           .update(withdrawals)
           .set({ ...patch, received: received ?? 0 })
@@ -381,7 +462,10 @@ export class FinanceModule {
         return this.toWithdrawal(row!)
       },
       removeWithdrawal: async (id) => {
-        this.db.delete(withdrawals).where(eq(withdrawals.id, idArg.parse(id))).run()
+        this.db
+          .delete(withdrawals)
+          .where(eq(withdrawals.id, idArg.parse(id)))
+          .run()
       }
     }
   }

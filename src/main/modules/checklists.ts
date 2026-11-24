@@ -70,7 +70,11 @@ export class ChecklistsModule {
       .groupBy(checklistItems.checklistId)
       .all()
     const byId = new Map(counts.map((c) => [c.id, c]))
-    return list.map((c) => ({ ...c, total: byId.get(c.id)?.total ?? 0, done: byId.get(c.id)?.done ?? 0 }))
+    return list.map((c) => ({
+      ...c,
+      total: byId.get(c.id)?.total ?? 0,
+      done: byId.get(c.id)?.done ?? 0
+    }))
   }
 
   private items(checklistId: string): ChecklistItem[] {
@@ -113,7 +117,15 @@ export class ChecklistsModule {
             const [text, hint = ''] = Array.isArray(item) ? item : [item]
             this.db
               .insert(checklistItems)
-              .values({ id: newId(), checklistId: list.id, text, hint, section: section.title, done: false, position: pos++ })
+              .values({
+                id: newId(),
+                checklistId: list.id,
+                text,
+                hint,
+                section: section.title,
+                done: false,
+                position: pos++
+              })
               .run()
           }
         }
@@ -127,7 +139,11 @@ export class ChecklistsModule {
     return {
       list: async (args) => {
         const q = z
-          .object({ kind: z.enum(CHECKLIST_KINDS).optional(), search: z.string().max(200).optional(), tagId: idArg.optional() })
+          .object({
+            kind: z.enum(CHECKLIST_KINDS).optional(),
+            search: z.string().max(200).optional(),
+            tagId: idArg.optional()
+          })
           .parse(args ?? {})
         return this.withCounts(
           repo.listWhere([
@@ -178,7 +194,12 @@ export class ChecklistsModule {
           return created
         })
         if (data.projectId) {
-          this.m.links.create({ fromType: 'checklist', fromId: run.id, toType: 'project', toId: data.projectId })
+          this.m.links.create({
+            fromType: 'checklist',
+            fromId: run.id,
+            toType: 'project',
+            toId: data.projectId
+          })
         }
         this.reindex(run.id)
         return this.one(run.id)
@@ -199,7 +220,13 @@ export class ChecklistsModule {
           .from(checklistItems)
           .where(eq(checklistItems.checklistId, data.checklistId))
           .get()
-        const item = { ...data, id: newId(), done: false, doneAt: null, position: (last?.m ?? 0) + 1 }
+        const item = {
+          ...data,
+          id: newId(),
+          done: false,
+          doneAt: null,
+          position: (last?.m ?? 0) + 1
+        }
         this.db.insert(checklistItems).values(item).run()
         this.reindex(data.checklistId)
         return item
@@ -210,20 +237,31 @@ export class ChecklistsModule {
           ...patch,
           ...(patch.done !== undefined ? { doneAt: patch.done ? now() : null } : {})
         }
-        const item = this.db.update(checklistItems).set(values).where(eq(checklistItems.id, id)).returning().get()
+        const item = this.db
+          .update(checklistItems)
+          .set(values)
+          .where(eq(checklistItems.id, id))
+          .returning()
+          .get()
         if (!item) throw new NotFoundError('Пункт', id)
         if (patch.text !== undefined) this.reindex(item.checklistId)
         else repo.touch(item.checklistId)
         return item
       },
       removeItem: async (id) => {
-        const item = this.db.select().from(checklistItems).where(eq(checklistItems.id, idArg.parse(id))).get()
+        const item = this.db
+          .select()
+          .from(checklistItems)
+          .where(eq(checklistItems.id, idArg.parse(id)))
+          .get()
         if (!item) return
         this.db.delete(checklistItems).where(eq(checklistItems.id, item.id)).run()
         this.reindex(item.checklistId)
       },
       reorderItems: async (args) => {
-        const { checklistId, ids } = z.object({ checklistId: idArg, ids: z.array(idArg) }).parse(args)
+        const { checklistId, ids } = z
+          .object({ checklistId: idArg, ids: z.array(idArg) })
+          .parse(args)
         this.m.db.tx(() => {
           ids.forEach((id, i) => {
             this.db

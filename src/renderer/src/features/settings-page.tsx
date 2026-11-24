@@ -28,6 +28,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/settings-cards'
 
 /** Settings section: shadcn Card with header and a column of rows. */
 function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -225,6 +226,13 @@ export function SettingsPage() {
                 </Button>
               </Row>
             )}
+            {info && (
+              <Row label="Журнал ошибок" hint={info.logFile}>
+                <Button variant="soft" size="sm" onClick={() => api.settings.openLogs()}>
+                  <FolderOpen /> Открыть журнал
+                </Button>
+              </Row>
+            )}
           </Section>
 
           <Section
@@ -354,6 +362,9 @@ export function SettingsPage() {
               компьютере.
             </p>
           </Section>
+
+          <GithubSettingsCard />
+          <ExtensionSettingsCard />
 
           <Section title="Обновления" hint="Через GitHub Releases (настраивается в electron-builder.yml).">
             <Row label="Скачивать обновления автоматически" hint={updateHint}>

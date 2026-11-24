@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { format } from 'date-fns'
-import { ArrowUpRight, Pause, Pin, Star, Timer } from 'lucide-react'
+import { ArrowUpRight, BookOpen, Pause, Pin, Star, Timer, X } from 'lucide-react'
 import { Bar, BarChart, XAxis } from 'recharts'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DueCard } from '@shared/domain/boards'
@@ -308,6 +308,38 @@ function ListCard({
   )
 }
 
+const GUIDE_HINT_KEY = 'vault-guide-hint-dismissed'
+
+/** First-run hint pointing to the guide; dismissed forever via localStorage. */
+function GuideHint() {
+  const navigate = useNavigate()
+  const [hidden, setHidden] = useState(() => localStorage.getItem(GUIDE_HINT_KEY) === '1')
+  if (hidden) return null
+  const dismiss = (): void => {
+    localStorage.setItem(GUIDE_HINT_KEY, '1')
+    setHidden(true)
+  }
+  return (
+    <Card className="col-span-12 flex-row items-center gap-4 bg-lime-soft px-5 py-4">
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-card">
+        <BookOpen className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="text-[15px] font-medium">Впервые здесь?</div>
+        <div className="text-[13px] text-muted-foreground">
+          Гайд за пару минут: разделы, горячие клавиши и где лежат ваши данные.
+        </div>
+      </div>
+      <Button variant="default" onClick={() => navigate('/guide')}>
+        Открыть гайд
+      </Button>
+      <Button variant="ghost" size="icon-sm" aria-label="Скрыть подсказку" onClick={dismiss}>
+        <X />
+      </Button>
+    </Card>
+  )
+}
+
 export function DashboardPage() {
   const { data } = useApi('app', 'dashboard', undefined, { refetchInterval: 60_000 })
   const navigate = useNavigate()
@@ -327,6 +359,7 @@ export function DashboardPage() {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="grid animate-rise grid-cols-12 gap-3">
+        <GuideHint />
         <TodayCard cards={data.today.cards} overdue={data.today.overdue} />
         <Agenda items={data.today.agenda} />
 
