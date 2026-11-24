@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { FileText, Trash2, X } from 'lucide-react'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
@@ -24,7 +24,15 @@ import { LinksPanel } from '@/components/common/links-panel'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { PinButtons } from '@/components/common/pin-buttons'
 import { promptAfterStatusChange } from './schedule-stage'
-import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
+import {
+  EditToggle,
+  guardSheet,
+  RecordMode,
+  useModeRef,
+  usePublishMode,
+  useRecordMode,
+  type DetailMode
+} from '@/components/common/detail-mode'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '../crm/parts'
 import { CompanyCombobox, LinkInput, NumberInput, TextField } from './j1-fields'
@@ -74,7 +82,15 @@ function CoverTemplatePicker({ application: a, patch }: { application: Applicati
   )
 }
 
-function Editor({ application: a, onClose }: { application: ApplicationDetails; onClose: () => void }) {
+function Editor({
+  application: a,
+  onClose,
+  modeRef
+}: {
+  application: ApplicationDetails
+  onClose: () => void
+  modeRef?: RefObject<DetailMode | null>
+}) {
   const update = useApiMutation('jobs', 'update')
   const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
@@ -87,12 +103,13 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
   const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
 
   const mode = useRecordMode(a.id, 'application')
+  usePublishMode(modeRef, mode)
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <PinButtons entity={{ type: 'application', id: a.id }} />
         <div className="flex-1" />
-        <EditToggle mode={mode} />
+        <EditToggle mode={mode} onClose={onClose} />
         <Choice
           size="sm"
           value={a.status}
@@ -250,11 +267,13 @@ function Editor({ application: a, onClose }: { application: ApplicationDetails; 
 /** Right-side vacancy editor, opened by ?open=<id>. */
 export function ApplicationEditorSheet({ applicationId, onClose }: { applicationId: string | null; onClose: () => void }) {
   const { data: application } = useApi('jobs', 'get', applicationId ?? '', { enabled: !!applicationId })
+  const modeRef = useModeRef()
+  const guard = guardSheet(modeRef, onClose)
   return (
-    <Sheet open={!!applicationId} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[660px]">
+    <Sheet open={!!applicationId} onOpenChange={guard.onOpenChange}>
+      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[660px]">
         {application && application.id === applicationId ? (
-          <Editor key={application.id} application={application} onClose={onClose} />
+          <Editor key={application.id} application={application} onClose={onClose} modeRef={modeRef} />
         ) : (
           <>
             <SheetTitle className="sr-only">Вакансія</SheetTitle>

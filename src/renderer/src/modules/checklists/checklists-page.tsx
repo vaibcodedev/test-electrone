@@ -33,11 +33,12 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
       tabIndex={0}
       onClick={() => navigate(`/checklists/${item.id}`)}
       onKeyDown={(e) => e.key === 'Enter' && navigate(`/checklists/${item.id}`)}
-      className="group min-h-[190px] cursor-pointer justify-between gap-0 p-5 transition-colors hover:bg-accent"
+      className="group tile min-h-[190px] justify-between gap-0 p-5"
     >
       <div className="flex items-start justify-between gap-3">
-        <Avatar className="size-10">
-          <AvatarFallback className="bg-card">
+        {/* Icon chip: lighter square, so it never reads as a second dark pill next to «Запустити». */}
+        <Avatar className="size-10 rounded-xl">
+          <AvatarFallback className="rounded-xl bg-foreground/[0.07] text-muted-foreground">
             <ListChecks className="size-4" />
           </AvatarFallback>
         </Avatar>
@@ -89,7 +90,7 @@ function RunCard({ item }: { item: Checklist }) {
           <ArrowUpRight className="size-4 opacity-60 transition-transform group-hover:rotate-45" />
         </div>
         <div>
-          <div className="truncate text-[16px] font-medium">{item.title}</div>
+          <div className="truncate text-lead font-medium">{item.title}</div>
           <div className="mt-3 flex items-center gap-3">
             <SegmentBar
               value={item.done}

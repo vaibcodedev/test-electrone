@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import {
@@ -21,7 +21,15 @@ import {
   type ProposalPatch
 } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
-import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
+import {
+  EditToggle,
+  guardSheet,
+  RecordMode,
+  useModeRef,
+  usePublishMode,
+  useRecordMode,
+  type DetailMode
+} from '@/components/common/detail-mode'
 import { isLikelyUrl, limitsOf, rangesOf, URL_ERROR } from '@/lib/limits'
 import { NumberField } from '../crm/number-field'
 import { CountryCombobox } from '../crm/country-combobox'
@@ -278,11 +286,13 @@ function TemplatePicker({
 function Editor({
   proposal: p,
   platform,
-  onClose
+  onClose,
+  modeRef
 }: {
   proposal: Proposal
   platform: Platform
   onClose: () => void
+  modeRef?: RefObject<DetailMode | null>
 }) {
   const navigate = useNavigate()
   const update = useApiMutation('proposals', 'update')
@@ -308,12 +318,13 @@ function Editor({
   const hasCredits = !!platform.creditsName
   // Click opens the proposal for reading; «Редагувати» switches it to editing.
   const mode = useRecordMode(p.id, 'proposal')
+  usePublishMode(modeRef, mode)
 
   return (
     <RecordMode mode={mode}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-          <EditToggle mode={mode} />
+          <EditToggle mode={mode} onClose={onClose} />
           <PinButtons entity={{ type: 'proposal', id: p.id }} />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -355,7 +366,7 @@ function Editor({
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={onClose}>
+              <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
                 <X />
               </Button>
             </TooltipTrigger>
@@ -624,15 +635,18 @@ export function ProposalEditorSheet({
   onClose: () => void
 }) {
   const { data: proposal } = useApi('proposals', 'get', proposalId ?? '', { enabled: !!proposalId })
+  const modeRef = useModeRef()
+  const guard = guardSheet(modeRef, onClose)
   return (
-    <Sheet open={!!proposalId} onOpenChange={(o) => !o && onClose()}>
+    <Sheet open={!!proposalId} onOpenChange={guard.onOpenChange}>
       <SheetContent
+        onEscapeKeyDown={guard.onEscapeKeyDown}
         side="right"
         showCloseButton={false}
         className="w-full gap-0 p-0 sm:max-w-[640px]"
       >
         {proposal && proposal.id === proposalId ? (
-          <Editor key={proposal.id} proposal={proposal} platform={platform} onClose={onClose} />
+          <Editor key={proposal.id} proposal={proposal} platform={platform} onClose={onClose} modeRef={modeRef} />
         ) : (
           <>
             <SheetTitle className="sr-only">Відгук</SheetTitle>

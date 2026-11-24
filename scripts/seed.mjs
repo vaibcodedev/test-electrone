@@ -193,7 +193,11 @@ export default function Demo() {
   const proj = await call('devProjects.create', { name: 'Vault', path: res('.') })
   if (!proj.scripts.dev || !proj.git) throw new Error('project scan failed ' + JSON.stringify({ scripts: Object.keys(proj.scripts), git: proj.git }))
   // The installed Vault may already hold the default port: use a free random one for the test instance.
-  await call('settings.update', { capturePort: 47300 + Math.floor(Math.random() * 500), quickAddShortcut: 'CommandOrControl+Alt+Shift+F12' })
+  // Free shortcut + random port: parallel test runs (and the installed Vault) must not collide.
+  for (const key of ['F12', 'F11', 'F10', 'F9', 'F8']) {
+    const r = await rpc('settings.update', { capturePort: 47300 + Math.floor(Math.random() * 500), quickAddShortcut: `CommandOrControl+Alt+Shift+${key}` })
+    if (r.ok) break
+  }
   const cap = await call('capture.info')
   const base = `http://127.0.0.1:${cap.port}`
   let ping = null

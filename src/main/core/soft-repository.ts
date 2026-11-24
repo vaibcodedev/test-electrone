@@ -109,12 +109,12 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
     )
   }
 
-  /** Condition: any of the columns contains the text (case-insensitive for ASCII + Cyrillic via lower()). */
+  /** Condition: any of the columns contains the text (case-insensitive for any script via ulower(), see db/client). */
   matches(text: string | undefined, columns: SQLiteColumn[]): SQL | undefined {
     const t = text?.trim()
     if (!t) return undefined
-    const pattern = likePattern(t.toLowerCase())
-    return or(...columns.map((c) => sql`lower(${c}) LIKE ${pattern} ESCAPE '\\'`))
+    const pattern = likePattern(t.toLocaleLowerCase('uk'))
+    return or(...columns.map((c) => sql`ulower(${c}) LIKE ${pattern} ESCAPE '\\'`))
   }
 
   /* ───────── writes ───────── */

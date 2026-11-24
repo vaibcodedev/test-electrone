@@ -153,7 +153,7 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
       aria-current={active || undefined}
       className={cn(
         'h-full min-w-0 cursor-pointer gap-3 py-4 transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-        active ? 'bg-ink text-ink-foreground' : 'hover:bg-accent'
+        active ? 'bg-ink text-ink-foreground' : 'tile'
       )}
     >
       <CardHeader className="gap-1 px-4">

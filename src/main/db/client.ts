@@ -56,6 +56,10 @@ export class DbContext {
     sqlite.pragma('foreign_keys = ON')
     sqlite.pragma('synchronous = NORMAL')
     sqlite.pragma('busy_timeout = 5000')
+    // SQLite lower() folds ASCII only: «Сдача» stayed «Сдача» and «сд» never matched. Unicode-aware twin for search.
+    sqlite.function('ulower', { deterministic: true }, (v: unknown) =>
+      typeof v === 'string' ? v.toLocaleLowerCase('uk') : v
+    )
     this._sqlite = sqlite
     this._orm = drizzle({ client: sqlite, schema, casing: 'snake_case' })
     if (existsSync(this.file)) this.backupBeforeMigrate(sqlite, this.pendingMigrations(sqlite))

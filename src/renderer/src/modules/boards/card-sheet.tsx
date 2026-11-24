@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type RefObject } from 'react'
 import { Plus, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cardInputSchema, PRIORITIES, type BoardColumn, type CardDetails, type CardPatch, type ChecklistEntry, type Priority } from '@shared/domain/boards'
@@ -23,7 +23,15 @@ import { Field, SegmentBar } from '@/components/common/page'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { PinButtons } from '@/components/common/pin-buttons'
-import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
+import {
+  EditToggle,
+  guardSheet,
+  RecordMode,
+  useModeRef,
+  usePublishMode,
+  useRecordMode,
+  type DetailMode
+} from '@/components/common/detail-mode'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { cn } from '@/lib/utils'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
@@ -105,7 +113,17 @@ function Checklist({ card }: { card: CardDetails }) {
   )
 }
 
-function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: BoardColumn[]; onClose: () => void }) {
+function CardEditor({
+  card,
+  columns,
+  onClose,
+  modeRef
+}: {
+  card: CardDetails
+  columns: BoardColumn[]
+  onClose: () => void
+  modeRef?: RefObject<DetailMode | null>
+}) {
   const update = useApiMutation('cards', 'update')
   const remove = useApiMutation('cards', 'remove', {
     onSuccess: () => {
@@ -118,6 +136,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
   const [description, setDescription] = useAutosave(card.description, (d) => patch({ description: d }))
 
   const mode = useRecordMode(card.id, 'card')
+  usePublishMode(modeRef, mode)
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
@@ -125,7 +144,7 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
         <span className="flex-1 truncate text-caption text-muted-foreground">
           {card.boardTitle} · {card.columnTitle}
         </span>
-        <EditToggle mode={mode} />
+        <EditToggle mode={mode} onClose={onClose} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="У кошик" onClick={() => remove.mutate(card.id)}>
@@ -220,11 +239,13 @@ function CardEditor({ card, columns, onClose }: { card: CardDetails; columns: Bo
 /** Right-side card editor, opened by ?card=<id>. */
 export function CardSheet({ cardId, columns, onClose }: { cardId: string | null; columns: BoardColumn[]; onClose: () => void }) {
   const { data: card } = useApi('cards', 'get', cardId ?? '', { enabled: !!cardId })
+  const modeRef = useModeRef()
+  const guard = guardSheet(modeRef, onClose)
   return (
-    <Sheet open={!!cardId} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[560px]">
+    <Sheet open={!!cardId} onOpenChange={guard.onOpenChange}>
+      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[560px]">
         {card && card.id === cardId ? (
-          <CardEditor key={card.id} card={card} columns={columns} onClose={onClose} />
+          <CardEditor key={card.id} card={card} columns={columns} onClose={onClose} modeRef={modeRef} />
         ) : (
           <>
             <SheetTitle className="sr-only">Картка</SheetTitle>

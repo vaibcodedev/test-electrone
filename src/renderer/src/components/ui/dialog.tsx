@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
@@ -66,7 +67,7 @@ function DialogContent({
         )}
         {...props}
       >
-        {children}
+        <EditableScope>{children}</EditableScope>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

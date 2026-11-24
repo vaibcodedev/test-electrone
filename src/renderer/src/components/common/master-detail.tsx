@@ -173,7 +173,7 @@ export function DetailPane({
     <Card
       data-detail-mode={editing ? 'edit' : 'view'}
       className={cn(
-        'min-h-0 flex-1 animate-pane gap-0 overflow-hidden bg-card py-0 shadow-[0_12px_40px_-16px_rgb(0_0_0/0.35)] ring-1 ring-foreground/12',
+        'min-h-0 flex-1 animate-pane gap-0 overflow-hidden bg-card py-0 shadow-[0_12px_40px_-16px_rgb(0_0_0/0.35)] border border-foreground/12',
         leaving && 'pointer-events-none animate-leave',
         className
       )}
@@ -193,7 +193,7 @@ export function DetailPane({
           </Tooltip>
         )}
         {/* E edits, Esc leaves edit mode first and closes the pane on the second press. */}
-        <EditToggle mode={mode} />
+        <EditToggle mode={mode} onClose={onClose} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Закрити" data-close-detail={editing ? undefined : true} onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>

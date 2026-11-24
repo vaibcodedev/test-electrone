@@ -37,7 +37,7 @@ export class TagService {
     const existing = this.db
       .select()
       .from(tags)
-      .where(sql`lower(${tags.name}) = lower(${data.name})`)
+      .where(sql`ulower(${tags.name}) = ulower(${data.name})`)
       .get()
     if (existing) return existing
     const tag: Tag = { id: newId(), name: data.name, color: data.color, createdAt: now() }
@@ -51,7 +51,7 @@ export class TagService {
       const clash = this.db
         .select()
         .from(tags)
-        .where(sql`lower(${tags.name}) = lower(${data.name}) AND ${tags.id} != ${id}`)
+        .where(sql`ulower(${tags.name}) = ulower(${data.name}) AND ${tags.id} != ${id}`)
         .get()
       if (clash) throw new UserError(`Мітка «${data.name}» уже існує`)
     }

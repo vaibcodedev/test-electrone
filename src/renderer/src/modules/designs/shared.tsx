@@ -132,7 +132,7 @@ export function MoodboardTile({ board }: { board: Moodboard }) {
   return (
     <Card
       {...clickableCard(() => navigate(`/designs/boards/${board.id}`))}
-      className="w-56 shrink-0 cursor-pointer gap-2 p-2 text-left transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      className="tile w-56 shrink-0 gap-2 p-2 text-left"
     >
       <div className="grid aspect-[4/3] grid-cols-2 grid-rows-2 gap-1 overflow-hidden rounded-2xl">
         {cells.map((p, i) =>

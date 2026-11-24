@@ -72,7 +72,7 @@ export function DatePicker({
             aria-invalid={invalid || undefined}
             className={cn(
               // Looks like an input (same border/tint as Input), not like a button.
-              'flex-1 justify-start rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/25 hover:bg-foreground/[0.04]',
+              'flex-1 justify-start rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/40 hover:bg-foreground/[0.04]',
               !date && 'text-muted-foreground',
               invalid && 'text-destructive ring-1 ring-destructive/60 ring-inset'
             )}

@@ -153,7 +153,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
               value={c.projectId ?? NO_PROJECT}
               onValueChange={(v) => save({ projectId: v === NO_PROJECT ? null : v })}
             >
-              <SelectTrigger className="w-full rounded-xl border-transparent bg-surface shadow-none">
+              <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -304,7 +304,7 @@ export function PortfolioPage() {
                   onKeyDown={(e) => e.key === 'Enter' && setOpen(c.id)}
                   className={cn(
                     // Same tile language as Дизайни: a surface frame, so a dark cover never melts into the page.
-                    'h-full cursor-pointer gap-0 overflow-hidden bg-surface p-1.5 transition-colors hover:bg-accent',
+                    'tile h-full gap-0 overflow-hidden bg-surface p-1.5',
                     c.id === open && 'bg-accent outline-2 -outline-offset-2 outline-chart-1'
                   )}
                 >

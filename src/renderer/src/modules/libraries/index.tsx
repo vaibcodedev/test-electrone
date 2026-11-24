@@ -193,7 +193,7 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
   const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
   const base = cn(
     'h-full min-w-0 cursor-pointer transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-    active ? 'bg-ink text-ink-foreground' : 'hover:bg-accent'
+    active ? 'bg-ink text-ink-foreground' : 'tile'
   )
   const keys = (e: React.KeyboardEvent): void => {
     if (e.key === 'Enter' && e.target === e.currentTarget) onOpen()

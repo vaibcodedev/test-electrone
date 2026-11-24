@@ -75,7 +75,7 @@ export function DesignsPage() {
           className={cn(
             // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
             // Selection is an inset outline — an outer ring would be clipped by the scrolling grid.
-            'group relative block w-full cursor-pointer gap-0 overflow-hidden bg-surface p-1.5 text-left outline-none transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/60',
+            'group tile relative block w-full gap-0 overflow-hidden bg-surface p-1.5 text-left',
             d.id === open && 'bg-accent outline-2 -outline-offset-2 outline-ring'
           )}
         >

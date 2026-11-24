@@ -1,4 +1,5 @@
 import * as React from "react"
+import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
@@ -51,6 +52,7 @@ function AlertDialogContent({
 }) {
   return (
     <AlertDialogPortal>
+      <EditableScope>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
@@ -61,6 +63,7 @@ function AlertDialogContent({
         )}
         {...props}
       />
+      </EditableScope>
     </AlertDialogPortal>
   )
 }

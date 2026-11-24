@@ -223,7 +223,7 @@ export class KnowledgeModule {
         repo.hasTag(q.tagId),
         repo.matches(q.search, [libraries.name, libraries.purpose, libraries.notes])
       ],
-      orderBy: [sql`lower(${libraries.name}) ASC`]
+      orderBy: [sql`ulower(${libraries.name}) ASC`]
     })
   }
 

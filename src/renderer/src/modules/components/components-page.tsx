@@ -63,7 +63,7 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
-      className="group h-full min-w-0 cursor-pointer gap-0 overflow-hidden p-1.5 text-left transition-colors outline-none hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      className="group tile h-full min-w-0 gap-0 overflow-hidden p-1.5 text-left"
     >
       <div className="relative aspect-[16/10] overflow-hidden rounded-[18px] bg-card bg-[conic-gradient(var(--surface)_25%,transparent_0_50%,var(--surface)_0_75%,transparent_0)] bg-[length:16px_16px]">
         <div className="absolute inset-0 transition-transform duration-300 group-hover:scale-[1.02]">

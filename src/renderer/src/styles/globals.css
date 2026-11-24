@@ -180,7 +180,7 @@
   --accent-foreground: #14160f;
   --destructive: #d9363e;
   --border: rgb(20 22 15 / 0.09);
-  --input: rgb(20 22 15 / 0.14);
+  --input: rgb(20 22 15 / 0.2);
   --ring: #9bbb12;
 
   --ink: #14160f;
@@ -224,7 +224,7 @@
   --accent-foreground: #f3f4f1;
   --destructive: #ff5c63;
   --border: rgb(255 255 255 / 0.08);
-  --input: rgb(255 255 255 / 0.12);
+  --input: rgb(255 255 255 / 0.2);
   --ring: #d4f542;
 
   --ink: #f3f4f1;
@@ -252,6 +252,23 @@
     /* backwards: affects only the start, so transforms (dnd-kit, hover, active) stay free afterwards. */
     animation: enter 0.24s var(--ease-soft) backwards;
     animation-delay: calc(min(sibling-index() - 1, 8) * 25ms);
+  }
+}
+
+/* Clickable tile (card that opens something): the hover must be visible on a dark surface, where
+   surface→accent was ~2% lighter. Lighter fill + inset hairline (inset: never clipped by scrolling grids). */
+@utility tile {
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color 0.15s var(--ease-soft),
+    box-shadow 0.15s var(--ease-soft);
+  &:hover {
+    background-color: color-mix(in oklab, var(--surface), var(--foreground) 7%);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 16%, transparent);
+  }
+  &:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--ring);
   }
 }
 
@@ -486,10 +503,20 @@
 }
 [data-detail-mode='view'] [data-slot='toggle-group'],
 [data-detail-mode='view'] [data-slot='select-trigger'],
+/* One accent while editing: «Зберегти» stays lime, the record's other lime buttons step back to soft. */
+[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]) {
+  background: var(--surface);
+  color: var(--foreground);
+}
+[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]):hover {
+  background: var(--accent);
+}
+/* Checkbox is not here on purpose: it marks progress (pre-bid checks, subtasks) and works while reading. */
 [data-detail-mode='view'] [data-slot='switch'],
-[data-detail-mode='view'] [data-slot='checkbox'],
 [data-detail-mode='view'] [data-slot='radio-group'],
-[data-detail-mode='view'] [data-slot='slider'] {
+[data-detail-mode='view'] [data-slot='slider'],
+[data-detail-mode='view'] :has(> [data-slot='switch']) > label,
+[data-detail-mode='view'] label:has([data-slot='switch']) {
   pointer-events: none;
 }
 [data-detail-mode='view'] [data-slot='select-trigger'] {

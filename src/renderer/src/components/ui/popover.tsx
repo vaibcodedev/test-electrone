@@ -1,4 +1,5 @@
 import * as React from "react"
+import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
 import { Popover as PopoverPrimitive } from "radix-ui"
 
@@ -24,6 +25,7 @@ function PopoverContent({
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
     <PopoverPrimitive.Portal>
+      <EditableScope>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}
@@ -35,6 +37,7 @@ function PopoverContent({
         )}
         {...props}
       />
+      </EditableScope>
     </PopoverPrimitive.Portal>
   )
 }

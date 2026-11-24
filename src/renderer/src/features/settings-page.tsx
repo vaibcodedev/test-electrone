@@ -174,7 +174,7 @@ export function SettingsPage() {
                     className={cn(
                       // Neutral cards with a preview; the chosen one gets a clear ring + check (no inversion).
                       'relative flex cursor-pointer flex-col items-stretch gap-2.5 rounded-2xl border bg-card p-2.5 text-body font-normal transition-[border-color,box-shadow]',
-                      active ? 'border-transparent ring-2 ring-chart-1' : 'border-border hover:border-foreground/25'
+                      active ? 'border-transparent ring-2 ring-chart-1' : 'border-border hover:border-foreground/40'
                     )}
                   >
                     <ThemePreview theme={t.value} />

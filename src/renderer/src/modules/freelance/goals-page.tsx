@@ -62,7 +62,7 @@ const TITLE_MAX = limitsOf(goalInputSchema).title
 const GOAL_R = rangesOf(goalInputSchema)
 
 const ALL = '__all__'
-const selectCls = 'w-full rounded-xl border-transparent bg-surface shadow-none'
+const selectCls = 'w-full'
 
 export function formatGoalValue(metric: GoalMetric, value: number): string {
   if (metric === 'net_income') return fmtMoney(value, 'USD')
