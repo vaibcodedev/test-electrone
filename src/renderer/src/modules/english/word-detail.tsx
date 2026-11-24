@@ -11,9 +11,8 @@ import { Field, Segmented } from '@/components/common/page'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL } from './labels'
+import { StatCell } from '@/components/common/stat-tile'
 
 type Form = Pick<
   Word,
@@ -32,23 +31,6 @@ function toForm(w: Word): Form {
     notes: w.notes
   }
 }
-
-/** One SRS fact in plain words; the tooltip explains what it means and how it changes. */
-function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Card className="cursor-help gap-0.5 rounded-2xl px-3 py-2.5" tabIndex={0}>
-          <div className="text-meta text-muted-foreground">{label}</div>
-          <div className="text-lead font-medium tabular-nums">{value}</div>
-        </Card>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-60">{hint}</TooltipContent>
-    </Tooltip>
-  )
-}
-
-/** SM-2 ease (1.3…2.5+) as a word: how hard the word is for you. */
 
 export function WordDetail({ word, onClose }: { word: Word; onClose: () => void }) {
   const update = useApiMutation('english', 'update', { silent: false })
@@ -82,24 +64,24 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
           <section className="flex flex-col gap-2">
             <SectionLabel>Повторення</SectionLabel>
             <div className="grid grid-cols-2 gap-1.5">
-              <Stat
+              <StatCell
                 label="Повторити"
                 value={fmtDay(word.dueAt) || '—'}
                 hint={`Коли слово знову зʼявиться в тренуванні: ${fmtDateTime(word.dueAt)}.`}
               />
-              <Stat
+              <StatCell
                 label="Пауза"
                 value={word.intervalDays < 1 ? 'менше дня' : `${Math.round(word.intervalDays)} дн.`}
                 hint="Скільки днів між повторами зараз. Згадали — пауза росте, забули — знову коротка."
               />
-              <Stat label="Згадав поспіль" value={String(word.repetitions)} hint="Скільки разів поспіль ви згадали слово без помилки." />
-              <Stat label="Забував" value={String(word.lapses)} hint="Скільки разів слово забулося й повернулося на початок." />
-              <Stat
+              <StatCell label="Згадав поспіль" value={String(word.repetitions)} hint="Скільки разів поспіль ви згадали слово без помилки." />
+              <StatCell label="Забував" value={String(word.lapses)} hint="Скільки разів слово забулося й повернулося на початок." />
+              <StatCell
                 label="Дається"
                 value={easeLabel(word.ease)}
                 hint="Наскільки легко дається слово за вашими відповідями. Що важче, то частіше воно трапляється."
               />
-              <Stat
+              <StatCell
                 label="Останній раз"
                 value={word.lastReviewedAt ? fmtDay(word.lastReviewedAt) : 'ще не було'}
                 hint="Коли ви востаннє повторювали це слово."

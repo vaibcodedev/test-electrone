@@ -38,7 +38,7 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from '@/components/ui/chart'
-import { CATEGORY_LABEL, FinanceNav, MonthSwitcher, StatTile, moneyEntries } from './parts'
+import { CATEGORY_LABEL, FinanceNav, MonthSwitcher, MoneyStatTile, moneyEntries } from './parts'
 import { monthLabel, monthName, monthShort, useMonth } from './month'
 
 const COMPACT = new Intl.NumberFormat('uk-UA', { notation: 'compact', maximumFractionDigits: 1 })
@@ -408,11 +408,11 @@ export function FinanceOverviewPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <div className="stagger grid grid-cols-5 gap-3">
-              <StatTile title="Отримано" value={report.gross} hint="оплати за контрактами" />
-              <StatTile title="Комісії платформ" value={report.fees} />
-              <StatTile title="На руки" value={report.net} hint="після комісій" />
-              <StatTile
-                title="Витрати"
+              <MoneyStatTile label="Отримано" value={report.gross} hint="оплати за контрактами" />
+              <MoneyStatTile label="Комісії платформ" value={report.fees} />
+              <MoneyStatTile label="На руки" value={report.net} hint="після комісій" />
+              <MoneyStatTile
+                label="Витрати"
                 value={expensesTotal}
                 hint={
                   moneyEntries(report.creditPurchases).length
@@ -422,9 +422,9 @@ export function FinanceOverviewPage() {
                     : 'підписки й разові'
                 }
               />
-              <StatTile
-                ink
-                title="Прибуток"
+              <MoneyStatTile
+                tone="ink"
+                label="Прибуток"
                 value={report.profit}
                 hint={
                   subsLeft > 0 ? (

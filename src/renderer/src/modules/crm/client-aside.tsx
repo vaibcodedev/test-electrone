@@ -11,8 +11,7 @@ import { api } from '@/lib/api'
 import { fmtDay, fmtMoney, fmtPercent } from '@/lib/format'
 import { copyText } from '@/components/common/copy-button'
 import { SectionLabel } from '@/components/common/master-detail'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IconAction } from '@/components/common/icon-action'
 import { BILLING_INFO } from './labels'
 import { usePlatforms } from './platform-fields'
 
@@ -23,33 +22,6 @@ export function AsideGroup({ title, children }: { title: string; children: React
       <SectionLabel>{title}</SectionLabel>
       {children}
     </section>
-  )
-}
-
-function RowAction({
-  label,
-  onClick,
-  children
-}: {
-  label: string
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={label}
-          className="text-muted-foreground"
-          onClick={onClick}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   )
 }
 
@@ -104,15 +76,15 @@ export function ContactsView({ c }: { c: Client }) {
           label="Email"
           actions={
             <>
-              <RowAction
+              <IconAction className="text-muted-foreground"
                 label={`Написати: ${c.email}`}
                 onClick={() => openExternal(`mailto:${c.email}`)}
               >
                 <Mail />
-              </RowAction>
-              <RowAction label="Скопіювати пошту" onClick={copy(c.email, 'Пошту скопійовано')}>
+              </IconAction>
+              <IconAction className="text-muted-foreground" label="Скопіювати пошту" onClick={copy(c.email, 'Пошту скопійовано')}>
                 <Copy />
-              </RowAction>
+              </IconAction>
             </>
           }
         >
@@ -123,9 +95,9 @@ export function ContactsView({ c }: { c: Client }) {
         <InfoRow
           label="Телефон"
           actions={
-            <RowAction label="Скопіювати телефон" onClick={copy(c.phone, 'Телефон скопійовано')}>
+            <IconAction className="text-muted-foreground" label="Скопіювати телефон" onClick={copy(c.phone, 'Телефон скопійовано')}>
               <Copy />
-            </RowAction>
+            </IconAction>
           }
         >
           {c.phone}
@@ -135,9 +107,9 @@ export function ContactsView({ c }: { c: Client }) {
         <InfoRow
           label="Месенджер"
           actions={
-            <RowAction label="Скопіювати" onClick={copy(c.messenger, 'Скопійовано')}>
+            <IconAction className="text-muted-foreground" label="Скопіювати" onClick={copy(c.messenger, 'Скопійовано')}>
               <Copy />
-            </RowAction>
+            </IconAction>
           }
         >
           {c.messenger}
@@ -148,15 +120,15 @@ export function ContactsView({ c }: { c: Client }) {
           label="Сайт"
           actions={
             <>
-              <RowAction label="Відкрити сайт" onClick={() => openExternal(c.website)}>
+              <IconAction className="text-muted-foreground" label="Відкрити сайт" onClick={() => openExternal(c.website)}>
                 <ExternalLink />
-              </RowAction>
-              <RowAction
+              </IconAction>
+              <IconAction className="text-muted-foreground"
                 label="Скопіювати посилання"
                 onClick={copy(c.website, 'Посилання скопійовано')}
               >
                 <Copy />
-              </RowAction>
+              </IconAction>
             </>
           }
         >

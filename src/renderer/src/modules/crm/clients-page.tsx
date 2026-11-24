@@ -25,7 +25,8 @@ import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/i
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { BILLING_LABEL, CLIENT_STATUS_LABEL, PROJECT_STATUS_LABEL } from './labels'
-import { Meter, StatTile } from './parts'
+import { Meter } from './parts'
+import { StatTile } from '@/components/common/stat-tile'
 import { ClientDialog, ProjectDialog } from './dialogs'
 import { AvoidBadge, PlatformBadge, usePlatforms } from './platform-fields'
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   clientInputSchema,
@@ -13,17 +13,8 @@ import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
 import { NumberInput } from '@/components/common/number-input'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
-import { FieldGroup } from '@/components/ui/field'
 import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
 import { BILLING_INFO, DUE_BEFORE_START } from './labels'
@@ -36,54 +27,6 @@ const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
-
-function FormDialog({
-  open,
-  onOpenChange,
-  title,
-  description,
-  submitLabel,
-  disabled,
-  onSubmit,
-  children
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description?: string
-  submitLabel: string
-  disabled?: boolean
-  onSubmit: () => void
-  children: ReactNode
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl sm:max-w-[560px]">
-        <DialogHeader>
-          <DialogTitle className="font-display text-heading">{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
-        <form
-          className="flex flex-col gap-6"
-          onSubmit={(e: FormEvent) => {
-            e.preventDefault()
-            if (!disabled) onSubmit()
-          }}
-        >
-          <FieldGroup className="gap-4">{children}</FieldGroup>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Скасувати
-            </Button>
-            <Button type="submit" variant="lime" disabled={disabled}>
-              {submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
 
 /** Amount input whose label follows the billing type; renders nothing for "none". */
 export function AmountField({
@@ -164,7 +107,9 @@ export function ClientDialog({
       onOpenChange={onOpenChange}
       title="Новий клієнт"
       submitLabel="Додати клієнта"
-      disabled={!form.name.trim() || !emailOk || numbers.invalid || create.isPending}
+      className="sm:max-w-[560px]"
+      invalid={!form.name.trim() || !emailOk || numbers.invalid}
+      pending={create.isPending}
       onSubmit={() => create.mutate({ ...form, email: (form.email ?? '').trim() })}
     >
       <Field label="Ім’я або назва">
@@ -304,7 +249,9 @@ export function ProjectDialog({
       title="Новий проєкт"
       description="Спершу оберіть, як оплачується робота, — поля підлаштуються."
       submitLabel="Створити проєкт"
-      disabled={!form.title.trim() || dueBeforeStart || numbers.invalid || create.isPending}
+      className="sm:max-w-[560px]"
+      invalid={!form.title.trim() || dueBeforeStart || numbers.invalid}
+      pending={create.isPending}
       onSubmit={() =>
         create.mutate({
           ...form,

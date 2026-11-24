@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { CURRENCIES, type Currency } from '@shared/domain/crm'
 import {
   EXPENSE_CATEGORIES,
@@ -19,7 +19,6 @@ import { fmtMoney } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { Segmented } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
@@ -31,14 +30,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import { FormDialog } from '@/components/common/form-dialog'
 import { CATEGORY_LABEL } from './parts'
 
 const WD_L = limitsOf(withdrawalInputSchema)
@@ -110,56 +102,6 @@ function CategorySelect({
   )
 }
 
-function FormDialog({
-  open,
-  onOpenChange,
-  title,
-  description,
-  children,
-  submitLabel,
-  canSubmit,
-  pending,
-  onSubmit
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  title: string
-  description?: string
-  children: ReactNode
-  submitLabel: string
-  canSubmit: boolean
-  pending?: boolean
-  onSubmit: () => void
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle className="font-display text-heading">{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
-        </DialogHeader>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (canSubmit && !pending) onSubmit()
-          }}
-        >
-          {children}
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Скасувати
-            </Button>
-            <Button type="submit" variant="lime" disabled={!canSubmit || pending}>
-              {submitLabel}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 /* ───────── Subscription ───────── */
 
 export function SubscriptionDialog({
@@ -209,7 +151,7 @@ export function SubscriptionDialog({
       title={s ? 'Підписка' : 'Нова підписка'}
       description="Регулярний платіж: щомісяця він з’явиться в списку, і його можна позначити оплаченим."
       submitLabel={s ? 'Зберегти' : 'Додати підписку'}
-      canSubmit={!!payload.title && payload.amount > 0 && isLikelyUrl(url)}
+      invalid={!payload.title || !(payload.amount > 0) || !isLikelyUrl(url)}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
         if (s) await update.mutateAsync({ id: s.id, patch: payload })
@@ -354,7 +296,7 @@ export function ExpenseDialog({
       title={e ? 'Витрата' : 'Нова витрата'}
       description="Разова витрата. Регулярні платежі зручніше завести як підписку."
       submitLabel={e ? 'Зберегти' : 'Додати витрату'}
-      canSubmit={!!payload.title && payload.amount > 0}
+      invalid={!payload.title || !(payload.amount > 0)}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
         if (e) await update.mutateAsync({ id: e.id, patch: payload })
@@ -467,7 +409,7 @@ export function WithdrawalDialog({
       title={w ? 'Виведення' : 'Нове виведення'}
       description="Скільки вивів із платформи, скільки пішло на комісію і скільки реально надійшло."
       submitLabel={w ? 'Зберегти' : 'Додати виведення'}
-      canSubmit={payload.amount > 0 && !rateBad && !feeBad}
+      invalid={!(payload.amount > 0) || rateBad || feeBad}
       pending={create.isPending || update.isPending}
       onSubmit={async () => {
         if (w) await update.mutateAsync({ id: w.id, patch: payload })

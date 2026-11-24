@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Section } from './parts'
 import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IconAction } from '@/components/common/icon-action'
 
 type Owner = { projectId: string } | { clientId: string }
 
@@ -124,36 +124,6 @@ function CredentialForm({
         </div>
       </form>
     </Card>
-  )
-}
-
-/** Ghost icon button with a tooltip — the row's inline actions (copy, show, edit, delete). */
-function IconAction({
-  label,
-  onClick,
-  className,
-  children
-}: {
-  label: string
-  onClick?: () => void
-  className?: string
-  children: ReactNode
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={label}
-          className={className}
-          onClick={onClick}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
   )
 }
 

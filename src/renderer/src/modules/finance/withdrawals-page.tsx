@@ -18,8 +18,8 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { FinanceNav, MoneyLines, MonthSwitcher, StatTile } from './parts'
+import { IconAction } from '@/components/common/icon-action'
+import { FinanceNav, MoneyLines, MonthSwitcher, MoneyStatTile } from './parts'
 import { WithdrawalDialog } from './dialogs'
 import { monthRange, useMonth } from './month'
 
@@ -88,11 +88,11 @@ export function WithdrawalsPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-3 gap-3">
-              <StatTile title="Виведено" value={totals.amount} />
-              <StatTile title="Комісії за виведення" value={totals.fee} />
-              <StatTile
-                ink
-                title="Надійшло"
+              <MoneyStatTile label="Виведено" value={totals.amount} />
+              <MoneyStatTile label="Комісії за виведення" value={totals.fee} />
+              <MoneyStatTile
+                tone="ink"
+                label="Надійшло"
                 value={totals.received}
                 hint="після комісії та обміну"
               />
@@ -144,19 +144,9 @@ export function WithdrawalsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon-xs"
-                                  aria-label="Змінити"
-                                  onClick={() => openDialog(w)}
-                                >
-                                  <Pencil />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>Змінити</TooltipContent>
-                            </Tooltip>
+                            <IconAction label="Змінити" onClick={() => openDialog(w)}>
+                              <Pencil />
+                            </IconAction>
                             <Confirm
                               title="Видалити виведення?"
                               description="Запис буде видалено без можливості відновлення."

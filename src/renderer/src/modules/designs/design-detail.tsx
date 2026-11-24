@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IconAction } from '@/components/common/icon-action'
 import { AddToMoodboard, DesignMedia, KIND_LABEL } from './shared'
 
 const LIMITS = limitsOf(designInputSchema)
@@ -24,14 +25,9 @@ function Swatches({ colors, onRecalc }: { colors: string[]; onRecalc: () => void
     <section className="flex flex-col gap-2">
       <SectionLabel
         action={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-label="Перерахувати палітру" onClick={onRecalc}>
-                <RefreshCw />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Перерахувати палітру</TooltipContent>
-          </Tooltip>
+          <IconAction label="Перерахувати палітру" onClick={onRecalc}>
+            <RefreshCw />
+          </IconAction>
         }
       >
         Палітра — клік копіює

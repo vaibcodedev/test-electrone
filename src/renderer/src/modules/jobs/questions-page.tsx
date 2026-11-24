@@ -15,14 +15,13 @@ import { VirtualList } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL } from './j2-labels'
 import { QuestionCategoryFilter, QuestionCategoryPicker } from './question-category'
 import { TopicPicker } from './j2-topic-picker'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
+import { StatCell } from '@/components/common/stat-tile'
 
 const NONE = '__none__'
 const LIMITS = limitsOf(questionInputSchema)
@@ -39,23 +38,6 @@ const toForm = (q: InterviewQuestion): Form => ({
   companyId: q.companyId,
   applicationId: q.applicationId
 })
-
-/** One spaced-repetition fact in plain words; the tooltip explains it (same as the English word card). */
-function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Card className="cursor-help gap-0.5 rounded-2xl px-3 py-2.5" tabIndex={0}>
-          <div className="text-meta text-muted-foreground">{label}</div>
-          <div className="text-lead font-medium tabular-nums">{value}</div>
-        </Card>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-60">{hint}</TooltipContent>
-    </Tooltip>
-  )
-}
-
-/** SM-2 ease (1.3…2.5+) as a word: how hard the question is for you. */
 
 function QuestionDetail({ question, topics, onClose }: { question: InterviewQuestion; topics: string[]; onClose: () => void }) {
   const update = useApiMutation('jobs', 'updateQuestion')
@@ -92,19 +74,19 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
           <section className="flex flex-col gap-2">
             <SectionLabel>Повторення</SectionLabel>
             <div className="grid grid-cols-2 gap-2">
-              <Stat
+              <StatCell
                 label="Повторити"
                 value={fmtDay(question.dueAt) || '—'}
                 hint={`Коли питання знову з’явиться в тренажері: ${fmtDateTime(question.dueAt)}.`}
               />
-              <Stat
+              <StatCell
                 label="Пауза"
                 value={question.intervalDays < 1 ? 'менше дня' : `${Math.round(question.intervalDays)} дн.`}
                 hint="Скільки днів між повторами зараз. Відповіли — пауза росте, не змогли — знову коротка."
               />
-              <Stat label="Відповів поспіль" value={String(question.repetitions)} hint="Скільки разів поспіль ви відповіли без помилки." />
-              <Stat label="Не зміг" value={String(question.lapses)} hint="Скільки разів відповідь не вдалася і питання повернулося на початок." />
-              <Stat
+              <StatCell label="Відповів поспіль" value={String(question.repetitions)} hint="Скільки разів поспіль ви відповіли без помилки." />
+              <StatCell label="Не зміг" value={String(question.lapses)} hint="Скільки разів відповідь не вдалася і питання повернулося на початок." />
+              <StatCell
                 label="Дається"
                 value={easeLabel(question.ease)}
                 hint="Наскільки легко дається питання за вашими оцінками. Чим важче, тим частіше воно трапляється."

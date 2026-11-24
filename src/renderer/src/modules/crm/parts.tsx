@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
@@ -61,60 +60,6 @@ export function Choice<T extends string>({
         ))}
       </SelectContent>
     </Select>
-  )
-}
-
-/** Dashboard-style stat tile (shadcn Card). */
-export function StatTile({
-  label,
-  value,
-  hint,
-  tone = 'surface',
-  className
-}: {
-  label: string
-  value: ReactNode
-  hint?: ReactNode
-  tone?: 'surface' | 'ink' | 'lime'
-  className?: string
-}) {
-  return (
-    <Card
-      className={cn(
-        'min-h-[118px] justify-between gap-2',
-        tone === 'ink' && 'bg-ink text-ink-foreground',
-        tone === 'lime' && 'bg-lime text-lime-foreground',
-        className
-      )}
-    >
-      <CardHeader>
-        <CardDescription
-          className={cn(
-            'text-caption',
-            tone === 'ink' ? 'text-ink-muted' : tone === 'lime' && 'text-lime-foreground/70'
-          )}
-        >
-          {label}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="font-display text-headline leading-none tabular-nums">{value}</div>
-        {hint && (
-          <div
-            className={cn(
-              'mt-1.5 text-caption',
-              tone === 'surface'
-                ? 'text-muted-foreground'
-                : tone === 'ink'
-                  ? 'text-ink-muted'
-                  : 'opacity-70'
-            )}
-          >
-            {hint}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   )
 }
 

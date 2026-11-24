@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { ExternalLink, Pencil, Plus, Receipt, Trash2 } from 'lucide-react'
 import {
@@ -36,40 +36,11 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IconAction } from '@/components/common/icon-action'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CATEGORY_LABEL, FinanceNav, MoneyLines, MonthSwitcher } from './parts'
 import { ExpenseDialog, SubscriptionDialog } from './dialogs'
 import { monthName, monthRange, useMonth } from './month'
-
-function IconAction({
-  label,
-  onClick,
-  children,
-  className
-}: {
-  label: string
-  onClick?: () => void
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={label}
-          onClick={onClick}
-          className={className}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  )
-}
 
 const AMOUNT_RANGE = rangesOf(expenseInputSchema).amount
 

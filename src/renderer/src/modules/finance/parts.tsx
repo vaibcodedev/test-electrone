@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import type { ComponentProps } from 'react'
+import { StatTile } from '@/components/common/stat-tile'
 import { MoneyValue } from '@/components/common/money-value'
 import { Link, useLocation } from 'react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -8,7 +9,6 @@ import { fmtMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { currentMonth, monthLabel, shiftMonth } from './month'
 
@@ -117,34 +117,16 @@ export function MonthSwitcher({
   )
 }
 
-/** Big-number tile for the month summary. */
-export function StatTile({
-  title,
+/** Month-summary tile: one line per currency, big sums shortened («250 тис. USD»). */
+export function MoneyStatTile({
   value,
-  hint,
-  ink = false,
-  className
-}: {
-  title: string
-  value: MoneyByCurrency | undefined
-  hint?: ReactNode
-  ink?: boolean
-  className?: string
-}) {
+  ...props
+}: Omit<ComponentProps<typeof StatTile>, 'value'> & { value: MoneyByCurrency | undefined }) {
   return (
-    <Card className={cn('gap-2', ink && 'bg-ink text-ink-foreground', className)}>
-      <CardHeader>
-        <CardTitle className={cn(ink && 'text-ink-muted')}>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-1">
-        <MoneyLines value={value} compact className="font-display text-stat-sm leading-tight" />
-        {hint && (
-          <div className={cn('text-caption', ink ? 'text-ink-muted' : 'text-muted-foreground')}>
-            {hint}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <StatTile
+      {...props}
+      value={<MoneyLines value={value} compact className="flex flex-col text-stat-sm leading-tight tracking-normal" />}
+    />
   )
 }
 
