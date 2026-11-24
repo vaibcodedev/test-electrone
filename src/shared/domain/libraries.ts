@@ -1,11 +1,12 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const LIBRARY_STATUSES = ['used', 'favorite', 'want', 'testing', 'dropped'] as const
 export type LibraryStatus = (typeof LIBRARY_STATUSES)[number]
 
 export const libraryInputSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1).max(MAX.name),
   purpose: z.string().max(2000).default(''),
   notes: z.string().max(100_000).default(''),
   npmUrl: urlSchema.default(''),

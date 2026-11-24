@@ -2,6 +2,7 @@
  * Month grid and week agenda. The grid layout itself is custom (shadcn has no event calendar),
  * but every cell and item is composed of shadcn Card / Button / Badge.
  */
+import { useCallback, useState } from 'react'
 import { eachDayOfInterval, format, isSameMonth, isToday } from 'date-fns'
 import { Plus } from 'lucide-react'
 import type { CalendarItem } from '@shared/domain/calendar'
@@ -13,8 +14,22 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { dayKey, itemColor, SOURCE_LABEL, timeOnDay } from './items'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
-/** Lines a month cell can show; when there are more items, the last line becomes "+N". */
-const MAX_IN_CELL = 3
+/** Month cell geometry (px) for the «how many lines fit» count: padding, day header, one item line, gap. */
+const CELL = { pad: 16, header: 26, line: 19, gap: 2 }
+
+/** Lines that fit a month cell of the current window size (all cells share one row height). */
+function useCellCapacity(rows: number): [(el: HTMLDivElement | null) => void, number] {
+  const [height, setHeight] = useState(0)
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setHeight(e.contentRect.height))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const cell = rows ? (height - (rows - 1) * 6) / rows : 0
+  const room = cell - CELL.pad - CELL.header
+  return [ref, Math.max(1, Math.floor((room + CELL.gap) / (CELL.line + CELL.gap)))]
+}
 
 
 /** A single item inside a month cell. */
@@ -60,8 +75,10 @@ function MoreItems({
           variant="ghost"
           size="xs"
           onClick={(e) => e.stopPropagation()}
-          className="h-5 w-fit justify-start rounded-lg px-1.5 text-meta font-medium text-muted-foreground hover:text-foreground"
+          className="h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-medium text-muted-foreground hover:bg-card hover:text-foreground"
         >
+          {/* Same column as the item bars, so «ще 2» lines up with the titles above. */}
+          <span className="w-1 shrink-0" />
           ще {count}
         </Button>
       </PopoverTrigger>
@@ -94,6 +111,7 @@ export function MonthView({
 }) {
   const days = eachDayOfInterval({ start: from, end: to })
   const rows = days.length / 7
+  const [gridRef, capacity] = useCellCapacity(rows)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid grid-cols-7 gap-1.5 pb-1.5">
@@ -103,7 +121,7 @@ export function MonthView({
           </div>
         ))}
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-7 gap-1.5" style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+      <div ref={gridRef} className="grid min-h-0 flex-1 grid-cols-7 gap-1.5" style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
         {days.map((day) => {
           const items = byDay.get(dayKey(day)) ?? []
           const inMonth = isSameMonth(day, cursor)
@@ -145,7 +163,8 @@ export function MonthView({
                 </Button>
               </div>
               {(() => {
-                const shown = items.length > MAX_IN_CELL ? items.slice(0, MAX_IN_CELL - 1) : items
+                // Lines are counted from the real cell height: a fixed 3 overflowed short cells into the rounded corner.
+                const shown = items.length > capacity ? items.slice(0, capacity - 1) : items
                 const rest = items.length - shown.length
                 return (
                   <>
@@ -186,40 +205,45 @@ export function WeekView({
         return (
           <Card
             key={day.toISOString()}
-            className={cn('min-h-0 gap-0 rounded-3xl p-3', today && 'bg-ink text-ink-foreground')}
+            // Today = lime frame + lime date pill, same language as the month grid (an inverted ink column
+            // turned into a blinding light strip in the dark theme).
+            className={cn('min-h-0 gap-0 rounded-3xl p-3', today && 'ring-2 ring-lime/70 ring-inset')}
           >
-            <div className="flex items-baseline justify-between px-1">
-              <span className={cn('text-caption capitalize', today ? 'text-ink-muted' : 'text-muted-foreground')}>
-                {format(day, 'EEEEEE', { locale: LOCALE })}
+            <div className="flex items-center justify-between px-1">
+              <span className="text-caption text-muted-foreground capitalize">{format(day, 'EEEEEE', { locale: LOCALE })}</span>
+              <span
+                className={cn(
+                  'font-display rounded-full px-2 py-0.5 text-stat-sm leading-none tabular-nums',
+                  today && 'bg-lime text-lime-foreground'
+                )}
+                aria-current={today ? 'date' : undefined}
+              >
+                {format(day, 'd')}
               </span>
-              <span className={cn('font-display text-[28px] leading-none', today && 'text-ink-accent')}>{format(day, 'd')}</span>
             </div>
-            <div className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+            <div className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto [scrollbar-gutter:auto]">
               {items.map((item) => (
                 <Button
                   key={item.key}
                   variant="ghost"
                   onClick={() => onItemClick(item)}
                   className={cn(
-                    'h-auto flex-col items-start gap-0.5 rounded-2xl px-3 py-2 text-left font-normal whitespace-normal',
-                    today ? 'bg-ink-foreground/7 hover:bg-ink-foreground/12' : 'bg-card hover:bg-card hover:ring-1 hover:ring-border'
+                    // Full column width, a calm radius, bar + time + title: reads like an agenda row.
+                    'relative h-auto w-full flex-col items-start gap-0.5 rounded-xl bg-card py-2 pr-3 pl-5 text-left font-normal text-foreground whitespace-normal [overflow-wrap:anywhere] hover:bg-(--tile-hover) hover:text-foreground',
+                    item.done && 'opacity-60'
                   )}
-                  style={{ boxShadow: `inset 3px 0 0 ${itemColor(item)}` }}
                 >
-                  <span className={cn('text-meta tabular-nums', today ? 'text-ink-muted' : 'text-muted-foreground')}>
-                    {timeOnDay(item, day).long}
-                  </span>
-                  <span className={cn('text-caption leading-snug', item.done && 'line-through opacity-60')}>{item.title}</span>
+                  {/* A real bar, not an inset shadow: on a rounded item the shadow bent into a crescent. */}
+                  <span className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full" style={{ background: itemColor(item) }} />
+                  <span className="text-meta text-muted-foreground tabular-nums">{timeOnDay(item, day).long}</span>
+                  <span className={cn('text-caption leading-snug font-medium', item.done && 'line-through')}>{item.title}</span>
                 </Button>
               ))}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => onDayClick(day)}
-                className={cn(
-                  'mt-auto font-normal',
-                  today ? 'text-ink-muted hover:bg-ink-foreground/8 hover:text-ink-foreground' : 'text-muted-foreground hover:bg-card'
-                )}
+                className="mt-auto font-normal text-muted-foreground hover:bg-card"
               >
                 <Plus /> Подія
               </Button>

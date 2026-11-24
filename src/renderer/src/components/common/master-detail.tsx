@@ -61,12 +61,14 @@ export function MasterDetail({
 }) {
   if (!detail) return <div className={cn('flex min-h-0 flex-1 flex-col', className)}>{list}</div>
   return (
-    <ResizablePanelGroup orientation="horizontal" className={cn('min-h-0 flex-1', className)}>
-      <ResizablePanel defaultSize={listSize} minSize="240px" maxSize="60%" className="flex min-h-0 flex-col pr-1.5">
+    // Panels clip their content (overflow hidden): 4px of room on every side keeps focus rings and the pane's
+    // shadow whole; the group's negative margin gives the room back, so the layout doesn't move.
+    <ResizablePanelGroup orientation="horizontal" className={cn('-m-1 min-h-0 flex-1', className)}>
+      <ResizablePanel defaultSize={listSize} minSize="240px" maxSize="60%" className="flex min-h-0 flex-col p-1 pr-2.5">
         {list}
       </ResizablePanel>
       <ResizableHandle className="bg-transparent hover:bg-border" />
-      <ResizablePanel minSize="420px" className="flex min-h-0 min-w-0 flex-col pl-1.5">
+      <ResizablePanel minSize="420px" className="flex min-h-0 min-w-0 flex-col p-1 pl-2.5">
         {detail}
       </ResizablePanel>
     </ResizablePanelGroup>
@@ -282,7 +284,8 @@ export function ListItem({
   return (
     <Item asChild variant={active ? 'active' : 'muted'} size="sm" className={cn('w-full text-left', className)}>
       <button type="button" onClick={onClick} data-active={active || undefined} aria-current={active || undefined}>
-        <div className="w-full min-w-0">{children}</div>
+        {/* overflow-wrap: one long word (a pasted URL, «аааа…») wraps instead of widening the row. */}
+        <div className="w-full min-w-0 [overflow-wrap:anywhere]">{children}</div>
       </button>
     </Item>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { MAX } from '@shared/domain/limits'
 import {
   closestCorners,
   DndContext,
@@ -133,7 +134,7 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
       autoFocus
       rows={2}
       value={title}
-      maxLength={300}
+      maxLength={MAX.title}
       placeholder="Назва картки, Enter — зберегти"
       onChange={(e) => setTitle(e.target.value)}
       onBlur={() => {
@@ -226,7 +227,7 @@ function AddColumn({ boardId }: { boardId: string }) {
         </InputGroupAddon>
         <InputGroupInput
           value={title}
-          maxLength={100}
+          maxLength={MAX.label}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Нова колонка"
           aria-label="Назва нової колонки"

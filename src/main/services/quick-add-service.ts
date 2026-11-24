@@ -1,4 +1,5 @@
 import { asc, eq, isNull } from 'drizzle-orm'
+import { MAX } from '@shared/domain/limits'
 import type { Api } from '@shared/api'
 import type { EntitySummary } from '@shared/domain/common'
 import { quickAddSchema, type QuickAddInput } from '@shared/domain/system'
@@ -37,7 +38,7 @@ export class QuickAddService {
 
   async add(input: QuickAddInput): Promise<EntitySummary> {
     const { target, text, extra } = quickAddSchema.parse(input)
-    const title = text.split('\n')[0].slice(0, 300)
+    const title = text.split('\n')[0].slice(0, MAX.title)
     const rest = [text.split('\n').slice(1).join('\n'), extra].filter(Boolean).join('\n').trim()
     switch (target) {
       case 'idea': {

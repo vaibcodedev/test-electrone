@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 /** A template is reusable ("Перед деплоем"); a run is a copy you tick through for a concrete release. */
@@ -6,7 +7,7 @@ export const CHECKLIST_KINDS = ['template', 'run'] as const
 export type ChecklistKind = (typeof CHECKLIST_KINDS)[number]
 
 export const checklistInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(20_000).default(''),
   kind: z.enum(CHECKLIST_KINDS).default('template'),
   projectId: idSchema.nullable().default(null),
@@ -30,7 +31,7 @@ export const checklistItemInputSchema = z.object({
   checklistId: idSchema,
   text: z.string().trim().min(1).max(1000),
   hint: z.string().max(5000).default(''),
-  section: z.string().max(200).default('')
+  section: z.string().max(MAX.name).default('')
 })
 export const checklistItemPatchSchema = patchOf(
   checklistItemInputSchema.omit({ checklistId: true })
@@ -54,7 +55,7 @@ export interface ChecklistDetails extends Checklist {
 
 export const instantiateSchema = z.object({
   templateId: idSchema,
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   projectId: idSchema.nullable().default(null)
 })
 export type InstantiateInput = z.input<typeof instantiateSchema>
@@ -64,12 +65,12 @@ export type InstantiateInput = z.input<typeof instantiateSchema>
  * Items are plain strings or { text, hint }. Unknown keys are ignored.
  */
 export const checklistImportSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(20_000).optional().default(''),
   sections: z
     .array(
       z.object({
-        title: z.string().trim().max(200).optional().default(''),
+        title: z.string().trim().max(MAX.title).optional().default(''),
         items: z
           .array(
             z.union([

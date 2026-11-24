@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const BOOKMARK_KINDS = ['article', 'video', 'course', 'docs', 'repo', 'other'] as const
@@ -7,7 +8,7 @@ export const BOOKMARK_STATUSES = ['queue', 'in_progress', 'done', 'dropped'] as 
 export type BookmarkStatus = (typeof BOOKMARK_STATUSES)[number]
 
 export const bookmarkInputSchema = z.object({
-  title: z.string().trim().min(1).max(500),
+  title: z.string().trim().min(1).max(MAX.title),
   url: urlSchema.default(''),
   kind: z.enum(BOOKMARK_KINDS).default('article'),
   status: z.enum(BOOKMARK_STATUSES).default('queue'),

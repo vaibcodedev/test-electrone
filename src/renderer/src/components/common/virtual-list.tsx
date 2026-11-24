@@ -115,7 +115,8 @@ export function VirtualList<T>({
   if (!items.length && !hasMore) return <div className={cn('min-h-0 flex-1 overflow-y-auto', className)}>{empty}</div>
 
   return (
-    <div ref={parentRef} className={cn('min-h-0 flex-1 overflow-y-auto', className)}>
+    // overflow-x-hidden: overflow-y:auto alone turns x into auto too, and a too-wide row gave a horizontal bar.
+    <div ref={parentRef} className={cn('min-h-0 flex-1 overflow-x-hidden overflow-y-auto', className)}>
       <div className={cn('relative w-full', innerClassName)} style={{ height: virtualizer.getTotalSize() }}>
         {virtualItems.map((row) => (
           <div

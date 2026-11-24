@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const IDEA_STATUSES = [
@@ -12,7 +13,7 @@ export const IDEA_STATUSES = [
 export type IdeaStatus = (typeof IDEA_STATUSES)[number]
 
 export const ideaInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   body: z.string().max(100_000).default(''),
   status: z.enum(IDEA_STATUSES).default('inbox'),
   /** 0..3 — how much it matters. */

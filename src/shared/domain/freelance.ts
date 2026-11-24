@@ -4,6 +4,7 @@
  * Clients and contracts are the shared CRM clients/projects with a `platformId`.
  */
 import { z } from 'zod'
+import { MAX } from './limits'
 import {
   hexColorSchema,
   idSchema,
@@ -24,12 +25,12 @@ export type PlatformKind = (typeof PLATFORM_KINDS)[number]
 /** One pre-proposal check, e.g. "Оплата верифицирована". */
 export const preCheckSchema = z.object({
   id: z.string().min(1).max(40),
-  label: z.string().trim().min(1).max(200)
+  label: z.string().trim().min(1).max(MAX.name)
 })
 export type PreCheck = z.infer<typeof preCheckSchema>
 
 export const platformInputSchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(MAX.label),
   kind: z.enum(PLATFORM_KINDS).default('other'),
   color: hexColorSchema.default(null),
   currency: z.enum(CURRENCIES).default('USD'),
@@ -97,7 +98,7 @@ export type BidType = (typeof BID_TYPES)[number]
 
 export const proposalInputSchema = z.object({
   platformId: idSchema,
-  jobTitle: z.string().trim().min(1).max(500),
+  jobTitle: z.string().trim().min(1).max(MAX.title),
   jobUrl: urlSchema.default(''),
   jobDescription: z.string().max(100_000).default(''),
   /** Type of task: "Next.js", "Вёрстка", "Боты"… (free text with suggestions). */
@@ -240,7 +241,7 @@ export type TemplateSituation = (typeof TEMPLATE_SITUATIONS)[number]
 
 export const templateInputSchema = z.object({
   situation: z.enum(TEMPLATE_SITUATIONS).default('proposal'),
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   /** What the client says / when to use it (for small talk: the client's phrase). */
   trigger: z.string().max(2000).default(''),
   /** Template text; {variables} are filled in when copying. */
@@ -271,7 +272,7 @@ export interface MessageTemplate extends EntityBase, WithTags {
 /* ───────────── Portfolio cases ───────────── */
 
 export const caseInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   niche: z.string().max(100).default(''),
   client: z.string().max(200).default(''),
   problem: z.string().max(20_000).default(''),
@@ -305,7 +306,7 @@ export interface PortfolioCase extends EntityBase, WithTags {
 /* ───────────── Red flags ───────────── */
 
 export const redFlagInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   /** How to recognise it in a job post / chat. */
   signs: z.string().max(20_000).default(''),
   /** What to do: skip, ask, raise price… */
@@ -339,7 +340,7 @@ export const GOAL_PERIODS = ['week', 'month'] as const
 export type GoalPeriod = (typeof GOAL_PERIODS)[number]
 
 export const goalInputSchema = z.object({
-  title: z.string().trim().max(200).default(''),
+  title: z.string().trim().max(MAX.title).default(''),
   metric: z.enum(GOAL_METRICS),
   period: z.enum(GOAL_PERIODS).default('month'),
   target: z.number().min(0).max(100_000_000),
@@ -413,7 +414,7 @@ export const hireSchema = z.object({
   proposalId: idSchema,
   /** Existing client or create a new one from proposal data. */
   clientId: idSchema.nullable().default(null),
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   billing: z.enum(['fixed', 'hourly']).default('fixed'),
   amount: z.number().min(0).max(100_000_000),
   feePercent: z.number().min(0).max(100)

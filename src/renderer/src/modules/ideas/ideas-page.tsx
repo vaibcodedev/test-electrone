@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { MAX } from '@shared/domain/limits'
 import { Lightbulb, Plus, SquareKanban } from 'lucide-react'
 import { IDEA_STATUSES, type Idea, type IdeaStatus } from '@shared/domain/ideas'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -27,7 +28,7 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
       }}
     >
       <InputGroup className="h-11 pr-1">
-        <InputGroupInput value={title} maxLength={300} onChange={(e) => setTitle(e.target.value)} placeholder="Нова ідея…" className="pl-4 text-body" />
+        <InputGroupInput value={title} maxLength={MAX.title} onChange={(e) => setTitle(e.target.value)} placeholder="Нова ідея…" className="pl-4 text-body" />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
             type="submit"
@@ -49,9 +50,9 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
   return (
     <ListItem active={active} onClick={onClick}>
       <div className="flex items-start gap-2">
-        <span className="min-w-0 flex-1 text-body leading-snug font-medium">{idea.title}</span>
+        <span className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium">{idea.title}</span>
         {idea.impact > 0 && (
-          <span className={cn('shrink-0 text-[10px] tracking-widest', active ? 'text-ink-accent' : 'text-muted-foreground')}>
+          <span className={cn('shrink-0 text-meta tracking-widest', active ? 'text-ink-accent' : 'text-muted-foreground')}>
             {'●'.repeat(idea.impact)}
           </span>
         )}

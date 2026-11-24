@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const SNIPPET_LANGUAGES = [
@@ -18,7 +19,7 @@ export const SNIPPET_LANGUAGES = [
 export type SnippetLanguage = (typeof SNIPPET_LANGUAGES)[number]
 
 export const snippetInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(10_000).default(''),
   code: z.string().max(500_000).default(''),
   language: z.enum(SNIPPET_LANGUAGES).default('typescript'),

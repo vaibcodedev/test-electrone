@@ -1,9 +1,10 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 /** General notes (everything that is not Claude-specific). `folder` is an optional free-text group. */
 export const noteInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   body: z.string().max(500_000).default(''),
   folder: z.string().trim().max(100).default(''),
   ...withTagIds

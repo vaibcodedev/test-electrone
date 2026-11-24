@@ -1,4 +1,5 @@
 import { pageSchema } from '@shared/domain/common'
+import { MAX } from '@shared/domain/limits'
 import { and, asc, eq, sql } from 'drizzle-orm'
 import type { IdeasApi } from '@shared/api'
 import {
@@ -98,7 +99,7 @@ export class IdeasModule {
             this.boards.createCard({
               boardId: board.id,
               columnId: firstColumn.id,
-              title: `Розібрати ідею: ${idea.title}`.slice(0, 300),
+              title: `Розібрати ідею: ${idea.title}`.slice(0, MAX.title),
               description: idea.body
             })
           }

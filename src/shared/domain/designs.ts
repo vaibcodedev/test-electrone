@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import {
   hexColorSchema,
   idSchema,
@@ -15,7 +16,7 @@ export type DesignKind = (typeof DESIGN_KINDS)[number]
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/)
 
 export const designInputSchema = z.object({
-  title: z.string().trim().max(300).default(''),
+  title: z.string().trim().max(MAX.title).default(''),
   kind: z.enum(DESIGN_KINDS).default('site'),
   sourceUrl: urlSchema.default(''),
   notes: z.string().max(20_000).default(''),
@@ -61,7 +62,7 @@ export const fileSourceSchema = z.discriminatedUnion('kind', [
 export type FileSource = z.infer<typeof fileSourceSchema>
 
 export const moodboardInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(5000).default(''),
   color: hexColorSchema.default(null),
   ...withTagIds

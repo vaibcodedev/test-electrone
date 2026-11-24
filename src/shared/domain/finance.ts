@@ -3,6 +3,7 @@
  * recurring subscriptions with a per-month paid checklist, one-off expenses, withdrawals with FX.
  */
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, timestampSchema, urlSchema, patchOf } from './common'
 import { CURRENCIES, type Currency } from './crm'
 
@@ -26,7 +27,7 @@ export const SUBSCRIPTION_PERIODS = ['monthly', 'yearly'] as const
 export type SubscriptionPeriod = (typeof SUBSCRIPTION_PERIODS)[number]
 
 export const subscriptionInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   amount: z.number().min(0).max(1_000_000),
   currency: z.enum(CURRENCIES).default('USD'),
   period: z.enum(SUBSCRIPTION_PERIODS).default('monthly'),
@@ -72,7 +73,7 @@ export interface SubscriptionMonthRow extends Subscription {
 /* ───────────── Expenses ───────────── */
 
 export const expenseInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   amount: z.number().min(0).max(100_000_000),
   currency: z.enum(CURRENCIES).default('USD'),
   category: z.enum(EXPENSE_CATEGORIES).default('other'),

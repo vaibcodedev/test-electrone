@@ -1,4 +1,5 @@
 import { pageSchema } from '@shared/domain/common'
+import { MAX } from '@shared/domain/limits'
 /**
  * Freelance hub backend: platforms, proposals pipeline, bid credits ledger, message templates,
  * portfolio cases, red flags, goals and funnel statistics.
@@ -477,7 +478,7 @@ export class FreelanceModule {
         if (!p.coverLetter.trim()) throw new UserError('У відгуку немає тексту')
         const t = this.templateRepo.insert({
           situation: 'proposal',
-          title: p.niche ? `${p.niche}: ${p.jobTitle}`.slice(0, 200) : p.jobTitle.slice(0, 200),
+          title: p.niche ? `${p.niche}: ${p.jobTitle}`.slice(0, MAX.title) : p.jobTitle.slice(0, MAX.title),
           trigger: '',
           body: p.coverLetter,
           note: '',

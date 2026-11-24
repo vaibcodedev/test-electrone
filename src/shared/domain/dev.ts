@@ -3,6 +3,7 @@
  * GitHub (repos, open issues, recent commits) and the browser-capture bridge.
  */
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, patchOf, urlSchema } from './common'
 import { BOOKMARK_KINDS } from './bookmarks'
 
@@ -12,7 +13,7 @@ export const EDITORS = ['vscode', 'cursor'] as const
 export type Editor = (typeof EDITORS)[number]
 
 export const devProjectInputSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1).max(MAX.name),
   /** Absolute folder path. */
   path: z.string().trim().min(1).max(1000),
   notes: z.string().max(50_000).default(''),
@@ -145,7 +146,7 @@ export type CaptureTarget = (typeof CAPTURE_TARGETS)[number]
 export const captureSchema = z.object({
   target: z.enum(CAPTURE_TARGETS),
   url: urlSchema,
-  title: z.string().max(500).default(''),
+  title: z.string().max(MAX.title).default(''),
   note: z.string().max(10_000).default(''),
   tags: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
   /** data:image/png;base64,… */

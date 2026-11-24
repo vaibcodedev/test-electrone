@@ -3,6 +3,7 @@
  * (synced to the calendar), companies, resume versions, and an interview question bank with SRS practice.
  */
 import { z } from 'zod'
+import { MAX } from './limits'
 import {
   hexColorSchema,
   idSchema,
@@ -19,7 +20,7 @@ import type { ReviewGrade } from './english'
 /* ───────────── Job boards & daily check-ins ───────────── */
 
 export const jobBoardInputSchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(MAX.label),
   url: urlSchema.default(''),
   color: hexColorSchema.default(null),
   /** Applications per day to aim for; 0 = "just check it daily". */
@@ -76,7 +77,7 @@ export type CheckinInput = z.input<typeof checkinSchema>
 /* ───────────── Companies ───────────── */
 
 export const companyInputSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1).max(MAX.name),
   website: urlSchema.default(''),
   /** DOU / Glassdoor / other reviews page. */
   reviewsUrl: urlSchema.default(''),
@@ -110,7 +111,7 @@ export interface Company extends EntityBase, WithTags {
 /* ───────────── Resumes ───────────── */
 
 export const resumeInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   /** What changed compared to the previous version. */
   changes: z.string().max(20_000).default(''),
   isCurrent: z.boolean().default(false)
@@ -158,7 +159,7 @@ export const WORK_FORMATS = ['remote', 'office', 'hybrid'] as const
 export type WorkFormat = (typeof WORK_FORMATS)[number]
 
 export const applicationInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   companyId: idSchema.nullable().default(null),
   /** Free text when the company card is not created yet. */
   companyName: z.string().max(200).default(''),
@@ -234,7 +235,7 @@ export type StageStatus = (typeof STAGE_STATUSES)[number]
 export const stageInputSchema = z.object({
   applicationId: idSchema,
   kind: z.enum(STAGE_KINDS).default('screening'),
-  title: z.string().max(200).default(''),
+  title: z.string().max(MAX.title).default(''),
   /** Interview start; for test tasks — when it was received. */
   at: timestampSchema.nullable().default(null),
   durationMin: z.number().int().min(0).max(24 * 60).default(60),

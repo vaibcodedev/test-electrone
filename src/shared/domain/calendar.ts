@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import type { EntityType } from '../entity-types'
 import {
   hexColorSchema,
@@ -13,7 +14,7 @@ export const RECURRENCES = ['none', 'daily', 'weekly', 'monthly', 'yearly'] as c
 export type Recurrence = (typeof RECURRENCES)[number]
 
 export const eventInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(20_000).default(''),
   startAt: timestampSchema,
   endAt: timestampSchema.nullable().default(null),

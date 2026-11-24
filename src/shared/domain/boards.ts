@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import {
   hexColorSchema,
   idSchema,
@@ -13,7 +14,7 @@ export const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'] as const
 export type Priority = (typeof PRIORITIES)[number]
 
 export const boardInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(20_000).default(''),
   color: hexColorSchema.default(null),
   projectId: idSchema.nullable().default(null),
@@ -41,7 +42,7 @@ export interface BoardSummary extends Board {
 }
 
 export const columnInputSchema = z.object({
-  title: z.string().trim().min(1).max(100),
+  title: z.string().trim().min(1).max(MAX.label),
   color: hexColorSchema.default(null),
   isDone: z.boolean().default(false)
 })
@@ -61,7 +62,7 @@ export interface BoardColumn {
 export const cardInputSchema = z.object({
   boardId: idSchema,
   columnId: idSchema,
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(100_000).default(''),
   priority: z.enum(PRIORITIES).default('none'),
   dueAt: timestampSchema.nullable().default(null),

@@ -224,21 +224,29 @@ export function SegmentBar({
   const ratio = total ? Math.min(1, value / total) : 0
   const perItem = states && states.length > 0 && states.length <= 12
   const count = perItem ? states.length : segments
+  // Whole segments only: a fractional fill left a lime sliver at the start of the next segment.
+  // Any progress shows at least one segment; it's full only when everything is done.
+  const filled = value <= 0 ? 0 : ratio >= 1 ? count : Math.min(count - 1, Math.max(1, Math.round(ratio * count)))
   return (
     <div className={cn('flex gap-1', className)} role="progressbar" aria-valuenow={value} aria-valuemax={total}>
-      {Array.from({ length: count }, (_, i) => (
-        <Progress
-          key={i}
-          value={perItem ? (states[i] ? 100 : 0) : Math.max(0, Math.min(1, ratio * segments - i)) * 100}
-          aria-hidden
-          className={cn(
-            'h-1.5 flex-1 bg-current/15',
-            tone === 'lime'
-              ? '[&>[data-slot=progress-indicator]]:bg-chart-1'
-              : '[&>[data-slot=progress-indicator]]:bg-lime-foreground'
-          )}
-        />
-      ))}
+      {Array.from({ length: count }, (_, i) => {
+        const on = perItem ? !!states[i] : i < filled
+        return (
+          <Progress
+            key={i}
+            value={on ? 100 : 0}
+            aria-hidden
+            className={cn(
+              'h-1.5 flex-1 bg-current/15',
+              tone === 'lime'
+                ? '[&>[data-slot=progress-indicator]]:bg-chart-1'
+                : '[&>[data-slot=progress-indicator]]:bg-lime-foreground',
+              // An empty segment hides its indicator: anti-aliasing showed a hairline of colour at the edge.
+              !on && '[&>[data-slot=progress-indicator]]:opacity-0'
+            )}
+          />
+        )
+      })}
     </div>
   )
 }

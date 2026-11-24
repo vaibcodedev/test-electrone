@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import {
   idSchema,
   timestampSchema,
@@ -29,7 +30,7 @@ export const CLIENT_STATUSES = ['lead', 'active', 'paused', 'archived', 'avoid']
 export type ClientStatus = (typeof CLIENT_STATUSES)[number]
 
 export const clientInputSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1).max(MAX.name),
   company: z.string().max(200).default(''),
   email: z.string().max(320).default(''),
   phone: z.string().max(100).default(''),
@@ -94,7 +95,7 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 
 export const projectInputSchema = z.object({
   clientId: idSchema.nullable().default(null),
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(100_000).default(''),
   status: z.enum(PROJECT_STATUSES).default('active'),
   billing: z.enum(BILLING_TYPES).default('fixed'),
@@ -182,7 +183,7 @@ export interface ProjectSummary extends Project {
 export const credentialInputSchema = z.object({
   projectId: idSchema.nullable().default(null),
   clientId: idSchema.nullable().default(null),
-  label: z.string().trim().min(1).max(200),
+  label: z.string().trim().min(1).max(MAX.name),
   url: urlSchema.default(''),
   login: z.string().max(500).default(''),
   /** Plain text on input only; stored encrypted, never returned by list(). */

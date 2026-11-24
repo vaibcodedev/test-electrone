@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const COMPONENT_LANGUAGES = ['tsx', 'jsx', 'html'] as const
@@ -7,7 +8,7 @@ export const PREVIEW_BACKGROUNDS = ['light', 'dark', 'grid'] as const
 export type PreviewBackground = (typeof PREVIEW_BACKGROUNDS)[number]
 
 export const componentInputSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(20_000).default(''),
   code: z.string().max(500_000).default(''),
   language: z.enum(COMPONENT_LANGUAGES).default('tsx'),

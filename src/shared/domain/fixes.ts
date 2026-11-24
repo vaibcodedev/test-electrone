@@ -1,8 +1,9 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const fixInputSchema = z.object({
-  title: z.string().trim().min(1).max(300),
+  title: z.string().trim().min(1).max(MAX.title),
   errorText: z.string().max(50_000).default(''),
   cause: z.string().max(50_000).default(''),
   solution: z.string().max(200_000).default(''),

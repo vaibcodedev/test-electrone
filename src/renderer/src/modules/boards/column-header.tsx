@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MAX } from '@shared/domain/limits'
 import { Check, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import type { BoardColumn } from '@shared/domain/boards'
 import { useApiMutation } from '@/lib/query'
@@ -48,7 +49,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
               setEditing(false)
             }
           }}
-          maxLength={100}
+          maxLength={MAX.label}
           aria-label="Назва колонки"
           className="h-7 min-w-0 flex-1 rounded-lg bg-card px-2 text-body font-medium"
         />
