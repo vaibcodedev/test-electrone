@@ -14,6 +14,8 @@ import { ENTITY_ICON } from '@/app/navigation'
 import type { QuickAddTarget } from '@shared/domain/system'
 import { cn } from '@/lib/utils'
 
+const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
+
 function Tile({ children, className }: { children: ReactNode; className?: string }) {
   return <section className={cn('rounded-3xl bg-surface p-5', className)}>{children}</section>
 }
@@ -44,7 +46,7 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
   return (
     <section className="ink-card col-span-7 flex min-h-[300px] flex-col rounded-3xl p-6">
       <div className="flex items-center justify-between text-[12.5px] text-ink-muted">
-        <span className="capitalize">{format(now, 'EEEE, d MMMM', { locale: LOCALE })}</span>
+        <span>{capitalize(format(now, 'EEEE, d MMMM', { locale: LOCALE }))}</span>
         {all.length > 0 && (
           <span className="rounded-full bg-lime px-2.5 py-0.5 font-medium text-lime-foreground">
             {done}/{all.length}

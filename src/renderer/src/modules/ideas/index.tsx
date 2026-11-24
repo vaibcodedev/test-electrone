@@ -1,10 +1,2 @@
-/** Module entry: page components are lazy-loaded by the router. */
-import { Page, PageHeader } from '@/components/common/page'
-
-export function IdeasPage() {
-  return (
-    <Page>
-      <PageHeader title="Идеи" subtitle="Раздел в разработке" />
-    </Page>
-  )
-}
+/** Ideas module entry: page components are lazy-loaded by the router. */
+export { IdeasPage } from './ideas-page'
