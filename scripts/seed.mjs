@@ -72,9 +72,49 @@ export async function seed(rpc) {
   const secret = await call('credentials.reveal', secretId)
   if (secret !== 's3cret!') throw new Error('credential roundtrip failed')
 
+  await call('components.create', {
+    title: 'Лаймовая кнопка со стрелкой',
+    language: 'tsx',
+    code: `import { ArrowUpRight } from 'lucide-react'
+
+export default function Demo() {
+  return (
+    <button className="flex items-center gap-3 rounded-full bg-[#d4f542] py-2 pl-5 pr-2 font-medium text-[#14160f]">
+      Confirm return
+      <span className="grid size-8 place-items-center rounded-full bg-[#14160f] text-[#d4f542]">
+        <ArrowUpRight size={16} />
+      </span>
+    </button>
+  )
+}`,
+    tagIds: [ui.id]
+  })
+  const { resolve } = await import('path')
+  const design = await call('designs.importImage', {
+    source: { kind: 'path', path: resolve('resources/icon.png') },
+    input: { title: 'Иконка Vault', kind: 'app', colors: ['#14160f', '#d4f542'], tagIds: [ui.id] }
+  })
+  const mb = await call('moodboards.create', { title: 'Лайм и графит' })
+  await call('moodboards.addDesigns', { moodboardId: mb.id, designIds: [design.id] })
+  const tpl = (await call('checklists.list', { kind: 'template' }))[0]
+  await call('checklists.instantiate', { templateId: tpl.id, title: 'Bloom Store — запуск', projectId: project.id })
+
   await call('pins.toggle', { ref: { type: 'snippet', id: snip.id }, kind: 'pin' })
   const hits = await call('search.query', { text: 'hydro' })
   if (!hits.length) throw new Error('search returned nothing')
   const ov = await call('projects.overview')
+  // trash roundtrip
+  const extra = await call('ideas.create', { title: 'Временная идея' })
+  await call('ideas.remove', extra.id)
+  if (!(await call('trash.list')).some((i) => i.id === extra.id)) throw new Error('trash missing item')
+  await call('trash.restore', { type: 'idea', id: extra.id })
+  if (!(await call('ideas.get', extra.id))) throw new Error('restore failed')
+  await call('ideas.remove', extra.id)
+  await call('trash.purge', { type: 'idea', id: extra.id })
+  // backup
+  const backup = await call('backup.create', { saveAs: false })
+  if (!backup || backup.size < 1000) throw new Error('backup too small')
+  console.log('backup', backup.fileName, backup.size)
+
   console.log('seed ok; search hits:', hits.length, 'week minutes:', ov.weekMinutes)
 }

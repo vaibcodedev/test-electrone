@@ -30,7 +30,7 @@ export function TagChip({
     <span
       onClick={onClick}
       className={cn(
-        'inline-flex h-6 items-center gap-1.5 rounded-full bg-surface pr-2 pl-2 text-[11.5px] font-medium',
+        'inline-flex h-6 items-center gap-1.5 rounded-full bg-surface pr-2 pl-2 text-[11.5px] font-medium text-foreground',
         onClick && 'cursor-pointer hover:bg-accent',
         className
       )}

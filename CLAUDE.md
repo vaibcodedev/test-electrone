@@ -24,6 +24,26 @@
    - D — renderer и main зависят от контракта `src/shared/api.ts`; зависимости в main передаются через конструктор (`src/main/container.ts` — composition root), никаких глобалов.
 4. Проверка перед сдачей: `npm run typecheck` и `npx electron-vite build` без ошибок; визуальная проверка скриншотами (`npm run snap`).
 
+## Коммиты
+
+Формат по Conventional Commits: `<тип>: <что сделано>` — одна строка, по-английски, со строчной буквы, в повелительном наклонении, без точки, до ~72 символов.
+
+Пример: `update: add directory`
+
+Типы:
+- `feat` — новая функциональность
+- `update` — доработка существующей функциональности
+- `fix` — исправление бага
+- `refactor` — переделка без изменения поведения
+- `style` — внешний вид и стили
+- `docs` — документация и правила
+- `test` — тесты
+- `build` — сборка, зависимости, electron-builder
+- `chore` — прочее обслуживание
+- `perf` — производительность
+
+Область по желанию: `feat(boards): add column reorder`. Подробности — в теле коммита после пустой строки. Один коммит — одно логическое изменение.
+
 ## Стек
 
 electron-vite (React + TS) · Tailwind v4 + shadcn (перестилизован) · better-sqlite3 v13 (N-API prebuilds, без пересборки) + Drizzle ORM + FTS5 · zustand (UI-состояние) + TanStack Query (данные из IPC) · React Router 8 (hash) · dnd-kit · CodeMirror 6 · sucrase (живое превью) · electron-builder (NSIS) · electron-updater (GitHub Releases).

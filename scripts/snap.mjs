@@ -12,8 +12,10 @@ const [outDir = 'shots', ...routes] = process.argv.slice(2)
 mkdirSync(outDir, { recursive: true })
 const userData = process.env.SNAP_USER_DATA ?? mkdtempSync(join(tmpdir(), 'vault-snap-'))
 
+// SNAP_EXE=dist/win-unpacked/Vault.exe tests the packaged build instead of out/.
 const app = await electron.launch({
-  args: [resolve('.'), `--user-data-dir=${userData}`],
+  ...(process.env.SNAP_EXE ? { executablePath: resolve(process.env.SNAP_EXE) } : {}),
+  args: [...(process.env.SNAP_EXE ? [] : [resolve('.')]), `--user-data-dir=${userData}`],
   env: { ...process.env, NODE_ENV: 'production' }
 })
 const errors = []
@@ -36,10 +38,34 @@ if (process.env.SNAP_SEED) {
   await seed(rpc)
 }
 
-for (const route of routes.length ? routes : ['/']) {
+/** Replaces {board} {project} {client} {component} {checklist} {moodboard} with real ids. */
+async function resolveRoute(route) {
+  const lookups = {
+    board: ['boards.list'],
+    project: ['projects.list'],
+    client: ['clients.list'],
+    component: ['components.list'],
+    checklist: ['checklists.list', { kind: 'run' }],
+    moodboard: ['moodboards.list'],
+    idea: ['ideas.list'],
+    claude: ['claude.list'],
+    snippet: ['snippets.list'],
+    card: ['cards.due', { from: 0, to: 9e15 }]
+  }
+  let out = route
+  for (const [token, [path, arg]] of Object.entries(lookups)) {
+    if (!out.includes(`{${token}}`)) continue
+    const r = await rpc(path, arg)
+    out = out.replace(`{${token}}`, r.ok && r.data[0] ? r.data[0].id : 'missing')
+  }
+  return out
+}
+
+for (const raw of routes.length ? routes : ['/']) {
+  const route = await resolveRoute(raw)
   await win.evaluate((r) => (window.location.hash = '#' + r), route)
   await win.waitForTimeout(1200)
-  const name = route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'home'
+  const name = raw.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'home'
   await win.screenshot({ path: join(outDir, `${name}.png`) })
   console.log('shot', name)
 }

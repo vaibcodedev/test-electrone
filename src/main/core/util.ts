@@ -68,3 +68,15 @@ export function slugify(text: string, fallback = 'item'): string {
     .slice(0, 60)
   return s || fallback
 }
+
+/** Plain-text excerpt of markdown for subtitles (drops syntax, collapses whitespace). */
+export function excerpt(md: string, max = 80): string | undefined {
+  const text = md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/[*_#>`~|-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!text) return undefined
+  return text.length > max ? text.slice(0, max - 1) + '…' : text
+}

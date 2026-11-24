@@ -192,6 +192,13 @@
   ::-webkit-scrollbar-track {
     background: transparent;
   }
+  /* Auto-growing textareas (field-sizing: content) must never show a scrollbar. */
+  textarea {
+    scrollbar-width: none;
+  }
+  textarea::-webkit-scrollbar {
+    display: none;
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

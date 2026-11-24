@@ -19,7 +19,7 @@ import { z } from 'zod'
 import { boardColumns, boards, cardChecklist, cards } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { newId, now, NotFoundError, startOfDay } from '../core/util'
+import { excerpt, newId, now, NotFoundError, startOfDay } from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 
 type BoardRow = typeof boards.$inferSelect
@@ -50,7 +50,7 @@ export class BoardsModule {
       type: 'board',
       table: boards,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({ title: r.title, subtitle: r.description.slice(0, 80) || undefined }),
+      summary: (r) => ({ title: r.title, subtitle: excerpt(r.description) }),
       dependents: (id) =>
         m.db.orm
           .select({ id: cards.id })
