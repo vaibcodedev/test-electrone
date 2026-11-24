@@ -115,7 +115,7 @@ export function MonthView({
               key={day.toISOString()}
               onClick={() => onDayClick(day)}
               className={cn(
-                'group min-h-[92px] cursor-pointer gap-0.5 overflow-hidden rounded-2xl p-1.5 transition-colors',
+                'group min-h-[92px] cursor-pointer gap-0.5 overflow-hidden rounded-2xl p-2 transition-colors',
                 inMonth ? 'bg-surface/60 hover:bg-surface' : 'bg-transparent opacity-55 hover:bg-surface/50',
                 today && 'bg-surface ring-1 ring-lime/70 ring-inset'
               )}
@@ -124,7 +124,8 @@ export function MonthView({
                 {/* Today = filled lime circle (one accent); other days keep the same box so numbers line up. */}
                 <span
                   className={cn(
-                    'grid size-6 place-items-center rounded-full text-[12.5px] leading-none tabular-nums',
+                    // text-box trims the font's ascender/descender gap, so digits sit in the optical center.
+                    'grid size-6 place-items-center rounded-full text-[12.5px] leading-none tabular-nums [text-box:trim-both_cap_alphabetic]',
                     today && 'bg-lime font-semibold text-lime-foreground'
                   )}
                   aria-current={today ? 'date' : undefined}
