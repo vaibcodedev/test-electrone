@@ -52,7 +52,7 @@ import {
   TextareaBlock,
   useEscapeToClose
 } from '../claude/editor-kit'
-import { fillTemplate, pct, SITUATION_LABEL, templateVariables } from './g2-labels'
+import { fillTemplate, pct, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
 
 const TPL_L = limitsOf(templateInputSchema)
@@ -99,9 +99,13 @@ export function CopyTemplateDialog({
           <div className="grid grid-cols-2 gap-3">
             {vars.map((v, i) => (
               <Field key={v} className="gap-1.5">
-                <FieldLabel htmlFor={`var-${v}`}>{v}</FieldLabel>
+                <FieldLabel htmlFor={`var-${v}`} className="flex w-full items-baseline justify-between gap-2">
+                  {variableLabel(v)}
+                  <span className="font-mono text-meta font-normal text-muted-foreground">{`{${v}}`}</span>
+                </FieldLabel>
                 <Input
                   id={`var-${v}`}
+                  placeholder={`Порожньо — лишиться {${v}}`}
                   autoFocus={i === 0}
                   value={values[v] ?? ''}
                   onChange={(e) => setValues((s) => ({ ...s, [v]: e.target.value }))}
