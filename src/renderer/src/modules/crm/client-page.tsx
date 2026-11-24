@@ -14,6 +14,7 @@ import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { BILLING_INFO, CLIENT_STATUS_LABEL } from './labels'
 import { BillingPicker, Choice, Section, StatTile } from './parts'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -23,6 +24,7 @@ import { numberOrZero } from './money'
 import { ProjectRow } from './clients-page'
 import { ProjectDialog } from './dialogs'
 import { CredentialsSection } from './credentials-section'
+import { AvoidBadge, ClientPlatformFields, PlatformBadge, PlatformSelect } from './platform-fields'
 
 const CONTACT_FIELDS: {
   key: 'company' | 'email' | 'phone' | 'messenger' | 'website'
@@ -50,6 +52,7 @@ export function ClientPage() {
   const patch = (p: ClientPatch): void => update.mutate({ id, patch: p })
   const [name, setName] = useAutosave(c?.name ?? '', (v) => v.trim() && patch({ name: v.trim() }))
   const [notes, setNotes] = useAutosave(c?.notes ?? '', (v) => patch({ notes: v }))
+  const [howTo, setHowTo] = useAutosave(c?.howToCommunicate ?? '', (v) => patch({ howToCommunicate: v }))
 
   if (isLoading) return null
   if (!data || !c) {
@@ -90,6 +93,11 @@ export function ClientPage() {
                 onChange={(v) => v && patch({ status: v })}
                 options={CLIENT_STATUSES.map((s) => ({ value: s, label: CLIENT_STATUS_LABEL[s] }))}
               />
+              {c.status === 'avoid' && <AvoidBadge className="h-9 px-3" />}
+              <PlatformBadge platformId={c.platformId} />
+              {c.platformId && c.paymentVerified === false && (
+                <Badge variant="warn">Оплата не верифицирована</Badge>
+              )}
               {c.email && (
                 <Button variant="soft" size="sm" onClick={() => open(`mailto:${c.email}`)}>
                   <Mail /> Написать
@@ -167,12 +175,19 @@ export function ClientPage() {
               <p className="text-[13px] text-muted-foreground">У клиента пока нет проектов.</p>
             )}
           </Section>
+          <Section title="Как общаться">
+            <MarkdownField
+              value={howTo}
+              onChange={setHowTo}
+              placeholder="Тон, часовой пояс, когда отвечает, что раздражает, как лучше сдавать работу…"
+            />
+          </Section>
           <CredentialsSection items={data.credentials} owner={{ clientId: c.id }} />
           <Section title="Заметки">
             <MarkdownField
               value={notes}
               onChange={setNotes}
-              placeholder="Как общаться, предпочтения, реквизиты для счетов…"
+              placeholder="Реквизиты для счетов, история, договорённости…"
             />
           </Section>
         </div>
@@ -196,6 +211,20 @@ export function ClientPage() {
                 />
               </Field>
             ))}
+          </section>
+          <Separator />
+          <section className="flex flex-col gap-3">
+            <SectionLabel>Откуда</SectionLabel>
+            <PlatformSelect value={c.platformId} onChange={(platformId) => patch({ platformId })} />
+            {c.platformId && (
+              <ClientPlatformFields
+                key={`pf-${c.platformId}`}
+                saveOnBlur
+                currency={c.currency}
+                value={c}
+                onChange={(p) => patch(p)}
+              />
+            )}
           </section>
           <Separator />
           <section className="flex flex-col gap-3">

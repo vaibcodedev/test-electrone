@@ -44,6 +44,15 @@ const ExpensesPage = page(() => import('@/modules/finance'), 'ExpensesPage')
 const WithdrawalsPage = page(() => import('@/modules/finance'), 'WithdrawalsPage')
 const NotesPage = page(() => import('@/modules/notes'), 'NotesPage')
 const KnowledgeOverviewPage = page(() => import('@/modules/knowledge'), 'KnowledgeOverviewPage')
+const JobsOverviewPage = page(() => import('@/modules/jobs'), 'JobsOverviewPage')
+const ApplicationsPage = page(() => import('@/modules/jobs'), 'ApplicationsPage')
+const InterviewsPage = page(() => import('@/modules/jobs'), 'InterviewsPage')
+const CompaniesPage = page(() => import('@/modules/jobs'), 'CompaniesPage')
+const ResumesPage = page(() => import('@/modules/jobs'), 'ResumesPage')
+const QuestionsPage = page(() => import('@/modules/jobs'), 'QuestionsPage')
+const PracticePage = page(() => import('@/modules/jobs'), 'PracticePage')
+const JobBoardsPage = page(() => import('@/modules/jobs'), 'JobBoardsPage')
+const JobStatsPage = page(() => import('@/modules/jobs'), 'JobStatsPage')
 const TrashPage = page(() => import('@/features/trash-page'), 'TrashPage')
 const SettingsPage = page(() => import('@/features/settings-page'), 'SettingsPage')
 const TagsPage = page(() => import('@/features/tags-page'), 'TagsPage')
@@ -90,6 +99,15 @@ export const router = createHashRouter([
       { path: 'finance/withdrawals', element: <WithdrawalsPage /> },
       { path: 'notes', element: <NotesPage /> },
       { path: 'knowledge', element: <KnowledgeOverviewPage /> },
+      { path: 'jobs', element: <JobsOverviewPage /> },
+      { path: 'jobs/applications', element: <ApplicationsPage /> },
+      { path: 'jobs/interviews', element: <InterviewsPage /> },
+      { path: 'jobs/companies', element: <CompaniesPage /> },
+      { path: 'jobs/resumes', element: <ResumesPage /> },
+      { path: 'jobs/questions', element: <QuestionsPage /> },
+      { path: 'jobs/questions/practice', element: <PracticePage /> },
+      { path: 'jobs/boards', element: <JobBoardsPage /> },
+      { path: 'jobs/stats', element: <JobStatsPage /> },
       { path: 'tags', element: <TagsPage /> },
       { path: 'trash', element: <TrashPage /> },
       { path: 'settings', element: <SettingsPage /> }

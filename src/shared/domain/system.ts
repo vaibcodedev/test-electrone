@@ -22,7 +22,9 @@ export const settingsSchema = z.object({
   quickAddShortcut: z.string().max(100),
   autoBackup: z.boolean(),
   backupKeep: z.number().int().min(1).max(100),
-  autoUpdate: z.boolean()
+  autoUpdate: z.boolean(),
+  /** "19:00" — evening reminder about unmarked job boards; "" = off. */
+  jobReminderTime: z.string().regex(/^(\d{2}:\d{2})?$/)
 })
 export type Settings = z.infer<typeof settingsSchema>
 export const settingsPatchSchema = settingsSchema.partial()

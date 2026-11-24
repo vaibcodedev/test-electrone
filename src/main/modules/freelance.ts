@@ -108,6 +108,9 @@ const SITUATION_LABEL: Record<TemplateSituation, string> = {
   follow_up: 'Напоминание',
   small_talk: 'Small talk',
   closing: 'Завершение',
+  cover_letter: 'Сопроводительное',
+  recruiter: 'Ответ рекрутеру',
+  thank_you: 'Благодарность после интервью',
   other: 'Другое'
 }
 

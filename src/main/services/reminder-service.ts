@@ -6,6 +6,8 @@ import type { DbContext } from '../db/client'
 import type { CalendarModule } from '../modules/calendar'
 import { occurrences } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
+import type { JobsModule } from '../modules/jobs'
+import type { ConfigStore } from '../core/config-store'
 import { DAY_MS, now } from '../core/util'
 
 const TICK_MS = 30_000
@@ -22,8 +24,12 @@ export class ReminderService {
     private readonly calendar: CalendarModule,
     private readonly boards: BoardsModule,
     private readonly open: (route: string) => void,
-    private readonly icon: string
+    private readonly icon: string,
+    private readonly jobs: JobsModule,
+    private readonly config: ConfigStore
   ) {}
+
+  private lastJobNudge = ''
 
   start(): void {
     this.stop()
@@ -54,21 +60,44 @@ export class ReminderService {
   tick(): void {
     const t = now()
     for (const e of this.calendar.eventsInRange(t - DAY_MS, t + 31 * DAY_MS)) {
-      if (e.remindMinutes === null) continue
-      const lead = e.remindMinutes * 60_000
-      for (const start of occurrences(e, t - DAY_MS, t + 31 * DAY_MS)) {
-        const remindAt = start - lead
-        if (remindAt > t || remindAt < t - STALE_MS) continue
-        if (e.remindedFor !== null && e.remindedFor >= start) continue
-        const when = new Date(start).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-        this.notify(e.title, e.allDay ? 'Сегодня' : `В ${when}`, ENTITY_META.event.route(e.id))
-        this.ctx.orm.update(events).set({ remindedFor: start }).where(eq(events.id, e.id)).run()
+      const slots: { minutes: number | null; sent: number | null; field: 'remindedFor' | 'reminded2For' }[] = [
+        { minutes: e.remindMinutes, sent: e.remindedFor, field: 'remindedFor' },
+        { minutes: e.remind2Minutes, sent: e.reminded2For, field: 'reminded2For' }
+      ]
+      for (const slot of slots) {
+        if (slot.minutes === null) continue
+        for (const start of occurrences(e, t - DAY_MS, t + 31 * DAY_MS)) {
+          const remindAt = start - slot.minutes * 60_000
+          if (remindAt > t || remindAt < t - STALE_MS) continue
+          if (slot.sent !== null && slot.sent >= start) continue
+          const d = new Date(start)
+          const when = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+          const isToday = new Date().toDateString() === d.toDateString()
+          const body = e.allDay ? (isToday ? 'Сегодня' : d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })) : isToday ? `Сегодня в ${when}` : `${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })} в ${when}`
+          this.notify(e.title, body, ENTITY_META.event.route(e.id))
+          this.ctx.orm.update(events).set({ [slot.field]: start }).where(eq(events.id, e.id)).run()
+        }
       }
     }
     for (const c of this.boards.due({ from: Math.max(this.lastTick, t - STALE_MS), to: t })) {
       if (c.columnIsDone || c.dueAt! <= this.lastTick) continue
       this.notify(`Дедлайн: ${c.title}`, c.boardTitle, ENTITY_META.card.route(c.id))
     }
+    this.jobNudge(t)
     this.lastTick = t
+  }
+
+  /** Evening reminder: job boards expected today that are not marked yet. */
+  private jobNudge(t: number): void {
+    const at = this.config.settings.jobReminderTime
+    if (!at) return
+    const [h, m] = at.split(':').map(Number)
+    const d = new Date(t)
+    const key = d.toDateString()
+    if (this.lastJobNudge === key || d.getHours() * 60 + d.getMinutes() < h * 60 + m) return
+    this.lastJobNudge = key
+    const pending = this.jobs.pendingToday()
+    if (!pending.length) return
+    this.notify('Поиск работы: площадки на сегодня', `Не отмечены: ${pending.map((b) => b.name).join(', ')}`, '/jobs')
   }
 }

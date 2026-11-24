@@ -32,8 +32,12 @@ import {
 import { Meter, StatTile } from './parts'
 import { moneyMap } from './money'
 import { ClientDialog, ProjectDialog } from './dialogs'
+import { AvoidBadge, NetPaid, PlatformBadge, usePlatforms } from './platform-fields'
 
 type Tab = 'clients' | 'projects'
+
+/** Filter value for clients/projects without a platform. */
+const DIRECT = '__direct__'
 
 /** Money is the main metric; hours are secondary (most work isn't hourly). */
 function Overview() {
@@ -95,7 +99,14 @@ function ClientCard({ client }: { client: ClientSummary }) {
           <ItemDescription className="truncate text-[12.5px]">
             {client.company || CLIENT_STATUS_LABEL[client.status]} ·{' '}
             {BILLING_LABEL[client.defaultBilling]}
+            {client.country && ` · ${client.country}`}
           </ItemDescription>
+          {(client.platformId || client.status === 'avoid') && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              <PlatformBadge platformId={client.platformId} />
+              {client.status === 'avoid' && <AvoidBadge link={false} />}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
             <span>
               {client.activeProjectCount}/{client.projectCount}{' '}
@@ -182,6 +193,7 @@ export function ProjectRow({
             <Badge variant={PROJECT_STATUS_BADGE[project.status]}>
               {PROJECT_STATUS_LABEL[project.status]}
             </Badge>
+            <PlatformBadge platformId={project.platformId} name={project.platformName} />
           </div>
           <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
             {showClient && `${project.clientName ?? 'Без клиента'} · `}
@@ -199,6 +211,7 @@ export function ProjectRow({
                 <span className="text-muted-foreground">Оплачено </span>
                 {fmtMoney(project.paidAmount, project.currency)}
               </div>
+              <NetPaid project={project} className="block" />
               {project.outstandingAmount > 0 ? (
                 <div className="text-warn">
                   ждём {fmtMoney(project.outstandingAmount, project.currency)}
@@ -229,19 +242,37 @@ export function ClientsPage() {
   const tab = (params.get('tab') as Tab) ?? 'clients'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<ProjectStatus | undefined>()
+  const [platformId, setPlatformId] = useState<string | undefined>()
+  const platforms = usePlatforms()
   const [clientOpen, setClientOpen] = useState(false)
   const [projectOpen, setProjectOpen] = useState(false)
   const { data: clients = [] } = useApi('clients', 'list')
-  const { data: projects = [] } = useApi('projects', 'list', {
+  const { data: allProjects = [] } = useApi('projects', 'list', {
     status,
     search: search || undefined
   })
+  const projects = useMemo(
+    () =>
+      !platformId
+        ? allProjects
+        : platformId === DIRECT
+          ? allProjects.filter((p) => !p.platformId)
+          : allProjects.filter((p) => p.platformId === platformId),
+    [allProjects, platformId]
+  )
 
   const filteredClients = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return clients
-    return clients.filter((c) => `${c.name} ${c.company} ${c.email}`.toLowerCase().includes(q))
-  }, [clients, search])
+    const byPlatform = !platformId
+      ? clients
+      : platformId === DIRECT
+        ? clients.filter((c) => !c.platformId)
+        : clients.filter((c) => c.platformId === platformId)
+    if (!q) return byPlatform
+    return byPlatform.filter((c) =>
+      `${c.name} ${c.company} ${c.email} ${c.country}`.toLowerCase().includes(q)
+    )
+  }, [clients, search, platformId])
 
   return (
     <Page>
@@ -281,6 +312,17 @@ export function ClientsPage() {
             placeholder={tab === 'clients' ? 'Найти клиента' : 'Найти проект'}
             className="w-64"
           />
+          {platforms.length > 0 && (
+            <FilterChips<string>
+              allLabel="Все платформы"
+              options={[
+                ...platforms.map((p) => ({ value: p.id, label: p.name })),
+                { value: DIRECT, label: 'Напрямую' }
+              ]}
+              value={platformId}
+              onChange={setPlatformId}
+            />
+          )}
           {tab === 'projects' && (
             <FilterChips<ProjectStatus>
               allLabel="Все статусы"

@@ -24,7 +24,10 @@ export const ENTITY_TYPES = [
   'proposal',
   'template',
   'case',
-  'redflag'
+  'redflag',
+  'application',
+  'company',
+  'question'
 ] as const
 
 export type EntityType = (typeof ENTITY_TYPES)[number]
@@ -57,7 +60,10 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   proposal: { label: 'Отклик', plural: 'Отклики', route: (id) => `/freelance/proposal/${id}` },
   template: { label: 'Шаблон', plural: 'Шаблоны', route: (id) => `/freelance/templates?open=${id}` },
   case: { label: 'Кейс', plural: 'Портфолио', route: (id) => `/freelance/portfolio?open=${id}` },
-  redflag: { label: 'Красный флаг', plural: 'Красные флаги', route: (id) => `/freelance/flags?open=${id}` }
+  redflag: { label: 'Красный флаг', plural: 'Красные флаги', route: (id) => `/freelance/flags?open=${id}` },
+  application: { label: 'Вакансия', plural: 'Вакансии', route: (id) => `/jobs/applications?open=${id}` },
+  company: { label: 'Компания', plural: 'Компании', route: (id) => `/jobs/companies?open=${id}` },
+  question: { label: 'Вопрос', plural: 'Вопросы к собеседованию', route: (id) => `/jobs/questions?open=${id}` }
 }
 
 export function isEntityType(value: unknown): value is EntityType {

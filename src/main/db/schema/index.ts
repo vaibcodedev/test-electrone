@@ -448,7 +448,13 @@ export const events = sqliteTable(
     remindMinutes: integer(),
     recurrence: text().notNull().default('none'),
     color: text(),
-    remindedFor: integer()
+    remindedFor: integer(),
+    /** Second reminder (e.g. a day before + an hour before). */
+    remind2Minutes: integer(),
+    reminded2For: integer(),
+    /** Owner of an auto-created event, e.g. "job_stage" — keeps both sides in sync. */
+    sourceType: text(),
+    sourceId: text()
   },
   (t) => [index('events_start_idx').on(t.startAt)]
 )
@@ -630,3 +636,137 @@ export const withdrawals = sqliteTable(
   },
   (t) => [index('withdrawals_at_idx').on(t.at)]
 )
+
+/* ───────────── Job search ───────────── */
+
+export const jobBoards = sqliteTable('job_boards', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  url: text().notNull().default(''),
+  color: text(),
+  dailyTarget: integer().notNull().default(1),
+  weekdays: text({ mode: 'json' }).$type<number[]>().notNull().default([1, 2, 3, 4, 5]),
+  active: integer({ mode: 'boolean' }).notNull().default(true),
+  notes: text().notNull().default(''),
+  position: real().notNull().default(0),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})
+
+export const boardCheckins = sqliteTable(
+  'board_checkins',
+  {
+    boardId: text().notNull(),
+    day: text().notNull(),
+    note: text().notNull().default(''),
+    createdAt: integer().notNull()
+  },
+  (t) => [primaryKey({ columns: [t.boardId, t.day] })]
+)
+
+export const companies = sqliteTable('companies', {
+  ...base,
+  name: text().notNull(),
+  website: text().notNull().default(''),
+  reviewsUrl: text().notNull().default(''),
+  stack: text().notNull().default(''),
+  size: text().notNull().default(''),
+  location: text().notNull().default(''),
+  contacts: text().notNull().default(''),
+  notes: text().notNull().default(''),
+  rating: integer().notNull().default(0)
+})
+
+export const resumes = sqliteTable('resumes', {
+  id: text().primaryKey(),
+  title: text().notNull(),
+  changes: text().notNull().default(''),
+  isCurrent: integer({ mode: 'boolean' }).notNull().default(false),
+  filePath: text(),
+  fileName: text().notNull().default(''),
+  mime: text().notNull().default(''),
+  size: integer().notNull().default(0),
+  createdAt: integer().notNull(),
+  updatedAt: integer().notNull()
+})
+
+export const resumeBoards = sqliteTable(
+  'resume_boards',
+  {
+    resumeId: text().notNull(),
+    boardId: text().notNull(),
+    uploadedAt: integer().notNull()
+  },
+  (t) => [primaryKey({ columns: [t.resumeId, t.boardId] })]
+)
+
+export const applications = sqliteTable(
+  'applications',
+  {
+    ...base,
+    title: text().notNull(),
+    companyId: text(),
+    companyName: text().notNull().default(''),
+    boardId: text(),
+    url: text().notNull().default(''),
+    description: text().notNull().default(''),
+    status: text().notNull().default('applied'),
+    appliedAt: integer(),
+    salaryMin: real(),
+    salaryMax: real(),
+    currency: text().notNull().default('USD'),
+    format: text().notNull().default('remote'),
+    location: text().notNull().default(''),
+    resumeId: text(),
+    templateId: text(),
+    coverLetter: text().notNull().default(''),
+    contact: text().notNull().default(''),
+    followUpAt: integer(),
+    notes: text().notNull().default(''),
+    repliedAt: integer(),
+    closedAt: integer()
+  },
+  (t) => [index('applications_status_idx').on(t.status), index('applications_applied_idx').on(t.appliedAt)]
+)
+
+export const applicationStages = sqliteTable(
+  'application_stages',
+  {
+    id: text().primaryKey(),
+    applicationId: text()
+      .notNull()
+      .references(() => applications.id, { onDelete: 'cascade' }),
+    kind: text().notNull().default('screening'),
+    title: text().notNull().default(''),
+    at: integer(),
+    durationMin: integer().notNull().default(60),
+    deadlineAt: integer(),
+    status: text().notNull().default('planned'),
+    location: text().notNull().default(''),
+    notes: text().notNull().default(''),
+    interviewers: text().notNull().default(''),
+    eventId: text(),
+    deadlineEventId: text(),
+    createdAt: integer().notNull(),
+    updatedAt: integer().notNull()
+  },
+  (t) => [index('stages_application_idx').on(t.applicationId)]
+)
+
+export const interviewQuestions = sqliteTable('interview_questions', {
+  ...base,
+  category: text().notNull().default('technical'),
+  topic: text().notNull().default(''),
+  question: text().notNull(),
+  answer: text().notNull().default(''),
+  lang: text().notNull().default('ru'),
+  difficulty: integer().notNull().default(2),
+  companyId: text(),
+  applicationId: text(),
+  ease: real().notNull().default(2.5),
+  intervalDays: real().notNull().default(0),
+  repetitions: integer().notNull().default(0),
+  lapses: integer().notNull().default(0),
+  dueAt: integer().notNull(),
+  lastReviewedAt: integer()
+})

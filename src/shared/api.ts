@@ -89,6 +89,35 @@ import type {
 import type { CalendarEvent, CalendarItem, DateRange, EventInput, EventPatch } from './domain/calendar'
 import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
 import type {
+  Application,
+  ApplicationDetails,
+  ApplicationInput,
+  ApplicationListQuery,
+  ApplicationPatch,
+  CheckinInput,
+  Company,
+  CompanyInput,
+  CompanyPatch,
+  DailyBoard,
+  InterviewQuestion,
+  JobBoard,
+  JobBoardInput,
+  JobBoardPatch,
+  JobsOverview,
+  JobStats,
+  QuestionCategory,
+  QuestionInput,
+  QuestionListQuery,
+  QuestionPatch,
+  Resume,
+  ResumeInput,
+  ResumePatch,
+  Stage,
+  StageInput,
+  StagePatch,
+  StageWithApplication
+} from './domain/jobs'
+import type {
   CaseInput,
   CasePatch,
   CreditsSummary,
@@ -363,6 +392,56 @@ export interface FinanceApi {
   removeWithdrawal(id: string): Promise<void>
 }
 
+export interface JobsApi {
+  boards(args?: { includeInactive?: boolean }): Promise<JobBoard[]>
+  createBoard(input: JobBoardInput): Promise<JobBoard>
+  updateBoard(args: { id: string; patch: JobBoardPatch }): Promise<JobBoard>
+  reorderBoards(ids: string[]): Promise<void>
+  /** Board × day matrix (default 28 days) with today's status and streaks. */
+  daily(args?: { days?: number }): Promise<DailyBoard[]>
+  /** Manual «проверил сегодня» mark. */
+  checkin(input: CheckinInput): Promise<void>
+
+  list(query?: ApplicationListQuery): Promise<Application[]>
+  get(id: string): Promise<ApplicationDetails | null>
+  create(input: ApplicationInput): Promise<Application>
+  update(args: { id: string; patch: ApplicationPatch }): Promise<Application>
+  remove(id: string): Promise<void>
+  /** Open applications whose follow-up date passed or with no answer for 7+ days. */
+  followUps(): Promise<Application[]>
+
+  /** Adding a stage moves the application to «Собеседование»/«Тестовое» and creates calendar events. */
+  addStage(input: StageInput): Promise<Stage>
+  updateStage(args: { id: string; patch: StagePatch }): Promise<Stage>
+  removeStage(id: string): Promise<void>
+  upcoming(limit?: number): Promise<StageWithApplication[]>
+
+  companies(query?: { search?: string }): Promise<Company[]>
+  company(id: string): Promise<Company | null>
+  createCompany(input: CompanyInput): Promise<Company>
+  updateCompany(args: { id: string; patch: CompanyPatch }): Promise<Company>
+  removeCompany(id: string): Promise<void>
+
+  resumes(): Promise<Resume[]>
+  createResume(args: { input: ResumeInput; source?: FileSource }): Promise<Resume>
+  updateResume(args: { id: string; patch: ResumePatch }): Promise<Resume>
+  replaceResumeFile(args: { id: string; source: FileSource }): Promise<Resume>
+  removeResume(id: string): Promise<void>
+  setResumeUploaded(args: { resumeId: string; boardId: string; uploaded: boolean }): Promise<void>
+
+  questions(query?: QuestionListQuery): Promise<InterviewQuestion[]>
+  question(id: string): Promise<InterviewQuestion | null>
+  createQuestion(input: QuestionInput): Promise<InterviewQuestion>
+  updateQuestion(args: { id: string; patch: QuestionPatch }): Promise<InterviewQuestion>
+  removeQuestion(id: string): Promise<void>
+  topics(): Promise<string[]>
+  practiceQueue(args?: { limit?: number; category?: QuestionCategory }): Promise<InterviewQuestion[]>
+  reviewQuestion(args: { id: string; grade: number }): Promise<InterviewQuestion>
+
+  stats(args?: { from?: number; to?: number }): Promise<JobStats>
+  overview(): Promise<JobsOverview>
+}
+
 export interface TagsApi {
   list(): Promise<TagWithUsage[]>
   create(input: TagInput): Promise<Tag>
@@ -471,6 +550,7 @@ export interface Api {
   goals: GoalsApi
   freelance: FreelanceApi
   finance: FinanceApi
+  jobs: JobsApi
   tags: TagsApi
   links: LinksApi
   pins: PinsApi

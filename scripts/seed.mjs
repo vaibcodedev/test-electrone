@@ -149,5 +149,38 @@ export default function Demo() {
   const fov = await call('finance.overview')
   console.log('freelance ok: goals', gp.length, 'profit', JSON.stringify(rep.profit), 'balances', JSON.stringify(fov.platformBalances))
 
+  // ── job search
+  const jb = await call('jobs.boards')
+  const djinni = jb.find((b) => b.name === 'Djinni')
+  if (!djinni) throw new Error('job boards not seeded')
+  const co = await call('jobs.createCompany', { name: 'Grammarly', stack: 'React, TS' })
+  const cv = await call('jobs.createResume', { input: { title: 'v1 Frontend', changes: 'Первая версия', isCurrent: true } })
+  await call('jobs.setResumeUploaded', { resumeId: cv.id, boardId: djinni.id, uploaded: true })
+  const app = await call('jobs.create', { title: 'Middle Frontend Developer', companyId: co.id, boardId: djinni.id, resumeId: cv.id, salaryMin: 2500, salaryMax: 3500 })
+  await call('jobs.create', { title: 'React Developer', companyName: 'Acme', boardId: djinni.id })
+  const interviewAt = t + 86400000
+  const stage = await call('jobs.addStage', { applicationId: app.id, kind: 'technical', at: interviewAt, durationMin: 90 })
+  if (!stage.eventId) throw new Error('stage has no calendar event')
+  const feed = await call('events.feed', { from: t, to: t + 3 * 86400000 })
+  const item = feed.find((i) => i.source === 'interview')
+  if (!item || item.ref.type !== 'application') throw new Error('interview missing in calendar feed')
+  // move it in the calendar → stage follows
+  await call('events.update', { id: stage.eventId, patch: { startAt: interviewAt + 3600000, endAt: interviewAt + 3600000 + 90 * 60000 } })
+  const appDetails = await call('jobs.get', app.id)
+  if (appDetails.stages[0].at !== interviewAt + 3600000) throw new Error('calendar → stage sync failed')
+  if (appDetails.status !== 'interview') throw new Error('status should be interview, got ' + appDetails.status)
+  const daily = await call('jobs.daily', { days: 7 })
+  const dj = daily.find((b) => b.id === djinni.id)
+  if (!dj.today.done || dj.today.applied !== 2) throw new Error('daily habit wrong ' + JSON.stringify(dj.today))
+  const dou = daily.find((b) => b.name === 'DOU')
+  await call('jobs.checkin', { boardId: dou.id, day: dou.today.day, checked: true })
+  await call('jobs.createQuestion', { category: 'technical', topic: 'React', question: 'Чем useMemo отличается от useCallback?', answer: 'useMemo кеширует значение…', applicationId: app.id, companyId: co.id })
+  const pq = await call('jobs.practiceQueue')
+  await call('jobs.reviewQuestion', { id: pq[0].id, grade: 2 })
+  const js = await call('jobs.stats')
+  const jo = await call('jobs.overview')
+  const resumes = await call('jobs.resumes')
+  console.log('jobs ok: applied', js.totals.applied, 'interviews', js.totals.interview, 'upcoming', jo.upcoming.length, 'resume sent', resumes[0].sent)
+
   console.log('seed ok; search hits:', hits.length, 'week minutes:', ov.weekMinutes)
 }

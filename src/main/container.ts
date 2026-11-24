@@ -37,6 +37,8 @@ import { EnglishModule } from './modules/english'
 import { CalendarModule } from './modules/calendar'
 import { FreelanceModule } from './modules/freelance'
 import { FinanceModule } from './modules/finance'
+import { JobsModule } from './modules/jobs'
+import type { CalendarItem } from '@shared/domain/calendar'
 import { idArg, type ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
 import { TrayController } from './system/tray'
@@ -86,6 +88,7 @@ export class Container {
   readonly calendar = new CalendarModule(this.moduleCtx, this.boards, this.crm)
   readonly freelance = new FreelanceModule(this.moduleCtx, this.crm)
   readonly finance = new FinanceModule(this.moduleCtx, this.freelance)
+  readonly jobs = new JobsModule(this.moduleCtx, this.calendar)
 
   readonly backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus)
   readonly exporter = new ExportService(this.db, this.paths, this.registry, this.tags, this.links)
@@ -116,7 +119,8 @@ export class Container {
       this.checklists.descriptor,
       this.english.descriptor,
       this.calendar.descriptor,
-      ...this.freelance.descriptors
+      ...this.freelance.descriptors,
+      ...this.jobs.descriptors
     ]) {
       this.registry.register(d)
     }
@@ -132,7 +136,9 @@ export class Container {
       this.calendar,
       this.boards,
       (route) => this.windows.showMain(route),
-      iconPath
+      iconPath,
+      this.jobs,
+      this.config
     )
     this.api = this.buildApi()
     this.config.onSettingsChange((s) => {
@@ -147,8 +153,60 @@ export class Container {
     if (this.search.count() === 0) this.search.rebuild()
     this.checklists.seedIfEmpty()
     this.freelance.seedIfEmpty()
+    this.jobs.seedIfEmpty()
+    this.registerCalendarFeeds()
     this.trash.purgeExpired()
     setInterval(() => this.trash.purgeExpired(), 6 * 3600_000)
+  }
+
+  /** One calendar for everything: subscriptions, interviews (→ vacancy), application follow-ups. */
+  private registerCalendarFeeds(): void {
+    const financeApi = this.finance
+    this.calendar.addFeedProvider((from, to) => {
+      const items: CalendarItem[] = []
+      const start = new Date(from)
+      for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d.getTime() <= to; d.setMonth(d.getMonth() + 1)) {
+        const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        for (const s of financeApi.subscriptionMonth(month)) {
+          if (s.dueAt < from || s.dueAt > to) continue
+          items.push({
+            key: `subscription:${s.id}:${month}`,
+            source: 'subscription' as const,
+            ref: { type: 'event' as const, id: s.id },
+            route: `/finance/expenses?month=${month}`,
+            title: `Подписка: ${s.title} · ${s.amount} ${s.currency}`,
+            startAt: s.dueAt,
+            endAt: null,
+            allDay: true,
+            color: '#c98af0',
+            done: !!s.expenseId
+          })
+        }
+      }
+      return items
+    })
+    this.calendar.addFeedProvider((from, to) =>
+      this.jobs.appRepo
+        .listWhere([])
+        .filter((a) => a.followUpAt && a.followUpAt >= from && a.followUpAt <= to && !a.closedAt)
+        .map((a) => ({
+          key: `followup:${a.id}`,
+          source: 'followup' as const,
+          ref: { type: 'application' as const, id: a.id },
+          title: `Напомнить о себе: ${a.title}${a.companyName ? ` — ${a.companyName}` : ''}`,
+          startAt: a.followUpAt!,
+          endAt: null,
+          allDay: true,
+          color: '#3fbf9b',
+          done: false
+        }))
+    )
+    const stageRoute = (e: { sourceId: string | null }): Partial<CalendarItem> | null => {
+      const appId = e.sourceId ? this.jobs.applicationOfStage(e.sourceId) : null
+      return appId ? { source: 'interview', ref: { type: 'application', id: appId } } : null
+    }
+    this.calendar.decorateSource('job_stage', stageRoute)
+    this.calendar.decorateSource('job_stage_deadline', stageRoute)
   }
 
   private buildApi(): Api {
@@ -181,7 +239,8 @@ export class Container {
       redflags: this.freelance.redFlagsApi(),
       goals: this.freelance.goalsApi(),
       freelance: this.freelance.freelanceApi(),
-      finance: this.finance.api()
+      finance: this.finance.api(),
+      jobs: this.jobs.api()
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)
     const refArg = entityRefSchema

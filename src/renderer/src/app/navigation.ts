@@ -31,6 +31,12 @@ import {
   Users,
   Wallet,
   ArrowDownToLine,
+  FileUser,
+  FileText,
+  Globe,
+  ChartColumn,
+  Building2,
+  MessageCircleQuestion,
   type LucideIcon
 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
@@ -56,7 +62,10 @@ export const ENTITY_ICON: Record<EntityType, LucideIcon> = {
   proposal: Send,
   template: MessageSquareQuote,
   case: BriefcaseBusiness,
-  redflag: Flag
+  redflag: Flag,
+  application: FileUser,
+  company: Building2,
+  question: MessageCircleQuestion
 }
 
 export interface NavItem {
@@ -111,6 +120,22 @@ export const HUBS: NavHub[] = [
     ]
   },
   {
+    id: 'jobs',
+    title: 'Поиск работы',
+    icon: FileUser,
+    overview: '/jobs',
+    items: [
+      { path: '/jobs/applications', label: 'Вакансии', icon: FileUser, countOf: 'application' },
+      { path: '/jobs/interviews', label: 'Собеседования', icon: CalendarDays },
+      { path: '/jobs/companies', label: 'Компании', icon: Building2, countOf: 'company' },
+      { path: '/jobs/resumes', label: 'Резюме', icon: FileText },
+      { path: '/jobs/questions', label: 'Вопросы и тренажёр', icon: MessageCircleQuestion, countOf: 'question' },
+      { path: '/jobs/boards', label: 'Площадки', icon: Globe },
+      { path: '/jobs/stats', label: 'Статистика', icon: ChartColumn },
+      { path: '/freelance/templates?situation=cover_letter', label: 'Шаблоны писем', icon: MessageSquareQuote }
+    ]
+  },
+  {
     id: 'finance',
     title: 'Финансы',
     icon: Wallet,
@@ -160,6 +185,7 @@ export const ALL_NAV_ITEMS: NavItem[] = [
 
 /** Hub that owns a pathname (for auto-expanding the sidebar). */
 export function hubOf(pathname: string): string | undefined {
+  if (pathname.startsWith('/jobs')) return 'jobs'
   if (pathname.startsWith('/freelance') || pathname.startsWith('/clients') || pathname.startsWith('/projects')) return 'freelance'
   for (const h of HUBS) {
     if (h.overview && pathname === h.overview) return h.id

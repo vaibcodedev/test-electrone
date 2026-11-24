@@ -24,7 +24,8 @@ export const DEFAULT_SETTINGS: Settings = {
   quickAddShortcut: 'CommandOrControl+Shift+Space',
   autoBackup: true,
   backupKeep: 14,
-  autoUpdate: true
+  autoUpdate: true,
+  jobReminderTime: '19:00'
 }
 
 const DEFAULTS: ConfigShape = {

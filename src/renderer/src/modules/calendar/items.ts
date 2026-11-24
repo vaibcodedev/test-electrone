@@ -4,14 +4,20 @@ const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
   event: 'var(--lime)',
   card: 'var(--info)',
   payment: 'var(--warn)',
-  project: 'var(--success)'
+  project: 'var(--success)',
+  interview: 'var(--info)',
+  subscription: 'var(--warn)',
+  followup: 'var(--success)'
 }
 
 export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
   event: 'Событие',
   card: 'Дедлайн карточки',
   payment: 'Оплата',
-  project: 'Дедлайн проекта'
+  project: 'Дедлайн проекта',
+  interview: 'Собеседование',
+  subscription: 'Подписка',
+  followup: 'Напомнить о себе'
 }
 
 export function itemColor(item: CalendarItem): string {

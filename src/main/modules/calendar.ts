@@ -62,9 +62,30 @@ export function occurrences(e: Pick<EventRow, 'startAt' | 'endAt' | 'recurrence'
 const PROJECT_COLOR = '#7c8cf8'
 const PAYMENT_COLOR = '#f5a524'
 
+type EventListener = (e: EventRow) => void
+/** Extra calendar items contributed by other modules (subscriptions, follow-ups…). */
+export type FeedProvider = (from: number, to: number) => CalendarItem[]
+/** Decorates events owned by another module (interview stages → open the vacancy). */
+export type SourceDecorator = (e: CalendarEvent) => Partial<CalendarItem> | null
+
 export class CalendarModule {
   readonly descriptor: EntityDescriptor
   readonly repo: SoftRepository<EventRow, CalendarEvent>
+  private readonly listeners: EventListener[] = []
+  private readonly providers: FeedProvider[] = []
+  private readonly decorators = new Map<string, SourceDecorator>()
+
+  onEventChanged(listener: EventListener): void {
+    this.listeners.push(listener)
+  }
+
+  addFeedProvider(provider: FeedProvider): void {
+    this.providers.push(provider)
+  }
+
+  decorateSource(sourceType: string, decorator: SourceDecorator): void {
+    this.decorators.set(sourceType, decorator)
+  }
 
   constructor(
     private readonly m: ModuleContext,
@@ -103,6 +124,7 @@ export class CalendarModule {
   feed(from: number, to: number): CalendarItem[] {
     const items: CalendarItem[] = []
     for (const e of this.eventsInRange(from, to)) {
+      const extra = e.sourceType ? (this.decorators.get(e.sourceType)?.(e) ?? null) : null
       for (const start of occurrences(e, from, to)) {
         items.push({
           key: `event:${e.id}:${start}`,
@@ -113,7 +135,8 @@ export class CalendarModule {
           endAt: e.endAt ? start + (e.endAt - e.startAt) : null,
           allDay: e.allDay,
           color: e.color,
-          done: false
+          done: false,
+          ...extra
         })
       }
     }
@@ -161,6 +184,7 @@ export class CalendarModule {
         done: p.status === 'done' || p.status === 'cancelled'
       })
     }
+    for (const provider of this.providers) items.push(...provider(from, to))
     return items.sort((a, b) => a.startAt - b.startAt)
   }
 
@@ -171,14 +195,20 @@ export class CalendarModule {
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
         const [data, tagIds] = splitTags(eventInputSchema.parse(input))
-        return repo.insert({ ...data, remindedFor: null }, tagIds)
+        return repo.insert({ ...data, remindedFor: null, reminded2For: null, sourceType: null, sourceId: null }, tagIds)
       },
       update: async (args) => {
         const { id, patch } = updateArgs(eventPatchSchema).parse(args)
         const [data, tagIds] = splitTags(patch)
         // Changing time or reminder re-arms the reminder.
-        const rearm = data.startAt !== undefined || data.remindMinutes !== undefined || data.recurrence !== undefined
-        return repo.patch(id, { ...data, ...(rearm ? { remindedFor: null } : {}) }, tagIds)
+        const rearm =
+          data.startAt !== undefined || data.remindMinutes !== undefined || data.remind2Minutes !== undefined || data.recurrence !== undefined
+        const updated = repo.patch(id, { ...data, ...(rearm ? { remindedFor: null, reminded2For: null } : {}) }, tagIds)
+        if (data.startAt !== undefined || data.endAt !== undefined) {
+          const row = repo.row(id)
+          if (row) for (const l of this.listeners) l(row)
+        }
+        return updated
       },
       remove: async (id) => repo.softDelete(idArg.parse(id)),
       feed: async (range) => {

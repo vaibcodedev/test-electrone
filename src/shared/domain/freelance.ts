@@ -231,6 +231,9 @@ export const TEMPLATE_SITUATIONS = [
   'follow_up',
   'small_talk',
   'closing',
+  'cover_letter',
+  'recruiter',
+  'thank_you',
   'other'
 ] as const
 export type TemplateSituation = (typeof TEMPLATE_SITUATIONS)[number]

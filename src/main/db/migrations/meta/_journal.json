@@ -29,6 +29,13 @@
       "when": 1795530366076,
       "tag": "0003_freelance_finance",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1795531251927,
+      "tag": "0004_job_search",
+      "breakpoints": true
     }
   ]
 }

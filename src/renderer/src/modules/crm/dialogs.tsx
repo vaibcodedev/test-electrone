@@ -24,6 +24,7 @@ import { DatePicker } from '@/components/common/date-picker'
 import { BILLING_INFO } from './labels'
 import { BillingPicker, Choice } from './parts'
 import { amountPatch, numberOrZero } from './money'
+import { ClientPlatformFields, FeeField, PlatformSelect, usePlatforms } from './platform-fields'
 
 function FormDialog({
   open,
@@ -109,7 +110,13 @@ const EMPTY_CLIENT: ClientInput = {
   email: '',
   currency: 'USD',
   defaultBilling: 'fixed',
-  defaultRate: 0
+  defaultRate: 0,
+  platformId: null,
+  country: '',
+  rating: null,
+  totalSpent: null,
+  hireRate: null,
+  paymentVerified: null
 }
 
 export function ClientDialog({
@@ -165,6 +172,22 @@ export function ClientDialog({
           />
         </Field>
       </div>
+      <Field label="Откуда">
+        <PlatformSelect value={form.platformId} onChange={(platformId) => set({ platformId })} />
+      </Field>
+      {form.platformId && (
+        <ClientPlatformFields
+          currency={form.currency ?? 'USD'}
+          value={{
+            country: form.country ?? '',
+            rating: form.rating ?? null,
+            totalSpent: form.totalSpent ?? null,
+            hireRate: form.hireRate ?? null,
+            paymentVerified: form.paymentVerified ?? null
+          }}
+          onChange={(patch) => set(patch)}
+        />
+      )}
       <Field label="Как обычно работаете">
         <BillingPicker value={billing} onChange={(defaultBilling) => set({ defaultBilling })} />
       </Field>
@@ -205,6 +228,7 @@ export function ProjectDialog({
     return {
       currency: c.currency,
       billing: c.defaultBilling,
+      platformId: c.platformId,
       ...amountPatch(c.defaultBilling, c.defaultRate)
     }
   }
@@ -218,6 +242,8 @@ export function ProjectDialog({
     budgetHours: 0,
     startAt: null,
     dueAt: null,
+    platformId: null,
+    feePercent: null,
     ...fromClient(clientId)
   })
   const [form, setForm] = useState<ProjectInput>(initial)
@@ -237,6 +263,8 @@ export function ProjectDialog({
   const set = (patch: Partial<ProjectInput>): void => setForm((f) => ({ ...f, ...patch }))
   const billing = (form.billing ?? 'fixed') as BillingType
   const currency = (form.currency ?? 'USD') as Currency
+  const platforms = usePlatforms()
+  const platform = platforms.find((x) => x.id === form.platformId)
 
   return (
     <FormDialog
@@ -275,6 +303,21 @@ export function ProjectDialog({
           }))}
         />
       </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Платформа">
+          <PlatformSelect
+            value={form.platformId}
+            onChange={(platformId) => set({ platformId, feePercent: platformId ? form.feePercent : null })}
+          />
+        </Field>
+        {form.platformId && billing !== 'none' && (
+          <FeeField
+            value={form.feePercent}
+            platformDefault={platform?.defaultFeePercent}
+            onChange={(feePercent) => set({ feePercent })}
+          />
+        )}
+      </div>
       <Field label="Оплата">
         <BillingPicker value={billing} onChange={(b) => set({ billing: b })} />
       </Field>

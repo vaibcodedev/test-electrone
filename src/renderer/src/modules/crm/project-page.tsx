@@ -38,6 +38,7 @@ import { amountPatch, numberOrZero } from './money'
 import { TimeSection } from './time-section'
 import { PaymentsSection } from './payments-section'
 import { CredentialsSection } from './credentials-section'
+import { FeeField, NetPaid, PlatformBadge, PlatformSelect, usePlatforms } from './platform-fields'
 
 function Money({
   label,
@@ -203,8 +204,21 @@ function UrlField({
 function Terms({ project, patch }: { project: ProjectSummary; patch: (p: ProjectPatch) => void }) {
   const info = BILLING_INFO[project.billing]
   const amount = project.billing === 'hourly' ? project.rate : project.fixedPrice
+  const platforms = usePlatforms()
+  const platform = platforms.find((x) => x.id === project.platformId)
   return (
     <section className="flex flex-col gap-3">
+      <SectionLabel>Платформа</SectionLabel>
+      <PlatformSelect value={project.platformId} onChange={(platformId) => patch({ platformId })} />
+      {project.platformId && project.billing !== 'none' && (
+        <FeeField
+          key={`fee-${project.platformId}`}
+          saveOnBlur
+          value={project.feePercent}
+          platformDefault={platform?.defaultFeePercent}
+          onChange={(feePercent) => patch({ feePercent })}
+        />
+      )}
       <SectionLabel>Условия оплаты</SectionLabel>
       <BillingPicker
         compact
@@ -363,6 +377,8 @@ export function ProjectPage() {
             onChange={(v) => patch({ clientId: v })}
             options={clients.map((c) => ({ value: c.id, label: c.name }))}
           />
+          <PlatformBadge platformId={p.platformId} name={p.platformName} />
+          <NetPaid project={p} />
         </div>
 
         <MoneyHeader p={p} />

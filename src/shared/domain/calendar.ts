@@ -28,6 +28,14 @@ export const eventInputSchema = z.object({
     .default(15),
   recurrence: z.enum(RECURRENCES).default('none'),
   color: hexColorSchema.default(null),
+  /** Optional second reminder, minutes before start. */
+  remind2Minutes: z
+    .number()
+    .int()
+    .min(0)
+    .max(60 * 24 * 30)
+    .nullable()
+    .default(null),
   ...withTagIds
 })
 export const eventPatchSchema = patchOf(eventInputSchema)
@@ -45,6 +53,11 @@ export interface CalendarEvent extends EntityBase, WithTags {
   color: string | null
   /** Start time of the occurrence a reminder was last sent for. */
   remindedFor: number | null
+  remind2Minutes: number | null
+  reminded2For: number | null
+  /** Set when the event is owned by another module (e.g. an interview stage). */
+  sourceType: string | null
+  sourceId: string | null
 }
 
 export const rangeSchema = z.object({ from: timestampSchema, to: timestampSchema })
@@ -53,7 +66,7 @@ export type DateRange = z.infer<typeof rangeSchema>
 /** A single item placed on the calendar grid, from any module. */
 export interface CalendarItem {
   key: string
-  source: 'event' | 'card' | 'payment' | 'project'
+  source: 'event' | 'card' | 'payment' | 'project' | 'interview' | 'subscription' | 'followup'
   ref: { type: EntityType; id: string }
   title: string
   startAt: number
@@ -61,4 +74,6 @@ export interface CalendarItem {
   allDay: boolean
   color: string | null
   done: boolean
+  /** Where clicking the item leads (overrides the ref route). */
+  route?: string
 }
