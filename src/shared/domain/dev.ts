@@ -17,7 +17,7 @@ export const devProjectInputSchema = z.object({
   name: z.string().trim().min(1).max(MAX.name),
   /** Absolute folder path. */
   path: z.string().trim().min(1).max(1000),
-  notes: z.string().max(50_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   /** Preferred editor for the big «Открыть» button. */
   editor: z.enum(EDITORS).default('vscode'),
   /** Script started by «Запустить» (defaults to dev/start). */
@@ -157,7 +157,9 @@ export type CaptureTarget = (typeof CAPTURE_TARGETS)[number]
 export const captureSchema = z.object({
   target: z.enum(CAPTURE_TARGETS),
   url: urlSchema,
-  title: z.string().max(MAX.title).default(''),
+  /** Popups before the 200-character titles sent up to 500: still accepted, the server clips to MAX.title. */
+  title: z.string().max(500).default(''),
+  /** Clipped to the target section's notes (MAX.note for most) by the server. */
   note: z.string().max(10_000).default(''),
   tags: z.array(z.string().trim().min(1).max(60)).max(20).default([]),
   /** data:image/png;base64,… */

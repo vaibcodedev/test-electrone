@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { CHECKLIST_IMPORT_EXAMPLE, checklistImportSchema } from './checklists'
 import { NON_TECH_CATEGORIES, QUESTION_CATEGORIES, QUESTION_GROUPS, questionInputSchema } from './jobs'
 import { wordInputSchema } from './english'
@@ -39,7 +40,7 @@ const questionItem = questionInputSchema
 
 const ideaItem = ideaInputSchema
   .pick({ title: true, body: true, status: true, impact: true })
-  .extend({ description: z.string().max(100_000).optional() })
+  .extend({ description: z.string().max(MAX.article).optional() })
   .transform(({ description, ...rest }) => ({ ...rest, body: rest.body || description || '' }))
 
 export interface ImportKindDef {

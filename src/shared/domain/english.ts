@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { MAX } from './limits'
 import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const WORD_KINDS = ['word', 'phrase', 'idiom', 'term'] as const
@@ -9,11 +10,11 @@ export const wordInputSchema = z.object({
   translation: z.string().trim().max(1000).default(''),
   kind: z.enum(WORD_KINDS).default('word'),
   transcription: z.string().max(200).default(''),
-  example: z.string().max(2000).default(''),
-  exampleTranslation: z.string().max(2000).default(''),
+  example: z.string().max(MAX.short).default(''),
+  exampleTranslation: z.string().max(MAX.short).default(''),
   /** Where it was met: "PR review", "Shopify docs"... */
-  context: z.string().max(500).default(''),
-  notes: z.string().max(10_000).default(''),
+  context: z.string().max(MAX.line).default(''),
+  notes: z.string().max(MAX.note).default(''),
   ...withTagIds
 })
 export const wordPatchSchema = patchOf(wordInputSchema)

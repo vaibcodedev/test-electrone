@@ -20,7 +20,7 @@ export const designInputSchema = z.object({
   title: z.string().trim().max(MAX.title).default(''),
   kind: z.enum(DESIGN_KINDS).default('site'),
   sourceUrl: urlSchema.default(''),
-  notes: z.string().max(20_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   colors: z.array(hex).max(12).default([]),
   ...withTagIds
 })
@@ -80,7 +80,7 @@ export interface ClipboardImage {
 
 export const moodboardInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(5000).default(''),
+  description: z.string().max(MAX.note).default(''),
   color: hexColorSchema.default(null),
   ...withTagIds
 })

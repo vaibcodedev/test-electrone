@@ -20,8 +20,8 @@ import { getPairing } from './pairing.js'
 
 const $ = (id) => document.getElementById(id)
 
-/** captureSchema limits: the popup stops here instead of the server refusing the whole record. */
-const TITLE_MAX = 500
+/** MAX.title / MAX.note of the app: the popup stops here instead of the server cutting the text. */
+const TITLE_MAX = 200
 /** A library name is MAX.name on the server: longer would be cut silently. */
 const NAME_MAX = 200
 const TAG_MAX = 60

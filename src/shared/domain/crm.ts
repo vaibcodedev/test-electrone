@@ -1,9 +1,14 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import {
+  clientRatingSchema,
+  clientSpentSchema,
   EMAIL_ERROR,
+  hireRateSchema,
   idSchema,
   isLikelyEmail,
+  isLikelyPhone,
+  PHONE_ERROR,
   timestampSchema,
   urlSchema,
   withTagIds,
@@ -33,13 +38,13 @@ export type ClientStatus = (typeof CLIENT_STATUSES)[number]
 
 export const clientInputSchema = z.object({
   name: z.string().trim().min(1).max(MAX.name),
-  company: z.string().max(200).default(''),
+  company: z.string().max(MAX.name).default(''),
   // Only new values are checked (per-field patches): an old unusual email never blocks other edits.
   email: z.string().trim().max(320).refine(isLikelyEmail, EMAIL_ERROR).default(''),
-  phone: z.string().max(100).default(''),
-  messenger: z.string().max(200).default(''),
+  phone: z.string().trim().max(50).refine(isLikelyPhone, PHONE_ERROR).default(''),
+  messenger: z.string().max(MAX.name).default(''),
   website: urlSchema.default(''),
-  notes: z.string().max(100_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   status: z.enum(CLIENT_STATUSES).default('active'),
   currency: z.enum(CURRENCIES).default('USD'),
   /** Preferred billing for new projects of this client. */
@@ -48,14 +53,14 @@ export const clientInputSchema = z.object({
   defaultRate: z.number().min(0).max(100_000_000).default(0),
   /** Where the client came from (freelance platform); null = direct/unknown. */
   platformId: idSchema.nullable().default(null),
-  country: z.string().max(100).default(''),
-  rating: z.number().min(0).max(5).nullable().default(null),
+  country: z.string().max(MAX.label).default(''),
+  rating: clientRatingSchema.nullable().default(null),
   /** Total spent on the platform (as shown on the client profile). */
-  totalSpent: z.number().min(0).max(1_000_000_000).nullable().default(null),
-  hireRate: z.number().min(0).max(100).nullable().default(null),
+  totalSpent: clientSpentSchema.nullable().default(null),
+  hireRate: hireRateSchema.nullable().default(null),
   paymentVerified: z.boolean().nullable().default(null),
   /** Notes on how to communicate with this client. */
-  howToCommunicate: z.string().max(20_000).default(''),
+  howToCommunicate: z.string().max(MAX.note).default(''),
   ...withTagIds
 })
 export const clientPatchSchema = patchOf(clientInputSchema)
@@ -112,7 +117,7 @@ export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
 export const projectInputSchema = z.object({
   clientId: idSchema.nullable().default(null),
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(100_000).default(''),
+  description: z.string().max(MAX.jobPost).default(''),
   status: z.enum(PROJECT_STATUSES).default('active'),
   billing: z.enum(BILLING_TYPES).default('fixed'),
   /** Hourly rate — only for billing = hourly. */
@@ -205,10 +210,10 @@ export const credentialInputSchema = z.object({
   clientId: idSchema.nullable().default(null),
   label: z.string().trim().min(1).max(MAX.name),
   url: urlSchema.default(''),
-  login: z.string().max(500).default(''),
+  login: z.string().max(MAX.line).default(''),
   /** Plain text on input only; stored encrypted, never returned by list(). */
-  secret: z.string().max(10_000).default(''),
-  notes: z.string().max(10_000).default('')
+  secret: z.string().max(MAX.secret).default(''),
+  notes: z.string().max(MAX.note).default('')
 })
 export const credentialPatchSchema = patchOf(credentialInputSchema)
 export type CredentialInput = z.input<typeof credentialInputSchema>
@@ -231,7 +236,7 @@ export interface Credential {
 
 export const timeEntryInputSchema = z.object({
   projectId: idSchema,
-  description: z.string().max(2000).default(''),
+  description: z.string().max(MAX.short).default(''),
   startedAt: timestampSchema,
   endedAt: timestampSchema.nullable().default(null),
   billable: z.boolean().default(true)
@@ -267,7 +272,7 @@ export const paymentInputSchema = z.object({
   status: z.enum(PAYMENT_STATUSES).default('expected'),
   dueAt: timestampSchema.nullable().default(null),
   paidAt: timestampSchema.nullable().default(null),
-  note: z.string().max(2000).default('')
+  note: z.string().max(MAX.short).default('')
 })
 export const paymentPatchSchema = patchOf(paymentInputSchema)
 export type PaymentInput = z.input<typeof paymentInputSchema>

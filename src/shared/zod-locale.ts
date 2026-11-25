@@ -7,6 +7,20 @@ import { uk } from 'zod/locales'
 
 let configured = false
 
+const DECIMALS: Record<number, string> = {
+  1: 'одного знака',
+  2: 'двох знаків',
+  3: 'трьох знаків',
+  4: 'чотирьох знаків'
+}
+
+/** Decimal places of a fractional step (0.1 → 1, 0.01 → 2); 0 for a whole step. */
+function decimalPlaces(step: number): number {
+  if (!(step > 0 && step < 1)) return 0
+  const [mantissa, exp] = String(step).split('e-')
+  return (mantissa.split('.')[1]?.length ?? 0) + (exp ? Number(exp) : 0)
+}
+
 /** Ukrainian messages for zod, with the common cases in plain words. Idempotent. */
 export function configureZod(): void {
   if (configured) return
@@ -29,6 +43,13 @@ export function configureZod(): void {
           : issue.origin === 'array'
             ? 'потрібен хоча б один запис'
             : `замало — мінімум ${fmt(issue.minimum)}`
+      // A rating of step 0,1 given 4,99: say it in decimals, not «must be a multiple of 0.1».
+      if (issue.code === 'not_multiple_of') {
+        const places = decimalPlaces(Number(issue.divisor))
+        return places
+          ? `не більше ${DECIMALS[places] ?? `${places} знаків`} після коми`
+          : `має ділитися на ${fmt(issue.divisor)}`
+      }
       if (issue.code === 'invalid_format' && issue.format === 'url') return 'не схоже на посилання'
       if (issue.code === 'invalid_format' && issue.format === 'email') return 'не схоже на email'
       // JSON import: «{ "questions": [...] }» instead of «[...]» or «{ "items": [...] }».
@@ -64,6 +85,13 @@ export const FIELD_LABEL: Record<string, string> = {
   durationMin: 'Тривалість',
   progress: 'Прогрес',
   rating: 'Рейтинг',
+  clientRating: 'Рейтинг',
+  clientSpent: 'Витрачено',
+  totalSpent: 'Витрачено',
+  clientHireRate: 'Найм',
+  hireRate: 'Найм',
+  bidAmount: 'Сума',
+  proposalsOnJob: 'Відгуків на вакансію',
   dueAt: 'Термін',
   startAt: 'Початок',
   endAt: 'Кінець',

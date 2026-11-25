@@ -1,11 +1,17 @@
 import { asc, desc, eq, isNull } from 'drizzle-orm'
-import { MAX } from '@shared/domain/limits'
+import { fieldMax, MAX } from '@shared/domain/limits'
+import { bookmarkInputSchema } from '@shared/domain/bookmarks'
+import { eventInputSchema } from '@shared/domain/calendar'
 import type { Api } from '@shared/api'
 import type { EntitySummary } from '@shared/domain/common'
 import { quickAddSchema, type QuickAddInput } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { boardColumns, boards } from '../db/schema'
 import { addDays, now, startOfDay, UserError } from '../core/util'
+
+// Text + «extra» may be longer than a bookmark's notes or an event's description: the tail is clipped, not refused.
+const BOOKMARK_NOTES_MAX = fieldMax(bookmarkInputSchema.shape.notes)
+const EVENT_DESCRIPTION_MAX = fieldMax(eventInputSchema.shape.description)
 
 /**
  * Turns one line from the global quick-add window into an entity of the chosen module.
@@ -64,7 +70,11 @@ export class QuickAddService {
         // A pasted link on the first line: the title is the first line of what follows (a long multi-line
         // text used to become the title and fail the save); the text itself goes to notes.
         const name = isUrl ? (rest.split('\n')[0].trim() || title).slice(0, MAX.title) : title
-        const e = await this.api.bookmarks.create({ title: name, url, notes: isUrl ? rest : '' })
+        const e = await this.api.bookmarks.create({
+          title: name,
+          url,
+          notes: isUrl ? rest.slice(0, BOOKMARK_NOTES_MAX) : ''
+        })
         return { type: 'bookmark', id: e.id, title: e.title }
       }
       case 'word': {
@@ -81,7 +91,11 @@ export class QuickAddService {
         const tomorrow = new Date(addDays(startOfDay(now()), 1))
         tomorrow.setHours(10, 0, 0, 0)
         const start = tomorrow.getTime()
-        const e = await this.api.events.create({ title, description: rest, startAt: start })
+        const e = await this.api.events.create({
+          title,
+          description: rest.slice(0, EVENT_DESCRIPTION_MAX),
+          startAt: start
+        })
         return { type: 'event', id: e.id, title: e.title }
       }
     }

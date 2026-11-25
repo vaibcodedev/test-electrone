@@ -23,7 +23,7 @@ export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
 
 export const ideaInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  body: z.string().max(100_000).default(''),
+  body: z.string().max(MAX.article).default(''),
   status: z.enum(IDEA_STATUSES).default('inbox'),
   /** 0..3 — how much it matters. */
   impact: z.number().int().min(0).max(3).default(0),

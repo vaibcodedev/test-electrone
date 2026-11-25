@@ -321,7 +321,7 @@ describe('snippetFrom / noteFrom / fixFrom', () => {
     )
     expect(s.description).toHaveLength(fieldMax(snippetInputSchema.shape.description))
     expect(s.description.endsWith(SO)).toBe(true)
-    expect(s.code).toHaveLength(200_000)
+    expect(s.code).toHaveLength(fieldMax(snippetInputSchema.shape.code))
     expect(snippetInputSchema.safeParse(s).success).toBe(true)
   })
 

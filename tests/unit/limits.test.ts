@@ -13,16 +13,19 @@ describe('limitsOf', () => {
     const l = limitsOf(proposalInputSchema)
     expect(l.jobTitle).toBe(MAX.title)
     expect(l.jobUrl).toBe(2048)
-    expect(l.coverLetter).toBe(50_000)
+    expect(l.coverLetter).toBe(MAX.letter)
+    expect(l.jobDescription).toBe(MAX.jobPost)
+    expect(l.notes).toBe(MAX.note)
     expect(l.clientName).toBe(200)
-    expect(l.proposalsOnJob).toBe(40)
+    // a choice of Upwork's buckets, not free text
+    expect(l.proposalsOnJob).toBeUndefined()
     // numbers / enums have no string limit
     expect(l.bidAmount).toBeUndefined()
     expect(l.status).toBeUndefined()
   })
 
   it('idea title', () => {
-    expect(limitsOf(ideaInputSchema).title).toBe(500)
+    expect(limitsOf(ideaInputSchema).title).toBe(200)
   })
 
   it('synthetic schema', () => {
@@ -40,15 +43,15 @@ describe('rangesOf', () => {
   it('reads number ranges through wrappers', () => {
     const r = rangesOf(proposalInputSchema)
     expect(r.feePercent).toEqual({ min: 0, max: 100 })
-    expect(r.credits).toEqual({ min: 0, max: 1000 })
-    expect(r.clientRating).toEqual({ min: 0, max: 5 })
+    expect(r.clientRating).toEqual({ min: 1, max: 5, step: 0.1 })
+    expect(r.credits).toEqual({ min: 0, max: 1000, integer: true })
     expect(r.jobTitle).toBeUndefined()
   })
 
   it('withdrawal amounts', () => {
     const r = rangesOf(withdrawalInputSchema)
     expect(r.amount).toEqual({ min: 0, max: 100_000_000 })
-    expect(r.rate).toEqual({ min: 0, max: 1_000_000 })
+    expect(r.rate).toEqual({ min: 0, max: 1000 })
   })
 
   it('one-sided and unbounded numbers', () => {

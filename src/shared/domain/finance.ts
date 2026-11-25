@@ -107,7 +107,8 @@ export const withdrawalInputSchema = z.object({
   /** Fee charged for the withdrawal, in the source currency. */
   fee: z.number().min(0).max(100_000_000).default(0),
   /** Exchange rate source→target (1 USD = rate UAH). */
-  rate: z.number().min(0).max(1_000_000).default(1),
+  /** 1 unit of `currency` in the received currency: GBP → UAH is ~55, so 1 000 is a generous ceiling. */
+  rate: z.number().min(0).max(1000).default(1),
   receivedCurrency: z.enum(CURRENCIES).default('UAH'),
   /** Actually received; when omitted it is (amount − fee) × rate. */
   received: z.number().min(0).max(1_000_000_000).nullable().default(null),

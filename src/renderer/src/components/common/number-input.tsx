@@ -1,13 +1,15 @@
 import { useEffect, useState, type ComponentProps } from 'react'
 import { Input } from '@/components/ui/input'
 import { useReadOnly } from './detail-mode-context'
-import { acceptNumberText, parseNumberText } from '@/lib/limits'
+import { acceptNumberText, isTypingEvent, parseNumberText, precisionOf } from '@/lib/limits'
 import { fmtNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 /**
- * Number field that lets you type freely: the text may be empty or half-typed («», «0,», «-») while
- * editing; the value is committed on blur / Enter, clamped to [min, max] and rounded to `step`.
+ * Number field that lets you type freely within its rules: the text may be empty or half-typed («», «0,», «-»)
+ * while editing, but a key that can never give a valid number is refused (acceptNumberText: letters, a separator in
+ * a whole-number field, decimals past the precision, a number past max). The value is committed on blur / Enter,
+ * clamped to [min, max] and rounded to `step` and the precision.
  * A controlled <input type="number"> that coerces on every keystroke makes it impossible to
  * clear «1» and type «20» — never use that pattern (docs/design-system.md → Формы).
  */
@@ -18,6 +20,7 @@ export function NumberInput({
   max,
   step,
   integer,
+  precision: precisionProp,
   allowEmpty = false,
   ...props
 }: {
@@ -28,6 +31,8 @@ export function NumberInput({
   step?: number
   /** Whole numbers only (counts, connects). */
   integer?: boolean
+  /** Digits after the separator when neither `integer` nor `step` says it; 2 by default. */
+  precision?: number
   /** Empty input commits `null` instead of falling back to `min ?? 0`. */
   allowEmpty?: boolean
 } & Omit<ComponentProps<typeof Input>, 'value' | 'onChange' | 'type' | 'min' | 'max' | 'step'>) {
@@ -37,6 +42,7 @@ export function NumberInput({
     v === null || Number.isNaN(v) ? '' : String(v).replace('.', ',')
   const [text, setText] = useState(show(value))
   const [focused, setFocused] = useState(false)
+  const precision = precisionOf({ integer, step, precision: precisionProp })
 
   // Follow outside changes while the user isn't typing here.
   useEffect(() => {
@@ -57,7 +63,7 @@ export function NumberInput({
     else if (step) n = Math.round(n / step) * step
     if (min !== undefined) n = Math.max(min, n)
     if (max !== undefined) n = Math.min(max, n)
-    n = Number(n.toFixed(6))
+    n = Number(n.toFixed(precision))
     setText(show(n))
     if (n !== value) onChange(n)
   }
@@ -88,8 +94,15 @@ export function NumberInput({
         props.onFocus?.(e)
       }}
       onChange={(e) => {
-        // Digits, one separator and a minus (only where min allows it); leading zeros dropped («024» → «24»).
-        const next = acceptNumberText(e.target.value, { integer, min })
+        // Digits, one separator and a minus (only where min allows it); leading zeros dropped («024» → «24»);
+        // while typing, nothing that can't fit the range and the precision.
+        const next = acceptNumberText(e.target.value, {
+          integer,
+          min,
+          max,
+          precision,
+          typing: isTypingEvent(e.nativeEvent)
+        })
         if (next !== null) setText(next)
       }}
       onBlur={(e) => {

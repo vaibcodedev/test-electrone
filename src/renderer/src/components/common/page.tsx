@@ -15,6 +15,7 @@ import { RotateCcw, Search, SearchX, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fmtNumber } from '@/lib/format'
+import { overLimitText } from '@/lib/limits'
 import { useReadOnly } from './detail-mode'
 import {
   Empty,
@@ -488,7 +489,9 @@ export function SegmentBar({
 /**
  * Character counter of a long field (docs/design-system.md → Формы): appears after 80% of the limit and
  * turns warn from 90%. Field and MarkdownField share it, so both behave the same. It is announced only from
- * 90%: a live counter from 80% made a screen reader read a number after every key.
+ * 90%: a live counter from 80% made a screen reader read a number after every key. A text already longer than
+ * the limit (written before the limit was lowered) turns it destructive; the field explains it under itself
+ * (overLimitText).
  */
 export function CharCount({
   length,
@@ -506,7 +509,7 @@ export function CharCount({
     <span
       className={cn(
         'shrink-0 text-meta tabular-nums',
-        warn ? 'text-warn' : 'text-muted-foreground',
+        length > max ? 'text-destructive' : warn ? 'text-warn' : 'text-muted-foreground',
         // The limit is visible while you type in the field, and always once it gets close.
         !near && 'invisible group-focus-within/field:visible',
         className
@@ -552,18 +555,22 @@ export function Field({
   const labelId = useId()
   // In view mode the control is text without that id (LinkInput, NumberInput): the label names the group.
   const forId = viewMode ? undefined : htmlFor
-  const error = viewMode ? undefined : errorProp
   // The control's own report of its length (useFieldCount), so every limited field shows its limit.
   const [reported, setReported] = useState<{ length: number; max: number } | null>(null)
   const report = useCallback((length: number, max: number) => {
     setReported((p) => (p && p.length === length && p.max === max ? p : { length, max }))
   }, [])
+  const shown = count ?? reported
+  // A text stored before its limit was lowered: it opens and can be shortened, the field says why it won't save.
+  const over =
+    shown?.max && shown.length > shown.max ? overLimitText(shown.length, shown.max) : undefined
+  // `||`: a caller's `cond && 'текст'` gives false, which is no error.
+  const error = viewMode ? undefined : errorProp || over
   const describedBy = forId && (error ? `${forId}-error` : hint ? `${forId}-hint` : undefined)
   const control = useMemo(
     () => ({ id: forId, describedBy, invalid: !!error, count: report }),
     [forId, describedBy, error, report]
   )
-  const shown = count ?? reported
   return (
     <UiField
       className={cn('min-w-0 gap-2', className)}
