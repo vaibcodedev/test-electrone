@@ -44,7 +44,7 @@ for (const route of ROUTES) {
       empty: !!main.querySelector('[data-slot=empty]'),
       skeleton: main.querySelectorAll('[data-slot=skeleton]').length,
       text: (main.innerText || '').replace(/\s+/g, ' ').trim().length,
-      routeError: !!document.querySelector('[data-route-error]') || /Екран не відкрився/.test(document.body.innerText)
+      routeError: !!document.querySelector('[data-route-error]')
     }
   })
   const issues = []

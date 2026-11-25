@@ -64,8 +64,8 @@ test('main routes render without page errors or console errors', async ({ vault 
     errors.length = 0
     await go(route)
     await win.waitForTimeout(900)
-    // The route error boundary («Екран не відкрився») must not be shown.
-    const crashed = await win.locator('text=/Екран не відкрився|Потрібне перезавантаження/').count()
+    // The route error boundary («Екран не відкрився») must not be shown. By attribute: the guide quotes the text.
+    const crashed = await win.locator('[data-route-error]').count()
     if (crashed) failures.push(`${raw}: route error screen`)
     if (errors.length) failures.push(`${raw}:\n  ${errors.join('\n  ')}`)
   }

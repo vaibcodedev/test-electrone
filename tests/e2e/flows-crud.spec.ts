@@ -50,7 +50,7 @@ async function restoreFromTrash(vault: Vault, title: string): Promise<void> {
   await expect(row).toHaveCount(0)
 }
 
-/** /trash: the bin icon on the row → «Видалити назавжди?» → «Видалити». */
+/** /trash: the bin icon on the row → «Видалити назавжди?» → «Видалити назавжди». */
 async function purgeFromTrash(vault: Vault, title: string): Promise<void> {
   const { win, go } = vault
   await go('/trash')
@@ -59,7 +59,7 @@ async function purgeFromTrash(vault: Vault, title: string): Promise<void> {
   await row.getByRole('button', { name: 'Видалити назавжди' }).click()
   const ask = win.getByRole('alertdialog', { name: 'Видалити назавжди?' })
   await expect(ask).toBeVisible()
-  await ask.getByRole('button', { name: 'Видалити' }).click()
+  await ask.getByRole('button', { name: 'Видалити назавжди', exact: true }).click()
   await expect(row).toHaveCount(0)
 }
 

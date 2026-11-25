@@ -67,7 +67,8 @@ export function RouteError(): ReactElement {
   if (notFound) return <NotFoundPage />
 
   return (
-    <div className="grid h-full place-items-center p-8">
+    // data-route-error: tests and audits detect the crash screen by it, not by its text (the guide quotes it).
+    <div data-route-error className="grid h-full place-items-center p-8">
       <Empty className="max-w-md">
         <EmptyHeader>
           <EmptyMedia variant="icon" className="size-14 rounded-full bg-destructive/10 text-destructive">
