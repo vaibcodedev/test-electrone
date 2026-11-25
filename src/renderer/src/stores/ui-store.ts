@@ -45,6 +45,13 @@ export const HOTKEY_DIALOG_PROPS = { 'data-hotkey-dialog': '', onCloseAutoFocus:
  * The question asked when a record in edit mode is closed with changes. `fresh` — a record created a moment
  * ago and never saved: «Не зберігати» removes it instead of rolling back.
  */
+/**
+ * Chat ШІ panel width, px; it opens at the widest. The cap (the width the person chose) keeps the page usable next
+ * to it — at 60% of the window the home tiles broke into one word per line; wider — «На всю сторінку».
+ */
+export const AI_CHAT_MIN = 300
+export const AI_CHAT_MAX = 380
+
 export interface CloseAsk {
   keep: () => void
   discard: () => void
@@ -96,6 +103,9 @@ interface UiState {
   aiChatOpen: boolean
   setAiChatOpen: (open: boolean) => void
   toggleAiChat: () => void
+  /** The chat takes the whole page (header button); closing the chat ends it. Not remembered between starts. */
+  aiChatFull: boolean
+  setAiChatFull: (full: boolean) => void
   /** Width of the chat panel in px, remembered between runs. */
   aiChatWidth: number
   setAiChatWidth: (width: number) => void
@@ -159,11 +169,17 @@ export const useUi = create<UiState>()(
       closeAsk: null,
       askClose: (closeAsk) => set({ closeAsk }),
       aiChatOpen: false,
-      setAiChatOpen: (aiChatOpen) => set({ aiChatOpen }),
-      toggleAiChat: () => set((s) => ({ aiChatOpen: !s.aiChatOpen })),
-      aiChatWidth: 380,
+      setAiChatOpen: (aiChatOpen) =>
+        set(aiChatOpen ? { aiChatOpen } : { aiChatOpen, aiChatFull: false }),
+      toggleAiChat: () =>
+        set((s) =>
+          s.aiChatOpen ? { aiChatOpen: false, aiChatFull: false } : { aiChatOpen: true }
+        ),
+      aiChatFull: false,
+      setAiChatFull: (aiChatFull) => set({ aiChatFull }),
+      aiChatWidth: AI_CHAT_MAX,
       setAiChatWidth: (width) =>
-        set({ aiChatWidth: Math.round(Math.min(Math.max(width, 300), 900)) }),
+        set({ aiChatWidth: Math.round(Math.min(Math.max(width, AI_CHAT_MIN), AI_CHAT_MAX)) }),
       aiAsk: null,
       aiAskFocus: false,
       askAi: (text) => set({ aiChatOpen: true, aiAsk: { text, id: Date.now() }, aiAskFocus: true }),
@@ -210,9 +226,10 @@ export const useUi = create<UiState>()(
           ...current,
           ...p,
           sidebarOpen: typeof p.sidebarOpen === 'boolean' ? p.sidebarOpen : current.sidebarOpen,
+          // A width saved before the cap (up to 900) comes back as the widest allowed now.
           aiChatWidth:
-            typeof p.aiChatWidth === 'number' && p.aiChatWidth >= 300 && p.aiChatWidth <= 900
-              ? p.aiChatWidth
+            typeof p.aiChatWidth === 'number' && p.aiChatWidth >= AI_CHAT_MIN
+              ? Math.min(p.aiChatWidth, AI_CHAT_MAX)
               : current.aiChatWidth
         }
       }

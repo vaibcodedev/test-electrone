@@ -24,6 +24,9 @@ import { flushAllAutosaves, isAutosaving } from '@/hooks/use-autosave'
 const queryCache = new QueryCache({
   onError: (error, query) => {
     reportError(error, `query:${String(query.queryKey[0])}.${String(query.queryKey[1])}`)
+    // A query that shows its own error next to the control (the model list in Settings → ШІ) opts out with
+    // `meta: { inlineError: true }`: a toast over it only repeated the same words.
+    if (query.meta?.inlineError) return
     toast.error('Не вдалося завантажити дані', {
       id: 'query-error',
       // 12 s, paused while hovered: long enough to reach «Повторити». A toast that stayed until closed piled up

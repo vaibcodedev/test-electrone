@@ -90,7 +90,22 @@ export class AnthropicAdapter implements AiAdapter {
     }
   }
 
-  async models(): Promise<string[]> {
-    return []
+  /** `GET /v1/models`: the models this key can use («Модель» in the settings). */
+  async models(
+    conn: AiConnection,
+    req: Pick<AiRequest, 'timeoutMs' | 'signal'>
+  ): Promise<string[]> {
+    const data = await this.http.json<{ data?: { id?: unknown }[] }>(
+      conn,
+      joinUrl(conn.baseUrl, 'v1/models?limit=1000'),
+      {
+        method: 'GET',
+        headers: { 'x-api-key': conn.apiKey ?? '', 'anthropic-version': ANTHROPIC_VERSION }
+      },
+      req
+    )
+    return (data.data ?? [])
+      .map((m) => m.id)
+      .filter((id): id is string => typeof id === 'string' && !!id)
   }
 }

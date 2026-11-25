@@ -41,7 +41,10 @@ const secrets = {
   decrypt: (s: string) => s.replace(/^enc:/, '')
 }
 
-function setup(reply: Partial<AiReply> = {}): {
+function setup(
+  reply: Partial<AiReply> = {},
+  models: string[] = ['loaded-model']
+): {
   ai: AiService
   store: MemoryStore
   complete: ReturnType<typeof vi.fn<AiAdapter['complete']>>
@@ -54,7 +57,7 @@ function setup(reply: Partial<AiReply> = {}): {
     outputTokens: 2,
     ...reply
   }))
-  const adapter: AiAdapter = { complete, models: vi.fn(async () => ['loaded-model']) }
+  const adapter: AiAdapter = { complete, models: vi.fn(async () => models) }
   const ai = new AiService({
     store,
     secrets,
@@ -124,6 +127,13 @@ describe('AI settings schema', () => {
 })
 
 describe('AiService', () => {
+  it('«Модель» lists the chat models only, sorted, and counts no request', async () => {
+    const { ai } = setup({}, ['whisper-1', 'gpt-b', 'text-embedding-3', 'gpt-a', 'gpt-a'])
+    ai.setConfig({ preset: 'ollama' })
+    expect(await ai.models()).toEqual(['gpt-a', 'gpt-b'])
+    expect(ai.status().usage.requests).toBe(0)
+  })
+
   it('the key never reaches the status — only its last four characters', async () => {
     const { ai } = setup()
     expect(ai.status().missing).toBe('Додайте ключ Google Gemini')
