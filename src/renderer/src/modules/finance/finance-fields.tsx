@@ -1,41 +1,11 @@
 import type { ReactElement } from 'react'
-import { CURRENCIES, type Currency } from '@shared/domain/crm'
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '@shared/domain/finance'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
+import { Choice } from '@/components/common/choice'
 import { CATEGORY_LABEL } from './money'
 
-/** `id` goes to the trigger so `Field htmlFor` names it. */
-export function CurrencySelect({
-  id,
-  value,
-  onChange
-}: {
-  id?: string
-  value: Currency
-  onChange: (c: Currency) => void
-}): ReactElement {
-  return (
-    <Select value={value} onValueChange={(v) => onChange(v as Currency)}>
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {CURRENCIES.map((c) => (
-          <SelectItem key={c} value={c}>
-            {c}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
+const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))
 
+/** Category of an expense or a subscription: the same Choice as the currency next to it (a value is always set). */
 export function CategorySelect({
   id,
   value,
@@ -46,17 +16,6 @@ export function CategorySelect({
   onChange: (c: ExpenseCategory) => void
 }): ReactElement {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as ExpenseCategory)}>
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {EXPENSE_CATEGORIES.map((c) => (
-          <SelectItem key={c} value={c}>
-            {CATEGORY_LABEL[c]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Choice id={id} value={value} onChange={(c) => c && onChange(c)} options={CATEGORY_OPTIONS} />
   )
 }

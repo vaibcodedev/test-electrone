@@ -1,51 +1,20 @@
 import type { ComponentProps, ReactElement, ReactNode } from 'react'
 import { StatTile } from '@/components/common/stat-tile'
-import { MoneyValue } from '@/components/common/money-value'
+import { MoneyLines } from '@/components/common/money-value'
 import { Link, useLocation } from 'react-router'
 import { Check, ChevronLeft, ChevronRight, Plus, type LucideIcon } from 'lucide-react'
 import type { MoneyByCurrency } from '@shared/domain/finance'
-import { fmtMoney } from '@/lib/format'
+import { moneyEntries } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { moneyEntries } from './money'
 import { currentMonth, monthLabel, shiftMonth } from './month'
 
-/** Money per currency, one line each (we never convert between currencies). */
-export function MoneyLines({
-  value,
-  className,
-  emptyLabel = '—',
-  sign = false,
-  compact = false
-}: {
-  value: MoneyByCurrency | undefined
-  className?: string
-  emptyLabel?: string
-  sign?: boolean
-  /** Stat tiles: shorten big sums («55 млн USD»), exact amount in a tooltip. */
-  compact?: boolean
-}): ReactElement {
-  const entries = moneyEntries(value)
-  if (!entries.length) return <span className={className}>{emptyLabel}</span>
-  return (
-    <span className={cn('flex min-w-0 flex-col', className)}>
-      {entries.map(([c, v]) =>
-        compact ? (
-          <MoneyValue key={c} amount={v} currency={c} sign={sign} />
-        ) : (
-          <span key={c} className="tabular-nums">
-            {sign && v > 0 ? '+' : ''}
-            {fmtMoney(v, c)}
-          </span>
-        )
-      )}
-    </span>
-  )
-}
-
-/** ← Листопад 2026 →; the middle button returns to the current month. */
+/**
+ * ← Листопад 2026 →; the middle button returns to the current month. Default height (h-9), as the
+ * header buttons next to it: a shorter control made the title row, and FinanceNav under it, jump between tabs.
+ */
 export function MonthSwitcher({
   month,
   onChange
@@ -57,7 +26,6 @@ export function MonthSwitcher({
   const label = (
     <Button
       variant="soft"
-      size="sm"
       className="min-w-36 font-medium"
       onClick={() => onChange(currentMonth())}
       disabled={isCurrent}
@@ -71,7 +39,7 @@ export function MonthSwitcher({
         <TooltipTrigger asChild>
           <Button
             variant="soft"
-            size="icon-sm"
+            size="icon"
             aria-label="Попередній місяць"
             onClick={() => onChange(shiftMonth(month, -1))}
           >
@@ -92,7 +60,7 @@ export function MonthSwitcher({
         <TooltipTrigger asChild>
           <Button
             variant="soft"
-            size="icon-sm"
+            size="icon"
             aria-label="Наступний місяць"
             onClick={() => onChange(shiftMonth(month, 1))}
           >
@@ -107,8 +75,9 @@ export function MonthSwitcher({
 
 /**
  * Month-summary tile: one line per currency, big sums shortened («250 тис. USD»). Without money it
- * says `empty` in words («цього місяця оплат немає»), never a lone «—» (docs/design-system.md →
- * Паттерны форм). `hint` explains a number, so it is dropped with the number; `warning` always shows.
+ * says `empty` in words («ще немає оплат»), never a lone «—» (docs/design-system.md →
+ * Паттерны форм). `hint` explains a number, so it is dropped with the number; `warning` always shows,
+ * under the hint, not instead of it.
  */
 export function MoneyStatTile({
   value,
@@ -122,15 +91,26 @@ export function MoneyStatTile({
   warning?: ReactNode
 }): ReactElement {
   const hasMoney = moneyEntries(value).length > 0
+  const shownHint = hasMoney ? hint : undefined
   return (
     <StatTile
       {...props}
-      hint={warning ?? (hasMoney ? hint : undefined)}
+      hint={
+        shownHint && warning ? (
+          <>
+            <span className="block">{shownHint}</span>
+            <span className="mt-1 block">{warning}</span>
+          </>
+        ) : (
+          (warning ?? shownHint)
+        )
+      }
       value={
         hasMoney ? (
           <MoneyLines
             value={value}
             compact
+            emptyLabel={empty}
             className="text-stat-sm leading-tight tracking-normal"
           />
         ) : (

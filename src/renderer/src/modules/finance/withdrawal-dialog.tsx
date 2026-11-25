@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { CurrencySelect } from './finance-fields'
+import { CurrencySelect } from '@/components/common/currency-select'
 import { fmtRate } from './money'
 
 const WD_L = limitsOf(withdrawalInputSchema)
@@ -46,6 +46,8 @@ export function WithdrawalDialog({
   const fields = useInvalidFields()
   const { data: platformList = [] } = useApi('platforms', 'list', { includeArchived: true })
   const { data: overview } = useApi('finance', 'overview')
+  // Without arguments: every withdrawal, newest first — the last rate of the pair is the default.
+  const { data: history = [] } = useApi('finance', 'withdrawals')
   // Untouched new record: «Звідки» is the platform holding the most money, its currency follows the
   // platform. A balance only shrinks by withdrawals in the platform's own currency.
   const [platformPick, setPlatformPick] = useState<string | null>(
@@ -61,8 +63,19 @@ export function WithdrawalDialog({
   const [amount, setAmount] = useState<number | null>(w?.amount ?? null)
   const [amountTouched, setAmountTouched] = useState(false)
   const [fee, setFee] = useState<number | null>(w?.fee ?? 0)
-  const [rate, setRate] = useState<number | null>(w?.rate ?? 1)
   const [receivedCurrency, setReceivedCurrency] = useState<Currency>(w?.receivedCurrency ?? 'UAH')
+  // A new record never starts from a made-up 1: the last real rate of this pair, otherwise empty.
+  // Rate 1 between two currencies is the old default, not a rate, so it is skipped.
+  const lastRate = history.find(
+    (x) =>
+      x.currency === currency &&
+      x.receivedCurrency === receivedCurrency &&
+      x.currency !== x.receivedCurrency &&
+      x.rate > 0 &&
+      x.rate !== 1
+  )?.rate
+  const [ratePick, setRate] = useState<number | null | undefined>(w?.rate)
+  const rate = ratePick !== undefined ? ratePick : (lastRate ?? null)
   // A stored value equal to the calculation was auto → keep the field empty so edits recalculate it.
   const [received, setReceived] = useState<number | null>(
     w && w.received !== receivedOf(w.amount, w.fee, w.rate) ? w.received : null
@@ -84,6 +97,9 @@ export function WithdrawalDialog({
   const rateBad = !sameCurrency && !(effectiveRate > 0)
   const hasAmount = (amount ?? 0) > 0
   const feeBad = hasAmount && (fee ?? 0) > (amount ?? 0)
+  // Red only once there is an amount: an empty rate right after opening is not a mistake yet.
+  const rateError =
+    hasAmount && rateBad ? (rate === null ? 'Вкажіть курс' : 'Курс має бути більше 0') : undefined
   const payload = {
     platformId: platformId === NO_PLATFORM ? null : platformId,
     amount: amount ?? 0,
@@ -120,22 +136,27 @@ export function WithdrawalDialog({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_PLATFORM}>Інше</SelectItem>
-              {platformList.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.archived ? `${p.name} (архів)` : p.name}
-                </SelectItem>
-              ))}
+              {/* Direct orders hold no balance on a platform; money from elsewhere is «Інше». */}
+              {platformList
+                .filter((p) => p.kind !== 'direct' || p.id === w?.platformId)
+                .map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.archived ? `${p.name} (архів)` : p.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Дата">
-          <DatePicker value={at} onChange={setAt} clearable={false} />
+        <Field label="Дата" htmlFor={`${id}-at`}>
+          <DatePicker id={`${id}-at`} value={at} onChange={setAt} clearable={false} />
         </Field>
       </div>
       <div className="grid grid-cols-[1fr_1fr_110px] items-start gap-3">
         <NumberField
           id={`${id}-amount`}
           label="Сума"
+          autoFocus={!w}
+          live
           {...WD_R.amount}
           value={amount}
           onCommit={(v) => {
@@ -143,23 +164,25 @@ export function WithdrawalDialog({
             setAmountTouched(true)
           }}
           onValidityChange={fields.report('amount')}
-          hint={amountTouched && !(payload.amount > 0) ? 'Вкажіть суму більше 0' : undefined}
+          error={amountTouched && !(payload.amount > 0) ? 'Вкажіть суму більше 0' : undefined}
         />
         <NumberField
           id={`${id}-fee`}
           label="Комісія за виведення"
+          live
           {...WD_R.fee}
           value={fee}
           onCommit={setFee}
           onValidityChange={fields.report('fee')}
-          hint={
-            feeBad ? (
-              <span className="text-destructive">Комісія більша за суму виведення</span>
-            ) : undefined
-          }
+          error={feeBad ? 'Комісія більша за суму виведення' : undefined}
         />
         <Field label="Валюта" htmlFor={`${id}-currency`}>
-          <CurrencySelect id={`${id}-currency`} value={currency} onChange={setCurrencyPick} />
+          <CurrencySelect
+            id={`${id}-currency`}
+            aria-label="Валюта виведення"
+            value={currency}
+            onChange={setCurrencyPick}
+          />
         </Field>
       </div>
       <div
@@ -173,22 +196,25 @@ export function WithdrawalDialog({
             id={`${id}-rate`}
             label={`Курс: 1 ${currency} =`}
             unit={receivedCurrency}
+            live
             {...WD_R.rate}
             value={rate}
             onCommit={setRate}
             onValidityChange={fields.report('rate')}
+            error={rateError}
             hint={
-              rateBad ? (
-                <span className="text-destructive">Курс має бути більше 0</span>
-              ) : hasAmount && rate === 1 ? (
-                `Курс 1:1 для ${currency} → ${receivedCurrency} — перевірте`
-              ) : undefined
+              hasAmount && rate === 1
+                ? `Курс 1:1 для ${currency} → ${receivedCurrency} — перевірте`
+                : ratePick === undefined && lastRate !== undefined
+                  ? 'Як у минулому виведенні'
+                  : undefined
             }
           />
         )}
         <NumberField
           id={`${id}-received`}
           label="Фактично надійшло"
+          live
           {...WD_R.received}
           value={received}
           onCommit={setReceived}
@@ -198,6 +224,7 @@ export function WithdrawalDialog({
         <Field label="Валюта" htmlFor={`${id}-received-currency`}>
           <CurrencySelect
             id={`${id}-received-currency`}
+            aria-label="Валюта зарахування"
             value={receivedCurrency}
             onChange={setReceivedCurrency}
           />
@@ -205,12 +232,26 @@ export function WithdrawalDialog({
       </div>
       {/* Stays in place while empty (the dialog doesn't jump), but no formula of zeros before input. */}
       <div className="rounded-xl bg-surface px-4 py-3 text-body">
-        {hasAmount ? (
+        {!hasAmount ? (
+          <span className="text-muted-foreground">Вкажіть суму — порахуємо, скільки надійде</span>
+        ) : received !== null ? (
+          // A typed sum is exact: no «≈» and no formula that wouldn't add up to it.
+          <>
+            <span className="text-muted-foreground">Надійде </span>
+            <span className="font-medium tabular-nums">{fmtMoney(received, receivedCurrency)}</span>
+            {!rateBad && (
+              <div className="text-caption text-muted-foreground">
+                {sameCurrency ? 'за розрахунком було б' : 'за курсом було б'}{' '}
+                {fmtMoney(estimate, receivedCurrency)}
+              </div>
+            )}
+          </>
+        ) : rateBad ? (
+          <span className="text-muted-foreground">Вкажіть курс — порахуємо, скільки надійде</span>
+        ) : (
           <>
             <span className="text-muted-foreground">Надійде ≈ </span>
-            <span className="font-medium tabular-nums">
-              {fmtMoney(received ?? estimate, receivedCurrency)}
-            </span>
+            <span className="font-medium tabular-nums">{fmtMoney(estimate, receivedCurrency)}</span>
             <span className="text-muted-foreground">
               {' '}
               = {sameCurrency ? '' : '('}
@@ -218,11 +259,9 @@ export function WithdrawalDialog({
               {sameCurrency ? '' : `) × ${fmtRate(effectiveRate)}`}
             </span>
           </>
-        ) : (
-          <span className="text-muted-foreground">Вкажіть суму — порахуємо, скільки надійде</span>
         )}
       </div>
-      <Field label="Спосіб" htmlFor={`${id}-method`}>
+      <Field label="Спосіб (необов’язково)" htmlFor={`${id}-method`}>
         <Input
           id={`${id}-method`}
           value={method}

@@ -4,7 +4,8 @@ import { ChartColumn } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import { useApi } from '@/lib/query'
-import { fmtMoney } from '@/lib/format'
+import { moneyEntries } from '@/lib/money'
+import { capitalize, fmtMoney } from '@/lib/format'
 import { CURRENCY_SIGN } from '../crm/labels'
 import { Segmented } from '@/components/common/page'
 import {
@@ -25,7 +26,6 @@ import {
   type ChartConfig
 } from '@/components/ui/chart'
 import { CardState } from './parts'
-import { moneyEntries } from './money'
 import { monthLabel, monthShort } from './month'
 
 const COMPACT = new Intl.NumberFormat('uk-UA', { notation: 'compact', maximumFractionDigits: 1 })
@@ -57,7 +57,19 @@ export function YearChart({ month }: { month: string }): ReactElement {
   const [picked, setPicked] = useState<Currency | null>(null)
   const currency = picked && currencies.includes(picked) ? picked : (currencies[0] ?? 'USD')
 
-  if (!data) return <Skeleton className="h-72 rounded-3xl" />
+  // Shaped like the card (title, description, plot), so nothing jumps when the data arrives.
+  if (!data)
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-48 rounded-full" />
+          <Skeleton className="h-4 w-72 max-w-full rounded-full" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-64 rounded-2xl" />
+        </CardContent>
+      </Card>
+    )
   const rows = data.months.map((m) => ({
     key: m.month,
     full: monthLabel(m.month),
@@ -65,6 +77,10 @@ export function YearChart({ month }: { month: string }): ReactElement {
     expenses: sumOf(m.expenses, currency)
   }))
   const hasData = rows.some((r) => r.net || r.expenses)
+  // «за рік» alone doesn't say which year: the window is named by its first and last month.
+  const what = 'на руки після комісій і всі витрати, включно з конектами'
+  const description =
+    rows.length > 0 ? `${rows[0].full} — ${rows[rows.length - 1].full}: ${what}` : capitalize(what)
   // Compact ticks («50 млн $», «3,5 тис. $») and an axis wide enough for the longest one; tooltips keep exact amounts.
   const sign = (CURRENCY_SIGN as Record<string, string>)[currency] ?? currency
   const tick = (v: number): string => `${COMPACT.format(v)} ${sign}`
@@ -75,7 +91,7 @@ export function YearChart({ month }: { month: string }): ReactElement {
     <Card>
       <CardHeader>
         <CardTitle>Доходи й витрати за рік</CardTitle>
-        <CardDescription>На руки після комісій і всі витрати, включно з конектами</CardDescription>
+        <CardDescription>{description}</CardDescription>
         {currencies.length > 1 && (
           <CardAction>
             <Segmented
@@ -100,6 +116,9 @@ export function YearChart({ month }: { month: string }): ReactElement {
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis
                 dataKey="key"
+                // Every month signed (3-letter ticks fit even at 1100 px): recharts would otherwise hide
+                // every second one, and with it possibly the bold selected month.
+                interval={0}
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}

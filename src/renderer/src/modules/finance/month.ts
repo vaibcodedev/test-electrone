@@ -61,6 +61,26 @@ export function monthName(month: string): string {
   return format(new Date(y, m - 1, 1), 'LLLL', { locale: LOCALE })
 }
 
+/** Before the current month: its empty states say «не було», not «поки немає» / «ще немає». */
+export const isPastMonth = (month: string): boolean => month < currentMonth()
+
+/** Empty list or card of a month: «Оплат за листопад поки немає» / «За жовтень оплат не було». */
+export function noneInMonth(month: string, what: string): string {
+  const name = monthName(month)
+  return isPastMonth(month)
+    ? `За ${name} ${what} не було`
+    : `${capitalize(what)} за ${name} поки немає`
+}
+
+/** Stat tile without money (the month is in the page header): «ще немає оплат» / «оплат не було». */
+export function noneInTile(month: string, what: string): string {
+  return isPastMonth(month) ? `${what} не було` : `ще немає ${what}`
+}
+
+/** Subscriptions exist, but none bills in this month (a yearly one, or before it started). */
+export const noSubscriptionsDue = (month: string): string =>
+  `За ${monthName(month)} списань за підписками немає`
+
 /** «лис» — chart axis label. */
 export function monthShort(month: string): string {
   return MONTH_SHORT[Number(month.split('-')[1]) - 1]

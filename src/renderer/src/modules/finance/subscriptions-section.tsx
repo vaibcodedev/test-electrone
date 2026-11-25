@@ -1,5 +1,5 @@
 import { useId, useState, type ReactElement } from 'react'
-import { Coins, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   expenseInputSchema,
   type Subscription,
@@ -9,8 +9,8 @@ import { openUrl } from '@/lib/open-url'
 import { rangesOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { fmtDayFull, fmtMoney } from '@/lib/format'
-import { Field } from '@/components/common/page'
-import { NumberInput } from '@/components/common/number-input'
+import { NumberField } from '@/components/common/number-field'
+import { MoneyLines } from '@/components/common/money-value'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { Button } from '@/components/ui/button'
@@ -35,13 +35,17 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CardState, MoneyLines } from './parts'
+import { CardState } from './parts'
 import { SubscriptionDialog } from './subscription-dialog'
 import { CATEGORY_LABEL, sumByCurrency } from './money'
-import { monthName } from './month'
+import { monthName, noSubscriptionsDue } from './month'
 import { useEditDialog } from './use-edit-dialog'
 
 const AMOUNT_RANGE = rangesOf(expenseInputSchema).amount
+
+/** Removal is permanent (unlike «У кошик»), and the confirm says so. */
+const REMOVE_SUB_TEXT =
+  'Підписку буде видалено без можливості відновлення. Минулі витрати за нею залишаться в історії.'
 
 /** «Paid a different amount» popover behind an icon in the actions column. */
 function PaidAmountAction({
@@ -70,7 +74,7 @@ function PaidAmountAction({
     >
       <PopoverTrigger asChild>
         <IconAction label="Оплачено іншою сумою">
-          <Coins />
+          <HandCoins />
         </IconAction>
       </PopoverTrigger>
       <PopoverContent className="w-64 rounded-2xl" align="end">
@@ -85,16 +89,16 @@ function PaidAmountAction({
             )
           }}
         >
-          <Field label={`Скільки списали за ${monthName(month)}, ${row.currency}`} htmlFor={id}>
-            <NumberInput
-              id={id}
-              autoFocus
-              allowEmpty
-              {...AMOUNT_RANGE}
-              value={amount}
-              onChange={setAmount}
-            />
-          </Field>
+          <NumberField
+            id={id}
+            label={`Скільки списали за ${monthName(month)}`}
+            unit={row.currency}
+            autoFocus
+            live
+            {...AMOUNT_RANGE}
+            value={amount}
+            onCommit={setAmount}
+          />
           <Button type="submit" size="sm" variant="lime" disabled={!canSubmit}>
             Позначити оплаченою
           </Button>
@@ -122,7 +126,9 @@ function SubscriptionRow({
       <TableCell>
         <Checkbox
           checked={paid}
-          aria-label={paid ? 'Зняти позначку про оплату' : 'Позначити оплаченою'}
+          aria-label={
+            paid ? `Зняти позначку оплати з «${r.title}»` : `Позначити «${r.title}» оплаченою`
+          }
           onCheckedChange={(v) => setPaid.mutate({ id: r.id, month, paid: v === true })}
         />
       </TableCell>
@@ -160,7 +166,7 @@ function SubscriptionRow({
           </IconAction>
           <Confirm
             title={`Видалити підписку «${r.title}»?`}
-            description="Минулі витрати за нею залишаться в історії."
+            description={REMOVE_SUB_TEXT}
             onConfirm={onRemove}
           >
             <IconAction
@@ -198,16 +204,18 @@ export function SubscriptionsSection({ month }: { month: string }): ReactElement
         <CardTitle className="font-display text-heading text-foreground">
           Підписки на {monthName(month)}
         </CardTitle>
-        <CardDescription>
-          Позначте, що вже списалося: позначка стає витратою цього місяця.
-        </CardDescription>
-        {/* Empty: the button lives in the card's empty state, not twice side by side. */}
+        {/* Empty: no table to explain, and the button lives in the card's empty state, not twice. */}
         {rows && rows.length > 0 && (
-          <CardAction>
-            <Button variant="subtle" size="xs" onClick={() => dialog.openWith(null)}>
-              <Plus /> Додати підписку
-            </Button>
-          </CardAction>
+          <>
+            <CardDescription>
+              Позначте, що вже списалося: позначка стає витратою за {monthName(month)}.
+            </CardDescription>
+            <CardAction>
+              <Button variant="subtle" size="xs" onClick={() => dialog.openWith(null)}>
+                <Plus /> Додати підписку
+              </Button>
+            </CardAction>
+          </>
         )}
       </CardHeader>
       <CardContent className="px-2">
@@ -215,7 +223,12 @@ export function SubscriptionsSection({ month }: { month: string }): ReactElement
           <Skeleton className="mx-3 h-24 rounded-2xl" />
         ) : rows.length === 0 ? (
           <CardState
-            text="Додайте регулярні платежі — Claude, телефон, хостинг. Щомісяця вони з’являтимуться тут."
+            text={
+              // Yearly ones billed in another month, or a month before they started: not «add some».
+              all.some((s) => s.active)
+                ? noSubscriptionsDue(month)
+                : 'Додайте регулярні платежі — Claude, телефон, хостинг. Щомісяця вони з’являтимуться тут.'
+            }
             action={
               <Button variant="subtle" size="xs" onClick={() => dialog.openWith(null)}>
                 <Plus /> Додати підписку
@@ -272,12 +285,18 @@ export function SubscriptionsSection({ month }: { month: string }): ReactElement
             Вимкнені:
             {inactive.map((s) => (
               <span key={s.id} className="inline-flex items-center gap-0.5">
-                <Button variant="soft" size="xs" onClick={() => dialog.openWith(s)}>
-                  {s.title}
+                <Button
+                  variant="soft"
+                  size="xs"
+                  className="max-w-[24ch]"
+                  title={s.title}
+                  onClick={() => dialog.openWith(s)}
+                >
+                  <span className="truncate">{s.title}</span>
                 </Button>
                 <Confirm
                   title={`Видалити підписку «${s.title}»?`}
-                  description="Минулі витрати за нею залишаться в історії."
+                  description={REMOVE_SUB_TEXT}
                   onConfirm={() => remove.mutate(s.id)}
                 >
                   <IconAction

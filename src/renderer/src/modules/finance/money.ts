@@ -14,13 +14,6 @@ export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   other: 'Інше'
 }
 
-/** Non-zero entries of a per-currency amount, largest first. */
-export function moneyEntries(m: MoneyByCurrency | undefined): [Currency, number][] {
-  return (Object.entries(m ?? {}) as [Currency, number][])
-    .filter(([, v]) => Math.abs(v ?? 0) >= 0.005)
-    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-}
-
 /** Sum of rows per currency (we never convert between currencies): `pick` returns [currency, amount]. */
 export function sumByCurrency<T>(
   rows: readonly T[] | undefined,

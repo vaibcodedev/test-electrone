@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import type { Expense } from '@shared/domain/finance'
+import type { Expense, ExpenseCategory, MoneyByCurrency } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { fmtDayFull, fmtMoney, fmtMoneyCompact } from '@/lib/format'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
+import { MoneyLines } from '@/components/common/money-value'
+import { moneyEntries } from '@/lib/money'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { Button } from '@/components/ui/button'
@@ -19,12 +21,32 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CardState, FinanceNav, MoneyLines, MonthSwitcher } from './parts'
+import { CardState, FinanceNav, MonthSwitcher } from './parts'
 import { ExpenseDialog } from './expense-dialog'
 import { SubscriptionsSection } from './subscriptions-section'
-import { CATEGORY_LABEL, moneyEntries, sumByCurrency } from './money'
-import { defaultDayIn, monthName, monthRange, useMonth } from './month'
+import { CATEGORY_LABEL, addMoney, sumByCurrency } from './money'
+import { defaultDayIn, monthName, monthRange, noneInMonth, useMonth } from './month'
 import { useEditDialog } from './use-edit-dialog'
+
+/**
+ * Category badges in one pass over the table rows, not the server's expensesByCategory: that one also
+ * counts connects. One line in the badge (compact), exact sums on hover: the table has the full ones.
+ */
+function categoryTotals(
+  rows: readonly Expense[]
+): { label: string; short: string; exact: string }[] {
+  const byCat = new Map<ExpenseCategory, MoneyByCurrency>()
+  for (const e of rows)
+    byCat.set(e.category, addMoney(byCat.get(e.category), { [e.currency]: e.amount }))
+  return [...byCat].map(([cat, m]) => {
+    const entries = moneyEntries(m)
+    return {
+      label: CATEGORY_LABEL[cat],
+      short: entries.map(([c, v]) => fmtMoneyCompact(v, c)).join(' · '),
+      exact: entries.map(([c, v]) => fmtMoney(v, c)).join(' · ')
+    }
+  })
+}
 
 function ExpensesSection({
   month,
@@ -40,21 +62,6 @@ function ExpensesSection({
   const remove = useApiMutation('finance', 'removeExpense', { successMessage: 'Витрату видалено' })
 
   const total = sumByCurrency(rows, (e) => [e.currency, e.amount])
-  // From the table rows, not the server's expensesByCategory: that one also counts connects.
-  const byCategory = [...new Set(rows?.map((e) => e.category))].map((category) => {
-    const amount = moneyEntries(
-      sumByCurrency(
-        rows?.filter((e) => e.category === category),
-        (e) => [e.currency, e.amount]
-      )
-    )
-    return {
-      label: CATEGORY_LABEL[category],
-      // One line in the badge (compact), exact sums on hover: the table below has the full ones.
-      short: amount.map(([c, v]) => fmtMoneyCompact(v, c)).join(' · '),
-      exact: amount.map(([c, v]) => fmtMoney(v, c)).join(' · ')
-    }
-  })
 
   return (
     <Card>
@@ -72,7 +79,7 @@ function ExpensesSection({
           <Skeleton className="mx-3 h-24 rounded-2xl" />
         ) : rows.length === 0 ? (
           <CardState
-            text="Цього місяця витрат немає"
+            text={noneInMonth(month, 'витрат')}
             action={
               <Button variant="subtle" size="xs" onClick={onAdd}>
                 <Plus /> Додати витрату
@@ -82,7 +89,7 @@ function ExpensesSection({
         ) : (
           <>
             <div className="flex flex-wrap gap-2 px-3">
-              {byCategory.map((c) => (
+              {categoryTotals(rows).map((c) => (
                 <Badge
                   key={c.label}
                   variant="soft"
@@ -118,7 +125,10 @@ function ExpensesSection({
                         {e.subscriptionId && <Badge variant="soft">підписка</Badge>}
                       </div>
                       {e.note && (
-                        <div className="truncate text-caption font-normal text-muted-foreground">
+                        <div
+                          className="truncate text-caption font-normal text-muted-foreground"
+                          title={e.note}
+                        >
                           {e.note}
                         </div>
                       )}
@@ -187,7 +197,8 @@ export function ExpensesPage(): ReactElement {
       >
         <FinanceNav />
       </PageHeader>
-      <PageBody>
+      {/* Tabs of the finance hub share the shell key (handle.hub), so only the body fades in on a tab switch. */}
+      <PageBody className="animate-page">
         <div className="flex flex-col gap-3">
           <SubscriptionsSection month={month} />
           <ExpensesSection

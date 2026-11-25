@@ -23,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { CategorySelect, CurrencySelect } from './finance-fields'
+import { CurrencySelect } from '@/components/common/currency-select'
+import { CategorySelect } from './finance-fields'
 import { MONTH_NAMES, monthRange } from './month'
 
 const SUB_L = limitsOf(subscriptionInputSchema)
@@ -91,7 +92,11 @@ export function SubscriptionDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={s ? 'Підписка' : 'Нова підписка'}
-      description="Регулярний платіж: щомісяця він з’явиться в списку, і його можна позначити оплаченим."
+      description={
+        period === 'yearly'
+          ? 'Річний платіж: у місяць списання він з’явиться в списку, і його можна позначити оплаченим.'
+          : 'Регулярний платіж: щомісяця він з’явиться в списку, і його можна позначити оплаченим.'
+      }
       submitLabel={s ? 'Зберегти' : 'Додати підписку'}
       invalid={
         !payload.title ||
@@ -128,6 +133,7 @@ export function SubscriptionDialog({
         <NumberField
           id={`${id}-amount`}
           label="Сума"
+          live
           {...SUB_R.amount}
           value={amount}
           onCommit={(v) => {
@@ -135,7 +141,7 @@ export function SubscriptionDialog({
             setAmountTouched(true)
           }}
           onValidityChange={fields.report('amount')}
-          hint={amountTouched && !(payload.amount > 0) ? 'Вкажіть суму більше 0' : undefined}
+          error={amountTouched && !(payload.amount > 0) ? 'Вкажіть суму більше 0' : undefined}
         />
         <Field label="Валюта" htmlFor={`${id}-currency`}>
           <CurrencySelect id={`${id}-currency`} value={currency} onChange={setCurrency} />
@@ -157,11 +163,12 @@ export function SubscriptionDialog({
           id={`${id}-day`}
           label="День списання"
           integer
+          live
           {...SUB_R.billingDay}
           value={billingDay}
           onCommit={setBillingDay}
           onValidityChange={fields.report('billingDay')}
-          hint={billingDay === null ? 'Вкажіть день місяця' : undefined}
+          error={billingDay === null ? 'Вкажіть день місяця' : undefined}
         />
         {period === 'yearly' ? (
           <Field label="Місяць" htmlFor={`${id}-month`}>

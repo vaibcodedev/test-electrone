@@ -20,10 +20,11 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { IconAction } from '@/components/common/icon-action'
-import { FinanceNav, MoneyLines, MonthSwitcher, MoneyStatTile } from './parts'
+import { MoneyLines } from '@/components/common/money-value'
+import { FinanceNav, MonthSwitcher, MoneyStatTile } from './parts'
 import { WithdrawalDialog } from './withdrawal-dialog'
 import { fmtRate, sumByCurrency } from './money'
-import { defaultDayIn, monthRange, useMonth } from './month'
+import { defaultDayIn, monthRange, noneInMonth, noneInTile, useMonth } from './month'
 import { useEditDialog } from './use-edit-dialog'
 
 /** Secondary columns, hidden in a narrow card (body, header and footer use the same class). */
@@ -40,6 +41,8 @@ export function WithdrawalsPage(): ReactElement {
   })
   const dialog = useEditDialog<Withdrawal>()
   const platformName = new Map(platformList.map((p) => [p.id, p.name]))
+  // No method anywhere this month: the column would spend its width on a column of «—».
+  const hasMethod = rows?.some((w) => w.method) ?? false
 
   const totals = {
     amount: sumByCurrency(rows, (w) => [w.currency, w.amount]),
@@ -63,33 +66,41 @@ export function WithdrawalsPage(): ReactElement {
       >
         <FinanceNav />
       </PageHeader>
-      <PageBody>
+      {/* Tabs of the finance hub share the shell key (handle.hub), so only the body fades in on a tab switch. */}
+      <PageBody className="animate-page">
         {!rows ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={ArrowDownToLine}
-            title="Цього місяця виведень немає"
+            title={noneInMonth(month, 'виведень')}
             hint="Запишіть виведення, щоб бачити, скільки грошей ще лежить на платформі й скільки з’їли комісії та курс."
-            action={
-              <Button variant="soft" onClick={() => dialog.openWith(null)}>
-                <Plus /> Додати виведення
-              </Button>
-            }
+            cta={{ label: 'Додати виведення', icon: Plus, onClick: () => dialog.openWith(null) }}
           />
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Always three across: compact sums fit, a column of full-width tiles pushed the table down. */}
-            <div className="grid grid-cols-3 gap-3">
-              <MoneyStatTile label="Виведено" value={totals.amount} empty="виведень ще немає" />
-              <MoneyStatTile label="Комісії за виведення" value={totals.fee} empty="без комісій" />
-              <MoneyStatTile
-                tone="ink"
-                label="Надійшло"
-                value={totals.received}
-                empty="ще нічого не надійшло"
-                hint="після комісії та обміну"
-              />
+            {/* Three across when there is room; narrower, «Надійшло» takes the second row, so no sum is cut. */}
+            <div className="@container">
+              <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
+                <MoneyStatTile
+                  label="Виведено"
+                  value={totals.amount}
+                  empty={noneInTile(month, 'виведень')}
+                />
+                <MoneyStatTile
+                  label="Комісії за виведення"
+                  value={totals.fee}
+                  empty="без комісій"
+                />
+                <MoneyStatTile
+                  className="col-span-2 @2xl:col-span-1"
+                  tone="ink"
+                  label="Надійшло"
+                  value={totals.received}
+                  empty="ще нічого не надійшло"
+                  hint="після комісії та обміну"
+                />
+              </div>
             </div>
             {/* The card is the container: narrow, «Спосіб» and «Курс» go first, the sums stay. */}
             <Card className="@container py-2">
@@ -98,8 +109,10 @@ export function WithdrawalsPage(): ReactElement {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Дата</TableHead>
-                      <TableHead>Звідки</TableHead>
-                      <TableHead className={cn('w-full max-w-0', METHOD_COL)}>Спосіб</TableHead>
+                      <TableHead className={hasMethod ? undefined : 'w-full'}>Звідки</TableHead>
+                      {hasMethod && (
+                        <TableHead className={cn('w-full max-w-0', METHOD_COL)}>Спосіб</TableHead>
+                      )}
                       <TableHead className="text-right">Сума</TableHead>
                       <TableHead className="text-right">Комісія</TableHead>
                       <TableHead className={cn('text-right', RATE_COL)}>Курс</TableHead>
@@ -121,14 +134,25 @@ export function WithdrawalsPage(): ReactElement {
                           ) : (
                             <Badge variant="outline">Інше</Badge>
                           )}
+                          {/* The method column is hidden in a narrow card: the method moves here. */}
+                          {w.method && (
+                            <span
+                              className="block max-w-40 truncate text-caption text-muted-foreground @2xl:hidden"
+                              title={w.method}
+                            >
+                              {w.method}
+                            </span>
+                          )}
                         </TableCell>
-                        <TableCell
-                          className={cn('w-full max-w-0 text-muted-foreground', METHOD_COL)}
-                        >
-                          <span className="block truncate" title={w.method || undefined}>
-                            {w.method || '—'}
-                          </span>
-                        </TableCell>
+                        {hasMethod && (
+                          <TableCell
+                            className={cn('w-full max-w-0 text-muted-foreground', METHOD_COL)}
+                          >
+                            <span className="block truncate" title={w.method || undefined}>
+                              {w.method || '—'}
+                            </span>
+                          </TableCell>
+                        )}
                         <TableCell className="text-right whitespace-nowrap tabular-nums">
                           {fmtMoney(w.amount, w.currency)}
                         </TableCell>
@@ -172,7 +196,7 @@ export function WithdrawalsPage(): ReactElement {
                     <TableRow>
                       {/* Hidden columns get their own hidden cells: a colSpan over them shifts the sums. */}
                       <TableCell colSpan={2}>Разом</TableCell>
-                      <TableCell className={METHOD_COL} />
+                      {hasMethod && <TableCell className={METHOD_COL} />}
                       <TableCell className="text-right">
                         <MoneyLines value={totals.amount} className="items-end" />
                       </TableCell>

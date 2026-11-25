@@ -18,16 +18,22 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { FinanceNav, MoneyLines, MonthSwitcher } from './parts'
+import { MoneyLines } from '@/components/common/money-value'
+import { FinanceNav, MonthSwitcher } from './parts'
 import { sumByCurrency } from './money'
-import { monthRange, useMonth } from './month'
+import { monthRange, noneInMonth, useMonth } from './month'
 
 /**
- * Secondary columns, hidden in a narrow card so «На руки» never scrolls away; the client moves under
- * the contract. Body, header and footer use the same classes.
+ * Secondary columns, hidden in a narrow card so «На руки» never scrolls away; client and platform move
+ * under the contract at the same threshold (no duplicate). Body, header and footer use the same classes.
  */
-const CLIENT_COL = 'hidden @3xl:table-cell'
-const PLATFORM_COL = 'hidden @2xl:table-cell'
+const CLIENT_COL = 'hidden @5xl:table-cell'
+const PLATFORM_COL = 'hidden @5xl:table-cell'
+const FEE_COL = 'hidden @2xl:table-cell'
+
+/** Under the contract while the client and platform columns are hidden: «Acme · Upwork». */
+const sourceOf = (r: { clientName: string | null; platformName: string | null }): string =>
+  [r.clientName, r.platformName ?? 'напряму'].filter(Boolean).join(' · ')
 
 export function IncomePage(): ReactElement {
   const [month, setMonth] = useMonth()
@@ -58,13 +64,14 @@ export function IncomePage(): ReactElement {
       >
         <FinanceNav />
       </PageHeader>
-      <PageBody>
+      {/* Tabs of the finance hub share the shell key (handle.hub), so only the body fades in on a tab switch. */}
+      <PageBody className="animate-page">
         {!rows ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={TrendingUp}
-            title="Цього місяця оплат немає"
+            title={noneInMonth(month, 'оплат')}
             hint="Оплати позначаються в контракті. Позначте оплату там — вона з’явиться тут разом із комісією."
           />
         ) : (
@@ -78,7 +85,7 @@ export function IncomePage(): ReactElement {
                     <TableHead className={CLIENT_COL}>Клієнт</TableHead>
                     <TableHead className={PLATFORM_COL}>Платформа</TableHead>
                     <TableHead className="text-right">Сума</TableHead>
-                    <TableHead className="text-right">Комісія</TableHead>
+                    <TableHead className={cn('text-right', FEE_COL)}>Комісія</TableHead>
                     <TableHead className="text-right">На руки</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -88,7 +95,7 @@ export function IncomePage(): ReactElement {
                       <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
                         {fmtDayFull(r.paidAt)}
                       </TableCell>
-                      <TableCell className="w-full max-w-0 min-w-40">
+                      <TableCell className="w-full max-w-0 min-w-24">
                         <Button
                           asChild
                           variant="link"
@@ -98,14 +105,12 @@ export function IncomePage(): ReactElement {
                             <span className="truncate">{r.projectTitle}</span>
                           </Link>
                         </Button>
-                        {r.clientName && (
-                          <span
-                            className="block truncate text-caption text-muted-foreground @3xl:hidden"
-                            title={r.clientName}
-                          >
-                            {r.clientName}
-                          </span>
-                        )}
+                        <span
+                          className="block truncate text-caption text-muted-foreground @5xl:hidden"
+                          title={sourceOf(r)}
+                        >
+                          {sourceOf(r)}
+                        </span>
                       </TableCell>
                       <TableCell className={cn('max-w-[180px]', CLIENT_COL)}>
                         <span className="block truncate" title={r.clientName ?? undefined}>
@@ -122,10 +127,20 @@ export function IncomePage(): ReactElement {
                       <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {fmtMoney(r.gross, r.currency)}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
-                        {r.fee
-                          ? `${fmtMoney(r.fee, r.currency)} · ${fmtPercent(r.feePercent)}`
-                          : '—'}
+                      <TableCell
+                        className={cn(
+                          'text-right whitespace-nowrap text-muted-foreground tabular-nums',
+                          FEE_COL
+                        )}
+                      >
+                        {r.fee ? (
+                          <>
+                            <div>{fmtMoney(r.fee, r.currency)}</div>
+                            <div className="text-caption">{fmtPercent(r.feePercent)}</div>
+                          </>
+                        ) : (
+                          '—'
+                        )}
                       </TableCell>
                       <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                         {fmtMoney(r.net, r.currency)}
@@ -142,7 +157,7 @@ export function IncomePage(): ReactElement {
                     <TableCell className="text-right">
                       <MoneyLines value={totals.gross} className="items-end" />
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
+                    <TableCell className={cn('text-right text-muted-foreground', FEE_COL)}>
                       <MoneyLines value={totals.fee} className="items-end" />
                     </TableCell>
                     <TableCell className="text-right font-semibold">

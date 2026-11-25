@@ -9,7 +9,8 @@ import { DatePicker } from '@/components/common/date-picker'
 import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { CategorySelect, CurrencySelect } from './finance-fields'
+import { CurrencySelect } from '@/components/common/currency-select'
+import { CategorySelect } from './finance-fields'
 
 const EXP_L = limitsOf(expenseInputSchema)
 const EXP_R = rangesOf(expenseInputSchema)
@@ -83,6 +84,7 @@ export function ExpenseDialog({
         <NumberField
           id={`${id}-amount`}
           label="Сума"
+          live
           {...EXP_R.amount}
           value={amount}
           onCommit={(v) => {
@@ -90,7 +92,7 @@ export function ExpenseDialog({
             setAmountTouched(true)
           }}
           onValidityChange={fields.report('amount')}
-          hint={amountTouched && !(payload.amount > 0) ? 'Вкажіть суму більше 0' : undefined}
+          error={amountTouched && !(payload.amount > 0) ? 'Вкажіть суму більше 0' : undefined}
         />
         <Field label="Валюта" htmlFor={`${id}-currency`}>
           <CurrencySelect id={`${id}-currency`} value={currency} onChange={setCurrency} />
@@ -100,8 +102,8 @@ export function ExpenseDialog({
         <Field label="Категорія" htmlFor={`${id}-category`}>
           <CategorySelect id={`${id}-category`} value={category} onChange={setCategory} />
         </Field>
-        <Field label="Дата">
-          <DatePicker value={at} onChange={setAt} clearable={false} />
+        <Field label="Дата" htmlFor={`${id}-at`}>
+          <DatePicker id={`${id}-at`} value={at} onChange={setAt} clearable={false} />
         </Field>
       </div>
       <Field
