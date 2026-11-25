@@ -1,7 +1,8 @@
-import type { ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { FolderOpen, RefreshCw } from 'lucide-react'
-import { api } from '@/lib/api'
+import type { CaptureClient, CaptureInfo } from '@shared/domain/dev'
+import { fmtDayFull } from '@/lib/format'
 import { useApi, useApiMutation } from '@/lib/query'
 import { CopyButton } from '@/components/common/copy-button'
 import { IconAction } from '@/components/common/icon-action'
@@ -9,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Switch } from '@/components/ui/switch'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Confirm } from '@/components/common/confirm'
 import { SettingsRow, SettingsSection } from '@/features/settings/section'
 import { GithubDisconnectButton, GithubTokenField } from './github-connect'
@@ -58,24 +60,134 @@ const STEPS = [
   'Відкрийте chrome://extensions у Chrome (або edge://extensions).',
   'Увімкніть «Режим розробника» праворуч угорі.',
   'Натисніть «Завантажити розпаковане» й виберіть папку розширення (кнопка нижче).',
-  'У налаштуваннях розширення вставте ключ і порт звідси.',
-  'Vault має бути запущений (досить іконки в треї).'
+  'Натисніть іконку Vault у браузері → «Під’єднати до Vault» і дозвольте доступ тут.'
 ]
 
-/** Settings → Chrome extension bridge: state, port, secret key, folder. */
+/** «Розширення Vault · …abcdef · з 25 листопада»: which extension got the key, and when. */
+function clientLine(c: CaptureClient): string {
+  const id = c.origin.slice(c.origin.indexOf('://') + 3)
+  return `${c.vault ? 'Розширення Vault' : 'Інше розширення'} · …${id.slice(-6)} · з ${fmtDayFull(c.approvedAt)}`
+}
+
+/** Paired extensions and «Відключити» (a new key: every extension holding the old one stops saving). */
+function ExtensionConnection({ info }: { info: CaptureInfo }): ReactElement {
+  const regenerate = useApiMutation('capture', 'regenerateKey', {
+    successMessage: 'Розширення відключено: ключ змінено'
+  })
+  if (!info.clients.length)
+    return (
+      <SettingsRow
+        label="Розширення ще не під’єднано"
+        hint="У розширенні натисніть «Під’єднати до Vault» і дозвольте доступ у вікні, що з’явиться тут."
+      >
+        <Badge variant="soft">не під’єднано</Badge>
+      </SettingsRow>
+    )
+  return (
+    <SettingsRow
+      label={
+        info.clients.length === 1 ? 'Під’єднано' : `Під’єднано розширень: ${info.clients.length}`
+      }
+      hint={
+        <span className="flex flex-col">
+          {info.clients.map((c) => (
+            <span key={c.origin} className="truncate" title={c.origin}>
+              {clientLine(c)}
+            </span>
+          ))}
+        </span>
+      }
+    >
+      <Confirm
+        title="Відключити розширення?"
+        description="Vault створить новий ключ: розширення перестане зберігати, доки ви не під’єднаєте його знову."
+        confirmLabel="Відключити"
+        tone="default"
+        onConfirm={() => regenerate.mutate(undefined)}
+      >
+        <Button size="sm" variant="soft">
+          Відключити
+        </Button>
+      </Confirm>
+    </SettingsRow>
+  )
+}
+
+/** Loading the unpacked extension: the steps and its folder. */
+function ExtensionInstall(): ReactElement {
+  const openDir = useApiMutation('capture', 'openExtensionDir')
+  return (
+    <>
+      <ol className="flex list-decimal flex-col gap-1 pl-5 text-caption text-muted-foreground">
+        {STEPS.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ol>
+      <Button variant="soft" className="self-start" onClick={() => openDir.mutate(undefined)}>
+        <FolderOpen /> Відкрити папку розширення
+      </Button>
+    </>
+  )
+}
+
+/** The old way, kept as a fallback: key and port pasted into the extension's settings by hand. */
+function ExtensionManualKey({ info }: { info: CaptureInfo }): ReactElement {
+  const [open, setOpen] = useState(false)
+  const regenerate = useApiMutation('capture', 'regenerateKey', {
+    successMessage: 'Новий ключ створено — під’єднайте розширення знову'
+  })
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-2">
+      <CollapsibleTrigger asChild>
+        <Button variant="link" className="self-start text-caption">
+          {open ? 'Сховати ключ' : 'Ввести ключ вручну'}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="flex flex-col gap-2">
+        <p className="text-caption text-muted-foreground">
+          Запасний спосіб, якщо розширення не під’єднується саме: у його налаштуваннях вставте порт{' '}
+          {info.port} і цей ключ.
+        </p>
+        <InputGroup className="bg-card">
+          <InputGroupAddon>Ключ</InputGroupAddon>
+          <InputGroupInput
+            readOnly
+            value={info.token}
+            aria-label="Ключ розширення"
+            className="font-mono text-caption"
+          />
+          <InputGroupAddon align="inline-end">
+            <CopyButton text={info.token} variant="ghost" size="xs" />
+            {/* A new key breaks the link with every extension already set up: ask first. */}
+            <Confirm
+              title="Створити новий ключ?"
+              description="Усі розширення перестануть зберігати, доки ви не під’єднаєте їх знову або не вставите новий ключ."
+              confirmLabel="Створити ключ"
+              tone="default"
+              onConfirm={() => regenerate.mutate(undefined)}
+            >
+              <IconAction label="Створити новий ключ">
+                <RefreshCw />
+              </IconAction>
+            </Confirm>
+          </InputGroupAddon>
+        </InputGroup>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/** Settings → Chrome extension bridge: on/off, pairing, installing, the manual key. */
 export function ExtensionSettingsCard(): ReactElement | null {
   const { data: settings } = useApi('settings', 'get')
   const { data: info } = useApi('capture', 'info')
   const save = useApiMutation('settings', 'update')
-  const regenerate = useApiMutation('capture', 'regenerateKey', {
-    successMessage: 'Новий ключ створено — оновіть його в розширенні'
-  })
   if (!settings) return null
   return (
     <SettingsSection
       id="extension"
       title="Розширення для Chrome"
-      hint="Зберігайте сайти, дизайни, бібліотеки, компоненти й вакансії однією кнопкою — з посиланням і скриншотом. Зв’язок лише локальний (127.0.0.1) за секретним ключем."
+      hint="Зберігайте сайти, код, дизайни, бібліотеки й вакансії однією кнопкою — з посиланням і скриншотом. Зв’язок лише локальний (127.0.0.1), доступ — тільки після вашого дозволу тут."
     >
       {/* Labelled switch: a click on the title toggles it, and a screen reader names it. */}
       <SettingsRow
@@ -98,39 +210,12 @@ export function ExtensionSettingsCard(): ReactElement | null {
         )}
       </SettingsRow>
       {info && (
-        <InputGroup className="bg-card">
-          <InputGroupAddon>Ключ</InputGroupAddon>
-          <InputGroupInput
-            readOnly
-            value={info.token}
-            aria-label="Ключ розширення"
-            className="font-mono text-caption"
-          />
-          <InputGroupAddon align="inline-end">
-            <CopyButton text={info.token} variant="ghost" size="xs" />
-            {/* A new key breaks the link with an extension already set up: ask first. */}
-            <Confirm
-              title="Створити новий ключ?"
-              description="Розширення перестане зберігати, доки ви не вставите в нього новий ключ."
-              confirmLabel="Створити ключ"
-              tone="default"
-              onConfirm={() => regenerate.mutate(undefined)}
-            >
-              <IconAction label="Створити новий ключ">
-                <RefreshCw />
-              </IconAction>
-            </Confirm>
-          </InputGroupAddon>
-        </InputGroup>
+        <>
+          <ExtensionConnection info={info} />
+          <ExtensionInstall />
+          <ExtensionManualKey info={info} />
+        </>
       )}
-      <ol className="flex list-decimal flex-col gap-1 pl-5 text-caption text-muted-foreground">
-        {STEPS.map((s) => (
-          <li key={s}>{s}</li>
-        ))}
-      </ol>
-      <Button variant="soft" className="self-start" onClick={() => api.capture.openExtensionDir()}>
-        <FolderOpen /> Відкрити папку розширення
-      </Button>
     </SettingsSection>
   )
 }

@@ -14,15 +14,24 @@ import { formatError } from '../ipc/rpc-utils'
 import { configureZod } from '@shared/zod-locale'
 import { app, net } from 'electron'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
+import type { AddressInfo } from 'net'
 import { randomBytes, timingSafeEqual } from 'crypto'
 import { join } from 'path'
 import type { Api } from '@shared/api'
-import { CAPTURE_TARGETS, captureSchema, type CaptureInfo } from '@shared/domain/dev'
+import {
+  CAPTURE_TARGETS,
+  captureSchema,
+  type CaptureClient,
+  type CaptureInfo,
+  type PairAnswer,
+  type PairRequestView
+} from '@shared/domain/dev'
 import type { FileSource } from '@shared/domain/designs'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { hostOf } from '@shared/url'
 import type { ConfigStore } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
+import { isExtensionOrigin, PairingBroker, type PairRequest } from './extension-pairing'
 
 configureZod()
 
@@ -32,6 +41,13 @@ const SCREENSHOT_MAX = fieldMax(captureSchema.shape.screenshot)
 const TOO_LARGE = 'Скриншот завеликий — виділіть меншу область або збережіть без скриншота.'
 const BAD_KEY =
   'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».'
+const PAIR_FORBIDDEN = 'Під’єднатися до Vault може лише розширення браузера.'
+const PAIR_RATE = 'Забагато запитів на під’єднання. Зачекайте хвилину й спробуйте ще раз.'
+const PAIR_GONE = 'Запит уже не дійсний. Натисніть «Під’єднати до Vault» у розширенні ще раз.'
+/** Pairing protocol version in /ping and in the 401 reply: a popup that sees it offers «Під’єднати до Vault». */
+const PAIR_PROTOCOL = 1
+/** Paired extensions remembered for Settings (Chrome, Edge, a second profile…). */
+const CLIENTS_MAX = 10
 
 /** A request refused by size (413), not by content. */
 class TooLargeError extends UserError {}
@@ -276,23 +292,56 @@ export async function libraryFrom(
   return result
 }
 
+/** The extension shipped with Vault: resources/extension when installed, the repo's extension/ in development. */
+export function bundledExtensionDir(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'extension')
+    : join(app.getAppPath(), 'extension')
+}
+
+/** What the bridge needs to know about the extension folder (ExtensionFolder implements it). */
+export interface ExtensionFolderInfo {
+  readonly dir: string
+  readonly version: string | null
+  readonly extensionId: string | null
+}
+
+export interface CaptureServerOptions {
+  pairing?: PairingBroker
+  folder?: ExtensionFolderInfo
+}
+
 /**
  * Local bridge for the Vault Chrome extension.
  * - listens on 127.0.0.1 only (never the network);
  * - every request must carry the secret key shown in Settings (X-Vault-Key), compared in constant time;
+ * - the one exception is pairing (/pair): an extension origin asks, the person clicks «Дозволити» in Vault,
+ *   and only then the extension gets the key (rules in PairingBroker);
  * - only chrome-extension:// origins get CORS headers.
  */
 export class CaptureServer {
   private server: Server | null = null
   private listening = false
+  private readonly pairing: PairingBroker
+  private readonly folder: ExtensionFolderInfo
 
   constructor(
     private readonly config: ConfigStore,
     private readonly api: () => Api,
     private readonly bus: EventBus,
     private readonly openRoute: (route: string) => void,
-    private readonly icon: string
+    private readonly icon: string,
+    opts: CaptureServerOptions = {}
   ) {
+    this.pairing = opts.pairing ?? new PairingBroker()
+    // Lazily: the bundled path asks Electron, which a unit test without a folder does not have.
+    this.folder = opts.folder ?? {
+      get dir() {
+        return bundledExtensionDir()
+      },
+      version: null,
+      extensionId: null
+    }
     config.onSettingsChange(() => this.restart())
   }
 
@@ -305,15 +354,15 @@ export class CaptureServer {
     return t
   }
 
+  /** A new key disconnects every extension holding the old one («Відключити»): the paired list goes too. */
   regenerate(): string {
     this.config.setSecret('captureKey', null)
+    this.config.captureClients = []
     return this.token()
   }
 
   get extensionDir(): string {
-    return app.isPackaged
-      ? join(process.resourcesPath, 'extension')
-      : join(app.getAppPath(), 'extension')
+    return this.folder.dir
   }
 
   info(): CaptureInfo {
@@ -322,9 +371,54 @@ export class CaptureServer {
       enabled: s.captureEnabled,
       port: s.capturePort,
       token: this.token(),
-      extensionDir: this.extensionDir,
-      running: this.listening
+      extensionDir: this.folder.dir,
+      extensionVersion: this.folder.version,
+      running: this.listening,
+      clients: this.config.captureClients.map((c): CaptureClient => ({
+        ...c,
+        vault: this.isVaultExtension(c.origin)
+      }))
     }
+  }
+
+  /** The request waiting for «Дозволити» / «Відхилити», as the dialog shows it. */
+  pendingPair(): PairRequestView | null {
+    return this.view(this.pairing.pending())
+  }
+
+  /** The dialog follows every change: a new request, a replaced one, an answer, expiry. */
+  onPairChange(listener: (pending: PairRequestView | null) => void): () => void {
+    return this.pairing.onChange((r) => listener(this.view(r)))
+  }
+
+  /** The person's answer in Vault. A request replaced or expired under the dialog is refused, never approved. */
+  answerPair({ id, allow }: PairAnswer): void {
+    const pending = this.pairing.pending()
+    if (!pending || pending.id !== id || !this.pairing.answer(id, allow))
+      throw new UserError(PAIR_GONE)
+    log.info(`[capture] pairing ${allow ? 'allowed' : 'denied'} for ${pending.origin}`)
+    if (allow) this.remember(pending.origin)
+  }
+
+  private view(r: PairRequest | null): PairRequestView | null {
+    return r
+      ? {
+          id: r.id,
+          origin: r.origin,
+          vault: this.isVaultExtension(r.origin),
+          expiresAt: r.expiresAt
+        }
+      : null
+  }
+
+  private isVaultExtension(origin: string): boolean {
+    const id = this.folder.extensionId
+    return !!id && origin === `chrome-extension://${id}`
+  }
+
+  private remember(origin: string): void {
+    const rest = this.config.captureClients.filter((c) => c.origin !== origin)
+    this.config.captureClients = [{ origin, approvedAt: Date.now() }, ...rest].slice(0, CLIENTS_MAX)
   }
 
   /** The port start() last tried: a server that failed to listen has no address, yet that port was tried. */
@@ -355,6 +449,7 @@ export class CaptureServer {
     this.server = null
     this.port = null
     this.listening = false
+    this.pairing.dispose()
   }
 
   /** Any settings change lands here: only turning capture on/off or a new port touches the server. */
@@ -388,6 +483,40 @@ export class CaptureServer {
     return given.length === expected.length && timingSafeEqual(given, expected)
   }
 
+  /** Host is this server itself: a page that rebinds its own domain to 127.0.0.1 sends another Host. */
+  private ownHost(req: IncomingMessage): boolean {
+    const port = (this.server?.address() as AddressInfo | null)?.port
+    const host = req.headers.host ?? ''
+    return !!port && (host === `127.0.0.1:${port}` || host === `localhost:${port}`)
+  }
+
+  /**
+   * POST /pair — an extension asks for access without a key: one waiting request, the window comes up with
+   * «Дозволити розширенню доступ?». POST /pair/<id> — its poll: waiting / approved (+ the key, once) / denied /
+   * expired. POST, not GET: Chrome adds the Origin header to an extension's GET only for hosts it may not
+   * access, and 127.0.0.1 is in its host_permissions. Only extension origins on our own Host get an answer;
+   * the key is never logged.
+   */
+  private handlePair(req: IncomingMessage, res: ServerResponse, path: string): void {
+    const origin = req.headers.origin
+    if (!this.ownHost(req) || !isExtensionOrigin(origin))
+      return this.json(res, 403, { ok: false, error: PAIR_FORBIDDEN })
+    if (req.method === 'POST' && path === '/pair') {
+      const opened = this.pairing.open(origin)
+      if (!opened.ok) return this.json(res, 429, { ok: false, error: PAIR_RATE })
+      log.info(`[capture] pairing requested by ${origin}`)
+      return this.json(res, 200, { ok: true, id: opened.id, expiresIn: opened.expiresIn })
+    }
+    const m = path.match(/^\/pair\/([\w-]{1,64})$/)
+    if (req.method === 'POST' && m) {
+      const poll = this.pairing.poll(m[1], origin)
+      if (poll.state === 'approved')
+        return this.json(res, 200, { ok: true, state: 'approved', key: this.token() })
+      return this.json(res, 200, { ok: true, ...poll })
+    }
+    return this.json(res, 404, { ok: false, error: 'Невідомий запит' })
+  }
+
   private readBody(req: IncomingMessage): Promise<string> {
     return new Promise((resolve, reject) => {
       let size = 0
@@ -413,15 +542,22 @@ export class CaptureServer {
       res.end()
       return
     }
-    if (!this.authorized(req)) return this.json(res, 401, { ok: false, error: BAD_KEY })
+    const path = (req.url ?? '').split('?')[0]
+    if (path === '/pair' || path.startsWith('/pair/')) return this.handlePair(req, res, path)
+    // `app` + `pair`: a popup without a key learns that Vault is here and can pair; old popups read `error` only.
+    if (!this.authorized(req))
+      return this.json(res, 401, { ok: false, error: BAD_KEY, app: 'vault', pair: PAIR_PROTOCOL })
     try {
       if (req.method === 'GET' && req.url === '/ping')
         // `targets`: what this Vault saves — a newer popup asks for an update instead of a refusal; old ones ignore it.
+        // `extension`: the version in the extension folder — an older extension reloads itself to pick it up.
         return this.json(res, 200, {
           ok: true,
           app: 'vault',
           version: app.getVersion(),
-          targets: CAPTURE_TARGETS
+          targets: CAPTURE_TARGETS,
+          extension: this.folder.version,
+          pair: PAIR_PROTOCOL
         })
       if (req.method === 'POST' && req.url === '/capture') {
         if (Number(req.headers['content-length']) > MAX_BODY) throw new TooLargeError(TOO_LARGE)

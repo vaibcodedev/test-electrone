@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AddressInfo } from 'net'
-import type { Server } from 'http'
+import { request, type Server } from 'http'
 import type { z } from 'zod'
 
 vi.mock('electron', async () => ({
@@ -24,6 +24,7 @@ import {
   snippetFrom,
   sourceLine
 } from '@main/services/capture-server'
+import { PairingBroker } from '@main/services/extension-pairing'
 import type { ConfigStore } from '@main/core/config-store'
 import type { EventBus } from '@main/core/event-bus'
 import type { Api } from '@shared/api'
@@ -527,5 +528,156 @@ describe('extension: language and target hints', () => {
     )
     expect(suggestTarget('https://github.com/o/r', code)).toBe('library')
     expect(suggestTarget('https://example.com/post', code)).toBe('bookmark')
+  })
+})
+
+describe('CaptureServer: pairing over HTTP', () => {
+  const KEY = 'p'.repeat(32)
+  const EXT_ID = 'ighcmeieigdefhjpidfbcainaoopopbk'
+  const ORIGIN = `chrome-extension://${EXT_ID}`
+  const OTHER = `chrome-extension://${'c'.repeat(32)}`
+  const config = {
+    settings: { captureEnabled: true, capturePort: 0 },
+    secrets: { captureKey: KEY } as Record<string, string | null>,
+    captureClients: [] as { origin: string; approvedAt: number }[],
+    secret(name: string) {
+      return this.secrets[name] ?? null
+    },
+    setSecret(name: string, value: string | null) {
+      this.secrets[name] = value
+    },
+    onSettingsChange: () => () => undefined
+  }
+  const changes: (string | null)[] = []
+  let server: CaptureServer
+  let base = ''
+  let port = 0
+
+  beforeAll(async () => {
+    server = new CaptureServer(
+      config as unknown as ConfigStore,
+      () => ({}) as Api,
+      { dataChanged: vi.fn() } as unknown as EventBus,
+      () => undefined,
+      '',
+      {
+        // No rate limit between the tests' requests; one case below checks it with its own broker.
+        pairing: new PairingBroker({ minGapMs: 0, perMinute: 1000 }),
+        folder: { dir: '/ext', version: '0.3.0', extensionId: EXT_ID }
+      }
+    )
+    server.onPairChange((p) => changes.push(p?.origin ?? null))
+    server.start()
+    const http = (server as unknown as { server: Server }).server
+    if (!http.listening) await new Promise((resolve) => http.once('listening', resolve))
+    port = (http.address() as AddressInfo).port
+    base = `http://127.0.0.1:${port}`
+  })
+  afterAll(() => server.stop())
+
+  const call = async (
+    path: string,
+    headers: Record<string, string> = { Origin: ORIGIN },
+    method = 'POST'
+  ): Promise<{ status: number; json: Record<string, unknown> }> => {
+    const res = await fetch(`${base}${path}`, { method, headers })
+    return { status: res.status, json: (await res.json()) as Record<string, unknown> }
+  }
+
+  it('tells a popup without a key that this Vault can pair, and reports the extension version', async () => {
+    const nokey = await call('/ping', {}, 'GET')
+    expect(nokey).toMatchObject({ status: 401, json: { ok: false, app: 'vault', pair: 1 } })
+    const ok = await call('/ping', { 'X-Vault-Key': KEY }, 'GET')
+    expect(ok.json).toMatchObject({ ok: true, app: 'vault', extension: '0.3.0', pair: 1 })
+  })
+
+  it('refuses pairing to web pages, requests without an origin and foreign hosts', async () => {
+    expect((await call('/pair', { Origin: 'https://evil.example' })).status).toBe(403)
+    expect((await call('/pair', {})).status).toBe(403)
+    // DNS rebinding: the page's own host name, resolved to 127.0.0.1.
+    const rebound = await new Promise<number>((resolve, reject) => {
+      const req = request(
+        {
+          host: '127.0.0.1',
+          port,
+          path: '/pair',
+          method: 'POST',
+          headers: { Host: `evil.example:${port}`, Origin: ORIGIN }
+        },
+        (res) => {
+          res.resume()
+          resolve(res.statusCode ?? 0)
+        }
+      )
+      req.on('error', reject)
+      req.end()
+    })
+    expect(rebound).toBe(403)
+    expect(server.pendingPair()).toBeNull()
+  })
+
+  it('gives the key only after «Дозволити», once, to the extension that asked', async () => {
+    changes.length = 0
+    const opened = await call('/pair')
+    expect(opened.json).toMatchObject({ ok: true, expiresIn: 60_000 })
+    const id = opened.json.id as string
+    expect(server.pendingPair()).toMatchObject({ id, origin: ORIGIN, vault: true })
+    expect(changes).toEqual([ORIGIN])
+    const waiting = await call(`/pair/${id}`)
+    expect(waiting.json).toMatchObject({ ok: true, state: 'waiting' })
+    expect(waiting.json.key).toBeUndefined()
+    // Another extension polling the same id learns nothing.
+    expect((await call(`/pair/${id}`, { Origin: OTHER })).json).toEqual({
+      ok: true,
+      state: 'expired'
+    })
+    server.answerPair({ id, allow: true })
+    expect(changes).toEqual([ORIGIN, null])
+    expect(config.captureClients.map((c) => c.origin)).toEqual([ORIGIN])
+    expect(server.info().clients).toEqual([
+      expect.objectContaining({ origin: ORIGIN, vault: true })
+    ])
+    expect((await call(`/pair/${id}`)).json).toEqual({ ok: true, state: 'approved', key: KEY })
+    expect((await call(`/pair/${id}`)).json).toEqual({ ok: true, state: 'expired' })
+  })
+
+  it('says «denied» after «Відхилити» and refuses an answer for a replaced request', async () => {
+    const first = (await call('/pair')).json.id as string
+    const second = (await call('/pair', { Origin: OTHER })).json.id as string
+    expect(server.pendingPair()).toMatchObject({ id: second, origin: OTHER, vault: false })
+    expect(() => server.answerPair({ id: first, allow: true })).toThrow(/не дійсний/)
+    server.answerPair({ id: second, allow: false })
+    expect((await call(`/pair/${second}`, { Origin: OTHER })).json).toEqual({
+      ok: true,
+      state: 'denied'
+    })
+    expect(config.captureClients.map((c) => c.origin)).toEqual([ORIGIN])
+  })
+
+  it('rotates the key and forgets paired extensions on «Відключити»', () => {
+    server.regenerate()
+    expect(config.secrets.captureKey).not.toBe(KEY)
+    expect(server.info().clients).toEqual([])
+  })
+
+  it('rate-limits asking', async () => {
+    const limited = new CaptureServer(
+      { ...config, settings: { captureEnabled: true, capturePort: 0 } } as unknown as ConfigStore,
+      () => ({}) as Api,
+      { dataChanged: vi.fn() } as unknown as EventBus,
+      () => undefined,
+      '',
+      { pairing: new PairingBroker({ minGapMs: 5000 }) }
+    )
+    limited.start()
+    const http = (limited as unknown as { server: Server }).server
+    if (!http.listening) await new Promise((resolve) => http.once('listening', resolve))
+    const url = `http://127.0.0.1:${(http.address() as AddressInfo).port}/pair`
+    const ask = (): Promise<Response> => fetch(url, { method: 'POST', headers: { Origin: ORIGIN } })
+    expect((await ask()).status).toBe(200)
+    const second = await ask()
+    expect(second.status).toBe(429)
+    expect(((await second.json()) as { error: string }).error).toMatch(/Забагато/)
+    limited.stop()
   })
 })

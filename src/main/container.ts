@@ -6,7 +6,8 @@ import { app, net, session } from 'electron'
 import { dirname } from 'path'
 import { log, logFilePath } from './core/logger'
 import { openPathOrThrow } from './core/open-path'
-import type { Api } from '@shared/api'
+import type { Api, CaptureApi } from '@shared/api'
+import { pairAnswerSchema } from '@shared/domain/dev'
 import { AppPaths } from './core/paths'
 import { ConfigStore } from './core/config-store'
 import { EventBus } from './core/event-bus'
@@ -233,6 +234,11 @@ export class Container {
       (route) => this.windows.showMain(route),
       iconPath
     )
+    // «Під’єднати до Vault» in the extension: the window comes up with the question; the dialog follows changes.
+    this.capture.onPairChange((pending) => {
+      if (pending) this.windows.showMain()
+      this.bus.emit('capture:pair', pending)
+    })
     this.config.onSettingsChange((s) => {
       applyAutostart(s.launchAtLogin, profile.kind)
       this.bus.emit('settings:changed', s)
@@ -333,6 +339,24 @@ export class Container {
     this.calendar.decorateSource(STAGE_DEADLINE_SOURCE, stageRoute)
   }
 
+  /** Settings → «Розширення для Chrome»: key, pairing answers, the extension folder. */
+  private captureApi(): CaptureApi {
+    return {
+      info: async () => this.capture.info(),
+      regenerateKey: async () => {
+        this.capture.regenerate()
+        return this.capture.info()
+      },
+      openExtensionDir: () =>
+        openPathOrThrow(
+          this.capture.extensionDir,
+          'Папку розширення не знайдено — перевстановіть Vault'
+        ),
+      pairRequest: async () => this.capture.pendingPair(),
+      answerPair: async (input) => this.capture.answerPair(pairAnswerSchema.parse(input))
+    }
+  }
+
   private buildApi(): Api {
     const modulesApi = {
       ideas: this.ideas.api(),
@@ -370,18 +394,7 @@ export class Container {
       github: this.github.api(() => this.devProjects.repoIndex()),
       ai: this.ai.api(),
       review: this.review.api(),
-      capture: {
-        info: async () => this.capture.info(),
-        regenerateKey: async () => {
-          this.capture.regenerate()
-          return this.capture.info()
-        },
-        openExtensionDir: () =>
-          openPathOrThrow(
-            this.capture.extensionDir,
-            'Папку розширення не знайдено — перевстановіть Vault'
-          )
-      }
+      capture: this.captureApi()
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)
 
