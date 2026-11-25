@@ -60,8 +60,9 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
           </CardTitle>
           <FavoriteMark entity={{ type: 'checklist', id: item.id }} className="mt-1.5" />
         </div>
+        {/* Three lines: two left the cards half empty; the card grows with them and «Запустити» stays at the bottom. */}
         {item.description && (
-          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
+          <p className="mt-1 line-clamp-3 text-caption text-muted-foreground">
             {mdPreview(item.description)}
           </p>
         )}

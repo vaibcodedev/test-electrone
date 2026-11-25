@@ -1,7 +1,7 @@
 import { useId, useState, type ReactElement } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2 } from 'lucide-react'
+import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { ChecklistItem } from '@shared/domain/checklists'
 import { useApiMutation } from '@/lib/query'
 import { useReadOnly } from '@/components/common/detail-mode'
@@ -25,16 +25,16 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
   const readOnly = useReadOnly()
   const update = useApiMutation('checklists', 'updateItem')
   const remove = useApiMutation('checklists', 'removeItem')
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState<false | 'text' | 'hint'>(false)
   const [text, setText] = useState(item.text)
   const [hint, setHint] = useState(item.hint)
   const cbId = useId()
 
-  /** Starts from the current server text: it may have changed since the last edit. */
-  const startEditing = (): void => {
+  /** Starts from the current server text: it may have changed since the last edit. `field` gets the caret. */
+  const startEditing = (field: 'text' | 'hint' = 'text'): void => {
     setText(item.text)
     setHint(item.hint)
-    setEditing(true)
+    setEditing(field)
   }
 
   const save = (): void => {
@@ -112,7 +112,7 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
             }}
           >
             <Input
-              autoFocus
+              autoFocus={editing === 'text'}
               value={text}
               maxLength={ITEM_LIMITS.text}
               onChange={(e) => setText(e.target.value)}
@@ -122,6 +122,7 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
               }}
             />
             <Input
+              autoFocus={editing === 'hint'}
               value={hint}
               maxLength={ITEM_LIMITS.hint}
               placeholder="Підказка (необов’язково)"
@@ -132,17 +133,30 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
           </div>
         ) : (
           // Editable in place, like InlineTitle: a tint and a pencil on hover / focus say the text can be changed.
-          <Button
-            variant="ghost"
-            onClick={startEditing}
-            className="group/text relative -mx-1 h-auto w-[calc(100%+0.5rem)] flex-col items-start gap-0 rounded-lg px-1 py-0 pr-7 text-left font-normal whitespace-normal hover:bg-foreground/5"
-          >
-            {label}
-            <Pencil
-              aria-hidden
-              className="absolute top-1.5 right-1.5 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/text:opacity-100 group-focus-visible/text:opacity-100"
-            />
-          </Button>
+          <div className="flex flex-col items-start">
+            <Button
+              variant="ghost"
+              onClick={() => startEditing()}
+              className="group/text relative -mx-1 h-auto w-[calc(100%+0.5rem)] flex-col items-start gap-0 rounded-lg px-1 py-0 pr-7 text-left font-normal whitespace-normal hover:bg-foreground/5"
+            >
+              {label}
+              <Pencil
+                aria-hidden
+                className="absolute top-1.5 right-1.5 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/text:opacity-100 group-focus-visible/text:opacity-100"
+              />
+            </Button>
+            {/* A hint can be added without opening the step itself: shown under the row's pointer or focus. */}
+            {!item.hint && (
+              <Button
+                variant="ghost"
+                size="xs"
+                className={cn('-ml-1 h-6 px-1.5 text-caption', ROW_ACTION)}
+                onClick={() => startEditing('hint')}
+              >
+                <Plus /> Підказка
+              </Button>
+            )}
+          </div>
         )}
       </div>
       <IconAction

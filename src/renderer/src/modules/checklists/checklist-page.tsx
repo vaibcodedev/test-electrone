@@ -246,7 +246,16 @@ function ChecklistView({ id }: { id: string }): ReactElement {
             .map((name) => (
               <section key={`draft-${name}`} data-edit-only className="mt-7">
                 <div className="mb-1.5 flex items-center justify-between px-2">
-                  <h2 className="font-display text-heading">{name}</h2>
+                  {/* Renamable like any section; an empty name or one taken by another section changes nothing. */}
+                  <SectionTitle
+                    section={name}
+                    onRename={(next) =>
+                      next &&
+                      !groups.some(([s]) => s === next) &&
+                      !draftSections.includes(next) &&
+                      setDraftSections((d) => d.map((x) => (x === name ? next : x)))
+                    }
+                  />
                   <Button
                     variant="ghost"
                     size="icon-sm"
