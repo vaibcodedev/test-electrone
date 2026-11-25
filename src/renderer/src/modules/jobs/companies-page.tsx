@@ -211,7 +211,6 @@ export function CompaniesPage(): ReactElement {
                 <InputGroupButton
                   size="icon-xs"
                   variant="ghost"
-                  className="rounded-full"
                   aria-label="Додати компанію"
                   disabled={!name.trim() || create.isPending}
                   onClick={submit}

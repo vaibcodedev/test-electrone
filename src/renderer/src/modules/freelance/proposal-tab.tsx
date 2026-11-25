@@ -92,7 +92,6 @@ export function NewProposalButton({
             <InputGroupButton
               size="xs"
               variant="default"
-              className="rounded-full"
               disabled={!title.trim() || create.isPending}
               onClick={submit}
             >

@@ -312,13 +312,7 @@ function AddColumn({ boardId }: { boardId: string }) {
         />
         {title.trim() && (
           <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              type="submit"
-              size="xs"
-              variant="default"
-              className="rounded-full"
-              disabled={add.isPending}
-            >
+            <InputGroupButton type="submit" size="xs" variant="default" disabled={add.isPending}>
               Додати
             </InputGroupButton>
           </InputGroupAddon>

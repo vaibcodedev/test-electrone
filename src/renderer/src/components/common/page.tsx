@@ -219,7 +219,6 @@ export function SearchInput({
             <TooltipTrigger asChild>
               <InputGroupButton
                 size="icon-xs"
-                className="rounded-full"
                 aria-label="Очистити пошук"
                 // The ✕ goes away with the text: focus returns to the field instead of falling to body.
                 onClick={() => {
