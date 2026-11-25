@@ -15,6 +15,19 @@ export function isLikelyEmail(value: string): boolean {
 export const EMAIL_ERROR = 'Не схоже на email — наприклад, name@company.com'
 
 /**
+ * Loose phone check: digits with the usual separators (+, spaces, dashes, brackets, dots), 6–15 digits (E.164 has
+ * at most 15). Empty counts as valid. «Telegram @name» belongs in «Месенджер».
+ */
+export function isLikelyPhone(value: string): boolean {
+  const v = value.trim()
+  if (!v) return true
+  if (!/^\+?[\d\s().-]+$/.test(v)) return false
+  const digits = v.replace(/\D/g, '').length
+  return digits >= 6 && digits <= 15
+}
+export const PHONE_ERROR = 'Не схоже на телефон — наприклад, +380 67 123 45 67'
+
+/**
  * Client signals as a freelance platform shows them (proposal «Клієнт», CRM client «Платформа»); hire copies them
  * from the proposal to the client, so both use these.
  * Rating: Upwork's 1–5 with one decimal (4,9); empty = no reviews yet. An old 0 means the same and shows as empty.

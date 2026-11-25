@@ -7,6 +7,8 @@ import {
   hireRateSchema,
   idSchema,
   isLikelyEmail,
+  isLikelyPhone,
+  PHONE_ERROR,
   timestampSchema,
   urlSchema,
   withTagIds,
@@ -39,7 +41,7 @@ export const clientInputSchema = z.object({
   company: z.string().max(MAX.name).default(''),
   // Only new values are checked (per-field patches): an old unusual email never blocks other edits.
   email: z.string().trim().max(320).refine(isLikelyEmail, EMAIL_ERROR).default(''),
-  phone: z.string().max(100).default(''),
+  phone: z.string().trim().max(50).refine(isLikelyPhone, PHONE_ERROR).default(''),
   messenger: z.string().max(MAX.name).default(''),
   website: urlSchema.default(''),
   notes: z.string().max(MAX.note).default(''),
