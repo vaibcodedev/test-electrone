@@ -113,8 +113,8 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
   const isPdf = resume.mime === 'application/pdf' || /\.pdf$/i.test(resume.fileName)
 
   return (
-    // Inset ring: an outer ring got clipped by the scrolling list (docs/design-system.md → selection rings).
-    <Card className={cn(resume.isCurrent && 'ring-2 ring-chart-1 ring-inset')}>
+    // «поточна» is the badge and the first place in the grid; no extra ring around the card.
+    <Card>
       <CardHeader>
         <CardTitle className="font-display flex items-center gap-2 text-heading font-normal text-foreground">
           {resume.title}
@@ -152,8 +152,9 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
         <div className="flex items-center gap-2 rounded-xl bg-card px-3 py-2">
           <FileText className="size-4 shrink-0 text-muted-foreground" />
           {resume.filePath && isPdf ? (
-            <Button variant="link" className="min-w-0 flex-1 justify-start truncate text-body font-normal" onClick={onPreview}>
-              {resume.fileName}
+            // The name sits in its own span: truncate on the inline-flex button itself cut it mid-word without «…».
+            <Button variant="link" className="min-w-0 flex-1 justify-start text-body font-normal" title={resume.fileName} onClick={onPreview}>
+              <span className="truncate">{resume.fileName}</span>
             </Button>
           ) : (
             <span className={cn('min-w-0 flex-1 truncate text-body', !resume.filePath && 'text-muted-foreground')}>
@@ -265,11 +266,7 @@ export function ResumesPage() {
               icon={FileText}
               title="Резюме ще немає"
               hint="Перетягніть PDF або DOCX сюди, вставте через Ctrl+V або натисніть «Завантажити версію»."
-              action={
-                <Button variant="subtle" onClick={picker.open}>
-                  <Upload /> Завантажити версію
-                </Button>
-              }
+              cta={{ label: 'Завантажити версію', icon: Upload, onClick: picker.open }}
             />
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -284,7 +281,7 @@ export function ResumesPage() {
             </div>
           )}
           {resumes.length > 0 && (
-            <p className="text-center text-caption text-muted-foreground">Перетягніть файл сюди, щоб додати нову версію.</p>
+            <p className="text-caption text-muted-foreground">Перетягніть файл сюди, щоб додати нову версію.</p>
           )}
         </div>
       </PageBody>

@@ -38,14 +38,15 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
     <Card
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn('gap-0 py-4', isDragging && 'z-10 shadow-lg', !board.active && 'opacity-60')}
+      className={cn('gap-0 py-4', isDragging && 'z-10 shadow-lg')}
     >
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon-sm" className="cursor-grab text-muted-foreground" aria-label="Перетягнути" {...attributes} {...listeners}>
             <GripVertical />
           </Button>
-          <BoardDot color={board.color} size="md" />
+          {/* A switched-off board says so in words: fading the whole card dropped labels below 4.5:1. */}
+          <BoardDot color={board.color} size="md" className={cn(!board.active && 'opacity-40')} />
           <Input
             key={`name-${board.id}-${board.name}`}
             defaultValue={board.name}
@@ -55,6 +56,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
             onBlur={(e) => e.target.value.trim() && e.target.value !== board.name && save({ name: e.target.value.trim() })}
           />
           <div className="ml-auto flex items-center gap-2">
+            {!board.active && <Badge variant="soft">Вимкнено</Badge>}
             {stats && (
               <Badge variant="soft" className="bg-card font-normal">
                 {stats.applied} {plural(stats.applied, ['відгук', 'відгуки', 'відгуків'])}, {fmtPercent(stats.replyRate)} відповідей
@@ -76,7 +78,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
               openLabel={`Відкрити ${board.name}`}
             />
           </Field>
-          <Field label="Відгуків на день" hint="0 — просто зайти й перевірити">
+          <Field label="Відгуків на день">
             <NumberInput
               integer
               {...RANGES.dailyTarget}
@@ -85,7 +87,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
             />
           </Field>
         </div>
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <Field label="Дні" className="w-auto">
             <ToggleGroup
               type="multiple"
@@ -101,7 +103,8 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
               ))}
             </ToggleGroup>
           </Field>
-          <Field label="Колір" className="w-auto">
+          {/* Label pinned right like the swatches, so it doesn't move with their count. */}
+          <Field label="Колір" className="w-auto [&>*:first-child]:justify-end">
             <ToggleGroup type="single" value={board.color ?? ''} onValueChange={(c) => c && save({ color: c })} spacing={1}>
               {palette.map((c, i) => (
                 <ToggleGroupItem
@@ -162,7 +165,7 @@ export function JobBoardsPage() {
               ref={nameRef}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Djinni, DOU, LinkedIn…"
+              placeholder="Новий майданчик, напр. Djinni"
               aria-label="Назва нового майданчика"
               className="w-64"
               maxLength={LIMITS.name}
@@ -180,7 +183,7 @@ export function JobBoardsPage() {
         }
       />
       <PageBody>
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
+        <div className="flex w-full max-w-4xl flex-col gap-3">
           {isLoading ? (
             <Delayed delay={150}>
               <div className="flex flex-col gap-3">
@@ -203,7 +206,8 @@ export function JobBoardsPage() {
             </DndContext>
           )}
           <p className="text-caption text-muted-foreground">
-            Вимкнений майданчик зникає з огляду, але його історія й статистика зберігаються.
+            Норма 0 — просто зайти й перевірити. Вимкнений майданчик зникає з огляду, але його історія й статистика
+            зберігаються.
           </p>
         </div>
       </PageBody>

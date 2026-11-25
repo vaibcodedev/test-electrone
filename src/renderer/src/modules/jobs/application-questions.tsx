@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowUpRight, Plus } from 'lucide-react'
+import { ArrowRight, Plus } from 'lucide-react'
 import { QUESTION_CATEGORIES, questionInputSchema, type InterviewQuestion, type QuestionCategory } from '@shared/domain/jobs'
 import { limitsOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { SectionLabel } from '@/components/common/master-detail'
+import { Field, Kbd } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Choice } from '../crm/parts'
 import { QUESTION_CATEGORY_LABEL } from './labels'
@@ -32,6 +33,7 @@ export function AskedQuestions({
 }) {
   const navigate = useNavigate()
   const readOnly = useReadOnly()
+  const fieldId = useId()
   const [text, setText] = useState('')
   const [category, setCategory] = useState<QuestionCategory>('technical')
   const create = useApiMutation('jobs', 'createQuestion', {
@@ -46,8 +48,9 @@ export function AskedQuestions({
     <section className="flex flex-col gap-3">
       <SectionLabel
         action={
-          <Button variant="subtle" size="xs" onClick={() => navigate('/jobs/questions')}>
-            Банк питань <ArrowUpRight />
+          // soft: the section sits on card (sheet, pane), where subtle has no fill; → is an in-app move.
+          <Button variant="soft" size="xs" onClick={() => navigate('/jobs/questions')}>
+            Банк питань <ArrowRight />
           </Button>
         }
       >
@@ -76,7 +79,17 @@ export function AskedQuestions({
         </ItemGroup>
       )}
       <div data-edit-only className="flex flex-col gap-2">
+        <Field
+          label="Нове питання"
+          htmlFor={fieldId}
+          hint={
+            <>
+              <Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> — додати в банк
+            </>
+          }
+        >
         <Textarea
+          id={fieldId}
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={QUESTION_MAX}
@@ -89,6 +102,7 @@ export function AskedQuestions({
             }
           }}
         />
+        </Field>
         <div className="flex items-center gap-2">
           <Choice
             size="sm"

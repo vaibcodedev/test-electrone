@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactElement, type RefObject } from 'react'
 import { toast } from 'sonner'
-import { FileText, Trash2, X } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import { CURRENCIES } from '@shared/domain/crm'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
 import { limitsOf, rangesOf } from '@/lib/limits'
@@ -12,20 +12,15 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NumberInput } from '@/components/common/number-input'
 import { Field, Segmented } from '@/components/common/page'
-import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import { EntityAside, InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
-import { TagPicker } from '@/components/common/tags'
-import { LinksPanel } from '@/components/common/links-panel'
-import { AttachmentsPanel } from '@/components/common/attachments'
-import { PinButtons } from '@/components/common/pin-buttons'
-import { IconAction } from '@/components/common/icon-action'
+import { Delayed } from '@/components/common/page-skeleton'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
-  EditToggle,
   guardSheet,
   RecordMode,
   useModeRef,
@@ -177,13 +172,34 @@ function ConditionsSection({ application: a, patch }: { application: Application
 
 /** «Що надіслано»: resume version, cover letter (template or text) and the recruiter contact. */
 function SentSection({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }): ReactElement {
+  const readOnly = useReadOnly()
   const { data: resumes = [] } = useApi('jobs', 'resumes')
   const [cover, setCover] = useAutosave(a.coverLetter, (v) => patch({ coverLetter: v }))
   const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
+  const resume = resumes.find((r) => r.id === a.resumeId)
+  if (readOnly && !a.resumeId && !a.coverLetter.trim() && !a.contact.trim()) {
+    return (
+      <section className="flex flex-col gap-4">
+        <SectionLabel>Що надіслано</SectionLabel>
+        <p className="text-body leading-relaxed text-muted-foreground">Резюме й лист не вказано — додайте в режимі правки (E).</p>
+      </section>
+    )
+  }
   return (
     <section className="flex flex-col gap-4">
       <SectionLabel>Що надіслано</SectionLabel>
       <Field label="Версія резюме">
+        {/* View mode: the version's name as text — the Select's «Не вказано» kept an empty field visible. */}
+        {readOnly ? (
+          resume ? (
+            <span className="text-body">
+              {resume.title}
+              {resume.isCurrent ? ' (поточна)' : ''}
+            </span>
+          ) : (
+            <span data-empty />
+          )
+        ) : (
         <Choice
           value={a.resumeId}
           onChange={(resumeId) => patch({ resumeId })}
@@ -191,6 +207,7 @@ function SentSection({ application: a, patch }: { application: ApplicationDetail
           placeholder={resumes.length ? 'Виберіть версію' : 'Завантажте резюме в розділі «Резюме»'}
           options={resumes.map((r) => ({ value: r.id, label: `${r.title}${r.isCurrent ? ' (поточна)' : ''}` }))}
         />
+        )}
       </Field>
       <CoverTemplatePicker key={a.id} application={a} patch={patch} />
       <MarkdownField
@@ -214,7 +231,10 @@ function SentSection({ application: a, patch }: { application: ApplicationDetail
   )
 }
 
-/** Sheet header: pins, view/edit toggle, status (always changeable), trash and close. */
+/**
+ * Sheet header in the order of every record (RecordActions): pins → status (always changeable) → (gap) →
+ * trash (asks first: calendar events go too) → «Редагувати» / «Скасувати»·«Зберегти» → ✕.
+ */
 function ApplicationEditorHeader({
   application: a,
   mode,
@@ -228,41 +248,27 @@ function ApplicationEditorHeader({
 }): ReactElement {
   const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
   return (
-    <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-      <PinButtons entity={{ type: 'application', id: a.id }} />
-      <div className="flex-1" />
-      <EditToggle mode={mode} onClose={onClose} />
-      <Choice
-        size="sm"
-        value={a.status}
-        onChange={(v) => {
-          if (!v) return
-          patch({ status: v })
-          promptAfterStatusChange(a, v)
-        }}
-        options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
-        className="w-44"
-      />
-      {/* Confirm's trigger needs a DOM child, so the tooltip wraps it instead of IconAction. */}
-      <Tooltip>
-        <Confirm
-          title="Перемістити вакансію в кошик?"
-          description="Пов’язані події календаря теж потраплять у кошик."
-          confirmLabel="У кошик"
-          onConfirm={() => remove.mutate(a.id)}
-        >
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label="У кошик">
-              <Trash2 />
-            </Button>
-          </TooltipTrigger>
-        </Confirm>
-        <TooltipContent>У кошик</TooltipContent>
-      </Tooltip>
-      <IconAction label="Закрити · Esc" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
-        <X />
-      </IconAction>
-    </div>
+    <RecordActions
+      entity={{ type: 'application', id: a.id }}
+      mode={mode}
+      extra={
+        <Choice
+          size="sm"
+          value={a.status}
+          onChange={(v) => {
+            if (!v) return
+            patch({ status: v })
+            promptAfterStatusChange(a, v)
+          }}
+          options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
+          className="w-44"
+        />
+      }
+      onDelete={() => remove.mutate(a.id)}
+      deleteConfirm={{ title: 'Перемістити вакансію в кошик?', description: 'Пов’язані події календаря теж потраплять у кошик.' }}
+      onClose={onClose}
+      className="border-b border-border px-4 py-2.5"
+    />
   )
 }
 
@@ -284,6 +290,9 @@ function Editor({
 
   const mode = useRecordMode(a.id, 'application')
   usePublishMode(modeRef, mode)
+  const board = boards.find((b) => b.id === a.boardId)
+  // Both long texts empty while reading: their section and its separator would be ~100px of nothing.
+  const hasTexts = mode.editing || !!a.description.trim() || !!a.notes.trim()
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ApplicationEditorHeader application={a} mode={mode} patch={patch} onClose={onClose} />
@@ -302,12 +311,19 @@ function Editor({
             />
           </Field>
           <Field label="Майданчик">
-            <Choice
-              value={a.boardId}
-              onChange={(boardId) => patch({ boardId })}
-              none="Не вказано"
-              options={boards.map((b) => ({ value: b.id, label: b.name }))}
-            />
+            {/* Editor sits outside RecordMode, so it reads the mode itself; «Не вказано» isn't shown as a value. */}
+            {mode.editing ? (
+              <Choice
+                value={a.boardId}
+                onChange={(boardId) => patch({ boardId })}
+                none="Не вказано"
+                options={boards.map((b) => ({ value: b.id, label: b.name }))}
+              />
+            ) : board ? (
+              <span className="text-body">{board.name}</span>
+            ) : (
+              <span data-empty />
+            )}
           </Field>
           <Field label="Посилання на вакансію">
             <LinkInput value={a.url} onSave={(url) => patch({ url })} />
@@ -336,28 +352,59 @@ function Editor({
 
         <AskedQuestions questions={a.questions} applicationId={a.id} companyId={a.companyId} />
 
-        <Separator className="my-6" />
+        {hasTexts && (
+          <>
+            <Separator className="my-6" />
+            <section className="flex flex-col gap-4">
+              <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Скопіюйте опис вакансії" minHeight="120px" maxLength={LIMITS.description} />
+              <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Враження, домовленості, питання до оферу" minHeight="100px" maxLength={LIMITS.notes} />
+            </section>
+          </>
+        )}
 
-        <section className="flex flex-col gap-4">
-          <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Скопіюйте опис вакансії" minHeight="120px" maxLength={LIMITS.description} />
-          <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Враження, домовленості, питання до оферу" minHeight="100px" maxLength={LIMITS.notes} />
-        </section>
-
-        <div className="mt-6 flex flex-col gap-6">
-          <section className="flex flex-col gap-2">
-            <SectionLabel>Мітки</SectionLabel>
-            <TagPicker value={a.tags} onChange={(tagIds) => patch({ tagIds })} />
-          </section>
-          <LinksPanel entity={{ type: 'application', id: a.id }} />
-          <AttachmentsPanel entity={{ type: 'application', id: a.id }} />
-          <div className="text-meta text-muted-foreground">
-            Створено {fmtDateTime(a.createdAt)}
-            {a.repliedAt && ` · відповіли ${fmtDateTime(a.repliedAt)}`}
-            {a.closedAt && ` · закрито ${fmtDateTime(a.closedAt)}`}
-          </div>
+        {/* The standard column (tags hide while empty in view mode), then the vacancy's own milestones. */}
+        <div className="mt-6 flex flex-col gap-2">
+          <EntityAside
+            entity={{ type: 'application', id: a.id }}
+            tags={a.tags}
+            onTagsChange={(tagIds) => patch({ tagIds })}
+            createdAt={a.createdAt}
+            updatedAt={a.updatedAt}
+          />
+          {(a.repliedAt || a.closedAt) && (
+            <div className="text-meta leading-relaxed text-muted-foreground">
+              {a.repliedAt && <div>Відповіли {fmtDateTime(a.repliedAt)}</div>}
+              {a.closedAt && <div>Закрито {fmtDateTime(a.closedAt)}</div>}
+            </div>
+          )}
         </div>
       </div>
       </RecordMode>
+    </div>
+  )
+}
+
+/** The sheet's shape while `jobs.get` is on its way: header row, title, a 2×2 grid of fields. */
+function EditorSkeleton(): ReactElement {
+  return (
+    <div aria-hidden className="flex flex-col">
+      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+        <Skeleton className="size-8 rounded-full" />
+        <Skeleton className="h-8 w-44 rounded-full" />
+        <Skeleton className="ml-auto h-8 w-28 rounded-full" />
+        <Skeleton className="size-8 rounded-full" />
+      </div>
+      <div className="flex flex-col gap-5 px-6 py-5">
+        <Skeleton className="h-8 w-2/3 rounded-2xl" />
+        <div className="grid grid-cols-2 gap-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <Skeleton className="h-3.5 w-24 rounded-full" />
+              <Skeleton className="h-9 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -376,6 +423,9 @@ export function ApplicationEditorSheet({ applicationId, onClose }: { application
           <>
             <SheetTitle className="sr-only">Вакансія</SheetTitle>
             <SheetDescription className="sr-only">Завантаження</SheetDescription>
+            <Delayed delay={150}>
+              <EditorSkeleton />
+            </Delayed>
           </>
         )}
       </SheetContent>

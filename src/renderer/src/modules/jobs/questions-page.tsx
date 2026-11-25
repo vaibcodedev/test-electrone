@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { useId, useMemo, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { Dumbbell, MessageCircleQuestion, Plus } from 'lucide-react'
 import {
@@ -15,7 +15,7 @@ import { useDebounced } from '@/hooks/use-debounced'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime, fmtDay, easeLabel } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
-import { EmptyState, Field, FilterChips, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
+import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { DetailPane, EntityAside, InlineTitle, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagFilter } from '@/components/common/tags'
@@ -25,12 +25,16 @@ import { StatCell } from '@/components/common/stat-tile'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { daysWord, DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL } from './labels'
+import { Textarea } from '@/components/ui/textarea'
+import { useDetailMode, useReadOnly } from '@/components/common/detail-mode-context'
+import { daysWord, DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL, QUESTION_GROUP_LABEL } from './labels'
 import { QuestionCategoryFilter, QuestionCategoryPicker } from './question-category'
 import { TopicPicker } from './j2-topic-picker'
 import { ApplicationCombobox, CompanyCombobox } from './j1-fields'
 
 const LIMITS = limitsOf(questionInputSchema)
+/** The draft title (DRAFT_TITLES.question): an untouched new question is discarded on close. */
+const NEW_QUESTION = 'Нове питання'
 
 type Form = Pick<InterviewQuestion, 'question' | 'answer' | 'category' | 'topic' | 'lang' | 'difficulty' | 'companyId' | 'applicationId'>
 
@@ -45,41 +49,67 @@ const toForm = (q: InterviewQuestion): Form => ({
   applicationId: q.applicationId
 })
 
-/** Spaced-repetition state; a question never practised shows its first date, not default numbers. */
+/** Spaced-repetition state; a question never practised gets one phrase — the tiles mean something after a review. */
 function ReviewStats({ question }: { question: InterviewQuestion }): ReactElement {
   const fresh = question.repetitions === 0 && question.lapses === 0
   return (
     <section className="flex flex-col gap-2">
       <SectionLabel>Повторення</SectionLabel>
-      <div className="grid grid-cols-2 gap-2">
-        <StatCell
-          label="Повторити"
-          value={fmtDay(question.dueAt) || '—'}
-          hint={`Коли питання знову з’явиться в тренажері: ${fmtDateTime(question.dueAt)}.`}
-        />
-        <StatCell
-          label="Пауза"
-          value={question.intervalDays < 1 ? 'менше дня' : daysWord(Math.round(question.intervalDays))}
-          hint="Скільки днів між повторами зараз. Відповіли — пауза росте, не змогли — знову коротка."
-        />
-        {!fresh && (
-          <>
-            <StatCell label="Поспіль без помилок" value={String(question.repetitions)} hint="Скільки разів поспіль ви відповіли без помилки." />
-            <StatCell label="Не вдалося" value={String(question.lapses)} hint="Скільки разів відповідь не вдалася і питання повернулося на початок." />
-            <div className="col-span-2 grid">
-              <StatCell
-                label="Дається"
-                value={easeLabel(question.ease)}
-                hint="Наскільки легко дається питання за вашими оцінками. Чим важче, тим частіше воно трапляється."
-              />
-            </div>
-          </>
-        )}
-      </div>
-      {fresh && (
-        <p className="text-caption text-muted-foreground">Ще не тренували — питання з’явиться в тренажері {fmtDay(question.dueAt)}.</p>
+      {fresh ? (
+        <p className="text-body leading-relaxed text-muted-foreground">
+          Ще не тренували — питання з’явиться в тренажері {fmtDay(question.dueAt)}.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <StatCell
+            label="Повторити"
+            value={fmtDay(question.dueAt) || '—'}
+            hint={`Коли питання знову з’явиться в тренажері: ${fmtDateTime(question.dueAt)}.`}
+          />
+          <StatCell
+            label="Пауза"
+            value={question.intervalDays < 1 ? 'менше дня' : daysWord(Math.round(question.intervalDays))}
+            hint="Скільки днів між повторами зараз. Відповіли — пауза росте, не змогли — знову коротка."
+          />
+          <StatCell label="Поспіль без помилок" value={String(question.repetitions)} hint="Скільки разів поспіль ви відповіли без помилки." />
+          <StatCell label="Не вдалося" value={String(question.lapses)} hint="Скільки разів відповідь не вдалася і питання повернулося на початок." />
+          <div className="col-span-2 grid">
+            <StatCell
+              label="Дається"
+              value={easeLabel(question.ease)}
+              hint="Наскільки легко дається питання за вашими оцінками. Чим важче, тим частіше воно трапляється."
+            />
+          </div>
+        </div>
       )}
     </section>
+  )
+}
+
+/**
+ * The question itself: a heading while reading, a multi-line field while editing. Not InlineTitle in edit
+ * mode — it folds line breaks into spaces and blocks Enter, and questions (with code, from a JSON import) are
+ * up to 5000 characters over several lines. Rendered inside DetailPane, so it reads the pane's mode.
+ */
+function QuestionText({ value, onChange }: { value: string; onChange: (value: string) => void }): ReactElement {
+  const readOnly = useReadOnly()
+  const { fresh } = useDetailMode()
+  const id = useId()
+  if (readOnly) return <InlineTitle value={value} onChange={onChange} placeholder="Питання" maxLength={LIMITS.question} />
+  return (
+    <Field label="Питання" htmlFor={id} count={{ length: value.length, max: LIMITS.question }}>
+      <Textarea
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        // A new question opens with «Нове питання» selected, to be typed over at once.
+        onFocus={(e) => fresh && value === NEW_QUESTION && e.currentTarget.select()}
+        autoFocus={fresh}
+        maxLength={LIMITS.question}
+        placeholder="Яке питання поставили?"
+        className="font-display text-heading"
+      />
+    </Field>
   )
 }
 
@@ -103,7 +133,8 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
         remove.mutate(question.id)
         onClose()
       }}
-      headerExtra={<Badge variant={due ? 'success' : 'soft'}>{due ? 'Пора повторити' : `Повтор ${fmtDay(question.dueAt)}`}</Badge>}
+      // Due asks for action (info), it isn't a success (docs/design-system.md → Бейджи).
+      headerExtra={<Badge variant={due ? 'info' : 'soft'}>{due ? 'Пора повторити' : `Повтор ${fmtDay(question.dueAt)}`}</Badge>}
       aside={
         <EntityAside
           entity={entity}
@@ -118,7 +149,7 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
       }
     >
       <div className="flex flex-col gap-5">
-        <InlineTitle value={form.question} onChange={(v) => set('question', v)} placeholder="Питання" maxLength={LIMITS.question} />
+        <QuestionText value={form.question} onChange={(v) => set('question', v)} />
         <div className="grid grid-cols-2 gap-4">
           <Field label="Категорія">
             <QuestionCategoryPicker value={form.category} onChange={(c) => set('category', c)} />
@@ -194,9 +225,24 @@ export function QuestionsPage() {
   // The open question is loaded on its own: an edit that drops it out of the search/tag filter must not close it.
   const { data: current } = useApi('jobs', 'question', open ?? '', { enabled: !!open })
 
+  // What is really narrowing the list, for the «Нічого не знайдено» hint.
+  const filters = [
+    search.trim() && `за запитом «${search.trim()}»`,
+    topic && `у темі «${topic}»`,
+    category ? `у категорії «${QUESTION_CATEGORY_LABEL[category]}»` : group && `у групі «${QUESTION_GROUP_LABEL[group]}»`,
+    tagId && 'з вибраною міткою'
+  ].filter((f): f is string => !!f)
+  const resetFilters = (): void => {
+    setGroup(undefined)
+    setCategory(undefined)
+    setTopic(undefined)
+    setTagId(undefined)
+    setSearch('')
+  }
+
   const add = (): void => {
     create.mutate(
-      { question: 'Нове питання', category: category ?? (group === 'nontechnical' ? 'behavioral' : 'technical'), topic: topic ?? '' },
+      { question: NEW_QUESTION, category: category ?? (group === 'nontechnical' ? 'behavioral' : 'technical'), topic: topic ?? '' },
       { onSuccess: (q) => setOpen(q.id) }
     )
   }
@@ -235,30 +281,40 @@ export function QuestionsPage() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <QuestionCategoryFilter
-            group={group}
-            category={category}
-            onChange={(next) => {
-              setGroup(next.group)
-              setCategory(next.category)
-            }}
-            counts={Object.fromEntries(QUESTION_CATEGORIES.map((c) => [c, all.filter((q) => q.category === c).length]))}
-          />
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Питання або відповідь" className="w-64" />
-          </div>
-        </div>
-        {topics.length > 0 && (
-          <FilterChips
-            size="xs"
-            allLabel="Усі теми"
-            value={topic}
-            onChange={setTopic}
-            options={topics.map((t) => ({ value: t, label: t }))}
-          />
-        )}
+        <FilterBar
+          chips={
+            // An empty bank has nothing to filter by: no «Усі» chip over the empty state.
+            (all.length > 0 || term || tagId) && (
+              <QuestionCategoryFilter
+                group={group}
+                category={category}
+                onChange={(next) => {
+                  setGroup(next.group)
+                  setCategory(next.category)
+                }}
+                counts={Object.fromEntries(QUESTION_CATEGORIES.map((c) => [c, all.filter((q) => q.category === c).length]))}
+              />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Питання або відповідь" className="w-72" />
+            </>
+          }
+          secondary={
+            topics.length > 0 && (
+              <FilterChips
+                tone="neutral"
+                label="Тема"
+                allLabel="Усі теми"
+                value={topic}
+                onChange={setTopic}
+                options={topics.map((t) => ({ value: t, label: t }))}
+              />
+            )
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0">
         <MasterDetail
@@ -275,18 +331,17 @@ export function QuestionsPage() {
               onLoadMore={list.loadMore}
               empty={
                 !list.isLoading &&
-                !isLoading && (
+                !isLoading &&
+                (filters.length ? (
+                  <NoResults icon={MessageCircleQuestion} hint={`Питань ${filters.join(' і ')} немає.`} onReset={resetFilters} />
+                ) : (
                   <EmptyState
                     icon={MessageCircleQuestion}
-                    title={all.length ? 'Нічого не знайдено' : 'Банк питань порожній'}
+                    title="Банк питань порожній"
                     hint="Додайте питання, яке поставили на співбесіді, і свою відповідь на нього."
-                    action={
-                      <Button variant="subtle" onClick={add}>
-                        Додати питання
-                      </Button>
-                    }
+                    cta={{ label: 'Додати питання', icon: Plus, onClick: add }}
                   />
-                )
+                ))
               }
               renderItem={(q) => {
                 const isDue = q.dueAt <= Date.now()
@@ -312,7 +367,7 @@ export function QuestionsPage() {
                             </Badge>
                           )}
                           {isDue && (
-                            <Badge variant={active ? 'ink' : 'success'} className={cn(active && 'bg-ink-foreground/12')}>
+                            <Badge variant={active ? 'ink' : 'info'} className={cn(active && 'bg-ink-foreground/12')}>
                               повторити
                             </Badge>
                           )}

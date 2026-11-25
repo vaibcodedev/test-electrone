@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { addDays } from 'date-fns'
 import { stageInputSchema, type StageKind } from '@shared/domain/jobs'
 import { limitsOf, rangesOf } from '@/lib/limits'
@@ -24,6 +24,9 @@ function tomorrowAt(hour: number): number {
 /** Test task deadline: in three days at 18:00 local time (addDays keeps the hour across DST changes). */
 const defaultDeadline = (): number => addDays(new Date(tomorrowAt(18)), 2).getTime()
 
+/** A test task is received now; a meeting defaults to tomorrow 11:00. */
+const startOf = (kind: StageKind): number => (kind === 'test_task' ? Date.now() : tomorrowAt(11))
+
 /**
  * New stage form (also used by the «Запланувати» prompt when a vacancy moves to interview / test task).
  * The backend mirrors the stage to the calendar.
@@ -48,25 +51,24 @@ export function AddStageDialog({
   cancelLabel?: string
 }): ReactElement {
   const [kind, setKind] = useState<StageKind>(defaultKind)
-  const [at, setAt] = useState<number | null>(() => tomorrowAt(11))
-  const [deadlineAt, setDeadlineAt] = useState<number | null>(null)
+  const [at, setAt] = useState<number | null>(() => startOf(defaultKind))
+  const [deadlineAt, setDeadlineAt] = useState<number | null>(() => (defaultKind === 'test_task' ? defaultDeadline() : null))
   const [durationMin, setDurationMin] = useState<number | null>(60)
   const [notes, setNotes] = useState('')
 
-  // Fresh, prefilled form every time it opens (kind from the status the vacancy moved to).
-  useEffect(() => {
-    if (!open) return
-    setKind(defaultKind)
-    setNotes('')
-    setDurationMin(60)
-    if (defaultKind === 'test_task') {
-      setAt(Date.now())
-      setDeadlineAt(defaultDeadline())
-    } else {
-      setAt(tomorrowAt(11))
-      setDeadlineAt(null)
+  // Fresh, prefilled form every time it opens (kind from the status the vacancy moved to). Compared with the
+  // last `open` during render: an effect showed the previous form for one frame (docs/design-system.md → Формы).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setKind(defaultKind)
+      setNotes('')
+      setDurationMin(60)
+      setAt(startOf(defaultKind))
+      setDeadlineAt(defaultKind === 'test_task' ? defaultDeadline() : null)
     }
-  }, [open, defaultKind])
+  }
 
   const add = useApiMutation('jobs', 'addStage', {
     successMessage: 'Етап заплановано — подія вже в календарі',

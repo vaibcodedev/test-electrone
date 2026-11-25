@@ -1,5 +1,5 @@
 import type { Application, JobBoard } from '@shared/domain/jobs'
-import { fmtDate } from '@/lib/format'
+import { fmtDay, fmtDayFull } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +14,7 @@ const COL = {
   next: 'w-44',
   salary: 'w-36',
   board: 'w-36',
-  applied: 'w-24'
+  applied: 'w-32'
 } as const
 
 /**
@@ -98,8 +98,8 @@ export function ApplicationList({
                   <TableCell className={cn(COL.board, 'truncate')}>
                     {board ? <BoardLabel board={board} /> : '—'}
                   </TableCell>
-                  <TableCell className={cn(COL.applied, 'text-right tabular-nums')}>
-                    {a.appliedAt ? fmtDate(a.appliedAt, 'd MMM') : '—'}
+                  <TableCell className={cn(COL.applied, 'truncate text-right tabular-nums')} title={a.appliedAt ? fmtDayFull(a.appliedAt) : undefined}>
+                    {a.appliedAt ? fmtDay(a.appliedAt) : '—'}
                   </TableCell>
                 </TableRow>
               </TableBody>

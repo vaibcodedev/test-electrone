@@ -46,7 +46,10 @@ function DraggableApplication({
       {...attributes}
       {...listeners}
       // After the dnd-kit listeners: theirs would otherwise replace this handler. Enter opens, Space drags.
+      // Keys of a nested control («Запланувати») and Enter mid keyboard-drag are not the card's (as in
+      // clickableProps); the KeyboardSensor ignores events from anything but the card itself.
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || isDragging) return listeners?.onKeyDown?.(e)
         if (e.key === 'Enter') {
           e.preventDefault()
           onOpen()

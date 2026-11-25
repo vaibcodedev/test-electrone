@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { InterviewQuestion, QuestionCategory, QuestionGroup } from '@shared/domain/jobs'
+import { api } from '@/lib/api'
+import { reportError } from '@/lib/error-reporting'
 import { useApi, useApiMutation } from '@/lib/query'
 
 export type Grade = 0 | 1 | 2 | 3
@@ -57,7 +59,6 @@ export function usePracticeSession({
     offset: 0
   })
   const review = useApiMutation('jobs', 'reviewQuestion')
-  const extra = useApiMutation('jobs', 'practiceExtra')
 
   const [mode, setMode] = useState<'due' | 'extra'>('due')
   const [seen, setSeen] = useState<string[]>([])
@@ -66,42 +67,50 @@ export function usePracticeSession({
   const [revealed, setRevealed] = useState(false)
   const [results, setResults] = useState<Record<Grade, number>>({ 0: 0, 1: 0, 2: 0, 3: 0 })
   const [uniqueTotal, setUniqueTotal] = useState(0)
+  const [loadingExtra, setLoadingExtra] = useState(false)
+  const autoStarted = useRef(false)
 
-  const startExtra = (limit: number): void => {
-    if (extra.isPending) return
+  // A read, not a mutation: as a mutation it refetched every open query (bank, queue, counters) afterwards.
+  const startExtra = async (limit: number): Promise<void> => {
+    if (loadingExtra) return
     const exclude = [...seen, ...(queue ?? []).map((q) => q.id)]
-    extra.mutate(
-      { limit, category, group, excludeIds: exclude.slice(-1000) },
-      {
-        onSuccess: (list) => {
-          if (!list.length) {
-            toast.info('Більше питань немає — додайте нові в банк')
-            setQueue((q) => q ?? [])
-            return
-          }
-          setSeen(exclude)
-          setMode('extra')
-          setQueue(list)
-          setIndex(0)
-          setRevealed(false)
-          setUniqueTotal((n) => n + list.length)
-        }
-      }
-    )
-  }
-
-  useEffect(() => {
-    if (initial && queue === null) {
-      if (!initial.length && extraFirst && mode === 'due' && !seen.length) {
-        toast.info('На сьогодні все повторено — тренуємо наперед')
-        startExtra(10)
+    setLoadingExtra(true)
+    try {
+      const list = await api.jobs.practiceExtra({ limit, category, group, excludeIds: exclude.slice(-1000) })
+      if (!list.length) {
+        toast.info('Більше питань немає — додайте нові в банк')
+        setQueue((q) => q ?? [])
         return
       }
-      setQueue(initial)
-      setUniqueTotal(initial.length)
+      setSeen(exclude)
+      setMode('extra')
+      setQueue(list)
+      setIndex(0)
+      setRevealed(false)
+      setUniqueTotal((n) => n + list.length)
+    } catch (e) {
+      reportError(e, 'jobs:practiceExtra')
+      toast.error('Не вдалося завантажити питання')
+      setQueue((q) => q ?? [])
+    } finally {
+      setLoadingExtra(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per loaded queue
-  }, [initial, queue])
+  }
+
+  // Opened with nothing due and ?extra=1: practise ahead right away — but only if the filter has questions
+  // (an empty bank shows its empty state, without a toast over it).
+  const waitsForExtra = extraFirst && !!initial && !initial.length
+  if (initial && queue === null && (!waitsForExtra || anyInFilter?.length === 0)) {
+    setQueue(initial)
+    setUniqueTotal(initial.length)
+  }
+  useEffect(() => {
+    if (!waitsForExtra || !anyInFilter?.length || autoStarted.current) return
+    autoStarted.current = true
+    toast.info('На сьогодні все повторено — тренуємо наперед')
+    void startExtra(10)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the empty due queue and the bank are known
+  }, [waitsForExtra, anyInFilter])
 
   const current = queue?.[index]
   const total = queue?.length ?? 0
@@ -138,7 +147,7 @@ export function usePracticeSession({
     mode,
     results,
     uniqueTotal,
-    startExtra,
-    loadingExtra: extra.isPending
+    startExtra: (limit) => void startExtra(limit),
+    loadingExtra
   }
 }

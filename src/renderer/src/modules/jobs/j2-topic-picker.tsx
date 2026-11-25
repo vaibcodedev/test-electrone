@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { PICKER_TRIGGER } from './j1-fields'
 
 /** Combobox: choose an existing topic or type a new one (shadcn Popover + Command). */
 export function TopicPicker({
@@ -36,7 +37,7 @@ export function TopicPicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="soft" role="combobox" aria-expanded={open} className={cn('w-full justify-between font-normal', !value && 'text-muted-foreground')}>
+        <Button variant="soft" role="combobox" aria-expanded={open} className={cn(PICKER_TRIGGER, !value && 'text-muted-foreground')}>
           <span className="truncate">{value || placeholder}</span>
           <ChevronsUpDown className="opacity-50" />
         </Button>

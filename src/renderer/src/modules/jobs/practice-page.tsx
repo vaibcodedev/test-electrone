@@ -216,6 +216,7 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
   const [params] = useSearchParams()
   const { group, category } = filter
   const s = usePracticeSession({ category, group, extraFirst: params.get('extra') === '1' })
+  const filtered = !!(group || category)
 
   const exit = (): void => void navigate('/jobs/questions')
 
@@ -232,18 +233,18 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
         <Button variant="ghost" size="sm" onClick={exit}>
           <ArrowLeft /> До питань
         </Button>
-        <SegmentBar value={s.done} total={Math.max(s.total, 1)} segments={Math.min(Math.max(s.total, 1), 12)} className="flex-1" />
-        <span className="w-16 text-right text-body text-muted-foreground tabular-nums">
-          {Math.min(s.done + (s.finished ? 0 : 1), s.total)}/{s.total}
-        </span>
+        {/* No empty bar and «0/0» over an empty state: the progress appears with the first card. */}
+        {s.total > 0 && (
+          <>
+            <SegmentBar value={s.done} total={s.total} segments={Math.min(s.total, 12)} className="flex-1" />
+            <span className="w-16 text-right text-body text-muted-foreground tabular-nums">
+              {Math.min(s.done + (s.finished ? 0 : 1), s.total)}/{s.total}
+            </span>
+          </>
+        )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <QuestionCategoryFilter
-          size="xs"
-          group={group}
-          category={category}
-          onChange={onFilter}
-        />
+        {!(s.bankEmpty && !filtered) && <QuestionCategoryFilter group={group} category={category} onChange={onFilter} />}
         {s.mode === 'extra' && <Badge variant="info">Тренування наперед — розклад не зсувається</Badge>}
       </div>
 
@@ -253,16 +254,21 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
             <CardSkeleton height={320} className="w-full max-w-3xl" />
           </Delayed>
         ) : s.queue?.length === 0 && s.bankEmpty ? (
-          <EmptyState
-            icon={MessageCircleQuestion}
-            title="Тут ще немає питань"
-            hint="Додайте питання зі співбесіди й свою відповідь — і тренуйтеся тут."
-            action={
-              <Button variant="lime" onClick={exit}>
-                Додати питання
-              </Button>
-            }
-          />
+          filtered ? (
+            <EmptyState
+              icon={MessageCircleQuestion}
+              title="У цій категорії питань немає"
+              hint="Виберіть іншу категорію або додайте питання в банк."
+              cta={{ label: 'Усі питання', onClick: () => onFilter({ group: undefined, category: undefined }) }}
+            />
+          ) : (
+            <EmptyState
+              icon={MessageCircleQuestion}
+              title="Тут ще немає питань"
+              hint="Додайте питання зі співбесіди й свою відповідь у банк — і тренуйтеся тут."
+              cta={{ label: 'До банку питань', icon: ArrowLeft, onClick: exit }}
+            />
+          )
         ) : s.queue?.length === 0 ? (
           <PracticeAllDone busy={s.loadingExtra} onExtra={s.startExtra} onExit={exit} />
         ) : s.finished ? (

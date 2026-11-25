@@ -11,14 +11,27 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MAX } from '@shared/domain/limits'
 
-/** View mode value of a linked record: a link-title (docs/design-system.md → Кнопки) that opens it. */
+/**
+ * View mode value of a linked record: a link-title (docs/design-system.md → Кнопки) that opens it. As wide as
+ * its text (no focus ring across the whole row); a long name ends with «…» inside its own span — truncate on
+ * the inline-flex button cut it mid-word.
+ */
 function RecordLink({ label, onClick }: { label: string; onClick: () => void }): ReactElement {
   return (
-    <Button variant="link" className="justify-start truncate text-body no-underline hover:underline" onClick={onClick}>
-      {label}
+    <Button
+      variant="link"
+      className="max-w-full min-w-0 self-start justify-start text-body no-underline hover:underline"
+      title={label}
+      onClick={onClick}
+    >
+      <span className="truncate">{label}</span>
     </Button>
   )
 }
+
+/** Picker trigger that looks like an input (the same border and tint as `Input`), not like a button. */
+export const PICKER_TRIGGER =
+  'w-full justify-between rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/40 hover:bg-foreground/[0.04]'
 
 export interface CompanyValue {
   companyId: string | null
@@ -65,17 +78,23 @@ export function CompanyCombobox({
   if (readOnly) {
     // The root is the Field's direct child, so an empty value hides the whole field.
     if (!label) return <div data-empty />
-    if (!value.companyId) return <span className="truncate text-body">{label}</span>
+    if (!value.companyId)
+      return (
+        <span className="block truncate text-body" title={label}>
+          {label}
+        </span>
+      )
     return <RecordLink label={label} onClick={() => navigate(`/jobs/companies?open=${value.companyId}`)} />
   }
 
   return (
     <div className="flex gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
+        {/* Stays a button role (no role="combobox"): e2e flows2-jobs finds it as the «Компанія» button. */}
         <PopoverTrigger asChild>
-          <Button variant="soft" className={cn('min-w-0 flex-1 justify-between rounded-xl font-normal', !label && 'text-muted-foreground')}>
+          <Button variant="soft" aria-expanded={open} className={cn(PICKER_TRIGGER, 'min-w-0 flex-1', !label && 'text-muted-foreground')}>
             <span className="flex min-w-0 items-center gap-2">
-              <Building2 className="shrink-0 opacity-60" />
+              <Building2 className="shrink-0 text-muted-foreground" />
               <span className="truncate">{label || 'Компанія'}</span>
             </span>
             <ChevronsUpDown className="opacity-50" />
@@ -148,9 +167,11 @@ export function ApplicationCombobox({ value, onChange }: { value: string | null;
   const [query, setQuery] = useState('')
   const debounced = useDebounced(query.trim())
   const { data: list = [] } = useApi('jobs', 'list', { search: debounced || undefined, limit: 30, offset: 0 }, { enabled: open })
-  const { data: selected } = useApi('jobs', 'get', value ?? '', { enabled: !!value })
+  const { data: selected, isLoading } = useApi('jobs', 'get', value ?? '', { enabled: !!value })
   const labelOf = (a: { title: string; company: string }): string => (a.company ? `${a.title} — ${a.company}` : a.title)
   const label = selected && selected.id === value ? labelOf(selected) : ''
+  // The link points at a vacancy that is gone (trash or deleted): say so instead of looking unset.
+  const gone = !!value && !isLoading && !label
 
   const pick = (id: string | null): void => {
     onChange(id)
@@ -159,17 +180,25 @@ export function ApplicationCombobox({ value, onChange }: { value: string | null;
   }
 
   if (readOnly) {
-    if (!value || !label) return <div data-empty />
+    if (!value) return <div data-empty />
+    // Still loading: a line of the same height, so the field doesn't pop in and push the form down.
+    if (isLoading) return <span className="text-body text-muted-foreground">…</span>
+    if (gone) return <span className="text-body text-muted-foreground">Вакансію видалено</span>
     return <RecordLink label={label} onClick={() => navigate(`/jobs/applications?open=${value}`)} />
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="soft" className={cn('w-full min-w-0 justify-between rounded-xl font-normal', !label && 'text-muted-foreground')}>
+        <Button
+          variant="soft"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(PICKER_TRIGGER, 'min-w-0', !label && 'text-muted-foreground')}
+        >
           <span className="flex min-w-0 items-center gap-2">
-            <Briefcase className="shrink-0 opacity-60" />
-            <span className="truncate">{label || 'Вакансія'}</span>
+            <Briefcase className="shrink-0 text-muted-foreground" />
+            <span className="truncate">{label || (gone ? 'Вакансію видалено' : 'Вакансія')}</span>
           </span>
           <ChevronsUpDown className="opacity-50" />
         </Button>

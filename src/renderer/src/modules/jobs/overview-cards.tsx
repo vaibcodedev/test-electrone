@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { openUrl } from '@/lib/open-url'
 import { format } from 'date-fns'
@@ -17,7 +17,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DailyHeatmap } from './daily-heatmap'
-import { STAGE_KIND_LABEL } from './labels'
+import { STAGE_KIND_LABEL, stageRowText } from './labels'
 import { BoardDot } from './board-label'
 import { StageDate } from './stage-row'
 
@@ -41,8 +41,15 @@ function TodayRow({ board }: { board: DailyBoard }): ReactElement {
     <Item variant="muted" size="sm" className={cn(t.done && 'bg-chart-1/12')}>
       {auto ? (
         <Tooltip>
+          {/* A disabled checkbox gets no focus: the span takes it, so the reason is reachable from the keyboard. */}
           <TooltipTrigger asChild>
-            <span>{checkbox}</span>
+            <span
+              tabIndex={0}
+              aria-label={`Зараховано автоматично: ${t.applied} з ${target}`}
+              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {checkbox}
+            </span>
           </TooltipTrigger>
           <TooltipContent>
             Зараховано автоматично: {t.applied} з {target} {plural(target, ['відгуку', 'відгуків', 'відгуків'])}
@@ -174,21 +181,16 @@ export function UpcomingCard({ upcoming }: { upcoming: JobsOverview['upcoming'] 
         ) : (
           <ItemGroup className="gap-1.5">
             {upcoming.map((s) => {
-              const kind = STAGE_KIND_LABEL[s.kind]
-              const stage = s.title && s.title !== kind ? s.title : null
+              const text = stageRowText(s)
               return (
                 <Item key={s.id} asChild size="sm" className="cursor-pointer gap-3 bg-card p-2.5 pr-4 hover:ring-1 hover:ring-border">
                   <button type="button" className="w-full text-left" onClick={() => navigate(ENTITY_META.application.route(s.applicationId))}>
                     <StageDate when={s.at ?? s.deadlineAt} withTime={!!s.at} />
                     <ItemContent className="min-w-0 gap-1">
-                      <ItemTitle className="w-full truncate">{s.company || s.applicationTitle}</ItemTitle>
-                      <ItemDescription className="truncate text-caption">
-                        {s.company ? s.applicationTitle : ''}
-                        {stage ? `${s.company ? ' · ' : ''}${stage}` : ''}
-                        {s.kind === 'test_task' && s.deadlineAt ? ' · здати до терміну' : ''}
-                      </ItemDescription>
+                      <ItemTitle className="w-full truncate">{text.title}</ItemTitle>
+                      {text.description && <ItemDescription className="truncate text-caption">{text.description}</ItemDescription>}
                     </ItemContent>
-                    <Badge variant={s.kind === 'test_task' ? 'warn' : 'info'}>{kind}</Badge>
+                    <Badge variant={s.kind === 'test_task' ? 'warn' : 'info'}>{STAGE_KIND_LABEL[s.kind]}</Badge>
                   </button>
                 </Item>
               )
@@ -202,6 +204,7 @@ export function UpcomingCard({ upcoming }: { upcoming: JobsOverview['upcoming'] 
 
 export function FollowUpsCard({ followUps }: { followUps: JobsOverview['followUps'] }): ReactElement {
   const navigate = useNavigate()
+  const [now] = useState(() => Date.now())
   return (
     <Card className="col-span-6">
       <CardHeader>
@@ -228,7 +231,8 @@ export function FollowUpsCard({ followUps }: { followUps: JobsOverview['followUp
                       {a.appliedAt ? ` · надіслано ${fmtDay(a.appliedAt)}` : ''}
                     </ItemDescription>
                   </ItemContent>
-                  {a.followUpAt && <Badge variant="success">{fmtDay(a.followUpAt)}</Badge>}
+                  {/* Due means «act now» (warn), not success; a future reminder stays neutral. */}
+                  {a.followUpAt && <Badge variant={a.followUpAt <= now ? 'warn' : 'soft'}>{fmtDay(a.followUpAt)}</Badge>}
                 </button>
               </Item>
             ))}

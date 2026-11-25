@@ -140,37 +140,56 @@ function StageEditor({ stage }: { stage: Stage }) {
   )
 }
 
+/** The row's second line: everything about «when» that view mode doesn't show elsewhere. */
+function stageWhen(stage: Stage): string {
+  if (stage.kind === 'test_task')
+    return [stage.at ? `отримано ${whenLabel(stage.at)}` : '', stage.deadlineAt ? `здати ${whenLabel(stage.deadlineAt)}` : 'без терміну']
+      .filter(Boolean)
+      .join(' · ')
+  return stage.at ? `${whenLabel(stage.at)} · ${stage.durationMin} хв` : whenLabel(null)
+}
+
+/**
+ * One stage: header (name, when, outcome badge) that expands into its fields. The outcome is the badge only —
+ * no coloured dot, no faded card for a cancelled one. While reading, a stage without a link, interviewers or
+ * notes has nothing to expand, so its header is plain text.
+ */
 function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }) {
+  const readOnly = useReadOnly()
   const [open, setOpen] = useState(defaultOpen)
-  const when = stage.kind === 'test_task' ? stage.deadlineAt : stage.at
+  const expandable = !readOnly || !!(stage.location.trim() || stage.interviewers.trim() || stage.notes.trim())
+  const head = (
+    <>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-body font-medium">{stage.title || STAGE_KIND_LABEL[stage.kind]}</span>
+        <span className="truncate text-caption text-muted-foreground">{stageWhen(stage)}</span>
+      </span>
+      <Badge variant={STAGE_STATUS_VARIANT[stage.status]}>{STAGE_STATUS_LABEL[stage.status]}</Badge>
+    </>
+  )
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className={cn('gap-0 rounded-2xl px-4 py-3', stage.status === 'cancelled' && 'opacity-60')}>
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="-mx-2 h-auto justify-start gap-3 rounded-xl px-2 py-1 text-left font-normal hover:bg-transparent">
-            <span
-              className={cn(
-                'size-2.5 shrink-0 rounded-full',
-                stage.status === 'planned' ? 'bg-info' : stage.status === 'passed' ? 'bg-success' : stage.status === 'failed' ? 'bg-destructive' : 'bg-muted-foreground'
-              )}
-            />
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-body font-medium">{stage.title || STAGE_KIND_LABEL[stage.kind]}</span>
-              <span className="text-caption text-muted-foreground">
-                {stage.kind === 'test_task' ? (stage.deadlineAt ? `здати ${whenLabel(stage.deadlineAt)}` : 'без терміну') : whenLabel(when)}
-              </span>
-            </span>
-            <Badge variant={STAGE_STATUS_VARIANT[stage.status]}>{STAGE_STATUS_LABEL[stage.status]}</Badge>
-            <ChevronDown className={cn('transition-transform', open && 'rotate-180')} />
-          </Button>
-        </CollapsibleTrigger>
-        <div className="flex flex-wrap gap-1 pl-5">
+    <Collapsible open={expandable && open} onOpenChange={setOpen}>
+      <Card className="gap-0 rounded-2xl px-4 py-3">
+        {expandable ? (
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="-mx-2 h-auto justify-start gap-3 rounded-xl px-2 py-1 text-left font-normal hover:bg-transparent">
+              {head}
+              <ChevronDown className={cn('transition-transform', open && 'rotate-180')} />
+            </Button>
+          </CollapsibleTrigger>
+        ) : (
+          <div className="flex items-center gap-3 py-1">{head}</div>
+        )}
+        {/* -ml-2.5 = the ghost button's padding: the calendar icon lines up with the stage name. */}
+        <div className="-ml-2.5 flex flex-wrap gap-1">
           <CalendarBadge eventId={stage.eventId} label="у календарі" />
           <CalendarBadge eventId={stage.deadlineEventId} label="дедлайн у календарі" />
         </div>
-        <CollapsibleContent>
-          <StageEditor stage={stage} />
-        </CollapsibleContent>
+        {expandable && (
+          <CollapsibleContent>
+            <StageEditor stage={stage} />
+          </CollapsibleContent>
+        )}
       </Card>
     </Collapsible>
   )
@@ -193,7 +212,7 @@ export function StageSection({ applicationId, stages }: { applicationId: string;
         Етапи
       </SectionLabel>
       {stages.length === 0 ? (
-        <p className="text-caption text-muted-foreground">
+        <p className="text-body leading-relaxed text-muted-foreground">
           {readOnly
             ? 'Етапів ще немає — додайте перший у режимі правки (E).'
             : 'Скринінг, технічна, тестове — додайте етап, і він одразу з’явиться в календарі.'}

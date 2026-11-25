@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ChartColumn } from 'lucide-react'
+import { ArrowRight, ChartColumn } from 'lucide-react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { JobFunnelRow } from '@shared/domain/jobs'
@@ -8,7 +8,6 @@ import { useApi } from '@/lib/query'
 import { fmtReplyTime, LOCALE } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
@@ -22,10 +21,10 @@ const RANGES = [
 ] as const
 type Range = (typeof RANGES)[number]['value']
 
-/** Two series → the validated pair already used in freelance stats (passes contrast & CVD in both themes). */
+/** Two series → the chart-1 / chart-2 pair, as in freelance stats (validated by dataviz in both themes). */
 const weeklyConfig = {
-  applied: { label: 'Відгуки', theme: { light: '#6b8c00', dark: '#d8f74a' } },
-  replied: { label: 'Відповіли', theme: { light: '#5b6be0', dark: '#8b98ff' } }
+  applied: { label: 'Відгуки', color: 'var(--chart-1)' },
+  replied: { label: 'Відповіли', color: 'var(--chart-2)' }
 } satisfies ChartConfig
 
 const COLUMNS: FunnelColumn<JobFunnelRow>[] = [
@@ -43,7 +42,7 @@ export function JobStatsPage() {
   // `from` is a local midnight — the query key stays stable within a day.
   const from = startOfDay(subDays(new Date(), Number(range))).getTime()
   const { data } = useApi('jobs', 'stats', { from })
-  const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }) }))
+  const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }).replace('.', '') }))
 
   return (
     <Page>
@@ -66,11 +65,7 @@ export function JobStatsPage() {
             icon={ChartColumn}
             title="За період відгуків немає"
             hint="Додавайте вакансії зі статусом «Надіслано» — тут з’явиться воронка."
-            action={
-              <Button variant="subtle" onClick={() => navigate('/jobs/applications')}>
-                До вакансій
-              </Button>
-            }
+            cta={{ label: 'До вакансій', icon: ArrowRight, onClick: () => navigate('/jobs/applications') }}
           />
         ) : (
           <div className="grid grid-cols-2 gap-3">

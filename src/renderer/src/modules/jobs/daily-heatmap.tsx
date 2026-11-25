@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import type { BoardDay, DailyBoard } from '@shared/domain/jobs'
-import { fmtPercent, LOCALE } from '@/lib/format'
+import { LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { BoardDot } from './board-label'
@@ -59,8 +59,9 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
     <div className="flex flex-1 flex-col gap-5">
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Відгуків" value={String(applied)} />
-        <Stat label="Норма виконана" value={expected ? fmtPercent((done / expected) * 100) : 'ще немає днів'} phrase={!expected} />
-        <Stat label="Найдовша серія" value={daysWord(best)} />
+        <Stat label="Днів із нормою" value={expected ? `${done} з ${expected}` : 'ще немає днів'} phrase={!expected} />
+        {/* The longest of the streaks running now (b.streak counts back from today), not an all-time record. */}
+        <Stat label="Найкраща серія зараз" value={daysWord(best)} />
       </div>
 
       <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden">
@@ -68,7 +69,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
           <span />
           {weeks.map((w) => (
             <span key={w[0].day} className="text-meta text-muted-foreground tabular-nums">
-              {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE })}
+              {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE }).replace('.', '')}
             </span>
           ))}
           <span className="text-right text-meta text-muted-foreground">серія</span>
@@ -81,7 +82,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
               {/* One Tab stop per board (not per cell): the row name carries the summary; cells keep hover tooltips. */}
               <span
                 tabIndex={0}
-                aria-label={`${b.name}: норму виконано ${boardDone} з ${boardExpected} днів, серія ${daysWord(b.streak)}`}
+                aria-label={`${b.name}: норму виконано ${boardDone} з ${daysWord(boardExpected)}, серія ${daysWord(b.streak)}`}
                 className="flex min-w-0 items-center gap-2 rounded-md text-body font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <BoardDot color={b.color} />

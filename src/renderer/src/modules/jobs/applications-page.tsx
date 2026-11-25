@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { EmptyState, Field, FilterChips, Page, PageHeader, SearchInput, Segmented } from '@/components/common/page'
+import { EmptyState, Field, FilterBar, FilterChips, Page, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { TagFilter } from '@/components/common/tags'
 import { Choice } from '../crm/parts'
@@ -109,7 +109,8 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }) {
   const [now] = useState(() => Date.now())
   if (!list.length) return null
   return (
-    <Card className="gap-3 bg-warn/10 py-4">
+    // A surface card: the status colour stays in the icon (docs/design-system.md → Цвета), no orange fill.
+    <Card className="gap-3 py-4">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-foreground">
           <BellRing className="size-4 text-warn" /> Нагадати про себе
@@ -156,15 +157,16 @@ export function ApplicationsPage() {
   // Kanban needs every card of the filter; the list view pages through the server. Both filter on the server.
   const kanban = useApi('jobs', 'list', base, { enabled: view === 'kanban' })
   const paged = useInfiniteApi('jobs', 'list', base)
-  const { data: stats } = useApi('jobs', 'stats', {})
+  // The whole history: the default 90 days made old boards vanish from the filter.
+  const { data: stats } = useApi('jobs', 'stats', { from: 0 })
 
-  // Board chips: active boards plus switched-off ones that still have applications; counts from the stats.
+  // Board chips: only boards with applications (sent ones — «Збережено» doesn't count) plus the chosen one.
   const boardChips = useMemo(() => {
     const applied = new Map((stats?.byBoard ?? []).map((r) => [r.key, r.applied]))
     return boards
-      .filter((b) => b.active || (applied.get(b.id) ?? 0) > 0)
+      .filter((b) => (applied.get(b.id) ?? 0) > 0 || b.id === boardId)
       .map((b) => ({ value: b.id, label: b.name, count: applied.get(b.id) ?? 0 }))
-  }, [boards, stats])
+  }, [boards, stats, boardId])
 
   const list = kanban.data ?? []
   const isLoading = view === 'kanban' ? kanban.isLoading : paged.isLoading
@@ -194,31 +196,47 @@ export function ApplicationsPage() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" className="w-64" />
-          {companies.length > 0 && (
-            <Choice
-              size="sm"
-              value={companyId}
-              onChange={setCompanyId}
-              none="Усі компанії"
-              options={companies.map((c) => ({ value: c.id, label: c.name }))}
-              className="w-44 rounded-full"
-            />
-          )}
-          {resumes.length > 0 && (
-            <Choice
-              size="sm"
-              value={resumeId}
-              onChange={setResumeId}
-              none="Будь-яке резюме"
-              options={resumes.map((r) => ({ value: r.id, label: r.title }))}
-              className="w-44 rounded-full"
-            />
-          )}
-          <TagFilter value={tagId} onChange={setTagId} />
-        </div>
-        {boardChips.length > 0 && <FilterChips options={boardChips} value={boardId} onChange={setBoardId} allLabel="Усі майданчики" />}
+        <FilterBar
+          chips={
+            // No «Djinni 0 · DOU 0» row above an empty base.
+            boardChips.length > 0 &&
+            (total > 0 || filtered) && (
+              <FilterChips options={boardChips} value={boardId} onChange={setBoardId} allLabel="Усі майданчики" label="Майданчик" />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" className="w-72" />
+            </>
+          }
+          secondary={
+            (companies.length > 0 || resumes.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {companies.length > 0 && (
+                  <Choice
+                    size="sm"
+                    value={companyId}
+                    onChange={setCompanyId}
+                    none="Усі компанії"
+                    options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                    className="w-44"
+                  />
+                )}
+                {resumes.length > 0 && (
+                  <Choice
+                    size="sm"
+                    value={resumeId}
+                    onChange={setResumeId}
+                    none="Будь-яке резюме"
+                    options={resumes.map((r) => ({ value: r.id, label: r.title }))}
+                    className="w-44"
+                  />
+                )}
+              </div>
+            )
+          }
+        />
       </PageHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-6">

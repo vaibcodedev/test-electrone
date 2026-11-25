@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
 import { format, isToday, isTomorrow } from 'date-fns'
@@ -13,12 +13,29 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { IconAction } from '@/components/common/icon-action'
-import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT } from './labels'
+import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, stageRowText } from './labels'
 import { askToSchedule, needsSchedule, ScheduleStageHost } from './schedule-stage'
 import { StageDate } from './stage-row'
+import { Delayed, RowSkeleton } from '@/components/common/page-skeleton'
 
 /** History is a range: 30 at a time, «Показати раніші» adds the next 30 (docs/design-system.md → Формы). */
 const PAST_STEP = 30
+/** Upcoming stages and undated vacancies load this many; a cut list says so instead of looking complete. */
+const LIMIT = 100
+
+function CutNote({ where, label, onClick }: { where: string; label: string; onClick: () => void }): ReactElement {
+  return (
+    <div className="flex items-center gap-3">
+      <p className="text-caption text-muted-foreground">
+        Показано перші {LIMIT} — решта {where}.
+      </p>
+      {/* soft: the page background is card, where subtle doesn't read as a button. */}
+      <Button variant="soft" size="xs" onClick={onClick}>
+        {label} <ArrowRight />
+      </Button>
+    </div>
+  )
+}
 
 const when = (s: StageWithApplication): number | null => (s.kind === 'test_task' ? (s.deadlineAt ?? s.at) : s.at)
 
@@ -43,18 +60,15 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
   const t = when(stage)
   const eventId = stage.kind === 'test_task' ? (stage.deadlineEventId ?? stage.eventId) : stage.eventId
   const isLink = /^https?:\/\//i.test(stage.location)
+  const text = stageRowText(stage)
+  // Upcoming: the type is the badge. Past: the badge is the outcome, so the type leads the second line.
+  const description = past ? [STAGE_KIND_LABEL[stage.kind], text.description].filter(Boolean).join(' · ') : text.description
   return (
-    <Item variant="muted" size="sm" className={cn('gap-3', past && stage.status === 'cancelled' && 'opacity-60')}>
+    <Item variant="muted" size="sm" className="gap-3">
       <StageDate when={t} className="bg-card" />
       <ItemContent className="min-w-0">
-        <ItemTitle className="w-full truncate">
-          {stage.kind === 'test_task' ? 'Здати тестове' : stage.title || STAGE_KIND_LABEL[stage.kind]}
-          <span className="font-normal text-muted-foreground"> — {stage.company || stage.applicationTitle}</span>
-        </ItemTitle>
-        <ItemDescription className="truncate text-caption">
-          {stage.applicationTitle}
-          {stage.interviewers ? ` · ${stage.interviewers}` : ''}
-        </ItemDescription>
+        <ItemTitle className="w-full truncate">{text.title}</ItemTitle>
+        {description && <ItemDescription className="truncate text-caption">{description}</ItemDescription>}
       </ItemContent>
       <ItemActions className="gap-1">
         {past ? (
@@ -85,11 +99,11 @@ export function InterviewsPage() {
   const navigate = useNavigate()
   const [now] = useState(() => Date.now())
   const [pastLimit, setPastLimit] = useState(PAST_STEP)
-  const upcomingQ = useApi('jobs', 'upcoming', 100)
+  const upcomingQ = useApi('jobs', 'upcoming', LIMIT)
   const pastQ = useApi('jobs', 'pastStages', pastLimit, KEEP_PERIOD)
   // Vacancies already in «Співбесіда» / «Тестове» with nothing in the calendar — the page must show them too.
-  const interviewQ = useApi('jobs', 'list', { status: 'interview', limit: 100, offset: 0 })
-  const testQ = useApi('jobs', 'list', { status: 'test', limit: 100, offset: 0 })
+  const interviewQ = useApi('jobs', 'list', { status: 'interview', limit: LIMIT, offset: 0 })
+  const testQ = useApi('jobs', 'list', { status: 'test', limit: LIMIT, offset: 0 })
   const upcoming = upcomingQ.data ?? []
   const past = pastQ.data ?? []
   const inInterview = interviewQ.data ?? []
@@ -114,16 +128,20 @@ export function InterviewsPage() {
         }
       />
       <PageBody className="flex flex-col gap-6">
-        {loading ? null : upcoming.length === 0 && past.length === 0 && undated.length === 0 ? (
+        {loading ? (
+          <Delayed delay={150}>
+            <div className="flex flex-col gap-2">
+              {[0, 1, 2, 3].map((i) => (
+                <RowSkeleton key={i} height={72} />
+              ))}
+            </div>
+          </Delayed>
+        ) : upcoming.length === 0 && past.length === 0 && undated.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             title="Співбесід поки немає"
             hint="Відкрийте вакансію й додайте етап — скринінг, технічну співбесіду чи тестове."
-            action={
-              <Button variant="lime" onClick={() => navigate('/jobs/applications')}>
-                До вакансій
-              </Button>
-            }
+            cta={{ label: 'До вакансій', icon: ArrowRight, onClick: () => navigate('/jobs/applications') }}
           />
         ) : (
           <>
@@ -139,12 +157,11 @@ export function InterviewsPage() {
                   {undated.map((a) => (
                     <Item key={a.id} variant="muted" size="sm" className="gap-3">
                       <ItemContent className="min-w-0">
-                        <ItemTitle className="w-full truncate">
-                          {a.title}
-                          {a.company && <span className="font-normal text-muted-foreground"> · {a.company}</span>}
-                        </ItemTitle>
-                        <ItemDescription className="text-caption">
-                          {a.status === 'test' ? 'Тестове без терміну здачі' : 'Співбесіда без дати'}
+                        <ItemTitle className="w-full truncate">{a.company || a.title}</ItemTitle>
+                        <ItemDescription className="truncate text-caption">
+                          {[a.company ? a.title : '', a.status === 'test' ? 'Тестове без терміну здачі' : 'Співбесіда без дати']
+                            .filter(Boolean)
+                            .join(' · ')}
                         </ItemDescription>
                       </ItemContent>
                       <ItemActions className="gap-1.5">
@@ -152,12 +169,15 @@ export function InterviewsPage() {
                           <CalendarPlus /> Запланувати
                         </Button>
                         <Button variant="subtle" size="sm" onClick={() => navigate(`/jobs/applications?open=${a.id}`)}>
-                          Відкрити <ArrowRight />
+                          Вакансія <ArrowRight />
                         </Button>
                       </ItemActions>
                     </Item>
                   ))}
                 </ItemGroup>
+                {(inInterview.length === LIMIT || inTest.length === LIMIT) && (
+                  <CutNote where="у вакансіях" label="Вакансії" onClick={() => navigate('/jobs/applications')} />
+                )}
               </section>
             )}
             {groups.length === 0 ? (
@@ -179,13 +199,15 @@ export function InterviewsPage() {
                 </section>
               ))
             )}
+            {upcoming.length === LIMIT && <CutNote where="в календарі" label="Календар" onClick={() => navigate('/calendar')} />}
 
             {past.length > 0 && (
               <section className="flex flex-col gap-2 pt-2">
                 <h2 className="text-body font-medium text-muted-foreground">
                   {/* A cut list doesn't show its size: «Минулі · 30» would read as «all of them». */}
                   Минулі{pastCut ? '' : ` · ${past.length}`}
-                  {(passed > 0 || failed > 0) && ` — пройдено ${passed}, не пройдено ${failed}`}
+                  {/* Counted over the loaded part only, so a cut history doesn't pretend it is the total. */}
+                  {!pastCut && (passed > 0 || failed > 0) && ` — пройдено ${passed}, не пройдено ${failed}`}
                 </h2>
                 <ItemGroup className="gap-2">
                   {past.map((s) => (
@@ -193,7 +215,7 @@ export function InterviewsPage() {
                   ))}
                 </ItemGroup>
                 {pastCut && (
-                  <Button variant="subtle" size="sm" className="self-start" onClick={() => setPastLimit((n) => n + PAST_STEP)}>
+                  <Button variant="soft" size="sm" className="self-start" onClick={() => setPastLimit((n) => n + PAST_STEP)}>
                     Показати раніші
                   </Button>
                 )}

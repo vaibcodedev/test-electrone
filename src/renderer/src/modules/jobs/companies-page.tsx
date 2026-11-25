@@ -9,15 +9,14 @@ import { countLabel, plural } from '@/lib/format'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { useAutosave } from '@/hooks/use-autosave'
-import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
-import { EmptyState, Field, Page, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, Field, NoResults, Page, PageHeader, SearchInput } from '@/components/common/page'
 import {
   DetailPane,
   EntityAside,
@@ -29,59 +28,24 @@ import {
 } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { LinkInput, TextField } from '@/components/common/text-field'
-import { useReadOnly } from '@/components/common/detail-mode-context'
+import { StarRating } from '@/components/common/star-rating'
 import { APP_STATUS_LABEL, appStatusVariant, salaryLabel } from './labels'
 import { AskedQuestions } from './application-questions'
 
 const LIMITS = limitsOf(companyInputSchema)
 
-function Stars({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  // View mode: the CSS that keeps only the chosen toggle item would leave a single star, so draw all five.
-  const readOnly = useReadOnly()
-  if (readOnly) {
-    if (!value) return <span data-empty />
-    return (
-      <div role="img" aria-label={`Оцінка ${value} з 5`} className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <Star key={n} className={cn('size-4', n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')} />
-        ))}
-      </div>
-    )
-  }
-  return (
-    <ToggleGroup
-      type="single"
-      size="sm"
-      value={value ? String(value) : ''}
-      onValueChange={(v) => onChange(v ? Number(v) : 0)}
-      aria-label="Моя оцінка"
-      className="gap-0.5"
-    >
-      {[1, 2, 3, 4, 5].map((n) => (
-        <ToggleGroupItem
-          key={n}
-          value={String(n)}
-          aria-label={`${n} з 5`}
-          className="size-8 min-w-8 px-0 on:bg-transparent"
-        >
-          <Star className={cn('size-4', n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')} />
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  )
-}
-
 function CompanyApplications({ companyId }: { companyId: string }) {
   const navigate = useNavigate()
-  const { data: list = [] } = useApi('jobs', 'list', { companyId })
+  // A long history pages from the server, 30 at a time (docs/design-system.md → Длинные колонки и история).
+  const list = useInfiniteApi('jobs', 'list', { companyId }, 30)
   return (
     <section className="flex flex-col gap-3">
       <SectionLabel>Вакансії в компанії</SectionLabel>
-      {list.length === 0 ? (
-        <p className="text-caption text-muted-foreground">Відгуків у цю компанію поки не було.</p>
+      {list.isLoading ? null : list.items.length === 0 ? (
+        <p className="text-body leading-relaxed text-muted-foreground">Відгуків у цю компанію поки не було.</p>
       ) : (
         <ItemGroup className="gap-1.5">
-          {list.map((a) => {
+          {list.items.map((a) => {
             const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
             return (
               <Item key={a.id} asChild size="xs" variant="muted" className="cursor-pointer">
@@ -100,6 +64,11 @@ function CompanyApplications({ companyId }: { companyId: string }) {
             )
           })}
         </ItemGroup>
+      )}
+      {list.hasMore && (
+        <Button variant="soft" size="xs" className="self-start" disabled={list.loadingMore} onClick={list.loadMore}>
+          Показати ще
+        </Button>
       )}
     </section>
   )
@@ -143,18 +112,18 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           updatedAt={c.updatedAt}
         >
           <Field label="Моє враження">
-            <Stars value={c.rating} onChange={(rating) => patch({ rating })} />
+            <StarRating value={c.rating} onChange={(rating) => patch({ rating })} label="Моє враження" />
           </Field>
         </EntityAside>
       }
     >
       <InlineTitle value={name} onChange={setName} placeholder="Назва компанії" maxLength={LIMITS.name} />
-      <div className="mt-5 grid grid-cols-2 gap-4">
+      <div className="mt-5 grid grid-cols-2 items-start gap-4">
         <Field label="Сайт">
           <LinkInput value={c.website} onSave={(website) => patch({ website })} />
         </Field>
-        <Field label="Думки працівників (DOU, Glassdoor)">
-          <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="https://jobs.dou.ua/companies/…" />
+        <Field label="Думки працівників">
+          <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="https://jobs.dou.ua/companies/… або Glassdoor" />
         </Field>
         <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="Напр.: React, Node.js, AWS" className="col-span-2" maxLength={LIMITS.stack} />
         <TextField label="Розмір" value={c.size} onSave={(size) => patch({ size })} placeholder="Напр.: 50–200 людей" maxLength={LIMITS.size} />
@@ -169,7 +138,15 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           maxLength={LIMITS.contacts}
         />
       </Field>
-      <MarkdownField label="Нотатки: процес, враження, що питають" value={notes} onChange={setNotes} className="mt-4" minHeight="120px" maxLength={LIMITS.notes} />
+      <MarkdownField
+        label="Нотатки"
+        value={notes}
+        onChange={setNotes}
+        placeholder="Процес найму, враження, що питають…"
+        className="mt-4"
+        minHeight="120px"
+        maxLength={LIMITS.notes}
+      />
 
       <Separator className="my-6" />
       <CompanyApplications companyId={c.id} />
@@ -224,9 +201,22 @@ export function CompaniesPage() {
             aria-label="Назва нової компанії"
           />
           <InputGroupAddon align="inline-end">
-            <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Додати компанію" disabled={!name.trim() || create.isPending} onClick={submit}>
-              <Plus />
-            </InputGroupButton>
+            {/* ghost: the lime «+ Компанія» in the header is the screen's one accent. */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <InputGroupButton
+                  size="icon-xs"
+                  variant="ghost"
+                  className="rounded-full"
+                  aria-label="Додати компанію"
+                  disabled={!name.trim() || create.isPending}
+                  onClick={submit}
+                >
+                  <Plus />
+                </InputGroupButton>
+              </TooltipTrigger>
+              <TooltipContent>Додати компанію · Enter</TooltipContent>
+            </Tooltip>
           </InputGroupAddon>
         </InputGroup>
         {existing && name.trim() && (
@@ -257,19 +247,17 @@ export function CompaniesPage() {
         onLoadMore={list.loadMore}
         empty={
           !list.isLoading && (
-            <EmptyState
-              icon={Building2}
-              title={search ? 'Нічого не знайдено' : 'Компаній поки немає'}
-              hint={search ? undefined : 'Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці.'}
-              action={
-                search ? undefined : (
-                  <Button variant="subtle" onClick={focusNew}>
-                    Додати компанію
-                  </Button>
-                )
-              }
-              className="py-8"
-            />
+            search.trim() ? (
+              <NoResults icon={Building2} hint={`За запитом «${search.trim()}» компаній немає.`} onReset={() => setSearch('')} className="py-8" />
+            ) : (
+              <EmptyState
+                icon={Building2}
+                title="Компаній поки немає"
+                hint="Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці."
+                cta={{ label: 'Додати компанію', icon: Plus, onClick: focusNew }}
+                className="py-8"
+              />
+            )
           )
         }
         renderItem={(c) => {

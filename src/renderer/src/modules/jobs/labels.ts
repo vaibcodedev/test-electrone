@@ -5,6 +5,7 @@ import {
   type QuestionCategory,
   type StageKind,
   type StageStatus,
+  type StageWithApplication,
   type WorkFormat
 } from '@shared/domain/jobs'
 import { COMPACT_FROM, fmtDay, fmtMoney, fmtMoneyCompact, LOCALE, plural } from '@/lib/format'
@@ -139,4 +140,22 @@ export function salaryLabel(min: number | null, max: number | null, currency: st
   if (min !== null && max === null) return `від ${one(min)}`
   if (min === null && max !== null) return `до ${one(max)}`
   return one(min!)
+}
+
+/**
+ * Title and second line of a stage row (interviews page, overview): the type is the badge, so the title is
+ * the company (or the vacancy) — never «Технічна — Grammarly» next to a «Технічна» badge.
+ */
+export function stageRowText(s: StageWithApplication): { title: string; description: string } {
+  return {
+    title: s.company || s.applicationTitle,
+    description: [
+      s.company ? s.applicationTitle : '',
+      s.title && s.title !== STAGE_KIND_LABEL[s.kind] ? s.title : '',
+      s.interviewers,
+      s.kind === 'test_task' && s.deadlineAt ? 'здати до терміну' : ''
+    ]
+      .filter(Boolean)
+      .join(' · ')
+  }
 }

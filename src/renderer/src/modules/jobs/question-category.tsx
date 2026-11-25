@@ -33,21 +33,18 @@ export function QuestionCategoryFilter({
   group,
   category,
   onChange,
-  counts,
-  size = 'sm'
+  counts
 }: {
   group: QuestionGroup | undefined
   category: QuestionCategory | undefined
   onChange: (next: { group: QuestionGroup | undefined; category: QuestionCategory | undefined }) => void
-  /** Optional counters per stored category. */
+  /** Optional counters per stored category: a group or kind with none is hidden unless it is selected. */
   counts?: Partial<Record<QuestionCategory, number>>
-  size?: 'sm' | 'xs'
 }) {
   const nonTechCount = counts ? NON_TECH_CATEGORIES.reduce((n, c) => n + (counts[c] ?? 0), 0) : undefined
   return (
     <div className="flex flex-wrap items-center gap-2">
       <FilterChips
-        size={size}
         allLabel="Усі"
         value={group}
         onChange={(g) => onChange({ group: g, category: undefined })}
@@ -57,8 +54,9 @@ export function QuestionCategoryFilter({
         ]}
       />
       {group === 'nontechnical' && (
+        // Second group of the row: neutral, the same 32px height (docs/design-system.md → Ряд фильтров).
         <FilterChips
-          size="xs"
+          tone="neutral"
           allLabel="Усі нетехнічні"
           value={category}
           onChange={(c) => onChange({ group, category: c })}
