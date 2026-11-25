@@ -130,6 +130,8 @@ describe('fmtMinutes / fmtHours / fmtBytes / hostOf', () => {
   it('fmtHours', () => {
     expect(fmtHours(120)).toBe('2 год')
     expect(fmtHours(90)).toBe('1,5 год')
+    // Under an hour: minutes, not «0 год» that reads as nothing tracked.
+    expect(fmtHours(2)).toBe('2 хв')
   })
   it('fmtBytes', () => {
     expect(fmtBytes(512)).toBe('512 Б')

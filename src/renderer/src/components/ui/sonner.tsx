@@ -8,6 +8,7 @@ const Toaster = (props: ToasterProps) => {
     <Sonner
       theme={theme}
       position="bottom-right"
+      containerAriaLabel="Сповіщення"
       className="toaster group"
       icons={{
         success: <CircleCheck className="size-4 text-success" />,
@@ -17,6 +18,7 @@ const Toaster = (props: ToasterProps) => {
         loading: <LoaderCircle className="size-4 animate-spin" />
       }}
       toastOptions={{
+        closeButtonAriaLabel: 'Закрити сповіщення',
         classNames: {
           toast: '!rounded-2xl !border-border !bg-popover !text-popover-foreground !font-sans !shadow-lg',
           actionButton: '!rounded-full !bg-lime !text-lime-foreground'

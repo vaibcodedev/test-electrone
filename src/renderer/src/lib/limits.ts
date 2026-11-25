@@ -35,9 +35,9 @@ export function rangesOf<S extends z.ZodObject>(schema: S): Partial<Record<keyof
 }
 
 /** What a number field accepts while typing: an optional minus, digits, one decimal separator. */
-export const NUMBER_TEXT_RE = /^-?\d*[.,]?\d*$/
+const NUMBER_TEXT_RE = /^-?\d*[.,]?\d*$/
 /** The same for whole numbers. */
-export const INTEGER_TEXT_RE = /^-?\d*$/
+const INTEGER_TEXT_RE = /^-?\d*$/
 
 /** «1 234,5» → 1234.5; empty or half-typed text («-», «,») → null. */
 export function parseNumberText(text: string): number | null {

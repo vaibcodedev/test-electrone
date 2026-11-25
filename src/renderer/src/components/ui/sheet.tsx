@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils"
 import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
+import { Button } from "@/components/ui/button"
+
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
@@ -37,7 +39,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-40 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-40 bg-black/50 ease-soft data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-300",
         className
       )}
       {...props}
@@ -71,7 +73,7 @@ function SheetContent({
           })
         }
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-card shadow-lg outline-none transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
+          "fixed z-50 flex flex-col gap-4 bg-card shadow-lg outline-none ease-soft data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:duration-300",
           side === "right" &&
             // Below the window buttons (titleBarOverlay, 44px): the sheet header must never sit under them.
             "top-12 bottom-2.5 right-2.5 h-auto w-3/4 overflow-hidden rounded-3xl border data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -87,9 +89,12 @@ function SheetContent({
       >
         <EditableScope>{children}</EditableScope>
         {showCloseButton && (
-          <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
-            <XIcon className="size-4" />
-            <span className="sr-only">Закрити</span>
+          // A real 24×24 button with focus-visible (a bare 16px icon lit its ring on a mouse open, since Radix
+          // focuses ✕ in a dialog without fields). No Tooltip on purpose: it would pop up on open for the same reason.
+          <SheetPrimitive.Close asChild>
+            <Button variant="ghost" size="icon-xs" aria-label="Закрити" className="absolute top-4 right-4">
+              <XIcon className="size-4" />
+            </Button>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Content>

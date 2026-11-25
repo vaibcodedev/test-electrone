@@ -3,9 +3,13 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { Slot } from 'radix-ui'
 import { cn } from '@/lib/utils'
 
-/** Pill buttons. `default` = ink (lime in dark), `lime` = primary call to action, `soft` = surface. */
+/**
+ * Pill buttons. `default` = ink (lime in dark), `lime` = primary call to action, `soft` = surface.
+ * Focus is the global `:focus-visible` outline (globals.css) with a 2px gap: a ring flush with the fill was
+ * ≈1:1 on a lime button in the dark theme and vanished in forced colours.
+ */
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-body font-medium whitespace-nowrap transition-[background-color,color,box-shadow,transform] outline-none select-none active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-body font-medium whitespace-nowrap transition-[background-color,color,transform] select-none active:translate-y-px disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -20,9 +24,10 @@ const buttonVariants = cva(
         ghost: 'text-foreground hover:bg-foreground/[0.07] disabled:opacity-40',
         // Navigation from a card ("Все библиотеки", "Календарь"): a visible pill on bg-surface cards.
         subtle: 'bg-card text-foreground hover:bg-accent disabled:opacity-50',
-        // Dangerous action: solid red, white text and icon, calm hover; its focus ring is red too (never lime).
+        // Dangerous action: solid red, its own text colour (white is 3:1 on the dark-theme red), calm hover;
+        // its focus outline is red too (never lime).
         destructive:
-          'bg-destructive text-white hover:bg-destructive/88 focus-visible:ring-destructive/40 disabled:opacity-50 [&_svg]:text-white',
+          'bg-destructive text-destructive-foreground hover:bg-destructive/88 focus-visible:outline-destructive disabled:opacity-50 [&_svg]:text-destructive-foreground',
         // On a code block (ink in both themes): «Форматувати», copy code.
         code: 'bg-(--code-control) text-(--code-fg) hover:bg-(--code-control-hover) disabled:opacity-50',
         link: 'h-auto rounded-none px-0 text-foreground underline decoration-current/30 underline-offset-4 hover:decoration-current disabled:opacity-50'
@@ -59,12 +64,14 @@ function Button({
   }) {
   const Comp = asChild ? Slot.Root : 'button'
   return (
+    // Service attributes after the props: a Radix trigger (asChild) merges its own data-slot in, and the
+    // detail-mode CSS («one accent while editing») must still see data-slot="button".
     <Comp
+      {...props}
       data-slot="button"
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
     />
   )
 }

@@ -10,6 +10,7 @@ import {
   getDefaultClassNames,
   type DayButton,
 } from "react-day-picker"
+import { uk } from "react-day-picker/locale/uk"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 
@@ -21,6 +22,7 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  locale,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
@@ -37,9 +39,12 @@ function Calendar({
         className
       )}
       captionLayout={captionLayout}
+      // DatePicker passes the date-fns `uk`, which has no `labels`: without these DayPicker announces its
+      // arrows and days in English.
+      locale={{ ...uk, ...locale, labels: { ...uk.labels, ...locale?.labels } }}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString("uk", { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -72,7 +77,7 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative rounded-md border border-input shadow-xs has-focus:border-ring has-focus:ring-[3px] has-focus:ring-ring/50",
+          "relative rounded-md border border-input shadow-xs has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
@@ -206,7 +211,7 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50 data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[selected-single=true]:rounded-full data-[selected-single=true]:bg-lime data-[selected-single=true]:text-lime-foreground dark:hover:text-accent-foreground [&>span]:text-meta [&>span]:opacity-70",
+        "flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 leading-none font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-ring data-[range-end=true]:rounded-md data-[range-end=true]:rounded-r-md data-[range-end=true]:bg-primary data-[range-end=true]:text-primary-foreground data-[range-middle=true]:rounded-none data-[range-middle=true]:bg-accent data-[range-middle=true]:text-accent-foreground data-[range-start=true]:rounded-md data-[range-start=true]:rounded-l-md data-[range-start=true]:bg-primary data-[range-start=true]:text-primary-foreground data-[selected-single=true]:rounded-full data-[selected-single=true]:bg-lime data-[selected-single=true]:text-lime-foreground dark:hover:text-accent-foreground [&>span]:text-meta [&>span]:opacity-70",
         defaultClassNames.day,
         className
       )}

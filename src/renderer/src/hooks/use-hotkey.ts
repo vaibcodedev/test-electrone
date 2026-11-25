@@ -1,9 +1,14 @@
 import { useEffect, useRef } from 'react'
-import { isEditableTarget } from '@/lib/dom'
+import { isEditableTarget, overlayOpen } from '@/lib/dom'
 
 export interface HotkeyOptions {
   /** Fire even when focus is inside an input/textarea/editor. */
   allowInInputs?: boolean
+  /**
+   * Fire a key without Ctrl/Alt even while a dialog, menu or Select list is open. Off by default: N, arrows or
+   * T of the page behind it must not act (mod combos — mod+k closes the palette — always fire).
+   */
+  allowInOverlay?: boolean
   enabled?: boolean
 }
 
@@ -32,10 +37,11 @@ export function useHotkey(combo: string, handler: (e: KeyboardEvent) => void, op
       const pressed = e.code.startsWith('Digit') ? e.code.slice(5) : e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() : e.key.toLowerCase()
       if (pressed !== key) return
       if (!options.allowInInputs && isEditableTarget(e.target)) return
+      if (!options.allowInOverlay && !wantMod && !wantAlt && overlayOpen()) return
       e.preventDefault()
       ref.current(e)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [combo, options.allowInInputs, options.enabled])
+  }, [combo, options.allowInInputs, options.allowInOverlay, options.enabled])
 }

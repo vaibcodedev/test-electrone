@@ -55,6 +55,8 @@ export function fmtNumber(n: number): string {
 const oneDecimal = (n: number): string => n.toLocaleString('uk-UA', { maximumFractionDigits: 1 })
 
 export function fmtHours(min: number): string {
+  // Under an hour «0 год» read as «no time tracked»: minutes instead.
+  if (min < 60) return fmtMinutes(min)
   return `${oneDecimal(min / 60)} год`
 }
 

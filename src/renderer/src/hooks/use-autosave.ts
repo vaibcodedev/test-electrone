@@ -22,7 +22,8 @@ export function flushAllAutosaves(): void {
 /**
  * Every field shows its server value again. Called after «Скасувати» reverted a record: the revert can bring
  * the same value the query already held (typed text saved and reverted before any refetch), and a draft that
- * only follows *changes* of `value` would keep showing the cancelled text.
+ * only follows *changes* of `value` would keep showing the cancelled text. A field with edits still pending
+ * (typed while the revert ran) saves them instead.
  */
 export function resetAllAutosaves(): void {
   for (const r of resetters) r()
@@ -74,16 +75,19 @@ export function useAutosave<T>(value: T, save: (next: T) => void, delay = 600): 
 
   useEffect(() => {
     const reset = (): void => {
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = null
-      pending.current = null
+      // The record's own fields were flushed before the revert; a field still pending was typed into while the
+      // revert ran (timer note, another section) — save it instead of throwing it away.
+      if (pending.current !== null) {
+        flush()
+        return
+      }
       setDraft(latest.current)
     }
     resetters.add(reset)
     return () => {
       resetters.delete(reset)
     }
-  }, [])
+  }, [flush])
 
   const update = useCallback(
     (next: T) => {

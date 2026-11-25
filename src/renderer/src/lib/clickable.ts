@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react'
 
-export interface ClickableProps {
+interface ClickableProps {
   role: 'button'
   tabIndex: number
   onClick: () => void

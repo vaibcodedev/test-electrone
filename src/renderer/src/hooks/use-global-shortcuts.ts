@@ -3,16 +3,7 @@ import { useNavigate } from 'react-router'
 import { ALL_NAV_ITEMS } from '@/app/navigation'
 import { GO_TO } from '@/app/shortcuts'
 import { useUi } from '@/stores/ui-store'
-import { isEditableTarget as isEditable } from '@/lib/dom'
-
-/** A menu, popover or confirmation is open: it owns the keyboard, even inside a sheet. */
-const MENU_OPEN =
-  '[role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [data-slot="popover-content"][data-state="open"]'
-
-/** A modal (dialog/sheet/popover/menu) is open → page-level keys must not fire behind it. */
-function overlayOpen(): boolean {
-  return !!document.querySelector(`[role="dialog"][data-state="open"], ${MENU_OPEN}`)
-}
+import { MENU_OPEN, isEditableTarget as isEditable, overlayOpen } from '@/lib/dom'
 
 function visible(el: Element | null): el is HTMLElement {
   return el instanceof HTMLElement && el.offsetParent !== null
@@ -22,7 +13,9 @@ function visible(el: Element | null): el is HTMLElement {
  * Global keyboard layer (one listener for the whole window):
  * Alt+1…9, Ctrl+, Ctrl+/ ?, [ ], G-sequences, and page-level N / "/" / Esc that work through
  * data attributes on shared components — modules get them for free:
- *   - N  → first enabled lime button in the page header ([data-slot=page-header] [data-variant=lime])
+ *   - N  → the page's own "new" target ([data-page-new]: a field gets focus, a button is clicked), else the
+ *          first enabled lime button in the page header ([data-slot=page-header] [data-variant=lime]) — on a
+ *          page whose first lime button does something else («Повторити 5» on Англійська) the target is marked.
  *   - /  → page search field ([data-page-search])
  *   - Esc → close the open detail pane ([data-close-detail])
  */
@@ -140,9 +133,16 @@ export function useGlobalShortcuts(): void {
         return
       }
       if (e.code === 'KeyN' && !e.shiftKey) {
-        const primary = [...document.querySelectorAll('[data-slot="page-header"] [data-variant="lime"]')].find(
-          (b) => visible(b) && !(b as HTMLButtonElement).disabled
-        ) as HTMLElement | undefined
+        const target = [...document.querySelectorAll('[data-page-new]')].find(visible)
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+          e.preventDefault()
+          target.focus()
+          return
+        }
+        const primary = (target ??
+          [...document.querySelectorAll('[data-slot="page-header"] [data-variant="lime"]')].find(
+            (b) => visible(b) && !(b as HTMLButtonElement).disabled
+          )) as HTMLElement | undefined
         if (primary) {
           e.preventDefault()
           primary.click()

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
+import { useReadOnly } from "@/components/common/detail-mode-context"
 import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui"
 
 import { toggleVariants } from "@/components/ui/toggle"
@@ -23,14 +24,18 @@ function ToggleGroup({
   size,
   spacing = 1.5,
   children,
+  disabled,
   ...props
 }: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
   VariantProps<typeof toggleVariants> & {
     spacing?: number
   }) {
+  // Read-only in a record's view mode, for the keyboard too (see SelectTrigger).
+  const viewMode = useReadOnly()
   return (
     <ToggleGroupPrimitive.Root
       data-slot="toggle-group"
+      disabled={disabled || viewMode}
       data-variant={variant}
       data-size={size}
       data-spacing={spacing}

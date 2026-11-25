@@ -39,6 +39,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -97,15 +98,16 @@
   --text-title--line-height: 1;
   --text-title--letter-spacing: -0.035em;
 
-  /* Motion (docs/design-system.md → Движение): one soft ease-out, short durations, nothing bounces. */
+  /* Motion (docs/design-system.md → Движение): one soft ease-out, short durations, nothing bounces.
+     Our fade-in keyframe is `fade-up`, never `enter`/`exit`: those names belong to tw-animate-css, and
+     overriding them dropped zoom-in/slide-in from every shadcn overlay (a sheet faded in on the spot). */
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --animate-rise: rise 0.3s var(--ease-soft) backwards;
-  --animate-enter: enter 0.22s var(--ease-soft) backwards;
-  --animate-page: page 0.18s ease-out backwards;
+  --animate-enter: fade-up 0.22s var(--ease-soft) backwards;
+  --animate-page: page 0.18s var(--ease-soft) backwards;
   --animate-pane: pane 0.22s var(--ease-soft) backwards;
 
   --animate-leave: leave 0.22s var(--ease-soft) forwards;
-  --animate-trash-bump: trash-bump 0.55s var(--ease-soft);
+  --animate-trash-bump: trash-bump 0.35s var(--ease-soft);
 
   @keyframes leave {
     to {
@@ -117,17 +119,14 @@
     0% {
       transform: none;
     }
-    30% {
-      transform: scale(1.22) rotate(-10deg);
-    }
-    60% {
-      transform: scale(0.95) rotate(6deg);
+    40% {
+      transform: scale(1.15);
     }
     100% {
       transform: none;
     }
   }
-  @keyframes enter {
+  @keyframes fade-up {
     from {
       opacity: 0;
       transform: translateY(3px);
@@ -157,17 +156,6 @@
       transform: none;
     }
   }
-
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
 }
 
 :root {
@@ -190,6 +178,7 @@
   --accent-foreground: #14160f;
   /* Status colours are text colours: ≥4.5:1 to surface (bright hues live in chart-*). */
   --destructive: #b02a33;
+  --destructive-foreground: #ffffff;
   --border: rgb(20 22 15 / 0.09);
   --input: rgb(20 22 15 / 0.2);
   /* Focus ring: ≥3:1 to surface, card and the lime chip (the old #9bbb12 was 1.9:1). */
@@ -235,6 +224,8 @@
   --accent: #2d2e33;
   --accent-foreground: #f3f4f1;
   --destructive: #ff5c63;
+  /* White on the bright dark-theme red was 3:1; ink text gives ≈6:1. */
+  --destructive-foreground: #14160f;
   --border: rgb(255 255 255 / 0.08);
   --input: rgb(255 255 255 / 0.2);
   --ring: #d4f542;
@@ -262,7 +253,7 @@
 @utility stagger {
   & > * {
     /* backwards: affects only the start, so transforms (dnd-kit, hover, active) stay free afterwards. */
-    animation: enter 0.24s var(--ease-soft) backwards;
+    animation: fade-up 0.24s var(--ease-soft) backwards;
     animation-delay: calc(min(sibling-index() - 1, 8) * 25ms);
   }
 }
@@ -389,6 +380,10 @@
     *::after {
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
+      /* Delays too (stagger, inline row cascades with fill-mode backwards), or tiles still pop in one by one. */
+      animation-delay: 0s !important;
+      transition-delay: 0s !important;
+      scroll-behavior: auto !important;
     }
   }
 }
@@ -533,41 +528,53 @@
 [data-detail-mode='view'] [data-edit-only] {
   display: none;
 }
-/* One accent while editing: «Зберегти» stays lime, the record's other lime buttons step back to soft. */
-[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]),
-.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save]) {
-  background: var(--surface);
+/* One accent while editing: «Зберегти» stays lime, the record's other lime buttons step back to a neutral
+   tint. A tint, not var(--surface): inline forms sit in bg-surface cards, where a surface fill read as grey text. */
+[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save], :disabled),
+.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save], :disabled) {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
   color: var(--foreground);
 }
-[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]):hover,
-.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save]):hover {
-  background: var(--accent);
+[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save], :disabled):hover,
+.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save], :disabled):hover {
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
 }
-/* A chip inside a record is the field's value, not a screen filter: neutral, never lime. */
+/* A chip inside a record is the field's value, not a screen filter: neutral, never lime. The hairline sets the
+   chosen value apart from a hovered neighbour (both used to be foreground 10%); the focus ring goes back to
+   --ring, since the chip's own lime-foreground ring would be dark on dark here. */
 [data-detail-mode]
   [data-slot='toggle-group'][data-variant='chip']
   [data-slot='toggle-group-item']:is([data-state='on'], [aria-checked='true'], [aria-pressed='true']) {
-  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
   color: var(--foreground);
-  font-weight: 500;
+  font-weight: 600;
+  outline: 1.5px solid color-mix(in oklab, var(--foreground) 55%, transparent);
+  outline-offset: -1.5px;
+  --tw-ring-color: var(--ring);
 }
-/* Checkbox is not here on purpose: it marks progress (pre-bid checks, subtasks) and works while reading. */
-[data-detail-mode='view'] [data-slot='toggle-group'],
-[data-detail-mode='view'] [data-slot='select-trigger'],
-[data-detail-mode='view'] [data-slot='switch'],
-[data-detail-mode='view'] [data-slot='radio-group'],
-[data-detail-mode='view'] [data-slot='slider'],
-[data-detail-mode='view'] :has(> [data-slot='switch']) > label,
-[data-detail-mode='view'] label:has([data-slot='switch']) {
-  pointer-events: none;
+/* Choice controls in view mode are disabled by the primitives (useReadOnly), so neither the mouse nor the
+   keyboard changes them; here they only lose the dimming and the field chrome. A quick action that stays live
+   while reading (status in a header) sits in EditableScope, is not disabled and keeps the look of a field.
+   Checkbox is not here on purpose: it marks progress (pre-bid checks, subtasks) and works while reading. */
+[data-detail-mode='view']
+  :is(
+    [data-slot='select-trigger'],
+    [data-slot='switch'],
+    [data-slot='toggle-group-item'],
+    [data-slot='radio-group-item'],
+    [data-slot='slider']
+  ):is(:disabled, [data-disabled]),
+[data-detail-mode='view'] :is([data-slot='switch'], [data-slot='radio-group-item']):disabled ~ [data-slot='label'] {
+  opacity: 1;
+  cursor: default;
 }
-[data-detail-mode='view'] [data-slot='select-trigger'] {
+[data-detail-mode='view'] [data-slot='select-trigger']:is(:disabled, [data-disabled]) {
   background: transparent;
   border-color: transparent;
   padding-inline: 0;
   box-shadow: none;
 }
-[data-detail-mode='view'] [data-slot='select-trigger'] > svg:last-child {
+[data-detail-mode='view'] [data-slot='select-trigger']:is(:disabled, [data-disabled]) > svg:last-child {
   display: none;
 }
 [data-detail-mode='view'] [data-slot='toggle-group'][data-variant='segment'] {
