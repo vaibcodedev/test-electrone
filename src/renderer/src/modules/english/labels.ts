@@ -7,6 +7,22 @@ export const STAGE_LABEL: Record<WordStage, string> = {
   mastered: 'Вивчено'
 }
 
+/** One word's stage (a row, the record header); STAGE_LABEL above names the groups in filters. */
+export const STAGE_LABEL_ONE: Record<WordStage, string> = {
+  new: 'Нове',
+  learning: 'Вчу',
+  review: 'Повторюю',
+  mastered: 'Вивчене'
+}
+
+/** Stage dot / bar segment colour (full class strings: Tailwind can't see interpolated names). */
+export const STAGE_COLOR: Record<WordStage, string> = {
+  new: 'bg-muted-foreground/50',
+  learning: 'bg-warn',
+  review: 'bg-info',
+  mastered: 'bg-chart-1'
+}
+
 export const STAGE_BADGE: Record<WordStage, 'soft' | 'info' | 'warn' | 'lime'> = {
   new: 'soft',
   learning: 'warn',

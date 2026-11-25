@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { ExternalLink, Square, Trash2 } from 'lucide-react'
 import type { DevProject, RunningScript } from '@shared/domain/dev'
@@ -6,17 +6,17 @@ import { useApiMutation } from '@/lib/query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { IconAction } from '@/components/common/icon-action'
 import { LogView } from './log-view'
 
-const STATUS: Record<RunningScript['status'], { label: string; variant: 'lime' | 'soft' | 'destructive' }> = {
-  running: { label: 'працює', variant: 'lime' },
+const STATUS: Record<RunningScript['status'], { label: string; variant: 'success' | 'soft' | 'destructive' }> = {
+  running: { label: 'працює', variant: 'success' },
   exited: { label: 'завершено', variant: 'soft' },
   failed: { label: 'помилка', variant: 'destructive' }
 }
 
 /** Bottom panel: one tab per script run with its live log. */
-export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects: DevProject[] }) {
+export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects: DevProject[] }): ReactElement {
   const [active, setActive] = useState<string | null>(runs[0]?.runId ?? null)
   const stop = useApiMutation('devProjects', 'stop')
   const clear = useApiMutation('devProjects', 'clearFinished')
@@ -55,14 +55,9 @@ export function LogsPanel({ runs, projects }: { runs: RunningScript[]; projects:
           </Button>
         )}
         {runs.some((r) => r.status !== 'running') && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon-sm" variant="ghost" aria-label="Прибрати завершені" onClick={() => clear.mutate(undefined)}>
-                <Trash2 />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Прибрати завершені</TooltipContent>
-          </Tooltip>
+          <IconAction label="Прибрати завершені" onClick={() => clear.mutate(undefined)}>
+            <Trash2 />
+          </IconAction>
         )}
       </div>
       {run && <LogView runId={run.runId} className="flex-1" />}

@@ -1,13 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { Clipboard, Image, Palette, Plus, X } from 'lucide-react'
 import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { isImageFile } from '@/lib/files'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
-import { useHotkey } from '@/hooks/use-hotkey'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
@@ -17,21 +15,19 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Card } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
+import { clickableProps } from '@/lib/clickable'
 import { DesignDetail } from './design-detail'
 import {
   DesignMedia,
   DropOverlay,
   MoodboardTile,
   PickImagesButton,
-  clickableCard,
   designTitle,
   KIND_LABEL,
   useImportImages
 } from './shared'
-
-function isMedia(f: File): boolean {
-  return isImageFile(f) || f.type.startsWith('video/')
-}
+import { isMediaFile } from './media'
+import { usePaletteBackfill } from './use-palette-backfill'
 
 /** Hex → [r, g, b]. */
 function rgb(hex: string): [number, number, number] {
@@ -64,7 +60,7 @@ function ColorFilter({
   palette: string[]
   value: string | undefined
   onChange: (color: string | undefined) => void
-}) {
+}): ReactElement | null {
   const [open, setOpen] = useState(false)
   const colors = useMemo(() => distinctColors(palette), [palette])
   if (!colors.length) return null
@@ -114,7 +110,13 @@ function ColorFilter({
   )
 }
 
-export function DesignsPage() {
+/** Says what actually hides the results: the search text, the filters or both. */
+function noResultsHint(search: string, filters: boolean): string {
+  const q = search.trim()
+  return [q && `За запитом «${q}» нічого немає.`, filters && 'Спробуйте зняти фільтри.'].filter(Boolean).join(' ')
+}
+
+export function DesignsPage(): ReactElement | null {
   const navigate = useNavigate()
   const [open, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
@@ -130,11 +132,22 @@ export function DesignsPage() {
   const { importSources, busy } = useImportImages((created) => {
     if (created.length === 1) setOpen(created[0].id)
   })
-  const { isOver, props } = useFileDrop((s) => void importSources(s), { accept: isMedia })
+  const { isOver, props } = useFileDrop((s) => void importSources(s), { accept: isMediaFile })
   usePasteFiles((s) => void importSources(s))
-  useHotkey('escape', () => setOpen(null), { enabled: !!open })
+  usePaletteBackfill(list.items)
 
   const filtered = !!(search || kind || color || tagId)
+  const resetFilters = (): void => {
+    setSearch('')
+    setKind(undefined)
+    setColor(undefined)
+    setTagId(undefined)
+  }
+  const newBoard = async (): Promise<void> => {
+    if (createBoard.isPending) return
+    const b = await createBoard.mutateAsync({ title: 'Нова добірка' })
+    navigate(`/designs/boards/${b.id}`)
+  }
 
   /** Uniform 4:3 thumbnails (object-cover) so rows can be virtualized; the full image is in the detail pane. */
   const gallery = (
@@ -151,7 +164,7 @@ export function DesignsPage() {
       onLoadMore={list.loadMore}
       renderItem={(d) => (
         <Card
-          {...clickableCard(() => setOpen(d.id === open ? null : d.id))}
+          {...clickableProps(() => setOpen(d.id === open ? null : d.id))}
           aria-pressed={d.id === open}
           className={cn(
             // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
@@ -191,7 +204,7 @@ export function DesignsPage() {
               <Button variant="soft" disabled={busy} onClick={() => void importSources([{ kind: 'clipboard' }])}>
                 <Clipboard /> З буфера
               </Button>
-              <PickImagesButton onSources={(s) => void importSources(s)} label="Завантажити" variant="lime" />
+              <PickImagesButton onSources={(s) => void importSources(s)} label="Завантажити" variant="lime" disabled={busy} />
             </>
           }
         >
@@ -203,10 +216,9 @@ export function DesignsPage() {
               <Button
                 variant="outline"
                 className="h-auto w-32 shrink-0 flex-col gap-1.5 rounded-3xl border-dashed text-caption font-normal text-muted-foreground hover:text-foreground"
-                onClick={async () => {
-                  const b = await createBoard.mutateAsync({ title: 'Нова добірка' })
-                  navigate(`/designs/boards/${b.id}`)
-                }}
+                disabled={createBoard.isPending}
+                // A failure is toasted by the mutation.
+                onClick={() => void newBoard().catch(() => undefined)}
               >
                 <span className="grid size-7 place-items-center rounded-full bg-surface">
                   <Plus />
@@ -231,11 +243,18 @@ export function DesignsPage() {
           {!list.isLoading && list.items.length === 0 ? (
             <EmptyState
               icon={Image}
-              title={filtered ? 'За цими фільтрами нічого немає' : 'Галерея порожня'}
+              title={filtered ? 'Нічого не знайдено' : 'Галерея порожня'}
               hint={
                 filtered
-                  ? 'Скиньте фільтр за типом, кольором чи міткою.'
+                  ? noResultsHint(search, !!(kind || color || tagId))
                   : 'Перетягніть сюди скриншоти сайтів, лендингів і магазинів — або вставте з буфера Ctrl+V.'
+              }
+              action={
+                filtered && (
+                  <Button variant="soft" onClick={resetFilters}>
+                    <X /> Скинути фільтри
+                  </Button>
+                )
               }
             />
           ) : (

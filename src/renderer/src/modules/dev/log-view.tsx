@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { LogChunk } from '@shared/domain/dev'
 import { api } from '@/lib/api'
+import { reportError } from '@/lib/error-reporting'
 import { useMainEvent } from '@/hooks/use-main-events'
 import { cn } from '@/lib/utils'
 
@@ -34,7 +35,7 @@ function appendChunks(rows: Row[], open: { current: boolean }, chunks: LogChunk[
  * Live log of one script run. Virtualized with TanStack Virtual (fixed row height, no wrapping),
  * follows the tail unless the user scrolled up.
  */
-export function LogView({ runId, className }: { runId: string; className?: string }) {
+export function LogView({ runId, className }: { runId: string; className?: string }): ReactElement {
   const [rows, setRows] = useState<Row[]>([])
   const openLine = useRef(false)
   const stick = useRef(true)
@@ -45,9 +46,12 @@ export function LogView({ runId, className }: { runId: string; className?: strin
     openLine.current = false
     stick.current = true
     setRows([])
-    void api.devProjects.logs(runId).then((chunks) => {
-      if (!cancelled) setRows(appendChunks([], openLine, chunks))
-    })
+    api.devProjects
+      .logs(runId)
+      .then((chunks) => {
+        if (!cancelled) setRows(appendChunks([], openLine, chunks))
+      })
+      .catch((e) => reportError(e, 'dev:logs'))
     return () => {
       cancelled = true
     }

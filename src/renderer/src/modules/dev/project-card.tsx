@@ -1,8 +1,9 @@
+import type { ReactElement } from 'react'
 import { ChevronDown, Code2, ExternalLink, FolderOpen, GitBranch, Play, Square, Star, TerminalSquare, Zap } from 'lucide-react'
 import { openUrl } from '@/lib/open-url'
 import type { DevProject } from '@shared/domain/dev'
 import { useApiMutation } from '@/lib/query'
-import { fmtRelative } from '@/lib/format'
+import { fmtRelative, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,11 +21,27 @@ import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { defaultScript, EDITOR_LABEL } from './dev-shared'
 
-export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpen: () => void }) {
-  const open = useApiMutation('devProjects', 'open', { silent: false })
+/** ↑/↓ commit counter with the meaning spelled out in a tooltip. */
+function CommitsBadge({ arrow, n, what }: { arrow: string; n: number; what: string }): ReactElement {
+  const text = `${n} ${plural(n, ['коміт', 'коміти', 'комітів'])} ${what}`
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="info" tabIndex={0} aria-label={text}>
+          {arrow}
+          {n}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>{text}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpen: () => void }): ReactElement {
+  const open = useApiMutation('devProjects', 'open')
   const run = useApiMutation('devProjects', 'run')
   const stop = useApiMutation('devProjects', 'stop')
-  const update = useApiMutation('devProjects', 'update', { silent: false })
+  const update = useApiMutation('devProjects', 'update')
   const main = defaultScript(p)
   const running = p.running
   const mainRun = running.find((r) => r.script === main) ?? running[0]
@@ -44,29 +61,43 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
           {p.exists ? p.path : `Папку не знайдено: ${p.path}`}
         </CardDescription>
         <CardAction>
-          <Toggle
-            size="sm"
-            pressed={p.favorite}
-            onPressedChange={(favorite) => update.mutate({ id: p.id, patch: { favorite } })}
-            aria-label="Обране"
-            className="size-8 min-w-8 rounded-full p-0 text-muted-foreground on:bg-transparent on:text-warn"
-          >
-            <Star className={cn(p.favorite && 'fill-current')} />
-          </Toggle>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                size="sm"
+                pressed={p.favorite}
+                onPressedChange={(favorite) => update.mutate({ id: p.id, patch: { favorite } })}
+                aria-label="Обране"
+                className="size-8 min-w-8 rounded-full p-0 text-muted-foreground on:bg-transparent on:text-warn"
+              >
+                <Star className={cn(p.favorite && 'fill-current')} />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent>{p.favorite ? 'Прибрати з обраних' : 'Додати в обрані'}</TooltipContent>
+          </Tooltip>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          {p.framework && <Badge variant="ink">{p.framework}</Badge>}
+          {/* Secondary facts stay quiet: an ink framework badge was the loudest thing on the card. */}
+          {p.framework && (
+            <Badge variant="soft" className="bg-card">
+              {p.framework}
+            </Badge>
+          )}
           {p.packageManager && <Badge variant="outline">{p.packageManager}</Badge>}
           {p.git?.branch && (
             <Badge variant="soft" className="bg-card">
               <GitBranch /> {p.git.branch}
             </Badge>
           )}
-          {!!p.git?.dirty && <Badge variant="warn">{p.git.dirty} змін.</Badge>}
-          {!!p.git?.ahead && <Badge variant="info">↑{p.git.ahead}</Badge>}
-          {!!p.git?.behind && <Badge variant="info">↓{p.git.behind}</Badge>}
+          {!!p.git?.dirty && (
+            <Badge variant="warn">
+              {p.git.dirty} {plural(p.git.dirty, ['зміна', 'зміни', 'змін'])}
+            </Badge>
+          )}
+          {!!p.git?.ahead && <CommitsBadge arrow="↑" n={p.git.ahead} what="не відправлено" />}
+          {!!p.git?.behind && <CommitsBadge arrow="↓" n={p.git.behind} what="не отримано" />}
           {!p.framework && !p.packageManager && !p.git && (
             <span className="text-caption text-muted-foreground">Не git-репозиторій, package.json не знайдено</span>
           )}
@@ -130,7 +161,8 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
                   Скрипти <ChevronDown />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-80 w-64 overflow-y-auto">
+              {/* Fits the longest script name (up to max-w-96): «typechec…» four times said nothing. */}
+              <DropdownMenuContent align="start" className="max-h-80 w-auto max-w-96 min-w-64 overflow-y-auto">
                 <DropdownMenuLabel>package.json</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {scripts.map((s) => {
@@ -142,8 +174,8 @@ export function ProjectCard({ project: p, onOpen }: { project: DevProject; onOpe
                       title={p.scripts[s]}
                     >
                       {r ? <Square /> : <Play />}
-                      <span className="flex-1 truncate">{s}</span>
-                      <span className="max-w-28 truncate font-mono text-meta text-muted-foreground">{p.scripts[s]}</span>
+                      <span className="shrink-0 whitespace-nowrap">{s}</span>
+                      <span className="ml-auto min-w-0 truncate font-mono text-meta text-muted-foreground">{p.scripts[s]}</span>
                     </DropdownMenuItem>
                   )
                 })}

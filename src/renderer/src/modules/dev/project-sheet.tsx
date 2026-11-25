@@ -1,9 +1,13 @@
+import type { ReactElement } from 'react'
 import { ExternalLink, FolderOpen, Play, Square, Trash2 } from 'lucide-react'
 import { openUrl } from '@/lib/open-url'
 import { devProjectInputSchema, type DevProject, type Editor } from '@shared/domain/dev'
 import { limitsOf } from '@/lib/limits'
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
+import { fmtDateTime } from '@/lib/format'
+import { reportError } from '@/lib/error-reporting'
+import { toast } from 'sonner'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Field, Segmented } from '@/components/common/page'
 import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
@@ -22,8 +26,9 @@ const LIMITS = limitsOf(devProjectInputSchema)
 /** Empty or owner/repo; invalid values are shown with an error and not saved. */
 const repoOk = (v: string): boolean => !v.trim() || /^[\w.-]+\/[\w.-]+$/.test(v.trim())
 
-function Editor({ project: p, onClose }: { project: DevProject; onClose: () => void }) {
-  const update = useApiMutation('devProjects', 'update', { silent: false })
+function Editor({ project: p, onClose }: { project: DevProject; onClose: () => void }): ReactElement {
+  const update = useApiMutation('devProjects', 'update')
+  const open = useApiMutation('devProjects', 'open')
   const remove = useApiMutation('devProjects', 'remove', { successMessage: 'Проєкт прибрано з Vault' })
   const run = useApiMutation('devProjects', 'run')
   const stop = useApiMutation('devProjects', 'stop')
@@ -40,16 +45,24 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
 
       <Field label="Папка">
         <InputGroup>
-          <InputGroupInput readOnly value={p.path} title={p.path} />
+          {/* Clipped from the left with «…»: the folder's own name at the end is what tells projects apart. */}
+          <span className="min-w-0 flex-1 truncate px-3 text-body" title={p.path} dir="rtl">
+            <bdi>{p.path}</bdi>
+          </span>
           <InputGroupAddon align="inline-end">
-            <InputGroupButton size="xs" onClick={() => api.devProjects.open({ projectId: p.id, target: 'folder' })}>
+            <InputGroupButton size="xs" onClick={() => open.mutate({ projectId: p.id, target: 'folder' })}>
               <FolderOpen /> Відкрити
             </InputGroupButton>
             <InputGroupButton
               size="xs"
               onClick={async () => {
-                const path = await api.devProjects.pickFolder()
-                if (path) save({ path })
+                try {
+                  const path = await api.devProjects.pickFolder()
+                  if (path) save({ path })
+                } catch (e) {
+                  toast.error((e as Error).message)
+                  reportError(e, 'dev:pickFolder')
+                }
               }}
             >
               Змінити
@@ -141,7 +154,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
       <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Як запускати, змінні оточення, доступи до стендів…" minHeight="120px" maxLength={LIMITS.notes} />
 
       <Field label="Додано">
-        <Input readOnly value={new Date(p.createdAt).toLocaleString('uk-UA')} />
+        <Input readOnly value={fmtDateTime(p.createdAt)} />
       </Field>
 
       <Confirm
@@ -162,7 +175,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
 }
 
 /** Project details in a right sheet (?open=id). */
-export function ProjectSheet({ project, onClose }: { project: DevProject | null; onClose: () => void }) {
+export function ProjectSheet({ project, onClose }: { project: DevProject | null; onClose: () => void }): ReactElement {
   return (
     <Sheet open={!!project} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-[520px] overflow-y-auto sm:max-w-[520px]">

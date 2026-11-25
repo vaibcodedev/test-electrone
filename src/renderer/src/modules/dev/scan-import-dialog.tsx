@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
@@ -11,11 +11,11 @@ import { EmptyState } from '@/components/common/page'
 
 export interface ScanResult {
   root: string
-  items: { name: string; path: string; hasGit: boolean; hasPackage: boolean }[]
+  items: Awaited<ReturnType<typeof api.devProjects.scan>>
 }
 
-/** Shows folders found under a root and adds the checked ones. */
-export function ImportDialog({ scan, onClose }: { scan: ScanResult | null; onClose: () => void }) {
+/** «Імпорт із папки»: folders found under a root, the checked ones become projects. */
+export function ScanImportDialog({ scan, onClose }: { scan: ScanResult | null; onClose: () => void }): ReactElement {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const items = scan?.items ?? []

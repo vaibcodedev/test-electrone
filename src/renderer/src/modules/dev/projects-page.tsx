@@ -1,21 +1,22 @@
-import { useCallback, useMemo, useState } from 'react'
-import { FolderGit2, FolderPlus, FolderSearch } from 'lucide-react'
+import { useCallback, useMemo, useState, type ReactElement } from 'react'
+import { FolderGit2, FolderPlus, FolderSearch, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useMainEvent } from '@/hooks/use-main-events'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 import { useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { ProjectCard } from './project-card'
 import { ProjectSheet } from './project-sheet'
-import { ImportDialog, type ScanResult } from './import-dialog'
+import { ScanImportDialog, type ScanResult } from './scan-import-dialog'
 import { LogsPanel } from './logs-panel'
 import { folderName } from './dev-shared'
 
 /** «Мои проекты»: local repos with editor buttons, script runner and live logs. */
-export function DevProjectsPage() {
+export function DevProjectsPage(): ReactElement {
   const { data: projects = [], isLoading } = useApi('devProjects', 'list', undefined, { refetchInterval: 30_000 })
   const { data: runs = [] } = useApi('devProjects', 'runs')
   const [openId, setOpen] = useOpenParam()
@@ -38,6 +39,11 @@ export function DevProjectsPage() {
   }, [projects, search, only])
   const favorites = projects.filter((p) => p.favorite).length
   const runningCount = projects.filter((p) => p.running.length > 0).length
+
+  const resetFilters = (): void => {
+    setSearch('')
+    setOnly(undefined)
+  }
 
   const addFolder = async (): Promise<void> => {
     const path = await api.devProjects.pickFolder()
@@ -63,31 +69,43 @@ export function DevProjectsPage() {
 
   const list = (
     <PageBody className="h-full">
-      {isLoading ? null : projects.length === 0 ? (
+      {isLoading ? (
+        // Cards of the real grid (the page header is already there): no blank body while loading.
+        <Delayed delay={150}>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3">
+            {Array.from({ length: 4 }, (_, i) => (
+              <CardSkeleton key={i} height={200} />
+            ))}
+          </div>
+        </Delayed>
+      ) : projects.length === 0 ? (
+        // «Додати папку» (lime, N) is in the header: the empty state offers the other way in.
         <EmptyState
           icon={FolderGit2}
           title="Додайте свої проєкти"
-          hint="Вкажіть папку проєкту або папку, де лежать усі репозиторії — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер."
+          hint="Вкажіть папку, де лежать усі репозиторії, — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер. Або натисніть «Додати папку» вгорі."
           action={
-            <div className="flex gap-2">
-              <Button variant="lime" onClick={() => void addFolder()}>
-                <FolderPlus /> Додати папку
-              </Button>
-              <Button variant="soft" onClick={() => void importFolder()}>
-                <FolderSearch /> Імпорт із папки
-              </Button>
-            </div>
+            <Button variant="soft" onClick={() => void importFolder()}>
+              <FolderSearch /> Імпорт із папки
+            </Button>
           }
         />
       ) : filtered.length === 0 ? (
-        <EmptyState
-          title={only === 'favorite' && !search ? 'Обраних поки немає' : 'Нічого не знайдено'}
-          hint={
-            only === 'favorite' && !search
-              ? 'Натисніть зірочку на картці проєкту — він з’явиться тут.'
-              : 'Пошук іде за назвою, шляхом, фреймворком і репозиторієм.'
-          }
-        />
+        only === 'favorite' && !search.trim() ? (
+          <EmptyState title="Обраних поки немає" hint="Натисніть зірочку на картці проєкту — він з’явиться тут." />
+        ) : (
+          <EmptyState
+            title="Нічого не знайдено"
+            hint={[search.trim() && `За запитом «${search.trim()}» нічого немає.`, only && 'Спробуйте зняти фільтри.']
+              .filter(Boolean)
+              .join(' ')}
+            action={
+              <Button variant="soft" onClick={resetFilters}>
+                <X /> Скинути фільтри
+              </Button>
+            }
+          />
+        )
       ) : (
         <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3">
           {filtered.map((p) => (
@@ -145,7 +163,7 @@ export function DevProjectsPage() {
       )}
 
       <ProjectSheet project={projects.find((p) => p.id === openId) ?? null} onClose={() => setOpen(null)} />
-      <ImportDialog scan={scan} onClose={() => setScan(null)} />
+      <ScanImportDialog scan={scan} onClose={() => setScan(null)} />
     </Page>
   )
 }

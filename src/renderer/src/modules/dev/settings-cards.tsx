@@ -1,8 +1,10 @@
+import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { FolderOpen, RefreshCw } from 'lucide-react'
 import { api } from '@/lib/api'
 import { useApi, useApiMutation } from '@/lib/query'
 import { CopyButton } from '@/components/common/copy-button'
+import { IconAction } from '@/components/common/icon-action'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,13 +12,12 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item'
 import { Switch } from '@/components/ui/switch'
 import { Confirm } from '@/components/common/confirm'
-import { GithubTokenField } from './github-connect'
+import { GithubDisconnectButton, GithubTokenField } from './github-connect'
 
 /** Settings → GitHub: connection status + token field. */
-export function GithubSettingsCard() {
+export function GithubSettingsCard(): ReactElement {
   const navigate = useNavigate()
   const { data: status } = useApi('github', 'status')
-  const disconnect = useApiMutation('github', 'setToken', { successMessage: 'GitHub відключено' })
   return (
     <Card className="gap-3">
       <CardHeader>
@@ -34,11 +35,7 @@ export function GithubSettingsCard() {
               <Button size="sm" variant="soft" onClick={() => navigate('/dev/github')}>
                 Відкрити
               </Button>
-              <Confirm title="Відключити GitHub?" description="Токен буде видалено з Vault." confirmLabel="Відключити" onConfirm={() => disconnect.mutate({ token: '' })}>
-                <Button size="sm" variant="ghost">
-                  Відключити
-                </Button>
-              </Confirm>
+              <GithubDisconnectButton size="sm" />
             </ItemActions>
           </Item>
         ) : (
@@ -64,7 +61,7 @@ const STEPS = [
 ]
 
 /** Settings → Chrome extension bridge: state, port, secret key, folder. */
-export function ExtensionSettingsCard() {
+export function ExtensionSettingsCard(): ReactElement | null {
   const { data: settings } = useApi('settings', 'get')
   const { data: info } = useApi('capture', 'info')
   const save = useApiMutation('settings', 'update')
@@ -76,7 +73,7 @@ export function ExtensionSettingsCard() {
         <CardTitle className="flex items-center gap-2 text-lead text-foreground">
           Розширення для Chrome
           {info && (
-            <Badge variant={info.running ? 'lime' : 'soft'}>{info.running ? 'приймає' : settings.captureEnabled ? 'не запущено' : 'вимкнено'}</Badge>
+            <Badge variant={info.running ? 'success' : 'soft'}>{info.running ? 'приймає' : settings.captureEnabled ? 'не запущено' : 'вимкнено'}</Badge>
           )}
         </CardTitle>
         <CardDescription className="text-caption">
@@ -99,9 +96,18 @@ export function ExtensionSettingsCard() {
             <InputGroupInput readOnly value={info.token} className="font-mono text-caption" />
             <InputGroupAddon align="inline-end">
               <CopyButton text={info.token} variant="ghost" size="xs" />
-              <Button size="icon-xs" variant="ghost" aria-label="Згенерувати новий ключ" title="Згенерувати новий" onClick={() => regenerate.mutate(undefined)}>
-                <RefreshCw />
-              </Button>
+              {/* A new key breaks the link with an extension already set up: ask first. */}
+              <Confirm
+                title="Створити новий ключ?"
+                description="Розширення перестане зберігати, доки ви не вставите в нього новий ключ."
+                confirmLabel="Створити ключ"
+                tone="default"
+                onConfirm={() => regenerate.mutate(undefined)}
+              >
+                <IconAction label="Згенерувати новий ключ">
+                  <RefreshCw />
+                </IconAction>
+              </Confirm>
             </InputGroupAddon>
           </InputGroup>
         )}

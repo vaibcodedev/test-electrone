@@ -1,16 +1,19 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
-import { ExternalLink, KeyRound } from 'lucide-react'
+import { ExternalLink, KeyRound, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
-import { useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation } from '@/lib/query'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Field } from '@/components/common/page'
+import { Confirm } from '@/components/common/confirm'
 import { cn } from '@/lib/utils'
 
 const NEW_TOKEN_URL = 'https://github.com/settings/personal-access-tokens/new'
+const ALL = '__all'
 
-export const TOKEN_STEPS = [
+const TOKEN_STEPS = [
   'Відкрийте сторінку створення токена (кнопка нижче) й увійдіть у GitHub.',
   'Token name — наприклад «Vault», Expiration — до року.',
   'Repository access → All repositories (або лише потрібні).',
@@ -19,7 +22,7 @@ export const TOKEN_STEPS = [
 ]
 
 /** Token field — saves it encrypted with the OS keychain. */
-export function GithubTokenField({ compact }: { compact?: boolean }) {
+export function GithubTokenField({ compact }: { compact?: boolean }): ReactElement {
   const [token, setToken] = useState('')
   const save = useApiMutation('github', 'setToken', {
     onSuccess: (s) => {
@@ -29,7 +32,9 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
     }
   })
   const submit = (): void => {
-    if (token.trim()) save.mutate({ token: token.trim() })
+    // A second Enter while the first check is running would save twice and toast twice.
+    if (save.isPending || !token.trim()) return
+    save.mutate({ token: token.trim() })
   }
   return (
     <Field
@@ -62,7 +67,7 @@ export function GithubTokenField({ compact }: { compact?: boolean }) {
 }
 
 /** Step-by-step guide to create a read-only fine-grained token. */
-export function GithubGuide() {
+export function GithubGuide(): ReactElement {
   return (
     <div className="flex flex-col gap-4">
       <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-body">
@@ -75,5 +80,50 @@ export function GithubGuide() {
       </Button>
       <GithubTokenField />
     </div>
+  )
+}
+
+/** «Відключити» with its confirmation (GitHub page header, Settings → GitHub). */
+export function GithubDisconnectButton({ size }: { size?: 'sm' }): ReactElement {
+  const disconnect = useApiMutation('github', 'setToken', { successMessage: 'GitHub відключено' })
+  return (
+    <Confirm
+      title="Відключити GitHub?"
+      description="Токен буде видалено з Vault. На GitHub його можна відкликати окремо."
+      confirmLabel="Відключити"
+      onConfirm={() => disconnect.mutate({ token: '' })}
+    >
+      <Button variant="ghost" size={size}>
+        <Unplug /> Відключити
+      </Button>
+    </Confirm>
+  )
+}
+
+/** Repository filter of a GitHub tab: `undefined` = the tab's own «all» meaning (`allLabel`). */
+export function RepoSelect({
+  value,
+  onChange,
+  allLabel
+}: {
+  value: string | undefined
+  onChange: (repo: string | undefined) => void
+  allLabel: string
+}): ReactElement {
+  const { data: repos = [] } = useApi('github', 'repos', { force: false })
+  return (
+    <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? undefined : v)}>
+      <SelectTrigger size="sm" className="w-64" aria-label="Репозиторій">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{allLabel}</SelectItem>
+        {repos.map((r) => (
+          <SelectItem key={r.fullName} value={r.fullName}>
+            {r.fullName}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
