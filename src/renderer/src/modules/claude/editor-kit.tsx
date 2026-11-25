@@ -95,6 +95,8 @@ export function AutoMarkdown({
       minHeight={minHeight}
       label={label}
       maxLength={maxLength}
+      // The prompt is the record itself: it is never folded.
+      fold={false}
     />
   )
 }

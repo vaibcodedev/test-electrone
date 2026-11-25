@@ -10,6 +10,7 @@ import { useDetailMode, useReadOnly } from './detail-mode-context'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldLabel } from '@/components/ui/field'
 import { CharCount, Segmented } from './page'
+import { ShowMore } from './show-more'
 import { CopyButton } from './copy-button'
 
 function Pre(props: ComponentProps<'pre'>) {
@@ -110,7 +111,8 @@ export function MarkdownField({
   className,
   defaultMode,
   label,
-  maxLength
+  maxLength,
+  fold = true
 }: {
   value: string
   onChange: (value: string) => void
@@ -121,6 +123,11 @@ export function MarkdownField({
   label?: string
   /** From the schema (limitsOf); the counter appears in the label row after 80%. */
   maxLength?: number
+  /**
+   * While reading, a text taller than ~16 lines folds under «Показати повністю» (a wall of text pushed tags,
+   * links and dates out of reach). Off for a field that is the record itself (a Claude prompt).
+   */
+  fold?: boolean
 }) {
   const viewMode = useReadOnly()
   // A record has its own view mode (it has `save`); outside one (week review, «Про дошку») there is none.
@@ -137,7 +144,9 @@ export function MarkdownField({
     return (
       <div data-has-content className={cn('flex flex-col gap-2', className)}>
         {label && <FieldLabel>{label}</FieldLabel>}
-        <Markdown source={value} />
+        <ShowMore enabled={fold && 'auto'} collapsedClass="max-h-96 overflow-hidden">
+          <Markdown source={value} />
+        </ShowMore>
       </div>
     )
   }
