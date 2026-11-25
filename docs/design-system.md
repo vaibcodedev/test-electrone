@@ -43,6 +43,7 @@
   - внутри `ink` (активная карточка, плитка «Сьогодні») — `ink-accent` вместо `ring`: правило `.bg-ink :focus-visible { --ring: var(--ink-accent) }` в `globals.css` ставит его на сам элемент в фокусе внутри ink (`ring` на светлом ink тёмной темы ≈1,1:1). На саму ink-карточку в фокусе правило не действует (селектор потомка) — ей нужен свой `focus-visible:outline-ink-accent` (§12). Нажатый `Toggle variant="outline"` (заливка ink) — `on:focus-visible:ring-ink-accent`;
   - день календаря своего кольца не имеет — работает глобальный outline; панель `TabsContent` получает фокус с outline внутри (`-outline-offset-2`).
 - Новый цвет графика сначала прогоняется через скил `dataviz` (валидатор контраста и CVD).
+- **Тестовый режим** (`:root[data-profile='sandbox']`): `--frame` / `--background` = `#e6dbc0` (светлая), `#120e06` (тёмная, `:root.dark[data-profile='sandbox']`, после `.dark`); `titleBarOverlay` тех же цветов (`OVERLAY_SANDBOX` в `window-manager.ts`). Светлую рамку не темнить: `muted-foreground` на ней 4,56:1. Тёмная почти не отличается от обычной `#0e0f11` — в тёмной теме песочницу выдают бейдж и плашка (§12).
 
 ## 3. Типографика
 
@@ -77,6 +78,7 @@
 - Отступы внутри `Card` — `px-5 py-5`. Между плитками сетки — `gap-3`. Между строками списка — `gap-1.5`.
 - Элемент внутри плитки (строка списка, мини-карточка) имеет фон `bg-card`, `rounded-2xl`, отступы `px-4 py-3` или `p-2.5` для компактных строк.
 - Текст никогда не прижимается к скруглённому углу: в плитках с радиусом ≥18 внутренний отступ ≥8px.
+- **Вложенные скругления концентричны: радиус внутри = радиус снаружи − отступ.** Плитка с картинкой и `p-1.5` (6px) — `rounded-2xl` (24) снаружи и `rounded-xl` (18) у картинки; при `Card` по умолчанию (28) с тем же отступом угол картинки «толще» угла карточки и читается как ошибка. Отступ 10px (`p-2.5`) — 28 → 18.
 
 - Рамка панели или карточки, которая стоит вплотную к краю контейнера с `overflow:hidden` (панели `Resizable`, списки), — `border`, не `ring-1`: ring рисуется снаружи (box-shadow) и обрезается.
 - Тень элемента внутри `overflow`-контейнера не шире его запаса. Панель записи — `shadow-[0_1px_3px_-1px_rgb(0_0_0/0.22)]` в 4px запаса панели `MasterDetail`, слой задаёт рамка `border-foreground/12` (размытие 40px обрезалось квадратом на скруглённых углах).
@@ -118,8 +120,10 @@
 - Действие модуля в шапке записи (скопировать, открыть, перенести) — `soft`; `lime` — только если у страницы нет своей лаймовой кнопки в шапке («Перетворити на дошку» у идеи; после перевода — `soft` «Відкрити дошку»).
 - Справка к блоку записи (что доступно в превью) — `Popover` за `IconAction` ⓘ рядом с подписью блока, а не секция внизу колонки.
 - Действие поверх превью картинки («Відкрити картинку», «Замінити» в дизайне) — `bg-card shadow-sm`, скрыто до `group-hover` / `group-focus-within` / `focus-visible`; клик по самой картинке — только мышиный дубль кнопки (`cursor-zoom-in`).
-- На «Налаштуваннях» главного действия нет: кнопки внутри `SettingsSection` — `subtle` (`bg-card` на `surface`), лайм не ставится (`GithubTokenField submitVariant="subtle"`).
-- Путь «Налаштування → Бекап» в тексте — ссылка на секцию `/settings#<id>` (якоря `you`, `theme`, `system`, `data`, `backup`, `export`, `updates`, `github`, `extension`); в гайде это `SettingsLink`.
+- На «Налаштуваннях» главного действия нет, лайм не ставится. Кнопка внутри `SettingsRow` (фон `bg-card`) — `soft size="sm"`; ряд кнопок самой секции (как в «Бекап») и действие в шапке секции («Показати все» в «Меню») — `subtle` (`bg-card` на `surface`, `GithubTokenField submitVariant="subtle"`).
+- Путь «Налаштування → Бекап» в тексте — ссылка на секцию `/settings#<id>` (якоря по порядку страницы: `you`, `theme`, `menu`, `system`, `data`, `storage`, `backup`, `export`, `sandbox`, `github`, `extension`, `updates`); в гайде это `SettingsLink`.
+- Тултип на триггере `DropdownMenu` (группа свёрнутого сайдбара) — управляемый: `open={tip && !menu}`; тултип сбрасывается в `onOpenChange` меню при открытии, а в `onCloseAutoFocus` флаг `muteTip` гасит его при возврате фокуса — иначе он всплывает после закрытия меню с клавиатуры (Enter у `DropdownMenuTrigger` делает `preventDefault`, и тултип не закрывается). «Меню открыто» стилизуется и проверяется по `aria-expanded`, не по `data-state`: Slot тултипа его перезаписывает.
+- Иконочная кнопка во время фоновой операции («Перерахувати» в «Сховищі») — `aria-disabled` + `motion-safe:animate-spin` на иконке вместо `disabled`, чтобы фокус не слетал на страницу.
 - `ghost`-кнопка в начале строки или футера (например, «В корзину» слева в диалоге) стоит с `-ml-3`, чтобы иконка была на одной линии с полями; опасное действие — `text-muted-foreground hover:text-destructive`.
 - У иконочной кнопки обязателен `aria-label` и `Tooltip` — для `ghost icon-xs` это одна строка `IconAction label=…` (`size="icon-sm"` в шапке записи; `shortcut="Esc"` дописывается только в тултип: «Закрити · Esc», имя для скринридера остаётся `label`). Исключение — штатный ✕ `Dialog`/`Sheet`: `ghost icon-xs` с `aria-label`, без `Tooltip` — Radix фокусирует ✕ при открытии, и тултип всплывал бы сразу.
 - Действия секций колонки записи («Зв’язати», «Додати файл», «Банк питань» и «+ Етап» в шторке вакансии) — `outline size="xs"` в `action` у `SectionLabel`: `subtle` (= `bg-card`) сливается с фоном панели записи.
@@ -130,7 +134,7 @@
 
 - Сегменты (`ToggleGroup variant="segment"`, «VS Code / Cursor») и вкладки: выбранный пункт — приподнятая нейтральная плашка (`card` + тень в светлой, `foreground/12%` в тёмной). Не инверсия и не лайм.
 - Фильтр-чипы (`variant="chip"`) — выбранный лаймовый: это фильтр экрана, он и есть акцент. Лаймовая только **основная** группа фильтров экрана; вторая и следующие — `FilterChips tone="neutral"` (выбранный — `foreground/12%`) или `SelectTrigger size="sm"` (тип в «Закладках» и «Англійській»); выбранная метка в `TagFilter` тоже нейтральная (`tone="accent"` — только если это единственный фильтр). Переключатель раздела или вида — `Segmented`, не чипы.
-- Чип, который выбирает значение, а не фильтрует экран (тип записи в «Швидко додати»), — нейтральный, как `FilterChips tone="neutral"`: `Toggle variant="chip-neutral"` (выбранный `foreground/12`, кольцо `ring`). Лайм в диалоге принадлежит кнопке отправки.
+- Чип, который выбирает значение, а не фильтрует экран (тип записи в «Швидко додати»), — нейтральный, как `FilterChips tone="neutral"`: `Toggle variant="chip-neutral"` (выбранный `foreground/12`, кольцо `ring`). Лайм в диалоге принадлежит кнопке отправки. Тот же `chip-neutral` — у вторичного перемикача-фильтра в `trailing` рядом с `TagFilter` (`FavoriteFilter` «Обране», нейтральный, как выбранная метка `bg-foreground/12`): лайм принадлежит основной группе чипов.
 - **Чип-значение поля в записи** (тип, статус закладки, тип дизайна) — нейтральный и в просмотре, и в правке: `foreground/14%`, `font-semibold`, контур 1.5px `foreground/55%` (отличает выбранное от соседа под курсором), кольцо фокуса `ring`. Лаймовый чип — это фильтр экрана, а не значение (CSS в `globals.css` по `[data-detail-mode]`).
 - Пункт `ToggleGroup type="single"` внутри `TooltipTrigger asChild` теряет `data-state="on"`: Tooltip ставит свой `data-state` (`closed`/`delayed-open`). Поэтому вариант `on:` (`globals.css`) понимает `data-state=on`, `aria-pressed` **и** `aria-checked` (радио-семантика группы): выбранный свотч или иконочный сегмент под тултипом стилизуется обычным `on:`, отдельные `aria-checked:`-классы не нужны. По тем же трём признакам CSS просмотра оставляет выбранный пункт и прячет остальные.
 - **Статусный тумблер в шапке записи** («Працює», «Вирішено») — `Toggle variant="status"`: ненажатый — рамка и глагол действия («Позначити «працює»»), нажатый — тонировка `success/12` + `text-success`, без инверсии в ink (`variant="outline"` в нажатом виде инвертируется в ink — для статуса он не подходит).
@@ -151,6 +155,9 @@
 - Бейдж с ограниченной шириной (`max-w-*`) — проп `truncate`: текст уходит во внутренний `span.truncate` (`truncate` на самом inline-flex бейдже резал слово посередине), полный — в `title`. Ведущая иконка не мешает (`CalendarClock` в карточке вакансии), но `title` собирается только из детей-строк и чисел: бейдж из названия и mono-ключа обрезается своим `<span className="min-w-0 truncate">` со своим `title`.
 - Бейдж поверх пользовательского превью (iframe компонента) — `soft` на подложке `bg-card`, цвет только у иконки (`CheckCircle2 text-success` / `AlertTriangle text-destructive`), текст «Працює» / «Помилка»: тонированный статус не читался на белом, тёмном и сетчатом фоне.
 - Оценка (`StarRating`) — `fill-warn-fill text-warn-fill`, не лайм: лайм — только главное действие.
+- Бейдж на рамке окна («Тестовий режим») — `variant="ink"` с иконкой `FlaskConical text-ink-accent`, не тонированный статус: `warn/12` на песочной рамке даёт 3,97:1. Доступное имя — видимый текст, подсказка — `Tooltip` (`aria-describedby`), без `aria-label`; для тестов — атрибут `data-sandbox-badge` (`TooltipTrigger asChild` перетирает `data-slot`).
+- Действие на ink-плашке, которое не главное (выход из тестового режима), — `Button variant="subtle"` + `bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15`, не лайм.
+- Обраний запис — `FavoriteMark` (★ `fill-warn-fill` после названия, §14), не бейдж. В добірці (`moodboard-page`), где название видно только при наведении, ★ на дизайне — `Badge soft` в верхнем левом углу плитки.
 - Счётчик без подписи (↑/↓ коммитов, иконка-значение) — `Badge` в `Tooltip` с полной фразой через `plural` («3 коміти не відправлено»); бейдж фокусируется (`tabIndex={0}`) и несёт ту же фразу в `aria-label`.
 
 ## 7. Прогресс
@@ -248,6 +255,8 @@
 - Список не загрузился — это не пустой список: «Сніпетів поки немає» + «Додати сніпет» подталкивали плодить дубли. `VirtualList` / `VirtualGrid` с `error={list.isError} onRetry={() => void list.refetch()}` показывают «Не вдалося завантажити список» + «Повторити»; `empty` — только при `list.showEmpty` (`useInfiniteApi`: не грузится, не placeholder, не ошибка). Пока подключены «Кошик» и «Мітки», остальные страницы со списком подключают при следующей правке.
 - Короткий список в `surface`-карточке («Знання», обзор фриланса): до загрузки — `RowSkeleton height={40} className="bg-card"` (чипы — `Skeleton h-8 w-24 rounded-full`), при ошибке — `CardEmptyText` «Не вдалося завантажити.» + `subtle` «Повторити», пустая фраза — только после загрузки.
 - Удаление из контейнера без подтверждения («Прибрати з добірки») сопровождается тостом с «Скасувати», как «У кошик». Тост свой («Дизайн прибрано з добірки», `moodboard-page`): `toastTrashed` возвращает запись из корзины и для контейнера не подходит.
+- Пустая коллекция в шапке страницы (ряд добірок над галереей) — одна строка `h-8`: иконка muted · «<Чого> поки немає» (`text-body font-medium`) · подсказка `text-caption` muted `truncate` · справа `soft sm` «+ Нова …». Не плитка-пилюля с пунктиром и не `h-auto`/`flex-col`. Ошибка загрузки — «Не вдалося завантажити …» + `soft sm` «Повторити» (не выдавать за пустоту), загрузка — строка заголовка без скелетонов (не прыгать 170 → 32 px).
+- Подсказка `SettingsRow` (`hint`) — в пределах примерно двух строк на 1440 px; главное предупреждение — в начале или в конце короткой фразы, без перечислений. `hint` принимает `ReactNode` (путь — `font-mono text-caption truncate` с `title`), но рендерится внутри `<p>` (`ItemDescription`): блочные элементы (`div`, `Skeleton`) туда не класть.
 - Неизвестный адрес — `NotFoundPage` внутри оболочки (маршрут `*`): «Такої сторінки немає» + «На головну»; 404 в журнал не пишется.
 - Тексты — через скил `design:ux-copy`: глагол в кнопке, без «Нажмите здесь».
 
@@ -273,6 +282,16 @@
 - Сетка секций обзора («Підсумки тижня») — по две в ряд (`grid-cols-2 grid-flow-dense`); секция с более чем 4 метриками и последняя одиночная занимают весь ряд, метрики секции стоят в один ряд.
 - Длинные списки — только `VirtualList` / `VirtualGrid`.
 - Превью markdown-описаний в карточках и строках — через `mdPreview()` (`lib/format`), сырые `**` и `#` на экране недопустимы.
+- **Обране — першими** на сервере: `SoftRepository.listFavoritesFirst` (CRUD — автоматически через `createCrudApi`), фильтр — `repo.onlyFavorites(q.favorite)` рядом с `hasTag`, и в list, и в counts. Ручной порядок (карточки доски, дизайны в добірці, пункты чек-листа), хронология и очереди — `listWhere`, ★ там только пометка. Дошки: архив ниже обраного.
+- Строка с размером (`Налаштування → Сховище`): действия (`IconAction` / `Button soft sm`) идут перед числом, число — в фиксированной колонке `w-20 text-right text-body tabular-nums text-muted-foreground`, чтобы размеры стояли одной вертикалью; колонка папки (`w-8`) есть в каждой строке, даже пустая. Итог — `font-display text-stat-sm tabular-nums`. Пока считается — `Skeleton h-4 w-14 rounded-full` вместо числа, у итога `h-6 w-20`.
+- Безымянный дизайн везде называется через `designTitleOf` (`src/shared/design-title.ts`): title → домен → «Знімок <дата о час>»; «Без назви» для дизайнов не используется.
+
+### Горизонтальный ряд плиток
+- Заголовок — строка `h-8`: `Collapsible`-триггер `ghost sm` с шевроном и числом, справа `ButtonGroup` стрелок `icon-sm soft` (`aria-label` + `Tooltip`), «Усі …» `soft sm`, создание `soft sm`. Свёрнутое состояние запоминается.
+- Ряд без видимого скроллбара (`scrollbar-none` + `[&::-webkit-scrollbar]:hidden`), snap к левому краю, хвост последней плитки обрезан краем; ←/→ листают, когда фокус в ряду, тачпад и Shift+колесо работают как есть. Сверх лимита (12) — плитка «+N» (`aria-label` «Усі …: ще N») и «Усі …» — `Dialog` с `VirtualGrid` и поиском; диалог рендерится вне ряда, чтобы клавиши ряда не перехватывали поле поиска.
+- Сейчас ряд — нативный скролл (`modules/designs/use-scroll-row.ts`), а не shadcn `Carousel`: embla не установлена. После установки — `Carousel` со стрелками `placement='inline'`.
+- Палитра на плитке — `PaletteStrip` (`designs/shared.tsx`): полоса `h-2` из ≤6 сегментов `rounded-[3px]` с `gap-0.5` и `ring-1 ring-inset ring-foreground/10`, без серой дорожки (не путать с `Progress`); нет цветов — пустой слот той же высоты. Перекрывающиеся кружки запрещены (читались как `Switch`).
+- Плитка добірки: непустая `w-44`, пустая — компактная `w-32` с одной иконкой `LayoutGrid` в ячейке `bg-foreground/5` и «порожня» (`text-meta` muted) вместо числа; обрана — `Star size-3.5 fill-current text-warn` + `sr-only` «В обраному».
 
 ### Чипы и строки списков
 - Невыбранный чип (`Toggle`/`ToggleGroup variant="chip"`) — тонировка `foreground/6%`, не `bg-surface`: на карточке-surface он не должен превращаться в обычный текст.
@@ -357,6 +376,19 @@
 - `PageHeader`: строка заголовка `min-h-10` (одной высоты с действиями и без), подзаголовок — под всей строкой, `max-w-[110ch] text-pretty`; `h1` — `tabIndex={-1}`: страница может перевести на него фокус (после очистки корзины), но в обходе `Tab` его нет.
 - Хаб сайдбара без обзора: название и есть `CollapsibleTrigger` (`aria-expanded`), шеврон декоративный (`aria-hidden`, `pointer-events-none`). Хаб с обзором: название — ссылка с `aria-current`, шеврон — отдельный триггер.
 
+### Бічна панель
+- Свёрнутое состояние — атрибуты `data-state` / `data-collapsible=icon` на своей колонке `#app-sidebar[data-slot=app-sidebar]`, не `Sidebar collapsible="icon"` (у того fixed-контейнер на всю высоту окна). Ширины — `--sidebar-width: 244px` / `--sidebar-width-icon: 56px` на `SidebarProvider` (корень оболочки). Состояние — `sidebarOpen` в `ui-store` (persist).
+- Колонка — безымянный `.group`, а `group-data-[x]:` срабатывает от любого предка: внутри колонки — только именованные группы (`group/menu-item`, `group/collapsible`…).
+- Переключатель в шапке окна — `no-drag` только на кнопке, слот остаётся drag-зоной. Подпись — `sidebarToggleLabel` (`components/ui/sidebar-label.ts`), её же берёт палитра.
+- Ctrl+B — в реестре `app/shortcuts.ts` (`SIDEBAR_SHORTCUT`, `isSidebarToggle` по `e.code`: работает в украинской раскладке, не на автоповторе). Встроенный обработчик shadcn `SidebarProvider` удалён вместе с cookie.
+- Меню группы в свёрнутой панели — `DropdownMenu` справа (`side=right align=start sideOffset=14`, `modal={false}`): клик, Enter, Space или ↓ открывают, Esc возвращает фокус на значок без тултипа (§5). Текущий пункт — `aria-current=page` (стиль в базовых классах `DropdownMenuItem`).
+- Лаймовая карточка в свёрнутой панели — плитка «V» + «зроблено/усього» + «Швидко додати»; поиск переезжает в шапку окна, `UpdateBanner` — круглая кнопка.
+- **Видимость разделов:** навигационные поверхности (сайдбар, «Розділи» в Ctrl+K, Alt+1…9, плитки главной, «Підсумки тижня», цели быстрого добавления) фильтруются только через `useNavVisibility()`; пишет только `useNavPrefs()` (настройки `hiddenNavHubs` / `hiddenNavItems`). Данные — поиск, «Нещодавні», связи, маршруты, G-переходы — не фильтруются никогда. Пункт сайдбара обёрнут в `NavHideMenu` (контекстное меню «Сховати…» / «Налаштувати меню…»).
+- Сетка главной: ширина плиток в ряду — `rowSpans()` и статичная карта `COL_SPAN` в `features/dashboard/layout.ts`. Карточки получают `className` со span, своих `col-span-*` не держат: спрятанная плитка расширяет соседей.
+
+### Тестовий режим
+- Позначки: песочная рамка (§2); ink-бейдж «Тестовий режим» в шапке справа (`ml-auto shrink-0`; кнопка поиска `min-w-0 shrink`, текст `truncate`); ink-плашка `SandboxCard` над `UpdateBanner` (как `UpdateBanner`: `Card mx-2 mb-2 rounded-[22px] bg-ink p-3`, круг `bg-ink-foreground/10`, заголовок `text-caption font-semibold`, мета `text-meta text-ink-muted`, «Вийти…» на всю ширину под текстом; в свёрнутом сайдбаре — круг `size-10` с иконкой-кнопкой и тултипом); `Badge warn` «Тест» рядом со «Швидко додати» (на `card`); префикс уведомлений «Тест · »; действие «Тестовий режим» в палитре.
+
 ## 13. Движение
 
 Анимация объясняет, что изменилось, а не украшает. Одна кривая `--ease-soft` (мягкий ease-out), короткие длительности, ничего не пружинит. Всё отключается системной настройкой «уменьшить движение».
@@ -372,6 +404,8 @@
 | Запись уходит в корзину | `animate-leave`: 220ms, fade + 10px влево + `scale(.97)` — и строка списка, и панель | `DetailPane`, `VirtualList` (`leaving` в `ui-store`) |
 | Значок корзины в сайдбаре | `animate-trash-bump`: одиночный импульс `scale(1.15)`, 0,35 с, без пружины | `sidebar.tsx` |
 | Раскрытие хабов в сайдбаре | высота `collapsible-down/up` | `sidebar.tsx` |
+| Сворачивание бічної панелі | без анимации ширины: `VirtualGrid` пересчитывает колонки один раз | `sidebar.tsx`, `app-shell.tsx` |
+| Сворачивание ряда добірок | `animate-collapsible-down/up` | `modules/designs/moodboard-strip.tsx` |
 | Вкладки | содержимое активной вкладки — `animate-page` | `ui/tabs.tsx` |
 | Диалоги, поповеры, тултипы | штатные анимации shadcn (`tw-animate-css`) на кривой `ease-soft`; шторка — 300ms на вход, 200ms на выход | `components/ui` |
 
@@ -415,7 +449,10 @@
 - `EntityAside` — колонка «метки, связи, файлы, даты»; `SectionLabel` (`section-label`) — подпись секции с действием справа.
 - `useRecordMode` / `RecordMode` / `EditToggle` (`detail-mode`) — режим просмотр/правка для своих редакторов; в `Sheet` — ещё `useModeRef` + `guardSheet` + `usePublishMode`. `CloseConfirmHost` — общий вопрос «Зберегти зміни?», смонтирован один раз в `AppShell`. `EditHint` / `EditHintText` — пустая секция в просмотре: «… ще немає. Натисніть «Редагувати» або E, щоб додати.»
 - `useDetailMode` / `useReadOnly` / `EditableScope` (`detail-mode-context`) — режим для полей и примитивов; `EditableScope` — кусок, который всегда редактируется (диалоги, быстрое действие в просмотре). `DetailMode.holdOpen(what)` — открытая инлайн-форма держит «Зберегти» (через `useInlineForm`).
-- `PinButtons` (`pin-buttons`) — «Закріпити на головній» и «В обране» для любой записи, с тостом о результате; первые в `RecordActions`.
+- `PinButtons` (`pin-buttons`) — «Закріпити на головній» и «В обране» для любой записи, с тостом о результате; первые в `RecordActions`. Тултип выключенного состояния — две строки: название действия + `text-meta opacity-80` «где появится результат»; включённого — одна строка.
+- `FavoriteMark` (`favorite-mark`) — ★ после названия записи: `role=img`, `aria-label`/`title` «В обраному», `fill-warn-fill`, на ink-строке `onInk` → `ink-foreground`; `shrink-0`, название обёрнуто в `flex min-w-0 items-center gap-1.5`, само — `truncate` / `line-clamp`.
+- `FavoriteFilter` (`favorite-filter`) — `Toggle chip-neutral sm` «Обране» в `FilterBar.trailing` перед `TagFilter`; скрыт, пока в разделе нет обраних и чип выключен.
+- `DisabledHint` (`disabled-hint`, раньше жил в `modules/freelance`) — причина неактивной кнопки в тултипе. Всегда **снаружи** `Confirm` / `AlertDialogTrigger`, триггер — сама `Button`: иначе триггером становится фокусируемый span, и клик по неактивной кнопке открывает диалог.
 - `toastTrashed(message, entity)` (`trash-toast`) — тост «<Що> переміщено в кошик» с «Скасувати» вместо `toast.success` в `onSuccess` удаления.
 
 Поля (`page`, `text-field`, `number-field`, `number-input`, `choice`, `currency-select`, `combobox`, `country-combobox`, `date-picker`, `color-swatches`, `star-rating`, `markdown`, `code`, `tags`):
@@ -455,11 +492,15 @@
 - `LoadError` / `NotFoundPage` (`features/route-error.tsx`) — страница, чья основная выборка не загрузилась («Повторити»), и неизвестный адрес («На головну»).
 - `SettingsSection` / `SettingsRow` (`features/settings/section.tsx`) — секция настроек (`id` = якорь `/settings#…`) и строка «подпись → контрол». Контрол передаётся функцией `(id) => <Switch id={id} />`, подпись становится `Label htmlFor`: клик по ней переключает, скринридер называет контрол. На ней же собраны карточки `modules/dev/settings-cards` (`github`, `extension`).
 - `restoreFocus` / `HOTKEY_DIALOG_PROPS` / `dropReturnFocus` (`stores/ui-store`) — возврат фокуса после диалога, открытого хоткеем (§12).
+- `useFavorites()` (`hooks/use-favorites.ts`) — `has(ref)` / `count(type)` из одного запроса `pins.refs('favorite')`; таблицы — `useMemo`, не `select`.
+- `useNavVisibility()` / `useNavPrefs()` (`hooks/`) — чтение и запись видимости разделов меню (§12); `NavHideMenu` (`components/layout/nav-hide-menu.tsx`) — контекстное меню пункта сайдбара.
+- Тестовий режим: `SandboxBadge` / `SandboxCard` (`components/layout/sandbox-badge.tsx`, `sandbox-card.tsx`), `useSandbox` + `switchConfirmText` (`hooks/use-sandbox.ts` — один текст подтверждения для секции и плашки), `SandboxSection` (`features/settings/sandbox-section.tsx`).
+- `StorageSection` + `useStorageUsage` (`features/settings/`) — «Сховище»: разметка и логика раздельно.
 - `useSearchParam(name)` (`hooks/use-search-param`) — один параметр URL как состояние (`replace`, остальные параметры сохраняются); `useDiscardDraftOnLeave(type, id, where)` (`hooks/use-discard-draft`) — убрать нетронутый пустой черновик при уходе со своего редактора. Оба пока никто не импортирует — см. копии ниже.
 
 Кандидаты в общие (пока живут в модуле; понадобились во втором — переносить сюда, а не копировать):
 - `useInlineForm` + `escapeCloses` (`modules/crm/inline-form.ts`) — инлайн-форма, которая закрывается при выходе из правки и держит «Зберегти» (`holdOpen`).
-- `DisabledHint` и `useNewParam` (`modules/freelance`); `sentLabel` (`modules/freelance/proposal-labels.ts`, «сьогодні / N днів тому / дата») — кандидат в `lib/format`.
+- `useNewParam` (`modules/freelance`); `sentLabel` (`modules/freelance/proposal-labels.ts`, «сьогодні / N днів тому / дата») — кандидат в `lib/format`.
 
 Копии, которые ещё не переведены на общий компонент (новый код берёт общий):
 - блок даты агенды на главной (`features/dashboard/agenda.tsx`, свой `agendaDay`) → `EventDate` с `label={fmtDayNear(…)}` и `title`; в `EventDate` сначала перенести `min-h-12` и вторую строку «весь день» для события без времени.
