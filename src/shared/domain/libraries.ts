@@ -15,12 +15,12 @@ export const LIBRARY_STATUS_LABEL: Record<LibraryStatus, string> = {
 
 export const libraryInputSchema = z.object({
   name: z.string().trim().min(1).max(MAX.name),
-  purpose: z.string().max(2000).default(''),
-  notes: z.string().max(100_000).default(''),
+  purpose: z.string().max(MAX.short).default(''),
+  notes: z.string().max(MAX.article).default(''),
   npmUrl: urlSchema.default(''),
   githubUrl: urlSchema.default(''),
   docsUrl: urlSchema.default(''),
-  installCmd: z.string().max(500).default(''),
+  installCmd: z.string().max(MAX.line).default(''),
   status: z.enum(LIBRARY_STATUSES).default('want'),
   ...withTagIds
 })

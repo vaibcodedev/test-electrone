@@ -5,8 +5,8 @@ import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, p
 /** General notes (everything that is not Claude-specific). `folder` is an optional free-text group. */
 export const noteInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  body: z.string().max(500_000).default(''),
-  folder: z.string().trim().max(100).default(''),
+  body: z.string().max(MAX.document).default(''),
+  folder: z.string().trim().max(MAX.label).default(''),
   ...withTagIds
 })
 export const notePatchSchema = patchOf(noteInputSchema)

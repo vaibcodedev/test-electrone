@@ -67,10 +67,22 @@ describe('patchOf (zod 4: .partial() would inject defaults)', () => {
 
 describe('MAX limits on titles', () => {
   it('MAX values', () => {
-    expect(MAX).toEqual({ title: 500, name: 200, label: 100 })
+    expect(MAX).toEqual({
+      title: 200,
+      name: 200,
+      label: 100,
+      line: 500,
+      short: 2_000,
+      note: 5_000,
+      letter: 5_000,
+      jobPost: 20_000,
+      article: 20_000,
+      document: 50_000,
+      secret: 10_000
+    })
   })
 
-  it('a 500-char idea title fits a board and a card («Розібрати ідею: …» is sliced)', () => {
+  it('an idea title at MAX.title fits a board and a card («Розібрати ідею: …» is sliced)', () => {
     const title = 'І'.repeat(MAX.title)
     expect(ideaInputSchema.parse({ title }).title).toHaveLength(MAX.title)
     expect(boardInputSchema.parse({ title }).title).toHaveLength(MAX.title)

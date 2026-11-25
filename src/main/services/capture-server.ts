@@ -26,7 +26,7 @@ import {
   type PairAnswer,
   type PairRequestView
 } from '@shared/domain/dev'
-import type { FileSource } from '@shared/domain/designs'
+import { designInputSchema, type FileSource } from '@shared/domain/designs'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { hostOf } from '@shared/url'
 import type { ConfigStore } from '../core/config-store'
@@ -83,6 +83,10 @@ const NOTE_BODY_MAX = fieldMax(noteInputSchema.shape.body)
 const FIX_ERROR_MAX = fieldMax(fixInputSchema.shape.errorText)
 const FIX_CAUSE_MAX = fieldMax(fixInputSchema.shape.cause)
 const FIX_SOLUTION_MAX = fieldMax(fixInputSchema.shape.solution)
+// The popup's «Нотатка» may be longer than a section's notes (older popups: 10 000): clipped, never refused.
+const DESIGN_NOTES_MAX = fieldMax(designInputSchema.shape.notes)
+const LIBRARY_NOTES_MAX = fieldMax(libraryInputSchema.shape.notes)
+const JOB_NOTES_MAX = fieldMax(applicationInputSchema.shape.notes)
 
 type Capture = z.output<typeof captureSchema>
 
@@ -662,7 +666,7 @@ export class CaptureServer {
         if (!shot) throw new UserError('Для дизайну потрібен скриншот') // narrows `shot`
         const d = await api.designs.importImage({
           source: shot,
-          input: { title, sourceUrl: input.url, notes: input.note, tagIds }
+          input: { title, sourceUrl: input.url, notes: clip(input.note, DESIGN_NOTES_MAX), tagIds }
         })
         return { type: 'design', id: d.id, title: d.title || title }
       }
@@ -683,7 +687,12 @@ export class CaptureServer {
       }
       case 'library': {
         const lib = await libraryFrom(input.url, input.title)
-        const l = await api.libraries.create({ ...lib, notes: input.note, status: 'want', tagIds })
+        const l = await api.libraries.create({
+          ...lib,
+          notes: clip(input.note, LIBRARY_NOTES_MAX),
+          status: 'want',
+          tagIds
+        })
         await attach('library', l.id)
         return { type: 'library', id: l.id, title: l.name, warning }
       }
@@ -710,7 +719,7 @@ export class CaptureServer {
           url: input.url,
           companyName: input.company,
           description: clip(input.selection, JOB_DESC_MAX),
-          notes: input.note,
+          notes: clip(input.note, JOB_NOTES_MAX),
           boardId: board?.id ?? null,
           status: 'saved',
           tagIds

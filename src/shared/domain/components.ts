@@ -9,8 +9,8 @@ export type PreviewBackground = (typeof PREVIEW_BACKGROUNDS)[number]
 
 export const componentInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(20_000).default(''),
-  code: z.string().max(500_000).default(''),
+  description: z.string().max(MAX.note).default(''),
+  code: z.string().max(MAX.document).default(''),
   language: z.enum(COMPONENT_LANGUAGES).default('tsx'),
   sourceUrl: urlSchema.default(''),
   previewBg: z.enum(PREVIEW_BACKGROUNDS).default('light'),

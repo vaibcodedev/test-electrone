@@ -4,9 +4,9 @@ import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, p
 
 export const fixInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  errorText: z.string().max(50_000).default(''),
-  cause: z.string().max(50_000).default(''),
-  solution: z.string().max(200_000).default(''),
+  errorText: z.string().max(MAX.article).default(''),
+  cause: z.string().max(MAX.note).default(''),
+  solution: z.string().max(MAX.article).default(''),
   /** Stack/area, e.g. "Hydrogen", "Vite", "Electron". */
   context: z.string().max(300).default(''),
   resolved: z.boolean().default(true),

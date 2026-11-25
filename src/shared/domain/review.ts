@@ -1,5 +1,6 @@
 /** Weekly review: a snapshot of the week + your own summary and plan. */
 import { z } from 'zod'
+import { MAX } from './limits'
 import type { EntitySummary } from './common'
 import type { MoneyByCurrency } from './finance'
 
@@ -48,7 +49,7 @@ export interface WeeklyReview {
 
 export const reviewNotesSchema = z.object({
   weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  summary: z.string().max(50_000).optional(),
-  plan: z.string().max(50_000).optional()
+  summary: z.string().max(MAX.note).optional(),
+  plan: z.string().max(MAX.note).optional()
 })
 export type ReviewNotesInput = z.input<typeof reviewNotesSchema>

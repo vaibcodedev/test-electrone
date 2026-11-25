@@ -8,7 +8,7 @@ export type ChecklistKind = (typeof CHECKLIST_KINDS)[number]
 
 export const checklistInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(20_000).default(''),
+  description: z.string().max(MAX.note).default(''),
   kind: z.enum(CHECKLIST_KINDS).default('template'),
   projectId: idSchema.nullable().default(null),
   ...withTagIds
@@ -30,7 +30,7 @@ export interface Checklist extends EntityBase, WithTags {
 export const checklistItemInputSchema = z.object({
   checklistId: idSchema,
   text: z.string().trim().min(1).max(1000),
-  hint: z.string().max(5000).default(''),
+  hint: z.string().max(MAX.short).default(''),
   section: z.string().max(MAX.name).default('')
 })
 export const checklistItemPatchSchema = patchOf(
@@ -66,7 +66,7 @@ export type InstantiateInput = z.input<typeof instantiateSchema>
  */
 export const checklistImportSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(20_000).optional().default(''),
+  description: z.string().max(MAX.note).optional().default(''),
   sections: z
     .array(
       z.object({
@@ -76,7 +76,7 @@ export const checklistImportSchema = z.object({
           .array(
             z.union([
               z.string().trim().min(1).max(1000),
-              z.object({ text: z.string().trim().min(1).max(1000), hint: z.string().max(5000).optional().default('') })
+              z.object({ text: z.string().trim().min(1).max(1000), hint: z.string().max(MAX.short).optional().default('') })
             ])
           )
           .min(1)

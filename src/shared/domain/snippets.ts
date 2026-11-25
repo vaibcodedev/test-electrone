@@ -20,8 +20,8 @@ export type SnippetLanguage = (typeof SNIPPET_LANGUAGES)[number]
 
 export const snippetInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(10_000).default(''),
-  code: z.string().max(500_000).default(''),
+  description: z.string().max(MAX.note).default(''),
+  code: z.string().max(MAX.document).default(''),
   language: z.enum(SNIPPET_LANGUAGES).default('typescript'),
   ...withTagIds
 })

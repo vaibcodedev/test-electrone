@@ -28,7 +28,7 @@ export const jobBoardInputSchema = z.object({
   /** Days of week it is tracked (0 = Sunday … 6 = Saturday). */
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).default([1, 2, 3, 4, 5]),
   active: z.boolean().default(true),
-  notes: z.string().max(10_000).default('')
+  notes: z.string().max(MAX.note).default('')
 })
 export const jobBoardPatchSchema = patchOf(jobBoardInputSchema)
 export type JobBoardInput = z.input<typeof jobBoardInputSchema>
@@ -70,7 +70,7 @@ export const checkinSchema = z.object({
   boardId: idSchema,
   day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   checked: z.boolean(),
-  note: z.string().max(500).default('')
+  note: z.string().max(MAX.line).default('')
 })
 export type CheckinInput = z.input<typeof checkinSchema>
 
@@ -81,11 +81,11 @@ export const companyInputSchema = z.object({
   website: urlSchema.default(''),
   /** DOU / Glassdoor / other reviews page. */
   reviewsUrl: urlSchema.default(''),
-  stack: z.string().max(500).default(''),
-  size: z.string().max(100).default(''),
+  stack: z.string().max(MAX.line).default(''),
+  size: z.string().max(MAX.label).default(''),
   location: z.string().max(200).default(''),
-  contacts: z.string().max(10_000).default(''),
-  notes: z.string().max(100_000).default(''),
+  contacts: z.string().max(MAX.short).default(''),
+  notes: z.string().max(MAX.note).default(''),
   /** Own impression 0–5. */
   rating: z.number().int().min(0).max(5).default(0),
   ...withTagIds
@@ -113,7 +113,7 @@ export interface Company extends EntityBase, WithTags {
 export const resumeInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
   /** What changed compared to the previous version. */
-  changes: z.string().max(20_000).default(''),
+  changes: z.string().max(MAX.note).default(''),
   isCurrent: z.boolean().default(false)
 })
 export const resumePatchSchema = patchOf(resumeInputSchema)
@@ -176,10 +176,10 @@ export const applicationInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
   companyId: idSchema.nullable().default(null),
   /** Free text when the company card is not created yet. */
-  companyName: z.string().max(200).default(''),
+  companyName: z.string().max(MAX.name).default(''),
   boardId: idSchema.nullable().default(null),
   url: urlSchema.default(''),
-  description: z.string().max(100_000).default(''),
+  description: z.string().max(MAX.jobPost).default(''),
   status: z.enum(APPLICATION_STATUSES).default('applied'),
   appliedAt: timestampSchema.nullable().default(null),
   salaryMin: z.number().min(0).max(10_000_000).nullable().default(null),
@@ -189,11 +189,11 @@ export const applicationInputSchema = z.object({
   location: z.string().max(200).default(''),
   resumeId: idSchema.nullable().default(null),
   templateId: idSchema.nullable().default(null),
-  coverLetter: z.string().max(50_000).default(''),
-  contact: z.string().max(1000).default(''),
+  coverLetter: z.string().max(MAX.letter).default(''),
+  contact: z.string().max(MAX.line).default(''),
   /** When to follow up if there is no answer. */
   followUpAt: timestampSchema.nullable().default(null),
-  notes: z.string().max(100_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   ...withTagIds
 })
 export const applicationPatchSchema = patchOf(applicationInputSchema)
@@ -260,9 +260,9 @@ export const stageInputSchema = z.object({
   /** Call link / address. */
   location: z.string().max(1000).default(''),
   /** How it went, what to improve. */
-  notes: z.string().max(100_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   /** Interviewer names. */
-  interviewers: z.string().max(1000).default('')
+  interviewers: z.string().max(MAX.line).default('')
 })
 export const stagePatchSchema = patchOf(stageInputSchema.omit({ applicationId: true }))
 export type StageInput = z.input<typeof stageInputSchema>
@@ -310,10 +310,10 @@ export const groupOf = (c: QuestionCategory): QuestionGroup => (c === 'technical
 export const questionInputSchema = z.object({
   category: z.enum(QUESTION_CATEGORIES).default('technical'),
   /** Topic inside the category: React, JS, System design, "О себе"… */
-  topic: z.string().trim().max(100).default(''),
-  question: z.string().trim().min(1).max(5000),
+  topic: z.string().trim().max(MAX.label).default(''),
+  question: z.string().trim().min(1).max(MAX.short),
   /** My best answer (markdown). */
-  answer: z.string().max(100_000).default(''),
+  answer: z.string().max(MAX.article).default(''),
   /** Language of the answer, for English interviews. */
   lang: z.enum(['ru', 'uk', 'en']).default('uk'),
   difficulty: z.number().int().min(1).max(3).default(2),

@@ -273,7 +273,7 @@ test.describe('fixed-price project: stages within the price', () => {
 })
 
 test.describe('idea → board with long titles', () => {
-  for (const len of [400, 500]) {
+  for (const len of [150, 200]) {
     test(`convertToBoard with a ${len}-char title`, async ({ vault }) => {
       const { rpc } = vault
       const title = `Довга ідея ${uid()} `.repeat(60).slice(0, len - 1) + 'Ж'
@@ -284,7 +284,7 @@ test.describe('idea → board with long titles', () => {
       const details = await rpc('boards.details', board.id)
       expect(details.cards).toHaveLength(1)
       expect(details.cards[0].title.startsWith('Розібрати ідею: ')).toBe(true)
-      expect(details.cards[0].title.length).toBeLessThanOrEqual(500)
+      expect(details.cards[0].title.length).toBeLessThanOrEqual(200)
       const after = await rpc('ideas.get', idea.id)
       expect(after.boardId).toBe(board.id)
       expect(after.status).toBe('in_progress')
@@ -297,12 +297,12 @@ test.describe('idea → board with long titles', () => {
 
 test.describe('quick add', () => {
   test('a link on the first line + a long multi-line text makes a bookmark, not an error', async ({ vault }) => {
-    // ~3 000 characters: past the 500-char title limit, within quick add's own 5 000.
+    // ~3 000 characters: past the 200-char title limit, within quick add's own 5 000 and a bookmark's notes.
     const long = Array.from({ length: 30 }, (_, i) => `Рядок ${i} ${'текст '.repeat(15)}`).join('\n')
     const saved = await vault.rpc('app.quickAdd', { target: 'bookmark', text: `https://example.com/${uid()}\n${long}` })
     const b = await vault.rpc('bookmarks.get', saved.id)
     expect(b.url).toMatch(/^https:\/\/example\.com\//)
-    expect(b.title.length).toBeLessThanOrEqual(500)
+    expect(b.title.length).toBeLessThanOrEqual(200)
     expect(b.title).toContain('Рядок 0')
     expect(b.notes).toContain('Рядок 29')
   })
@@ -329,9 +329,9 @@ test.describe('quick add', () => {
 })
 
 test.describe('validation audit: internal writes and uniqueness', () => {
-  test('an idea body above the board limit converts: the board gets a clipped copy, the card the full text', async ({ vault }) => {
+  test('an idea body at its limit converts: the board and the card get the whole text', async ({ vault }) => {
     const { rpc } = vault
-    const body = `Опис ${uid()} `.repeat(3000).slice(0, 30_000)
+    const body = `Опис ${uid()} `.repeat(3000).slice(0, 20_000)
     const idea = await rpc('ideas.create', { title: `Велика ідея ${uid()}`, body })
     const board = await rpc('ideas.convertToBoard', idea.id)
     const details = await rpc('boards.details', board.id)

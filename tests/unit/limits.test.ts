@@ -13,7 +13,9 @@ describe('limitsOf', () => {
     const l = limitsOf(proposalInputSchema)
     expect(l.jobTitle).toBe(MAX.title)
     expect(l.jobUrl).toBe(2048)
-    expect(l.coverLetter).toBe(50_000)
+    expect(l.coverLetter).toBe(MAX.letter)
+    expect(l.jobDescription).toBe(MAX.jobPost)
+    expect(l.notes).toBe(MAX.note)
     expect(l.clientName).toBe(200)
     expect(l.proposalsOnJob).toBe(40)
     // numbers / enums have no string limit
@@ -22,7 +24,7 @@ describe('limitsOf', () => {
   })
 
   it('idea title', () => {
-    expect(limitsOf(ideaInputSchema).title).toBe(500)
+    expect(limitsOf(ideaInputSchema).title).toBe(200)
   })
 
   it('synthetic schema', () => {
