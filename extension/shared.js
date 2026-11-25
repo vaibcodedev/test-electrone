@@ -28,15 +28,23 @@ export function setFieldError(id, text) {
   else document.getElementById(id).removeAttribute('aria-invalid')
 }
 
-const SETTINGS_HINT ='Налаштування → «Розширення для Chrome»'
+const SETTINGS_HINT = 'Налаштування → «Розширення для Chrome»'
 
 /**
  * Calls the local Vault bridge. Never talks to anything but 127.0.0.1.
  * Every request has a deadline: a hung Vault or a foreign process on the port must not leave «Зберігаю…» forever.
  */
-export async function vaultFetch(path, { method = 'GET', body, timeout = method === 'GET' ? 3000 : 30_000 } = {}) {
+export async function vaultFetch(
+  path,
+  { method = 'GET', body, timeout = method === 'GET' ? 3000 : 30_000 } = {}
+) {
   const { port, key } = await getConnection()
-  if (!key) return { ok: false, status: 'nokey', error: `Немає ключа. Скопіюйте його у Vault: ${SETTINGS_HINT}.` }
+  if (!key)
+    return {
+      ok: false,
+      status: 'nokey',
+      error: `Немає ключа. Скопіюйте його у Vault: ${SETTINGS_HINT}.`
+    }
   let res
   try {
     res = await fetch(`http://127.0.0.1:${port}${path}`, {
@@ -46,7 +54,12 @@ export async function vaultFetch(path, { method = 'GET', body, timeout = method 
       signal: AbortSignal.timeout(timeout)
     })
   } catch (e) {
-    if (e?.name === 'TimeoutError') return { ok: false, status: 'timeout', error: 'Vault не відповідає. Спробуйте ще раз за хвилину.' }
+    if (e?.name === 'TimeoutError')
+      return {
+        ok: false,
+        status: 'timeout',
+        error: 'Vault не відповідає. Спробуйте ще раз за хвилину.'
+      }
     return {
       ok: false,
       status: 'offline',
@@ -59,11 +72,25 @@ export async function vaultFetch(path, { method = 'GET', body, timeout = method 
   } catch {
     /* empty or non-JSON body */
   }
-  if (res.status === 401) return { ok: false, status: 'unauthorized', error: data.error || `Ключ не підходить. Скопіюйте новий у Vault: ${SETTINGS_HINT}.` }
+  if (res.status === 401)
+    return {
+      ok: false,
+      status: 'unauthorized',
+      error: data.error || `Ключ не підходить. Скопіюйте новий у Vault: ${SETTINGS_HINT}.`
+    }
   if (path === '/ping' && data.app !== 'vault') {
-    return { ok: false, status: 'offline', error: `На порту ${port} відповідає не Vault — перевірте порт у налаштуваннях розширення.` }
+    return {
+      ok: false,
+      status: 'offline',
+      error: `На порту ${port} відповідає не Vault — перевірте порт у налаштуваннях розширення.`
+    }
   }
-  if (!res.ok || data.ok === false) return { ok: false, status: 'error', error: data.error || 'Не вдалося зберегти. Спробуйте ще раз.' }
+  if (!res.ok || data.ok === false)
+    return {
+      ok: false,
+      status: 'error',
+      error: data.error || 'Не вдалося зберегти. Спробуйте ще раз.'
+    }
   return { ok: true, status: 'ok', ...data }
 }
 
@@ -115,10 +142,21 @@ export function suggestTarget(rawUrl) {
   const path = u.pathname
   if (host === 'npmjs.com' || host.endsWith('.npmjs.com')) return 'library'
   if (host === 'github.com' && /^\/[^/]+\/[^/]+\/?$/.test(path)) return 'library'
-  if (/(^|\.)djinni\.co$|(^|\.)dou\.ua$|(^|\.)work\.ua$|(^|\.)robota\.ua$/.test(host)) return 'application'
+  if (/(^|\.)djinni\.co$|(^|\.)dou\.ua$|(^|\.)work\.ua$|(^|\.)robota\.ua$/.test(host))
+    return 'application'
   if (host.endsWith('linkedin.com') && path.startsWith('/jobs')) return 'application'
-  if (/dribbble\.com|behance\.net|awwwards\.com|land-book\.com|mobbin\.com|godly\.website|lapa\.ninja|siteinspire\.com/.test(host)) return 'design'
-  if (/ui\.shadcn\.com|21st\.dev|tailwindui\.com|uiverse\.io|magicui\.design|aceternity\.com|codepen\.io/.test(host)) return 'component'
+  if (
+    /dribbble\.com|behance\.net|awwwards\.com|land-book\.com|mobbin\.com|godly\.website|lapa\.ninja|siteinspire\.com/.test(
+      host
+    )
+  )
+    return 'design'
+  if (
+    /ui\.shadcn\.com|21st\.dev|tailwindui\.com|uiverse\.io|magicui\.design|aceternity\.com|codepen\.io/.test(
+      host
+    )
+  )
+    return 'component'
   return 'bookmark'
 }
 
@@ -132,5 +170,8 @@ export function hostOf(rawUrl) {
 
 /** Pages where scripts can't be injected (chrome://, Web Store, other extensions…). */
 export function isRestricted(rawUrl) {
-  return !/^https?:\/\//.test(rawUrl || '') || /^https:\/\/chromewebstore\.google\.com|^https:\/\/chrome\.google\.com\/webstore/.test(rawUrl)
+  return (
+    !/^https?:\/\//.test(rawUrl || '') ||
+    /^https:\/\/chromewebstore\.google\.com|^https:\/\/chrome\.google\.com\/webstore/.test(rawUrl)
+  )
 }

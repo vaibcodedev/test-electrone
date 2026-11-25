@@ -14,7 +14,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch(async (e) => {
         // The overlay is already gone: without this the user would see nothing happen at all.
         console.error('[vault area]', e)
-        await chrome.storage.session.set({ [`area-error:${tab.id}`]: { url: tab.url, at: Date.now() } })
+        await chrome.storage.session.set({
+          [`area-error:${tab.id}`]: { url: tab.url, at: Date.now() }
+        })
         await showBadge(tab.id, '!', '#b02a33')
         await chrome.action.openPopup().catch(() => {})
         sendResponse({ ok: false, error: String(e?.message || e) })
@@ -30,7 +32,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then(sendResponse)
       .catch((e) => {
         console.error('[vault capture]', e)
-        sendResponse({ ok: false, status: 'error', error: 'Не вдалося зберегти. Спробуйте ще раз.' })
+        sendResponse({
+          ok: false,
+          status: 'error',
+          error: 'Не вдалося зберегти. Спробуйте ще раз.'
+        })
       })
     return true
   }
@@ -47,7 +53,9 @@ async function pruneAreas(keepTabId) {
   const areas = Object.entries(all)
     .filter(([k]) => k.startsWith('area:') && k !== `area:${keepTabId}`)
     .sort(([, a], [, b]) => (b?.at ?? 0) - (a?.at ?? 0))
-  const drop = areas.filter(([, v], i) => i >= AREA_KEEP - 1 || Date.now() - (v?.at ?? 0) > AREA_TTL).map(([k]) => k)
+  const drop = areas
+    .filter(([, v], i) => i >= AREA_KEEP - 1 || Date.now() - (v?.at ?? 0) > AREA_TTL)
+    .map(([k]) => k)
   if (drop.length) await chrome.storage.session.remove(drop)
 }
 
@@ -81,6 +89,7 @@ async function blobToDataUrl(blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer())
   let binary = ''
   const chunk = 0x8000
-  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  for (let i = 0; i < bytes.length; i += chunk)
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
   return `data:${blob.type};base64,${btoa(binary)}`
 }

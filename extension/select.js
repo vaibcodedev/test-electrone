@@ -87,7 +87,12 @@
   root.addEventListener('pointermove', (e) => {
     if (!start) return
     const r = rectFrom(start, pointOf(e))
-    Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px` })
+    Object.assign(box.style, {
+      left: `${r.x}px`,
+      top: `${r.y}px`,
+      width: `${r.width}px`,
+      height: `${r.height}px`
+    })
   })
   root.addEventListener('pointercancel', () => start && cancel())
   root.addEventListener('pointerup', (e) => {

@@ -1,4 +1,13 @@
-import { AREA_TTL, CONNECTION_PROBLEMS, TARGETS, hostOf, isRestricted, setFieldError, suggestTarget, vaultFetch } from './shared.js'
+import {
+  AREA_TTL,
+  CONNECTION_PROBLEMS,
+  TARGETS,
+  hostOf,
+  isRestricted,
+  setFieldError,
+  suggestTarget,
+  vaultFetch
+} from './shared.js'
 
 const $ = (id) => document.getElementById(id)
 const TARGET_LABEL = Object.fromEntries(TARGETS.map((t) => [t.id, t.label]))
@@ -10,11 +19,49 @@ const TAGS_MAX = 20
 
 /** What each target asks for: labels, the text field, tag examples, the default screenshot mode. */
 const FIELDS = {
-  design: { title: 'Назва', note: 'Нотатка', notePh: 'Чим сподобалося, де знадобиться', tagsPh: 'лендінг, dashboard', shot: 'visible', shotRequired: true },
-  bookmark: { title: 'Назва', note: 'Нотатка', notePh: 'Навіщо зберігаю, що подивитися', tagsPh: 'react, почитати', body: 'Цитата зі сторінки', bodyPh: 'Виділіть текст на сторінці до відкриття — він з’явиться тут', shot: 'visible' },
-  library: { title: 'Пакет або назва', note: 'Нотатка', notePh: 'Для чого знадобиться', tagsPh: 'стейт, форми', shot: 'none' },
-  component: { title: 'Назва компонента', note: 'Опис', notePh: 'Що робить, де підглянув', tagsPh: 'кнопки, анімації', body: 'Код', bodyPh: 'Виділіть код на сторінці до відкриття або вставте сюди', code: true, shot: 'visible' },
-  application: { title: 'Посада', note: 'Нотатка', notePh: 'Зарплата, контакти, враження', tagsPh: 'remote, react', body: 'Опис вакансії', bodyPh: 'Виділіть опис на сторінці до відкриття або вставте сюди', shot: 'none' }
+  design: {
+    title: 'Назва',
+    note: 'Нотатка',
+    notePh: 'Чим сподобалося, де знадобиться',
+    tagsPh: 'лендінг, dashboard',
+    shot: 'visible',
+    shotRequired: true
+  },
+  bookmark: {
+    title: 'Назва',
+    note: 'Нотатка',
+    notePh: 'Навіщо зберігаю, що подивитися',
+    tagsPh: 'react, почитати',
+    body: 'Цитата зі сторінки',
+    bodyPh: 'Виділіть текст на сторінці до відкриття — він з’явиться тут',
+    shot: 'visible'
+  },
+  library: {
+    title: 'Пакет або назва',
+    note: 'Нотатка',
+    notePh: 'Для чого знадобиться',
+    tagsPh: 'стейт, форми',
+    shot: 'none'
+  },
+  component: {
+    title: 'Назва компонента',
+    note: 'Опис',
+    notePh: 'Що робить, де підглянув',
+    tagsPh: 'кнопки, анімації',
+    body: 'Код',
+    bodyPh: 'Виділіть код на сторінці до відкриття або вставте сюди',
+    code: true,
+    shot: 'visible'
+  },
+  application: {
+    title: 'Посада',
+    note: 'Нотатка',
+    notePh: 'Зарплата, контакти, враження',
+    tagsPh: 'remote, react',
+    body: 'Опис вакансії',
+    bodyPh: 'Виділіть опис на сторінці до відкриття або вставте сюди',
+    shot: 'none'
+  }
 }
 
 const KINDS = [
@@ -48,7 +95,8 @@ function guessKind(url) {
   if (/youtube\.com|youtu\.be|vimeo\.com/.test(host)) return 'video'
   if (/github\.com/.test(host)) return 'repo'
   if (/udemy|coursera|egghead|frontendmasters/.test(host)) return 'course'
-  if (/^(docs|developer)\./.test(host) || /^\/(docs|reference|api)(\/|$)/.test(u.pathname)) return 'docs'
+  if (/^(docs|developer)\./.test(host) || /^\/(docs|reference|api)(\/|$)/.test(u.pathname))
+    return 'docs'
   return 'article'
 }
 
@@ -119,7 +167,12 @@ function scheduleDraft() {
 const OPEN_SETTINGS = ['Відкрити налаштування', () => chrome.runtime.openOptionsPage()]
 const RETRY = ['Перевірити знову', () => void ping()]
 /** The fix for each connection problem: a key problem is solved in the settings, a missing Vault by checking again. */
-const STATUS_ACTIONS = { nokey: OPEN_SETTINGS, unauthorized: OPEN_SETTINGS, offline: RETRY, timeout: RETRY }
+const STATUS_ACTIONS = {
+  nokey: OPEN_SETTINGS,
+  unauthorized: OPEN_SETTINGS,
+  offline: RETRY,
+  timeout: RETRY
+}
 
 function setStatus(kind, text, problem) {
   $('status').dataset.state = kind
@@ -176,7 +229,13 @@ function radioGroup(box, items, onChange, manual = []) {
     const shown = buttons.filter((b) => !b.hidden)
     const i = shown.indexOf(document.activeElement)
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
-    const next = step ? shown[(i + step + shown.length) % shown.length] : e.key === 'Home' ? shown[0] : e.key === 'End' ? shown.at(-1) : null
+    const next = step
+      ? shown[(i + step + shown.length) % shown.length]
+      : e.key === 'Home'
+        ? shown[0]
+        : e.key === 'End'
+          ? shown.at(-1)
+          : null
     if (i < 0 || !next) return
     e.preventDefault()
     next.focus()
@@ -263,7 +322,8 @@ function renderMode() {
 function renderFields() {
   const f = FIELDS[state.target]
   syncTarget(state.target)
-  for (const el of document.querySelectorAll('.field')) el.classList.toggle('on', el.dataset.for.split(' ').includes(state.target))
+  for (const el of document.querySelectorAll('.field'))
+    el.classList.toggle('on', el.dataset.for.split(' ').includes(state.target))
   $('title-label').textContent = f.title
   $('note-label').textContent = f.note
   $('note').placeholder = f.notePh
@@ -290,7 +350,8 @@ function selectMode(mode) {
   setError('')
   state.modeTouched = true
   if (mode === 'area') return void startAreaSelection()
-  if (mode === 'visible' && isRestricted(state.tab.url)) return setError(FIELDS[state.target].shotRequired ? DESIGN_RESTRICTED : RESTRICTED)
+  if (mode === 'visible' && isRestricted(state.tab.url))
+    return setError(FIELDS[state.target].shotRequired ? DESIGN_RESTRICTED : RESTRICTED)
   state.mode = mode
   if (mode === 'visible') {
     state.captureFailed = false
@@ -301,7 +362,14 @@ function selectMode(mode) {
 }
 
 function parseTags(value) {
-  return [...new Set(value.split(',').map((t) => t.trim()).filter(Boolean))]
+  return [
+    ...new Set(
+      value
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+    )
+  ]
 }
 
 function tagsError(tags) {
@@ -314,7 +382,8 @@ function tagsError(tags) {
 /* ───────── page data ───────── */
 
 function ensureScreenshot() {
-  if (state.screenshot || state.captureFailed || isRestricted(state.tab.url)) return Promise.resolve()
+  if (state.screenshot || state.captureFailed || isRestricted(state.tab.url))
+    return Promise.resolve()
   state.capturing ??= captureVisible().finally(() => {
     state.capturing = null
   })
@@ -327,7 +396,9 @@ async function captureVisible() {
   } catch (e) {
     console.error('[vault screenshot]', e)
     state.captureFailed = true
-    setError('Не вдалося зробити скриншот. Спробуйте «Виділити область» або збережіть без скриншота.')
+    setError(
+      'Не вдалося зробити скриншот. Спробуйте «Виділити область» або збережіть без скриншота.'
+    )
   }
   renderMode()
 }
@@ -396,7 +467,9 @@ async function send(tags) {
   if (state.mode === 'visible') await ensureScreenshot()
   const screenshot = state.mode === 'none' ? null : state.screenshot
   if (FIELDS[state.target].shotRequired && !screenshot) {
-    const error = isRestricted(state.tab.url) ? DESIGN_RESTRICTED : 'Для дизайну потрібен скриншот — виберіть «Видима область» або «Виділити область».'
+    const error = isRestricted(state.tab.url)
+      ? DESIGN_RESTRICTED
+      : 'Для дизайну потрібен скриншот — виберіть «Видима область» або «Виділити область».'
     return { ok: false, status: 'error', error }
   }
   const body = {
@@ -412,7 +485,12 @@ async function send(tags) {
   }
   try {
     // The service worker sends it and clears the draft: the popup may close before the answer.
-    return (await chrome.runtime.sendMessage({ type: 'vault-capture', tabId: state.tab.id, body })) ?? { ok: false, error: SAVE_FAILED }
+    return (
+      (await chrome.runtime.sendMessage({ type: 'vault-capture', tabId: state.tab.id, body })) ?? {
+        ok: false,
+        error: SAVE_FAILED
+      }
+    )
   } catch (e) {
     console.error('[vault capture]', e)
     return { ok: false, error: SAVE_FAILED }
@@ -443,7 +521,8 @@ async function init() {
   const stored = await chrome.storage.session.get([draftKey(), areaKey(), areaErrorKey()])
   const draft = stored[draftKey()]?.url === tab.url ? stored[draftKey()] : null
   const storedArea = stored[areaKey()]
-  const area = storedArea?.url === tab.url && Date.now() - (storedArea.at ?? 0) < AREA_TTL ? storedArea : null
+  const area =
+    storedArea?.url === tab.url && Date.now() - (storedArea.at ?? 0) < AREA_TTL ? storedArea : null
   const areaFailed = stored[areaErrorKey()]?.url === tab.url
   const { targets = {} } = await chrome.storage.local.get('targets')
 
@@ -468,12 +547,14 @@ async function init() {
 
   updateCount()
   renderFields()
-  if (areaFailed) setError('Не вдалося зняти область. Спробуйте ще раз або виберіть «Видима область».')
+  if (areaFailed)
+    setError('Не вдалося зняти область. Спробуйте ще раз або виберіть «Видима область».')
   focusTitle()
   void renderRecentTags()
 
   const [selection] = await Promise.all([draft?.selection ? '' : readSelection(), ping()])
-  if (selection && !$('body').value && document.activeElement !== $('body')) $('body').value = selection
+  if (selection && !$('body').value && document.activeElement !== $('body'))
+    $('body').value = selection
 }
 
 $('form').addEventListener('input', (e) => {
