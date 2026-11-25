@@ -38,7 +38,7 @@ test('the section is off by default; a preset brings its price, key field and li
   const { win, go } = vault
   await go('/settings#ai')
   const ai = section(win)
-  await expect(ai.getByRole('heading', { name: 'Штучний інтелект' })).toBeVisible()
+  await expect(ai.getByText('Штучний інтелект', { exact: true })).toBeVisible()
   await expect(ai.getByRole('switch', { name: 'Увімкнути ШІ' })).toHaveAttribute(
     'aria-checked',
     'false'
