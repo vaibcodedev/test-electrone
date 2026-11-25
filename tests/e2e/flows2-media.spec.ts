@@ -474,3 +474,84 @@ test.describe('вставка з буфера', () => {
     await expect.poll(count).toBe(before + 1)
   })
 })
+
+test.describe('добірка: зв’язки поруч із дизайнами', () => {
+  test('«Показати ще» перебудовує сітку одним кроком, без проміжного кадру', async ({ vault }) => {
+    const { win, go, rpc } = vault
+    await win.setViewportSize({ width: 1400, height: 900 })
+    const ids: string[] = await win.evaluate(async () => {
+      const out: string[] = []
+      for (let i = 0; i < 10; i++) {
+        const c = document.createElement('canvas')
+        c.width = 400
+        c.height = 300
+        const x = c.getContext('2d')!
+        x.fillStyle = ['#f4f4f0', '#335533', '#6f7ff0', '#e8930c', '#555', '#d4f542'][i % 6]
+        x.fillRect(0, 0, 400, 300)
+        const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), 'image/png'))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res = await (window as any).vault.rpc('designs.importImage', {
+          source: {
+            kind: 'bytes',
+            name: `vt ${i}.png`,
+            mime: 'image/png',
+            data: new Uint8Array(await blob.arrayBuffer())
+          }
+        })
+        out.push(res.data.id)
+      }
+      return out
+    })
+    const board = await rpc('moodboards.create', { title: 'VT' })
+    await rpc('moodboards.addDesigns', { moodboardId: board.id, designIds: ids })
+    for (const id of ids)
+      await rpc('links.create', {
+        fromType: 'moodboard',
+        fromId: board.id,
+        toType: 'design',
+        toId: id
+      })
+    await go(`/designs/boards/${board.id}`)
+    await expect(win.getByRole('button', { name: /Показати ще/ })).toBeVisible()
+    // Tile positions sampled after each painted frame for 0.7 s: the old layout, then the new one — no frame
+    // in between with rows stretched by the taller aside (the «blinking» of every picture).
+    const moves = await win.evaluate(async () => {
+      const tile = (): string =>
+        [...document.querySelectorAll('[data-slot="card"]')]
+          .map((e) => {
+            const r = e.getBoundingClientRect()
+            return `${Math.round(r.x)},${Math.round(r.y)}`
+          })
+          .join('|')
+      const frame = (): Promise<void> =>
+        new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)))
+      // Start from a settled page: pictures and the aside may still be landing right after navigation.
+      let last = tile()
+      for (let calm = performance.now(); performance.now() - calm < 300;) {
+        await frame()
+        const now = tile()
+        if (now !== last) {
+          last = now
+          calm = performance.now()
+        }
+      }
+      const seen: string[] = ['start ' + last]
+      ;(
+        [...document.querySelectorAll('button')].find((b) =>
+          b.textContent?.startsWith('Показати ще')
+        ) as HTMLButtonElement
+      ).click()
+      const t0 = performance.now()
+      while (performance.now() - t0 < 700) {
+        await frame()
+        const now = tile()
+        if (now !== last) {
+          last = now
+          seen.push(`${Math.round(performance.now() - t0)}ms ` + now)
+        }
+      }
+      return seen
+    })
+    expect(moves.length - 1).toBeLessThanOrEqual(1)
+  })
+})

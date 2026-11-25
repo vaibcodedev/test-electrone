@@ -8,7 +8,7 @@ import { ENTITY_ICON } from '@/app/navigation'
 import { clickableProps } from '@/lib/clickable'
 import { plural } from '@/lib/format'
 import { useApi } from '@/lib/query'
-import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
+import { withViewTransition } from '@/lib/view-transition'
 import { Button } from '@/components/ui/button'
 import {
   Item,
@@ -34,9 +34,7 @@ const NO_MENTIONS: Mention[] = []
 export function MentionsPanel({ entity }: { entity: EntityRef }): ReactElement | null {
   const { data: mentions = NO_MENTIONS, isError, refetch } = useApi('mentions', 'list', entity)
   const [all, setAll] = useState(false)
-  // Hooks before the early returns. Rows past five unfold and fold (usePresenceList) instead of jumping.
   const shown = useMemo(() => (all ? mentions : mentions.slice(0, FIRST)), [all, mentions])
-  const rows = usePresenceList(shown, refKey)
   // A failed load is said in place, not passed off as «no mentions».
   if (isError)
     return (
@@ -56,10 +54,8 @@ export function MentionsPanel({ entity }: { entity: EntityRef }): ReactElement |
     <section className="flex flex-col gap-2">
       <SectionLabel>Згадки</SectionLabel>
       <div className="-mx-2.5 flex flex-col">
-        {rows.map((entry) => (
-          <div key={entry.key} {...presenceProps(entry)}>
-            <MentionRow mention={entry.item} />
-          </div>
+        {shown.map((m) => (
+          <MentionRow key={refKey(m)} mention={m} />
         ))}
       </div>
       {(rest > 0 || (all && mentions.length > FIRST)) && (
@@ -68,7 +64,7 @@ export function MentionsPanel({ entity }: { entity: EntityRef }): ReactElement |
           size="xs"
           className="self-start"
           aria-expanded={all}
-          onClick={() => setAll(!all)}
+          onClick={() => withViewTransition(() => setAll(!all))}
         >
           {all ? 'Згорнути' : `Показати ще ${rest}`}
         </Button>

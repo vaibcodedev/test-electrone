@@ -410,6 +410,16 @@
   ::-webkit-scrollbar-track {
     background: transparent;
   }
+  /* Same-document view transitions (lib/view-transition.ts): the house easing, a short blend — moved elements
+     glide, the rest cross-fades only where it changed. */
+  ::view-transition-group(*) {
+    animation-duration: 0.26s;
+    animation-timing-function: var(--ease-soft);
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.18s;
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

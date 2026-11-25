@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { flushSync } from 'react-dom'
 
 /** The board's tile: at least 240px wide, 4:3 (SortableDesign), 12px apart (gap-3). */
 const MIN_TILE = 240
@@ -32,7 +33,7 @@ export function useWrapGrid(): {
     const header = headerRef.current
     const aside = asideRef.current
     if (!grid || !header || !aside) return
-    const measure = (): void => {
+    const read = (): void => {
       const next = {
         width: grid.clientWidth,
         header: header.offsetHeight,
@@ -44,8 +45,11 @@ export function useWrapGrid(): {
           : next
       )
     }
-    measure()
-    const ro = new ResizeObserver(measure)
+    // The first read is a plain update (this layout effect runs before paint anyway; flushSync is not allowed
+    // here). Later ones come from ResizeObserver, after layout and before paint: applied synchronously, the new
+    // span lands in the same frame as the change (the links list unfolding) — no painted in-between frame.
+    read()
+    const ro = new ResizeObserver(() => flushSync(read))
     ro.observe(grid)
     ro.observe(header)
     ro.observe(aside)

@@ -84,7 +84,13 @@ function SortableDesign({
   return (
     <Card
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      // A name of its own: in a view transition (the links list unfolding beside the grid) the tile glides to its
+      // new cell instead of cross-fading in place.
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        viewTransitionName: `mb-${design.id}`
+      }}
       className={cn(
         // The surface frame of the gallery tiles: a dark screenshot doesn't melt into the page.
         'group relative aspect-4/3 cursor-pointer gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 active:cursor-grabbing',

@@ -19,7 +19,7 @@ import { EntityRow, useOpenEntity } from './entity-link'
 import { EntityOption } from './entity-options'
 import { IconAction } from './icon-action'
 import { SectionLabel } from './section-label'
-import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
+import { withViewTransition } from '@/lib/view-transition'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
 
 const LINKS_HINT =
@@ -38,9 +38,7 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
   const { data: links = NO_LINKS } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
   const [all, setAll] = useState(false)
-  // Memoised: usePresenceList compares the array itself; rows past five unfold and fold instead of jumping.
   const shown = useMemo(() => (all ? links : links.slice(0, FIRST)), [all, links])
-  const rows = usePresenceList(shown, (l) => l.linkId)
   const rest = links.length - shown.length
   return (
     <section className="flex flex-col gap-2">
@@ -53,8 +51,8 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
         )
       ) : (
         <div className="-mx-2.5 flex flex-col">
-          {rows.map(({ item: l, ...entry }) => (
-            <div key={l.linkId} {...presenceProps({ ...entry, item: l })}>
+          {shown.map((l) => (
+            <div key={l.linkId}>
               <EntityRow
                 item={l}
                 onOpen={() =>
@@ -86,7 +84,9 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
           size="xs"
           className="self-start"
           aria-expanded={all}
-          onClick={() => setAll(!all)}
+          // One view transition: the rows and whatever reflows around them (a board's designs) move once,
+          // smoothly — a per-row height animation made a wrapping grid jump at every row.
+          onClick={() => withViewTransition(() => setAll(!all))}
         >
           {all ? 'Згорнути' : `Показати ще ${rest}`}
         </Button>
