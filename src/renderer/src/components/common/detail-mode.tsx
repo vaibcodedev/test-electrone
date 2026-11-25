@@ -423,6 +423,10 @@ export function CloseConfirmHost() {
   const discard = fresh
     ? '«Не зберігати» не створить запис.'
     : '«Не зберігати» поверне все як було до «Редагувати».'
+  // What to fix, the way back to it, and what the other choice does.
+  const blockedText = fresh
+    ? 'або оберіть «Не зберігати»: запис не буде створено.'
+    : 'або оберіть «Не зберігати»: усе стане як було до «Редагувати».'
   return (
     <AlertDialog open={!!ask} onOpenChange={(o) => !o && clear(null)}>
       <AlertDialogContent>
@@ -430,7 +434,7 @@ export function CloseConfirmHost() {
           <AlertDialogTitle>Зберегти зміни?</AlertDialogTitle>
           <AlertDialogDescription>
             {blocked
-              ? `${blocked}, щоб зберегти: Esc поверне до правки. ${discard}`
+              ? `${blocked} (Esc — назад до правки) ${blockedText}`
               : fresh
                 ? `Запис ще не збережено. ${discard}`
                 : `Запис змінено, але зміни ще не збережено. ${discard}`}
