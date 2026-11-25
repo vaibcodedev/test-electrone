@@ -4,6 +4,7 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
+import { OVERLAY_COLLISION } from './collision'
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
@@ -25,7 +26,7 @@ function DropdownMenuContent({
   className,
   sideOffset = 4,
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
-  collisionPadding = 12,
+  collisionPadding = OVERLAY_COLLISION,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
   return (

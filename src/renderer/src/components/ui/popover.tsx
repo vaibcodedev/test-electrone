@@ -3,6 +3,7 @@ import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
 import { Popover as PopoverPrimitive } from "radix-ui"
 import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
+import { OVERLAY_COLLISION } from "./collision"
 
 function Popover({
   ...props
@@ -25,7 +26,7 @@ function PopoverContent({
   align = "center",
   sideOffset = 4,
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
-  collisionPadding = 12,
+  collisionPadding = OVERLAY_COLLISION,
   children,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {

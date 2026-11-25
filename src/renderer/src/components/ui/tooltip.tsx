@@ -3,6 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
+import { OVERLAY_COLLISION } from "./collision"
 
 function TooltipProvider({
   delayDuration = 0,
@@ -33,7 +34,7 @@ function TooltipContent({
   className,
   sideOffset = 0,
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
-  collisionPadding = 12,
+  collisionPadding = OVERLAY_COLLISION,
   children,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {

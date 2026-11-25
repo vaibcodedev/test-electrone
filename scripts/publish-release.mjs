@@ -71,3 +71,13 @@ for (const file of files) {
 }
 if (release.draft) release = await api('PATCH', `/releases/${release.id}`, JSON.stringify({ draft: false }), { 'Content-Type': 'application/json' })
 console.log(`published ${release.html_url}`)
+
+// GitHub made a lightweight tag at the same commit; `npm version` left an annotated one here. Same commit, but
+// a pull then saw «conflicting tags» (VS Code offers «Replace Local Tag(s)»). Make the local one lightweight too —
+// local only, nothing is pushed.
+try {
+  execSync(`git tag -f ${tag} ${sha}`, { stdio: 'ignore' })
+  console.log(`local tag ${tag} now matches GitHub's`)
+} catch {
+  console.log(`local tag ${tag} left as is`)
+}
