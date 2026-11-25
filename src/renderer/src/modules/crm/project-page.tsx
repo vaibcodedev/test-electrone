@@ -30,6 +30,7 @@ import { ClientCombobox } from './client-combobox'
 import { MoneyHeader } from './project-money'
 import { ProjectLinks, Terms } from './project-terms'
 import { NetPaid, PlatformBadge } from './platform-fields'
+import { ProjectBoardButton } from './project-board-button'
 
 const PROJECT_L = limitsOf(projectInputSchema)
 
@@ -162,6 +163,7 @@ export function ProjectPage(): ReactElement {
               )}
               <PlatformBadge platformId={p.platformId} name={p.platformName} />
               <NetPaid project={p} />
+              <ProjectBoardButton projectId={p.id} title={p.title} />
             </div>
 
             {p.billing !== 'none' && (

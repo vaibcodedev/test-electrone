@@ -34,6 +34,7 @@ import type {
   BoardDetails,
   BoardInput,
   BoardPatch,
+  BoardListQuery,
   BoardSummary,
   Card,
   CardDetails,
@@ -283,7 +284,7 @@ export interface IdeasApi extends CrudApi<Idea, IdeaInput, IdeaPatch, IdeaListQu
   counts(query?: ChipCountsQuery): Promise<ChipCounts<IdeaStatus>>
 }
 
-export interface BoardsApi extends CrudApi<BoardSummary, BoardInput, BoardPatch> {
+export interface BoardsApi extends CrudApi<BoardSummary, BoardInput, BoardPatch, BoardListQuery> {
   details(id: string): Promise<BoardDetails | null>
   addColumn(args: { boardId: string; input: ColumnInput }): Promise<BoardColumn>
   updateColumn(args: { id: string; patch: ColumnPatch }): Promise<BoardColumn>

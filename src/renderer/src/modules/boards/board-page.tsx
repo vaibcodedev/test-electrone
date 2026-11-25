@@ -1,9 +1,19 @@
-import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { Archive, ArchiveRestore, Info, MoreHorizontal, SquareKanban, Trash2 } from 'lucide-react'
+import { useState, type ReactElement } from 'react'
+import { Link, useNavigate, useParams } from 'react-router'
+import {
+  Archive,
+  ArchiveRestore,
+  Briefcase,
+  Info,
+  MoreHorizontal,
+  SquareKanban,
+  Trash2
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { boardInputSchema, type Board, type BoardPatch } from '@shared/domain/boards'
+import { ENTITY_META } from '@shared/entity-types'
 import { limitsOf } from '@/lib/limits'
+import { fmtTitle } from '@/lib/format'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useUi } from '@/stores/ui-store'
@@ -117,6 +127,7 @@ function BoardHeader({ board }: { board: Board }) {
               Архів
             </Badge>
           )}
+          {board.projectId && <BoardProjectLink projectId={board.projectId} />}
         </div>
       </RecordMode>
       <div className="flex shrink-0 items-center gap-2 pt-1">
@@ -217,5 +228,18 @@ export function BoardPage() {
       </div>
       <CardSheet cardId={cardId} columns={details.columns} onClose={() => setCardId(null)} />
     </Page>
+  )
+}
+
+/** «Проєкт: Редизайн магазину» under a project's board (made with «Створити дошку» on the project page). */
+function BoardProjectLink({ projectId }: { projectId: string }): ReactElement | null {
+  const { data: project } = useApi('projects', 'get', projectId)
+  if (!project) return null
+  return (
+    <Button variant="link" size="sm" asChild className="mt-1 h-auto text-caption">
+      <Link to={ENTITY_META.project.route(project.id)}>
+        <Briefcase /> Проєкт: {fmtTitle(project.title)}
+      </Link>
+    </Button>
   )
 }

@@ -2,6 +2,7 @@ import { and, asc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm'
 import type { BoardsApi, CardsApi } from '@shared/api'
 import {
   boardInputSchema,
+  boardListSchema,
   boardPatchSchema,
   cardCheckInputSchema,
   cardInputSchema,
@@ -17,7 +18,6 @@ import {
   type DueCard
 } from '@shared/domain/boards'
 import { z } from 'zod'
-import { pageSchema } from '@shared/domain/common'
 import { fieldMax } from '@shared/domain/limits'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { boardColumns, boards, cardChecklist, cards } from '../db/schema'
@@ -125,9 +125,15 @@ export class BoardsModule {
     })
   }
 
-  listBoards(opts: { ids?: string[]; limit?: number; offset?: number } = {}): BoardSummary[] {
+  listBoards(
+    opts: { ids?: string[]; projectId?: string; limit?: number; offset?: number } = {}
+  ): BoardSummary[] {
     const list = this.boardRepo.listWhere(
-      [opts.ids ? inArray(boards.id, opts.ids) : undefined],
+      [
+        opts.ids ? inArray(boards.id, opts.ids) : undefined,
+        // A CRM project's boards («Дошка» on the project page): boards.projectId, set when the board is made there.
+        opts.projectId ? eq(boards.projectId, opts.projectId) : undefined
+      ],
       [sql`${boards.archived} ASC`, this.boardRepo.favoritesFirst(), sql`${boards.updatedAt} DESC`],
       opts.limit,
       opts.offset
@@ -143,7 +149,15 @@ export class BoardsModule {
       })
       .from(cards)
       .innerJoin(boardColumns, eq(boardColumns.id, cards.columnId))
-      .where(and(isNull(cards.deletedAt), inArray(cards.boardId, list.map((b) => b.id))))
+      .where(
+        and(
+          isNull(cards.deletedAt),
+          inArray(
+            cards.boardId,
+            list.map((b) => b.id)
+          )
+        )
+      )
       .groupBy(cards.boardId)
       .all()
     const byBoard = new Map(stats.map((s) => [s.boardId, s]))
@@ -205,9 +219,17 @@ export class BoardsModule {
    * invisible on its board: it goes to the end of the board's first column instead.
    */
   private reattachCard(card: CardRow): void {
-    if (this.db.select({ id: boardColumns.id }).from(boardColumns).where(eq(boardColumns.id, card.columnId)).get()) return
+    if (
+      this.db
+        .select({ id: boardColumns.id })
+        .from(boardColumns)
+        .where(eq(boardColumns.id, card.columnId))
+        .get()
+    )
+      return
     const first = this.columns(card.boardId)[0]
-    if (!first) throw new UserError('На дошці немає колонок — додайте колонку й відновіть картку ще раз')
+    if (!first)
+      throw new UserError('На дошці немає колонок — додайте колонку й відновіть картку ще раз')
     this.db
       .update(cards)
       .set({
@@ -240,7 +262,9 @@ export class BoardsModule {
     return this.columns(boardId).flatMap((col) => [
       `## ${col.title}`,
       '',
-      ...list.filter((c) => c.columnId === col.id).map((c) => `- [${col.isDone ? 'x' : ' '}] ${c.title}`),
+      ...list
+        .filter((c) => c.columnId === col.id)
+        .map((c) => `- [${col.isDone ? 'x' : ' '}] ${c.title}`),
       ''
     ])
   }
@@ -293,7 +317,9 @@ export class BoardsModule {
           boardId: target.boardId,
           updatedAt: now(),
           // Between two «Готово» columns the card stays closed when it was: not «done this week» again.
-          ...(movedColumn ? { completedAt: target.isDone ? (card.completedAt ?? now()) : null } : {})
+          ...(movedColumn
+            ? { completedAt: target.isDone ? (card.completedAt ?? now()) : null }
+            : {})
         })
         .where(eq(cards.id, cardId))
         .run()
@@ -373,7 +399,7 @@ export class BoardsModule {
 
   boardsApi(): BoardsApi {
     return {
-      list: async (query) => this.listBoards(pageSchema.parse(query ?? {})),
+      list: async (query) => this.listBoards(boardListSchema.parse(query ?? {})),
       get: async (id) => this.listBoards({ ids: [idArg.parse(id)] })[0] ?? null,
       create: async (input) => {
         const board = this.createBoard(input)
@@ -400,7 +426,11 @@ export class BoardsModule {
           .object({ boardId: idArg, input: columnInputSchema })
           .parse(args)
         this.boardRepo.rowOrThrow(boardId)
-        const position = nextPosition(this.m.db, boardColumns.position, eq(boardColumns.boardId, boardId))
+        const position = nextPosition(
+          this.m.db,
+          boardColumns.position,
+          eq(boardColumns.boardId, boardId)
+        )
         const col = { id: newId(), boardId, ...input, position }
         this.db.insert(boardColumns).values(col).run()
         this.boardRepo.touch(boardId)
@@ -409,12 +439,19 @@ export class BoardsModule {
       updateColumn: async (args) => {
         const { id, patch } = updateArgs(columnPatchSchema).parse(args)
         const before = this.column(id)
-        const col = this.db.update(boardColumns).set(patch).where(eq(boardColumns.id, id)).returning().get()!
+        const col = this.db
+          .update(boardColumns)
+          .set(patch)
+          .where(eq(boardColumns.id, id))
+          .returning()
+          .get()!
         // Only a real flip re-stamps the cards; long-done cards keep their date (weekly review counts by it).
         if (patch.isDone !== undefined && patch.isDone !== before.isDone) {
           this.db
             .update(cards)
-            .set({ completedAt: patch.isDone ? sql`coalesce(${cards.completedAt}, ${now()})` : null })
+            .set({
+              completedAt: patch.isDone ? sql`coalesce(${cards.completedAt}, ${now()})` : null
+            })
             .where(eq(cards.columnId, id))
             .run()
         }
@@ -438,7 +475,10 @@ export class BoardsModule {
           if (target) {
             this.db
               .update(cards)
-              .set({ columnId: target.id, completedAt: target.isDone ? sql`coalesce(${cards.completedAt}, ${now()})` : null })
+              .set({
+                columnId: target.id,
+                completedAt: target.isDone ? sql`coalesce(${cards.completedAt}, ${now()})` : null
+              })
               .where(eq(cards.columnId, id))
               .run()
           } else {
@@ -498,7 +538,11 @@ export class BoardsModule {
       addCheck: async (args) => {
         const { cardId, text } = cardCheckInputSchema.extend({ cardId: idArg }).parse(args)
         this.cardRepo.rowOrThrow(cardId)
-        const position = nextPosition(this.m.db, cardChecklist.position, eq(cardChecklist.cardId, cardId))
+        const position = nextPosition(
+          this.m.db,
+          cardChecklist.position,
+          eq(cardChecklist.cardId, cardId)
+        )
         const entry = { id: newId(), cardId, text, done: false, position }
         this.db.insert(cardChecklist).values(entry).run()
         this.cardRepo.touch(cardId)

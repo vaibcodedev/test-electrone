@@ -7,8 +7,15 @@ import {
   withTagIds,
   type EntityBase,
   type WithTags,
-  patchOf
+  patchOf,
+  pageSchema
 } from './common'
+
+/** boards.list filters: a CRM project's boards (the «Дошка» button on the project page). */
+export const boardListSchema = pageSchema.extend({ projectId: idSchema.optional() })
+export interface BoardListQuery {
+  projectId?: string
+}
 
 export const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'] as const
 export type Priority = (typeof PRIORITIES)[number]
