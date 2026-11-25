@@ -23,7 +23,7 @@
    - I — узкие интерфейсы API на модуль (`IdeasApi`, `CardsApi`…), общий `CrudApi` только там, где он подходит.
    - D — renderer и main зависят от контракта `src/shared/api.ts`; зависимости в main передаются через конструктор (`src/main/container.ts` — composition root), никаких глобалов.
 4. **UI только из shadcn.** Любой элемент интерфейса собирается из компонентов shadcn (`src/renderer/src/components/ui`). Нужного компонента нет — сначала ищи его в реестре и добавляй через `npx shadcn@latest add <name>`, документацию сверяй в Context7. Самописный компонент допустим, только если в shadcn нет аналога (например, колонки канбана или сетка месяца в календаре), и даже тогда он собирается из shadcn-примитивов (`Card`, `Button`, `Badge`…). `<button>`/`<a>` допустимы только как дочерний элемент shadcn-компонента с `asChild`. Запрещены «голые» `<button>`, `<select>`, `<input type="checkbox|radio|range|date">`, самодельные чипы, табы, тогглы, прогресс-бары, модалки и тултипы — для них есть `Button`, `Select`, `Checkbox`, `RadioGroup`, `Slider`, `Calendar` + `Popover`, `ToggleGroup`, `Tabs`, `Switch`, `Progress`, `Dialog`/`Sheet`, `Tooltip`. Стиль меняется темой (CSS-переменные в `globals.css`) и вариантами `cva` внутри `components/ui`, а не обходом shadcn.
-5. **Гайд всегда актуален.** В конце каждого блока изменений обновляй встроенный гайд (`src/renderer/src/modules/guide/guide-page.tsx`): новые возможности, изменённое поведение, горячие клавиши, FAQ (якоря `#faq-…` не ломать). Блок не считается законченным без этого.
+5. **Гайд всегда актуален.** В конце каждого блока изменений обновляй встроенный гайд (`src/renderer/src/modules/guide/`: разделы — `sections.tsx`, FAQ — `faq-data.tsx`, блоки текста — `blocks.tsx`): новые возможности, изменённое поведение, горячие клавиши, FAQ (якоря `#faq-…` не ломать — на них ссылается код). Блок не считается законченным без этого.
 6. Проверка перед сдачей: `npm run build` (typecheck + сборка) без ошибок, `npm test` (unit) и `npm run test:e2e` (Electron + Playwright) зелёные; визуальная проверка скриншотами (`npm run snap`). Собирать только через npm-скрипты (`scripts/electron-vite.mjs`), не `npx electron-vite` напрямую: на Windows путь `c:\…` vs `C:\…` даёт две копии React и пустое окно.
 
 ## Коммиты
@@ -70,9 +70,10 @@ electron-vite (React + TS) · Tailwind v4 + shadcn (перестилизован
 src/shared/            контракт main↔renderer: api.ts, entity-types.ts, domain/*.ts (zod-схемы + типы)
 src/main/
   container.ts         composition root (DI)
-  core/                paths, config-store (JSON вне БД), registry, soft-repository, event-bus, util, zip
+  core/                paths, config-store (JSON вне БД), registry, soft-repository, ordering, event-bus, logger, util, zip
   db/                  schema (drizzle), client (DbContext), migrations (drizzle-kit + custom FTS5)
-  modules/             бэкенд модулей: boards, ideas, knowledge, media, crm, checklists, english, calendar
+  modules/             бэкенд модулей: boards, ideas, knowledge, media, checklists, english, calendar, finance, dev-projects;
+                       большие — папками: crm/, freelance/, jobs/ (index.ts + части)
   services/            сквозные: search-index, tags, links, pins, trash, files, attachments, backup, export, dashboard, reminders, quick-add, secret-box
   system/              окна, трей, глобальный хоткей, автозапуск, протоколы, апдейтер
   ipc/rpc.ts           один канал rpc("ns.method", arg) + проверка отправителя
@@ -81,7 +82,7 @@ src/renderer/
   preview.html, preview/   песочница превью компонентов (iframe sandbox, свой CSP)
   src/app/             router, navigation
   src/components/ui    shadcn (перестилизован), components/common — общие блоки (список: docs/design-system.md §14), components/layout
-  src/features/        dashboard, command-palette, quick-add, trash, settings, tags
+  src/features/        dashboard, command-palette, quick-add, trash, settings, tags, route-error (LoadError, NotFoundPage)
   src/modules/<name>/  страницы модулей (index.tsx экспортирует страницы для роутера)
   src/lib/             api (типизированный Proxy), query (useApi/useApiMutation), format, files
   src/hooks/, src/stores/
@@ -95,10 +96,15 @@ src/renderer/
 - **Данные пользователя неприкосновенны.** Перед новыми миграциями `DbContext` сам кладёт копию базы в `backups/pre-update-<версия>-<время>.db` (последние 5). `npm run dev` работает с отдельной папкой `%APPDATA%/vault-dev`, рабочая база установленного Vault не трогается. Тесты (`scripts/snap.mjs`) всегда идут во временную папку.
 - **Миграции проверять глазами.** Если drizzle-kit сгенерировал пересоздание таблицы (`__new_…` + `DROP TABLE`) для таблицы, на которую ссылаются FK с `ON DELETE CASCADE`, — НЕЛЬЗЯ: в транзакции `PRAGMA foreign_keys=OFF` не работает и дочерние строки удалятся. Меняй схему только аддитивно (`ADD COLUMN`), дефолты задавай в приложении.
 - **Длинные списки — только виртуализированные:** `VirtualList` / `VirtualGrid` (`components/common/virtual-list.tsx`, TanStack Virtual) + `useInfiniteApi(ns, method, filters)` (страницы по 100 через `{ limit, offset }`). Фильтры и поиск — на сервере (параметры list-метода), не фильтровать большие массивы в рендере. Новый list-метод в main обязан принимать `pageSchema`.
-- **Горячие клавиши** — единый реестр `app/shortcuts.ts` + обработчик `hooks/use-global-shortcuts.ts` + справка `Ctrl+/`. Страничные клавиши работают через атрибуты общих компонентов: `N` нажимает лаймовую кнопку в `PageHeader`, `/` фокусирует `SearchInput` (`data-page-search`), `Esc` закрывает `DetailPane` (`data-close-detail`). Новую клавишу — сначала в реестр.
+- **Горячие клавиши** — единый реестр `app/shortcuts.ts` + обработчик `hooks/use-global-shortcuts.ts` + справка `Ctrl+/`. Страничные клавиши работают через атрибуты общих компонентов: `N` нажимает лаймовую кнопку в `PageHeader`, `/` фокусирует `SearchInput` (`data-page-search`), `Esc` закрывает `DetailPane` (`data-close-detail`). Где лаймовой кнопки в шапке нет, страница вешает `useHotkey('n', …)` (`hooks/use-hotkey.ts`): фокус в поле быстрого ввода (ідеї) или быстрая форма (канбан). Если на странице есть и лаймовая кнопка, и поле быстрого ввода (компанії, майданчики), кнопка при пустом поле ставит в него курсор — так `N` работает без своего хоткея. Новую клавишу — сначала в реестр.
 - **Журнал ошибок** — electron-log (`main/core/logger.ts`): `%APPDATA%/<app>/logs/main.log`. В main логировать через `log`, в renderer ошибки уходят через `reportError` → `api.app.logError`. Не глотать ошибки молча.
 - Каждая новая сущность: таблица в `db/schema`, `npm run db:generate`, дескриптор в модуле, регистрация в `container.ts`, маршрут в `ENTITY_META`.
 - Зависимые сущности (карточки доски) при удалении родителя остаются с `deletedAt = null` (иначе каждая всплыла бы в корзине отдельно). Поэтому у дескриптора есть `aliveWhere`, а сквозной код фильтрует через `registry.live(d)`, не через голый `isNull(deletedAt)`.
+- **Сквозная логика main расширяется полями `EntityDescriptor`, а не кодом сервисов:** `onRestore` — вернуть зависимые записи после «Відновити», `afterRevert` — откатить побочные эффекты «Скасувати», `fileFields` — файловые колонки для ревизий, `systemFields` — служебные колонки (не откатываются и не экспортируются), `exportBody` — дополнительный markdown в экспорте.
+- Порядок элементов в main — `nextPosition` / `reorder` из `core/ordering` + `orderedIds` (≤1000) из `modules/context`; свои `max(position)+1` и reorder через `forEach` не писать.
+- Календарь: модуль отдаёт `calendarFeed(from, to)`, провайдер регистрируется в `container.registerCalendarFeeds()`; `CalendarModule` от других модулей не зависит.
+- Большой модуль main — папка: `index.ts` владеет дескрипторами и собирает API из частей; часть — класс со своим `api()` и узким интерфейсом (`CreditsApi`, `ApplicationsApi`, или `Pick<JobsApi, …>`, когда несколько частей делят один namespace).
+- Ожидаемые ошибки в main — только `UserError` / `NotFoundError` (`core/util.ts`) с украинским текстом для человека, без id записей. Технические детали (английские сообщения shell, net, electron-updater) — в журнал через `log.warn` / `log.error`.
 - Даты: ключ дня — `dayKey(ts)` (локальный), шаг по дням/неделям — `addDays()` (`core/util.ts`). `toISOString().slice(0,10)` и `+ n * DAY_MS` для календаря запрещены: UTC-сдвиг и переход на летнее время.
 - Регистронезависимый поиск в SQL — `ulower()` (функция из `db/client`), не `lower()`.
 - Файлы — только в `<data>/files`, в БД относительный путь; в renderer — `fileUrl(path)` (`vault-file://`).
