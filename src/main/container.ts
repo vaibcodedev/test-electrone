@@ -15,6 +15,7 @@ import { SearchIndex } from './services/search-index'
 import { createEach, ImportService } from './services/import-service'
 import { TagService } from './services/tag-service'
 import { LinkService } from './services/link-service'
+import { MentionService } from './services/mention-service'
 import { PinService } from './services/pin-service'
 import { FileStorage } from './services/file-storage'
 import { AttachmentService } from './services/attachment-service'
@@ -66,6 +67,7 @@ export class Container {
   readonly search = new SearchIndex(this.db, this.registry)
   readonly tags = new TagService(this.db, this.registry)
   readonly links = new LinkService(this.db, this.registry)
+  readonly mentions = new MentionService(this.db, this.registry)
   readonly pins = new PinService(this.db, this.registry)
   readonly files = new FileStorage(this.paths.filesDir)
   readonly attachments = new AttachmentService(this.db, this.files, this.registry)
@@ -328,6 +330,7 @@ export class Container {
       importer: { run: async (args) => importer.run(args) },
       tags: this.tags.api(),
       links: this.links.api(),
+      mentions: this.mentions.api(),
       pins: this.pins.api(),
       search: this.search.api((limit, types) => this.dashboard.recent(limit, types)),
       records: this.revisions.api(this.bus),
