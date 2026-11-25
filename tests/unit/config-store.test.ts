@@ -1,11 +1,16 @@
 /** Machine-level config outside the DB: seed ledger and once-a-day reminders survive a restart. */
 import { describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, readdirSync, writeFileSync } from 'fs'
+import * as fs from 'fs'
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { dirname, join } from 'path'
 import { ConfigStore, DEFAULT_SETTINGS, seedOnce } from '@main/core/config-store'
 
 vi.mock('electron', async () => (await import('./support/electron-mock')).electronMock)
+vi.mock('fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs')>()
+  return { ...actual, readFileSync: vi.fn(actual.readFileSync) }
+})
 vi.mock('@main/core/logger', async () => (await import('./support/electron-mock')).loggerMock)
 
 const file = (): string => join(mkdtempSync(join(tmpdir(), 'vault-cfg-')), 'config.json')
@@ -14,15 +19,30 @@ describe('seedOnce', () => {
   it('seeds an empty table once; deleted seeds never come back', () => {
     const config = new ConfigStore(file())
     let seeded = 0
-    seedOnce(config, 'jobBoards', () => false, () => seeded++)
-    seedOnce(config, 'jobBoards', () => false, () => seeded++)
+    seedOnce(
+      config,
+      'jobBoards',
+      () => false,
+      () => seeded++
+    )
+    seedOnce(
+      config,
+      'jobBoards',
+      () => false,
+      () => seeded++
+    )
     expect(seeded).toBe(1)
   })
 
   it('a database that already has rows only gets marked', () => {
     const config = new ConfigStore(file())
     let seeded = 0
-    seedOnce(config, 'checklists', () => true, () => seeded++)
+    seedOnce(
+      config,
+      'checklists',
+      () => true,
+      () => seeded++
+    )
     expect(seeded).toBe(0)
     expect(config.isSeeded('checklists')).toBe(true)
   })
@@ -46,7 +66,10 @@ describe('persisted between launches', () => {
 describe('a damaged config file', () => {
   it('one invalid setting resets only itself, the others are kept', () => {
     const path = file()
-    writeFileSync(path, JSON.stringify({ settings: { backupKeep: 0, quickAddShortcut: 'Ctrl+Alt+V' } }))
+    writeFileSync(
+      path,
+      JSON.stringify({ settings: { backupKeep: 0, quickAddShortcut: 'Ctrl+Alt+V' } })
+    )
     const config = new ConfigStore(path)
     expect(config.settings.quickAddShortcut).toBe('Ctrl+Alt+V')
     expect(config.settings.backupKeep).toBe(DEFAULT_SETTINGS.backupKeep)
@@ -58,5 +81,45 @@ describe('a damaged config file', () => {
     const config = new ConfigStore(path)
     expect(config.settings).toEqual(DEFAULT_SETTINGS)
     expect(readdirSync(dirname(path)).some((f) => f.startsWith('config.json.broken-'))).toBe(true)
+  })
+
+  it.each([['null'], ['[]'], ['42']])(
+    'valid JSON that is not an object (%s) starts from defaults and is kept aside',
+    (text) => {
+      const path = file()
+      writeFileSync(path, text)
+      const config = new ConfigStore(path)
+      expect(config.settings).toEqual(DEFAULT_SETTINGS)
+      expect(readdirSync(dirname(path)).some((f) => f.startsWith('config.json.broken-'))).toBe(true)
+    }
+  )
+
+  it('a file locked at start is never overwritten: the keys in it survive', () => {
+    const path = file()
+    const original = JSON.stringify({ secrets: { github: 'encrypted' }, seeded: ['jobBoards'] })
+    writeFileSync(path, original)
+    const busy = Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' })
+    const read = vi.mocked(fs.readFileSync)
+    read.mockImplementationOnce(() => {
+      throw busy
+    })
+    read.mockImplementationOnce(() => {
+      throw busy
+    })
+    const config = new ConfigStore(path)
+    expect(config.settings).toEqual(DEFAULT_SETTINGS)
+    config.updateSettings({ userName: 'Олена' })
+    config.flush()
+    expect(readFileSync(path, 'utf8')).toBe(original)
+    expect(readdirSync(dirname(path)).some((f) => f.startsWith('config.json.broken-'))).toBe(false)
+  })
+
+  it('a file locked for a moment is read on the second try', () => {
+    const path = file()
+    writeFileSync(path, JSON.stringify({ settings: { userName: 'Олена' } }))
+    vi.mocked(fs.readFileSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error('EBUSY'), { code: 'EBUSY' })
+    })
+    expect(new ConfigStore(path).settings.userName).toBe('Олена')
   })
 })

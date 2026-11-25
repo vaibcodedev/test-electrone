@@ -3,7 +3,9 @@
  * they saw before deleting — vacancies with their calendar events above all.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { EventBus } from '@main/core/event-bus'
+import { applicationStages } from '@main/db/schema'
 import { openVault, type Vault } from './support/vault'
 import { HOUR, stageEvents, vacancyWithInterview } from './support/jobs'
 
@@ -128,10 +130,52 @@ describe('stage events belong to the stage', () => {
   })
 })
 
+describe('a stale stage event older versions left in the trash', () => {
+  /** Older versions trashed the event of a cancelled stage and cleared stage.eventId. */
+  async function staleEvent(): Promise<{ stageId: string; eventId: string; at: number | null }> {
+    const { stageId } = await vacancyWithInterview(v)
+    const [event] = stageEvents(v, stageId)
+    v.calendar.repo.softDelete(event.id)
+    v.db.orm
+      .update(applicationStages)
+      .set({ status: 'cancelled', eventId: null })
+      .where(eq(applicationStages.id, stageId))
+      .run()
+    const stage = v.db.orm
+      .select()
+      .from(applicationStages)
+      .where(eq(applicationStages.id, stageId))
+      .get()
+    return { stageId, eventId: event.id, at: stage?.at ?? null }
+  }
+  const stageAt = (stageId: string): number | null | undefined =>
+    v.db.orm.select().from(applicationStages).where(eq(applicationStages.id, stageId)).get()?.at
+
+  it('once restored, it is an ordinary event: moving it leaves the stage alone, «У кошик» works', async () => {
+    const { stageId, eventId, at } = await staleEvent()
+    v.trash.restore({ type: 'event', id: eventId })
+    await v.api.events.update({ id: eventId, patch: { startAt: Date.now() + 96 * HOUR } })
+    expect(stageAt(stageId)).toBe(at)
+    await expect(v.api.events.remove(eventId)).resolves.toBeUndefined()
+  })
+
+  it('startup housekeeping drops it from the trash; the events stages point at stay', async () => {
+    const { eventId } = await staleEvent()
+    const { stageId: liveStage } = await vacancyWithInterview(v)
+    const [live] = stageEvents(v, liveStage)
+    v.calendar.repo.softDelete(live.id)
+    v.jobs.tidy()
+    expect(v.trash.list().map((i) => i.id)).toEqual([live.id])
+    expect(v.calendar.repo.row(eventId, true)).toBeUndefined()
+  })
+})
+
 describe('«Видалити назавжди» from a stale trash list', () => {
   it('a record already restored elsewhere is not deleted', async () => {
     const b = await v.api.boards.create({ title: 'Жива' })
-    await expect(v.trash.api(new EventBus()).purge({ type: 'board', id: b.id })).rejects.toThrow(/уже не в кошику/)
+    await expect(v.trash.api(new EventBus()).purge({ type: 'board', id: b.id })).rejects.toThrow(
+      /уже не в кошику/
+    )
     expect(v.boards.listBoards().map((x) => x.id)).toEqual([b.id])
   })
 })

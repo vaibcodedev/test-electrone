@@ -136,7 +136,7 @@ export const IMPORT_DEFS: Record<ImportKind, ImportKindDef> = {
     forms: ['ідея', 'ідеї', 'ідей'],
     hint: 'Список ідей з описом.',
     schema: arrayPayload(ideaItem),
-    example: [{ title: 'Плагін для Shopify: швидкі превʼю колекцій', body: 'Кеш у KV, маршрут Hydrogen', status: 'inbox', impact: 2 }],
+    example: [{ title: 'Плагін для Shopify: швидкі прев’ю колекцій', body: 'Кеш у KV, маршрут Hydrogen', status: 'inbox', impact: 2 }],
     rules: ['status: inbox | thinking | planned | in_progress | done | dropped', 'impact: 0–3, body (або description) — markdown'],
     preview: titles<{ title: string }>((i) => i.title)
   },

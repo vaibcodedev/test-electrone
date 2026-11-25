@@ -1,6 +1,12 @@
 import { copyFileSync, readFileSync, renameSync, writeFileSync } from 'fs'
-import { settingsSchema, type Settings, type SettingsPatch } from '@shared/domain/system'
+import {
+  DEFAULT_QUICK_ADD_SHORTCUT,
+  settingsSchema,
+  type Settings,
+  type SettingsPatch
+} from '@shared/domain/system'
 import { log } from './logger'
+import { retryBusy } from './util'
 
 export interface WindowState {
   x?: number
@@ -31,7 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   launchAtLogin: false,
   startHidden: true,
   closeToTray: true,
-  quickAddShortcut: 'CommandOrControl+Shift+Space',
+  quickAddShortcut: DEFAULT_QUICK_ADD_SHORTCUT,
   autoBackup: true,
   backupKeep: 14,
   autoUpdate: true,
@@ -63,7 +69,8 @@ function readSettings(raw: unknown): Settings {
   for (const [key, schema] of Object.entries(settingsSchema.shape)) {
     const value = stored[key]
     const parsed = value === undefined ? undefined : schema.safeParse(value)
-    if (parsed && !parsed.success) log.warn(`[config] invalid setting «${key}» reset to the default`)
+    if (parsed && !parsed.success)
+      log.warn(`[config] invalid setting «${key}» reset to the default`)
     settings[key] = parsed?.success ? parsed.data : DEFAULT_SETTINGS[key as keyof Settings]
   }
   return settingsSchema.parse(settings)
@@ -79,19 +86,40 @@ export class ConfigStore {
   private data: ConfigShape
   private listeners = new Set<Listener>()
   private writeTimer: NodeJS.Timeout | null = null
+  /**
+   * The file exists but could not be read (locked by an antivirus, no access): never write over it,
+   * or the encrypted keys and the seed ledger in it would be lost. Changes live until the app closes.
+   */
+  private readOnly = false
 
   constructor(private readonly file: string) {
     this.data = this.read()
   }
 
   private read(): ConfigShape {
-    let raw: Partial<ConfigShape>
+    let text: string
     try {
-      raw = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<ConfigShape>
+      text = retryBusy(() => readFileSync(this.file, 'utf8'), 2)
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') this.keepBroken(e)
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+        this.readOnly = true
+        log.error(`[config] ${this.file} cannot be read, starting from defaults without saving`, e)
+      }
       return structuredClone(DEFAULTS)
     }
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(text)
+    } catch (e) {
+      this.keepBroken(e)
+      return structuredClone(DEFAULTS)
+    }
+    // Valid JSON that is not an object (`null`, an array, a number) is as broken as a syntax error.
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      this.keepBroken(new Error('config is not an object'))
+      return structuredClone(DEFAULTS)
+    }
+    const raw = parsed as Partial<ConfigShape>
     return {
       settings: readSettings(raw.settings),
       window: { ...DEFAULTS.window, ...raw.window },
@@ -100,7 +128,9 @@ export class ConfigStore {
       lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null,
       lastJobNudge: typeof raw.lastJobNudge === 'string' ? raw.lastJobNudge : null,
       lastCardNudge: typeof raw.lastCardNudge === 'string' ? raw.lastCardNudge : null,
-      seeded: Array.isArray(raw.seeded) ? raw.seeded.filter((x): x is string => typeof x === 'string') : []
+      seeded: Array.isArray(raw.seeded)
+        ? raw.seeded.filter((x): x is string => typeof x === 'string')
+        : []
     }
   }
 
@@ -123,6 +153,7 @@ export class ConfigStore {
   flush(): void {
     if (this.writeTimer) clearTimeout(this.writeTimer)
     this.writeTimer = null
+    if (this.readOnly) return
     const tmp = `${this.file}.tmp`
     writeFileSync(tmp, JSON.stringify(this.data, null, 2))
     renameSync(tmp, this.file)
@@ -217,7 +248,12 @@ export type SeedLedger = Pick<ConfigStore, 'isSeeded' | 'markSeeded'>
  * Seeds a set once per installation. A non-empty table counts as seeded (databases from before the
  * ledger), so templates the user deleted aren't re-created on a later start once the trash is emptied.
  */
-export function seedOnce(ledger: SeedLedger, key: string, hasRows: () => boolean, seed: () => void): void {
+export function seedOnce(
+  ledger: SeedLedger,
+  key: string,
+  hasRows: () => boolean,
+  seed: () => void
+): void {
   if (ledger.isSeeded(key)) return
   if (!hasRows()) seed()
   ledger.markSeeded(key)

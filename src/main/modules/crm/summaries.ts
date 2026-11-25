@@ -3,7 +3,7 @@ import type { Client, ClientSummary, Project, ProjectSummary } from '@shared/dom
 import { clients, payments, platforms, projects, timeEntries } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import type { ModuleContext } from '../context'
-import { monthsBilled, round2, toTime, type ProjectRepo } from './shared'
+import { monthsBilled, round2, toPayment, toTime, type ProjectRepo } from './shared'
 
 /** Money math per project (earned, paid, outstanding, effective rate) and its roll-up per client. */
 export class CrmSummaries {
@@ -48,6 +48,7 @@ export class CrmSummaries {
       const trackedMinutes = mine.reduce((s, t) => s + t.minutes, 0)
       const billableMinutes = mine.filter((t) => t.billable).reduce((s, t) => s + t.minutes, 0)
       const myPays = pays.filter((x) => x.projectId === p.id && x.currency === p.currency)
+      const overdue = myPays.map(toPayment).filter((x) => x.overdue)
       const paidAmount = myPays.filter((x) => x.status === 'paid').reduce((s, x) => s + x.amount, 0)
       const openAmount = myPays
         .filter((x) => x.status === 'expected' || x.status === 'invoiced')
@@ -82,7 +83,9 @@ export class CrmSummaries {
         effectiveRate,
         retainerMonths,
         paidAmount,
-        outstandingAmount
+        outstandingAmount,
+        overduePayments: overdue.length,
+        overdueAmount: round2(overdue.reduce((s, x) => s + x.amount, 0))
       }
     })
   }
@@ -106,7 +109,9 @@ export class CrmSummaries {
         activeProjectCount: mine.filter((p) => p.status === 'active').length,
         trackedMinutes: mine.reduce((s, p) => s + p.trackedMinutes, 0),
         paidTotal: sameCur.reduce((s, p) => s + p.paidAmount, 0),
-        outstandingTotal: sameCur.reduce((s, p) => s + p.outstandingAmount, 0)
+        outstandingTotal: sameCur.reduce((s, p) => s + p.outstandingAmount, 0),
+        overduePayments: mine.reduce((s, p) => s + p.overduePayments, 0),
+        overdueTotal: round2(sameCur.reduce((s, p) => s + p.overdueAmount, 0))
       }
     })
   }

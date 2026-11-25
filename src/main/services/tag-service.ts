@@ -2,7 +2,14 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { TagsApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
-import { idSchema, pageSchema, patchOf, type EntitySummary, type Tag, type TagWithUsage } from '@shared/domain/common'
+import {
+  idSchema,
+  pageSchema,
+  patchOf,
+  type EntitySummary,
+  type Tag,
+  type TagWithUsage
+} from '@shared/domain/common'
 import { tagInputSchema, type TagInput } from '@shared/domain/system'
 import type { DbContext, Orm } from '../db/client'
 import { entityTags, tags } from '../db/schema'
@@ -85,7 +92,11 @@ export class TagService {
         .where(and(eq(entityTags.entityType, type), eq(entityTags.entityId, entityId)))
         .run()
       if (unique.length) {
-        const valid = this.db.select({ id: tags.id }).from(tags).where(inArray(tags.id, unique)).all()
+        const valid = this.db
+          .select({ id: tags.id })
+          .from(tags)
+          .where(inArray(tags.id, unique))
+          .all()
         if (valid.length) {
           this.db
             .insert(entityTags)
@@ -123,20 +134,32 @@ export class TagService {
   }
 
   /**
-   * Live records carrying the tag, recently changed first. Paged after summarize(): an OFFSET over raw
-   * entity_tags would drift, since records in the trash drop out only there.
+   * Live records carrying the tag, recently changed first (ties by type and id, so pages never overlap).
+   * Ordered and paged over light (id, updatedAt) rows; only the page itself is summarized.
    */
   entities(tagId: string, page: { limit?: number; offset?: number } = {}): EntitySummary[] {
-    const refs = this.db
-      .select({ type: entityTags.entityType, id: entityTags.entityId })
-      .from(entityTags)
-      .where(eq(entityTags.tagId, tagId))
-      .all()
+    const refs: { type: EntityType; id: string; updatedAt: number }[] = []
+    for (const d of this.registry.all()) {
+      const rows = this.db
+        .select({ id: d.table.id, updatedAt: d.table.updatedAt })
+        .from(d.table)
+        .innerJoin(
+          entityTags,
+          and(eq(entityTags.entityId, d.table.id), eq(entityTags.entityType, d.type))
+        )
+        .where(and(eq(entityTags.tagId, tagId), this.registry.live(d)))
+        .all() as { id: string; updatedAt: number }[]
+      for (const r of rows) refs.push({ type: d.type, id: r.id, updatedAt: r.updatedAt })
+    }
+    refs.sort(
+      (a, b) =>
+        b.updatedAt - a.updatedAt ||
+        (a.type < b.type ? -1 : a.type > b.type ? 1 : 0) ||
+        (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+    )
     const offset = page.offset ?? 0
-    return this.registry
-      .summarize(refs as { type: EntityType; id: string }[])
-      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
-      .slice(offset, page.limit ? offset + page.limit : undefined)
+    const slice = refs.slice(offset, page.limit ? offset + page.limit : undefined)
+    return this.registry.summarize(slice.map(({ type, id }) => ({ type, id })))
   }
 
   api(): TagsApi {
@@ -144,13 +167,17 @@ export class TagService {
       list: async () => this.list(),
       create: async (input) => this.create(input),
       update: async (args) => {
-        const { id, patch } = z.object({ id: idSchema, patch: z.record(z.string(), z.unknown()) }).parse(args)
+        const { id, patch } = z
+          .object({ id: idSchema, patch: z.record(z.string(), z.unknown()) })
+          .parse(args)
         return this.update(id, patch)
       },
       remove: async (id) => this.remove(idSchema.parse(id)),
       entities: async (args) => {
         const { tagId, ...page } =
-          typeof args === 'string' ? { tagId: idSchema.parse(args) } : pageSchema.extend({ tagId: idSchema }).parse(args)
+          typeof args === 'string'
+            ? { tagId: idSchema.parse(args) }
+            : pageSchema.extend({ tagId: idSchema }).parse(args)
         return this.entities(tagId, page)
       }
     }

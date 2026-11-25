@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { MAX } from '@shared/domain/limits'
 import { ideaInputSchema } from '@shared/domain/ideas'
 import { proposalInputSchema } from '@shared/domain/freelance'
 import { withdrawalInputSchema } from '@shared/domain/finance'
-import { isLikelyUrl, limitsOf, rangesOf } from '@/lib/limits'
+import type { KeyboardEvent } from 'react'
+import { acceptNumberText, isLikelyUrl, limitsOf, parseNumberText, rangesOf } from '@/lib/limits'
+import { clickableProps } from '@/lib/clickable'
 
 describe('limitsOf', () => {
   it('reads max lengths through default / optional / nullable wrappers', () => {
@@ -97,5 +99,59 @@ describe('isLikelyUrl', () => {
   it('a Cyrillic IDN domain is a link', () => {
     expect(isLikelyUrl('https://приклад.укр')).toBe(true)
     expect(isLikelyUrl('сайт.укр')).toBe(true)
+  })
+})
+
+describe('acceptNumberText (typing into NumberField / NumberInput)', () => {
+  it('drops leading zeros and spaces, keeps a started decimal', () => {
+    expect(acceptNumberText('024', {})).toBe('24')
+    expect(acceptNumberText('-007', {})).toBe('-7')
+    expect(acceptNumberText('0,5', {})).toBe('0,5')
+    expect(acceptNumberText('1 000', {})).toBe('1000')
+  })
+
+  it('rejects what the field can never hold', () => {
+    expect(acceptNumberText('-', { min: 0 })).toBeNull()
+    expect(acceptNumberText('1.2.3', {})).toBeNull()
+    expect(acceptNumberText('1,5', { integer: true })).toBeNull()
+    expect(acceptNumberText('12a', {})).toBeNull()
+  })
+})
+
+describe('parseNumberText', () => {
+  it('reads a Ukrainian number, half-typed text is no number', () => {
+    expect(parseNumberText('1 234,5')).toBe(1234.5)
+    expect(parseNumberText('')).toBeNull()
+    expect(parseNumberText('-')).toBeNull()
+  })
+})
+
+describe('clickableProps (a row acting as a button)', () => {
+  const press = (key: string, nested: boolean): { activated: boolean; prevented: boolean } => {
+    const onActivate = vi.fn()
+    const preventDefault = vi.fn()
+    const row = {}
+    const event = {
+      key,
+      target: nested ? {} : row,
+      currentTarget: row,
+      preventDefault
+    } as unknown as KeyboardEvent
+    clickableProps(onActivate).onKeyDown(event)
+    return {
+      activated: onActivate.mock.calls.length > 0,
+      prevented: preventDefault.mock.calls.length > 0
+    }
+  }
+
+  it('Enter and Space on the row itself activate it', () => {
+    expect(press('Enter', false)).toEqual({ activated: true, prevented: true })
+    expect(press(' ', false)).toEqual({ activated: true, prevented: true })
+    expect(press('a', false)).toEqual({ activated: false, prevented: false })
+  })
+
+  it('keys on a nested control are left to that control', () => {
+    expect(press('Enter', true)).toEqual({ activated: false, prevented: false })
+    expect(press(' ', true)).toEqual({ activated: false, prevented: false })
   })
 })

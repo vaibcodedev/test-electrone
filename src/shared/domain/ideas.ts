@@ -18,7 +18,7 @@ export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
   planned: 'У планах',
   in_progress: 'У роботі',
   done: 'Зроблено',
-  dropped: 'Відмовився'
+  dropped: 'Відкинуто'
 }
 
 export const ideaInputSchema = z.object({

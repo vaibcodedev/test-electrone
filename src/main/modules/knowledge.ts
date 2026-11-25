@@ -105,7 +105,10 @@ export class KnowledgeModule {
     const library: EntityDescriptor = {
       type: 'library',
       table: libraries,
-      draft: { titleField: 'name', contentFields: ['purpose', 'notes', 'npmUrl', 'githubUrl', 'docsUrl', 'installCmd'] },
+      draft: {
+        titleField: 'name',
+        contentFields: ['purpose', 'notes', 'npmUrl', 'githubUrl', 'docsUrl', 'installCmd']
+      },
       searchDoc: (r) => ({ title: r.name, body: `${r.purpose}\n${r.installCmd}\n${r.notes}` }),
       summary: (r) => ({
         title: r.name,
@@ -192,7 +195,8 @@ export class KnowledgeModule {
         where: (q) => [q.kind ? eq(claudeItems.kind, q.kind) : undefined, ...filters(q)],
         orderBy: [sql`${claudeItems.works} DESC`, sql`${claudeItems.updatedAt} DESC`]
       }),
-      counts: async (query) => repo.countBy(claudeItems.kind, filters(chipCountsQuerySchema.parse(query ?? {}))),
+      counts: async (query) =>
+        repo.countBy(claudeItems.kind, filters(chipCountsQuerySchema.parse(query ?? {}))),
       markCopied: async (id) => {
         this.m.db.orm
           .update(claudeItems)
@@ -210,7 +214,13 @@ export class KnowledgeModule {
       repo.matches(q.search, [libraries.name, libraries.purpose, libraries.notes])
     ]
     return {
-      ...createCrudApi<typeof libraries.$inferSelect, Library, LibraryInput, LibraryPatch, LibraryListQuery>({
+      ...createCrudApi<
+        typeof libraries.$inferSelect,
+        Library,
+        LibraryInput,
+        LibraryPatch,
+        LibraryListQuery
+      >({
         repo,
         input: libraryInputSchema,
         patch: libraryPatchSchema,
@@ -218,7 +228,8 @@ export class KnowledgeModule {
         where: (q) => [q.status ? eq(libraries.status, q.status) : undefined, ...filters(q)],
         orderBy: [sql`ulower(${libraries.name}) ASC`]
       }),
-      counts: async (query) => repo.countBy(libraries.status, filters(chipCountsQuerySchema.parse(query ?? {})))
+      counts: async (query) =>
+        repo.countBy(libraries.status, filters(chipCountsQuerySchema.parse(query ?? {})))
     }
   }
 
@@ -242,7 +253,8 @@ export class KnowledgeModule {
         query: snippetListQuerySchema,
         where: (q) => [q.language ? eq(snippets.language, q.language) : undefined, ...filters(q)]
       }),
-      counts: async (query) => repo.countBy(snippets.language, filters(chipCountsQuerySchema.parse(query ?? {}))),
+      counts: async (query) =>
+        repo.countBy(snippets.language, filters(chipCountsQuerySchema.parse(query ?? {}))),
       markCopied: async (id) => {
         this.m.db.orm
           .update(snippets)
@@ -265,7 +277,10 @@ export class KnowledgeModule {
         input: fixInputSchema,
         patch: fixPatchSchema,
         query: fixListQuerySchema,
-        where: (q) => [q.resolved === undefined ? undefined : eq(fixes.resolved, q.resolved), ...filters(q)]
+        where: (q) => [
+          q.resolved === undefined ? undefined : eq(fixes.resolved, q.resolved),
+          ...filters(q)
+        ]
       }),
       counts: async (query) => {
         const by = repo.countBy(fixes.resolved, filters(chipCountsQuerySchema.parse(query ?? {})))
@@ -296,10 +311,13 @@ export class KnowledgeModule {
           .all()
           .map((r) => r.folder)
           .sort((a, b) => a.localeCompare(b, 'uk')),
-      folderCounts: async () =>
-        Object.entries(repo.countBy(notes.folder))
+      folderCounts: async (query) => {
+        const q = chipCountsQuerySchema.parse(query ?? {})
+        const where = [repo.hasTag(q.tagId), repo.matches(q.search, [notes.title, notes.body])]
+        return Object.entries(repo.countBy(notes.folder, where))
           .map(([folder, count]) => ({ folder, count }))
           .sort((a, b) => a.folder.localeCompare(b.folder, 'uk'))
+      }
     }
   }
 
@@ -310,7 +328,13 @@ export class KnowledgeModule {
       repo.matches(q.search, [bookmarks.title, bookmarks.url, bookmarks.notes])
     ]
     return {
-      ...createCrudApi<typeof bookmarks.$inferSelect, Bookmark, BookmarkInput, BookmarkPatch, BookmarkListQuery>({
+      ...createCrudApi<
+        typeof bookmarks.$inferSelect,
+        Bookmark,
+        BookmarkInput,
+        BookmarkPatch,
+        BookmarkListQuery
+      >({
         repo,
         input: bookmarkInputSchema,
         patch: bookmarkPatchSchema,
@@ -323,15 +347,21 @@ export class KnowledgeModule {
         beforeWrite: (data, current) => {
           if (data.status === undefined) return data
           const wasDone = current?.status === 'done'
-          if (data.status === 'done' && !wasDone) return { ...data, finishedAt: now(), progress: 100 }
+          if (data.status === 'done' && !wasDone)
+            return { ...data, finishedAt: now(), progress: 100 }
           if (data.status !== 'done' && wasDone) return { ...data, finishedAt: null }
           return data
         }
       }),
       counts: async (query) => {
-        const q = chipCountsQuerySchema.extend({ kind: bookmarkListQuerySchema.shape.kind }).parse(query ?? {})
+        const q = chipCountsQuerySchema
+          .extend({ kind: bookmarkListQuerySchema.shape.kind })
+          .parse(query ?? {})
         return {
-          byStatus: repo.countBy(bookmarks.status, [q.kind ? eq(bookmarks.kind, q.kind) : undefined, ...filters(q)]),
+          byStatus: repo.countBy(bookmarks.status, [
+            q.kind ? eq(bookmarks.kind, q.kind) : undefined,
+            ...filters(q)
+          ]),
           byKind: repo.countBy(bookmarks.kind, filters(q))
         }
       }
@@ -346,7 +376,12 @@ export class KnowledgeModule {
         const db = this.m.db.orm
         const top: CopiedItem[] = [
           ...db
-            .select({ id: snippets.id, title: snippets.title, sub: snippets.language, count: snippets.copyCount })
+            .select({
+              id: snippets.id,
+              title: snippets.title,
+              sub: snippets.language,
+              count: snippets.copyCount
+            })
             .from(snippets)
             .where(and(isNull(snippets.deletedAt), gt(snippets.copyCount, 0)))
             .orderBy(desc(snippets.copyCount))
@@ -356,7 +391,13 @@ export class KnowledgeModule {
           ...db
             .select({ id: claudeItems.id, title: claudeItems.title, count: claudeItems.copyCount })
             .from(claudeItems)
-            .where(and(isNull(claudeItems.deletedAt), eq(claudeItems.kind, 'prompt'), gt(claudeItems.copyCount, 0)))
+            .where(
+              and(
+                isNull(claudeItems.deletedAt),
+                eq(claudeItems.kind, 'prompt'),
+                gt(claudeItems.copyCount, 0)
+              )
+            )
             .orderBy(desc(claudeItems.copyCount))
             .limit(n)
             .all()

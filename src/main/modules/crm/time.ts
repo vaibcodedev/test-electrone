@@ -1,7 +1,12 @@
 import { and, desc, eq, gte, isNull, lte, or, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import type { TimeApi } from '@shared/api'
-import { timeEntryInputSchema, timeEntryPatchSchema, type RunningTimer, type TimeEntry } from '@shared/domain/crm'
+import {
+  timeEntryInputSchema,
+  timeEntryPatchSchema,
+  type RunningTimer,
+  type TimeEntry
+} from '@shared/domain/crm'
 import { projects, timeEntries } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import { newId, now, NotFoundError, overlapMinutes, UserError } from '../../core/util'
@@ -51,7 +56,11 @@ export class TimeTracker {
   }
 
   private stopWhere(scope?: SQL): TimeEntry | null {
-    const run = this.db.select().from(timeEntries).where(and(isNull(timeEntries.endedAt), scope)).all()
+    const run = this.db
+      .select()
+      .from(timeEntries)
+      .where(and(isNull(timeEntries.endedAt), scope))
+      .all()
     let last: TimeEntry | null = null
     const ts = now()
     for (const r of run) {
@@ -76,7 +85,11 @@ export class TimeTracker {
     const at = now()
     // Projects in the trash don't count (running() already hides them).
     return this.db
-      .select({ startedAt: timeEntries.startedAt, endedAt: timeEntries.endedAt, minutes: timeEntries.minutes })
+      .select({
+        startedAt: timeEntries.startedAt,
+        endedAt: timeEntries.endedAt,
+        minutes: timeEntries.minutes
+      })
       .from(timeEntries)
       .innerJoin(projects, eq(projects.id, timeEntries.projectId))
       .where(
@@ -153,7 +166,9 @@ export class TimeTracker {
         const data = timeEntryInputSchema.parse(input)
         this.projectRepo.rowOrThrow(data.projectId)
         const endedAt = data.endedAt ?? data.startedAt
-        if (endedAt < data.startedAt) throw new UserError('Кінець раніше за початок')
+        if (endedAt < data.startedAt) {
+          throw new UserError('Кінець раніше за початок — виправте дату')
+        }
         const row = this.db
           .insert(timeEntries)
           .values({
@@ -176,7 +191,9 @@ export class TimeTracker {
         if (patch.projectId) this.projectRepo.rowOrThrow(patch.projectId)
         const startedAt = patch.startedAt ?? cur.startedAt
         const endedAt = patch.endedAt !== undefined ? patch.endedAt : cur.endedAt
-        if (endedAt !== null && endedAt < startedAt) throw new UserError('Кінець раніше за початок')
+        if (endedAt !== null && endedAt < startedAt) {
+          throw new UserError('Кінець раніше за початок — виправте дату')
+        }
         const row = this.db
           .update(timeEntries)
           .set({ ...patch, minutes: endedAt ? minutesBetween(startedAt, endedAt) : 0 })

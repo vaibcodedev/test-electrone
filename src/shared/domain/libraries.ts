@@ -10,7 +10,7 @@ export const LIBRARY_STATUS_LABEL: Record<LibraryStatus, string> = {
   favorite: 'Улюблена',
   want: 'Хочу спробувати',
   testing: 'Пробую',
-  dropped: 'Не зайшла'
+  dropped: 'Відкинуто'
 }
 
 export const libraryInputSchema = z.object({

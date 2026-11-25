@@ -13,6 +13,9 @@ import type { Idea } from './ideas'
 export const THEMES = ['light', 'dark', 'system'] as const
 export type Theme = (typeof THEMES)[number]
 
+/** Global «Швидке додавання» shortcut of a fresh install (main defaults, renderer «Скинути»). */
+export const DEFAULT_QUICK_ADD_SHORTCUT = 'CommandOrControl+Shift+Space'
+
 export const settingsSchema = z.object({
   userName: z.string().max(100),
   theme: z.enum(THEMES),
@@ -88,6 +91,18 @@ export const searchQuerySchema = z.object({
   limit: z.number().int().min(1).max(200).optional()
 })
 export type SearchQuery = z.infer<typeof searchQuerySchema>
+
+/** `search.recent`: a bare number (palette, links) or `{ limit, types }` — the type filter runs in SQL. */
+export const recentQuerySchema = z
+  .union([
+    z.number().int().min(1).max(50),
+    z.object({
+      limit: z.number().int().min(1).max(50).optional(),
+      types: z.array(entityTypeSchema).max(50).optional()
+    })
+  ])
+  .optional()
+export type RecentQuery = z.infer<typeof recentQuerySchema>
 
 export interface SearchHit extends EntitySummary {
   /** Snippet with matches wrapped in \u0001…\u0002 markers. */

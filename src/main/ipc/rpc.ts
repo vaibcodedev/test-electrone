@@ -27,9 +27,12 @@ export function registerRpc(api: Api, bus: EventBus): void {
     if (!trustedSender(event)) return { ok: false, error: 'Untrusted sender', code: 'FORBIDDEN' }
     if (typeof path !== 'string') return { ok: false, error: 'Bad path' }
     const [ns, method] = path.split('.') as [keyof Api, string]
-    const target = Object.hasOwn(api, ns) ? (api[ns] as unknown as Record<string, unknown>) : undefined
+    const target = Object.hasOwn(api, ns)
+      ? (api[ns] as unknown as Record<string, unknown>)
+      : undefined
     const fn = target && Object.hasOwn(target, method) ? target[method] : undefined
-    if (typeof fn !== 'function') return { ok: false, error: `Unknown method ${path}`, code: 'NOT_FOUND' }
+    if (typeof fn !== 'function')
+      return { ok: false, error: `Unknown method ${path}`, code: 'NOT_FOUND' }
     try {
       const data = await (fn as (a: unknown) => unknown).call(target, arg)
       const types = changedTypes(ns, method, data)
@@ -40,11 +43,15 @@ export function registerRpc(api: Api, bus: EventBus): void {
       // Our own expected errors (validation, UserError, not found) are warnings; anything else — SQLite,
       // file system, a plain Error — is a bug: logged with its stack, shown to the user in plain words.
       const expected = e instanceof ZodError || e instanceof UserError || e instanceof NotFoundError
-      if (expected) log.warn(`[rpc] ${path}: ${(e as Error).message}${e instanceof NotFoundError ? ` (${e.id})` : ''}`)
+      if (expected)
+        log.warn(
+          `[rpc] ${path}: ${(e as Error).message}${e instanceof NotFoundError ? ` (${e.id})` : ''}`
+        )
       else log.error(`[rpc] ${path}`, e)
       const result = formatError(e)
       if (!expected && !/[А-яЄІЇҐєіїґ]/.test(result.error)) {
-        result.error = 'Щось пішло не так — подробиці записано в журнал (Налаштування → Журнал)'
+        result.error =
+          'Щось пішло не так — подробиці в журналі: Налаштування → Дані → «Відкрити журнал»'
       }
       return { ok: false, ...result }
     }

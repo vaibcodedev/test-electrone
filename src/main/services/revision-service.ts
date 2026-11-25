@@ -12,7 +12,11 @@ import type { FileStorage } from './file-storage'
 import type { EventBus } from '../core/event-bus'
 
 /** A snapshot comes back from the renderer: only its shape is trusted, values are checked in revert(). */
-const snapshotArg = z.object({ row: z.record(z.string(), z.unknown()), tagIds: z.array(z.string().max(40)).max(200) })
+const snapshotArg = z.object({
+  row: z.record(z.string(), z.unknown()),
+  tagIds: z.array(z.string().max(40)).max(200),
+  children: z.unknown().optional()
+})
 
 /** Columns a revert may never touch. */
 const FIXED = new Set(['id', 'createdAt', 'deletedAt'])
@@ -21,12 +25,19 @@ const FIXED = new Set(['id', 'createdAt', 'deletedAt'])
  * Bookkeeping the app changes on its own while you edit (updatedAt + each type's `systemFields`: copy
  * counter, reminders, SRS state…): not «your changes» — never a reason to ask «Зберегти зміни?», never rolled back.
  */
-const isSystem = (d: EntityDescriptor, k: string): boolean => k === 'updatedAt' || !!d.systemFields?.includes(k)
+const isSystem = (d: EntityDescriptor, k: string): boolean =>
+  k === 'updatedAt' || !!d.systemFields?.includes(k)
+
+/** Child rows as text for a comparison, without the fields changed outside the edit (`children.ignore`). */
+const childrenKey = (d: EntityDescriptor, children: unknown): string =>
+  JSON.stringify(children ?? null, (k, v: unknown) =>
+    d.children?.ignore?.includes(k) ? undefined : v
+  )
 
 /**
  * «Скасувати» for the view/edit mode: a snapshot of a record (its row + tags) taken when editing starts,
  * and a revert back to it. Works for every registered entity (Open/Closed via EntityRegistry).
- * Only the record's own row and tags are restored; child rows (checklist items, cards…) are not.
+ * Child rows are restored only for types that declare `children` (checklist items); cards of a board are not.
  */
 export class RevisionService {
   constructor(
@@ -41,17 +52,28 @@ export class RevisionService {
     const row = this.registry.findRow(ref)
     if (!row) throw new NotFoundError(ref.type, ref.id)
     const tagIds = (this.tags.forMany(ref.type, [ref.id]).get(ref.id) ?? []).map((t) => t.id).sort()
-    return { row: { ...row }, tagIds }
+    const children = this.registry.get(ref.type).children?.snapshot(ref.id)
+    return children === undefined
+      ? { row: { ...row }, tagIds }
+      : { row: { ...row }, tagIds, children }
   }
 
-  /** True when the record (own columns or tags) differs from the snapshot. */
+  /** True when the record (own columns, tags or child rows) differs from the snapshot. */
   changed(ref: EntityRef, snap: RecordSnapshot): boolean {
     const d = this.registry.get(ref.type)
     const now = this.snapshot(ref)
     if (now.tagIds.join() !== [...snap.tagIds].sort().join()) return true
+    if (
+      snap.children !== undefined &&
+      childrenKey(d, now.children) !== childrenKey(d, snap.children)
+    )
+      return true
     // createdAt too: «+ Створити» may reuse this very draft and re-stamp it while it's open.
     return Object.keys(now.row).some(
-      (k) => !isSystem(d, k) && !FIXED.has(k) && JSON.stringify(now.row[k]) !== JSON.stringify(snap.row[k])
+      (k) =>
+        !isSystem(d, k) &&
+        !FIXED.has(k) &&
+        JSON.stringify(now.row[k]) !== JSON.stringify(snap.row[k])
     )
   }
 
@@ -93,12 +115,14 @@ export class RevisionService {
     // draft reuse re-stamped createdAt meanwhile; otherwise updatedAt never goes below createdAt.
     const snapAt = Number(snap.row.updatedAt)
     const createdAt = Number((current as AnyRow).createdAt)
-    values.updatedAt = snapAt === Number(snap.row.createdAt) ? createdAt : Math.max(snapAt, createdAt)
+    values.updatedAt =
+      snapAt === Number(snap.row.createdAt) ? createdAt : Math.max(snapAt, createdAt)
     // Files go only after the commit (FileStorage.afterCommit): a failed revert keeps the picture.
     this.files.afterCommit(() =>
       this.ctx.tx(() => {
         this.ctx.orm.update(d.table).set(values).where(eq(d.table.id, ref.id)).run()
         this.tags.setFor(ref.type, ref.id, snap.tagIds)
+        if (snap.children !== undefined) d.children?.restore(ref.id, snap.children)
         const reverted = this.registry.findRow(ref)
         if (reverted) {
           this.search.indexRow(ref.type, reverted)
@@ -112,7 +136,8 @@ export class RevisionService {
   api(bus: EventBus): RecordsApi {
     return {
       snapshot: async (ref) => this.snapshot(entityRefSchema.parse(ref)),
-      changed: async (args) => this.changed(entityRefSchema.parse(args.ref), snapshotArg.parse(args.snapshot)),
+      changed: async (args) =>
+        this.changed(entityRefSchema.parse(args.ref), snapshotArg.parse(args.snapshot)),
       revert: async (args) => {
         const ref = entityRefSchema.parse(args.ref)
         this.revert(ref, snapshotArg.parse(args.snapshot))

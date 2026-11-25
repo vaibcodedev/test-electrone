@@ -45,12 +45,13 @@ export class LinkService {
   create(input: LinkInput): void {
     const data = linkInputSchema.parse(input)
     if (data.fromType === data.toType && data.fromId === data.toId) {
-      throw new UserError('Не можна пов’язати об’єкт із самим собою')
+      throw new UserError('Не можна пов’язати запис із ним самим')
     }
     // A link to a record in the trash would make an empty draft look non-empty (hasTraces) for good.
-    const alive = (type: typeof data.fromType, id: string): boolean => !!this.registry.findRow({ type, id })
+    const alive = (type: typeof data.fromType, id: string): boolean =>
+      !!this.registry.findRow({ type, id })
     if (!alive(data.fromType, data.fromId) || !alive(data.toType, data.toId)) {
-      throw new UserError('Об’єкт для зв’язку не знайдено — можливо, його видалено')
+      throw new UserError('Запис для зв’язку не знайдено — можливо, його видалено')
     }
     const exists = this.ctx.orm
       .select({ id: entityLinks.id })
@@ -73,7 +74,10 @@ export class LinkService {
       )
       .get()
     if (exists) return
-    this.ctx.orm.insert(entityLinks).values({ id: newId(), ...data, createdAt: now() }).run()
+    this.ctx.orm
+      .insert(entityLinks)
+      .values({ id: newId(), ...data, createdAt: now() })
+      .run()
   }
 
   remove(linkId: string): void {

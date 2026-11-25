@@ -83,6 +83,21 @@ export const PROPOSAL_STATUSES = [
 ] as const
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number]
 
+/** Proposal status as the UI writes it (main: search, pins, trash; renderer: the page). */
+export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
+  draft: 'Чернетка',
+  sent: 'Надіслано',
+  viewed: 'Переглянуто',
+  replied: 'Відповіли',
+  interview: 'Інтерв’ю',
+  offer: 'Офер',
+  hired: 'Контракт',
+  declined: 'Відмова',
+  no_reply: 'Без відповіді',
+  withdrawn: 'Відкликано',
+  closed: 'Вакансію закрито'
+}
+
 export const BID_TYPES = ['fixed', 'hourly'] as const
 export type BidType = (typeof BID_TYPES)[number]
 
@@ -228,6 +243,22 @@ export const TEMPLATE_SITUATIONS = [
   'other'
 ] as const
 export type TemplateSituation = (typeof TEMPLATE_SITUATIONS)[number]
+
+/** Template situation as the UI writes it (main: search, pins, trash; renderer: the page). */
+export const SITUATION_LABEL: Record<TemplateSituation, string> = {
+  proposal: 'Відгук',
+  first_message: 'Перше повідомлення',
+  estimate: 'Оцінка термінів',
+  tz_questions: 'Питання щодо ТЗ',
+  revisions: 'Правки',
+  follow_up: 'Нагадування',
+  small_talk: 'Світська бесіда',
+  closing: 'Завершення',
+  cover_letter: 'Супровідний лист',
+  recruiter: 'Відповідь рекрутеру',
+  thank_you: 'Подяка після співбесіди',
+  other: 'Інше'
+}
 
 export const templateInputSchema = z.object({
   situation: z.enum(TEMPLATE_SITUATIONS).default('proposal'),

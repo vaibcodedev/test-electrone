@@ -24,6 +24,8 @@ export const designInputSchema = z.object({
   ...withTagIds
 })
 export const designPatchSchema = patchOf(designInputSchema)
+/** Palette found in the image later (background fill-in): `designs.setColors`. */
+export const designColorsSchema = z.object({ id: idSchema, colors: designInputSchema.shape.colors })
 export type DesignInput = z.input<typeof designInputSchema>
 export type DesignPatch = z.input<typeof designPatchSchema>
 
@@ -35,6 +37,9 @@ export const designListQuerySchema = z.object({
   moodboardId: idSchema.optional()
 })
 export type DesignListQuery = z.infer<typeof designListQuerySchema>
+/** `designs.counts`: the list filters except the kind itself — counts for the kind chips. */
+export const designCountsQuerySchema = designListQuerySchema.omit({ kind: true })
+export type DesignCountsQuery = z.infer<typeof designCountsQuerySchema>
 
 export interface Design extends EntityBase, WithTags {
   title: string

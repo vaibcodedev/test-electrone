@@ -49,7 +49,7 @@ export const FREELANCE_SEED: {
       title: 'Відгук: короткий, про задачу клієнта',
       trigger: 'Базовий відгук на будь-яку вакансію',
       body: 'Hi {client},\n\nI read your post about {task}. The key part for you seems to be {main_goal} — I have done exactly this for {similar_project}.\n\nHow I would approach it:\n1. {step_1}\n2. {step_2}\n3. {step_3}\n\nI can start {start_date} and deliver the first version in {timeline}.\n\nOne question to make sure I estimate correctly: {question}\n\nBest,\n{my_name}',
-      note: 'Перші два рядки видно в превʼю — там має бути задача клієнта, а не «Hello, I am a developer with 5 years…».',
+      note: 'Перші два рядки видно в прев’ю — там має бути задача клієнта, а не «Hello, I am a developer with 5 years…».',
       niche: ''
     },
     {
@@ -153,8 +153,7 @@ export const FREELANCE_SEED: {
     },
     {
       title: 'Погані відгуки фрилансерів про клієнта',
-      signs:
-        'Низькі оцінки, «не платить», «постійно змінює вимоги», багато скасованих контрактів.',
+      signs: 'Низькі оцінки, «не платить», «постійно змінює вимоги», багато скасованих контрактів.',
       action: 'Пропустити. Якщо дуже треба — лише з передоплаченими етапами.',
       severity: 2
     },

@@ -84,7 +84,10 @@ export class CalendarModule {
   private readonly listeners: EventListener[] = []
   private readonly providers: FeedProvider[] = []
   private readonly decorators = new Map<string, SourceDecorator>()
-  private readonly owners = new Map<string, { hint: string; owns: (sourceId: string) => boolean }>()
+  private readonly owners = new Map<
+    string,
+    { hint: string; owns: (sourceId: string, eventId: string) => boolean }
+  >()
 
   onEventChanged(listener: EventListener): void {
     this.listeners.push(listener)
@@ -100,15 +103,22 @@ export class CalendarModule {
 
   /**
    * Events another module keeps in sync with its own records (interview stages): the calendar can't delete
-   * them while `owns(sourceId)`, the next sync would bring them back. `hint` tells the user where to do it.
+   * them while `owns(sourceId, eventId)` (the record still points at this very event), the next sync would
+   * bring them back. `hint` tells the user where to do it.
    */
-  ownSource(sourceType: string, hint: string, owns: (sourceId: string) => boolean): void {
+  ownSource(
+    sourceType: string,
+    hint: string,
+    owns: (sourceId: string, eventId: string) => boolean
+  ): void {
     this.owners.set(sourceType, { hint, owns })
   }
 
   /** Hides events whose owner is in the trash for now (stage events of a vacancy): see aliveWhere. */
   hideWhen(alive: SQL, parentHint: string): void {
-    this.descriptor.aliveWhere = this.descriptor.aliveWhere ? and(this.descriptor.aliveWhere, alive) : alive
+    this.descriptor.aliveWhere = this.descriptor.aliveWhere
+      ? and(this.descriptor.aliveWhere, alive)
+      : alive
     this.descriptor.parentHint = parentHint
   }
 
@@ -117,7 +127,10 @@ export class CalendarModule {
       type: 'event',
       table: events,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({ title: r.title, subtitle: r.allDay ? fmtDayFull(r.startAt) : fmtDateTime(r.startAt) }),
+      summary: (r) => ({
+        title: r.title,
+        subtitle: r.allDay ? fmtDayFull(r.startAt) : fmtDateTime(r.startAt)
+      }),
       systemFields: ['remindedFor', 'reminded2For'],
       // An edit moved the event (→ a job stage followed it); «Скасувати» moves it back: the stage follows again.
       afterRevert: (row, before) => {
@@ -179,7 +192,12 @@ export class CalendarModule {
     return {
       list: async (query) => {
         const page = pageSchema.parse(query ?? {})
-        return repo.listWhere([this.descriptor.aliveWhere], [asc(events.startAt)], page.limit, page.offset)
+        return repo.listWhere(
+          [this.descriptor.aliveWhere],
+          [asc(events.startAt)],
+          page.limit,
+          page.offset
+        )
       },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
@@ -213,7 +231,8 @@ export class CalendarModule {
         const eventId = idArg.parse(id)
         const row = repo.row(eventId)
         const owner = row?.sourceType ? this.owners.get(row.sourceType) : undefined
-        if (owner && row?.sourceId && owner.owns(row.sourceId)) throw new UserError(owner.hint)
+        if (owner && row?.sourceId && owner.owns(row.sourceId, row.id))
+          throw new UserError(owner.hint)
         repo.softDelete(eventId)
       },
       feed: async (range) => {

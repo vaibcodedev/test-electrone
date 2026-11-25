@@ -40,7 +40,13 @@ export class JobBoards {
     SEED.forEach((b, i) =>
       this.db
         .insert(jobBoards)
-        .values({ ...jobBoardInputSchema.parse(b), id: newId(), position: i, createdAt: ts, updatedAt: ts })
+        .values({
+          ...jobBoardInputSchema.parse(b),
+          id: newId(),
+          position: i,
+          createdAt: ts,
+          updatedAt: ts
+        })
         .run()
     )
   }
@@ -109,19 +115,41 @@ export class JobBoards {
     this.m.db.tx(() => {
       if (!this.db.select({ id: jobBoards.id }).from(jobBoards).where(eq(jobBoards.id, id)).get())
         throw new NotFoundError('Майданчик', id)
-      const used =
-        this.db.select({ id: applications.id }).from(applications).where(eq(applications.boardId, id)).limit(1).get() ||
-        this.db.select({ day: boardCheckins.day }).from(boardCheckins).where(eq(boardCheckins.boardId, id)).limit(1).get()
-      if (used) throw new UserError('Майданчик уже має відгуки — вимкніть його замість видалення')
+      // Vacancies in the trash count too: restored, they would point at a board that no longer exists.
+      if (
+        this.db
+          .select({ id: applications.id })
+          .from(applications)
+          .where(eq(applications.boardId, id))
+          .limit(1)
+          .get()
+      )
+        throw new UserError(
+          'На майданчику вже є вакансії (можливо, у кошику) — вимкніть його замість видалення'
+        )
+      if (
+        this.db
+          .select({ day: boardCheckins.day })
+          .from(boardCheckins)
+          .where(eq(boardCheckins.boardId, id))
+          .limit(1)
+          .get()
+      )
+        throw new UserError('Майданчик уже має позначки днів — вимкніть його замість видалення')
       this.db.delete(resumeBoards).where(eq(resumeBoards.boardId, id)).run()
       this.db.delete(jobBoards).where(eq(jobBoards.id, id)).run()
     })
   }
 
-  api(): Pick<JobsApi, 'boards' | 'createBoard' | 'updateBoard' | 'removeBoard' | 'reorderBoards' | 'daily' | 'checkin'> {
+  api(): Pick<
+    JobsApi,
+    'boards' | 'createBoard' | 'updateBoard' | 'removeBoard' | 'reorderBoards' | 'daily' | 'checkin'
+  > {
     return {
       boards: async (args) =>
-        this.list(z.object({ includeInactive: z.boolean().optional() }).parse(args ?? {}).includeInactive),
+        this.list(
+          z.object({ includeInactive: z.boolean().optional() }).parse(args ?? {}).includeInactive
+        ),
       createBoard: async (input) => {
         const data = jobBoardInputSchema.parse(input)
         const ts = now()
@@ -149,9 +177,12 @@ export class JobBoards {
         return row
       },
       removeBoard: async (id) => this.remove(idArg.parse(id)),
-      reorderBoards: async (ids) => reorder(this.m.db, jobBoards, jobBoards.id, orderedIds.parse(ids)),
+      reorderBoards: async (ids) =>
+        reorder(this.m.db, jobBoards, jobBoards.id, orderedIds.parse(ids)),
       daily: async (args) =>
-        this.daily(z.object({ days: z.number().int().min(1).max(370).optional() }).parse(args ?? {}).days),
+        this.daily(
+          z.object({ days: z.number().int().min(1).max(370).optional() }).parse(args ?? {}).days
+        ),
       checkin: async (input) => {
         const data = checkinSchema.parse(input)
         this.db

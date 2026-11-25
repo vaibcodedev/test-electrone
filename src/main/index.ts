@@ -31,11 +31,33 @@ if (!app.requestSingleInstanceLock()) {
     app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
 
     // Deny every web permission except the few the UI uses (camera, mic, location, USB… are never needed).
-    const ALLOWED_PERMISSIONS = new Set(['clipboard-read', 'clipboard-sanitized-write', 'notifications', 'fullscreen'])
-    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(ALLOWED_PERMISSIONS.has(permission)))
-    session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
+    const ALLOWED_PERMISSIONS = new Set([
+      'clipboard-read',
+      'clipboard-sanitized-write',
+      'notifications',
+      'fullscreen'
+    ])
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) =>
+      callback(ALLOWED_PERMISSIONS.has(permission))
+    )
+    session.defaultSession.setPermissionCheckHandler((_wc, permission) =>
+      ALLOWED_PERMISSIONS.has(permission)
+    )
 
-    const c = new Container(icon)
+    // The container prepares the data folder and reads config.json: a failure here (no access to the
+    // folder, a disk error) must show the same window instead of leaving a silent background process.
+    let c: Container
+    try {
+      c = new Container(icon)
+    } catch (e) {
+      log.error('[startup] container', e)
+      dialog.showErrorBox(
+        'Vault не запустився',
+        `Не вдалося підготувати папку даних — подробиці в журналі: ${logFilePath()}.`
+      )
+      app.exit(1)
+      return
+    }
     // A locked/corrupt database, a failed migration or a failed startup step: say so and exit instead of
     // hanging in the background with the single-instance lock (every next launch would just do nothing).
     // The technical cause (English SQLite/drizzle text) goes to the log only.
@@ -43,7 +65,7 @@ if (!app.requestSingleInstanceLock()) {
       log.error('[startup]', message, e)
       dialog.showErrorBox(
         'Vault не запустився',
-        `${message} Резервні копії — у папці ${c.paths.backupsDir}, подробиці — у журналі: ${logFilePath()}.`
+        `${message} Бекапи — у папці ${c.paths.backupsDir}, подробиці — у журналі: ${logFilePath()}.`
       )
       app.exit(1)
     }
@@ -82,7 +104,10 @@ if (!app.requestSingleInstanceLock()) {
       main.webContents.once('did-finish-load', () =>
         setTimeout(() => {
           if (c.shortcuts.lastError) {
-            c.bus.emit('toast', { kind: 'error', message: `${c.shortcuts.lastError} — змініть його в «Налаштуваннях»` })
+            c.bus.emit('toast', {
+              kind: 'error',
+              message: `${c.shortcuts.lastError} — змініть її: Налаштування → Система → «Швидке додавання»`
+            })
           }
         }, 1500)
       )

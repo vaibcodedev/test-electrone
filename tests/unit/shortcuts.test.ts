@@ -23,7 +23,10 @@ vi.mock('electron', () => ({
 const { ShortcutController } = await import('@main/system/shortcuts')
 const { ConfigStore } = await import('@main/core/config-store')
 
-function setup(saved: string): { config: InstanceType<typeof ConfigStore>; sc: InstanceType<typeof ShortcutController> } {
+function setup(saved: string): {
+  config: InstanceType<typeof ConfigStore>
+  sc: InstanceType<typeof ShortcutController>
+} {
   active.clear()
   const config = new ConfigStore(join(mkdtempSync(join(tmpdir(), 'vault-cfg-')), 'config.json'))
   config.updateSettings({ quickAddShortcut: saved })
@@ -35,8 +38,8 @@ describe('ShortcutController', () => {
   it('a busy new hotkey is refused and the old one keeps working', () => {
     const { sc } = setup('Ctrl+Shift+A')
     expect(sc.register()).toBe(true)
-    expect(sc.apply('Ctrl+Shift+B')).toMatch(/зайняте/)
-    expect(sc.apply('Bad+')).toMatch(/Некоректне/)
+    expect(sc.apply('Ctrl+Shift+B')).toMatch(/зайняла/)
+    expect(sc.apply('Bad+')).toMatch(/не можна використати/)
     expect([...active]).toEqual(['Ctrl+Shift+A'])
   })
 
@@ -51,7 +54,7 @@ describe('ShortcutController', () => {
     const { config, sc } = setup('Ctrl+Shift+B')
     expect(sc.register()).toBe(false)
     expect(() => config.updateSettings({ theme: 'dark' })).not.toThrow()
-    expect(sc.lastError).toMatch(/зайняте/)
+    expect(sc.lastError).toMatch(/зайняла/)
     taken.delete('Ctrl+Shift+B')
     config.updateSettings({ theme: 'light' })
     expect(sc.lastError).toBeNull()

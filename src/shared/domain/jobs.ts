@@ -154,6 +154,20 @@ export const APPLICATION_STATUSES = [
 ] as const
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number]
 
+/** Vacancy status as the UI writes it (main: search, pins, trash; renderer: the page). */
+export const APPLICATION_STATUS_LABEL: Record<ApplicationStatus, string> = {
+  saved: 'Збережено',
+  applied: 'Надіслано',
+  replied: 'Відповіли',
+  test: 'Тестове',
+  interview: 'Співбесіда',
+  offer: 'Офер',
+  accepted: 'Прийнято',
+  rejected: 'Відмова',
+  no_reply: 'Немає відповіді',
+  withdrawn: 'Відкликано'
+}
+
 export const WORK_FORMATS = ['remote', 'office', 'hybrid'] as const
 export type WorkFormat = (typeof WORK_FORMATS)[number]
 

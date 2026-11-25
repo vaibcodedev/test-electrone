@@ -1,9 +1,13 @@
 import type { Database, Statement } from 'better-sqlite3'
-import { z } from 'zod'
 import type { SearchApi } from '@shared/api'
 import type { EntitySummary } from '@shared/domain/common'
 import type { EntityType } from '@shared/entity-types'
-import { searchQuerySchema, type SearchHit, type SearchQuery } from '@shared/domain/system'
+import {
+  recentQuerySchema,
+  searchQuerySchema,
+  type SearchHit,
+  type SearchQuery
+} from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import type { AnyRow, EntityRegistry } from '../core/registry'
 import { toFtsQuery } from '../core/util'
@@ -73,7 +77,9 @@ export class SearchIndex {
   }
 
   count(): number {
-    return (this.ctx.sqlite.prepare('SELECT count(*) AS c FROM search_index').get() as { c: number }).c
+    return (
+      this.ctx.sqlite.prepare('SELECT count(*) AS c FROM search_index').get() as { c: number }
+    ).c
   }
 
   /**
@@ -85,7 +91,11 @@ export class SearchIndex {
       this.ctx.sqlite.prepare('DELETE FROM search_index').run()
       const insert = this.stmt(INSERT)
       for (const d of this.registry.all()) {
-        const rows = this.ctx.orm.select().from(d.table).where(this.registry.live(d)).all() as AnyRow[]
+        const rows = this.ctx.orm
+          .select()
+          .from(d.table)
+          .where(this.registry.live(d))
+          .all() as AnyRow[]
         for (const row of rows) {
           const doc = d.searchDoc(row)
           insert.run(d.type, row.id, doc.title, doc.body.slice(0, MAX_BODY))
@@ -95,16 +105,24 @@ export class SearchIndex {
   }
 
   /** `recent` comes from the dashboard (recently changed records), the rest is the index. */
-  api(recent: (limit?: number) => EntitySummary[]): SearchApi {
+  api(recent: (limit?: number, types?: readonly EntityType[]) => EntitySummary[]): SearchApi {
     return {
       query: async (q) => {
         const hits = this.query(searchQuerySchema.parse(q))
         const found = new Map(this.registry.summarize(hits).map((s) => [`${s.type}:${s.id}`, s]))
         return hits
           .filter((h) => found.has(`${h.type}:${h.id}`))
-          .map((h) => ({ ...h, ...found.get(`${h.type}:${h.id}`)!, snippet: h.snippet, rank: h.rank }))
+          .map((h) => ({
+            ...h,
+            ...found.get(`${h.type}:${h.id}`)!,
+            snippet: h.snippet,
+            rank: h.rank
+          }))
       },
-      recent: async (limit) => recent(z.number().int().min(1).max(50).optional().parse(limit))
+      recent: async (args) => {
+        const q = recentQuerySchema.parse(args)
+        return typeof q === 'object' ? recent(q.limit, q.types) : recent(q)
+      }
     }
   }
 }

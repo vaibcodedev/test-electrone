@@ -24,12 +24,16 @@ import type { EventBus } from '../core/event-bus'
 import type { SearchIndex } from './search-index'
 import type { ExportService } from './export-service'
 import { showNotification } from '../core/notify'
-import { DAY_MS, dayKey, now, UserError } from '../core/util'
+import { DAY_MS, dayKey, now, retryBusy, UserError } from '../core/util'
 
 const BACKUP_EXT = 'vaultbak'
 const MANIFEST = 'manifest.json'
 /** Safety copies made right before a restore («vault-pre-restore-…»): the newest few are enough. */
 const PRE_RESTORE_KEEP = 3
+/** A «.part» older than this was left by a quit mid-write: no backup is written for so long. */
+const STALE_PART_MS = 60 * 60_000
+/** Where to find the error log, in the words of the settings page. */
+const LOG_HINT = 'Налаштування → Дані → «Відкрити журнал»'
 const STORE_ONLY = /\.(png|jpe?g|gif|webp|avif|mp4|webm|mov|zip)$/i
 
 interface Manifest {
@@ -40,7 +44,12 @@ interface Manifest {
 }
 
 /** Recursively collects files under root as { 'prefix/rel/path': [bytes, opts] }. */
-export function collectFiles(root: string, prefix: string, out: AsyncZippable = {}, dir = root): AsyncZippable {
+export function collectFiles(
+  root: string,
+  prefix: string,
+  out: AsyncZippable = {},
+  dir = root
+): AsyncZippable {
   if (!existsSync(dir)) return out
   for (const name of readdirSync(dir)) {
     const abs = join(dir, name)
@@ -59,6 +68,8 @@ export function collectFiles(root: string, prefix: string, out: AsyncZippable = 
 export class BackupService {
   private timer: NodeJS.Timeout | null = null
   private running = false
+  /** A restore is swapping the database: no second restore, no auto-backup meanwhile. */
+  private restoring = false
   /** Day a failed auto-backup was last reported: once a day is enough, the hourly retry stays silent. */
   private failNotifiedDay: string | null = null
 
@@ -93,7 +104,12 @@ export class BackupService {
     const tmpDb = join(this.paths.tmpDir, `backup-${Date.now()}.db`)
     try {
       await this.ctx.backupTo(tmpDb)
-      const manifest: Manifest = { format: 'vault-backup', version: 1, appVersion: app.getVersion(), createdAt: now() }
+      const manifest: Manifest = {
+        format: 'vault-backup',
+        version: 1,
+        appVersion: app.getVersion(),
+        createdAt: now()
+      }
       const entries: AsyncZippable = {
         [MANIFEST]: new TextEncoder().encode(JSON.stringify(manifest, null, 2)),
         'vault.db': readFileSync(tmpDb)
@@ -135,23 +151,49 @@ export class BackupService {
       this.config.lastBackupAt = now()
       if (!opts.saveAs) this.prune()
       const st = statSync(target)
-      return { fileName: target.split(/[\\/]/).pop()!, path: target, size: st.size, createdAt: st.mtimeMs }
+      return {
+        fileName: target.split(/[\\/]/).pop()!,
+        path: target,
+        size: st.size,
+        createdAt: st.mtimeMs
+      }
     } finally {
       this.running = false
     }
   }
 
-  /** Keeps the newest `backupKeep` regular backups and the 3 newest safety copies made before a restore. */
+  /**
+   * Keeps the newest `backupKeep` regular backups and the 3 newest safety copies made before a restore.
+   * Also removes «.part» files a quit mid-write left behind (backups folder only, never a «Зберегти як…» folder).
+   */
   private prune(): void {
     const all = this.list()
     const pre = all.filter((b) => b.fileName.includes('-pre-restore-'))
     const auto = all.filter((b) => !b.fileName.includes('-pre-restore-'))
-    for (const b of [...auto.slice(this.config.settings.backupKeep), ...pre.slice(PRE_RESTORE_KEEP)]) {
+    for (const b of [
+      ...auto.slice(this.config.settings.backupKeep),
+      ...pre.slice(PRE_RESTORE_KEEP)
+    ]) {
       rmSync(b.path, { force: true })
+    }
+    for (const f of readdirSync(this.paths.backupsDir)) {
+      if (!f.endsWith(`.${BACKUP_EXT}.part`)) continue
+      const part = join(this.paths.backupsDir, f)
+      if (now() - statSync(part).mtimeMs > STALE_PART_MS) rmSync(part, { force: true })
     }
   }
 
   async restore(path?: string): Promise<boolean> {
+    if (this.restoring) throw new UserError('Відновлення вже виконується')
+    this.restoring = true
+    try {
+      return await this.restoreFrom(path)
+    } finally {
+      this.restoring = false
+    }
+  }
+
+  private async restoreFrom(path?: string): Promise<boolean> {
     let file = path
     if (!file) {
       const res = await dialog.showOpenDialog(this.parent(), {
@@ -179,7 +221,8 @@ export class BackupService {
     try {
       archive = await unzipAsync(readFileSync(file))
       const manifestRaw = archive[MANIFEST]
-      if (!manifestRaw || !archive['vault.db']) throw new Error('no manifest or vault.db in the archive')
+      if (!manifestRaw || !archive['vault.db'])
+        throw new Error('no manifest or vault.db in the archive')
       manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as Manifest
     } catch (e) {
       log.warn('[backup] unreadable backup', file, e)
@@ -188,7 +231,9 @@ export class BackupService {
     if (manifest.format !== 'vault-backup') throw new UserError('Невідомий формат бекапу')
     // A backup from a newer Vault may carry migrations this version doesn't know.
     if (manifest.appVersion && compareVersions(manifest.appVersion, app.getVersion()) > 0)
-      throw new UserError(`Бекап зроблено новішою версією Vault (${manifest.appVersion}). Спершу оновіть застосунок.`)
+      throw new UserError(
+        `Бекап зроблено новішою версією Vault (${manifest.appVersion}). Спершу оновіть застосунок.`
+      )
 
     // Check the database inside the archive before touching current data.
     const stamp = Date.now()
@@ -270,18 +315,44 @@ export class BackupService {
       } catch {
         /* not open */
       }
-      if (placedDb || movedDb) rmSync(dbFile, { force: true })
-      if (movedDb) renameSync(oldDb, dbFile)
-      if (movedFiles || (createdFiles && !hadFiles)) rmSync(filesDir, { recursive: true, force: true })
-      if (movedFiles) renameSync(oldFiles, filesDir)
-      this.ctx.open()
+      // vault.db never disappears: the old file is renamed over the restored one (rename replaces on Windows).
+      // What can't be put back stays where it is and the user is told where.
+      const kept: string[] = []
+      try {
+        // WAL of the restored database must not be replayed onto the old one.
+        for (const suffix of ['-wal', '-shm']) rmSync(dbFile + suffix, { force: true })
+        if (movedDb) retryBusy(() => renameSync(oldDb, dbFile))
+        else if (placedDb) rmSync(dbFile, { force: true })
+      } catch (re) {
+        log.error('[backup] could not put the current database back', oldDb, re)
+        kept.push(`базу — у ${oldDb}`)
+      }
+      try {
+        if (movedFiles || (createdFiles && !hadFiles))
+          rmSync(filesDir, { recursive: true, force: true })
+        if (movedFiles) retryBusy(() => renameSync(oldFiles, filesDir))
+      } catch (re) {
+        log.error('[backup] could not put the current files back', oldFiles, re)
+        kept.push(`папку з файлами — у ${oldFiles}`)
+      }
+      try {
+        this.ctx.open()
+      } catch (oe) {
+        log.error('[backup] could not reopen the database after the rollback', oe)
+      }
+      if (kept.length) {
+        throw new UserError(
+          `Не вдалося повернути поточні дані: ${kept.join('; ')}. Перезапустіть Vault, подробиці — у журналі: ${LOG_HINT}.`
+        )
+      }
       throw new UserError(restoreFailMessage(e))
     }
-    rmSync(oldDb, { force: true })
-    rmSync(oldFiles, { recursive: true, force: true })
     this.search.rebuild()
     this.bus.dataChanged('all')
     for (const w of BrowserWindow.getAllWindows()) w.webContents.reload()
+    // The old data goes only once the restored one is in use.
+    rmSync(oldDb, { force: true })
+    rmSync(oldFiles, { recursive: true, force: true })
     return true
   }
 
@@ -291,6 +362,8 @@ export class BackupService {
       const s = this.config.settings
       const last = this.config.lastBackupAt ?? 0
       if (!s.autoBackup || now() - last < DAY_MS) return
+      // A manual backup or a restore is running: not a failure, the next hourly check tries again.
+      if (this.running || this.restoring) return
       this.create({ saveAs: false })
         .then(() => {
           this.failNotifiedDay = null
@@ -307,8 +380,11 @@ export class BackupService {
     const today = dayKey(now())
     if (this.failNotifiedDay === today) return
     this.failNotifiedDay = today
-    showNotification({ title: 'Автобекап не вдався', body: 'Подробиці — у журналі помилок (Налаштування → Дані)' })
-    this.bus.emit('toast', { kind: 'error', message: 'Автобекап не вдався — подробиці в журналі помилок (Налаштування → Дані)' })
+    showNotification({ title: 'Автобекап не вдався', body: `Подробиці — у журналі: ${LOG_HINT}` })
+    this.bus.emit('toast', {
+      kind: 'error',
+      message: `Автобекап не вдався — подробиці в журналі: ${LOG_HINT}`
+    })
   }
 
   stop(): void {
@@ -323,7 +399,8 @@ export class BackupService {
     return {
       list: async () => this.list(),
       create: async (args) => this.create(z.object({ saveAs: z.boolean() }).parse(args)),
-      restore: async (args) => this.restore(z.object({ path: z.string().optional() }).parse(args ?? {}).path),
+      restore: async (args) =>
+        this.restore(z.object({ path: z.string().optional() }).parse(args ?? {}).path),
       export: async (format) => exporter.export(z.enum(EXPORT_FORMATS).parse(format))
     }
   }
@@ -345,7 +422,8 @@ function compareVersions(a: string, b: string): number {
   }
   const [ac, ap] = parse(a)
   const [bc, bp] = parse(b)
-  for (let i = 0; i < 3; i++) if ((ac[i] ?? 0) !== (bc[i] ?? 0)) return (ac[i] ?? 0) > (bc[i] ?? 0) ? 1 : -1
+  for (let i = 0; i < 3; i++)
+    if ((ac[i] ?? 0) !== (bc[i] ?? 0)) return (ac[i] ?? 0) > (bc[i] ?? 0) ? 1 : -1
   if (ap === bp) return 0
   if (!ap) return 1
   if (!bp) return -1

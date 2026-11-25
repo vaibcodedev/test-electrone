@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNull, lte, ne, notInArray, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import type { JobsApi } from '@shared/api'
-import { pageSchema } from '@shared/domain/common'
+import { chipCountsQuerySchema, pageSchema, type ChipCountsQuery } from '@shared/domain/common'
 import {
   QUESTION_CATEGORIES,
   QUESTION_GROUPS,
@@ -23,6 +23,7 @@ import type { QuestionRepo } from './shared'
 type QuestionsApi = Pick<
   JobsApi,
   | 'questions'
+  | 'questionCounts'
   | 'question'
   | 'createQuestion'
   | 'updateQuestion'
@@ -34,7 +35,10 @@ type QuestionsApi = Pick<
 >
 
 /** Category filter: one category, or a group (technical / everything else). */
-function questionCategoryWhere(q: { category?: QuestionCategory; group?: QuestionGroup }): (SQL | undefined)[] {
+function questionCategoryWhere(q: {
+  category?: QuestionCategory
+  group?: QuestionGroup
+}): (SQL | undefined)[] {
   return [
     q.category ? eq(interviewQuestions.category, q.category) : undefined,
     q.group === 'technical'
@@ -73,6 +77,15 @@ export class Questions {
 
   api(): QuestionsApi {
     const qs = this.repo
+    // Search and tag shared by the list and its chip counters: the chips count what the list shows.
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      qs.hasTag(q.tagId),
+      qs.matches(q.search, [
+        interviewQuestions.question,
+        interviewQuestions.answer,
+        interviewQuestions.topic
+      ])
+    ]
     return {
       questions: async (query) => {
         const q = questionListQuerySchema.parse(query ?? {})
@@ -83,14 +96,19 @@ export class Questions {
             q.topic ? eq(interviewQuestions.topic, q.topic) : undefined,
             q.companyId ? eq(interviewQuestions.companyId, q.companyId) : undefined,
             q.applicationId ? eq(interviewQuestions.applicationId, q.applicationId) : undefined,
-            qs.hasTag(q.tagId),
-            qs.matches(q.search, [interviewQuestions.question, interviewQuestions.answer, interviewQuestions.topic])
+            ...filters(q)
           ],
-          [asc(interviewQuestions.category), asc(interviewQuestions.topic), desc(interviewQuestions.updatedAt)],
+          [
+            asc(interviewQuestions.category),
+            asc(interviewQuestions.topic),
+            desc(interviewQuestions.updatedAt)
+          ],
           page.limit,
           page.offset
         )
       },
+      questionCounts: async (query) =>
+        qs.countBy(interviewQuestions.category, filters(chipCountsQuerySchema.parse(query ?? {}))),
       question: async (id) => qs.get(idArg.parse(id)),
       createQuestion: async (input) => {
         const [data, tagIds] = splitTags(questionInputSchema.parse(input))

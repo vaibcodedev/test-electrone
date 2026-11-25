@@ -33,13 +33,37 @@ describe('project in the trash stops its timer', () => {
 describe('editing a time entry', () => {
   it('a finished entry cannot be reopened into a second running timer', async () => {
     const p = await v.api.projects.create({ title: 'Сайт' })
-    const e = await v.api.time.create({ projectId: p.id, startedAt: Date.now() - 3600_000, endedAt: Date.now() })
-    await expect(v.api.time.update({ id: e.id, patch: { endedAt: null } })).rejects.toThrow(/новий таймер/)
+    const e = await v.api.time.create({
+      projectId: p.id,
+      startedAt: Date.now() - 3600_000,
+      endedAt: Date.now()
+    })
+    await expect(v.api.time.update({ id: e.id, patch: { endedAt: null } })).rejects.toThrow(
+      /новий таймер/
+    )
   })
 
   it('moving an entry to a missing project is a readable error', async () => {
     const p = await v.api.projects.create({ title: 'Сайт' })
-    const e = await v.api.time.create({ projectId: p.id, startedAt: Date.now() - 3600_000, endedAt: Date.now() })
-    await expect(v.api.time.update({ id: e.id, patch: { projectId: 'missing' } })).rejects.toThrow(/не знайдено/)
+    const e = await v.api.time.create({
+      projectId: p.id,
+      startedAt: Date.now() - 3600_000,
+      endedAt: Date.now()
+    })
+    await expect(v.api.time.update({ id: e.id, patch: { projectId: 'missing' } })).rejects.toThrow(
+      /не знайдено/
+    )
+  })
+})
+
+describe('CRM overview', () => {
+  it('counts projects in work out of all live ones; the trash is not counted', async () => {
+    await v.api.projects.create({ title: 'Сайт', status: 'active' })
+    await v.api.projects.create({ title: 'Лендінг', status: 'paused' })
+    await v.api.projects.create({ title: 'Магазин', status: 'lead' })
+    const gone = await v.api.projects.create({ title: 'У кошику', status: 'active' })
+    await v.api.projects.remove(gone.id)
+    const o = await v.api.projects.overview()
+    expect([o.activeProjects, o.totalProjects]).toEqual([1, 3])
   })
 })

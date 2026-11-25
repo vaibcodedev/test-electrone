@@ -50,6 +50,17 @@ export interface EntityDescriptor {
   fileFields?: Record<string, string[]>
   /** Columns the app changes on its own (counters, SRS state, reminders): never reverted, not exported. */
   systemFields?: string[]
+  /**
+   * Child rows edited in the «Редагувати» mode together with the record (checklist items): part of its
+   * snapshot, compared by «Зберегти зміни?» and rolled back by «Скасувати». `restore` runs inside the revert
+   * transaction and must check the snapshot (it comes back from the renderer). `ignore` — child fields
+   * changed outside the edit (ticks of a run): never a change, never rolled back.
+   */
+  children?: {
+    snapshot(id: string): unknown
+    restore(id: string, snap: unknown): void
+    ignore?: string[]
+  }
   /** Extra markdown appended to the record's file in the Markdown export (a board's columns and cards…). */
   exportBody?(row: AnyRow): string[]
   /**

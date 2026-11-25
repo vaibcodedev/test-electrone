@@ -1,5 +1,12 @@
 /** Row types, labels and the money/time helpers shared by the parts of the CRM module. */
-import type { Client, Currency, Payment, PaymentStatus, Project, ProjectStatus, TimeEntry } from '@shared/domain/crm'
+import type {
+  Client,
+  Currency,
+  Payment,
+  PaymentStatus,
+  Project,
+  TimeEntry
+} from '@shared/domain/crm'
 import { clients, credentials, payments, projects, timeEntries } from '../../db/schema'
 import type { SoftRepository } from '../../core/soft-repository'
 import { now } from '../../core/util'
@@ -11,14 +18,6 @@ export type TimeRow = typeof timeEntries.$inferSelect
 export type CredentialRow = typeof credentials.$inferSelect
 export type ClientRepo = SoftRepository<ClientRow, Client>
 export type ProjectRepo = SoftRepository<ProjectRow, Project>
-
-export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
-  lead: 'Лід',
-  active: 'У роботі',
-  paused: 'На паузі',
-  done: 'Завершено',
-  cancelled: 'Скасовано'
-}
 
 export const round2 = (n: number): number => Math.round(n * 100) / 100
 
@@ -37,7 +36,8 @@ export function monthsBilled(
   return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) + 1
 }
 
-export const minutesBetween = (a: number, b: number): number => Math.max(0, Math.round((b - a) / 60_000))
+export const minutesBetween = (a: number, b: number): number =>
+  Math.max(0, Math.round((b - a) / 60_000))
 
 export function toPayment(r: PaymentRow): Payment {
   const open = r.status === 'expected' || r.status === 'invoiced'

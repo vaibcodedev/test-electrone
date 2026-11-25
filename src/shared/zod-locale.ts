@@ -30,7 +30,7 @@ export function configureZod(): void {
             ? 'потрібен хоча б один запис'
             : `замало — мінімум ${fmt(issue.minimum)}`
       if (issue.code === 'invalid_format' && issue.format === 'url') return 'не схоже на посилання'
-      if (issue.code === 'invalid_format' && issue.format === 'email') return 'не схоже на пошту'
+      if (issue.code === 'invalid_format' && issue.format === 'email') return 'не схоже на email'
       // JSON import: «{ "questions": [...] }» instead of «[...]» or «{ "items": [...] }».
       if (issue.code === 'invalid_union' && !issue.path?.length)
         return 'очікується масив записів [ … ] або об’єкт { "items": [ … ] }'
@@ -50,7 +50,7 @@ export const FIELD_LABEL: Record<string, string> = {
   name: 'Назва',
   label: 'Назва',
   url: 'Посилання',
-  email: 'Пошта',
+  email: 'Email',
   phone: 'Телефон',
   fixedPrice: 'Вартість проєкту',
   hourlyRate: 'Погодинна ставка',
@@ -64,7 +64,7 @@ export const FIELD_LABEL: Record<string, string> = {
   durationMin: 'Тривалість',
   progress: 'Прогрес',
   rating: 'Рейтинг',
-  dueAt: 'Строк',
+  dueAt: 'Термін',
   startAt: 'Початок',
   endAt: 'Кінець',
   startedAt: 'Початок',
@@ -108,7 +108,7 @@ export const FIELD_LABEL: Record<string, string> = {
   screenshot: 'Скриншот',
   selection: 'Виділений текст',
   company: 'Компанія',
-  kind: 'Вид'
+  kind: 'Тип'
 }
 
 /** «Назва: занадто довго…»; inside a list (JSON import) «Запис 38 → Назва: …». */

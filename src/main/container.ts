@@ -56,7 +56,12 @@ export class Container {
   readonly paths = new AppPaths()
   readonly config = new ConfigStore(this.paths.configFile)
   readonly bus = new EventBus()
-  readonly db = new DbContext(this.paths.dbFile, this.paths.migrationsDir, this.paths.backupsDir, app.getVersion())
+  readonly db = new DbContext(
+    this.paths.dbFile,
+    this.paths.migrationsDir,
+    this.paths.backupsDir,
+    app.getVersion()
+  )
   readonly registry = new EntityRegistry(this.db)
   readonly search = new SearchIndex(this.db, this.registry)
   readonly tags = new TagService(this.db, this.registry)
@@ -65,7 +70,13 @@ export class Container {
   readonly files = new FileStorage(this.paths.filesDir)
   readonly attachments = new AttachmentService(this.db, this.files, this.registry)
   readonly secrets = new SecretBox()
-  readonly revisions = new RevisionService(this.db, this.registry, this.tags, this.search, this.files)
+  readonly revisions = new RevisionService(
+    this.db,
+    this.registry,
+    this.tags,
+    this.search,
+    this.files
+  )
   readonly trash = new TrashService(this.db, this.registry, {
     tags: this.tags,
     links: this.links,
@@ -174,39 +185,47 @@ export class Container {
       this.config
     )
     this.api = this.buildApi()
-    this.capture = new CaptureServer(this.config, () => this.api, this.bus, (route) => this.windows.showMain(route), iconPath)
+    this.capture = new CaptureServer(
+      this.config,
+      () => this.api,
+      this.bus,
+      (route) => this.windows.showMain(route),
+      iconPath
+    )
     this.config.onSettingsChange((s) => {
       applyAutostart(s.launchAtLogin)
       this.bus.emit('settings:changed', s)
     })
   }
 
-  private dbOpen = false
-
   /** Opens the database (runs pending migrations, a safety copy is made before them). */
   openDb(): void {
     this.db.open()
-    this.dbOpen = true
   }
 
-  /** Housekeeping after the database is open (opens it first when the caller didn't). */
+  /**
+   * Housekeeping once the database is open (index.ts calls openDb() first). Each step on its own: a bad
+   * record failing one of them every start is logged, and Vault still opens — the data is intact.
+   */
   init(): void {
-    if (!this.dbOpen) this.openDb()
-    if (this.search.count() === 0) this.search.rebuild()
-    this.checklists.seedIfEmpty(this.config)
-    this.freelance.seedIfEmpty(this.config)
-    this.jobs.seedIfEmpty(this.config)
-    this.jobs.tidy()
-    this.registerCalendarFeeds()
-    this.trash.purgeExpired()
-    this.trash.purgeStaleDrafts()
-    setInterval(() => {
+    const housekeep = (name: string, fn: () => void): void => {
       try {
-        this.trash.purgeExpired()
+        fn()
       } catch (e) {
-        log.error('[trash] purge failed', e)
+        log.error('[startup]', name, e)
       }
-    }, 6 * 3600_000)
+    }
+    housekeep('search index', () => {
+      if (this.search.count() === 0) this.search.rebuild()
+    })
+    housekeep('checklist seeds', () => this.checklists.seedIfEmpty(this.config))
+    housekeep('freelance seeds', () => this.freelance.seedIfEmpty(this.config))
+    housekeep('job seeds', () => this.jobs.seedIfEmpty(this.config))
+    housekeep('job tidy', () => this.jobs.tidy())
+    this.registerCalendarFeeds()
+    housekeep('trash purge', () => this.trash.purgeExpired())
+    housekeep('stale drafts', () => this.trash.purgeStaleDrafts())
+    setInterval(() => housekeep('trash purge', () => this.trash.purgeExpired()), 6 * 3600_000)
   }
 
   /** One calendar for everything: each module adds its dated items; interview events open the vacancy. */
@@ -217,7 +236,13 @@ export class Container {
     const stageRoute = (e: { sourceId: string | null }): Partial<CalendarItem> | null => {
       const appId = e.sourceId ? this.jobs.applicationOfStage(e.sourceId) : null
       // The colour too: older stage events keep the one saved when they were created.
-      return appId ? { source: 'interview', ref: { type: 'application', id: appId }, color: FEED_COLOR.interview } : null
+      return appId
+        ? {
+            source: 'interview',
+            ref: { type: 'application', id: appId },
+            color: FEED_COLOR.interview
+          }
+        : null
     }
     this.calendar.decorateSource(STAGE_SOURCE, stageRoute)
     this.calendar.decorateSource(STAGE_DEADLINE_SOURCE, stageRoute)
@@ -265,7 +290,11 @@ export class Container {
           this.capture.regenerate()
           return this.capture.info()
         },
-        openExtensionDir: () => openPathOrThrow(this.capture.extensionDir, 'Папку розширення не знайдено — перевстановіть Vault')
+        openExtensionDir: () =>
+          openPathOrThrow(
+            this.capture.extensionDir,
+            'Папку розширення не знайдено — перевстановіть Vault'
+          )
       }
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)
@@ -300,7 +329,7 @@ export class Container {
       tags: this.tags.api(),
       links: this.links.api(),
       pins: this.pins.api(),
-      search: this.search.api((limit) => this.dashboard.recent(limit)),
+      search: this.search.api((limit, types) => this.dashboard.recent(limit, types)),
       records: this.revisions.api(this.bus),
       trash: this.trash.api(this.bus),
       files: this.attachments.api(),

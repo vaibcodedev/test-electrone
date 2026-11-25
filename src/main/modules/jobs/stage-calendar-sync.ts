@@ -7,7 +7,13 @@ import type { Orm } from '../../db/client'
 import { now } from '../../core/util'
 import type { ModuleContext } from '../context'
 import type { CalendarModule } from '../calendar'
-import { applicationTitle, STAGE_DEADLINE_SOURCE, STAGE_LABEL, STAGE_SOURCE, type StageRow } from './shared'
+import {
+  applicationTitle,
+  STAGE_DEADLINE_SOURCE,
+  STAGE_LABEL,
+  STAGE_SOURCE,
+  type StageRow
+} from './shared'
 
 const STAGE_DURATION_MAX = fieldMax(stageInputSchema.shape.durationMin)
 
@@ -19,7 +25,7 @@ const STAGES_OF_TRASHED_VACANCIES = sql`SELECT ${applicationStages.id} FROM ${ap
  * one, restorable apart from the vacancy) and are hidden through this condition, like cards of a deleted board.
  * coalesce: a NULL sourceType would make NOT (NULL IN …) NULL and hide every ordinary event.
  */
-export const STAGE_EVENTS_ALIVE: SQL = sql`NOT (coalesce(${events.sourceType}, '') IN (${STAGE_SOURCE}, ${STAGE_DEADLINE_SOURCE}) AND coalesce(${events.sourceId}, '') IN (${STAGES_OF_TRASHED_VACANCIES}))`
+const STAGE_EVENTS_ALIVE: SQL = sql`NOT (coalesce(${events.sourceType}, '') IN (${STAGE_SOURCE}, ${STAGE_DEADLINE_SOURCE}) AND coalesce(${events.sourceId}, '') IN (${STAGES_OF_TRASHED_VACANCIES}))`
 
 /**
  * Interview stages ↔ calendar events, both ways: a stage with a time gets an event (and a test task its
@@ -34,8 +40,19 @@ export class StageCalendarSync {
     // Moving/renaming an interview in the calendar updates the stage.
     calendar.onEventChanged((e) => this.syncFromEvent(e))
     calendar.hideWhen(STAGE_EVENTS_ALIVE, 'Спершу відновіть вакансію, до якої належить ця подія')
-    const owns = (stageId: string): boolean =>
-      !!this.db.select({ id: applicationStages.id }).from(applicationStages).where(eq(applicationStages.id, stageId)).get()
+    // Only the event the stage points at is owned: a stale copy older versions left behind (the stage was
+    // cancelled, its event put into the trash) is an ordinary event and can be deleted.
+    const owns = (stageId: string, eventId: string): boolean => {
+      const s = this.db
+        .select({
+          eventId: applicationStages.eventId,
+          deadlineEventId: applicationStages.deadlineEventId
+        })
+        .from(applicationStages)
+        .where(eq(applicationStages.id, stageId))
+        .get()
+      return !!s && (s.eventId === eventId || s.deadlineEventId === eventId)
+    }
     const hint = 'Це подія етапу вакансії — скасуйте або видаліть етап у самій вакансії'
     calendar.ownSource(STAGE_SOURCE, hint, owns)
     calendar.ownSource(STAGE_DEADLINE_SOURCE, hint, owns)
@@ -46,7 +63,11 @@ export class StageCalendarSync {
   }
 
   stagesOf(applicationId: string): StageRow[] {
-    return this.db.select().from(applicationStages).where(eq(applicationStages.applicationId, applicationId)).all()
+    return this.db
+      .select()
+      .from(applicationStages)
+      .where(eq(applicationStages.applicationId, applicationId))
+      .all()
   }
 
   /** Calendar events mirroring the vacancy's stages, alive or in the trash. */
@@ -83,7 +104,8 @@ export class StageCalendarSync {
       // An event that ended up in the trash (older versions, a vacancy restored from it) comes back: the
       // stage still wants it, and a fresh insert would leave a duplicate waiting in the trash.
       const existing = eventId ? this.calendar.repo.row(eventId, true) : undefined
-      if (existing?.deletedAt) this.db.update(events).set({ deletedAt: null }).where(eq(events.id, existing.id)).run()
+      if (existing?.deletedAt)
+        this.db.update(events).set({ deletedAt: null }).where(eq(events.id, existing.id)).run()
       const data = {
         // «Етап: компанія» can outgrow an event title (both parts are long): clip, the full text is in the stage.
         title: values.title.slice(0, MAX.title),
@@ -154,16 +176,25 @@ export class StageCalendarSync {
     startAt: number
     endAt: number | null
   }): void {
-    if (!e.sourceId || (e.sourceType !== STAGE_SOURCE && e.sourceType !== STAGE_DEADLINE_SOURCE)) return
-    const stage = this.db.select().from(applicationStages).where(eq(applicationStages.id, e.sourceId)).get()
-    if (!stage) return
+    if (!e.sourceId || (e.sourceType !== STAGE_SOURCE && e.sourceType !== STAGE_DEADLINE_SOURCE))
+      return
+    const stage = this.db
+      .select()
+      .from(applicationStages)
+      .where(eq(applicationStages.id, e.sourceId))
+      .get()
+    // A stale event the stage no longer points at must not move the stage.
+    if (!stage || (stage.eventId !== e.id && stage.deadlineEventId !== e.id)) return
     const patch =
       e.sourceType === STAGE_SOURCE
         ? {
             at: e.startAt,
             // The calendar allows multi-day events; a stage lasts at most a day (stageInputSchema).
             durationMin: e.endAt
-              ? Math.min(STAGE_DURATION_MAX, Math.max(15, Math.round((e.endAt - e.startAt) / 60_000)))
+              ? Math.min(
+                  STAGE_DURATION_MAX,
+                  Math.max(15, Math.round((e.endAt - e.startAt) / 60_000))
+                )
               : stage.durationMin
           }
         : { deadlineAt: e.startAt }
@@ -187,7 +218,10 @@ export class StageCalendarSync {
           attachments.clearFor(ref)
           repo.search.remove('event', id)
         }
-        this.db.delete(pins).where(and(eq(pins.entityType, 'event'), inArray(pins.entityId, ids))).run()
+        this.db
+          .delete(pins)
+          .where(and(eq(pins.entityType, 'event'), inArray(pins.entityId, ids)))
+          .run()
         this.db.delete(events).where(inArray(events.id, ids)).run()
       })
     )
@@ -214,6 +248,26 @@ export class StageCalendarSync {
         )
       )
       .run()
+  }
+
+  /**
+   * Older versions trashed the event of a cancelled stage and cleared stage.eventId, so the trash keeps stage
+   * events no stage points at any more. Restored, they could not be deleted from the calendar: drop them.
+   */
+  dropOrphanEvents(): void {
+    const referenced = sql`SELECT ${applicationStages.eventId} FROM ${applicationStages} WHERE ${applicationStages.eventId} IS NOT NULL UNION SELECT ${applicationStages.deadlineEventId} FROM ${applicationStages} WHERE ${applicationStages.deadlineEventId} IS NOT NULL`
+    const orphans = this.db
+      .select({ id: events.id })
+      .from(events)
+      .where(
+        and(
+          isNotNull(events.deletedAt),
+          inArray(events.sourceType, [STAGE_SOURCE, STAGE_DEADLINE_SOURCE]),
+          sql`${events.id} NOT IN (${referenced})`
+        )
+      )
+      .all()
+    this.dropEvents(orphans.map((r) => r.id))
   }
 
   /** The vacancy is back from the trash: so are its interviews and deadlines (re-synced: title, time). */

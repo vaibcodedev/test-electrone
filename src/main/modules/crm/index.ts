@@ -6,7 +6,14 @@
 import { and, gte, isNull, lte } from 'drizzle-orm'
 import type { ClientsApi, CredentialsApi, PaymentsApi, ProjectsApi, TimeApi } from '@shared/api'
 import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
-import type { BillingType, ClientStatus, Currency, ProjectStatus, RunningTimer } from '@shared/domain/crm'
+import {
+  PROJECT_STATUS_LABEL,
+  type BillingType,
+  type ClientStatus,
+  type Currency,
+  type ProjectStatus,
+  type RunningTimer
+} from '@shared/domain/crm'
 import { clients, projects } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import { SoftRepository } from '../../core/soft-repository'
@@ -18,7 +25,7 @@ import { Payments } from './payments'
 import { Projects } from './projects'
 import { CrmSummaries } from './summaries'
 import { TimeTracker } from './time'
-import { PROJECT_STATUS_LABEL, type ClientRepo, type ProjectRepo } from './shared'
+import { type ClientRepo, type ProjectRepo } from './shared'
 
 export class CrmModule {
   readonly descriptors: EntityDescriptor[]
@@ -73,7 +80,14 @@ export class CrmModule {
     this.time = new TimeTracker(m, this.projectRepo)
     this.payments = new Payments(m, this.projectRepo)
     this.clients = new Clients(this.clientRepo, this.projectRepo, this.summaries, this.credentials)
-    this.projects = new Projects(m, this.projectRepo, this.clientRepo, this.summaries, this.credentials, this.time)
+    this.projects = new Projects(
+      m,
+      this.projectRepo,
+      this.clientRepo,
+      this.summaries,
+      this.credentials,
+      this.time
+    )
   }
 
   private get db(): Orm {
@@ -108,7 +122,12 @@ export class CrmModule {
       done: p.status === 'paid' || p.status === 'cancelled'
     }))
     const deadlines = this.db
-      .select({ id: projects.id, title: projects.title, dueAt: projects.dueAt, status: projects.status })
+      .select({
+        id: projects.id,
+        title: projects.title,
+        dueAt: projects.dueAt,
+        status: projects.status
+      })
       .from(projects)
       .where(and(isNull(projects.deletedAt), gte(projects.dueAt, from), lte(projects.dueAt, to)))
       .all()

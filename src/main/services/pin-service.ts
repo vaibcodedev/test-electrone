@@ -43,10 +43,20 @@ export class PinService {
       this.ctx.orm.delete(pins).where(this.where(ref, kind)).run()
       return false
     }
-    const last = this.ctx.orm.select({ m: max(pins.position) }).from(pins).where(eq(pins.kind, kind)).get()
+    const last = this.ctx.orm
+      .select({ m: max(pins.position) })
+      .from(pins)
+      .where(eq(pins.kind, kind))
+      .get()
     this.ctx.orm
       .insert(pins)
-      .values({ entityType: ref.type, entityId: ref.id, kind, position: (last?.m ?? 0) + 1, createdAt: now() })
+      .values({
+        entityType: ref.type,
+        entityId: ref.id,
+        kind,
+        position: (last?.m ?? 0) + 1,
+        createdAt: now()
+      })
       .run()
     return true
   }
@@ -57,7 +67,10 @@ export class PinService {
       .from(pins)
       .where(and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id)))
       .all()
-    return { pin: rows.some((r) => r.kind === 'pin'), favorite: rows.some((r) => r.kind === 'favorite') }
+    return {
+      pin: rows.some((r) => r.kind === 'pin'),
+      favorite: rows.some((r) => r.kind === 'favorite')
+    }
   }
 
   reorder(kind: PinKind, refs: EntityRef[]): void {
@@ -81,12 +94,15 @@ export class PinService {
       list: async (kind) => this.list(kindArg.optional().parse(kind)),
       toggle: async (args) => {
         const { ref, kind } = z.object({ ref: entityRefSchema, kind: kindArg }).parse(args)
-        if (!this.registry.findRow(ref)) throw new UserError('Об’єкт не знайдено')
+        if (!this.registry.findRow(ref))
+          throw new UserError('Запис не знайдено — можливо, його видалено')
         return this.toggle(ref, kind)
       },
       state: async (ref) => this.state(entityRefSchema.parse(ref)),
       reorder: async (args) => {
-        const { kind, refs } = z.object({ kind: kindArg, refs: z.array(entityRefSchema).max(1000) }).parse(args)
+        const { kind, refs } = z
+          .object({ kind: kindArg, refs: z.array(entityRefSchema).max(1000) })
+          .parse(args)
         this.reorder(kind, refs)
       }
     }

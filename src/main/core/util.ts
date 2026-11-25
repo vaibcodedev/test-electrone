@@ -65,7 +65,8 @@ export class NotFoundError extends Error {
     what: string,
     readonly id: string
   ) {
-    const label = (ENTITY_META as Record<string, { label: string } | undefined>)[what]?.label ?? what
+    const label =
+      (ENTITY_META as Record<string, { label: string } | undefined>)[what]?.label ?? what
     super(`${label}: запис не знайдено — можливо, його видалено`)
   }
 }
@@ -135,3 +136,25 @@ export function overlapMinutes(
 
 /** Share in percent with one decimal (66.7); 0 when there is nothing to divide by. */
 export const pct = (a: number, b: number): number => (b ? Math.round((a / b) * 1000) / 10 : 0)
+
+/** Error codes of a file briefly held by another process (antivirus, indexer, backup software on Windows). */
+const BUSY_CODES = new Set(['EBUSY', 'EPERM', 'EACCES'])
+
+export const isBusyError = (e: unknown): boolean =>
+  BUSY_CODES.has((e as NodeJS.ErrnoException)?.code ?? '')
+
+/**
+ * Runs a synchronous file operation, retrying a few times while the file is busy (EBUSY/EPERM/EACCES).
+ * Other errors and the last busy one are rethrown. Blocks the thread between tries: only for rare steps
+ * (restore, startup), never on a hot path.
+ */
+export function retryBusy<T>(fn: () => T, tries = 5, pauseMs = 200): T {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return fn()
+    } catch (e) {
+      if (attempt >= tries || !isBusyError(e)) throw e
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, pauseMs)
+    }
+  }
+}

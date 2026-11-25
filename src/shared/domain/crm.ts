@@ -89,12 +89,25 @@ export interface ClientSummary extends Client {
   trackedMinutes: number
   paidTotal: number
   outstandingTotal: number
+  /** Expected or invoiced payments past their due date, over all the client's projects. */
+  overduePayments: number
+  /** Their sum in the client's currency (projects in other currencies are left out, as in outstandingTotal). */
+  overdueTotal: number
 }
 
 /* ───────────── Projects ───────────── */
 
 export const PROJECT_STATUSES = ['lead', 'active', 'paused', 'done', 'cancelled'] as const
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
+
+/** Project status as the UI writes it (main: search, pins, trash; renderer: the page). */
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
+  lead: 'Потенційний',
+  active: 'У роботі',
+  paused: 'На паузі',
+  done: 'Завершено',
+  cancelled: 'Скасовано'
+}
 
 export const projectInputSchema = z.object({
   clientId: idSchema.nullable().default(null),
@@ -179,6 +192,10 @@ export interface ProjectSummary extends Project {
   retainerMonths: number
   paidAmount: number
   outstandingAmount: number
+  /** Expected or invoiced payments of this project past their due date (project currency). */
+  overduePayments: number
+  /** Their sum in the project currency. */
+  overdueAmount: number
 }
 
 /* ───────────── Credentials (encrypted with OS keychain via safeStorage) ───────────── */
@@ -289,5 +306,11 @@ export interface CrmOverview {
   paidThisMonth: Partial<Record<Currency, number>>
   outstanding: Partial<Record<Currency, number>>
   activeProjects: number
+  /** Live projects of any status (the «з N усього» under «Проєкти в роботі»). */
+  totalProjects: number
   overduePayments: number
+  /** Live projects per status — counts for the status chips on /clients. */
+  projectsByStatus: Record<ProjectStatus, number>
+  /** Live clients and projects per platform id; key 'direct' — without a platform. */
+  byPlatform: Record<string, { clients: number; projects: number }>
 }

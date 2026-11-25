@@ -9,6 +9,7 @@ import type { Currency } from '@shared/domain/crm'
 import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import {
   expenseInputSchema,
+  financeOverviewQuerySchema,
   expensePatchSchema,
   monthQuerySchema,
   subscriptionInputSchema,
@@ -278,11 +279,22 @@ export class FinanceModule {
     }
   }
 
-  overview(): FinanceOverview {
+  /**
+   * `month` (yyyy-mm) is the month picked on the page: inside the last 12 months the chart window stays
+   * the same, an older (or future) month moves it to the 12 months that end with it.
+   */
+  overview(month?: string): FinanceOverview {
     const months: FinanceOverview['months'] = []
-    const d = new Date()
-    for (let i = 11; i >= 0; i--) {
-      const key = monthKey(new Date(d.getFullYear(), d.getMonth() - i, 1).getTime())
+    const keysEndingAt = (d: Date): string[] =>
+      Array.from({ length: 12 }, (_, i) =>
+        monthKey(new Date(d.getFullYear(), d.getMonth() - 11 + i, 1).getTime())
+      )
+    let keys = keysEndingAt(new Date())
+    if (month && !keys.includes(month)) {
+      const [y, m] = month.split('-').map(Number)
+      keys = keysEndingAt(new Date(y, m - 1, 1))
+    }
+    for (const key of keys) {
       const r = this.month(key)
       months.push({ month: key, net: r.net, expenses: minus(r.expenses, {}), profit: r.profit })
       for (const [c, v] of Object.entries(r.creditPurchases))
@@ -330,7 +342,7 @@ export class FinanceModule {
   api(): FinanceApi {
     const range = z.object({ from: z.number(), to: z.number() })
     return {
-      overview: async () => this.overview(),
+      overview: async (args) => this.overview(financeOverviewQuerySchema.parse(args)?.month),
       month: async (args) => this.month(monthQuerySchema.parse(args).month),
       income: async (args) => {
         const { from, to } = range.parse(args)
@@ -384,7 +396,9 @@ export class FinanceModule {
           })
           .parse(args)
         const row = this.subscriptionMonth(month).find((s) => s.id === id)
-        const raw = row ? undefined : this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()
+        const raw = row
+          ? undefined
+          : this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()
         if (!row && !raw) throw new NotFoundError('Підписка', id)
         const sub = row ?? this.toSub(raw!)
         const [from, to] = monthRange(month)
@@ -481,7 +495,8 @@ export class FinanceModule {
           (patch.received === undefined &&
             (patch.amount !== undefined || patch.fee !== undefined || patch.rate !== undefined))
         const received =
-          patch.received ?? (recompute ? Math.max(0, r2((next.amount - next.fee) * next.rate)) : cur.received)
+          patch.received ??
+          (recompute ? Math.max(0, r2((next.amount - next.fee) * next.rate)) : cur.received)
         const row = this.db
           .update(withdrawals)
           .set({ ...patch, received: received ?? 0 })

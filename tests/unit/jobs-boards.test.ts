@@ -28,7 +28,9 @@ describe('removing a job board', () => {
   it('a board nobody used yet is deleted', async () => {
     const board = await v.api.jobs.createBoard({ name: 'Опечатка' })
     await v.api.jobs.removeBoard(board.id)
-    expect((await v.api.jobs.boards({ includeInactive: true })).map((b) => b.id)).not.toContain(board.id)
+    expect((await v.api.jobs.boards({ includeInactive: true })).map((b) => b.id)).not.toContain(
+      board.id
+    )
   })
 
   it('a board with applications or check-ins is kept: switch it off instead', async () => {
@@ -39,5 +41,18 @@ describe('removing a job board', () => {
     const checked = await v.api.jobs.createBoard({ name: 'LinkedIn' })
     await v.api.jobs.checkin({ boardId: checked.id, day: dayKey(Date.now()), checked: true })
     await expect(v.api.jobs.removeBoard(checked.id)).rejects.toThrow(/вимкніть його/)
+  })
+
+  it('the refusal names what keeps the board: vacancies (in the trash too) or day marks', async () => {
+    const used = await v.api.jobs.createBoard({ name: 'Djinni' })
+    const vacancy = await v.api.jobs.create({ title: 'Frontend', boardId: used.id })
+    await v.api.jobs.remove(vacancy.id)
+    await expect(v.api.jobs.removeBoard(used.id)).rejects.toThrow(
+      /вже є вакансії \(можливо, у кошику\)/
+    )
+
+    const checked = await v.api.jobs.createBoard({ name: 'LinkedIn' })
+    await v.api.jobs.checkin({ boardId: checked.id, day: dayKey(Date.now()), checked: true })
+    await expect(v.api.jobs.removeBoard(checked.id)).rejects.toThrow(/позначки днів/)
   })
 })

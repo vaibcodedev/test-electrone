@@ -2,6 +2,7 @@ import { log } from '../core/logger'
 import { showNotification } from '../core/notify'
 import { eq } from 'drizzle-orm'
 import { ENTITY_META } from '@shared/entity-types'
+import { fmtWhen } from '@shared/dates'
 import { events } from '../db/schema'
 import type { DbContext } from '../db/client'
 import type { CalendarModule } from '../modules/calendar'
@@ -63,7 +64,11 @@ export class ReminderService {
   tick(): void {
     const t = now()
     for (const e of this.calendar.eventsInRange(t - DAY_MS, t + 31 * DAY_MS)) {
-      const slots: { minutes: number | null; sent: number | null; field: 'remindedFor' | 'reminded2For' }[] = [
+      const slots: {
+        minutes: number | null
+        sent: number | null
+        field: 'remindedFor' | 'reminded2For'
+      }[] = [
         { minutes: e.remindMinutes, sent: e.remindedFor, field: 'remindedFor' },
         { minutes: e.remind2Minutes, sent: e.reminded2For, field: 'reminded2For' }
       ]
@@ -73,12 +78,12 @@ export class ReminderService {
           const remindAt = start - slot.minutes * 60_000
           if (remindAt > t || remindAt < t - STALE_MS) continue
           if (slot.sent !== null && slot.sent >= start) continue
-          const d = new Date(start)
-          const when = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' })
-          const isToday = new Date().toDateString() === d.toDateString()
-          const body = e.allDay ? (isToday ? 'Сьогодні' : d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })) : isToday ? `Сьогодні о ${when}` : `${d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })} о ${when}`
-          this.notify(e.title, body, ENTITY_META.event.route(e.id))
-          this.ctx.orm.update(events).set({ [slot.field]: start }).where(eq(events.id, e.id)).run()
+          this.notify(e.title, fmtWhen(start, e.allDay), ENTITY_META.event.route(e.id))
+          this.ctx.orm
+            .update(events)
+            .set({ [slot.field]: start })
+            .where(eq(events.id, e.id))
+            .run()
         }
       }
     }
@@ -102,7 +107,11 @@ export class ReminderService {
     const week = new Date(startOfWeek(t)).toDateString()
     if (this.config.lastWeeklyReview === week) return
     this.config.lastWeeklyReview = week
-    this.notify('Підсумки тижня готові', 'Що зроблено, гроші, відгуки без відповіді й плани на наступний тиждень', '/review')
+    this.notify(
+      'Підсумки тижня готові',
+      'Що зроблено, гроші, відгуки без відповіді й плани на наступний тиждень',
+      '/review'
+    )
   }
 
   /**
@@ -119,8 +128,15 @@ export class ReminderService {
       .filter((c) => !c.columnIsDone && isAllDay(c.dueAt!))
     if (!due.length) return
     const route = due.length === 1 ? ENTITY_META.card.route(due[0].id) : '/boards'
-    const names = due.slice(0, 3).map((c) => c.title).join(', ')
-    this.notify('Сьогодні дедлайн', due.length > 3 ? `${names} і ще ${due.length - 3}` : names, route)
+    const names = due
+      .slice(0, 3)
+      .map((c) => c.title)
+      .join(', ')
+    this.notify(
+      'Сьогодні дедлайн',
+      due.length > 3 ? `${names} і ще ${due.length - 3}` : names,
+      route
+    )
   }
 
   /** Evening reminder: job boards expected today that are not marked yet. */
@@ -134,6 +150,10 @@ export class ReminderService {
     this.config.lastJobNudge = key
     const pending = this.jobs.pendingToday()
     if (!pending.length) return
-    this.notify('Пошук роботи: майданчики на сьогодні', `Не позначено: ${pending.map((b) => b.name).join(', ')}`, '/jobs')
+    this.notify(
+      'Пошук роботи: майданчики на сьогодні',
+      `Не позначено: ${pending.map((b) => b.name).join(', ')}`,
+      '/jobs'
+    )
   }
 }

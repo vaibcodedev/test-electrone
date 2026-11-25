@@ -32,9 +32,12 @@ export class DashboardService {
     }
   ) {}
 
-  recent(limit = 10): EntitySummary[] {
+  /** Recently changed live records across modules; `types` narrows the scan to those descriptors. */
+  recent(limit = 10, types?: readonly EntityType[]): EntitySummary[] {
     const all: EntitySummary[] = []
+    const only = types ? new Set(types) : null
     for (const d of this.registry.all()) {
+      if (only && !only.has(d.type)) continue
       const rows = this.ctx.orm
         .select()
         .from(d.table)
@@ -42,7 +45,8 @@ export class DashboardService {
         .orderBy(desc(d.table.updatedAt))
         .limit(limit)
         .all() as AnyRow[]
-      for (const r of rows) all.push({ type: d.type, id: r.id, ...d.summary(r), updatedAt: r.updatedAt })
+      for (const r of rows)
+        all.push({ type: d.type, id: r.id, ...d.summary(r), updatedAt: r.updatedAt })
     }
     return all.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)).slice(0, limit)
   }
@@ -65,7 +69,13 @@ export class DashboardService {
     const done = this.ctx.orm
       .select({ at: cards.completedAt })
       .from(cards)
-      .where(and(this.registry.live(this.registry.get('card')), isNotNull(cards.completedAt), gte(cards.completedAt, from)))
+      .where(
+        and(
+          this.registry.live(this.registry.get('card')),
+          isNotNull(cards.completedAt),
+          gte(cards.completedAt, from)
+        )
+      )
       .all()
       .map((r) => r.at!)
     const checks = this.mods.checklists.doneSince(from).map((r) => r.doneAt)
@@ -93,13 +103,19 @@ export class DashboardService {
       today: {
         cards: dueToday,
         overdue,
-        agenda: this.mods.calendar.feed(todayStart, addDays(todayEnd, 2)).filter((i) => i.source !== 'card')
+        agenda: this.mods.calendar
+          .feed(todayStart, addDays(todayEnd, 2))
+          .filter((i) => i.source !== 'card')
       },
       pinned: this.pins.list('pin'),
       favorites: this.pins.list('favorite'),
       recent: this.recent(10),
       inboxIdeas: this.mods.ideas.repo.listWhere([eq(ideas.status, 'inbox')], undefined, 6),
-      reading: this.mods.knowledge.bookmarkRepo.listWhere([eq(bookmarks.status, 'in_progress')], undefined, 5),
+      reading: this.mods.knowledge.bookmarkRepo.listWhere(
+        [eq(bookmarks.status, 'in_progress')],
+        undefined,
+        5
+      ),
       english: {
         due: this.mods.english.dueCount(),
         total: this.counts().word ?? 0,

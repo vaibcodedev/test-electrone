@@ -13,10 +13,8 @@ import { openPathOrThrow } from '../core/open-path'
 import type { EntityRegistry } from '../core/registry'
 import type { FileStorage } from './file-storage'
 
-/** Opens a stored file in its default app; shell's English error goes to the log, the user gets a plain reason. */
-export function openStoredFile(abs: string): Promise<void> {
-  return openPathOrThrow(abs, 'Не вдалося відкрити файл — можливо, його видалено або перейменовано')
-}
+/** Why a stored file didn't open (shell's English error goes to the log through openPathOrThrow). */
+const FILE_OPEN_ERROR = 'Не вдалося відкрити файл — можливо, його видалено або перейменовано'
 
 /** Files attached to any entity. */
 export class AttachmentService {
@@ -66,7 +64,7 @@ export class AttachmentService {
   }
 
   async open(id: string): Promise<void> {
-    await openStoredFile(this.storage.resolve(this.find(id).path))
+    await openPathOrThrow(this.storage.resolve(this.find(id).path), FILE_OPEN_ERROR)
   }
 
   reveal(id: string): void {
@@ -87,14 +85,20 @@ export class AttachmentService {
     return {
       list: async (ref) => this.list(entityRefSchema.parse(ref)),
       add: async (args) => {
-        const { ref, source } = z.object({ ref: entityRefSchema, source: fileSourceSchema }).parse(args)
+        const { ref, source } = z
+          .object({ ref: entityRefSchema, source: fileSourceSchema })
+          .parse(args)
         return this.add(ref, source)
       },
       remove: async (id) => this.remove(idSchema.parse(id)),
       open: async (id) => this.open(idSchema.parse(id)),
       reveal: async (id) => this.reveal(idSchema.parse(id)),
       // storage.resolve() throws for anything outside <data>/files, so only stored files can be opened.
-      openPath: async (path) => openStoredFile(this.storage.resolve(z.string().min(1).max(1000).parse(path))),
+      openPath: async (path) =>
+        openPathOrThrow(
+          this.storage.resolve(z.string().min(1).max(1000).parse(path)),
+          FILE_OPEN_ERROR
+        ),
       clipboardHasImage: async () => this.storage.clipboardHasImage()
     }
   }

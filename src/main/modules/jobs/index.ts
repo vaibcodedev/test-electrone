@@ -9,11 +9,12 @@ import { z } from 'zod'
 import type { JobsApi } from '@shared/api'
 import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import type { Currency } from '@shared/domain/crm'
-import type {
-  ApplicationStatus,
-  JobBoard,
-  QuestionCategory,
-  WorkFormat
+import {
+  APPLICATION_STATUS_LABEL,
+  type ApplicationStatus,
+  type JobBoard,
+  type QuestionCategory,
+  type WorkFormat
 } from '@shared/domain/jobs'
 import { applications, applicationStages, companies, interviewQuestions } from '../../db/schema'
 import type { Orm } from '../../db/client'
@@ -30,7 +31,7 @@ import { Questions } from './questions'
 import { Resumes } from './resumes'
 import { StageCalendarSync } from './stage-calendar-sync'
 import { JobStatistics } from './stats'
-import { STATUS_LABEL, type AppRepo, type CompanyRepo, type QuestionRepo } from './shared'
+import { type AppRepo, type CompanyRepo, type QuestionRepo } from './shared'
 
 export { STAGE_DEADLINE_SOURCE, STAGE_SOURCE } from './shared'
 
@@ -61,12 +62,13 @@ export class JobsModule {
       }),
       summary: (r) => ({
         title: r.title,
-        subtitle: [r.companyName, STATUS_LABEL[r.status as ApplicationStatus]]
+        subtitle: [r.companyName, APPLICATION_STATUS_LABEL[r.status as ApplicationStatus]]
           .filter(Boolean)
           .join(' — ')
       }),
       // Stage events live and die with the vacancy: back from the trash together, deleted for good together.
-      dependents: (id) => this.sync.eventIds(id).map((eid) => ({ type: 'event' as const, id: eid })),
+      dependents: (id) =>
+        this.sync.eventIds(id).map((eid) => ({ type: 'event' as const, id: eid })),
       onRestore: (r) => this.sync.restore(r.id),
       // «Скасувати» after renaming the vacancy/company: event titles follow back.
       afterRevert: (r) => this.sync.syncAll(r.id),
@@ -117,12 +119,18 @@ export class JobsModule {
   }
 
   seedIfEmpty(ledger: SeedLedger): void {
-    seedOnce(ledger, 'jobBoards', () => this.boards.hasAny(), () => this.boards.seed())
+    seedOnce(
+      ledger,
+      'jobBoards',
+      () => this.boards.hasAny(),
+      () => this.boards.seed()
+    )
   }
 
-  /** Startup housekeeping: stage events older versions left in the trash next to their vacancy. */
+  /** Startup housekeeping: stage events older versions left in the trash (next to their vacancy, or orphaned). */
   tidy(): void {
     this.sync.untrashHiddenEvents()
+    this.sync.dropOrphanEvents()
   }
 
   /** Boards expected today that are not done yet (for the evening reminder). */
@@ -133,7 +141,11 @@ export class JobsModule {
   /** Calendar feed: «нагадати про себе» dates of open vacancies. */
   calendarFeed(from: number, to: number): CalendarItem[] {
     return this.appRepo
-      .listWhere([gte(applications.followUpAt, from), lte(applications.followUpAt, to), isNull(applications.closedAt)])
+      .listWhere([
+        gte(applications.followUpAt, from),
+        lte(applications.followUpAt, to),
+        isNull(applications.closedAt)
+      ])
       .map((a) => ({
         key: `followup:${a.id}`,
         source: 'followup' as const,
@@ -158,7 +170,13 @@ export class JobsModule {
   }
 
   private count(where: ReturnType<typeof and>): number {
-    return this.db.select({ c: sql<number>`count(*)` }).from(applications).where(where).get()?.c ?? 0
+    return (
+      this.db
+        .select({ c: sql<number>`count(*)` })
+        .from(applications)
+        .where(where)
+        .get()?.c ?? 0
+    )
   }
 
   api(): JobsApi {
@@ -169,13 +187,19 @@ export class JobsModule {
       ...this.resumes.api(),
       ...this.questions.api(),
       stats: async (args) =>
-        this.statistics.stats(z.object({ from: z.number().optional(), to: z.number().optional() }).parse(args ?? {})),
+        this.statistics.stats(
+          z.object({ from: z.number().optional(), to: z.number().optional() }).parse(args ?? {})
+        ),
       overview: async () => ({
         today: this.boards.daily(28),
         upcoming: this.applications.upcomingStages(6),
         followUps: this.applications.followUps(),
         activeCount: this.count(
-          and(isNull(applications.deletedAt), isNull(applications.closedAt), sql`${applications.status} != 'saved'`)
+          and(
+            isNull(applications.deletedAt),
+            isNull(applications.closedAt),
+            sql`${applications.status} != 'saved'`
+          )
         ),
         offers: this.count(and(isNull(applications.deletedAt), eq(applications.status, 'offer'))),
         questionsDue: this.questions.due()

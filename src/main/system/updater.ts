@@ -9,7 +9,8 @@ import { log } from '../core/logger'
 
 const { autoUpdater } = electronUpdater
 
-const OFFLINE = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NETWORK|ENOTFOUND|ETIMEDOUT|ECONNREFUSED/i
+const OFFLINE =
+  /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NETWORK|ENOTFOUND|ETIMEDOUT|ECONNREFUSED/i
 
 /** Wraps electron-updater: GitHub Releases (configured in electron-builder.yml → publish). */
 export class Updater {
@@ -32,7 +33,7 @@ export class Updater {
       }
     }
     if (!app.isPackaged) {
-      this.status = { state: 'disabled', reason: 'Оновлення працюють лише в зібраній версії' }
+      this.status = { state: 'disabled', reason: 'Оновлення працюють лише у встановленій версії' }
       return
     }
     // Placeholder repo in electron-builder.yml → every check is a 404 in the log. Don't go to GitHub at all.
@@ -47,10 +48,16 @@ export class Updater {
     // With auto-download the download starts right away: show progress, not a «Завантажити» button that
     // would start a second download on top of it.
     autoUpdater.on('update-available', (i) =>
-      this.set(autoUpdater.autoDownload ? { state: 'downloading', percent: 0 } : { state: 'available', version: i.version })
+      this.set(
+        autoUpdater.autoDownload
+          ? { state: 'downloading', percent: 0 }
+          : { state: 'available', version: i.version }
+      )
     )
     autoUpdater.on('update-not-available', () => this.set({ state: 'none' }))
-    autoUpdater.on('download-progress', (p) => this.set({ state: 'downloading', percent: Math.round(p.percent) }))
+    autoUpdater.on('download-progress', (p) =>
+      this.set({ state: 'downloading', percent: Math.round(p.percent) })
+    )
     autoUpdater.on('update-downloaded', (i) => this.set({ state: 'ready', version: i.version }))
     autoUpdater.on('error', (e) => this.fail(e))
     config.onSettingsChange((s) => {
@@ -69,7 +76,7 @@ export class Updater {
     this.set({
       state: 'error',
       message: offline
-        ? 'Немає з’єднання з інтернетом — спробуємо пізніше'
+        ? 'Немає зв’язку із сервером оновлень — перевірте інтернет'
         : downloading
           ? 'Не вдалося завантажити оновлення — подробиці в журналі'
           : 'Не вдалося перевірити оновлення — подробиці в журналі'

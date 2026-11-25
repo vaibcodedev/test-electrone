@@ -13,7 +13,8 @@ import type { AnyRow, EntityRegistry } from '../core/registry'
 import type { TagService } from './tag-service'
 import type { LinkService } from './link-service'
 import { collectFiles } from './backup-service'
-import { dayKey, slugify } from '../core/util'
+import { dayKey, now, slugify } from '../core/util'
+import { fmtDateTime } from '@shared/dates'
 
 const enc = new TextEncoder()
 
@@ -44,11 +45,19 @@ export class ExportService {
   async export(format: ExportFormat): Promise<string | null> {
     const day = dayKey(Date.now())
     const isJson = format === 'json'
-    const res = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0], {
-      title: isJson ? 'Експорт у JSON' : 'Експорт у Markdown',
-      defaultPath: join(app.getPath('documents'), `vault-export-${day}.${isJson ? 'json' : 'zip'}`),
-      filters: isJson ? [{ name: 'JSON', extensions: ['json'] }] : [{ name: 'ZIP', extensions: ['zip'] }]
-    })
+    const res = await dialog.showSaveDialog(
+      BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0],
+      {
+        title: isJson ? 'Експорт у JSON' : 'Експорт у Markdown',
+        defaultPath: join(
+          app.getPath('documents'),
+          `vault-export-${day}.${isJson ? 'json' : 'zip'}`
+        ),
+        filters: isJson
+          ? [{ name: 'JSON', extensions: ['json'] }]
+          : [{ name: 'ZIP', extensions: ['zip'] }]
+      }
+    )
     if (res.canceled || !res.filePath) return null
     if (isJson) writeFileSync(res.filePath, JSON.stringify(this.json(), null, 2))
     else writeFileSync(res.filePath, await this.markdownZip())
@@ -64,14 +73,22 @@ export class ExportService {
       const rows = this.ctx.orm.select().from(value).all() as Record<string, unknown>[]
       tables[name] = name === 'credentials' ? rows.map((r) => ({ ...r, secret: undefined })) : rows
     }
-    return { format: 'vault-export', version: 1, appVersion: app.getVersion(), exportedAt: new Date().toISOString(), tables }
+    return {
+      format: 'vault-export',
+      version: 1,
+      appVersion: app.getVersion(),
+      exportedAt: new Date().toISOString(),
+      tables
+    }
   }
 
   private markdownFor(type: EntityType, row: AnyRow): string {
     const d = this.registry.get(type)
     const { title } = d.summary(row)
     const tagNames = (this.tags.forMany(type, [row.id]).get(row.id) ?? []).map((t) => t.name)
-    const links = this.links.list({ type, id: row.id }).map((l) => `${ENTITY_META[l.type].label}: ${l.title}`)
+    const links = this.links
+      .list({ type, id: row.id })
+      .map((l) => `${ENTITY_META[l.type].label}: ${l.title}`)
     const front: string[] = [`id: ${row.id}`, `type: ${type}`, `title: ${yamlValue(title)}`]
     const body: string[] = [`# ${title}`, '']
     for (const [key, value] of Object.entries(row)) {
@@ -80,7 +97,12 @@ export class ExportService {
         front.push(`${key}: ${yamlValue(iso(value))}`)
       } else if (typeof value === 'string' && (value.includes('\n') || value.length > 120)) {
         const isCode = key === 'code'
-        body.push(`## ${key}`, '', isCode ? `\`\`\`${row.language ?? ''}\n${value}\n\`\`\`` : value, '')
+        body.push(
+          `## ${key}`,
+          '',
+          isCode ? `\`\`\`${row.language ?? ''}\n${value}\n\`\`\`` : value,
+          ''
+        )
       } else if (key.endsWith('Path') && typeof value === 'string') {
         front.push(`${key}: ${yamlValue(value)}`)
         body.push(`![](../files/${value})`, '')
@@ -97,7 +119,11 @@ export class ExportService {
   async markdownZip(): Promise<Uint8Array> {
     const entries: AsyncZippable = {}
     for (const d of this.registry.all()) {
-      const rows = this.ctx.orm.select().from(d.table).where(this.registry.live(d)).all() as AnyRow[]
+      const rows = this.ctx.orm
+        .select()
+        .from(d.table)
+        .where(this.registry.live(d))
+        .all() as AnyRow[]
       const folder = slugify(ENTITY_META[d.type].plural, d.type)
       const used = new Set<string>()
       for (const row of rows) {
@@ -108,7 +134,7 @@ export class ExportService {
       }
     }
     entries['README.md'] = enc.encode(
-      `# Vault export\n\nЕкспортовано ${new Date().toLocaleString('uk-UA')}.\nКожна папка — модуль, кожен файл — запис із frontmatter. Зображення лежать у files/.\n`
+      `# Vault export\n\nЕкспортовано ${fmtDateTime(now())}.\nКожна папка — модуль, кожен файл — запис із frontmatter. Зображення лежать у files/.\n`
     )
     collectFiles(this.paths.filesDir, 'files', entries)
     return zipAsync(entries, { level: 6 })

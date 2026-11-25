@@ -1,6 +1,6 @@
 import { pageSchema } from '@shared/domain/common'
 /** Visual modules: UI components (code + live preview + cover) and design references with moodboards. */
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import type { ComponentsApi, DesignsApi, MoodboardsApi } from '@shared/api'
 import {
@@ -15,6 +15,8 @@ import {
   type UiComponent
 } from '@shared/domain/components'
 import {
+  designColorsSchema,
+  designCountsQuerySchema,
   designInputSchema,
   designListQuerySchema,
   designPatchSchema,
@@ -22,6 +24,7 @@ import {
   moodboardInputSchema,
   moodboardPatchSchema,
   type Design,
+  type DesignCountsQuery,
   type DesignKind,
   type Moodboard,
   type MoodboardInput,
@@ -80,7 +83,10 @@ export class MediaModule {
       table: uiComponents,
       searchDoc: (r) => ({ title: r.title, body: `${r.description}\n${r.code}` }),
       summary: (r) => ({ title: r.title, subtitle: r.language.toUpperCase() }),
-      draft: { titleField: 'title', contentFields: ['description', 'sourceUrl', 'coverPath', 'code'] },
+      draft: {
+        titleField: 'title',
+        contentFields: ['description', 'sourceUrl', 'coverPath', 'code']
+      },
       onPurge: (r) => m.files.remove(r.coverPath),
       fileFields: { coverPath: [] }
     }
@@ -103,7 +109,10 @@ export class MediaModule {
       table: moodboards,
       draft: { titleField: 'title', contentFields: ['description'] },
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({ title: r.title, subtitle: r.description ? r.description.slice(0, 80) : undefined })
+      summary: (r) => ({
+        title: r.title,
+        subtitle: r.description ? r.description.slice(0, 80) : undefined
+      })
     }
     this.descriptors = [component, design, moodboard]
     this.componentRepo = new SoftRepository(m.repo, component, (r, tags) => ({
@@ -175,12 +184,37 @@ export class MediaModule {
       if (typeof json !== 'string' || typeof target !== 'string') return 0
       try {
         const colors = JSON.parse(json) as unknown
-        return Array.isArray(colors) && colors.some((c) => typeof c === 'string' && colorDistance(c, target) < 90) ? 1 : 0
+        return Array.isArray(colors) &&
+          colors.some((c) => typeof c === 'string' && colorDistance(c, target) < 90)
+          ? 1
+          : 0
       } catch {
         return 0
       }
     })
     this.colorFnOn.add(db)
+  }
+
+  /** Every design list filter except the kind: shared by `list` and the kind chip `counts`. */
+  private designFilters(q: DesignCountsQuery): (SQL | undefined)[] {
+    const repo = this.designRepo
+    const inBoard = q.moodboardId
+      ? inArray(
+          designs.id,
+          this.db
+            .select({ id: moodboardItems.designId })
+            .from(moodboardItems)
+            .where(eq(moodboardItems.moodboardId, q.moodboardId))
+        )
+      : undefined
+    // Colour match runs in SQL (registered function), so LIMIT/OFFSET page correctly.
+    if (q.color) this.ensureColorFn()
+    return [
+      inBoard,
+      repo.hasTag(q.tagId),
+      repo.matches(q.search, [designs.title, designs.notes, designs.sourceUrl]),
+      q.color ? sql`vault_color_near(${designs.colors}, ${q.color}) = 1` : undefined
+    ]
   }
 
   designsApi(): DesignsApi {
@@ -189,30 +223,15 @@ export class MediaModule {
       list: async (query) => {
         const q = designListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        const inBoard = q.moodboardId
-          ? inArray(
-              designs.id,
-              this.db
-                .select({ id: moodboardItems.designId })
-                .from(moodboardItems)
-                .where(eq(moodboardItems.moodboardId, q.moodboardId))
-            )
-          : undefined
-        // Colour match runs in SQL (registered function), so LIMIT/OFFSET page correctly.
-        if (q.color) this.ensureColorFn()
         return repo.listWhere(
-          [
-            q.kind ? eq(designs.kind, q.kind) : undefined,
-            inBoard,
-            repo.hasTag(q.tagId),
-            repo.matches(q.search, [designs.title, designs.notes, designs.sourceUrl]),
-            q.color ? sql`vault_color_near(${designs.colors}, ${q.color}) = 1` : undefined
-          ],
+          [q.kind ? eq(designs.kind, q.kind) : undefined, ...this.designFilters(q)],
           undefined,
           page.limit,
           page.offset
         )
       },
+      counts: async (query) =>
+        repo.countBy(designs.kind, this.designFilters(designCountsQuerySchema.parse(query ?? {}))),
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
         const [data, tagIds] = splitTags(designInputSchema.parse(input))
@@ -227,6 +246,12 @@ export class MediaModule {
         return repo.patch(id, data, tagIds)
       },
       remove: async (id) => repo.softDelete(idArg.parse(id)),
+      // Colours are not searchable: no reindex; no updatedAt, the record wasn't edited by the user.
+      setColors: async (args) => {
+        const { id, colors } = designColorsSchema.parse(args)
+        repo.rowOrThrow(id)
+        this.db.update(designs).set({ colors }).where(eq(designs.id, id)).run()
+      },
       importImage: async (args) => {
         const { source, input } = z
           .object({ source: fileSourceSchema, input: designInputSchema.optional() })
@@ -336,7 +361,10 @@ export class MediaModule {
       return found
     }
     return {
-      list: async (query) => this.moodboardSummaries(pageSchema.extend({ designId: idArg.optional() }).parse(query ?? {})),
+      list: async (query) =>
+        this.moodboardSummaries(
+          pageSchema.extend({ designId: idArg.optional() }).parse(query ?? {})
+        ),
       get: async (id) => this.moodboardSummaries({ ids: [idArg.parse(id)] })[0] ?? null,
       create: async (input: MoodboardInput) => {
         const [data, tagIds] = splitTags(moodboardInputSchema.parse(input))
@@ -372,7 +400,11 @@ export class MediaModule {
           .object({ moodboardId: idArg, designIds: orderedIds })
           .parse(args)
         repo.rowOrThrow(moodboardId)
-        let pos = nextPosition(this.m.db, moodboardItems.position, eq(moodboardItems.moodboardId, moodboardId))
+        let pos = nextPosition(
+          this.m.db,
+          moodboardItems.position,
+          eq(moodboardItems.moodboardId, moodboardId)
+        )
         this.m.db.tx(() => {
           for (const designId of designIds) {
             this.db
@@ -400,7 +432,13 @@ export class MediaModule {
         const { moodboardId, designIds } = z
           .object({ moodboardId: idArg, designIds: orderedIds })
           .parse(args)
-        reorder(this.m.db, moodboardItems, moodboardItems.designId, designIds, eq(moodboardItems.moodboardId, moodboardId))
+        reorder(
+          this.m.db,
+          moodboardItems,
+          moodboardItems.designId,
+          designIds,
+          eq(moodboardItems.moodboardId, moodboardId)
+        )
       }
     }
   }

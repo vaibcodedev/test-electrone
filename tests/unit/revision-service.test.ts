@@ -21,9 +21,16 @@ describe('«Скасувати» undoes side effects of the edit', () => {
     const { stageId } = await vacancyWithInterview(v)
     const event = stageEvents(v, stageId)[0]
     const snap = v.revisions.snapshot({ type: 'event', id: event.id })
-    await v.api.events.update({ id: event.id, patch: { startAt: event.startAt + 24 * HOUR, endAt: event.endAt! + 24 * HOUR } })
+    await v.api.events.update({
+      id: event.id,
+      patch: { startAt: event.startAt + 24 * HOUR, endAt: event.endAt! + 24 * HOUR }
+    })
     v.revisions.revert({ type: 'event', id: event.id }, snap)
-    const stage = v.db.orm.select().from(applicationStages).where(eq(applicationStages.id, stageId)).get()
+    const stage = v.db.orm
+      .select()
+      .from(applicationStages)
+      .where(eq(applicationStages.id, stageId))
+      .get()
     expect(stage?.at).toBe(event.startAt)
   })
 
@@ -48,5 +55,42 @@ describe('«Скасувати» undoes side effects of the edit', () => {
     v.revisions.revert({ type: 'component', id: c.id }, snap)
     expect(v.media.componentRepo.row(c.id)?.coverPath).toBeNull()
     expect(existsSync(join(v.dir, 'files', 'added.png'))).toBe(false)
+  })
+})
+
+describe('«Скасувати» on a checklist rolls its items back', () => {
+  const texts = async (id: string): Promise<string[]> =>
+    ((await v.api.checklists.get(id))?.items ?? []).map((i) => i.text)
+
+  it('added, removed and renamed items return to the snapshot; ticks are not an edit', async () => {
+    const list = await v.api.checklists.create({ title: 'Реліз', kind: 'template' })
+    const one = await v.api.checklists.addItem({ checklistId: list.id, text: 'Тести' })
+    const two = await v.api.checklists.addItem({ checklistId: list.id, text: 'Збірка' })
+    const three = await v.api.checklists.addItem({ checklistId: list.id, text: 'Тег' })
+    const ref = { type: 'checklist' as const, id: list.id }
+    const snap = v.revisions.snapshot(ref)
+
+    await v.api.checklists.updateItem({ id: one.id, patch: { done: true } })
+    expect(v.revisions.changed(ref, snap)).toBe(false)
+
+    await v.api.checklists.addItem({ checklistId: list.id, text: 'Зайвий' })
+    await v.api.checklists.removeItem(two.id)
+    await v.api.checklists.updateItem({ id: three.id, patch: { text: 'Реліз на GitHub' } })
+    expect(v.revisions.changed(ref, snap)).toBe(true)
+
+    v.revisions.revert(ref, snap)
+    expect(await texts(list.id)).toEqual(['Тести', 'Збірка', 'Тег'])
+    expect(v.revisions.changed(ref, snap)).toBe(false)
+    // The tick made meanwhile stays: it belongs to the run, not to the edit.
+    expect((await v.api.checklists.get(list.id))?.items[0].done).toBe(true)
+  })
+
+  it('a tampered snapshot is refused and changes nothing', async () => {
+    const list = await v.api.checklists.create({ title: 'Реліз', kind: 'template' })
+    await v.api.checklists.addItem({ checklistId: list.id, text: 'Тести' })
+    const ref = { type: 'checklist' as const, id: list.id }
+    const snap = { ...v.revisions.snapshot(ref), children: [{ id: 'x', text: '' }] }
+    expect(() => v.revisions.revert(ref, snap)).toThrow(/Знімок пунктів/)
+    expect(await texts(list.id)).toEqual(['Тести'])
   })
 })

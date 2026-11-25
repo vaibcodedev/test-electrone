@@ -1,7 +1,7 @@
-import { chipCountsQuerySchema, pageSchema } from '@shared/domain/common'
+import { chipCountsQuerySchema, pageSchema, type ChipCountsQuery } from '@shared/domain/common'
 import { fieldMax, MAX } from '@shared/domain/limits'
 import { boardInputSchema } from '@shared/domain/boards'
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, sql, type SQL } from 'drizzle-orm'
 import type { IdeasApi } from '@shared/api'
 import {
   IDEA_STATUS_LABEL,
@@ -44,20 +44,19 @@ export class IdeasModule {
   }
 
   api(): IdeasApi {
+    // Search and tag shared by the list and its chip counters: the chips count what the list shows.
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      this.repo.hasTag(q.tagId),
+      this.repo.matches(q.search, [ideas.title, ideas.body])
+    ]
     return {
-      counts: async (query) => {
-        const q = chipCountsQuerySchema.parse(query ?? {})
-        return this.repo.countBy(ideas.status, [this.repo.hasTag(q.tagId), this.repo.matches(q.search, [ideas.title, ideas.body])])
-      },
+      counts: async (query) =>
+        this.repo.countBy(ideas.status, filters(chipCountsQuerySchema.parse(query ?? {}))),
       list: async (query) => {
         const q = ideaListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
         return this.repo.listWhere(
-          [
-            q.status ? eq(ideas.status, q.status) : undefined,
-            this.repo.hasTag(q.tagId),
-            this.repo.matches(q.search, [ideas.title, ideas.body])
-          ],
+          [q.status ? eq(ideas.status, q.status) : undefined, ...filters(q)],
           [sql`${ideas.impact} DESC`, sql`${ideas.updatedAt} DESC`],
           page.limit,
           page.offset

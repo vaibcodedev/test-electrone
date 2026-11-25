@@ -18,26 +18,19 @@ export type CompanyRow = typeof companies.$inferSelect
 export type QuestionRow = typeof interviewQuestions.$inferSelect
 export type StageRow = typeof applicationStages.$inferSelect
 
-export type AppRepo = SoftRepository<AppRow, Omit<Application, 'company' | 'nextStage' | 'stageCount'>>
-export type CompanyRepo = SoftRepository<CompanyRow, Omit<Company, 'applicationCount' | 'activeCount'>>
+export type AppRepo = SoftRepository<
+  AppRow,
+  Omit<Application, 'company' | 'nextStage' | 'stageCount'>
+>
+export type CompanyRepo = SoftRepository<
+  CompanyRow,
+  Omit<Company, 'applicationCount' | 'activeCount'>
+>
 export type QuestionRepo = SoftRepository<QuestionRow, InterviewQuestion>
 
 /** `sourceType` of the calendar events that mirror a stage (interview / test task deadline). */
 export const STAGE_SOURCE = 'job_stage'
 export const STAGE_DEADLINE_SOURCE = 'job_stage_deadline'
-
-export const STATUS_LABEL: Record<ApplicationStatus, string> = {
-  saved: 'Збережено',
-  applied: 'Надіслано',
-  replied: 'Відповіли',
-  test: 'Тестове',
-  interview: 'Співбесіда',
-  offer: 'Офер',
-  accepted: 'Прийняв',
-  rejected: 'Відмова',
-  no_reply: 'Немає відповіді',
-  withdrawn: 'Відкликав'
-}
 
 export const STAGE_LABEL: Record<StageKind, string> = {
   screening: 'Скринінг',
@@ -56,12 +49,18 @@ export function toStage(r: StageRow): Stage {
 }
 
 /** The vacancy title and its company name (the company card's name wins over the free text). */
-export function applicationTitle(db: Orm, applicationId: string): { title: string; company: string } {
+export function applicationTitle(
+  db: Orm,
+  applicationId: string
+): { title: string; company: string } {
   const a = db.select().from(applications).where(eq(applications.id, applicationId)).get()
   if (!a) return { title: '', company: '' }
   const company = a.companyId
-    ? (db.select({ name: companies.name }).from(companies).where(eq(companies.id, a.companyId)).get()?.name ??
-      a.companyName)
+    ? (db
+        .select({ name: companies.name })
+        .from(companies)
+        .where(eq(companies.id, a.companyId))
+        .get()?.name ?? a.companyName)
     : a.companyName
   return { title: a.title, company }
 }

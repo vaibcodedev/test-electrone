@@ -178,8 +178,14 @@ export interface MonthReport {
 export const monthQuerySchema = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) })
 export type MonthQuery = z.infer<typeof monthQuerySchema>
 
+/** `finance.overview`: the month picked on the page moves the 12-month chart window when it's older. */
+export const financeOverviewQuerySchema = z
+  .object({ month: monthQuerySchema.shape.month.optional() })
+  .optional()
+export type FinanceOverviewQuery = z.infer<typeof financeOverviewQuerySchema>
+
 export interface FinanceOverview {
-  /** Last 12 months, oldest first. */
+  /** 12 months, oldest first: the last 12, or the 12 ending with the requested older month. */
   months: {
     month: string
     net: MoneyByCurrency

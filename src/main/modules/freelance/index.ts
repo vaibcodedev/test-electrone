@@ -17,7 +17,9 @@ import type {
 import type { Currency } from '@shared/domain/crm'
 import {
   platformInputSchema,
+  PROPOSAL_STATUS_LABEL,
   redFlagInputSchema,
+  SITUATION_LABEL,
   templateInputSchema,
   type BidType,
   type ProposalStatus,
@@ -39,7 +41,7 @@ import { casesApi, redFlagsApi, type CaseRepo, type RedFlagRepo } from './portfo
 import { Proposals } from './proposals'
 import { ProposalStats } from './stats'
 import { Templates } from './templates'
-import { PROPOSAL_STATUS_LABEL, SITUATION_LABEL, type ProposalRepo, type TemplateRepo } from './shared'
+import { type ProposalRepo, type TemplateRepo } from './shared'
 
 export class FreelanceModule {
   readonly descriptors: EntityDescriptor[]
@@ -87,7 +89,20 @@ export class FreelanceModule {
     const portfolioCase: EntityDescriptor = {
       type: 'case',
       table: portfolioCases,
-      draft: { titleField: 'title', contentFields: ['niche', 'client', 'problem', 'whatDone', 'result', 'stack', 'url', 'textEn', 'coverPath'] },
+      draft: {
+        titleField: 'title',
+        contentFields: [
+          'niche',
+          'client',
+          'problem',
+          'whatDone',
+          'result',
+          'stack',
+          'url',
+          'textEn',
+          'coverPath'
+        ]
+      },
       searchDoc: (r) => ({
         title: r.title,
         body: `${r.niche}\n${r.client}\n${r.problem}\n${r.whatDone}\n${r.result}\n${r.stack}\n${r.textEn}`
@@ -133,7 +148,12 @@ export class FreelanceModule {
 
   /** First launch of the freelance hub: Upwork + direct orders, starter templates and red flags. */
   seedIfEmpty(ledger: SeedLedger): void {
-    seedOnce(ledger, 'freelance', () => this.platforms.hasAny(), () => this.seed())
+    seedOnce(
+      ledger,
+      'freelance',
+      () => this.platforms.hasAny(),
+      () => this.seed()
+    )
   }
 
   private seed(): void {

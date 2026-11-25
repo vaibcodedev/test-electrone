@@ -39,7 +39,12 @@ describe('chip counts', () => {
   it('bookmark statuses are counted inside the chosen kind, kinds over all', async () => {
     const api = knowledge.bookmarksApi()
     await api.create({ title: 'Відео', url: 'https://youtu.be/x', kind: 'video' })
-    await api.create({ title: 'Стаття', url: 'https://example.com/a', kind: 'article', status: 'done' })
+    await api.create({
+      title: 'Стаття',
+      url: 'https://example.com/a',
+      kind: 'article',
+      status: 'done'
+    })
     const { byKind, byStatus } = await api.counts({ kind: 'article' })
     expect(byKind).toEqual({ video: 1, article: 1 })
     expect(byStatus).toEqual({ done: 1 })
@@ -49,7 +54,7 @@ describe('chip counts', () => {
     const snippets = knowledge.snippetsApi()
     const claude = knowledge.claudeApi()
     const s = await snippets.create({ title: 'debounce', code: 'const x = 1' })
-    const p = await claude.create({ title: 'Ревʼю', kind: 'prompt', content: 'Перевір код' })
+    const p = await claude.create({ title: 'Рев’ю', kind: 'prompt', content: 'Перевір код' })
     await snippets.markCopied(s.id)
     for (let i = 0; i < 2; i++) await claude.markCopied(p.id)
     const top = await knowledge.knowledgeApi().mostCopied()
@@ -58,5 +63,23 @@ describe('chip counts', () => {
       ['snippet', s.id, 1]
     ])
     expect(Object.keys(top[0]).sort()).toEqual(['count', 'id', 'sub', 'title', 'type'])
+  })
+
+  it('interview questions per category follow the search; the trash is not counted', async () => {
+    const api = v.api.jobs
+    await api.createQuestion({ question: 'Що таке замикання?', category: 'technical' })
+    await api.createQuestion({ question: 'Замикання в циклі', category: 'technical' })
+    await api.createQuestion({
+      question: 'Розкажіть про замикання на проєкті',
+      category: 'behavioral'
+    })
+    const gone = await api.createQuestion({ question: 'Замикання у кошику', category: 'technical' })
+    await api.createQuestion({ question: 'Чому ми?', category: 'behavioral' })
+    await api.removeQuestion(gone.id)
+    expect(await api.questionCounts({ search: 'замикання' })).toEqual({
+      technical: 2,
+      behavioral: 1
+    })
+    expect(await api.questionCounts()).toEqual({ technical: 2, behavioral: 2 })
   })
 })

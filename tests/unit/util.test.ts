@@ -1,7 +1,8 @@
 // Calendar arithmetic is asserted in Kyiv time: DST starts 2026-03-29 (23 h) and ends 2026-10-25 (25 h).
 process.env.TZ = 'Europe/Kyiv'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { fmtWhen } from '@shared/dates'
 import {
   DAY_MS,
   addDays,
@@ -15,6 +16,7 @@ import {
   startOfDay,
   startOfMonth,
   startOfWeek,
+  retryBusy,
   toFtsQuery
 } from '@main/core/util'
 
@@ -209,5 +211,50 @@ describe('slugify / excerpt', () => {
     expect(excerpt('# Title\n\n**bold** [link](http://x.y)')).toBe('Title bold link')
     expect(excerpt('a'.repeat(100), 10)).toBe('a'.repeat(9) + '…')
     expect(excerpt('```js\ncode\n```')).toBeUndefined()
+  })
+})
+
+describe('fmtWhen (notification text)', () => {
+  afterEach(() => vi.useRealTimers())
+  const today = at(2026, 11, 25, 9)
+
+  it('today and tomorrow are words, a later day is a date', () => {
+    vi.useFakeTimers({ now: today, toFake: ['Date'] })
+    expect(fmtWhen(at(2026, 11, 25, 15), false)).toBe('Сьогодні о 15:00')
+    expect(fmtWhen(at(2026, 11, 26, 15), false)).toBe('Завтра о 15:00')
+    expect(fmtWhen(at(2026, 11, 28, 9, 5), false)).toBe('28 листопада о 09:05')
+  })
+
+  it('an all-day event gets the day only; another year is written out', () => {
+    vi.useFakeTimers({ now: today, toFake: ['Date'] })
+    expect(fmtWhen(at(2026, 11, 25), true)).toBe('Сьогодні')
+    expect(fmtWhen(at(2026, 11, 26), true)).toBe('Завтра')
+    expect(fmtWhen(at(2027, 1, 3), true)).toBe('3 січня 2027')
+  })
+})
+
+describe('retryBusy', () => {
+  const busy = (): never => {
+    throw Object.assign(new Error('EBUSY'), { code: 'EBUSY' })
+  }
+
+  it('tries again while the file is busy, then gives up with the error', () => {
+    let calls = 0
+    expect(retryBusy(() => (++calls < 3 ? busy() : 'ok'), 5, 1)).toBe('ok')
+    expect(calls).toBe(3)
+    calls = 0
+    expect(() => retryBusy(() => (calls++, busy()), 2, 1)).toThrow('EBUSY')
+    expect(calls).toBe(2)
+  })
+
+  it('any other error is not retried', () => {
+    let calls = 0
+    expect(() =>
+      retryBusy(() => {
+        calls++
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      })
+    ).toThrow('ENOENT')
+    expect(calls).toBe(1)
   })
 })

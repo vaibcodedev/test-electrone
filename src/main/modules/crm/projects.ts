@@ -2,14 +2,16 @@ import { desc, eq, isNull } from 'drizzle-orm'
 import type { ProjectsApi } from '@shared/api'
 import { pageSchema } from '@shared/domain/common'
 import {
+  PROJECT_STATUSES,
   projectInputSchema,
   projectListQuerySchema,
   projectPatchSchema,
   type CrmOverview,
   type Currency,
+  type ProjectStatus,
   type ProjectSummary
 } from '@shared/domain/crm'
-import { payments, projects } from '../../db/schema'
+import { clients, payments, projects } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import { now, startOfMonth, startOfWeek } from '../../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from '../context'
@@ -44,7 +46,11 @@ export class Projects {
             [
               q.clientId ? eq(projects.clientId, q.clientId) : undefined,
               q.status ? eq(projects.status, q.status) : undefined,
-              q.platformId === 'direct' ? isNull(projects.platformId) : q.platformId ? eq(projects.platformId, q.platformId) : undefined,
+              q.platformId === 'direct'
+                ? isNull(projects.platformId)
+                : q.platformId
+                  ? eq(projects.platformId, q.platformId)
+                  : undefined,
               repo.hasTag(q.tagId),
               repo.matches(q.search, [projects.title, projects.description])
             ],
@@ -104,22 +110,40 @@ export class Projects {
           .all()
           .map((r) => toPayment(r.pay))
         const paidThisMonth: Partial<Record<Currency, number>> = {}
-        const outstanding: Partial<Record<Currency, number>> = {}
         for (const p of allPays) {
           if (p.status === 'paid' && p.paidAt && p.paidAt >= monthStart) {
             paidThisMonth[p.currency] = (paidThisMonth[p.currency] ?? 0) + p.amount
           }
-          if (p.status === 'expected' || p.status === 'invoiced') {
-            outstanding[p.currency] = (outstanding[p.currency] ?? 0) + p.amount
+        }
+        // Same number as the project rows and client cards: max(earned − paid, open payments) per project.
+        const outstanding: Partial<Record<Currency, number>> = {}
+        for (const s of this.summaries.projects(repo.listWhere([]))) {
+          if (s.outstandingAmount > 0) {
+            outstanding[s.currency] = (outstanding[s.currency] ?? 0) + s.outstandingAmount
           }
+        }
+        const byStatus = repo.countBy(projects.status)
+        const projectsByStatus = Object.fromEntries(
+          PROJECT_STATUSES.map((st) => [st, byStatus[st] ?? 0])
+        ) as Record<ProjectStatus, number>
+        const byPlatform: CrmOverview['byPlatform'] = {}
+        const platformKey = (id: string): string => (id === 'null' ? 'direct' : id)
+        for (const [id, n] of Object.entries(this.clientRepo.countBy(clients.platformId))) {
+          ;(byPlatform[platformKey(id)] ??= { clients: 0, projects: 0 }).clients = n
+        }
+        for (const [id, n] of Object.entries(repo.countBy(projects.platformId))) {
+          ;(byPlatform[platformKey(id)] ??= { clients: 0, projects: 0 }).projects = n
         }
         return {
           monthMinutes: this.time.minutesInRange(monthStart, ts),
           weekMinutes: this.time.minutesInRange(startOfWeek(ts), ts),
           paidThisMonth,
           outstanding,
-          activeProjects: repo.listWhere([eq(projects.status, 'active')]).length,
-          overduePayments: allPays.filter((p) => p.overdue).length
+          activeProjects: projectsByStatus.active,
+          totalProjects: Object.values(byStatus).reduce((a, b) => a + b, 0),
+          overduePayments: allPays.filter((p) => p.overdue).length,
+          projectsByStatus,
+          byPlatform
         }
       }
     }

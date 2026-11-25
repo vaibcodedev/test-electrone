@@ -2,7 +2,7 @@
  * Backup restore on a real database: whatever fails half-way, the user's current data stays as it was.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import fs, { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs'
+import fs, { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'fs'
 import { syncBuiltinESMExports } from 'module'
 import { join } from 'path'
 import { AppPaths } from '@main/core/paths'
@@ -16,7 +16,8 @@ let busy: null | ((from: string) => boolean) = null
 const realRename = fs.renameSync
 beforeAll(() => {
   fs.renameSync = (from, to) => {
-    if (busy?.(String(from))) throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' })
+    if (busy?.(String(from)))
+      throw Object.assign(new Error('EBUSY: resource busy or locked'), { code: 'EBUSY' })
     realRename(from, to)
   }
   syncBuiltinESMExports()
@@ -31,6 +32,7 @@ vi.mock('electron', async () => {
   return {
     ...electronMock,
     BrowserWindow: { getAllWindows: () => [], getFocusedWindow: () => null },
+    Notification: { isSupported: () => false },
     dialog: { showMessageBox: async () => ({ response: 0 }) }
   }
 })
@@ -97,5 +99,61 @@ describe('backup restore', () => {
     await backups.create({ saveAs: false })
     expect(readdirSync(paths.backupsDir).filter((f) => f.endsWith('.part'))).toEqual([])
     expect(backups.list()).toHaveLength(1)
+  })
+
+  it('the current database is put back even when its file stays locked for a moment', async () => {
+    const file = await backupWithOneBoard()
+    mkdirSync(paths.filesDir, { recursive: true })
+    let lockedTries = 2
+    // The files folder can't move (restore fails), then the rename of the old database back is refused twice.
+    busy = (from) =>
+      from === paths.filesDir || (from.includes('db-before-restore-') && lockedTries-- > 0)
+    await expect(backups.restore(file)).rejects.toThrow(/Поточні дані залишилися як були/)
+    expect(lockedTries).toBeLessThan(0)
+    expect(boardTitles().sort()).toEqual(['З бекапу', 'Після бекапу'])
+  })
+
+  it('a stale «.part» left by a quit mid-write is removed, a fresh one is not', async () => {
+    mkdirSync(paths.backupsDir, { recursive: true })
+    const stale = join(paths.backupsDir, 'vault-old.vaultbak.part')
+    const fresh = join(paths.backupsDir, 'vault-now.vaultbak.part')
+    writeFileSync(stale, 'x')
+    writeFileSync(fresh, 'x')
+    const twoHoursAgo = (Date.now() - 2 * 3600_000) / 1000
+    utimesSync(stale, twoHoursAgo, twoHoursAgo)
+    await backups.create({ saveAs: false })
+    expect(existsSync(stale)).toBe(false)
+    expect(existsSync(fresh)).toBe(true)
+  })
+})
+
+describe('auto backup', () => {
+  afterEach(() => {
+    backups.stop()
+    vi.useRealTimers()
+  })
+
+  it('skips its turn quietly while a manual backup is running', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval'] })
+    const bus = new EventBus()
+    const toasts: unknown[] = []
+    vi.spyOn(bus, 'emit').mockImplementation((event, payload) => {
+      if (event === 'toast') toasts.push(payload)
+    })
+    backups = new BackupService(v.db, paths, config, v.search, bus)
+    backups.startAuto()
+    const manual = backups.create({ saveAs: false })
+    vi.advanceTimersByTime(20_000)
+    await manual
+    await Promise.resolve()
+    expect(toasts).toEqual([])
+    expect(backups.list()).toHaveLength(1)
+  })
+
+  it('a second restore while one is running is refused', async () => {
+    const file = await backupWithOneBoard()
+    const first = backups.restore(file)
+    await expect(backups.restore(file)).rejects.toThrow('Відновлення вже виконується')
+    await expect(first).resolves.toBe(true)
   })
 })

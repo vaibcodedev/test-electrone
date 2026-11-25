@@ -2,6 +2,8 @@ import { and, eq, isNotNull, isNull, lt, desc, count as sqlCount } from 'drizzle
 import type { TrashApi } from '@shared/api'
 import { entityRefSchema, pageSchema, type EntityRef } from '@shared/domain/common'
 import type { TrashItem } from '@shared/domain/system'
+import type { EntityType } from '@shared/entity-types'
+import { log } from '../core/logger'
 import type { DbContext } from '../db/client'
 import { hasTraces } from '../core/traces'
 import { isDraft, type AnyRow, type EntityRegistry, type EntityDescriptor } from '../core/registry'
@@ -35,7 +37,12 @@ export class TrashService {
   count(): number {
     let n = 0
     for (const d of this.registry.all()) {
-      n += this.ctx.orm.select({ n: sqlCount() }).from(d.table).where(isNotNull(d.table.deletedAt)).get()?.n ?? 0
+      n +=
+        this.ctx.orm
+          .select({ n: sqlCount() })
+          .from(d.table)
+          .where(isNotNull(d.table.deletedAt))
+          .get()?.n ?? 0
     }
     return n
   }
@@ -78,7 +85,11 @@ export class TrashService {
   list(): TrashItem[] {
     const items: TrashItem[] = []
     for (const d of this.registry.all()) {
-      const rows = this.ctx.orm.select().from(d.table).where(isNotNull(d.table.deletedAt)).all() as AnyRow[]
+      const rows = this.ctx.orm
+        .select()
+        .from(d.table)
+        .where(isNotNull(d.table.deletedAt))
+        .all() as AnyRow[]
       for (const row of rows) {
         items.push({
           type: d.type,
@@ -182,12 +193,17 @@ export class TrashService {
       const rows = this.ctx.orm
         .select()
         .from(d.table)
-        .where(and(isNull(d.table.deletedAt), eq(d.table.createdAt, d.table.updatedAt), lt(d.table.createdAt, cutoff)))
+        .where(
+          and(
+            isNull(d.table.deletedAt),
+            eq(d.table.createdAt, d.table.updatedAt),
+            lt(d.table.createdAt, cutoff)
+          )
+        )
         .all() as AnyRow[]
       for (const r of rows) {
         if (!isDraft(d, r) || hasTraces(this.ctx.orm, { type: d.type, id: r.id })) continue
-        this.purge({ type: d.type, id: r.id })
-        count++
+        if (this.purgeQuietly(d.type, r.id)) count++
       }
     }
     return count
@@ -203,12 +219,20 @@ export class TrashService {
         .from(d.table)
         .where(and(isNotNull(d.table.deletedAt), lt(d.table.deletedAt, cutoff)))
         .all() as { id: string }[]
-      for (const r of rows) {
-        this.purge({ type: d.type, id: r.id })
-        count++
-      }
+      for (const r of rows) if (this.purgeQuietly(d.type, r.id)) count++
     }
     return count
+  }
+
+  /** Background cleanup: one record that fails to purge is logged and skipped, the rest still go. */
+  private purgeQuietly(type: EntityType, id: string): boolean {
+    try {
+      this.purge({ type, id })
+      return true
+    } catch (e) {
+      log.warn('[trash] purge failed', type, id, e)
+      return false
+    }
   }
 
   api(bus: EventBus): TrashApi {
@@ -226,7 +250,8 @@ export class TrashService {
       purge: async (ref) => {
         const r = entityRefSchema.parse(ref)
         const row = this.registry.findRow(r, { withDeleted: true })
-        if (row && row.deletedAt == null) throw new UserError('Запис уже не в кошику — оновіть список')
+        if (row && row.deletedAt == null)
+          throw new UserError('Запис уже не в кошику — оновіть список')
         this.purge(r)
       },
       empty: async () => this.empty(),

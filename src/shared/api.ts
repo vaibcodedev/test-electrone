@@ -33,7 +33,9 @@ import type {
 } from './domain/components'
 import type {
   Design,
+  DesignCountsQuery,
   DesignInput,
+  DesignKind,
   DesignListQuery,
   DesignPatch,
   FileSource,
@@ -173,6 +175,7 @@ import type {
   ExpenseInput,
   ExpensePatch,
   FinanceOverview,
+  FinanceOverviewQuery,
   IncomeRow,
   MonthReport,
   Subscription,
@@ -194,6 +197,7 @@ import type {
   PinKind,
   PinnedEntity,
   QuickAddInput,
+  RecentQuery,
   SearchHit,
   SearchQuery,
   Settings,
@@ -267,6 +271,13 @@ export interface DesignsApi extends CrudApi<Design, DesignInput, DesignPatch, De
   replaceImage(args: { id: string; source: FileSource }): Promise<Design>
   /** All distinct colors used across designs (for the color filter). */
   palette(): Promise<string[]>
+  /**
+   * Stores the palette extracted from the image (background fill-in): without updatedAt and a revision,
+   * so the gallery sorted by «Змінено» doesn't reshuffle while you look at it.
+   */
+  setColors(args: { id: string; colors: string[] }): Promise<void>
+  /** Live designs per kind under the same search, tag, colour and moodboard as `list` (kind chips). */
+  counts(query?: DesignCountsQuery): Promise<ChipCounts<DesignKind>>
 }
 
 /** `designId`: each moodboard also says whether that design is in it (`contains`, the «У добірку» picker). */
@@ -386,8 +397,8 @@ export interface EventsApi extends CrudApi<CalendarEvent, EventInput, EventPatch
 export type NotesApi = CrudApi<Note, NoteInput, NotePatch, NoteListQuery> & {
   /** Distinct folders in use. */
   folders(): Promise<string[]>
-  /** Live notes per folder ('' = without a folder). */
-  folderCounts(): Promise<{ folder: string; count: number }[]>
+  /** Live notes per folder ('' = without a folder), under the same search and tag as `list`. */
+  folderCounts(query?: ChipCountsQuery): Promise<{ folder: string; count: number }[]>
 }
 
 export interface PlatformsApi {
@@ -440,7 +451,8 @@ export interface FreelanceApi {
 }
 
 export interface FinanceApi {
-  overview(): Promise<FinanceOverview>
+  /** `{ month }` (yyyy-mm) older than the last 12 months moves the chart window to end with it. */
+  overview(args?: FinanceOverviewQuery): Promise<FinanceOverview>
   month(args: { month: string }): Promise<MonthReport>
   income(args: { from: number; to: number }): Promise<IncomeRow[]>
   subscriptions(): Promise<Subscription[]>
@@ -504,6 +516,8 @@ export interface JobsApi {
   setResumeUploaded(args: { resumeId: string; boardId: string; uploaded: boolean }): Promise<void>
 
   questions(query?: QuestionListQuery & PageQuery): Promise<InterviewQuestion[]>
+  /** Questions per category under the same search and tag as `questions` (chip counters). */
+  questionCounts(query?: ChipCountsQuery): Promise<ChipCounts<QuestionCategory>>
   question(id: string): Promise<InterviewQuestion | null>
   createQuestion(input: QuestionInput): Promise<InterviewQuestion>
   updateQuestion(args: { id: string; patch: QuestionPatch }): Promise<InterviewQuestion>
@@ -590,13 +604,16 @@ export interface PinsApi {
 
 export interface SearchApi {
   query(query: SearchQuery): Promise<SearchHit[]>
-  recent(limit?: number): Promise<EntitySummary[]>
+  /** A number is the limit; `{ limit, types }` narrows to those entity types on the server. */
+  recent(args?: RecentQuery): Promise<EntitySummary[]>
 }
 
 /** A record's own row + tags at the moment editing started (see RevisionService). */
 export interface RecordSnapshot {
   row: Record<string, unknown>
   tagIds: string[]
+  /** Child rows edited with the record (checklist items): rolled back by «Скасувати» too. */
+  children?: unknown
 }
 
 /** «Скасувати» in the view/edit mode. */

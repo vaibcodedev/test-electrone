@@ -1,7 +1,13 @@
 import { net } from 'electron'
 import { z } from 'zod'
 import type { GithubApi } from '@shared/api'
-import { githubTokenSchema, type GithubCommit, type GithubIssue, type GithubRepo, type GithubStatus } from '@shared/domain/dev'
+import {
+  githubTokenSchema,
+  type GithubCommit,
+  type GithubIssue,
+  type GithubRepo,
+  type GithubStatus
+} from '@shared/domain/dev'
 import type { ConfigStore } from '../core/config-store'
 import type { SecretBox } from './secret-box'
 import { UserError } from '../core/util'
@@ -78,7 +84,8 @@ export class GithubService {
 
   private async get<T>(path: string, force = false): Promise<T> {
     const token = this.token()
-    if (!token) throw new UserError('GitHub не під’єднано: додайте токен у Налаштуваннях')
+    if (!token)
+      throw new UserError('GitHub не підключено: додайте токен у розділі Розробка → GitHub')
     const hit = this.cache.get(path)
     if (!force && hit && Date.now() - hit.at < TTL) return hit.data as T
     let res: Response
@@ -98,26 +105,60 @@ export class GithubService {
     }
     const remaining = res.headers.get('x-ratelimit-remaining')
     if (remaining) this.rateRemaining = Number(remaining)
-    if (res.status === 403 && remaining === '0') throw new UserError('Ліміт запитів GitHub вичерпано — спробуйте за годину')
-    if (res.status === 401) throw new UserError('GitHub відхилив токен — створіть новий у Налаштуваннях')
-    if (!res.ok) throw new UserError(`GitHub: ${res.status} ${res.statusText}`)
+    if (res.status === 403 && remaining === '0')
+      throw new UserError('Ліміт запитів GitHub вичерпано — спробуйте за годину')
+    if (res.status === 401)
+      throw new UserError('GitHub відхилив токен — створіть новий у Налаштуваннях')
+    if (!res.ok) {
+      // The English status text goes to the log; the person gets a reason in Ukrainian.
+      log.warn('[github]', res.status, res.statusText, path)
+      if (res.status === 404) {
+        throw new UserError('GitHub не знайшов репозиторій — перевірте назву й доступ токена')
+      }
+      throw new UserError(`GitHub не відповів (код ${res.status}) — спробуйте пізніше`)
+    }
     const data = (await res.json()) as T
     this.cache.set(path, { at: Date.now(), data })
     return data
   }
 
   async status(): Promise<GithubStatus> {
-    if (!this.token()) return { connected: false, login: null, name: null, avatarUrl: null, error: null, rateRemaining: null }
+    if (!this.token())
+      return {
+        connected: false,
+        login: null,
+        name: null,
+        avatarUrl: null,
+        error: null,
+        rateRemaining: null
+      }
     try {
       const u = await this.get<{ login: string; name: string | null; avatar_url: string }>('/user')
-      return { connected: true, login: u.login, name: u.name, avatarUrl: u.avatar_url, error: null, rateRemaining: this.rateRemaining }
+      return {
+        connected: true,
+        login: u.login,
+        name: u.name,
+        avatarUrl: u.avatar_url,
+        error: null,
+        rateRemaining: this.rateRemaining
+      }
     } catch (e) {
-      return { connected: false, login: null, name: null, avatarUrl: null, error: (e as Error).message, rateRemaining: this.rateRemaining }
+      return {
+        connected: false,
+        login: null,
+        name: null,
+        avatarUrl: null,
+        error: (e as Error).message,
+        rateRemaining: this.rateRemaining
+      }
     }
   }
 
   async repos(localIndex: Map<string, string>, force = false): Promise<GithubRepo[]> {
-    const list = await this.get<GhRepo[]>('/user/repos?sort=pushed&per_page=100&affiliation=owner,collaborator,organization_member', force)
+    const list = await this.get<GhRepo[]>(
+      '/user/repos?sort=pushed&per_page=100&affiliation=owner,collaborator,organization_member',
+      force
+    )
     return list.map((r) => ({
       fullName: r.full_name,
       name: r.name,
@@ -161,12 +202,19 @@ export class GithubService {
   }
 
   /** Latest commits of the most recently pushed repos (or one repo). */
-  async commits(localIndex: Map<string, string>, repo?: string, force = false): Promise<GithubCommit[]> {
+  async commits(
+    localIndex: Map<string, string>,
+    repo?: string,
+    force = false
+  ): Promise<GithubCommit[]> {
     const repos = repo ? [repo] : (await this.repos(localIndex)).slice(0, 8).map((r) => r.fullName)
     const all = await Promise.all(
       repos.map(async (full) => {
         try {
-          const list = await this.get<GhCommit[]>(`/repos/${encodeURI(full)}/commits?per_page=${repo ? 30 : 6}`, force)
+          const list = await this.get<GhCommit[]>(
+            `/repos/${encodeURI(full)}/commits?per_page=${repo ? 30 : 6}`,
+            force
+          )
           return list.map((c) => ({
             sha: c.sha,
             repo: full,
@@ -180,11 +228,18 @@ export class GithubService {
         }
       })
     )
-    return all.flat().sort((a, b) => b.at - a.at).slice(0, repo ? 30 : 40)
+    return all
+      .flat()
+      .sort((a, b) => b.at - a.at)
+      .slice(0, repo ? 30 : 40)
   }
 
   /** Commits authored by the connected user in a range (weekly review). */
-  async commitCount(from: number, to: number, localIndex: Map<string, string>): Promise<number | null> {
+  async commitCount(
+    from: number,
+    to: number,
+    localIndex: Map<string, string>
+  ): Promise<number | null> {
     if (!this.token()) return null
     try {
       const list = await this.commits(localIndex)

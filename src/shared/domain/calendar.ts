@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import type { EntityType } from '../entity-types'
+import { ENTITY_META, type EntityType } from '../entity-types'
 import type { PaletteColor } from '../colors'
 import {
   hexColorSchema,
@@ -90,4 +90,9 @@ export interface CalendarItem {
   done: boolean
   /** Where clicking the item leads (overrides the ref route). */
   route?: string
+}
+
+/** Where a calendar item leads: its own `route` wins over the record route (calendar, home agenda, weekly review). */
+export function calendarItemRoute(item: Pick<CalendarItem, 'route' | 'ref'>): string {
+  return item.route ?? ENTITY_META[item.ref.type].route(item.ref.id)
 }

@@ -34,10 +34,10 @@ export class ShortcutController {
     if (accel === this.current) return null
     try {
       if (!globalShortcut.register(accel, () => this.windows.showQuickAdd())) {
-        return `Сполучення ${accel} зайняте іншою програмою`
+        return `Комбінацію ${accel} уже зайняла інша програма`
       }
     } catch {
-      return `Некоректне сполучення: ${accel}`
+      return `Таку комбінацію не можна використати: ${accel}`
     }
     if (this.current) globalShortcut.unregister(this.current)
     this.current = accel

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { TemplatesApi } from '@shared/api'
 import { pageSchema } from '@shared/domain/common'
@@ -13,6 +13,12 @@ import type { Orm } from '../../db/client'
 import { idArg, splitTags, updateArgs, type ModuleContext } from '../context'
 import type { TemplateRepo } from './shared'
 
+/** Groups follow the chips (TEMPLATE_SITUATIONS), not the English enum keys; the newest template tops its group. */
+const SITUATION_ORDER = sql`CASE ${messageTemplates.situation} ${sql.join(
+  TEMPLATE_SITUATIONS.map((s, i) => sql`WHEN ${s} THEN ${i}`),
+  sql` `
+)} ELSE ${TEMPLATE_SITUATIONS.length} END`
+
 /** Message templates (proposals, first messages, follow-ups…) with how often they got replies and contracts. */
 export class Templates {
   constructor(
@@ -24,9 +30,7 @@ export class Templates {
     return this.m.db.orm
   }
 
-  withStats(
-    list: Omit<MessageTemplate, 'usedIn' | 'replied' | 'hired'>[]
-  ): MessageTemplate[] {
+  withStats(list: Omit<MessageTemplate, 'usedIn' | 'replied' | 'hired'>[]): MessageTemplate[] {
     if (!list.length) return []
     const rows = this.db
       .select({
@@ -77,11 +81,7 @@ export class Templates {
                 messageTemplates.body
               ])
             ],
-            [
-              asc(messageTemplates.situation),
-              desc(messageTemplates.copyCount),
-              desc(messageTemplates.updatedAt)
-            ],
+            [SITUATION_ORDER, desc(messageTemplates.updatedAt)],
             pageSchema.parse(query ?? {}).limit,
             pageSchema.parse(query ?? {}).offset
           )

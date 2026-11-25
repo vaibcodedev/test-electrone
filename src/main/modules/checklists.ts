@@ -26,6 +26,21 @@ import { CHECKLIST_SEEDS } from './checklist-seeds'
 
 type ChecklistRow = typeof checklists.$inferSelect
 
+/** Items of a «Скасувати» snapshot (see restoreItems): the same limits as an edited item. */
+const snapshotItemsSchema = z
+  .array(
+    z.object({
+      id: z.string().min(1).max(64),
+      text: checklistItemInputSchema.shape.text,
+      hint: checklistItemInputSchema.shape.hint,
+      section: checklistItemInputSchema.shape.section,
+      position: z.number().finite(),
+      done: z.boolean(),
+      doneAt: z.number().int().nullable()
+    })
+  )
+  .max(10_000)
+
 export class ChecklistsModule {
   readonly descriptor: EntityDescriptor
   readonly repo: SoftRepository<ChecklistRow, Checklist>
@@ -42,7 +57,28 @@ export class ChecklistsModule {
           .all()
         return { title: r.title, body: `${r.description}\n${items.map((i) => i.text).join('\n')}` }
       },
-      summary: (r) => ({ title: r.title, subtitle: r.kind === 'template' ? 'Шаблон' : 'Прохід' }),
+      summary: (r) => ({ title: r.title, subtitle: r.kind === 'template' ? 'Шаблон' : 'Прогін' }),
+      // Items are added, removed, renamed and moved in the «Редагувати» mode: «Скасувати» rolls them back too.
+      children: {
+        snapshot: (id) =>
+          this.db
+            .select({
+              id: checklistItems.id,
+              text: checklistItems.text,
+              hint: checklistItems.hint,
+              section: checklistItems.section,
+              position: checklistItems.position,
+              done: checklistItems.done,
+              doneAt: checklistItems.doneAt
+            })
+            .from(checklistItems)
+            .where(eq(checklistItems.checklistId, id))
+            .orderBy(asc(checklistItems.position))
+            .all(),
+        restore: (id, snap) => this.restoreItems(id, snap),
+        // A tick is work on the run, not an edit of the list.
+        ignore: ['done', 'doneAt']
+      },
       // An imported template or a run keeps the default title but has items: it is not an empty draft.
       draft: {
         titleField: 'title',
@@ -103,6 +139,41 @@ export class ChecklistsModule {
       .all()
   }
 
+  /**
+   * «Скасувати»: items back as in the snapshot (inside the revert transaction). Ticks of the items that stayed
+   * are kept; a removed item comes back with its id and tick. The snapshot came from the renderer: checked.
+   */
+  private restoreItems(checklistId: string, snap: unknown): void {
+    const parsed = snapshotItemsSchema.safeParse(snap)
+    if (!parsed.success) throw new UserError('Знімок пунктів пошкоджено — зміни не скасовано')
+    const wanted = new Map(parsed.data.map((i) => [i.id, i]))
+    const current = new Set(this.items(checklistId).map((i) => i.id))
+    const gone = [...current].filter((id) => !wanted.has(id))
+    if (gone.length) this.db.delete(checklistItems).where(inArray(checklistItems.id, gone)).run()
+    for (const item of wanted.values()) {
+      const { id, text, hint, section, position } = item
+      if (current.has(id)) {
+        this.db
+          .update(checklistItems)
+          .set({ text, hint, section, position })
+          .where(eq(checklistItems.id, id))
+          .run()
+        continue
+      }
+      // An id taken by another checklist's item is not ours to overwrite.
+      const taken = this.db
+        .select({ id: checklistItems.id })
+        .from(checklistItems)
+        .where(eq(checklistItems.id, id))
+        .get()
+      if (!taken)
+        this.db
+          .insert(checklistItems)
+          .values({ ...item, checklistId })
+          .run()
+    }
+  }
+
   private one(id: string): Checklist {
     return this.withCounts([this.repo.getOrThrow(id)])[0]
   }
@@ -117,7 +188,12 @@ export class ChecklistsModule {
 
   /** Creates the built-in templates once, on an empty database. */
   seedIfEmpty(ledger: SeedLedger): void {
-    seedOnce(ledger, 'checklists', () => !!this.db.select({ id: checklists.id }).from(checklists).limit(1).get(), () => this.seed())
+    seedOnce(
+      ledger,
+      'checklists',
+      () => !!this.db.select({ id: checklists.id }).from(checklists).limit(1).get(),
+      () => this.seed()
+    )
   }
 
   private seed(): void {
@@ -253,14 +329,29 @@ export class ChecklistsModule {
       importTemplate: async (json) => {
         const data = checklistImportSchema.parse(json)
         const created = this.m.db.tx(() => {
-          const c = repo.insert({ title: data.title, description: data.description, kind: 'template', templateId: null, projectId: null })
+          const c = repo.insert({
+            title: data.title,
+            description: data.description,
+            kind: 'template',
+            templateId: null,
+            projectId: null
+          })
           let position = 1
           for (const section of data.sections) {
             for (const raw of section.items) {
               const it = typeof raw === 'string' ? { text: raw, hint: '' } : raw
               this.db
                 .insert(checklistItems)
-                .values({ id: newId(), checklistId: c.id, text: it.text, hint: it.hint, section: section.title, done: false, doneAt: null, position: position++ })
+                .values({
+                  id: newId(),
+                  checklistId: c.id,
+                  text: it.text,
+                  hint: it.hint,
+                  section: section.title,
+                  done: false,
+                  doneAt: null,
+                  position: position++
+                })
                 .run()
             }
           }
@@ -277,7 +368,11 @@ export class ChecklistsModule {
           id: newId(),
           done: false,
           doneAt: null,
-          position: nextPosition(this.m.db, checklistItems.position, eq(checklistItems.checklistId, data.checklistId))
+          position: nextPosition(
+            this.m.db,
+            checklistItems.position,
+            eq(checklistItems.checklistId, data.checklistId)
+          )
         }
         this.db.insert(checklistItems).values(item).run()
         this.reindex(data.checklistId)
@@ -311,22 +406,28 @@ export class ChecklistsModule {
         this.reindex(item.checklistId)
       },
       reorderItems: async (args) => {
-        const { checklistId, ids } = z
-          .object({ checklistId: idArg, ids: orderedIds })
-          .parse(args)
-        reorder(this.m.db, checklistItems, checklistItems.id, ids, eq(checklistItems.checklistId, checklistId))
+        const { checklistId, ids } = z.object({ checklistId: idArg, ids: orderedIds }).parse(args)
+        reorder(
+          this.m.db,
+          checklistItems,
+          checklistItems.id,
+          ids,
+          eq(checklistItems.checklistId, checklistId)
+        )
       }
     }
   }
 
   /** Count of checklist items completed per day (for the dashboard activity strip). */
   doneSince(from: number): { doneAt: number }[] {
-    return this.db
-      .select({ doneAt: checklistItems.doneAt })
-      .from(checklistItems)
-      // Ticks of a checklist in the trash don't count as done work.
-      .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
-      .where(and(isNull(checklists.deletedAt), sql`${checklistItems.doneAt} >= ${from}`))
-      .all() as { doneAt: number }[]
+    return (
+      this.db
+        .select({ doneAt: checklistItems.doneAt })
+        .from(checklistItems)
+        // Ticks of a checklist in the trash don't count as done work.
+        .innerJoin(checklists, eq(checklists.id, checklistItems.checklistId))
+        .where(and(isNull(checklists.deletedAt), sql`${checklistItems.doneAt} >= ${from}`))
+        .all() as { doneAt: number }[]
+    )
   }
 }
