@@ -16,6 +16,7 @@ import {
   SectionLabel
 } from '@/components/common/master-detail'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
+import { RECORD_PAGE } from '@/components/common/record-page-layout'
 import { CopyJsonButton } from '@/components/common/import-dialog'
 import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
@@ -112,216 +113,221 @@ function ChecklistView({ id }: { id: string }): ReactElement {
 
   return (
     <RecordMode mode={mode}>
-      <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10">
-          {/* Actions get their own row in the DS §8 order (RecordActions); the title below takes the whole column. */}
-          <div className="mb-4 flex items-center gap-4">
-            <Button
-              variant="link"
-              asChild
-              className="flex w-fit shrink-0 text-caption text-muted-foreground no-underline hover:text-foreground hover:underline"
-            >
-              <Link to={listPath}>
-                <ArrowLeft className="size-3.5" /> {isRun ? 'Прогони' : 'Чек-листи'}
-              </Link>
-            </Button>
-            <RecordActions
-              className="flex-1"
-              entity={{ type: 'checklist', id }}
-              mode={mode}
-              extra={
-                <>
-                  <Badge variant="outline">{isRun ? 'Прогін' : 'Шаблон'}</Badge>
-                  {isRun ? (
-                    <Confirm
-                      title="Зняти всі позначки?"
-                      description="Усі пункти знову стануть невиконаними."
-                      confirmLabel="Скинути"
-                      onConfirm={() => reset.mutate(id)}
-                    >
-                      <Button variant="soft">
-                        <RotateCcw /> Скинути
-                      </Button>
-                    </Confirm>
-                  ) : empty ? (
-                    // A run of an empty template would be «0 з 0»: say what to do first.
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0} className="rounded-full">
-                          <Button variant="lime" disabled>
-                            <Rocket /> Запустити прогін
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Спершу додайте пункти: «Редагувати» або E</TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button variant="lime" onClick={() => setLaunchOpen(true)}>
-                      <Rocket /> Запустити прогін
-                    </Button>
-                  )}
-                  <CopyJsonButton
-                    what="Чек-лист"
-                    getData={() => ({
-                      title: data.title,
-                      description: data.description,
-                      sections: groups.map(([section, list]) => ({
-                        title: section,
-                        items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
-                      }))
-                    })}
-                  />
-                </>
-              }
-              onDelete={() => remove.mutate(id)}
-              onClose={toList}
-            />
-          </div>
-
-          <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} />
-
-          {isRun && <RunProgress items={items} />}
-
-          {/* A readable line length in both modes, so E doesn't change the width. */}
-          <div className="mt-5 max-w-[72ch]">
-            <MarkdownField
-              label={isRun ? 'Нотатки' : 'Опис'}
-              value={description}
-              onChange={setDescription}
-              placeholder={
-                isRun
-                  ? 'Що важливо саме цього разу: версія, середовище, хто перевіряє'
-                  : 'Коли й навіщо використовувати цей чек-лист'
-              }
-              maxLength={LIMITS.description}
-              minHeight="100px"
-            />
-          </div>
-
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-              <div className="mt-8 flex flex-col gap-7">
-                {groups.map(([section, list]) => (
-                  <section key={section || NO_SECTION}>
-                    <div className="mb-1.5 flex items-baseline justify-between px-2">
-                      <SectionTitle section={section} items={list} />
-                      {isRun && (
-                        <span className="text-caption text-muted-foreground tabular-nums">
-                          {list.filter((i) => i.done).length} з {list.length}
-                        </span>
-                      )}
-                    </div>
-                    <ul className="flex flex-col">
-                      {list.map((item) => (
-                        <ItemRow key={item.id} item={item} isRun={isRun} />
-                      ))}
-                    </ul>
-                    <AddItem checklistId={id} section={section} />
-                  </section>
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-
-          {/* Empty checklist: what it's for, then a field for the first item; while reading — a way to get there. */}
-          {groups.length === 0 && draftSections.length === 0 && (
-            <div className="flex flex-col items-start gap-2">
-              {(!isRun || !mode.editing) && (
-                <p className="text-body text-muted-foreground">
-                  {isRun
-                    ? 'Пунктів поки немає.'
-                    : 'Додайте кроки, які повторюєте щоразу, — потім запускайте прогін.'}
-                </p>
-              )}
-              {!mode.editing && (
-                <Button variant="soft" size="sm" onClick={startAdding}>
-                  <Plus /> Додати пункти
-                </Button>
-              )}
-              <AddItem checklistId={id} section="" inputRef={firstItem} />
-            </div>
-          )}
-          {draftSections
-            .filter((name) => !groups.some(([s]) => s === name))
-            .map((name) => (
-              <section key={`draft-${name}`} data-edit-only className="mt-7">
-                <div className="mb-1.5 flex items-center justify-between px-2">
-                  {/* Renamable like any section; an empty name or one taken by another section changes nothing. */}
-                  <SectionTitle
-                    section={name}
-                    onRename={(next) =>
-                      next &&
-                      !groups.some(([s]) => s === next) &&
-                      !draftSections.includes(next) &&
-                      setDraftSections((d) => d.map((x) => (x === name ? next : x)))
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Прибрати розділ ${name}`}
-                    onClick={() => setDraftSections((d) => d.filter((x) => x !== name))}
-                  >
-                    <X />
-                  </Button>
-                </div>
-                <AddItem checklistId={id} section={name} />
-              </section>
-            ))}
-          <form
-            data-edit-only
-            className="mt-6 flex items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              const name = sectionName.trim()
-              if (!name) return
-              if (!groups.some(([s]) => s === name) && !draftSections.includes(name))
-                setDraftSections((d) => [...d, name])
-              setSectionName('')
-            }}
-          >
-            <Input
-              value={sectionName}
-              maxLength={ITEM_LIMITS.section}
-              onChange={(e) => setSectionName(e.target.value)}
-              placeholder="Напр.: Перед релізом"
-              className="max-w-sm"
-              aria-label="Назва нового розділу"
-            />
-            <Button type="submit" variant="soft" disabled={!sectionName.trim()}>
-              <Plus /> Додати розділ
-            </Button>
-          </form>
-        </div>
-
-        <aside className="w-75 shrink-0 overflow-y-auto border-l border-border px-5 py-6">
-          <EntityAside
-            entity={{ type: 'checklist', id: data.id }}
-            tags={data.tags}
-            onTagsChange={(tagIds) => patch({ tagIds })}
-            createdAt={data.createdAt}
-            updatedAt={data.updatedAt}
-          >
-            {isRun && data.templateId && (
-              <SectionLabel
-                action={
-                  <Button variant="outline" size="xs" asChild>
-                    <Link to={`/checklists/${data.templateId}`}>
-                      <ArrowUpRight /> Відкрити вихідний шаблон
-                    </Link>
-                  </Button>
-                }
+      <div className={RECORD_PAGE.container}>
+        <div className={RECORD_PAGE.row}>
+          <div className={RECORD_PAGE.body}>
+            {/* Actions get their own row in the DS §8 order (RecordActions); the title below takes the whole column. */}
+            <div className="mb-4 flex items-center gap-4">
+              <Button
+                variant="link"
+                asChild
+                className="flex w-fit shrink-0 text-caption text-muted-foreground no-underline hover:text-foreground hover:underline"
               >
-                Шаблон
-              </SectionLabel>
+                <Link to={listPath}>
+                  <ArrowLeft className="size-3.5" /> {isRun ? 'Прогони' : 'Чек-листи'}
+                </Link>
+              </Button>
+              <RecordActions
+                className="flex-1"
+                entity={{ type: 'checklist', id }}
+                mode={mode}
+                extra={
+                  <>
+                    <Badge variant="outline">{isRun ? 'Прогін' : 'Шаблон'}</Badge>
+                    {isRun ? (
+                      <Confirm
+                        title="Зняти всі позначки?"
+                        description="Усі пункти знову стануть невиконаними."
+                        confirmLabel="Скинути"
+                        onConfirm={() => reset.mutate(id)}
+                      >
+                        <Button variant="soft">
+                          <RotateCcw /> Скинути
+                        </Button>
+                      </Confirm>
+                    ) : empty ? (
+                      // A run of an empty template would be «0 з 0»: say what to do first.
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0} className="rounded-full">
+                            <Button variant="lime" disabled>
+                              <Rocket /> Запустити прогін
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Спершу додайте пункти: «Редагувати» або E</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Button variant="lime" onClick={() => setLaunchOpen(true)}>
+                        <Rocket /> Запустити прогін
+                      </Button>
+                    )}
+                    <CopyJsonButton
+                      what="Чек-лист"
+                      getData={() => ({
+                        title: data.title,
+                        description: data.description,
+                        sections: groups.map(([section, list]) => ({
+                          title: section,
+                          items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
+                        }))
+                      })}
+                    />
+                  </>
+                }
+                onDelete={() => remove.mutate(id)}
+                onClose={toList}
+              />
+            </div>
+
+            <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} />
+
+            {isRun && <RunProgress items={items} />}
+
+            {/* A readable line length in both modes, so E doesn't change the width. */}
+            <div className="mt-5 max-w-[72ch]">
+              <MarkdownField
+                label={isRun ? 'Нотатки' : 'Опис'}
+                value={description}
+                onChange={setDescription}
+                placeholder={
+                  isRun
+                    ? 'Що важливо саме цього разу: версія, середовище, хто перевіряє'
+                    : 'Коли й навіщо використовувати цей чек-лист'
+                }
+                maxLength={LIMITS.description}
+                minHeight="100px"
+              />
+            </div>
+
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext
+                items={items.map((i) => i.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="mt-8 flex flex-col gap-7">
+                  {groups.map(([section, list]) => (
+                    <section key={section || NO_SECTION}>
+                      <div className="mb-1.5 flex items-baseline justify-between px-2">
+                        <SectionTitle section={section} items={list} />
+                        {isRun && (
+                          <span className="text-caption text-muted-foreground tabular-nums">
+                            {list.filter((i) => i.done).length} з {list.length}
+                          </span>
+                        )}
+                      </div>
+                      <ul className="flex flex-col">
+                        {list.map((item) => (
+                          <ItemRow key={item.id} item={item} isRun={isRun} />
+                        ))}
+                      </ul>
+                      <AddItem checklistId={id} section={section} />
+                    </section>
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+
+            {/* Empty checklist: what it's for, then a field for the first item; while reading — a way to get there. */}
+            {groups.length === 0 && draftSections.length === 0 && (
+              <div className="flex flex-col items-start gap-2">
+                {(!isRun || !mode.editing) && (
+                  <p className="text-body text-muted-foreground">
+                    {isRun
+                      ? 'Пунктів поки немає.'
+                      : 'Додайте кроки, які повторюєте щоразу, — потім запускайте прогін.'}
+                  </p>
+                )}
+                {!mode.editing && (
+                  <Button variant="soft" size="sm" onClick={startAdding}>
+                    <Plus /> Додати пункти
+                  </Button>
+                )}
+                <AddItem checklistId={id} section="" inputRef={firstItem} />
+              </div>
             )}
-          </EntityAside>
-        </aside>
-        <LaunchDialog
-          template={isRun ? null : { id: data.id, title: data.title }}
-          open={launchOpen}
-          onOpenChange={setLaunchOpen}
-        />
+            {draftSections
+              .filter((name) => !groups.some(([s]) => s === name))
+              .map((name) => (
+                <section key={`draft-${name}`} data-edit-only className="mt-7">
+                  <div className="mb-1.5 flex items-center justify-between px-2">
+                    {/* Renamable like any section; an empty name or one taken by another section changes nothing. */}
+                    <SectionTitle
+                      section={name}
+                      onRename={(next) =>
+                        next &&
+                        !groups.some(([s]) => s === next) &&
+                        !draftSections.includes(next) &&
+                        setDraftSections((d) => d.map((x) => (x === name ? next : x)))
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Прибрати розділ ${name}`}
+                      onClick={() => setDraftSections((d) => d.filter((x) => x !== name))}
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                  <AddItem checklistId={id} section={name} />
+                </section>
+              ))}
+            <form
+              data-edit-only
+              className="mt-6 flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const name = sectionName.trim()
+                if (!name) return
+                if (!groups.some(([s]) => s === name) && !draftSections.includes(name))
+                  setDraftSections((d) => [...d, name])
+                setSectionName('')
+              }}
+            >
+              <Input
+                value={sectionName}
+                maxLength={ITEM_LIMITS.section}
+                onChange={(e) => setSectionName(e.target.value)}
+                placeholder="Напр.: Перед релізом"
+                className="max-w-sm"
+                aria-label="Назва нового розділу"
+              />
+              <Button type="submit" variant="soft" disabled={!sectionName.trim()}>
+                <Plus /> Додати розділ
+              </Button>
+            </form>
+          </div>
+
+          <aside className={RECORD_PAGE.aside}>
+            <EntityAside
+              entity={{ type: 'checklist', id: data.id }}
+              tags={data.tags}
+              onTagsChange={(tagIds) => patch({ tagIds })}
+              createdAt={data.createdAt}
+              updatedAt={data.updatedAt}
+            >
+              {isRun && data.templateId && (
+                <SectionLabel
+                  action={
+                    <Button variant="outline" size="xs" asChild>
+                      <Link to={`/checklists/${data.templateId}`}>
+                        <ArrowUpRight /> Відкрити вихідний шаблон
+                      </Link>
+                    </Button>
+                  }
+                >
+                  Шаблон
+                </SectionLabel>
+              )}
+            </EntityAside>
+          </aside>
+          <LaunchDialog
+            template={isRun ? null : { id: data.id, title: data.title }}
+            open={launchOpen}
+            onOpenChange={setLaunchOpen}
+          />
+        </div>
       </div>
     </RecordMode>
   )

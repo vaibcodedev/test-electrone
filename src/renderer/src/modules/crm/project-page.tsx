@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { PROJECT_STATUSES, projectInputSchema, type ProjectPatch } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
+import { RECORD_PAGE } from '@/components/common/record-page-layout'
 import { EditableScope } from '@/components/common/detail-mode-context'
 import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -83,129 +84,128 @@ export function ProjectPage(): ReactElement {
 
   return (
     <RecordMode mode={mode}>
-      <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={p.id}>
-          {/* Actions get their own row in the DS §8 order (RecordActions); the page has no ✕ — the breadcrumb leads back. */}
-          <div className="mb-4 flex items-center gap-4">
-            <Breadcrumb className="min-w-0 max-w-1/2">
-              <BreadcrumbList className="flex-nowrap text-caption">
-                <BreadcrumbItem className="shrink-0">
-                  <BreadcrumbLink asChild>
-                    <Link to="/clients?tab=projects" className="flex items-center gap-1">
-                      <ArrowLeft className="size-3.5" /> Проєкти
-                    </Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                {data.client && (
-                  <>
-                    <BreadcrumbSeparator />
-                    {/* A long client name is cut with «…»: the actions keep their place on the right. */}
-                    <BreadcrumbItem className="min-w-0">
-                      <BreadcrumbLink asChild>
-                        <Link
-                          to={`/clients/${data.client.id}`}
-                          className="truncate"
-                          title={data.client.name}
-                        >
-                          {data.client.name}
-                        </Link>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                  </>
-                )}
-              </BreadcrumbList>
-            </Breadcrumb>
-            <RecordActions
-              className="flex-1"
-              entity={{ type: 'project', id }}
-              mode={mode}
-              onDelete={() => remove.mutate(id)}
-              deleteConfirm={{
-                title: 'Видалити проєкт?',
-                description: 'Проєкт піде в кошик на 30 днів разом із годинами й оплатами.'
-              }}
-            />
-          </div>
-
-          <InlineTitle value={title} onChange={setTitle} maxLength={PROJECT_L.title} />
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {/* Status is a quick action (docs/design-system.md §8): it changes in view mode too. */}
-            <EditableScope>
-              <Choice
-                aria-label="Статус проєкту"
-                className="w-40"
-                value={p.status}
-                onChange={(v) => v && patch({ status: v })}
-                options={PROJECT_STATUSES.map((s) => ({
-                  value: s,
-                  label: PROJECT_STATUS_LABEL[s]
-                }))}
+      <div className={RECORD_PAGE.container}>
+        <div className={RECORD_PAGE.row}>
+          <div className={RECORD_PAGE.body} key={p.id}>
+            {/* Actions get their own row in the DS §8 order (RecordActions); the page has no ✕ — the breadcrumb leads back. */}
+            <div className="mb-4 flex items-center gap-4">
+              <Breadcrumb className="min-w-0 max-w-1/2">
+                <BreadcrumbList className="flex-nowrap text-caption">
+                  <BreadcrumbItem className="shrink-0">
+                    <BreadcrumbLink asChild>
+                      <Link to="/clients?tab=projects" className="flex items-center gap-1">
+                        <ArrowLeft className="size-3.5" /> Проєкти
+                      </Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  {data.client && (
+                    <>
+                      <BreadcrumbSeparator />
+                      {/* A long client name is cut with «…»: the actions keep their place on the right. */}
+                      <BreadcrumbItem className="min-w-0">
+                        <BreadcrumbLink asChild>
+                          <Link
+                            to={`/clients/${data.client.id}`}
+                            className="truncate"
+                            title={data.client.name}
+                          >
+                            {data.client.name}
+                          </Link>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                    </>
+                  )}
+                </BreadcrumbList>
+              </Breadcrumb>
+              <RecordActions
+                className="flex-1"
+                entity={{ type: 'project', id }}
+                mode={mode}
+                onDelete={() => remove.mutate(id)}
+                deleteConfirm={{
+                  title: 'Видалити проєкт?',
+                  description: 'Проєкт піде в кошик на 30 днів разом із годинами й оплатами.'
+                }}
               />
-            </EditableScope>
-            {/* Reading: the client is already in the breadcrumbs. */}
-            {mode.editing && (
-              <>
-                <Label htmlFor={clientFieldId} className="sr-only">
-                  Клієнт
-                </Label>
-                <ClientCombobox
-                  id={clientFieldId}
-                  className="w-60"
-                  value={p.clientId}
-                  currentName={data.client?.name}
-                  onChange={(c) => patch({ clientId: c?.id ?? null })}
+            </div>
+
+            <InlineTitle value={title} onChange={setTitle} maxLength={PROJECT_L.title} />
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {/* Status is a quick action (docs/design-system.md §8): it changes in view mode too. */}
+              <EditableScope>
+                <Choice
+                  aria-label="Статус проєкту"
+                  className="w-40"
+                  value={p.status}
+                  onChange={(v) => v && patch({ status: v })}
+                  options={PROJECT_STATUSES.map((s) => ({
+                    value: s,
+                    label: PROJECT_STATUS_LABEL[s]
+                  }))}
                 />
-              </>
-            )}
-            <PlatformBadge platformId={p.platformId} name={p.platformName} />
-            <NetPaid project={p} />
-          </div>
+              </EditableScope>
+              {/* Reading: the client is already in the breadcrumbs. */}
+              {mode.editing && (
+                <>
+                  <Label htmlFor={clientFieldId} className="sr-only">
+                    Клієнт
+                  </Label>
+                  <ClientCombobox
+                    id={clientFieldId}
+                    className="w-60"
+                    value={p.clientId}
+                    currentName={data.client?.name}
+                    onChange={(c) => patch({ clientId: c?.id ?? null })}
+                  />
+                </>
+              )}
+              <PlatformBadge platformId={p.platformId} name={p.platformName} />
+              <NetPaid project={p} />
+            </div>
 
-          {p.billing !== 'none' && (
-            <MoneyHeader p={p} overdue={data.payments.some((x) => x.overdue)} />
-          )}
-
-          <div className="mt-8 flex flex-col gap-10">
-            {hourly && time}
             {p.billing !== 'none' && (
-              <PaymentsSection
-                projectId={p.id}
-                currency={p.currency}
-                payments={data.payments}
-                billing={p.billing}
-                price={p.fixedPrice}
-              />
+              <MoneyHeader p={p} overdue={data.payments.some((x) => x.overdue)} />
             )}
-            {!hourly && time}
-            <CredentialsSection items={data.credentials} owner={{ projectId: p.id }} />
-            <MarkdownField
-              label="Опис"
-              value={description}
-              onChange={setDescription}
-              placeholder="Завдання, домовленості, контакти з боку клієнта…"
-              maxLength={PROJECT_L.description}
-            />
-          </div>
-        </div>
 
-        <aside
-          className="w-75 shrink-0 overflow-y-auto border-l border-border px-5 py-6"
-          key={`aside-${p.id}`}
-        >
-          <div className="flex flex-col gap-6">
-            <Terms project={p} patch={patch} />
-            <Separator />
-            <ProjectLinks project={p} patch={patch} />
-            <EntityAside
-              entity={{ type: 'project', id: p.id }}
-              tags={p.tags}
-              onTagsChange={(tagIds) => patch({ tagIds })}
-              createdAt={p.createdAt}
-              updatedAt={p.updatedAt}
-            />
+            <div className="mt-8 flex flex-col gap-10">
+              {hourly && time}
+              {p.billing !== 'none' && (
+                <PaymentsSection
+                  projectId={p.id}
+                  currency={p.currency}
+                  payments={data.payments}
+                  billing={p.billing}
+                  price={p.fixedPrice}
+                />
+              )}
+              {!hourly && time}
+              <CredentialsSection items={data.credentials} owner={{ projectId: p.id }} />
+              <MarkdownField
+                label="Опис"
+                value={description}
+                onChange={setDescription}
+                placeholder="Завдання, домовленості, контакти з боку клієнта…"
+                maxLength={PROJECT_L.description}
+              />
+            </div>
           </div>
-        </aside>
+
+          <aside className={RECORD_PAGE.aside} key={`aside-${p.id}`}>
+            <div className="flex flex-col gap-6">
+              <Terms project={p} patch={patch} />
+              <Separator />
+              <ProjectLinks project={p} patch={patch} />
+              <EntityAside
+                entity={{ type: 'project', id: p.id }}
+                tags={p.tags}
+                onTagsChange={(tagIds) => patch({ tagIds })}
+                createdAt={p.createdAt}
+                updatedAt={p.updatedAt}
+              />
+            </div>
+          </aside>
+        </div>
       </div>
     </RecordMode>
   )

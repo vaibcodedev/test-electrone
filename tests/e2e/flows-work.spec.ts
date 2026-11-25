@@ -136,7 +136,14 @@ test.describe('календар', () => {
       now.getHours() >= 23,
       'the new event starts at the next hour — after 23:00 that is tomorrow'
     )
-    const chip = (cell: Locator): Locator => cell.locator(`[title="${title}"]`)
+    const chip = (cell: Locator, name = title): Locator => cell.locator(`[title="${name}"]`)
+    // The event in a month cell — or, on a busy day (the seed's events at earlier hours come first), in its
+    // «ще N» list: whether it fits in the cell depended on the time of day the test ran.
+    const reveal = async (cell: Locator, name = title): Promise<Locator> => {
+      if (await chip(cell, name).count()) return chip(cell, name)
+      await cell.getByRole('button', { name: /^ще \d+$/ }).click()
+      return win.locator('[data-slot="popover-content"]').locator(`[title="${name}"]`)
+    }
 
     await go('/calendar')
     await win.getByRole('radio', { name: 'Місяць' }).click()
@@ -160,14 +167,16 @@ test.describe('календар', () => {
     // Today: the lime circle and our event.
     const today = dayCell(win, now)
     await expect(today.locator('[aria-current="date"]')).toHaveText(String(now.getDate()))
-    await expect(chip(today)).toBeVisible()
+    await expect(await reveal(today)).toBeVisible()
+    await win.keyboard.press('Escape')
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
     if (await dayCell(win, tomorrow).count())
       await expect(chip(dayCell(win, tomorrow))).toHaveCount(0)
     const nextWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7)
     if (!(await dayCell(win, nextWeek).count()))
       await win.getByRole('button', { name: 'Вперед (→)' }).click()
-    await expect(chip(dayCell(win, nextWeek))).toBeVisible()
+    await expect(await reveal(dayCell(win, nextWeek))).toBeVisible()
+    await win.keyboard.press('Escape')
     const feed = await rpc('events.feed', {
       from: start.getTime() - DAY,
       to: start.getTime() + 15 * DAY
@@ -180,13 +189,13 @@ test.describe('календар', () => {
     await expect(dayCell(win, now).locator('[aria-current="date"]')).toBeVisible()
 
     // Open it from the grid, rename, then delete.
-    await chip(dayCell(win, now)).click()
+    await (await reveal(dayCell(win, now))).click()
     const edit = win.getByRole('dialog', { name: 'Подія' })
     await expect(edit.getByLabel('Назва')).toHaveValue(title)
     await edit.getByLabel('Назва').fill(`${title} змінена`)
     await edit.getByRole('button', { name: 'Зберегти' }).click()
     await expect(edit).toBeHidden()
-    const renamed = dayCell(win, now).locator(`[title="${title} змінена"]`)
+    const renamed = await reveal(dayCell(win, now), `${title} змінена`)
     await expect(renamed).toBeVisible()
     await renamed.click()
     await win
@@ -194,7 +203,7 @@ test.describe('календар', () => {
       .getByRole('button', { name: 'У кошик' })
       .click()
     await expect(win.getByRole('dialog', { name: 'Подія' })).toBeHidden()
-    await expect(renamed).toHaveCount(0)
+    await expect(chip(dayCell(win, now), `${title} змінена`)).toHaveCount(0)
     expect(await rpc('events.get', event.id)).toBeNull()
   })
 
