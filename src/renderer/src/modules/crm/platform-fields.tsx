@@ -166,7 +166,8 @@ export function ClientPlatformFields({
 }): ReactElement {
   // Short labels + the unit inside the input (InputGroup addon): labels never wrap into different
   // heights, and `items-end` keeps the inputs on one line even if one does (docs/design-system.md → Формы).
-  // Schema ranges (rating 0–5, hire rate 0–100…) — out-of-range values show an error and aren't saved.
+  // Schema rules (rating 1–5 step 0,1, hire rate a whole 0–100, spent a whole up to 100 million): typing stops at
+  // what can't fit, a pasted value that doesn't fit shows an error and isn't saved.
   // Commit on blur works for both the autosaving page and the dialog state.
   const verifiedId = useId()
   const countryId = useId()
@@ -182,9 +183,9 @@ export function ClientPlatformFields({
         </Field>
         <NumberField
           label="Рейтинг"
-          value={value.rating}
+          // An old 0 means «no rating yet»: shown empty, not as an error.
+          value={value.rating || null}
           {...CLIENT_R.rating}
-          step={0.1}
           placeholder="Напр.: 4,9"
           unit="★"
           onCommit={(rating) => onChange({ rating })}

@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import {
+  clientRatingSchema,
+  clientSpentSchema,
   EMAIL_ERROR,
+  hireRateSchema,
   idSchema,
   isLikelyEmail,
   timestampSchema,
@@ -49,10 +52,10 @@ export const clientInputSchema = z.object({
   /** Where the client came from (freelance platform); null = direct/unknown. */
   platformId: idSchema.nullable().default(null),
   country: z.string().max(MAX.label).default(''),
-  rating: z.number().min(0).max(5).nullable().default(null),
+  rating: clientRatingSchema.nullable().default(null),
   /** Total spent on the platform (as shown on the client profile). */
-  totalSpent: z.number().min(0).max(1_000_000_000).nullable().default(null),
-  hireRate: z.number().min(0).max(100).nullable().default(null),
+  totalSpent: clientSpentSchema.nullable().default(null),
+  hireRate: hireRateSchema.nullable().default(null),
   paymentVerified: z.boolean().nullable().default(null),
   /** Notes on how to communicate with this client. */
   howToCommunicate: z.string().max(MAX.note).default(''),

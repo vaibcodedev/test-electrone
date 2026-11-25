@@ -52,9 +52,9 @@ export function ProposalClientSection({
         </Field>
         <NumberField
           label="Рейтинг"
-          value={p.clientRating}
+          // An old 0 means «no rating yet»: shown empty, not as an error.
+          value={p.clientRating || null}
           {...R.clientRating}
-          step={0.1}
           onCommit={(clientRating) => patch({ clientRating })}
           placeholder="Напр.: 4,9"
           unit="★"
@@ -64,6 +64,7 @@ export function ProposalClientSection({
           value={p.clientSpent}
           {...R.clientSpent}
           onCommit={(clientSpent) => patch({ clientSpent })}
+          placeholder="Напр.: 25 000"
           unit={platform.currency}
         />
         <NumberField
@@ -71,6 +72,7 @@ export function ProposalClientSection({
           value={p.clientHireRate}
           {...R.clientHireRate}
           onCommit={(clientHireRate) => patch({ clientHireRate })}
+          placeholder="Напр.: 70"
           unit="%"
         />
         <TextField

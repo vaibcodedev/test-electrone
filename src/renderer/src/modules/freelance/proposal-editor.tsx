@@ -84,7 +84,7 @@ function Editor({
   const noClient =
     !p.clientName &&
     !p.clientCountry &&
-    p.clientRating == null &&
+    !p.clientRating &&
     p.clientSpent == null &&
     p.clientHireRate == null &&
     !p.proposalsOnJob &&

@@ -198,6 +198,8 @@ export function WithdrawalDialog({
             unit={receivedCurrency}
             live
             {...WD_R.rate}
+            // Banks quote four decimals (1 UAH = 0,0241 USD).
+            step={0.0001}
             value={rate}
             onCommit={setRate}
             onValidityChange={fields.report('rate')}

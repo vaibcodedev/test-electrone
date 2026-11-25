@@ -1,5 +1,12 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { acceptNumberText, parseNumberText } from '@/lib/limits'
+import {
+  acceptNumberText,
+  decimalsIn,
+  isTypingEvent,
+  parseNumberText,
+  precisionOf,
+  precisionText
+} from '@/lib/limits'
 import { fmtNumber } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode'
@@ -26,8 +33,11 @@ function rangeText(min: number | undefined, max: number | undefined, unit?: stri
 const NOT_A_NUMBER = 'Введіть число, наприклад 4,9'
 
 /**
- * Number field with the schema range (rangesOf): typing is filtered (digits only for integers,
- * no leading zeros), an out-of-range value shows «Від … до …» under the field and is never saved.
+ * Number field with the schema rules (rangesOf: range, whole numbers, step). Typing takes only what can still become
+ * a valid value (acceptNumberText): no letters, a separator («,» or «.») only where fractions are allowed, no more
+ * decimals than the step has (money: 2), never past max — 24 digits in a 0–100 000 000 field stop at the eighth.
+ * Pasted text that breaks a rule shows why under the field («Від … до …», «Не більше одного знака після коми») and
+ * is never saved.
  * Commits on blur / Enter, so it works both for autosaving pages and for dialog state; `live` commits while typing.
  * Units go into the input as an addon (`$ % ★`), not into the label (docs/design-system.md → Формы).
  */
@@ -41,6 +51,7 @@ export function NumberField({
   max,
   step,
   integer,
+  precision: precisionProp,
   unit,
   placeholder,
   className,
@@ -59,9 +70,12 @@ export function NumberField({
   onCommit: (value: number | null) => void
   min?: number
   max?: number
+  /** From the schema (`.multipleOf`) or the field: its decimals are the field's precision (0,1 → one digit). */
   step?: number
   /** Whole numbers only (connects, counts). */
   integer?: boolean
+  /** Digits after the separator, when neither `integer` nor `step` says it; 2 by default (money). */
+  precision?: number
   /** Shown inside the input on the right: $, %, ★. */
   unit?: string
   placeholder?: string
@@ -94,15 +108,25 @@ export function NumberField({
     if (parseNumberText(text) !== (value ?? null)) setText(toText(value))
   }
 
+  const precision = precisionOf({ integer, step, precision: precisionProp })
   const parsed = parseNumberText(text)
   // Half-typed text («-», «,») is not a number yet: it gets its own message, not a misleading range.
   const notNumber = parsed === null && text.trim() !== ''
   const outside = (n: number): boolean =>
     (min !== undefined && n < min) || (max !== undefined && n > max)
   const outOfRange = parsed !== null && outside(parsed)
+  // Too many decimals can only be pasted (typing stops at the precision). A stored value is shown as it is: a rating
+  // of 4,95 from before the 0,1 step opens without an error and is only checked once it is edited.
+  const tooPrecise = parsed !== null && decimalsIn(text) > precision && text !== toText(value)
   // A disabled field can't be fixed, so it neither holds the dialog's submit button nor shows an error.
-  const invalid = !disabled && (notNumber || outOfRange)
-  const own = !invalid ? undefined : notNumber ? NOT_A_NUMBER : rangeText(min, max, unit)
+  const invalid = !disabled && (notNumber || outOfRange || tooPrecise)
+  const own = !invalid
+    ? undefined
+    : notNumber
+      ? NOT_A_NUMBER
+      : outOfRange
+        ? rangeText(min, max, unit)
+        : precisionText(precision)
 
   const report = useRef(onValidityChange)
   useEffect(() => {
@@ -118,14 +142,15 @@ export function NumberField({
     if (parsed !== (value ?? null)) onCommit(parsed)
   }
 
-  // Same rule as NumberInput: text that can't become a number is not accepted at all.
-  const onChange = (input: string): void => {
-    const next = acceptNumberText(input, { integer, min })
+  // Same rule as NumberInput: a key that can't lead to a valid number is not accepted at all.
+  const onChange = (input: string, typing: boolean): void => {
+    const next = acceptNumberText(input, { integer, min, max, precision, typing })
     if (next === null) return
     setText(next)
     if (!live) return
     const n = parseNumberText(next)
-    if ((next === '' || (n !== null && !outside(n))) && n !== (value ?? null)) onCommit(n)
+    const fits = n !== null && !outside(n) && decimalsIn(next) <= precision
+    if ((next === '' || fits) && n !== (value ?? null)) onCommit(n)
   }
 
   // Blur also tidies the text: «1,» → «1».
@@ -166,7 +191,7 @@ export function NumberField({
           autoFocus={autoFocus}
           aria-invalid={invalid || !!error || undefined}
           className="tabular-nums"
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value, isTypingEvent(e.nativeEvent))}
           onBlur={onBlur}
           onKeyDown={(e) => e.key === 'Enter' && commit()}
         />

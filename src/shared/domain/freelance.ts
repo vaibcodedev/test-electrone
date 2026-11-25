@@ -6,7 +6,10 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import {
+  clientRatingSchema,
+  clientSpentSchema,
   hexColorSchema,
+  hireRateSchema,
   idSchema,
   timestampSchema,
   urlSchema,
@@ -113,7 +116,8 @@ export const proposalInputSchema = z.object({
   credits: z.number().int().min(0).max(1000).default(0),
   boostCredits: z.number().int().min(0).max(1000).default(0),
   bidType: z.enum(BID_TYPES).default('fixed'),
-  bidAmount: z.number().min(0).max(10_000_000).default(0),
+  /** One bid: an hourly rate or a fixed price (a million is far past any real job post). */
+  bidAmount: z.number().min(0).max(1_000_000).default(0),
   /** Service fee % shown at bidding time (Upwork shows the exact one only then). */
   feePercent: z.number().min(0).max(100).nullable().default(null),
   coverLetter: z.string().max(MAX.letter).default(''),
@@ -121,9 +125,9 @@ export const proposalInputSchema = z.object({
   clientId: idSchema.nullable().default(null),
   clientName: z.string().max(MAX.name).default(''),
   clientCountry: z.string().max(100).default(''),
-  clientRating: z.number().min(0).max(5).nullable().default(null),
-  clientSpent: z.number().min(0).max(100_000_000).nullable().default(null),
-  clientHireRate: z.number().min(0).max(100).nullable().default(null),
+  clientRating: clientRatingSchema.nullable().default(null),
+  clientSpent: clientSpentSchema.nullable().default(null),
+  clientHireRate: hireRateSchema.nullable().default(null),
   paymentVerified: z.boolean().nullable().default(null),
   /** Competition shown on the job, e.g. "20 to 50". */
   proposalsOnJob: z.string().max(40).default(''),

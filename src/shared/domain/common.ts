@@ -13,6 +13,17 @@ export function isLikelyEmail(value: string): boolean {
   return !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
 }
 export const EMAIL_ERROR = 'Не схоже на email — наприклад, name@company.com'
+
+/**
+ * Client signals as a freelance platform shows them (proposal «Клієнт», CRM client «Платформа»); hire copies them
+ * from the proposal to the client, so both use these.
+ * Rating: Upwork's 1–5 with one decimal (4,9); empty = no reviews yet. An old 0 means the same and shows as empty.
+ */
+export const clientRatingSchema = z.number().min(1).max(5).multipleOf(0.1)
+/** Hire rate: a whole percent, as the platform shows it. */
+export const hireRateSchema = z.number().int().min(0).max(100)
+/** Total spent on the platform: whole money units; the biggest Upwork clients are in the tens of millions. */
+export const clientSpentSchema = z.number().int().min(0).max(100_000_000)
 export const hexColorSchema = z
   .string()
   .regex(/^#[0-9a-fA-F]{6}$/)

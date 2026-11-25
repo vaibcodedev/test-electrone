@@ -253,7 +253,7 @@ export function SourceView({ c }: { c: Client }): ReactElement {
   // The group is already called «Платформа»: its name goes first on its own, not as a «Платформа» row.
   const details =
     !!c.country ||
-    c.rating !== null ||
+    !!c.rating ||
     c.totalSpent !== null ||
     c.hireRate !== null ||
     c.paymentVerified !== null
@@ -271,7 +271,8 @@ export function SourceView({ c }: { c: Client }): ReactElement {
       {details && (
         <InfoList>
           {c.country && <InfoRow label="Країна">{c.country}</InfoRow>}
-          {c.rating !== null && <InfoRow label="Рейтинг">{`★ ${fmtNumber(c.rating)}`}</InfoRow>}
+          {/* 0 is «no rating yet» (old records): the rating is 1–5. */}
+          {!!c.rating && <InfoRow label="Рейтинг">{`★ ${fmtNumber(c.rating)}`}</InfoRow>}
           {c.totalSpent !== null && (
             <InfoRow label="Витрачено">{fmtMoney(c.totalSpent, c.currency)}</InfoRow>
           )}

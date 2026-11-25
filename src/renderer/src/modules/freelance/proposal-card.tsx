@@ -76,7 +76,8 @@ export const ProposalCard = forwardRef<
         <span>{p.sentAt ? sentLabel(p.sentAt, now) : 'не надіслано'}</span>
         <span className="ml-auto flex items-center gap-1.5">
           {/* A title, not a Tooltip: the card is a button, a nested span can't take focus. */}
-          {p.clientRating !== null && (
+          {/* 0 is «no rating yet» (old records): the rating is 1–5. */}
+          {!!p.clientRating && (
             <span
               className="flex items-center gap-0.5"
               title="Рейтинг клієнта"
