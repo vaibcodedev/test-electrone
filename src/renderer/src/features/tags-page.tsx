@@ -14,18 +14,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { plural } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
+import { cn } from '@/lib/utils'
 import { tagInputSchema } from '@shared/domain/system'
 
 const TAG_LIMITS = limitsOf(tagInputSchema)
-import { cn } from '@/lib/utils'
+
+/** Spoken names of the swatches (TAG_COLORS): a screen reader said «#d4f542». */
+const COLOR_NAME: Record<string, string> = {
+  '#d4f542': 'Лаймовий',
+  '#7c8cf8': 'Фіолетово-синій',
+  '#f5a524': 'Помаранчевий',
+  '#f06b6b': 'Червоний',
+  '#3fbf9b': 'Зелений',
+  '#c98af0': 'Бузковий',
+  '#5aa9f0': 'Блакитний',
+  '#9a9f93': 'Сірий'
+}
 
 /** Global tags shared by all modules: rename, recolor, delete, and see everything carrying a tag. */
 export function TagsPage() {
   const [params, setParams] = useSearchParams()
   const selected = params.get('tag')
-  const { data: tags = [] } = useApi('tags', 'list')
+  const { data: tags = [], isLoading } = useApi('tags', 'list')
+  const noTags = !isLoading && tags.length === 0
   const { data: entities = [], isLoading: entitiesLoading } = useApi('tags', 'entities', selected ?? '', { enabled: !!selected })
   const create = useApiMutation('tags', 'create')
   const update = useApiMutation('tags', 'update')
@@ -72,20 +86,25 @@ export function TagsPage() {
                   </InputGroupAddon>
                 </InputGroup>
               </form>
-              {tags.length === 0 ? (
-                <p className="px-1 text-caption text-muted-foreground">Міток поки немає. Створіть першу вище або просто в будь-якому записі.</p>
-              ) : (
+              {tags.length > 0 && (
                 <ItemGroup className="gap-1">
                   {tags.map((t) => {
                     const active = selected === t.id
                     return (
                       <Item key={t.id} asChild size="xs" variant={active ? 'active' : 'default'} className="px-3">
-                        <button type="button" onClick={() => setParams({ tag: t.id })} aria-current={active || undefined}>
+                        <button
+                          type="button"
+                          className="w-full text-left"
+                          onClick={() => setParams({ tag: t.id })}
+                          aria-current={active || undefined}
+                        >
                           <ItemMedia>
                             <span className="size-2.5 rounded-full" style={{ background: t.color ?? 'var(--muted-foreground)' }} />
                           </ItemMedia>
                           <ItemContent className="min-w-0">
-                            <ItemTitle className="w-full truncate font-normal">{t.name}</ItemTitle>
+                            <ItemTitle className="w-full truncate font-normal" title={t.name}>
+                              {t.name}
+                            </ItemTitle>
                           </ItemContent>
                           <ItemActions>
                             <Badge
@@ -105,7 +124,14 @@ export function TagsPage() {
           </Card>
 
           <Card className="gap-4">
-            {!current ? (
+            {noTags ? (
+              <EmptyState
+                icon={Tags}
+                title="Міток ще немає"
+                hint="Створіть першу ліворуч або прямо в записі — вона з’явиться в усіх розділах."
+                className="py-10"
+              />
+            ) : !current ? (
               <EmptyState
                 icon={Tags}
                 title="Виберіть мітку"
@@ -117,9 +143,11 @@ export function TagsPage() {
                 <CardHeader>
                   <CardTitle className="font-display text-stat-sm text-foreground">{current.name}</CardTitle>
                   <CardDescription>
-                    {entities.length
-                      ? `${entities.length} ${plural(entities.length, ['запис', 'записи', 'записів'])}`
-                      : 'Поки нічим не позначено'}
+                    {entitiesLoading
+                      ? ' '
+                      : entities.length
+                        ? `${entities.length} ${plural(entities.length, ['запис', 'записи', 'записів'])}`
+                        : 'Поки нічим не позначено'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-5">
@@ -159,21 +187,25 @@ export function TagsPage() {
                       spacing={1.5}
                     >
                       {TAG_COLORS.map((c) => (
-                        <ToggleGroupItem
-                          key={c}
-                          value={c}
-                          aria-label={c}
-                          size="sm"
-                          className="size-8 min-w-8 p-0 on:bg-transparent on:ring-2 on:ring-foreground"
-                        >
-                          <span className="size-5 rounded-full" style={{ background: c }} />
-                        </ToggleGroupItem>
+                        <Tooltip key={c}>
+                          <TooltipTrigger asChild>
+                            <ToggleGroupItem
+                              value={c}
+                              aria-label={COLOR_NAME[c] ?? c}
+                              size="sm"
+                              className="size-8 min-w-8 p-0 on:bg-transparent on:ring-2 on:ring-foreground"
+                            >
+                              <span className="size-5 rounded-full" style={{ background: c }} />
+                            </ToggleGroupItem>
+                          </TooltipTrigger>
+                          <TooltipContent>{COLOR_NAME[c] ?? c}</TooltipContent>
+                        </Tooltip>
                       ))}
                     </ToggleGroup>
                   </Field>
                   <div className="flex flex-col gap-1">
                     <span className="text-caption font-medium text-muted-foreground">Позначено</span>
-                    {entities.length ? (
+                    {entitiesLoading || entities.length ? (
                       // Height follows the content up to 60vh, then scrolls; rows are virtualized.
                       <VirtualList
                         className="-mx-2.5 max-h-[60vh] flex-none"

@@ -1,38 +1,33 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { format, parseISO } from 'date-fns'
-import { ArrowUpRight, BookOpen, Pause, Pin, Star, Timer, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Pause, Pin, Star, Timer, X } from 'lucide-react'
 import { Bar, BarChart, XAxis } from 'recharts'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DueCard } from '@shared/domain/boards'
 import type { CalendarItem } from '@shared/domain/calendar'
 import type { QuickAddTarget } from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
-import { LOCALE, fmtMinutes, fmtRelative, plural, capitalize } from '@/lib/format'
+import { LOCALE, fmtDay, fmtMinutes, fmtRelative, plural, capitalize } from '@/lib/format'
 import { useUi } from '@/stores/ui-store'
 import { EntityRow } from '@/components/common/entity-link'
 import { SegmentBar } from '@/components/common/page'
+import { PageSkeleton } from '@/components/common/page-skeleton'
 import { ENTITY_ICON } from '@/app/navigation'
+import { PRIORITY_DOT } from '@/modules/boards/labels'
+import { LoadError } from '@/features/route-error'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Item, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 
-
-const PRIORITY_DOT: Record<string, string> = {
-  urgent: 'bg-destructive',
-  high: 'bg-warn',
-  medium: 'bg-info',
-  low: 'bg-ink-muted',
-  none: 'bg-transparent'
-}
+const TODAY_LIMIT = 6
 
 /** Clickable Item row that navigates inside the app. */
-function NavItem({
+function RowLink({
   to,
   className,
   children
@@ -56,12 +51,13 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
   const done = all.filter((c) => c.columnIsDone).length
   const open = all.filter((c) => !c.columnIsDone)
   const [todayStart] = useState(() => new Date().setHours(0, 0, 0, 0))
+  const navigate = useNavigate()
   return (
     <Card className="col-span-7 min-h-[300px] gap-0 bg-ink p-6 text-ink-foreground">
       <div className="flex items-center justify-between text-caption text-ink-muted">
         <span>{capitalize(format(new Date(), 'EEEE, d MMMM', { locale: LOCALE }))}</span>
         {all.length > 0 && (
-          <Badge variant="lime">
+          <Badge variant="soft" className="bg-ink-foreground/10 text-ink-foreground tabular-nums">
             {done}/{all.length}
           </Badge>
         )}
@@ -75,23 +71,36 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
       </h2>
       {all.length > 0 && <SegmentBar value={done} total={all.length} segments={Math.min(all.length, 8)} className="mt-4 text-ink-foreground" />}
       <ItemGroup className="mt-5 gap-0.5">
-        {open.slice(0, 6).map((c) => {
+        {open.slice(0, TODAY_LIMIT).map((c) => {
           const late = c.dueAt! < todayStart
           return (
-            <NavItem key={c.id} to={ENTITY_META.card.route(c.id)} className="rounded-xl text-ink-foreground hover:bg-ink-foreground/8">
+            <RowLink key={c.id} to={ENTITY_META.card.route(c.id)} className="rounded-xl text-ink-foreground hover:bg-ink-foreground/8">
               <ItemMedia>
                 <span className={cn('size-2 rounded-full', PRIORITY_DOT[c.priority])} />
               </ItemMedia>
               <ItemContent className="min-w-0">
                 <ItemTitle className="w-full truncate text-lead font-normal">{c.title}</ItemTitle>
               </ItemContent>
-              <span className={cn('shrink-0 text-caption', late ? 'text-destructive' : 'text-ink-muted')}>
+              {/* The board name gives way to the title: it truncates instead of wrapping out of the card. */}
+              <span
+                className={cn('max-w-[40%] min-w-0 truncate text-caption', late ? 'text-destructive' : 'text-ink-muted')}
+                title={late ? undefined : c.boardTitle}
+              >
                 {late ? 'прострочено' : c.boardTitle}
               </span>
-            </NavItem>
+            </RowLink>
           )
         })}
       </ItemGroup>
+      {open.length > TODAY_LIMIT && (
+        <Button
+          variant="link"
+          className="mt-2 self-start text-caption text-ink-muted no-underline hover:underline"
+          onClick={() => navigate('/calendar')}
+        >
+          Ще {open.length - TODAY_LIMIT}
+        </Button>
+      )}
       {!all.length && (
         <p className="mt-4 max-w-sm text-body text-ink-muted">
           Поставте дедлайн картці на дошці — вона з’явиться тут у потрібний день.
@@ -119,17 +128,19 @@ function Agenda({ items }: { items: CalendarItem[] }) {
         ) : (
           <ItemGroup className="gap-2">
             {items.slice(0, 7).map((i) => (
-              <NavItem key={i.key} to={ENTITY_META[i.ref.type].route(i.ref.id)} className="bg-card hover:ring-1 hover:ring-border">
-                <span className="w-14 shrink-0 text-caption text-muted-foreground tabular-nums">
-                  {i.allDay ? format(i.startAt, 'd MMM', { locale: LOCALE }) : format(i.startAt, 'HH:mm')}
-                </span>
+              <RowLink key={i.key} to={ENTITY_META[i.ref.type].route(i.ref.id)} className="bg-card hover:ring-1 hover:ring-border">
+                {/* Date block (design-system §10): the feed spans 3 days, a bare «15:00» hid which day it is. */}
+                <div className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-surface px-1 py-1">
+                  <span className="w-full truncate text-center text-meta text-muted-foreground">{fmtDay(i.startAt)}</span>
+                  {!i.allDay && <span className="text-lead font-semibold tabular-nums">{format(i.startAt, 'HH:mm')}</span>}
+                </div>
                 <span className="h-6 w-1 shrink-0 rounded-full" style={{ background: i.color ?? 'var(--chart-bar)' }} />
                 <ItemContent className="min-w-0">
                   <ItemTitle className={cn('w-full truncate font-normal', i.done && 'text-muted-foreground line-through')}>
                     {i.title}
                   </ItemTitle>
                 </ItemContent>
-              </NavItem>
+              </RowLink>
             ))}
           </ItemGroup>
         )}
@@ -149,27 +160,23 @@ function QuickTiles() {
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
   return (
     <div className="col-span-6 grid grid-cols-2 gap-3">
-      {QUICK.map((q, i) => {
+      {QUICK.map((q) => {
         const Icon = ENTITY_ICON[q.type]
-        const inverted = i === 3
+        const open = (): void => setQuickAddOpen(true, q.target)
         return (
-          <Button
+          <Card
             key={q.target}
-            variant="soft"
-            onClick={() => setQuickAddOpen(true, q.target)}
-            className={cn(
-              'group h-[118px] flex-col items-stretch justify-between rounded-3xl p-4 text-left whitespace-normal',
-              inverted && 'bg-ink text-ink-foreground hover:bg-ink/90'
-            )}
+            role="button"
+            tabIndex={0}
+            onClick={open}
+            onKeyDown={(e) => e.key === 'Enter' && open()}
+            className="tile h-[118px] justify-between gap-0 rounded-3xl p-4"
           >
-            <span className="flex items-center justify-between">
-              <span className={cn('grid size-9 place-items-center rounded-full', inverted ? 'bg-ink-foreground/10' : 'bg-card')}>
-                <ArrowUpRight className="transition-transform group-hover:rotate-45" />
-              </span>
-              <Icon className={inverted ? 'text-ink-accent' : 'text-muted-foreground'} />
+            <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
+              <Icon className="size-4 text-muted-foreground" />
             </span>
             <span className="text-lead leading-tight font-medium">{q.label}</span>
-          </Button>
+          </Card>
         )
       })}
     </div>
@@ -213,7 +220,11 @@ function TimerTile({
                 {timer.projectTitle}
               </Button>
             </div>
-            <Button onClick={() => stop.mutate(undefined)} className="bg-lime-foreground text-lime hover:bg-lime-foreground/90">
+            <Button
+              disabled={stop.isPending}
+              onClick={() => stop.mutate(undefined)}
+              className="bg-lime-foreground text-lime hover:bg-lime-foreground/90"
+            >
               <Pause /> Зупинити
             </Button>
           </>
@@ -236,8 +247,8 @@ function EnglishTile({ due, word }: { due: number; word: { id: string; term: str
         <CardTitle>Слово дня</CardTitle>
         {due > 0 && (
           <CardAction>
-            <Button size="xs" onClick={() => navigate('/english/review')}>
-              {due} на повторення
+            <Button variant="subtle" size="xs" onClick={() => navigate('/english/review')}>
+              {due} на повторення <ArrowRight />
             </Button>
           </CardAction>
         )}
@@ -272,14 +283,23 @@ function Activity({ data }: { data: { day: string; count: number }[] }) {
         <CardTitle>Зроблено за 2 тижні</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
-        <div className="font-display text-stat leading-none">{total}</div>
-        <ChartContainer config={activityConfig} className="aspect-auto h-28 w-full">
-          <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
-            <XAxis dataKey="label" hide />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
-            <Bar dataKey="count" fill="var(--color-count)" radius={4} minPointSize={3} />
-          </BarChart>
-        </ChartContainer>
+        {total === 0 ? (
+          // Fourteen identical stub bars read as a decorative dashed line: say it in words instead.
+          <p className="text-body leading-relaxed text-muted-foreground">
+            За два тижні ще нічого не закрито — перетягніть картку в колонку «Готово».
+          </p>
+        ) : (
+          <>
+            <div className="font-display text-stat leading-none tabular-nums">{total}</div>
+            <ChartContainer config={activityConfig} className="aspect-auto h-28 w-full">
+              <BarChart data={rows} margin={{ top: 4, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
+                <XAxis dataKey="label" hide />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
+                <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -329,7 +349,7 @@ function GuideHint() {
           Гайд на кілька хвилин: розділи, гарячі клавіші й де лежать ваші дані.
         </div>
       </div>
-      <Button variant="default" onClick={() => navigate('/guide')}>
+      <Button variant="soft" onClick={() => navigate('/guide')}>
         Відкрити гайд
       </Button>
       <Button variant="ghost" size="icon-sm" aria-label="Сховати підказку" onClick={dismiss}>
@@ -340,16 +360,11 @@ function GuideHint() {
 }
 
 export function DashboardPage() {
-  const { data } = useApi('app', 'dashboard', undefined, { refetchInterval: 60_000 })
+  const { data, isError, refetch } = useApi('app', 'dashboard', undefined, { refetchInterval: 60_000 })
   const navigate = useNavigate()
-  if (!data) {
-    return (
-      <div className="grid grid-cols-12 gap-3 p-6">
-        <Skeleton className="col-span-7 h-[300px] rounded-3xl" />
-        <Skeleton className="col-span-5 h-[300px] rounded-3xl" />
-      </div>
-    )
-  }
+  if (!data && isError) return <LoadError title="Не вдалося завантажити головну" onRetry={() => void refetch()} />
+  // Same shape as the route skeleton (handle.skeleton = 'dashboard'): no jump between the two.
+  if (!data) return <PageSkeleton kind="dashboard" />
   const pinned = [
     ...data.pinned,
     ...data.favorites.filter((f) => !data.pinned.some((p) => p.type === f.type && p.id === f.id))
@@ -397,7 +412,11 @@ export function DashboardPage() {
                 trailing={<span className="text-meta text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
               />
             ))}
-            {!data.recent.length && <p className="px-2.5 text-body text-muted-foreground">Поки порожньо.</p>}
+            {!data.recent.length && (
+              <p className="px-2.5 text-body leading-relaxed text-muted-foreground">
+                Тут з’являться записи, які ви змінювали останніми.
+              </p>
+            )}
           </div>
         </ListCard>
 
@@ -437,12 +456,12 @@ export function DashboardPage() {
           {data.reading.length ? (
             <ItemGroup className="gap-2">
               {data.reading.map((b) => (
-                <NavItem key={b.id} to={ENTITY_META.bookmark.route(b.id)} className="bg-card">
+                <RowLink key={b.id} to={ENTITY_META.bookmark.route(b.id)} className="bg-card">
                   <ItemContent className="min-w-0">
                     <ItemTitle className="w-full truncate font-normal">{b.title}</ItemTitle>
                   </ItemContent>
                   <Progress value={b.progress} className="h-1.5 w-20 bg-surface [&>[data-slot=progress-indicator]]:bg-chart-1" />
-                </NavItem>
+                </RowLink>
               ))}
             </ItemGroup>
           ) : (

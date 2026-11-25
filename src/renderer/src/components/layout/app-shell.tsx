@@ -1,51 +1,81 @@
-import { CloseConfirmHost } from '@/components/common/detail-mode'
-import { useCallback, Suspense, type CSSProperties } from 'react'
+import { lazy, Suspense, useCallback, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react'
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router'
-import { PageSkeleton, SKELETON_KINDS, type SkeletonKind } from '@/components/common/page-skeleton'
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
-import { AppSidebar } from './sidebar'
+import { toast } from 'sonner'
+import type { MainEvents } from '@shared/api'
+import { CloseConfirmHost } from '@/components/common/detail-mode'
+import { PageSkeleton, SKELETON_KINDS, type SkeletonKind } from '@/components/common/page-skeleton'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/features/command-palette'
 import { QuickAddDialog } from '@/features/quick-add'
-import { lazy } from 'react'
+import { ShortcutsDialog } from '@/features/shortcuts-dialog'
+import { useUi } from '@/stores/ui-store'
+import { useMainEvent, useMainEventsBridge } from '@/hooks/use-main-events'
+import { useHotkey } from '@/hooks/use-hotkey'
+import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts'
+import { AppSidebar } from './sidebar'
 
 const PlatformDialogHost = lazy(async () => ({
   default: (await import('@/modules/freelance')).PlatformDialogHost
 }))
-import { useUi } from '@/stores/ui-store'
-import { useMainEvent, useMainEventsBridge } from '@/hooks/use-main-events'
-import { toast } from 'sonner'
-import type { MainEvents } from '@shared/api'
-import { useHotkey } from '@/hooks/use-hotkey'
-import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts'
-import { ShortcutsDialog } from '@/features/shortcuts-dialog'
+
+/** One width for the sidebar and the title bar that lines up with it. */
+const SHELL_VARS = { '--sidebar-width': '244px' } as CSSProperties
+
+function HistoryButton({
+  label,
+  keyHint,
+  disabled,
+  onClick,
+  children
+}: {
+  label: string
+  keyHint: string
+  disabled?: boolean
+  onClick: () => void
+  children: ReactNode
+}): ReactElement {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          disabled={disabled}
+          className="text-muted-foreground hover:bg-card"
+          onClick={onClick}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent className="flex items-center gap-2">
+        {label}
+        <Kbd>{keyHint}</Kbd>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 function TitleBar() {
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
   const navigate = useNavigate()
+  // React Router keeps the position in the history stack in history.state.idx; useLocation re-renders on moves.
+  useLocation()
+  const atStart = ((window.history.state as { idx?: number } | null)?.idx ?? 0) === 0
   return (
-    <div className="drag flex h-11 shrink-0 items-center gap-2 pr-[150px] pl-[258px]">
+    <div className="drag flex h-11 shrink-0 items-center gap-2 pr-[150px] pl-[calc(var(--sidebar-width)+14px)]">
       <div className="no-drag flex gap-1">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Назад"
-          className="text-muted-foreground hover:bg-card"
-          onClick={() => navigate(-1)}
-        >
+        <HistoryButton label="Назад" keyHint="[" disabled={atStart} onClick={() => navigate(-1)}>
           <ArrowLeft />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Вперед"
-          className="text-muted-foreground hover:bg-card"
-          onClick={() => navigate(1)}
-        >
+        </HistoryButton>
+        {/* Not disabled: the browser does not say how deep the forward stack is. */}
+        <HistoryButton label="Вперед" keyHint="]" onClick={() => navigate(1)}>
           <ArrowRight />
-        </Button>
+        </HistoryButton>
       </div>
       <Button
         variant="ghost"
@@ -71,6 +101,11 @@ export function AppShell() {
   const declared = (matches[matches.length - 1]?.handle as { skeleton?: SkeletonKind } | undefined)?.skeleton
   const skeleton: SkeletonKind = declared && SKELETON_KINDS.includes(declared) ? declared : 'list'
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
+  // The freelance chunk loads on the first «Додати платформу», not on every start; once mounted it stays,
+  // so the closing animation is not cut off.
+  const platformOpen = useUi((s) => s.platformDialogOpen)
+  const [platformMounted, setPlatformMounted] = useState(false)
+  if (platformOpen && !platformMounted) setPlatformMounted(true)
   useMainEventsBridge()
   // Background messages from main (e.g. «команда code не найдена»).
   const onToast = useCallback((t: MainEvents['toast']) => {
@@ -83,12 +118,10 @@ export function AppShell() {
   useHotkey('mod+n', () => setQuickAddOpen(true), { allowInInputs: true })
 
   return (
-    <div className="flex h-full flex-col bg-frame">
+    <div className="flex h-full flex-col bg-frame" style={SHELL_VARS}>
       <TitleBar />
-      <SidebarProvider
-        className="min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5"
-        style={{ '--sidebar-width': '244px' } as CSSProperties}
-      >
+      {/* SidebarProvider sets its own default width on itself, so the same value goes there too. */}
+      <SidebarProvider className="min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5" style={SHELL_VARS}>
         <AppSidebar />
         <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Keyed by path: every page enters with the same short fade-up. */}
@@ -103,9 +136,11 @@ export function AppShell() {
       <QuickAddDialog />
       <ShortcutsDialog />
       <CloseConfirmHost />
-      <Suspense fallback={null}>
-        <PlatformDialogHost />
-      </Suspense>
+      {platformMounted && (
+        <Suspense fallback={null}>
+          <PlatformDialogHost />
+        </Suspense>
+      )}
     </div>
   )
 }

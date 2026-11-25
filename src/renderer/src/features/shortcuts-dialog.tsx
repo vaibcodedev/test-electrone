@@ -1,5 +1,5 @@
 import { Fragment } from 'react'
-import { shortcutGroups } from '@/app/shortcuts'
+import { DEFAULT_QUICK_ADD, shortcutGroups } from '@/app/shortcuts'
 import { useApi } from '@/lib/query'
 import { useUi } from '@/stores/ui-store'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -12,16 +12,17 @@ export function ShortcutsDialog() {
   const open = useUi((s) => s.shortcutsOpen)
   const setOpen = useUi((s) => s.setShortcutsOpen)
   const { data: settings } = useApi('settings', 'get')
-  const groups = shortcutGroups(settings?.quickAddShortcut ?? 'CommandOrControl+Shift+Space')
+  const groups = shortcutGroups(settings?.quickAddShortcut ?? DEFAULT_QUICK_ADD)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto rounded-3xl sm:max-w-[720px]">
+      {/* Header stays put; only the groups scroll. */}
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl sm:max-w-[720px]">
         <DialogHeader>
           <DialogTitle className="font-display text-stat-sm">Гарячі клавіші</DialogTitle>
           <DialogDescription>Працюють, коли курсор не в полі введення. Глобальну клавішу можна змінити в налаштуваннях.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="-mr-2 grid min-h-0 gap-6 overflow-y-auto pr-2 sm:grid-cols-2">
           {groups.map((g) => (
             <section key={g.title} className="flex flex-col gap-1">
               <h3 className="text-caption font-semibold text-muted-foreground">{g.title}</h3>
@@ -36,7 +37,7 @@ export function ShortcutsDialog() {
                       <KbdGroup>
                         {s.keys.map((k, i) => (
                           <Fragment key={`${k}-${i}`}>
-                            {i > 0 && s.sequence && <span className="text-meta text-muted-foreground">потім</span>}
+                            {i > 0 && s.sequence && <span className="font-sans text-meta text-muted-foreground">потім</span>}
                             <Kbd>{k}</Kbd>
                           </Fragment>
                         ))}

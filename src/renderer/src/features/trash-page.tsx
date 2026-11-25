@@ -1,20 +1,24 @@
+import { useNavigate } from 'react-router'
 import { RotateCcw, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { ENTITY_META } from '@shared/entity-types'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { fmtDay, fmtRelative, plural } from '@/lib/format'
 import { ENTITY_ICON } from '@/app/navigation'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
+import { IconAction } from '@/components/common/icon-action'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item'
 
 export function TrashPage() {
+  const navigate = useNavigate()
   const page = useInfiniteApi('trash', 'list')
   const items = page.items
   const isLoading = page.isLoading
   const { data: total = 0 } = useApi('trash', 'count')
-  const restore = useApiMutation('trash', 'restore', { successMessage: 'Відновлено' })
+  const restore = useApiMutation('trash', 'restore')
   const purge = useApiMutation('trash', 'purge', { successMessage: 'Видалено назавжди' })
   const empty = useApiMutation('trash', 'empty', { successMessage: 'Кошик очищено' })
 
@@ -22,13 +26,13 @@ export function TrashPage() {
     <Page>
       <PageHeader
         title="Кошик"
-        subtitle={`${total ? `${total} ${plural(total, ['запис', 'записи', 'записів'])} · ` : ''}Видалене зберігається 30 днів, потім зникає саме. Зв’язки, мітки й файли видаляються разом із записом.`}
+        subtitle={`${total ? `${total} ${plural(total, ['запис', 'записи', 'записів'])} · ` : ''}Зв’язки, мітки й файли видаляються разом із записом.`}
         actions={
           total > 0 && (
             <Confirm
               title="Очистити кошик?"
-              description={`Буде видалено назавжди: ${total}. Це не можна скасувати.`}
-              confirmLabel="Очистити"
+              description={`${total} ${plural(total, ['запис', 'записи', 'записів'])} буде видалено назавжди. Це не можна скасувати.`}
+              confirmLabel="Очистити кошик"
               onConfirm={() => empty.mutate(undefined)}
             >
               <Button variant="soft">
@@ -63,23 +67,33 @@ export function TrashPage() {
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
-                  <Button variant="ghost" size="sm" onClick={() => restore.mutate({ type: item.type, id: item.id })}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={restore.isPending}
+                    onClick={() =>
+                      restore.mutate(
+                        { type: item.type, id: item.id },
+                        {
+                          onSuccess: () =>
+                            toast.success(`Відновлено: «${item.title}»`, {
+                              action: { label: 'Відкрити', onClick: () => navigate(ENTITY_META[item.type].route(item.id)) }
+                            })
+                        }
+                      )
+                    }
+                  >
                     <RotateCcw /> Відновити
                   </Button>
                   <Confirm
                     title="Видалити назавжди?"
                     description={`«${item.title}» буде видалено без можливості відновлення.`}
+                    confirmLabel="Видалити назавжди"
                     onConfirm={() => purge.mutate({ type: item.type, id: item.id })}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label="Видалити назавжди"
-                      title="Видалити назавжди"
-                      className="hover:text-destructive"
-                    >
+                    <IconAction label="Видалити назавжди" className="hover:text-destructive">
                       <Trash2 />
-                    </Button>
+                    </IconAction>
                   </Confirm>
                 </ItemActions>
               </Item>

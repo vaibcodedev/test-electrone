@@ -1,15 +1,53 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactElement } from 'react'
 import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router'
-import { RotateCcw, TriangleAlert } from 'lucide-react'
+import { RotateCcw, SearchX, TriangleAlert } from 'lucide-react'
 import { reportError } from '@/lib/error-reporting'
 import { api } from '@/lib/api'
+import { EmptyState } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 
+/** A page whose main query failed: says so and retries (the global toast also logs it). */
+export function LoadError({ title, onRetry }: { title: string; onRetry: () => void }): ReactElement {
+  return (
+    <EmptyState
+      icon={TriangleAlert}
+      title={title}
+      hint="Спробуйте ще раз — дані на місці."
+      action={
+        <Button variant="lime" onClick={onRetry}>
+          Повторити
+        </Button>
+      }
+      className="h-full"
+    />
+  )
+}
+
+/** Unknown address (route `*` inside the shell, or a 404 at the root): not an error, nothing goes to the log. */
+export function NotFoundPage(): ReactElement {
+  const navigate = useNavigate()
+  return (
+    <div className="grid h-full place-items-center p-8">
+      <EmptyState
+        icon={SearchX}
+        title="Такої сторінки немає"
+        hint="Можливо, посилання застаріло або запис видалено."
+        action={
+          <Button variant="lime" onClick={() => navigate('/')}>
+            На головну
+          </Button>
+        }
+      />
+    </div>
+  )
+}
+
 /** Route-level error screen (React Router errorElement). Logs the error to the main log file. */
-export function RouteError() {
+export function RouteError(): ReactElement {
   const error = useRouteError()
   const navigate = useNavigate()
+  const notFound = isRouteErrorResponse(error) && error.status === 404
   // After an update or a rebuild the old window asks for screen files that no longer exist: just reload.
   const stale =
     error instanceof Error && /dynamically imported module|Importing a module script failed|ChunkLoadError/i.test(error.message)
@@ -22,9 +60,11 @@ export function RouteError() {
       : String(error)
 
   useEffect(() => {
-    if (stale) return
+    if (stale || notFound) return
     reportError(error, 'route')
-  }, [error, stale])
+  }, [error, stale, notFound])
+
+  if (notFound) return <NotFoundPage />
 
   return (
     <div className="grid h-full place-items-center p-8">

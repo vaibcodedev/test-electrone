@@ -1,19 +1,19 @@
 /** Knowledge hub overview: summary per section + what needs attention. */
 import { useMemo, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowUpRight, Bug, Copy, Package } from 'lucide-react'
+import { ArrowUpRight, Bug, Package } from 'lucide-react'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtRelative, plural } from '@/lib/format'
 import { ENTITY_ICON } from '@/app/navigation'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { EntityRow } from '@/components/common/entity-link'
-import { copyText } from '@/components/common/copy-button'
+import { CopyButton } from '@/components/common/copy-button'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
-import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const SECTIONS: { type: EntityType; label: string; path: string; forms: [string, string, string] }[] = [
   { type: 'note', label: 'Нотатки', path: '/notes', forms: ['нотатка', 'нотатки', 'нотаток'] },
@@ -26,37 +26,37 @@ const SECTIONS: { type: EntityType; label: string; path: string; forms: [string,
 
 const KNOWLEDGE_TYPES = new Set<EntityType>(SECTIONS.map((s) => s.type))
 
-function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> }) {
+/** Section tiles: count + name, one neutral `tile` each. `counts` is undefined while the dashboard loads. */
+function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> | undefined }) {
   const navigate = useNavigate()
   return (
     <div className="stagger grid grid-cols-3 gap-3 xl:grid-cols-6">
-      {SECTIONS.map((s, i) => {
+      {SECTIONS.map((s) => {
         const Icon = ENTITY_ICON[s.type]
-        const n = counts[s.type] ?? 0
-        const inverted = i === 0
         return (
-          <Button
+          <Card
             key={s.type}
-            variant="soft"
+            role="button"
+            tabIndex={0}
             onClick={() => navigate(s.path)}
-            className={cn(
-              'group h-[124px] flex-col items-stretch justify-between rounded-3xl p-4 text-left whitespace-normal',
-              inverted && 'bg-ink text-ink-foreground hover:bg-ink/90'
-            )}
+            onKeyDown={(e) => e.key === 'Enter' && navigate(s.path)}
+            className="group tile h-[124px] justify-between gap-0 rounded-3xl p-4"
           >
             <span className="flex items-center justify-between">
-              <span className={cn('grid size-9 place-items-center rounded-full', inverted ? 'bg-ink-foreground/10' : 'bg-card')}>
-                <Icon className={inverted ? 'text-ink-accent' : undefined} />
+              <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
+                <Icon className="size-4 text-muted-foreground" />
               </span>
-              <ArrowUpRight className="opacity-0 transition-opacity group-hover:opacity-100" />
+              <ArrowUpRight className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
             </span>
             <span>
-              <span className="font-display block text-headline leading-none tabular-nums">{n}</span>
-              <span className={cn('mt-1 block text-body font-medium', inverted ? 'text-ink-muted' : 'text-muted-foreground')}>
-                {s.label}
-              </span>
+              {counts ? (
+                <span className="font-display block text-headline leading-none tabular-nums">{counts[s.type] ?? 0}</span>
+              ) : (
+                <Skeleton className="h-7 w-10" />
+              )}
+              <span className="mt-1 block text-body font-medium text-muted-foreground">{s.label}</span>
             </span>
-          </Button>
+          </Card>
         )
       })}
     </div>
@@ -127,18 +127,12 @@ function MostCopied() {
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
-                  <Button
+                  <CopyButton
+                    text={x.text}
                     variant="ghost"
                     size="icon-sm"
-                    aria-label="Скопіювати"
-                    onClick={async () => {
-                      await copyText(x.text)
-                      if (x.type === 'snippet') markSnippet.mutate(x.id)
-                      else markPrompt.mutate(x.id)
-                    }}
-                  >
-                    <Copy />
-                  </Button>
+                    onCopied={() => (x.type === 'snippet' ? markSnippet : markPrompt).mutate(x.id)}
+                  />
                 </ItemActions>
               </Item>
             )
@@ -158,14 +152,16 @@ export function KnowledgeOverviewPage() {
   const { data: openFixes = [] } = useApi('fixes', 'list', { resolved: false })
   const { data: wantLibs = [] } = useApi('libraries', 'list', { status: 'want' })
   const recent = recentAll.filter((r) => KNOWLEDGE_TYPES.has(r.type)).slice(0, 8)
-  const counts = dash?.counts ?? {}
-  const total = SECTIONS.reduce((s, x) => s + (counts[x.type] ?? 0), 0)
+  const counts = dash?.counts
+  const total = SECTIONS.reduce((s, x) => s + (counts?.[x.type] ?? 0), 0)
 
   return (
     <Page>
       <PageHeader
         title="Знання"
-        subtitle={`${total} ${plural(total, ['запис', 'записи', 'записів'])} — нотатки, промти, код і рішення в одному місці.`}
+        subtitle={
+          counts ? `${total} ${plural(total, ['запис', 'записи', 'записів'])} — нотатки, промти, код і рішення в одному місці.` : undefined
+        }
       />
       <PageBody>
         <div className="flex flex-col gap-3">
@@ -228,7 +224,6 @@ export function KnowledgeOverviewPage() {
                       variant="soft"
                       size="sm"
                       className="max-w-full bg-card font-normal hover:ring-1 hover:ring-border"
-                      title={l.purpose || undefined}
                       onClick={() => navigate(ENTITY_META.library.route(l.id))}
                     >
                       <Package />

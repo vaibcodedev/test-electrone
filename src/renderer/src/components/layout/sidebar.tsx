@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router'
 import { Archive, ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
-import { GUIDE, HOME, HUBS, REVIEW, hubOf, type NavHub } from '@/app/navigation'
+import { GUIDE, HOME, HUBS, REVIEW, hubOf, isAt, type NavHub } from '@/app/navigation'
 import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useApi } from '@/lib/query'
@@ -11,6 +11,7 @@ import { SegmentBar } from '@/components/common/page'
 import { plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import {
   Sidebar,
   SidebarContent,
@@ -36,7 +37,18 @@ function greeting(): string {
   return 'Добрий вечір'
 }
 
-function NotchButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+/** The name is the action alone; the keys are shown in the tooltip, not read out as part of the name. */
+function NotchButton({
+  label,
+  keys,
+  onClick,
+  children
+}: {
+  label: string
+  keys: string[]
+  onClick: () => void
+  children: ReactNode
+}) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -44,7 +56,14 @@ function NotchButton({ label, onClick, children }: { label: string; onClick: () 
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent className="flex items-center gap-2">
+        {label}
+        <KbdGroup>
+          {keys.map((k) => (
+            <Kbd key={k}>{k}</Kbd>
+          ))}
+        </KbdGroup>
+      </TooltipContent>
     </Tooltip>
   )
 }
@@ -62,10 +81,10 @@ function IdentityCard() {
   return (
     <div className="notch-card bg-lime px-4 pt-4 pb-4 text-lime-foreground">
       <div className="notch">
-        <NotchButton label="Пошук усюди · Ctrl K" onClick={() => setPaletteOpen(true)}>
+        <NotchButton label="Знайти всюди" keys={['Ctrl', 'K']} onClick={() => setPaletteOpen(true)}>
           <Search />
         </NotchButton>
-        <NotchButton label="Швидко додати · Ctrl N" onClick={() => setQuickAddOpen(true)}>
+        <NotchButton label="Швидко додати" keys={['Ctrl', 'N']} onClick={() => setQuickAddOpen(true)}>
           <Plus />
         </NotchButton>
       </div>
@@ -78,7 +97,7 @@ function IdentityCard() {
           <div className="text-meta opacity-65">{greeting()}</div>
         </div>
       </div>
-      <div className="font-display mt-3 truncate text-stat-sm leading-tight">{name || 'Твоя база'}</div>
+      <div className="font-display mt-3 truncate text-stat-sm leading-tight">{name || 'Ваша база'}</div>
       <div className="mt-3">
         <SegmentBar value={done} total={Math.max(cards.length, 1)} tone="ink" segments={Math.min(Math.max(cards.length, 1), 8)} />
         <div className="mt-1.5 flex justify-between text-meta opacity-70">
@@ -102,7 +121,7 @@ function NavCount({ type }: { type?: EntityType }) {
 }
 
 /** One collapsible hub (shadcn Collapsible + SidebarMenuSub). */
-function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
+function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; search: string }) {
   const navigate = useNavigate()
   const open = useUi((s) => s.openHubs[hub.id] ?? false)
   const setHubOpen = useUi((s) => s.setHubOpen)
@@ -111,8 +130,10 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
   // Archived platforms are hidden from the menu but must stay reachable (restore lives on /freelance#archived).
   const { data: allPlatforms = [] } = useApi('platforms', 'list', { includeArchived: true }, { enabled: !!hub.platforms })
   const archivedCount = allPlatforms.length - platformList.length
-  const activeHub = hubOf(pathname) === hub.id
-  const matches = (path: string): boolean => pathname === path || pathname.startsWith(path + '/')
+  const activeHub = hubOf(pathname, search) === hub.id
+  // Items light up only in the hub that owns the location: cover-letter templates belong to «Пошук роботи»,
+  // so «Фриланс → Шаблони» stays dim there although the pathname is the same.
+  const matches = (path: string): boolean => activeHub && isAt(path, pathname, search)
   // Only the most specific match is active: on /dev/github, «GitHub» — not «Мої проєкти» (/dev) too.
   const best = [...(hub.items ?? []).map((i) => i.path)]
     .filter(matches)
@@ -141,7 +162,7 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
         <CollapsibleTrigger asChild>
           <SidebarMenuAction
             className="data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
-            aria-label={open ? 'Згорнути' : 'Розгорнути'}
+            aria-label={`${open ? 'Згорнути' : 'Розгорнути'} «${hub.title}»`}
           >
             <ChevronRight />
           </SidebarMenuAction>
@@ -156,7 +177,9 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
                     <SidebarMenuSubButton asChild isActive={isActive(path)}>
                       <NavLink to={path}>
                         <span className="size-2 shrink-0 rounded-full" style={{ background: p.color ?? 'var(--muted-foreground)' }} />
-                        <span className="truncate">{p.name}</span>
+                        <span className="truncate" title={p.name}>
+                          {p.name}
+                        </span>
                       </NavLink>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
@@ -165,9 +188,10 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
             {hub.platforms && (
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton asChild>
-                  <button type="button" className="w-full text-muted-foreground" onClick={() => setPlatformDialog(true)}>
-                    <Plus />
-                    <span>Платформа</span>
+                  {/* An action, not one more platform: verb label and muted colour over the sub-button's own. */}
+                  <button type="button" className="w-full text-muted-foreground!" onClick={() => setPlatformDialog(true)}>
+                    <Plus className="text-muted-foreground!" />
+                    <span>Додати платформу</span>
                   </button>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
@@ -204,11 +228,10 @@ function HubGroup({ hub, pathname }: { hub: NavHub; pathname: string }) {
 
 /** App navigation: shadcn Sidebar with collapsible hubs (one nesting level). */
 export function AppSidebar() {
-  const navigate = useNavigate()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const trashBump = useUi((s) => s.trashBump)
   const setHubOpen = useUi((s) => s.setHubOpen)
-  const current = hubOf(pathname)
+  const current = hubOf(pathname, search)
 
   // Opening a page from search/links expands its hub.
   useEffect(() => {
@@ -239,7 +262,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {HUBS.map((hub) => (
-                <HubGroup key={hub.id} hub={hub} pathname={pathname} />
+                <HubGroup key={hub.id} hub={hub} pathname={pathname} search={search} />
               ))}
             </SidebarMenu>
           </SidebarGroup>
@@ -251,26 +274,31 @@ export function AppSidebar() {
             { to: '/tags', icon: Tags, label: 'Мітки' },
             { to: '/trash', icon: Trash2, label: 'Кошик' },
             { to: '/settings', icon: Settings, label: 'Налаштування' }
-          ].map((b) => (
-            <Tooltip key={b.to}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={pathname.startsWith(b.to) ? 'soft' : 'ghost'}
-                  className="flex-1 text-muted-foreground hover:text-foreground"
-                  aria-label={b.label}
-                  onClick={() => navigate(b.to)}
-                >
-                  {/* Trash icon replays a short "received" motion each time something is deleted. */}
-                  {b.to === '/trash' && trashBump > 0 ? (
-                    <b.icon key={trashBump} className="animate-trash-bump text-foreground" />
-                  ) : (
-                    <b.icon />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>{b.label}</TooltipContent>
-            </Tooltip>
-          ))}
+          ].map((b) => {
+            const active = pathname.startsWith(b.to)
+            return (
+              <Tooltip key={b.to}>
+                <TooltipTrigger asChild>
+                  {/* Links, not buttons: NavLink marks the current page with aria-current. */}
+                  <Button
+                    asChild
+                    variant={active ? 'soft' : 'ghost'}
+                    className={cn('flex-1 hover:text-foreground', active ? 'text-foreground' : 'text-muted-foreground')}
+                  >
+                    <NavLink to={b.to} aria-label={b.label}>
+                      {/* Trash icon replays a short "received" motion each time something is deleted. */}
+                      {b.to === '/trash' && trashBump > 0 ? (
+                        <b.icon key={trashBump} className="animate-trash-bump text-foreground" />
+                      ) : (
+                        <b.icon />
+                      )}
+                    </NavLink>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{b.label}</TooltipContent>
+              </Tooltip>
+            )
+          })}
         </SidebarFooter>
       </Sidebar>
     </div>

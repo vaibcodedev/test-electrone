@@ -11,7 +11,6 @@ import {
   GraduationCap,
   House,
   Image,
-  Landmark,
   Languages,
   LayoutGrid,
   Library,
@@ -188,8 +187,6 @@ export const HUBS: NavHub[] = [
   }
 ]
 
-export const PLATFORM_ICON = Landmark
-
 /** Flat list for the command palette and Alt+N shortcuts (overviews first, then sections). */
 export const ALL_NAV_ITEMS: NavItem[] = [
   HOME,
@@ -201,8 +198,22 @@ export const ALL_NAV_ITEMS: NavItem[] = [
   ])
 ]
 
-/** Hub that owns a pathname (for auto-expanding the sidebar). */
-export function hubOf(pathname: string): string | undefined {
+/**
+ * Is the location at this nav path? A path with a query («/freelance/templates?situation=cover_letter»)
+ * matches only when those params are in `search`; a plain path also matches its sub-pages.
+ */
+export function isAt(path: string, pathname: string, search = ''): boolean {
+  const [base, query] = path.split('?')
+  if (!query) return pathname === base || pathname.startsWith(base + '/')
+  if (pathname !== base) return false
+  const have = new URLSearchParams(search)
+  return [...new URLSearchParams(query)].every(([k, v]) => have.get(k) === v)
+}
+
+/** Hub that owns a location (for auto-expanding the sidebar). Items with a query win over plain paths. */
+export function hubOf(pathname: string, search = ''): string | undefined {
+  const byQuery = HUBS.find((h) => h.items.some((i) => i.path.includes('?') && isAt(i.path, pathname, search)))
+  if (byQuery) return byQuery.id
   if (pathname.startsWith('/jobs')) return 'jobs'
   if (pathname.startsWith('/dev')) return 'dev'
   if (pathname.startsWith('/freelance') || pathname.startsWith('/clients') || pathname.startsWith('/projects')) return 'freelance'

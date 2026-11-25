@@ -1,21 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
+import { useNavigate } from 'react-router'
 import { ArrowUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { ENTITY_META } from '@shared/entity-types'
-import { QUICK_ADD_TARGETS, type QuickAddTarget } from '@shared/domain/system'
+import { QUICK_ADD_TARGETS, quickAddSchema, type QuickAddTarget } from '@shared/domain/system'
 import { api } from '@/lib/api'
-import { invalidateAll } from '@/lib/query'
+import { useApiMutation } from '@/lib/query'
+import { limitsOf } from '@/lib/limits'
 import { ENTITY_ICON } from '@/app/navigation'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { useUi } from '@/stores/ui-store'
+import { restoreFocus, useUi } from '@/stores/ui-store'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
-import { limitsOf } from '@/lib/limits'
-import { quickAddSchema } from '@shared/domain/system'
 import { Spinner } from '@/components/ui/spinner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-
 
 /** Same limit as quickAddSchema.text (first line + body in one field). */
 const QUICK_LIMITS = limitsOf(quickAddSchema)
@@ -23,7 +22,7 @@ const QUICK_LIMITS = limitsOf(quickAddSchema)
 const TARGET_LABEL: Record<QuickAddTarget, string> = {
   idea: 'Ідея',
   card: 'Завдання',
-  claude: 'Нотатка',
+  claude: 'Claude',
   snippet: 'Сніпет',
   bookmark: 'Закладка',
   word: 'Слово',
@@ -33,51 +32,55 @@ const TARGET_LABEL: Record<QuickAddTarget, string> = {
 const PLACEHOLDER: Record<QuickAddTarget, string> = {
   idea: 'Що спало на думку?',
   card: 'Завдання в першу колонку дошки',
-  claude: 'Нотатка для розділу Claude',
+  claude: 'Промт або нотатка для Claude',
   snippet: 'Назва сніпета, код — з другого рядка',
   bookmark: 'Посилання або назва статті',
   word: 'deploy — розгорнути',
   event: 'Подія на завтра 10:00'
 }
 
-const TARGET_TYPE: Record<QuickAddTarget, keyof typeof ENTITY_META> = {
-  idea: 'idea',
-  card: 'card',
-  claude: 'claude',
-  snippet: 'snippet',
-  bookmark: 'bookmark',
-  word: 'word',
-  event: 'event'
-}
-
 /**
  * One-line capture used by both the global-hotkey popup window and the in-app dialog.
  * Tab / Shift+Tab switches the target, Enter saves, Shift+Enter adds a line, Esc closes.
  */
-export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; initialTarget?: QuickAddTarget }) {
+export function QuickAddForm({
+  onDone,
+  onOpen,
+  initialTarget,
+  initialText
+}: {
+  onDone: () => void
+  /** In-app dialog: the success toast gets «Відкрити». The popup window closes at once, so it has none. */
+  onOpen?: (route: string) => void
+  initialTarget?: QuickAddTarget
+  initialText?: string
+}): ReactElement {
   const [target, setTarget] = useState<QuickAddTarget>(initialTarget ?? 'idea')
-  const [text, setText] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [text, setText] = useState(initialText ?? '')
+  const add = useApiMutation('app', 'quickAdd')
   const ref = useRef<HTMLTextAreaElement>(null)
 
+  // Focus follows the target switch (Tab, chips); on mount it puts the popup window's caret in the field.
   useEffect(() => {
     ref.current?.focus()
   }, [target])
 
-  const submit = async (): Promise<void> => {
-    if (!text.trim() || saving) return
-    setSaving(true)
-    try {
-      const created = await api.app.quickAdd({ target, text })
-      toast.success(`Додано: ${ENTITY_META[created.type].label} — ${created.title}`)
-      setText('')
-      invalidateAll()
-      onDone()
-    } catch (e) {
-      toast.error((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
+  const submit = (): void => {
+    if (!text.trim() || add.isPending) return
+    add.mutate(
+      { target, text },
+      {
+        onSuccess: (created) => {
+          const route = ENTITY_META[created.type].route(created.id)
+          toast.success(
+            `Додано: ${ENTITY_META[created.type].label} — ${created.title}`,
+            onOpen ? { action: { label: 'Відкрити', onClick: () => onOpen(route) } } : undefined
+          )
+          setText('')
+          onDone()
+        }
+      }
+    )
   }
 
   const cycle = (dir: 1 | -1): void => {
@@ -96,7 +99,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
         aria-label="Куди додати"
       >
         {QUICK_ADD_TARGETS.map((t) => {
-          const Icon = ENTITY_ICON[TARGET_TYPE[t]]
+          const Icon = ENTITY_ICON[t]
           return (
             <ToggleGroupItem key={t} value={t}>
               <Icon />
@@ -108,6 +111,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
       <InputGroup className="rounded-2xl">
         <InputGroupTextarea
           ref={ref}
+          aria-label={`Текст: ${TARGET_LABEL[target]}`}
           value={text}
           rows={2}
           maxLength={QUICK_LIMITS.text}
@@ -117,7 +121,7 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault()
-              void submit()
+              submit()
             } else if (e.key === 'Tab') {
               e.preventDefault()
               cycle(e.shiftKey ? -1 : 1)
@@ -132,11 +136,11 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
             size="icon-sm"
             variant="default"
             className="size-10 rounded-full"
-            disabled={!text.trim() || saving}
-            onClick={() => void submit()}
+            disabled={!text.trim() || add.isPending}
+            onClick={submit}
             aria-label="Зберегти"
           >
-            {saving ? <Spinner /> : <ArrowUp className="size-5" />}
+            {add.isPending ? <Spinner /> : <ArrowUp className="size-5" />}
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
@@ -160,22 +164,39 @@ export function QuickAddForm({ onDone, initialTarget }: { onDone: () => void; in
 }
 
 /** In-app version (sidebar "+" and command palette). */
-export function QuickAddDialog() {
+export function QuickAddDialog(): ReactElement {
   const open = useUi((s) => s.quickAddOpen)
   const target = useUi((s) => s.quickAddTarget)
+  const initialText = useUi((s) => s.quickAddText)
   const setOpen = useUi((s) => s.setQuickAddOpen)
+  const navigate = useNavigate()
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="rounded-3xl p-5 sm:max-w-[600px]" showCloseButton={false}>
+      <DialogContent
+        className="rounded-3xl p-5 sm:max-w-[600px]"
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          ;(e.currentTarget as HTMLElement).querySelector('textarea')?.focus()
+        }}
+        onCloseAutoFocus={restoreFocus}
+      >
         <DialogTitle className="font-display text-heading">Швидко додати</DialogTitle>
-        <QuickAddForm key={target ?? 'default'} initialTarget={target} onDone={() => setOpen(false)} />
+        <DialogDescription className="sr-only">Enter зберігає, Tab змінює тип запису</DialogDescription>
+        <QuickAddForm
+          key={`${target ?? 'default'}:${initialText ?? ''}`}
+          initialTarget={target}
+          initialText={initialText}
+          onOpen={(route) => navigate(route)}
+          onDone={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   )
 }
 
 /** Route rendered inside the frameless popup window opened by the global hotkey. */
-export function QuickAddWindow() {
+export function QuickAddWindow(): ReactElement {
   const [key, setKey] = useState(0)
   const [target, setTarget] = useState<QuickAddTarget | undefined>()
   useEffect(() => {

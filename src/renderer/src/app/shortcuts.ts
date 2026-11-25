@@ -16,6 +16,14 @@ export interface ShortcutGroup {
   items: ShortcutDef[]
 }
 
+/** Default global quick-add accelerator (Electron syntax); the user's own one is in settings.quickAddShortcut. */
+export const DEFAULT_QUICK_ADD = 'CommandOrControl+Shift+Space'
+
+/** Electron accelerator → display keys: 'CommandOrControl+Shift+Space' → ['Ctrl', 'Shift', 'Space']. */
+export function accelToKeys(accel: string): string[] {
+  return accel.replace('CommandOrControl', 'Ctrl').split('+')
+}
+
 /** G-then-letter navigation (Linear-style). Letter → route. */
 export const GO_TO: Record<string, { route: string; label: string }> = {
   h: { route: '/', label: 'Головна' },
@@ -41,10 +49,10 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
       items: [
         { keys: ['Ctrl', 'K'], label: 'Знайти будь-що' },
         { keys: ['Ctrl', 'N'], label: 'Швидко додати' },
-        { keys: quickAddGlobal.replace('CommandOrControl', 'Ctrl').split('+'), label: 'Швидко додати з будь-якої програми (навіть із трею)' },
+        { keys: accelToKeys(quickAddGlobal), label: 'Швидко додати з будь-якої програми (навіть із трею)' },
         { keys: ['Ctrl', ','], label: 'Налаштування' },
         { keys: ['Ctrl', '/'], label: 'Ця довідка (або ?)' },
-        { keys: ['Alt', '1…9'], label: 'Розділи по черзі' },
+        { keys: ['Alt', '1…9'], label: 'Розділи в порядку бічної панелі' },
         { keys: ['[', ']'], label: 'Назад / вперед' }
       ]
     },
@@ -65,7 +73,10 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
       title: 'Повторення (англійська, питання)',
       items: [
         { keys: ['Пробіл'], label: 'Показати відповідь' },
-        { keys: ['1', '2', '3', '4'], label: 'Не згадав · Насилу · Згадав · Легко' },
+        { keys: ['1'], label: 'Не згадав' },
+        { keys: ['2'], label: 'Насилу' },
+        { keys: ['3'], label: 'Згадав' },
+        { keys: ['4'], label: 'Легко' },
         { keys: ['Esc'], label: 'Вийти' }
       ]
     },

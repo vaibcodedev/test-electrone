@@ -3,7 +3,7 @@ import { createHashRouter, useParams } from 'react-router'
 import { AppShell } from '@/components/layout/app-shell'
 import { QuickAddWindow } from '@/features/quick-add'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
-import { RouteError } from '@/features/route-error'
+import { NotFoundPage, RouteError } from '@/features/route-error'
 
 /** Lazy-load a named export so each module is its own chunk. */
 function page<M extends Record<string, unknown>>(loader: () => Promise<M>, name: keyof M) {
@@ -61,7 +61,6 @@ const GuidePage = page(() => import('@/modules/guide'), 'GuidePage')
 const TrashPage = page(() => import('@/features/trash-page'), 'TrashPage')
 const SettingsPage = page(() => import('@/features/settings-page'), 'SettingsPage')
 const TagsPage = page(() => import('@/features/tags-page'), 'TagsPage')
-
 
 /**
  * Remounts a record page when only :id changes (/projects/A → /projects/B via a link or Ctrl+K):
@@ -133,7 +132,9 @@ export const router = createHashRouter([
           { path: 'guide', element: <GuidePage />, handle: { skeleton: 'form' } },
           { path: 'tags', element: <TagsPage />, handle: { skeleton: 'list' } },
           { path: 'trash', element: <TrashPage />, handle: { skeleton: 'list' } },
-          { path: 'settings', element: <SettingsPage />, handle: { skeleton: 'form' } }
+          { path: 'settings', element: <SettingsPage />, handle: { skeleton: 'form' } },
+          // Old or mistyped links stay inside the shell (sidebar, draggable title bar) instead of the error screen.
+          { path: '*', element: <NotFoundPage />, handle: { skeleton: 'list' } }
         ]
       }
     ]
