@@ -217,7 +217,7 @@ async function ping() {
   const retry = document.activeElement === $('status-action')
   setStatus('pending', 'Перевіряю…')
   const res = await vaultFetch('/ping')
-  if (res.ok) setStatus('ok', 'Vault під’єднано')
+  if (res.ok) setStatus('ok', 'Vault підключено')
   else setStatus('bad', res.error, res.status)
   // After a successful check the button is gone: keep the keyboard in the form, not on <body>.
   if (retry) {
@@ -542,7 +542,7 @@ async function save() {
     return
   }
   state.saved = { type: res.type, id: res.id }
-  setStatus('ok', 'Vault під’єднано')
+  setStatus('ok', 'Vault підключено')
   showDone(res)
 }
 

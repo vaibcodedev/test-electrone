@@ -30,7 +30,7 @@ async function check() {
   $('save').disabled = true
   const res = await vaultFetch('/ping')
   $('save').disabled = false
-  if (res.ok) setStatus('ok', `Під’єднано · Vault ${res.version ?? ''}`.trim())
+  if (res.ok) setStatus('ok', `Підключено · Vault ${res.version ?? ''}`.trim())
   else setStatus('bad', res.error)
 }
 
