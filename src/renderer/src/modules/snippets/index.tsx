@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
-import { CodeXml, Copy, Plus } from 'lucide-react'
+import { useState, type ReactElement } from 'react'
+import { CodeXml, Plus } from 'lucide-react'
 import { SNIPPET_LANGUAGES, snippetInputSchema, type Snippet, type SnippetLanguage, type SnippetPatch } from '@shared/domain/snippets'
+import { api } from '@/lib/api'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { cn } from '@/lib/utils'
-import { fmtRelative, plural } from '@/lib/format'
+import { fmtRelative, mdPreview, plural } from '@/lib/format'
+import { LANGUAGE_LABEL } from '@/lib/code-language'
 import { limitsOf } from '@/lib/limits'
 import { clickableProps } from '@/lib/clickable'
 import { Button } from '@/components/ui/button'
@@ -13,8 +15,11 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
-import { CopyButton, copyText } from '@/components/common/copy-button'
-import { CodeBlock, LANGUAGE_LABEL } from '@/components/common/code'
+import { CopyButton } from '@/components/common/copy-button'
+import { EditHintText } from '@/components/common/detail-mode'
+import { toastTrashed } from '@/components/common/trash-toast'
+import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
+import { CodeBlock } from '@/components/common/code'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
   AutoCode,
@@ -23,10 +28,8 @@ import {
   EditorStack,
   EnumSelect,
   LanguageSuggestion,
-  TextareaBlock,
-  countBy
+  TextareaBlock
 } from '../claude/editor-kit'
-import { noResultsHint, presentChips } from '../claude/chips'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
 /**
@@ -50,9 +53,12 @@ const LANGUAGE_COLOR: Record<SnippetLanguage, string> = {
 
 const LIMITS = limitsOf(snippetInputSchema)
 
-function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }) {
+function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }): ReactElement {
   const update = useApiMutation('snippets', 'update')
-  const remove = useApiMutation('snippets', 'remove', { successMessage: 'Переміщено в кошик' })
+  // The toast's «Скасувати» brings a missed click on the trash straight back.
+  const remove = useApiMutation('snippets', 'remove', {
+    onSuccess: (_r, id) => toastTrashed('Сніпет переміщено в кошик', { type: 'snippet', id })
+  })
   const markCopied = useApiMutation('snippets', 'markCopied', { silent: true })
   const save = (patch: SnippetPatch): void => update.mutate({ id: item.id, patch })
   const entity = { type: 'snippet' as const, id: item.id }
@@ -65,17 +71,30 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
         remove.mutate(item.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Коду ще немає. <EditHintText action="вставити його" />
+        </>
+      }
       headerExtra={
-        <div className="flex items-center gap-2">
+        // A fragment, not a wrapper: RecordActions' extra slot wraps the buttons one by one in a narrow pane.
+        <>
+          {/* soft: the page header already has the screen's lime button (docs/design-system.md → один акцент). */}
           {item.code.trim() && (
-            <CopyButton text={item.code} label="Скопіювати код" variant="lime" onCopied={() => markCopied.mutate(item.id)} />
+            <CopyButton
+              text={item.code}
+              label="Скопіювати код"
+              message="Код скопійовано"
+              variant="soft"
+              onCopied={() => markCopied.mutate(item.id)}
+            />
           )}
           {item.copyCount > 0 && (
             <Badge variant="soft" className="font-normal text-muted-foreground">
               скопійовано {item.copyCount} {plural(item.copyCount, ['раз', 'рази', 'разів'])}
             </Badge>
           )}
-        </div>
+        </>
       }
       aside={
         <EntityAside
@@ -133,18 +152,28 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
  * (wrapped, no scroll), footer with tags, date/copies and «Скопіювати» when there is code to copy.
  * Every card has the same height: the code box, the description line and the footer height are always there.
  */
-function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active: boolean; compact: boolean; onOpen: () => void }) {
+function SnippetCard({
+  item,
+  active,
+  compact,
+  onOpen
+}: {
+  item: Snippet
+  active: boolean
+  compact: boolean
+  onOpen: () => void
+}): ReactElement {
   const markCopied = useApiMutation('snippets', 'markCopied', { silent: true })
   const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
   const hasCode = !!item.code.trim()
+  const description = mdPreview(item.description)
   return (
     <Card
       {...clickableProps(onOpen)}
       aria-current={active || undefined}
-      className={cn(
-        'h-full min-w-0 cursor-pointer gap-3 py-4 transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-        active ? 'bg-ink text-ink-foreground' : 'tile'
-      )}
+      // `tile` brings hover, cursor and the focus ring. The ink card keeps the global :focus-visible outline, only
+      // drawn inside: `outline-none` would set the outline style to none for the focus-visible state too.
+      className={cn('h-full min-w-0 gap-3 py-4', active ? 'bg-ink text-ink-foreground focus-visible:-outline-offset-2' : 'tile')}
     >
       <CardHeader className="gap-1 px-4">
         <div className="flex min-w-0 items-center gap-3">
@@ -154,7 +183,12 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
             {LANGUAGE_LABEL[item.language]}
           </span>
         </div>
-        {!compact && <div className={cn('min-h-5 truncate text-caption', muted)}>{item.description || ' '}</div>}
+        {/* Compact (a record is open): the description, which tells snippets apart, only when there is one. */}
+        {compact ? (
+          description && <div className={cn('truncate text-caption', muted)}>{description}</div>
+        ) : (
+          <div className={cn('min-h-5 truncate text-caption', muted)}>{description || ' '}</div>
+        )}
       </CardHeader>
       {!compact && (
         <CardContent className="min-w-0 px-4">
@@ -163,18 +197,12 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
               <CodeBlock preview code={item.code} language={item.language} maxLines={6} className="h-full rounded-xl text-meta" />
             </div>
           ) : (
-            <div
-              className={cn(
-                'grid h-36 place-items-center rounded-xl border border-dashed px-4 text-center text-caption',
-                active ? 'border-ink-foreground/20 text-ink-muted' : 'border-foreground/12 text-muted-foreground'
-              )}
-            >
-              Коду ще немає — відкрийте, щоб вставити
-            </div>
+            // No frame: a dashed box read as an input. The height stays, so the cards of a row line up.
+            <div className={cn('grid h-36 place-items-center px-4 text-center text-caption', muted)}>Коду ще немає</div>
           )}
         </CardContent>
       )}
-      <CardFooter className="mt-auto min-h-7 min-w-0 gap-3 px-4">
+      <CardFooter className={cn('min-h-7 min-w-0 gap-3 px-4', !compact && 'mt-auto')}>
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
           {!compact && <TagList tags={item.tags} max={2} className="flex-nowrap" />}
           <span className={cn('shrink-0 truncate text-meta', muted)}>
@@ -185,42 +213,41 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
         </div>
         {/* No code — no button: a disabled «Скопіювати» in every empty card did nothing and said nothing. */}
         {hasCode && (
-          <Button
+          <CopyButton
+            text={item.code}
+            label="Скопіювати"
+            message="Код скопійовано"
             variant="subtle"
             size="xs"
+            onCopied={() => markCopied.mutate(item.id)}
             className={cn('shrink-0', active && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')}
-            onClick={async (e) => {
-              e.stopPropagation()
-              // copyText shows the error toast and logs the failure itself; a failed copy is not counted.
-              if (await copyText(item.code, 'Код скопійовано')) markCopied.mutate(item.id)
-            }}
-          >
-            <Copy /> Скопіювати
-          </Button>
+          />
         )}
       </CardFooter>
     </Card>
   )
 }
 
-export function SnippetsPage() {
+export function SnippetsPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [language, setLanguage] = useState<SnippetLanguage | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId }
-  // Full list only feeds the language chips; the rendered grid is paged + virtualized.
-  const { data: all = [] } = useApi('snippets', 'list', base)
+  // Chip counters come from the server under the same search and tag; the rendered grid is paged + virtualized.
+  const { data: counts = {} } = useApi('snippets', 'counts', base)
   const list = useInfiniteApi('snippets', 'list', { ...base, language })
   const { data: openItem } = useApi('snippets', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('snippets', 'create')
 
-  const counts = useMemo(() => countBy(all, (s) => s.language), [all])
   const languageChips = presentChips(SNIPPET_LANGUAGES, counts, (l) => LANGUAGE_LABEL[l], language)
-  const filtered = !!(search.trim() || tagId || language)
-  // The same list for the button's state and for what it copies: a selected empty language copied «[]».
-  const exportItems = useMemo(() => all.filter((s) => !language || s.language === language), [all, language])
+  // By the debounced query the list was fetched with (see the empty state below).
+  const filtered = !!(q || tagId || language)
+  // What «Скопіювати як JSON» would copy: a selected empty language has nothing, so no button (not «[]»).
+  const exportCount = language
+    ? (counts[language] ?? 0)
+    : Object.values(counts).reduce<number>((sum, n) => sum + (n ?? 0), 0)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
@@ -244,14 +271,20 @@ export function SnippetsPage() {
         subtitle="GraphQL-запити Hydrogen, хуки, конфіги — знайти й скопіювати за пару секунд."
         actions={
           <>
-            <CopyJsonButton
-              what="Сніпети"
-              disabled={!exportItems.length}
-              // The whole filtered list, not just the loaded pages of the grid.
-              getData={() =>
-                exportItems.map((s) => ({ title: s.title, language: s.language, description: s.description, code: s.code }))
-              }
-            />
+            {exportCount > 0 && (
+              <CopyJsonButton
+                what="Сніпети"
+                // The whole filtered list, fetched on click — not just the loaded pages of the grid.
+                getData={async () =>
+                  (await api.snippets.list({ ...base, language })).map((s) => ({
+                    title: s.title,
+                    language: s.language,
+                    description: s.description,
+                    code: s.code
+                  }))
+                }
+              />
+            )}
             <ImportButton kind="snippet" onImported={(id) => id && setOpen(id)} />
             <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
               <Plus /> Сніпет
@@ -282,7 +315,8 @@ export function SnippetsPage() {
               loading={list.isLoading}
               getKey={(s) => s.id}
               minColumnWidth={openId ? 10_000 : 380}
-              rowHeight={openId ? 92 : 290}
+              // Estimates only (rows are measured): compact card with a description line, full card.
+              rowHeight={openId ? 112 : 290}
               gap={8}
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
@@ -291,15 +325,17 @@ export function SnippetsPage() {
                 <SnippetCard item={s} active={s.id === openId} compact={!!openId} onOpen={() => setOpen(s.id)} />
               )}
               empty={
+                // Not over a placeholder page (keepPreviousData): no flash of the empty-base state after a reset.
                 !list.isLoading &&
+                !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={CodeXml} hint={noResultsHint(search, !!(tagId || language))} onReset={resetFilters} />
+                  <NoResults icon={CodeXml} hint={noResultsHint(q, !!(tagId || language))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
                     icon={CodeXml}
                     title="Сніпетів поки немає"
                     hint="Збережіть шматок коду, який пишете вже не вперше."
-                    cta={{ label: 'Додати сніпет', icon: Plus, onClick: () => void createNew() }}
+                    cta={{ label: 'Створити сніпет', icon: Plus, onClick: () => void createNew() }}
                   />
                 ))
               }

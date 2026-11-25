@@ -1,27 +1,47 @@
 /**
  * Autosaving field primitives shared by the text-knowledge modules
  * (Claude, snippets, libraries, fixes, bookmarks). All built on shadcn
- * (Field/FieldLabel, Input, Textarea, Select) + common MarkdownField/CodeEditor.
+ * (Input, Textarea, Select) inside the common Field + common MarkdownField/CodeEditor.
  * Each field keeps a local draft and saves itself after typing stops (useAutosave).
  * Key the detail by entity id so pending edits flush to the right record when switching items.
  */
-import { useId, useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import {
+  useId,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type ReactElement,
+  type ReactNode
+} from 'react'
 import { X } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { Field } from '@/components/common/page'
 import { InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
-import { CodeEditor, detectLanguage, LANGUAGE_LABEL, type CodeLanguage } from '@/components/common/code'
+import { CodeEditor } from '@/components/common/code'
+import { detectLanguage, LANGUAGE_LABEL, type CodeLanguage } from '@/lib/code-language'
 import { Button } from '@/components/ui/button'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { IconAction } from '@/components/common/icon-action'
 import { cn } from '@/lib/utils'
 
 /** Vertical rhythm for editor bodies: one gap everywhere. */
-export function EditorStack({ children, className }: { children: ReactNode; className?: string }) {
+export function EditorStack({
+  children,
+  className
+}: {
+  children: ReactNode
+  className?: string
+}): ReactElement {
   return <div className={cn('flex flex-col gap-5', className)}>{children}</div>
 }
 
@@ -36,18 +56,16 @@ export function AutoTitle({
   placeholder?: string
   /** From the schema (limitsOf): typing stops where the server would reject. */
   maxLength?: number
-}) {
+}): ReactElement {
   const [draft, setDraft] = useAutosave(value, (v) => v.trim() && onSave(v.trim()))
-  return <InlineTitle value={draft} onChange={setDraft} placeholder={placeholder} maxLength={maxLength} />
-}
-
-function AutoInput({
-  value,
-  onSave,
-  ...props
-}: { value: string; onSave: (value: string) => void } & Omit<ComponentProps<typeof Input>, 'value' | 'onChange'>) {
-  const [draft, setDraft] = useAutosave(value, onSave)
-  return <Input value={draft} onChange={(e) => setDraft(e.target.value)} {...props} />
+  return (
+    <InlineTitle
+      value={draft}
+      onChange={setDraft}
+      placeholder={placeholder}
+      maxLength={maxLength}
+    />
+  )
 }
 
 /** Markdown with its own label row (Текст / Перегляд switch sits next to the label, never over text). */
@@ -66,7 +84,7 @@ export function AutoMarkdown({
   label?: string
   /** From the schema (limitsOf): typing past it is impossible, so autosave never gets rejected. */
   maxLength?: number
-}) {
+}): ReactElement {
   const [draft, setDraft] = useAutosave(value, onSave, 800)
   return (
     <MarkdownField
@@ -98,7 +116,7 @@ export function AutoCode({
   minHeight?: string
   placeholder?: string
   maxLength?: number
-}) {
+}): ReactElement {
   const readOnly = useReadOnly()
   const [draft, setDraft] = useAutosave(value, onSave, 800)
   // Reading an empty field: no dark box with a placeholder that reads as content — the Field hides itself
@@ -118,49 +136,11 @@ export function AutoCode({
   )
 }
 
-/** Labelled field (shadcn Field + FieldLabel). Optional hint under the control. */
-export function Block({
-  label,
-  hint,
-  error,
-  count,
-  children,
-  className,
-  htmlFor
-}: {
-  label: string
-  hint?: ReactNode
-  /** Shown under the control in the destructive colour (replaces the hint). */
-  error?: ReactNode
-  /** Character counter next to the label, visible from 80% of the limit (same as common Field). */
-  count?: { length: number; max?: number }
-  children: ReactNode
-  className?: string
-  htmlFor?: string
-}) {
-  const near = count?.max ? count.length >= count.max * 0.8 : false
-  return (
-    <Field className={cn('min-w-0 gap-2', className)} data-invalid={error ? true : undefined}>
-      <div className="flex items-baseline justify-between gap-3">
-        <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
-        {near && count?.max && (
-          <span
-            className={cn('text-meta tabular-nums', count.length >= count.max ? 'text-warn' : 'text-muted-foreground')}
-            aria-live="polite"
-          >
-            {count.length} / {count.max}
-          </span>
-        )}
-      </div>
-      {children}
-      {error ? (
-        <FieldError className="text-caption">{error}</FieldError>
-      ) : (
-        hint && <FieldDescription className="text-caption">{hint}</FieldDescription>
-      )}
-    </Field>
-  )
-}
+/**
+ * Labelled field: the common Field under the name the knowledge modules already use, so the counter
+ * («1 600 / 2 000», warn from 90%) and the hidden-in-view error behave the same in every record.
+ */
+export { Field as Block }
 
 /** Labelled autosaving textarea with a character counter (limit from the schema). */
 export function TextareaBlock({
@@ -171,14 +151,17 @@ export function TextareaBlock({
   hint,
   className,
   ...props
-}: { label: string; value: string; onSave: (value: string) => void; maxLength?: number; hint?: ReactNode } & Omit<
-  ComponentProps<typeof Textarea>,
-  'value' | 'onChange' | 'maxLength'
->) {
+}: {
+  label: string
+  value: string
+  onSave: (value: string) => void
+  maxLength?: number
+  hint?: ReactNode
+} & Omit<ComponentProps<typeof Textarea>, 'value' | 'onChange' | 'maxLength'>): ReactElement {
   const id = useId()
   const [draft, setDraft] = useAutosave(value, onSave)
   return (
-    <Block label={label} htmlFor={id} hint={hint} count={{ length: draft.length, max: maxLength }}>
+    <Field label={label} htmlFor={id} hint={hint} count={{ length: draft.length, max: maxLength }}>
       <Textarea
         id={id}
         rows={1}
@@ -188,25 +171,35 @@ export function TextareaBlock({
         {...props}
         className={cn('min-h-9 px-3 py-2', className)}
       />
-    </Block>
+    </Field>
   )
 }
 
-/** Labelled autosaving text input in one line. */
+/**
+ * Labelled autosaving text input in one line: the common Field, so the counter and the view-mode look match the
+ * other fields. TextField when the input needs no own props (spellCheck, a mono font).
+ */
 export function InputField({
   label,
   value,
   onSave,
+  maxLength,
   ...props
 }: { label: string; value: string; onSave: (value: string) => void } & Omit<
   ComponentProps<typeof Input>,
   'value' | 'onChange'
->) {
+>): ReactElement {
   const id = useId()
+  const [draft, setDraft] = useAutosave(value, onSave)
   return (
-    <Field className="min-w-0 gap-2">
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <AutoInput id={id} value={value} onSave={onSave} {...props} />
+    <Field label={label} htmlFor={id} count={{ length: draft.length, max: maxLength }}>
+      <Input
+        id={id}
+        value={draft}
+        maxLength={maxLength}
+        onChange={(e) => setDraft(e.target.value)}
+        {...props}
+      />
     </Field>
   )
 }
@@ -226,7 +219,7 @@ export function EnumSelect<T extends string>({
   className?: string
   ariaLabel?: string
   size?: 'sm' | 'default'
-}) {
+}): ReactElement {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as T)}>
       <SelectTrigger size={size} aria-label={ariaLabel} className={cn('w-full', className)}>
@@ -241,16 +234,6 @@ export function EnumSelect<T extends string>({
       </SelectContent>
     </Select>
   )
-}
-
-/** Counts items per key, for chip counters. */
-export function countBy<T, K extends string>(items: T[], key: (item: T) => K): Partial<Record<K, number>> {
-  const out: Partial<Record<K, number>> = {}
-  for (const item of items) {
-    const k = key(item)
-    out[k] = (out[k] ?? 0) + 1
-  }
-  return out
 }
 
 /**
@@ -277,12 +260,13 @@ export function LanguageSuggestion<L extends string>({
   language: L
   languages: readonly L[]
   onSwitch: (language: L) => void
-}) {
+}): ReactElement | null {
   // Switching changes the record, so it is offered only after «Редагувати».
   const readOnly = useReadOnly()
   const [dismissed, setDismissed] = useState<string | null>(null)
   const detected = useMemo(() => detectLanguage(code), [code])
-  const suggestion = detected && (languages as readonly string[]).includes(detected) ? (detected as L) : null
+  const suggestion =
+    detected && (languages as readonly string[]).includes(detected) ? (detected as L) : null
   if (readOnly || !suggestion || suggestion === language || dismissed === suggestion) return null
   if (COMPATIBLE[language]?.includes(suggestion)) return null
   const name = LANGUAGE_LABEL[suggestion as CodeLanguage] ?? suggestion

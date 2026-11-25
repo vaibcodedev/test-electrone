@@ -1,6 +1,6 @@
 /**
  * Component preview runtime (sandboxed iframe).
- * Receives { type: 'render', code, language, bg } from the parent, transpiles TSX/JSX with sucrase,
+ * Receives { type: 'render', code, language, bg, quiet } from the parent, transpiles TSX/JSX with sucrase,
  * evaluates it with a tiny CommonJS shim and renders the default export (or App/Demo/Preview).
  */
 import '@tailwindcss/browser'
@@ -14,11 +14,20 @@ import { twMerge } from 'tailwind-merge'
 import * as Cva from 'class-variance-authority'
 import { transform } from 'sucrase'
 
-type RenderMessage = { type: 'render'; code: string; language: 'tsx' | 'jsx' | 'html'; bg: string }
+type RenderMessage = {
+  type: 'render'
+  code: string
+  language: 'tsx' | 'jsx' | 'html'
+  bg: string
+  /** A scaled-down gallery tile: errors go only to the parent (its badge), no unreadable red block. */
+  quiet?: boolean
+}
 
 const rootEl = document.getElementById('root')!
 const errorEl = document.getElementById('error')!
 let root: ReactDOMClient.Root | null = null
+/** From the last render message: runtime errors after it (Boundary, window error) follow the same rule. */
+let quiet = false
 
 const cn = (...inputs: Parameters<typeof clsx>): string => twMerge(clsx(inputs))
 
@@ -43,19 +52,19 @@ function post(status: { ok: boolean; error?: string }): void {
 function showError(err: unknown): void {
   // Only the message: «Error:» is English noise in a Ukrainian UI.
   const msg = err instanceof Error ? err.message : String(err)
-  errorEl.textContent = msg
+  if (!quiet) errorEl.textContent = msg
   post({ ok: false, error: msg })
 }
 
 class Boundary extends React.Component<{ children?: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: Error): { error: Error } {
     return { error }
   }
-  componentDidCatch(error: Error) {
+  componentDidCatch(error: Error): void {
     showError(error)
   }
-  render() {
+  render(): React.ReactNode {
     return this.state.error ? null : this.props.children
   }
 }
@@ -70,7 +79,9 @@ function evaluate(code: string): React.ComponentType | null {
   const require = (name: string): unknown => {
     if (name in MODULES) return MODULES[name]
     if (/\.(css|scss)$/.test(name)) return {}
-    throw new Error(`Модуль "${name}" недоступний у превʼю. Доступні: ${Object.keys(MODULES).join(', ')}`)
+    throw new Error(
+      `Модуль "${name}" недоступний у прев’ю. Доступні: ${Object.keys(MODULES).join(', ')}`
+    )
   }
   let rendered: React.ReactNode = null
   const render = (node: React.ReactNode): void => {
@@ -94,6 +105,7 @@ function evaluate(code: string): React.ComponentType | null {
 
 function renderMessage(msg: RenderMessage): void {
   document.body.dataset.bg = msg.bg
+  quiet = !!msg.quiet
   errorEl.textContent = ''
   try {
     // No code yet is not an error: a quiet hint instead of a red block and a «Помилка» status.
@@ -103,7 +115,8 @@ function renderMessage(msg: RenderMessage): void {
       rootEl.innerHTML = ''
       const hint = document.createElement('p')
       hint.className = 'vault-hint'
-      hint.textContent = 'Тут зʼявиться превʼю. Напишіть компонент з export default або виклик render(<X />).'
+      hint.textContent =
+        'Тут з’явиться прев’ю. Напишіть компонент з export default або виклик render(<X />).'
       rootEl.append(hint)
       post({ ok: true })
       return
@@ -116,7 +129,10 @@ function renderMessage(msg: RenderMessage): void {
       return
     }
     const Component = evaluate(msg.code)
-    if (!Component) throw new Error('Немає чого показати. Додайте export default function Demo() або виклик render(<X />).')
+    if (!Component)
+      throw new Error(
+        'Немає чого показати. Додайте export default function Demo() або виклик render(<X />).'
+      )
     if (!root) {
       rootEl.innerHTML = ''
       root = ReactDOMClient.createRoot(rootEl)

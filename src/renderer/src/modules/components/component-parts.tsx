@@ -25,15 +25,12 @@ import {
 import { EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { LinkInput } from '@/components/common/text-field'
 import { PinButtons } from '@/components/common/pin-buttons'
-import { Confirm } from '@/components/common/confirm'
+import { IconAction } from '@/components/common/icon-action'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Empty, EmptyDescription, EmptyMedia } from '@/components/ui/empty'
-import { Separator } from '@/components/ui/separator'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { PREVIEW_IMPORTS } from './starter'
+import { ShowMore } from '@/components/common/show-more'
 
 const LIMITS = limitsOf(componentInputSchema)
 
@@ -41,8 +38,8 @@ export type Layout = 'split' | 'code' | 'preview'
 
 const LAYOUTS: { value: Layout; label: string; icon: typeof Code2 }[] = [
   { value: 'code', label: 'Лише код', icon: Code2 },
-  { value: 'split', label: 'Код і превʼю', icon: Columns2 },
-  { value: 'preview', label: 'Лише превʼю', icon: Monitor }
+  { value: 'split', label: 'Код і прев’ю', icon: Columns2 },
+  { value: 'preview', label: 'Лише прев’ю', icon: Monitor }
 ]
 
 /**
@@ -73,21 +70,16 @@ export function ComponentToolbar({
   return (
     // items-start: with a two-line title the controls stay next to its first line.
     <header className="flex items-start gap-3 border-b border-border px-6 py-3">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="До всіх компонентів"
-            // Esc while reading goes back to the gallery; while editing Esc leaves editing (EditToggle).
-            data-close-detail={mode.editing ? undefined : true}
-            onClick={() => (mode.confirmClose ? mode.confirmClose(onBack) : onBack())}
-          >
-            <ArrowLeft />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>До всіх компонентів{mode.editing ? '' : ' · Esc'}</TooltipContent>
-      </Tooltip>
+      <IconAction
+        size="icon-sm"
+        label="До всіх компонентів"
+        shortcut={mode.editing ? undefined : 'Esc'}
+        // Esc while reading goes back to the gallery; while editing Esc leaves editing (EditToggle).
+        data-close-detail={mode.editing ? undefined : true}
+        onClick={() => (mode.confirmClose ? mode.confirmClose(onBack) : onBack())}
+      >
+        <ArrowLeft />
+      </IconAction>
       <RecordMode mode={mode}>
         {/* Two lines at most: a 500-character title no longer pushes the editor half a screen down. */}
         <div className="min-w-0 flex-1">
@@ -113,21 +105,10 @@ export function ComponentToolbar({
         options={LAYOUTS.map((l) => ({ value: l.value, title: l.label, label: <l.icon /> }))}
       />
       <PinButtons entity={{ type: 'component', id: item.id }} />
-      <Tooltip>
-        <Confirm
-          title="Видалити компонент?"
-          description="Він потрапить у кошик на 30 днів."
-          confirmLabel="У кошик"
-          onConfirm={onDelete}
-        >
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="У кошик">
-              <Trash2 />
-            </Button>
-          </TooltipTrigger>
-        </Confirm>
-        <TooltipContent>У кошик</TooltipContent>
-      </Tooltip>
+      {/* Like DetailPane: no question before the trash, the toast offers «Скасувати» (component-page). */}
+      <IconAction size="icon-sm" label="У кошик" onClick={onDelete}>
+        <Trash2 />
+      </IconAction>
       <EditToggle mode={mode} onClose={onBack} />
     </header>
   )
@@ -161,20 +142,14 @@ function CoverField({ item }: { item: UiComponent }): ReactElement | null {
           >
             <img src={fileUrl(item.coverPath)} alt="" className="max-h-48 w-full object-cover" />
             {!readOnly && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="soft"
-                    size="icon-xs"
-                    aria-label="Прибрати обкладинку"
-                    className="absolute top-2 right-2 bg-card/90 hover:bg-card"
-                    onClick={() => removeCover.mutate(item.id)}
-                  >
-                    <X />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Прибрати обкладинку</TooltipContent>
-              </Tooltip>
+              // A card plate over the screenshot: a bare ghost icon would vanish on a busy image.
+              <IconAction
+                label="Прибрати обкладинку"
+                className="absolute top-2 right-2 bg-card/90 hover:bg-card"
+                onClick={() => removeCover.mutate(item.id)}
+              >
+                <X />
+              </IconAction>
             )}
           </Card>
         ) : (
@@ -193,9 +168,10 @@ function CoverField({ item }: { item: UiComponent }): ReactElement | null {
           </Empty>
         )}
       </div>
+      {/* outline, not soft: soft is bg-surface, the same as this column, and read as grey text. */}
       <Button
         data-edit-only
-        variant="soft"
+        variant="outline"
         size="xs"
         className="self-start"
         onClick={() => setCover.mutate({ id: item.id, source: { kind: 'clipboard' } })}
@@ -206,7 +182,7 @@ function CoverField({ item }: { item: UiComponent }): ReactElement | null {
   )
 }
 
-/** Description, source link, cover, tags and links; while editing — what the preview can import. */
+/** Description, source link, cover, tags and links. */
 export function ComponentSidePanel({
   item,
   save
@@ -220,12 +196,21 @@ export function ComponentSidePanel({
   )
   return (
     <Card className="w-[280px] shrink-0 gap-6 overflow-y-auto px-4 py-4">
-      {/* Reading: plain text — a read-only textarea kept its own scrollbar inside the scrolling column. */}
+      {/* Reading: plain text — a read-only textarea kept its own scrollbar inside the scrolling column.
+          A long one folds, so «Джерело», tags and links stay within reach. */}
       {readOnly ? (
         description.trim() ? (
-          <p className="text-body leading-relaxed whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
-            {description}
-          </p>
+          <section className="flex flex-col gap-2">
+            <SectionLabel>Опис</SectionLabel>
+            <ShowMore
+              enabled={description.length > 600 || description.split('\n').length > 8}
+              collapsedClass="line-clamp-[8]"
+            >
+              <p className="text-body leading-relaxed whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+                {description}
+              </p>
+            </ShowMore>
+          </section>
         ) : null
       ) : (
         <Field label="Опис" count={{ length: description.length, max: LIMITS.description }}>
@@ -254,25 +239,6 @@ export function ComponentSidePanel({
         updatedAt={item.updatedAt}
         files={false}
       />
-      {/* A reference for whoever writes the code: after tags and links, and only while editing. */}
-      <div data-edit-only className="flex flex-col gap-6">
-        <Separator />
-        <section className="flex flex-col gap-2">
-          <SectionLabel>Доступно в превʼю</SectionLabel>
-          <div className="flex flex-wrap gap-1">
-            {PREVIEW_IMPORTS.map((m) => (
-              <Badge key={m} variant="outline" className="bg-card font-mono text-meta font-normal">
-                {m}
-              </Badge>
-            ))}
-          </div>
-          <p className="text-meta leading-relaxed text-muted-foreground">
-            Tailwind-класи працюють. Покажеться <code className="font-mono">export default</code> або
-            компонент з іменем App / Demo / Preview чи виклик{' '}
-            <code className="font-mono">render(&lt;X /&gt;)</code>.
-          </p>
-        </section>
-      </div>
     </Card>
   )
 }

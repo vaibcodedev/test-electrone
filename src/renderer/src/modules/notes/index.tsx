@@ -1,5 +1,5 @@
 /** General notes — everything that is not Claude-specific. Optional folders + global tags. */
-import { useState } from 'react'
+import { useId, useState, type ReactElement } from 'react'
 import { Folder, NotebookPen, Plus } from 'lucide-react'
 import { noteInputSchema, type Note, type NotePatch } from '@shared/domain/notes'
 import { limitsOf } from '@/lib/limits'
@@ -12,10 +12,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { Combobox } from '@/components/common/combobox'
+import { EditHintText } from '@/components/common/detail-mode'
+import { toastTrashed } from '@/components/common/trash-toast'
+import { noResultsHint } from '@/components/common/filter-helpers'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
-import { noResultsHint } from '../claude/chips'
 
 const LIMITS = limitsOf(noteInputSchema)
 const NEW_TITLE = 'Нова нотатка'
@@ -23,9 +25,12 @@ const NEW_TITLE = 'Нова нотатка'
 /** Filter key for notes without a folder (backend matches folder === ''). */
 const NO_FOLDER = '__none__'
 
-function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
+function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }): ReactElement {
   const update = useApiMutation('notes', 'update')
-  const remove = useApiMutation('notes', 'remove', { successMessage: 'Нотатку переміщено в кошик' })
+  // The toast's «Скасувати» brings a missed click on the trash straight back.
+  const remove = useApiMutation('notes', 'remove', {
+    onSuccess: (_r, id) => toastTrashed('Нотатку переміщено в кошик', { type: 'note', id })
+  })
   const save = (patch: NotePatch): void => update.mutate({ id: note.id, patch })
   const entity = { type: 'note' as const, id: note.id }
   const { data: folders = [] } = useApi('notes', 'folders')
@@ -34,6 +39,7 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
     (f) => ({ value: f, label: f })
   )
   const current = note.folder || null
+  const folderId = useId()
 
   return (
     <DetailPane
@@ -43,6 +49,11 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
         remove.mutate(note.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Тексту нотатки ще немає. <EditHintText action="написати його" />
+        </>
+      }
       aside={
         <EntityAside
           entity={entity}
@@ -52,8 +63,9 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
           updatedAt={note.updatedAt}
         >
           {/* Reading a note without a folder: the field hides itself (Combobox → data-empty). */}
-          <Field label="Тека">
+          <Field label="Тека" htmlFor={folderId}>
             <Combobox
+              id={folderId}
               value={current}
               options={folderOptions}
               icon={Folder}
@@ -64,7 +76,7 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
               onCreate={(f) => save({ folder: f.slice(0, LIMITS.folder) })}
               maxLength={LIMITS.folder}
               clearable
-              clearLabel="Без теки"
+              clearLabel="Прибрати з теки"
               onChange={(v) => v !== current && save({ folder: v ?? '' })}
             />
           </Field>
@@ -86,25 +98,28 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
   )
 }
 
-export function NotesPage() {
+export function NotesPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [folder, setFolder] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
   const { data: folders = [] } = useApi('notes', 'folders')
   const q = useDebounced(search.trim())
+  const base = { search: q || undefined, tagId }
   const list = useInfiniteApi('notes', 'list', {
-    search: q || undefined,
-    tagId,
+    ...base,
     folder: folder === undefined ? undefined : folder === NO_FOLDER ? '' : folder
   })
-  const { data: all = [] } = useApi('notes', 'list', {})
+  // Folder counters under the same search and tag, so the chips never promise notes the result lacks
+  // (notes.folderCounts takes no filters yet).
+  const { data: all = [] } = useApi('notes', 'list', base)
   const { data: openItem } = useApi('notes', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('notes', 'create')
 
   const countIn = (f: string): number => all.filter((n) => n.folder === f).length
   const unfiled = countIn('')
-  const filtered = !!(search.trim() || tagId || folder)
+  // By the debounced query the list was fetched with (see the empty state below).
+  const filtered = !!(q || tagId || folder)
   // The selected folder stays a chip even when it has just been emptied, so the active filter is visible.
   const folderChips = [
     ...folders.map((f) => ({ value: f, label: f, count: countIn(f) })),
@@ -167,9 +182,11 @@ export function NotesPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
+                // Not over a placeholder page (keepPreviousData): no flash of the empty-base state after a reset.
                 !list.isLoading &&
+                !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={NotebookPen} hint={noResultsHint(search, !!(tagId || folder))} onReset={resetFilters} />
+                  <NoResults icon={NotebookPen} hint={noResultsHint(q, !!(tagId || folder))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
                     icon={NotebookPen}
@@ -195,14 +212,10 @@ export function NotesPage() {
                       {n.folder && (
                         <Badge
                           variant="outline"
-                          title={n.folder}
-                          className={cn(
-                            'h-5 max-w-40 min-w-0 shrink-0 justify-start',
-                            active && 'border-ink-foreground/20 text-ink-foreground'
-                          )}
+                          truncate
+                          className={cn('h-5 max-w-40', active && 'border-ink-foreground/20 text-ink-foreground')}
                         >
-                          {/* Badge centres and clips: the «…» needs its own truncating span. */}
-                          <span className="truncate">{n.folder}</span>
+                          {n.folder}
                         </Badge>
                       )}
                       <div className="flex min-w-0 flex-1 overflow-hidden">

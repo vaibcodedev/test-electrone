@@ -1,28 +1,41 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { Component, Plus } from 'lucide-react'
+import { AlertTriangle, Component, Plus } from 'lucide-react'
 import type { UiComponent } from '@shared/domain/components'
 import { useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { fileUrl } from '@/lib/files'
 import { mdPreview } from '@/lib/format'
 import { clickableProps } from '@/lib/clickable'
-import { EmptyState, FilterBar, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import {
+  EmptyState,
+  FilterBar,
+  NoResults,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput
+} from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { LivePreview } from '@/components/common/live-preview'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { noResultsHint } from '../claude/chips'
-import { STARTER } from './starter'
+import { noResultsHint } from '@/components/common/filter-helpers'
 
 /** Virtual size the live preview renders at; the tile scales it down to fit (same 16:10 aspect). */
 const PREVIEW_W = 800
 const PREVIEW_H = 500
 
 /** Live preview rendered at a fixed virtual size and scaled to the tile width, centred. */
-function ScaledPreview({ item, onStatus }: { item: UiComponent; onStatus: (s: { ok: boolean; error?: string }) => void }) {
+function ScaledPreview({
+  item,
+  onStatus
+}: {
+  item: UiComponent
+  onStatus: (s: { ok: boolean; error?: string }) => void
+}): ReactElement {
   const box = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.3)
   useEffect(() => {
@@ -34,13 +47,18 @@ function ScaledPreview({ item, onStatus }: { item: UiComponent; onStatus: (s: { 
   }, [])
   return (
     <div ref={box} className="pointer-events-none absolute inset-0">
-      <div className="origin-top-left" style={{ width: PREVIEW_W, height: PREVIEW_H, transform: `scale(${scale})` }}>
+      <div
+        className="origin-top-left"
+        style={{ width: PREVIEW_W, height: PREVIEW_H, transform: `scale(${scale})` }}
+      >
         <LivePreview
           code={item.code}
           language={item.language}
           bg={item.previewBg}
           debounce={0}
           showStatus={false}
+          // The tile's own badge tells about an error; the sandbox's scaled-down red block would be unreadable.
+          quiet
           onStatus={onStatus}
           className="size-full rounded-none ring-0"
         />
@@ -54,7 +72,7 @@ function ScaledPreview({ item, onStatus }: { item: UiComponent; onStatus: (s: { 
  * tags row that are always reserved. Live preview when there is code; the user's screenshot only
  * when there's nothing to render. Only a failed render is marked — a scaled-down error is unreadable.
  */
-function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void }) {
+function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void }): ReactElement {
   const [status, setStatus] = useState<{ ok: boolean; error?: string } | null>(null)
   const hasCode = !!item.code.trim()
   return (
@@ -67,7 +85,12 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
           {hasCode ? (
             <ScaledPreview item={item} onStatus={setStatus} />
           ) : item.coverPath ? (
-            <img src={fileUrl(item.coverPath)} alt="" className="size-full object-cover" loading="lazy" />
+            <img
+              src={fileUrl(item.coverPath)}
+              alt=""
+              className="size-full object-cover"
+              loading="lazy"
+            />
           ) : (
             <div className="grid size-full place-items-center text-muted-foreground">
               <Component className="size-8" />
@@ -75,12 +98,14 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
           )}
         </div>
         {hasCode && status && !status.ok && (
-          // A card under the tinted badge: it stays readable over a white, dark or grid preview.
-          <span className="absolute top-2.5 left-2.5 rounded-full bg-card">
-            <Badge variant="destructive" title={status.error}>
-              Помилка в коді
-            </Badge>
-          </span>
+          // Like LivePreview's own status: soft on card, colour only in the icon — readable over any preview.
+          <Badge
+            variant="soft"
+            className="absolute top-2.5 left-2.5 bg-card text-foreground shadow-sm"
+            title={status.error}
+          >
+            <AlertTriangle className="text-destructive" /> Помилка в коді
+          </Badge>
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 px-2.5 pt-3 pb-1.5">
@@ -101,7 +126,7 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
   )
 }
 
-export function ComponentsPage() {
+export function ComponentsPage(): ReactElement {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
@@ -110,7 +135,9 @@ export function ComponentsPage() {
   const list = useInfiniteApi('components', 'list', { search: q || undefined, tagId }, 60)
   const create = useApiMutation('components', 'create')
 
-  const filtered = !!(search.trim() || tagId)
+  // By the debounced query the list was fetched with: right after «Скинути фільтри» the old empty result is
+  // still on screen, and the raw input would flash the empty-base state over it.
+  const filtered = !!(q || tagId)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
@@ -120,7 +147,9 @@ export function ComponentsPage() {
     // Enter or a double click while the request is running must not create a second component.
     if (create.isPending) return
     try {
-      const c = await create.mutateAsync({ title: 'Новий компонент', code: STARTER.tsx, language: 'tsx' })
+      // No starter code: an untouched component stays a draft and is discarded on leaving (component-page);
+      // «Вставити приклад» in the editor fills it on request.
+      const c = await create.mutateAsync({ title: 'Новий компонент', code: '', language: 'tsx' })
       void navigate(`/components/${c.id}`)
     } catch {
       // useApiMutation has already shown the error toast; there is nothing to open.
@@ -131,7 +160,7 @@ export function ComponentsPage() {
     <Page>
       <PageHeader
         title="Компоненти"
-        subtitle="Код, живе превʼю й скриншот — щоб готові шматки інтерфейсу завжди були під рукою."
+        subtitle="Код, живе прев’ю й скриншот — щоб готові шматки інтерфейсу завжди були під рукою."
         actions={
           <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
             <Plus /> Компонент
@@ -141,8 +170,12 @@ export function ComponentsPage() {
         <FilterBar
           trailing={
             <>
-              <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Пошук за назвою й кодом" />
+              <TagFilter value={tagId} onChange={setTagId} tone="accent" />
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Пошук за назвою й кодом"
+              />
             </>
           }
         />
@@ -158,16 +191,19 @@ export function ComponentsPage() {
           hasMore={list.hasMore}
           loadingMore={list.loadingMore}
           onLoadMore={list.loadMore}
-          renderItem={(c) => <ComponentTile item={c} onOpen={() => navigate(`/components/${c.id}`)} />}
+          renderItem={(c) => (
+            <ComponentTile item={c} onOpen={() => navigate(`/components/${c.id}`)} />
+          )}
           empty={
             !list.isLoading &&
+            !list.isPlaceholderData &&
             (filtered ? (
-              <NoResults icon={Component} hint={noResultsHint(search, !!tagId)} onReset={resetFilters} />
+              <NoResults icon={Component} hint={noResultsHint(q, !!tagId)} onReset={resetFilters} />
             ) : (
               <EmptyState
                 icon={Component}
                 title="Компонентів поки немає"
-                hint="Збережіть кнопку, картку чи цілий блок — превʼю збереться просто в застосунку."
+                hint="Збережіть кнопку, картку чи цілий блок — прев’ю збереться просто в застосунку."
                 cta={{ label: 'Створити компонент', icon: Plus, onClick: () => void createNew() }}
               />
             ))

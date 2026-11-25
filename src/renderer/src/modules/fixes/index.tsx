@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { Bug, CircleCheck, Plus } from 'lucide-react'
 import { fixInputSchema, type Fix, type FixPatch } from '@shared/domain/fixes'
 import { limitsOf } from '@/lib/limits'
@@ -10,30 +10,85 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Toggle } from '@/components/ui/toggle'
-import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
-import { TagFilter, TagList } from '@/components/common/tags'
-import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
-  AutoCode,
-  AutoMarkdown,
-  AutoTitle,
-  Block,
-  EditorStack,
-  InputField
-} from '../claude/editor-kit'
-import { noResultsHint, presentChips } from '../claude/chips'
+  EmptyState,
+  FilterBar,
+  FilterChips,
+  NoResults,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput
+} from '@/components/common/page'
+import { useReadOnly } from '@/components/common/detail-mode-context'
+import { EditHintText } from '@/components/common/detail-mode'
+import { TextField } from '@/components/common/text-field'
+import { ShowMore } from '@/components/common/show-more'
+import { toastTrashed } from '@/components/common/trash-toast'
+import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
+import { TagFilter, TagList } from '@/components/common/tags'
+import {
+  DetailPane,
+  EntityAside,
+  ListItem,
+  MasterDetail,
+  useOpenParam
+} from '@/components/common/master-detail'
+import { AutoCode, AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-kit'
 
 const LIMITS = limitsOf(fixInputSchema)
 
 type ResolvedFilter = 'open' | 'resolved'
 
 function firstLine(text: string): string {
-  return text.split('\n').find((l) => l.trim())?.trim() ?? ''
+  return (
+    text
+      .split('\n')
+      .find((l) => l.trim())
+      ?.trim() ?? ''
+  )
 }
 
-function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
+/**
+ * Reading: a long stack trace folds, so «Причина» and the solution — what the record is opened for — stay in
+ * view. A single long line with wraps counts too, hence the length check. Editing shows the whole field.
+ */
+function ErrorTextField({
+  fix,
+  save
+}: {
+  fix: Fix
+  save: (patch: FixPatch) => void
+}): ReactElement {
+  const readOnly = useReadOnly()
+  const long = fix.errorText.length > 800 || fix.errorText.split('\n').length > 10
+  return (
+    <Block label="Текст помилки">
+      <ShowMore
+        enabled={readOnly && long}
+        collapsedClass="max-h-56 overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]"
+        moreLabel="Показати весь текст"
+      >
+        <AutoCode
+          value={fix.errorText}
+          onSave={(errorText) => save({ errorText })}
+          language="text"
+          lineNumbers={false}
+          minHeight="90px"
+          placeholder="Вставте повідомлення або стек помилки"
+          maxLength={LIMITS.errorText}
+        />
+      </ShowMore>
+    </Block>
+  )
+}
+
+function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }): ReactElement {
   const update = useApiMutation('fixes', 'update')
-  const remove = useApiMutation('fixes', 'remove', { successMessage: 'Переміщено в кошик' })
+  // The toast's «Скасувати» brings a missed click on the trash straight back.
+  const remove = useApiMutation('fixes', 'remove', {
+    onSuccess: (_r, id) => toastTrashed('Помилку переміщено в кошик', { type: 'fix', id })
+  })
   const save = (patch: FixPatch): void => update.mutate({ id: fix.id, patch })
   const entity = { type: 'fix' as const, id: fix.id }
 
@@ -45,14 +100,18 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
         remove.mutate(fix.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Тексту помилки й рішення ще немає. <EditHintText />
+        </>
+      }
       headerExtra={
         // Like «Працює» in Claude: an action while off, a success tint (not an ink inversion) once pressed.
         <Toggle
           size="sm"
-          variant="outline"
+          variant="status"
           pressed={fix.resolved}
           onPressedChange={(resolved) => save({ resolved })}
-          className="font-normal on:border-transparent on:bg-success/12 on:text-success on:hover:bg-success/16"
         >
           <CircleCheck />
           {fix.resolved ? 'Вирішено' : 'Позначити вирішеною'}
@@ -66,7 +125,7 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           createdAt={fix.createdAt}
           updatedAt={fix.updatedAt}
         >
-          <InputField
+          <TextField
             label="Де сталося"
             value={fix.context}
             onSave={(context) => save({ context })}
@@ -77,18 +136,13 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
       }
     >
       <EditorStack>
-        <AutoTitle value={fix.title} onSave={(title) => save({ title })} placeholder="Що зламалося" maxLength={LIMITS.title} />
-        <Block label="Текст помилки">
-          <AutoCode
-            value={fix.errorText}
-            onSave={(errorText) => save({ errorText })}
-            language="text"
-            lineNumbers={false}
-            minHeight="90px"
-            placeholder="Вставте повідомлення або стек помилки"
-            maxLength={LIMITS.errorText}
-          />
-        </Block>
+        <AutoTitle
+          value={fix.title}
+          onSave={(title) => save({ title })}
+          placeholder="Що зламалося"
+          maxLength={LIMITS.title}
+        />
+        <ErrorTextField fix={fix} save={save} />
         <AutoMarkdown
           label="Причина"
           value={fix.cause}
@@ -98,7 +152,7 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
           minHeight="100px"
         />
         <AutoMarkdown
-          label="Як виправив"
+          label="Рішення"
           value={fix.solution}
           onSave={(solution) => save({ solution })}
           placeholder="Кроки, команди, код виправлення"
@@ -110,28 +164,30 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
   )
 }
 
-export function FixesPage() {
+export function FixesPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [resolved, setResolved] = useState<ResolvedFilter | undefined>()
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId }
-  // Full list only feeds the chip counters; the rendered list is paged + virtualized.
-  const { data: all = [] } = useApi('fixes', 'list', base)
-  const list = useInfiniteApi('fixes', 'list', { ...base, resolved: resolved ? resolved === 'resolved' : undefined })
+  // Chip counters come from the server under the same search and tag; the rendered list is paged + virtualized.
+  const { data: stateCounts } = useApi('fixes', 'counts', base)
+  const list = useInfiniteApi('fixes', 'list', {
+    ...base,
+    resolved: resolved ? resolved === 'resolved' : undefined
+  })
   const { data: openItem } = useApi('fixes', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('fixes', 'create')
 
-  const openCount = all.filter((f) => !f.resolved).length
-  const resolvedCount = all.length - openCount
   const stateChips = presentChips(
     ['open', 'resolved'] as const,
-    { open: openCount, resolved: resolvedCount },
+    { open: stateCounts?.open ?? 0, resolved: stateCounts?.resolved ?? 0 },
     (v) => (v === 'open' ? 'Не вирішено' : 'Вирішено'),
     resolved
   )
-  const filtered = !!(search.trim() || tagId || resolved)
+  // By the debounced query the list was fetched with (see the empty state below).
+  const filtered = !!(q || tagId || resolved)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
@@ -152,7 +208,7 @@ export function FixesPage() {
     <Page>
       <PageHeader
         title="Помилки й рішення"
-        subtitle="Що зламалося і як полагодив — щоб удруге не шукати."
+        subtitle="Що зламалося і як це виправити — щоб удруге не шукати."
         actions={
           <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
             <Plus /> Помилка
@@ -162,13 +218,22 @@ export function FixesPage() {
         <FilterBar
           chips={
             stateChips.length > 0 && (
-              <FilterChips allLabel="Усі" value={resolved} onChange={setResolved} options={stateChips} />
+              <FilterChips
+                allLabel="Усі"
+                value={resolved}
+                onChange={setResolved}
+                options={stateChips}
+              />
             )
           }
           trailing={
             <>
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Текст помилки або рішення" />
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Текст помилки або рішення"
+              />
             </>
           }
         />
@@ -186,14 +251,20 @@ export function FixesPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
+                // Not over a placeholder page (keepPreviousData): no flash of the empty-base state after a reset.
                 !list.isLoading &&
+                !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={Bug} hint={noResultsHint(search, !!(tagId || resolved))} onReset={resetFilters} />
+                  <NoResults
+                    icon={Bug}
+                    hint={noResultsHint(q, !!(tagId || resolved))}
+                    onReset={resetFilters}
+                  />
                 ) : (
                   <EmptyState
                     icon={Bug}
                     title="Помилок поки немає"
-                    hint="Запишіть наступну помилку разом із рішенням, і пошук знайде її за пів року."
+                    hint="Запишіть наступну помилку разом із рішенням, і пошук знайде її за півроку."
                     cta={{ label: 'Записати помилку', icon: Plus, onClick: () => void createNew() }}
                   />
                 ))
@@ -207,7 +278,12 @@ export function FixesPage() {
                         Only the unresolved state is marked: as a badge, not a coloured dot (docs/design-system.md → Чипы и строки). */}
                     <div className="truncate text-body font-medium">{f.title}</div>
                     {line && (
-                      <div className={cn('mt-1 truncate font-mono text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <div
+                        className={cn(
+                          'mt-1 truncate font-mono text-meta',
+                          active ? 'text-ink-muted' : 'text-muted-foreground'
+                        )}
+                      >
                         {line}
                       </div>
                     )}
@@ -215,7 +291,10 @@ export function FixesPage() {
                       {!f.resolved && (
                         <Badge
                           variant={active ? 'soft' : 'destructive'}
-                          className={cn('h-5 shrink-0', active && 'bg-ink-foreground/12 text-ink-foreground')}
+                          className={cn(
+                            'h-5 shrink-0',
+                            active && 'bg-ink-foreground/12 text-ink-foreground'
+                          )}
                         >
                           Не вирішено
                         </Badge>
@@ -223,20 +302,24 @@ export function FixesPage() {
                       {f.context && (
                         <Badge
                           variant="outline"
-                          title={f.context}
+                          truncate
                           className={cn(
-                            'h-5 max-w-40 min-w-0 shrink-0 justify-start',
+                            'h-5 max-w-40',
                             active && 'border-ink-foreground/20 text-ink-foreground'
                           )}
                         >
-                          {/* Badge centres and clips: the «…» needs its own truncating span. */}
-                          <span className="truncate">{f.context}</span>
+                          {f.context}
                         </Badge>
                       )}
                       <div className="flex min-w-0 flex-1 overflow-hidden">
                         <TagList tags={f.tags} max={2} className="flex-nowrap" />
                       </div>
-                      <span className={cn('ml-auto shrink-0 text-meta whitespace-nowrap', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <span
+                        className={cn(
+                          'ml-auto shrink-0 text-meta whitespace-nowrap',
+                          active ? 'text-ink-muted' : 'text-muted-foreground'
+                        )}
+                      >
                         {fmtRelative(f.updatedAt)}
                       </span>
                     </div>
@@ -245,7 +328,11 @@ export function FixesPage() {
               }}
             />
           }
-          detail={openId && openItem ? <FixDetail key={openItem.id} fix={openItem} onClose={() => setOpen(null)} /> : null}
+          detail={
+            openId && openItem ? (
+              <FixDetail key={openItem.id} fix={openItem} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </PageBody>
     </Page>

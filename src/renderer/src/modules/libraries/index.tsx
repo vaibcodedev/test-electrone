@@ -1,7 +1,14 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
-import { LIBRARY_STATUSES, libraryInputSchema, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
+import {
+  LIBRARY_STATUS_LABEL,
+  LIBRARY_STATUSES,
+  libraryInputSchema,
+  type Library,
+  type LibraryPatch,
+  type LibraryStatus
+} from '@shared/domain/libraries'
 import { limitsOf, isLikelyUrl } from '@/lib/limits'
 import { clickableProps } from '@/lib/clickable'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -17,6 +24,9 @@ import { LinkInput } from '@/components/common/text-field'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton } from '@/components/common/copy-button'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { EditHintText } from '@/components/common/detail-mode'
+import { toastTrashed } from '@/components/common/trash-toast'
+import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
   AutoMarkdown,
@@ -24,21 +34,11 @@ import {
   Block,
   EditorStack,
   InputField,
-  TextareaBlock,
-  countBy
+  TextareaBlock
 } from '../claude/editor-kit'
-import { noResultsHint, presentChips } from '../claude/chips'
 import { ImportButton } from '@/components/common/import-dialog'
 
 const LIMITS = limitsOf(libraryInputSchema)
-
-const STATUS_LABEL: Record<LibraryStatus, string> = {
-  used: 'Використовую',
-  favorite: 'Улюблена',
-  want: 'Хочу спробувати',
-  testing: 'Пробую',
-  dropped: 'Не зайшла'
-}
 
 /** Status badge tone (docs/design-system.md → Чипы и строки): in use — success, trying — info, the rest neutral. */
 const STATUS_BADGE: Record<LibraryStatus, 'success' | 'info' | 'soft'> = {
@@ -83,20 +83,12 @@ function LinkButtons({ lib, onInk, variant = 'subtle' }: { lib: Library; onInk?:
   )
 }
 
-/** Install command as a read-only shadcn InputGroup with copy; a quiet placeholder when empty (keeps card height). */
-function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
-  if (!cmd.trim()) {
-    return (
-      <div
-        className={cn(
-          'flex h-8 items-center rounded-xl border border-dashed px-3 text-caption',
-          onInk ? 'border-ink-foreground/20 text-ink-muted' : 'border-foreground/12 text-muted-foreground'
-        )}
-      >
-        Команду встановлення не вказано
-      </div>
-    )
-  }
+/**
+ * Install command as a read-only shadcn InputGroup with copy. Nothing when empty: a dashed «not set» box read as
+ * an input, and the row of cards keeps one height anyway (VirtualGrid + the footer's mt-auto).
+ */
+function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }): ReactElement | null {
+  if (!cmd.trim()) return null
   return (
     <InputGroup
       onClick={(e) => e.stopPropagation()}
@@ -105,7 +97,7 @@ function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
       <InputGroupAddon className={cn('font-mono', onInk ? 'text-ink-accent' : 'text-muted-foreground')}>$</InputGroupAddon>
       <InputGroupInput readOnly value={cmd} aria-label="Команда встановлення" className="font-mono text-caption" />
       <InputGroupAddon align="inline-end">
-        <CopyButton text={cmd} variant="ghost" size="xs" className="size-6 rounded-full text-inherit" />
+        <CopyButton text={cmd} variant="ghost" size="xs" className="text-inherit" />
       </InputGroupAddon>
     </InputGroup>
   )
@@ -135,9 +127,12 @@ function InstallField({ lib, save }: { lib: Library; save: (patch: LibraryPatch)
   )
 }
 
-function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) {
+function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }): ReactElement {
   const update = useApiMutation('libraries', 'update')
-  const remove = useApiMutation('libraries', 'remove', { successMessage: 'Переміщено в кошик' })
+  // The toast's «Скасувати» brings a missed click on the trash straight back.
+  const remove = useApiMutation('libraries', 'remove', {
+    onSuccess: (_r, id) => toastTrashed('Бібліотеку переміщено в кошик', { type: 'library', id })
+  })
   const save = (patch: LibraryPatch): void => update.mutate({ id: lib.id, patch })
   const entity = { type: 'library' as const, id: lib.id }
 
@@ -149,6 +144,11 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
         remove.mutate(lib.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Ще не вказано, для чого вона і як її встановити. <EditHintText />
+        </>
+      }
       headerExtra={<LinkButtons lib={lib} variant="soft" />}
       aside={
         <EntityAside
@@ -177,7 +177,7 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
             className="data-[variant=segment]:flex-wrap"
             value={lib.status}
             onChange={(status) => save({ status })}
-            options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+            options={LIBRARY_STATUSES.map((s) => ({ value: s, label: LIBRARY_STATUS_LABEL[s] }))}
           />
         </Field>
         <InstallField lib={lib} save={save} />
@@ -191,7 +191,7 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
           label="Нотатки"
           value={lib.notes}
           onSave={(notes) => save({ notes })}
-          placeholder="Як підключав, підводні камені, приклад використання"
+          placeholder="Як підключити, підводні камені, приклад використання"
           maxLength={LIMITS.notes}
         />
       </EditorStack>
@@ -210,22 +210,31 @@ function StatusBadge({ status, onInk }: { status: LibraryStatus; onInk?: boolean
         onInk && 'bg-ink-foreground/12 text-ink-foreground'
       )}
     >
-      {STATUS_LABEL[status]}
+      {LIBRARY_STATUS_LABEL[status]}
     </Badge>
   )
 }
 
 /**
  * Grid card in the same language as snippet cards: equal height (h-full, footer pinned), purpose
- * one line with reserved height, install row always present. With a record open the list turns into
+ * one line with reserved height, install row when there is a command. With a record open the list turns into
  * compact one-line rows (title + status), so a narrow list pane stays readable.
  */
-function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: boolean; compact: boolean; onOpen: () => void }) {
+function LibraryCard({
+  lib,
+  active,
+  compact,
+  onOpen
+}: {
+  lib: Library
+  active: boolean
+  compact: boolean
+  onOpen: () => void
+}): ReactElement {
   const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
-  const base = cn(
-    'h-full min-w-0 cursor-pointer transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-    active ? 'bg-ink text-ink-foreground' : 'tile'
-  )
+  // `tile` brings hover, cursor and the focus ring. The ink card keeps the global :focus-visible outline, only
+  // drawn inside: `outline-none` would set the outline style to none for the focus-visible state too.
+  const base = cn('h-full min-w-0', active ? 'bg-ink text-ink-foreground focus-visible:-outline-offset-2' : 'tile')
   if (compact) {
     return (
       <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-0 px-4 py-3')}>
@@ -247,9 +256,11 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
           {lib.purpose || ' '}
         </div>
       </CardHeader>
-      <CardContent className="min-w-0 px-4">
-        <InstallCommand cmd={lib.installCmd} onInk={active} />
-      </CardContent>
+      {lib.installCmd.trim() && (
+        <CardContent className="min-w-0 px-4">
+          <InstallCommand cmd={lib.installCmd} onInk={active} />
+        </CardContent>
+      )}
       <CardFooter className="mt-auto min-w-0 items-center justify-between gap-2 px-4">
         <div className="flex min-h-6 min-w-0 flex-1 items-center overflow-hidden">
           <TagList tags={lib.tags} max={3} className="flex-nowrap" />
@@ -260,22 +271,22 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
   )
 }
 
-export function LibrariesPage() {
+export function LibrariesPage(): ReactElement {
   const [status, setStatus] = useState<LibraryStatus | undefined>()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId }
-  // Full list only feeds the status chips; the rendered grid is paged + virtualized.
-  const { data: all = [] } = useApi('libraries', 'list', base)
+  // Chip counters come from the server under the same search and tag; the rendered grid is paged + virtualized.
+  const { data: counts = {} } = useApi('libraries', 'counts', base)
   const list = useInfiniteApi('libraries', 'list', { ...base, status })
   const { data: openItem } = useApi('libraries', 'get', openId ?? '', { enabled: !!openId })
   const create = useApiMutation('libraries', 'create')
 
-  const counts = useMemo(() => countBy(all, (l) => l.status), [all])
-  const statusChips = presentChips(LIBRARY_STATUSES, counts, (s) => STATUS_LABEL[s], status)
-  const filtered = !!(search.trim() || tagId || status)
+  const statusChips = presentChips(LIBRARY_STATUSES, counts, (s) => LIBRARY_STATUS_LABEL[s], status)
+  // By the debounced query the list was fetched with (see the empty state below).
+  const filtered = !!(q || tagId || status)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
@@ -296,7 +307,7 @@ export function LibrariesPage() {
     <Page>
       <PageHeader
         title="JS-бібліотеки"
-        subtitle="Що використовував, що хочеться спробувати й як це встановити."
+        subtitle="Що використовую, що хочу спробувати й як це встановити."
         actions={
           <>
             <ImportButton kind="library" onImported={(id) => id && setOpen(id)} />
@@ -336,15 +347,17 @@ export function LibrariesPage() {
               onLoadMore={list.loadMore}
               renderItem={(l) => <LibraryCard lib={l} active={l.id === openId} compact={!!openId} onOpen={() => setOpen(l.id)} />}
               empty={
+                // Not over a placeholder page (keepPreviousData): no flash of the empty-base state after a reset.
                 !list.isLoading &&
+                !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={Package} hint={noResultsHint(search, !!(tagId || status))} onReset={resetFilters} />
+                  <NoResults icon={Package} hint={noResultsHint(q, !!(tagId || status))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
                     icon={Package}
                     title="Бібліотек поки немає"
-                    hint="Додайте пакет, який сподобався, з командою встановлення й посиланнями."
-                    cta={{ label: 'Додати бібліотеку', icon: Plus, onClick: () => void createNew() }}
+                    hint="Збережіть пакет, який сподобався, з командою встановлення й посиланнями."
+                    cta={{ label: 'Створити бібліотеку', icon: Plus, onClick: () => void createNew() }}
                   />
                 ))
               }
