@@ -5,6 +5,14 @@ import {
   type Settings,
   type SettingsPatch
 } from '@shared/domain/system'
+import {
+  aiSettingsSchema,
+  aiUsageSchema,
+  DEFAULT_AI_SETTINGS,
+  type AiSettings,
+  type AiUsage
+} from '@shared/domain/ai'
+import type { z } from 'zod'
 import { log } from './logger'
 import { retryBusy } from './util'
 
@@ -29,6 +37,10 @@ interface ConfigShape {
   lastCardNudge: string | null
   /** Seed sets already created once (checklist templates, platforms…): deleted seeds never come back. */
   seeded: string[]
+  /** «Штучний інтелект»: provider, model, daily limit (keys live in `secrets`). */
+  ai: AiSettings
+  /** Today's AI requests and tokens, so the daily limit survives a restart. */
+  aiUsage: AiUsage
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -56,25 +68,36 @@ const DEFAULTS: ConfigShape = {
   lastWeeklyReview: null,
   lastJobNudge: null,
   lastCardNudge: null,
-  seeded: []
+  seeded: [],
+  ai: DEFAULT_AI_SETTINGS,
+  aiUsage: { day: '', requests: 0, inputTokens: 0, outputTokens: 0 }
 }
 
 /**
- * Settings key by key: one bad value (hand edit, an older version, a narrowed schema) resets only itself,
- * not the hotkey, autostart and backups along with it.
+ * A section key by key: one bad value (hand edit, an older version, a narrowed schema) resets only itself,
+ * not the hotkey, autostart and backups along with it. A key the file doesn't have yet (a section added by
+ * a newer version) takes its default.
  */
-function readSettings(raw: unknown): Settings {
+function readSection<S extends z.ZodObject>(
+  name: string,
+  schema: S,
+  defaults: z.infer<S>,
+  raw: unknown
+): z.infer<S> {
   const stored = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
-  const settings: Record<string, unknown> = {}
-  for (const [key, schema] of Object.entries(settingsSchema.shape)) {
+  const section: Record<string, unknown> = {}
+  for (const [key, field] of Object.entries(schema.shape)) {
     const value = stored[key]
-    const parsed = value === undefined ? undefined : schema.safeParse(value)
+    const parsed = value === undefined ? undefined : (field as z.ZodType).safeParse(value)
     if (parsed && !parsed.success)
-      log.warn(`[config] invalid setting «${key}» reset to the default`)
-    settings[key] = parsed?.success ? parsed.data : DEFAULT_SETTINGS[key as keyof Settings]
+      log.warn(`[config] invalid ${name} «${key}» reset to the default`)
+    section[key] = parsed?.success ? parsed.data : defaults[key as keyof z.infer<S>]
   }
-  return settingsSchema.parse(settings)
+  return schema.parse(section)
 }
+
+const readSettings = (raw: unknown): Settings =>
+  readSection('setting', settingsSchema, DEFAULT_SETTINGS, raw)
 
 type Listener = (settings: Settings) => void
 
@@ -130,7 +153,9 @@ export class ConfigStore {
       lastCardNudge: typeof raw.lastCardNudge === 'string' ? raw.lastCardNudge : null,
       seeded: Array.isArray(raw.seeded)
         ? raw.seeded.filter((x): x is string => typeof x === 'string')
-        : []
+        : [],
+      ai: readSection('AI setting', aiSettingsSchema, DEFAULT_AI_SETTINGS, raw.ai),
+      aiUsage: aiUsageSchema.safeParse(raw.aiUsage).data ?? structuredClone(DEFAULTS.aiUsage)
     }
   }
 
@@ -218,6 +243,25 @@ export class ConfigStore {
 
   set lastCardNudge(day: string | null) {
     this.data.lastCardNudge = day
+    this.scheduleWrite()
+  }
+
+  get aiSettings(): AiSettings {
+    return structuredClone(this.data.ai)
+  }
+
+  /** Takes the whole validated section (AiService merges and checks patches). */
+  updateAiSettings(next: AiSettings): void {
+    this.data.ai = aiSettingsSchema.parse(next)
+    this.scheduleWrite()
+  }
+
+  get aiUsage(): AiUsage {
+    return { ...this.data.aiUsage }
+  }
+
+  set aiUsage(usage: AiUsage) {
+    this.data.aiUsage = usage
     this.scheduleWrite()
   }
 
