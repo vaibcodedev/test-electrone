@@ -71,7 +71,8 @@ const markdownHighlight = HighlightStyle.define([
 /**
  * Prose looks like the rest of the app: the field's font and size (set on the frame), its padding inside the
  * editor so a click anywhere in the box puts the caret in the text. Grows with the text up to half the window
- * (`min(50vh, 26rem)`, as a Textarea), then scrolls inside; `--md-editor-min` is the field's minimum height.
+ * (`min(50vh, 26rem)`, as a Textarea), then scrolls inside; `--md-editor-min` is the field's minimum height
+ * (the frame's, hint line included).
  */
 const editorTheme = EditorView.theme({
   '&': {
@@ -82,9 +83,10 @@ const editorTheme = EditorView.theme({
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': { fontFamily: 'inherit', lineHeight: 'inherit', overflow: 'auto' },
+  // The frame's minimum height less its border and the hint line under the text (h-7, markdown-editor.tsx).
   '.cm-content': {
-    padding: '12px 0',
-    minHeight: 'calc(var(--md-editor-min, 160px) - 2px)',
+    padding: '12px 0 4px',
+    minHeight: 'calc(var(--md-editor-min, 160px) - 2px - 1.75rem)',
     caretColor: 'var(--foreground)'
   },
   '.cm-content:focus-visible': { outline: 'none' },

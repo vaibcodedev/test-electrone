@@ -30,6 +30,7 @@ import {
 import { diffText, lengthLimit, markdownEditorSetup, type MenuKey } from '@/lib/md-editor/setup'
 import { useFieldControl, useFieldCount } from '@/components/ui/field-control'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
+import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
 import { SlashMenuList, WikiMenuList } from './markdown-menus'
 
@@ -50,7 +51,9 @@ export interface MarkdownEditorHandle {
  * `maxLength`, a placeholder, grows with the text like a Textarea and is framed like one. Inside:
  * - record links `[Назва](vault:…)` show as chips with the record's current title (lib/md-editor/link-chips.ts);
  * - `/` at the start of a line opens the block menu, `[[` the record menu (lib/md-editor/menu.ts);
- * - lists continue on Enter, Tab nests an item, Ctrl+B / Ctrl+I / Ctrl+K wrap the selection (smart-keys.ts).
+ * - lists continue on Enter, Tab nests an item, Ctrl+B / Ctrl+I / Ctrl+K wrap the selection (smart-keys.ts);
+ * - a quiet footer line inside the frame says so («[[ — посилання на запис · / — меню блоків») while the text has
+ *   focus. Its height is always reserved, so it never covers the text, shifts the layout or leaves the field.
  * One view per mounted field, made once; a new `value` from outside is applied as the smallest edit, not by
  * rebuilding the view.
  */
@@ -63,7 +66,6 @@ export function MarkdownEditor({
   minHeight,
   labelledBy,
   label,
-  describedBy,
   ref
 }: {
   id: string
@@ -76,8 +78,6 @@ export function MarkdownEditor({
   labelledBy?: string
   /** The field's name when there is no visible label. */
   label?: string
-  /** Ids of quiet hints about the field (the «[[ · /» line under it). */
-  describedBy?: string
   ref?: Ref<MarkdownEditorHandle>
 }): ReactElement {
   const host = useRef<HTMLDivElement>(null)
@@ -172,7 +172,8 @@ export function MarkdownEditor({
     })
   }, [config, placeholder])
 
-  const describedByAll = [field.describedBy, describedBy].filter(Boolean).join(' ') || undefined
+  const hintId = `${id}-hint`
+  const describedByAll = [field.describedBy, hintId].filter(Boolean).join(' ')
   // A «/» query no block matches is no menu: the keys go to the text again.
   const shown = !!menu && (menu.kind === 'wiki' || filterSlashCommands(menu.query).length > 0)
   useLayoutEffect(() => {
@@ -184,7 +185,7 @@ export function MarkdownEditor({
     const attrs: Record<string, string> = { id }
     if (labelledBy) attrs['aria-labelledby'] = labelledBy
     else attrs['aria-label'] = label || placeholder || 'Текст'
-    if (describedByAll) attrs['aria-describedby'] = describedByAll
+    attrs['aria-describedby'] = describedByAll
     if (field.invalid) attrs['aria-invalid'] = 'true'
     if (placeholder) attrs['aria-placeholder'] = placeholder
     if (list) attrs['aria-controls'] = list
@@ -282,17 +283,33 @@ export function MarkdownEditor({
     <Popover open={shown} onOpenChange={(next) => !next && close()}>
       <PopoverAnchor virtualRef={anchor} />
       <div
-        ref={host}
         data-slot="markdown-editor"
         style={{ '--md-editor-min': minHeight } as CSSProperties}
         className={cn(
           // A Textarea's frame (docs/design-system.md → Формы): border-input + foreground/4, brighter on hover,
           // the ring while the text has focus.
-          'w-full min-w-0 overflow-hidden rounded-xl border border-input bg-foreground/4 text-lead leading-relaxed transition-[border-color,box-shadow,background-color] wrap-anywhere hover:border-foreground/40',
+          'group/md flex w-full min-w-0 flex-col overflow-hidden rounded-xl border border-input bg-foreground/4 text-lead leading-relaxed transition-[border-color,box-shadow,background-color] wrap-anywhere hover:border-foreground/40',
           'focus-within:border-ring focus-within:bg-card focus-within:ring-[3px] focus-within:ring-ring/25',
           'has-aria-invalid:border-destructive has-aria-invalid:ring-destructive/20'
         )}
-      />
+      >
+        <div ref={host} className="min-w-0" />
+        {/* «[[» and «/» work in any text, but nothing said so. Inside the frame, under the text: under the field it
+            hung out of a card whose last field it was. A click on it is a click on the empty end of the text. */}
+        <p
+          id={hintId}
+          className="flex h-7 shrink-0 cursor-text items-center gap-1 overflow-hidden px-4 pb-1 text-meta whitespace-nowrap text-muted-foreground opacity-0 transition-opacity group-focus-within/md:opacity-100"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            const view = viewRef.current
+            if (!view) return
+            view.focus()
+            view.dispatch({ selection: { anchor: view.state.doc.length }, scrollIntoView: true })
+          }}
+        >
+          <Kbd>[[</Kbd> — посилання на запис · <Kbd>/</Kbd> — меню блоків
+        </p>
+      </div>
       {/* The type icons the chips copy (lucide, rendered once per field). */}
       <div ref={icons} hidden>
         {ENTITY_TYPES.map((type) => {
