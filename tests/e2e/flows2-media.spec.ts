@@ -555,3 +555,38 @@ test.describe('добірка: зв’язки поруч із дизайнам�
     expect(moves.length - 1).toBeLessThanOrEqual(1)
   })
 })
+
+test.describe('ряд добірок', () => {
+  test('мишею: перетягування й колесо гортають ряд, а клік після перетягування не відкриває добірку', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    await win.setViewportSize({ width: 1200, height: 800 })
+    for (let i = 0; i < 12; i++) await rpc('moodboards.create', { title: `Ряд ${i} ${uid()}` })
+    await go('/designs')
+    const row = win
+      .locator('[data-slot="strip-item"]')
+      .first()
+      .locator('xpath=ancestor::div[contains(@class,"overflow-x-auto")][1]')
+    await expect(row).toBeVisible()
+    const left = (): Promise<number> => row.evaluate((el) => el.scrollLeft)
+    expect(await left()).toBe(0)
+
+    const box = (await row.boundingBox())!
+    const y = box.y + box.height / 2
+    await win.mouse.move(box.x + box.width - 60, y)
+    await win.mouse.down()
+    await win.mouse.move(box.x + box.width - 260, y, { steps: 8 })
+    await win.mouse.move(box.x + box.width - 460, y, { steps: 8 })
+    await win.mouse.up()
+    await expect.poll(left).toBeGreaterThan(200)
+    // The drag ended over a tile: it stays a drag, the board doesn't open.
+    await win.waitForTimeout(300)
+    await expect.poll(() => hashPath(win)).toBe('/designs')
+
+    const before = await left()
+    await win.mouse.move(box.x + box.width / 2, y)
+    await win.mouse.wheel(0, 300)
+    await expect.poll(left).toBeGreaterThan(before)
+  })
+})
