@@ -203,6 +203,21 @@ describe('OpenAI-compatible adapter', () => {
 })
 
 describe('Anthropic adapter', () => {
+  it('lists the models of the key («Модель» in the settings)', async () => {
+    const fetch = stub(
+      json(200, { data: [{ id: 'claude-sonnet-5-5' }, { id: 'claude-haiku-5-5' }, { id: 7 }] })
+    )
+    const models = await new AnthropicAdapter(new AiHttp(fetch, noSleep)).models(
+      conn('anthropic', { apiKey: 'sk-ant-test' }),
+      req
+    )
+    expect(models).toEqual(['claude-sonnet-5-5', 'claude-haiku-5-5'])
+    expect(fetch.calls[0].url).toBe('https://api.anthropic.com/v1/models?limit=1000')
+    const headers = fetch.calls[0].init.headers as Record<string, string>
+    expect(headers['x-api-key']).toBe('sk-ant-test')
+    expect(headers['anthropic-version']).toBe(ANTHROPIC_VERSION)
+  })
+
   const answer = {
     model: 'claude-haiku-5-5',
     content: [

@@ -92,7 +92,10 @@ test('the connection check explains a failure in plain words, without the networ
   await expect(ai.getByText('Адреса має починатися з http:// або https://')).toBeVisible()
   await address.fill('http://127.0.0.1:9/v1')
   await address.press('Enter')
-  await ai.getByRole('textbox', { name: 'Модель' }).fill('stub')
+  // «Модель» is a list (recommended, the key's models, or a typed name): a name of one's own is typed into its search.
+  await ai.getByRole('combobox', { name: 'Модель' }).click()
+  await win.getByPlaceholder('Пошук або своя назва моделі…').fill('stub')
+  await win.getByRole('option', { name: 'Використати «stub»' }).click()
   await expect
     .poll(async () => {
       const s = await rpc('ai.status')

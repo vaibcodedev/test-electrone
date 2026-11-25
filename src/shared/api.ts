@@ -698,6 +698,8 @@ export interface AiApi {
   clearKey(): Promise<AiStatus>
   /** A tiny request without any record text; a plain Ukrainian error when it fails. */
   test(): Promise<AiTestResult>
+  /** Chat models the chosen provider offers this key, sorted; [] when it lists none. */
+  models(): Promise<string[]>
   /**
    * Up to five tags for a record (existing ones preferred). A cloud provider needs `consent: true` once —
    * after the warning that the record text goes to it.

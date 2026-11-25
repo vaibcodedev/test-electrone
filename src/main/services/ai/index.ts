@@ -60,6 +60,9 @@ export interface AiDeps {
 
 /** Cloud answers in seconds; a local model may first spend a minute loading into memory. */
 const TIMEOUT = { cloud: 30_000, local: 120_000 }
+/** Not chat models in a provider's list (OpenAI, Groq, Mistral list embeddings, speech, images, moderation too). */
+const NOT_CHAT_MODEL =
+  /embed|whisper|tts|speech|transcri|dall-e|image|moderation|audio|realtime|rerank|guard/i
 const SETTINGS_HINT = 'Налаштування → Штучний інтелект'
 
 const keyName = (preset: string): string => `ai:${preset}`
@@ -259,6 +262,27 @@ export class AiService {
   }
 
   /**
+   * «Модель» in the settings: the chat models the chosen provider offers this key, sorted. Not a generation —
+   * no daily limit, no usage; works before the switch is on, like the connection check.
+   */
+  async models(): Promise<string[]> {
+    const conn = this.connection()
+    const controller = new AbortController()
+    this.inflight.add(controller)
+    try {
+      const list = await this.deps.adapters[conn.preset.protocol].models(conn, {
+        timeoutMs: conn.local ? TIMEOUT.local : TIMEOUT.cloud,
+        signal: controller.signal
+      })
+      return [...new Set(list)]
+        .filter((id) => !NOT_CHAT_MODEL.test(id))
+        .sort((a, b) => a.localeCompare(b))
+    } finally {
+      this.inflight.delete(controller)
+    }
+  }
+
+  /**
    * Checks before a feature's request: AI is switched on and set up; a cloud provider gets record texts only
    * after the person agreed once — `consent` says they just did in the warning, and it is remembered.
    */
@@ -320,6 +344,7 @@ export class AiService {
       setKey: async (args) => this.setKey(args),
       clearKey: async () => this.clearKey(),
       test: () => this.test(),
+      models: () => this.models(),
       suggestTags: (input) => this.suggestTags(input),
       cancel: async () => this.cancel()
     }

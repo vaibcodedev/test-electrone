@@ -34,7 +34,7 @@ import { Confirm } from '@/components/common/confirm'
 import { Field } from '@/components/common/page'
 import { NumberInput } from '@/components/common/number-input'
 import { ProgressLine } from '@/components/common/progress-line'
-import { AutosaveInput } from './autosave-input'
+import { AiModelPicker } from './ai-model-picker'
 import { SettingsRow, SettingsSection } from './section'
 
 const LIMITS = limitsOf(aiConfigSchema)
@@ -50,14 +50,13 @@ const hostOf = (url: string): string => {
   }
 }
 
-/** «Якщо лишити порожнім — …» under the model field: the recommended model and a smarter one. */
+/** Under «Модель»: what the recommended model is, and that the list also has every model of the key. */
 function modelHint(preset: AiPreset): string {
   if (!preset.model)
     return preset.local
-      ? 'Якщо лишити порожнім — модель, завантажена в програмі'
-      : 'Назва моделі, як її пише сервіс'
-  const alt = preset.altModels?.length ? `. Інша: ${preset.altModels.join(', ')}` : ''
-  return `Якщо лишити порожнім — ${preset.model}${alt}`
+      ? 'Без вибору — модель, завантажена в програмі. У списку — усі моделі, які вона бачить'
+      : 'Назва моделі, як її пише сервіс: виберіть зі списку або впишіть свою'
+  return `Рекомендована — ${preset.model}. У списку — усі моделі за вашим ключем, можна вписати свою`
 }
 
 /**
@@ -77,13 +76,14 @@ export function AiSection(): ReactElement | null {
     <SettingsSection
       id="ai"
       title="Штучний інтелект"
-      hint="Модель за вашим ключем пропонує мітки до записів. Запити йдуть лише з Vault на цьому комп’ютері, ключ зашифровано ключем Windows."
+      hint="Модель за вашим ключем: чат ШІ (Ctrl+J) і «Запропонувати мітки». Запити йдуть лише з Vault на цьому комп’ютері, ключ зашифровано ключем Windows."
     >
       <SettingsRow
         label="Увімкнути ШІ"
         hint={
           settings.enabled
-            ? (status.missing ?? 'Кнопка «Запропонувати мітки» є в записах у режимі «Редагувати»')
+            ? (status.missing ??
+              'Чат — кнопка «ШІ» вгорі або Ctrl+J; «Запропонувати мітки» — у записах у режимі «Редагувати»')
             : 'Вимкнено — нічого нікуди не надсилається'
         }
       >
@@ -143,14 +143,14 @@ export function AiSection(): ReactElement | null {
 
       <SettingsRow label="Модель" hint={modelHint(preset)}>
         {(id) => (
-          <AutosaveInput
+          <AiModelPicker
             key={preset.id}
             id={id}
+            preset={preset}
             value={settings.model}
-            onSave={(model) => model !== settings.model && set({ model })}
-            placeholder={preset.model ? `Напр.: ${preset.model}` : 'Напр.: qwen3.5-9b'}
+            canList={!status.missing}
             maxLength={LIMITS.model}
-            className="w-56"
+            onChange={(model) => model !== settings.model && set({ model })}
           />
         )}
       </SettingsRow>
