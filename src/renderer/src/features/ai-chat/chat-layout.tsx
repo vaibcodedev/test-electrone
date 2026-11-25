@@ -107,14 +107,16 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
 
   // Any move from the full-page chat («Відкрити», a source, a link in an answer) opened the record under it,
   // where nothing seemed to happen: the chat goes back to a panel and the record shows up next to it.
-  const location = useLocation()
+  // By the address, not location.key: a hash changed directly (a link, the address bar) keeps the key.
+  const { pathname, search } = useLocation()
+  const address = pathname + search
   const setFull = useUi((s) => s.setAiChatFull)
-  const seen = useRef(location.key)
+  const seen = useRef(address)
   useEffect(() => {
-    if (seen.current === location.key) return
-    seen.current = location.key
+    if (seen.current === address) return
+    seen.current = address
     setFull(false)
-  }, [location.key, setFull])
+  }, [address, setFull])
 
   const panel = (
     <Suspense fallback={<PanelSkeleton />}>
@@ -123,8 +125,9 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
   )
 
   // «На всю сторінку»: the chat lies over the page's area and the page stays mounted under it (drafts, scroll),
-  // inert. The chat's draft and thread live outside React (session.ts), so moving it out of the panel group
-  // loses nothing; leaving the mode puts it back at its width.
+  // inert. The panel group never changes in this mode — its chat panel stays in place, empty: taking it out and
+  // putting it back left the page at 100% plus the chat, wider than the window, and the sidebar slid off the left
+  // edge. The chat's draft and thread live outside React (session.ts), so moving its content loses nothing.
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1">
       <ResizablePanelGroup
@@ -139,7 +142,7 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
         <ResizablePanel id="page" minSize="360px" className="flex min-h-0 min-w-0 flex-col">
           {children}
         </ResizablePanel>
-        {open && !full && (
+        {open && (
           <>
             {/* The 10px gap of the frame is the handle: a thin line shows on hover and focus. */}
             <ResizableHandle
@@ -157,7 +160,7 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
               }}
               className="flex min-h-0 min-w-0 flex-col"
             >
-              {panel}
+              {full ? <div className="panel h-full" /> : panel}
             </ResizablePanel>
           </>
         )}

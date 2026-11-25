@@ -17,7 +17,7 @@ function BubbleGroup({ className, ...props }: React.ComponentProps<'div'>): Reac
 }
 
 const bubbleVariants = cva(
-  'group/bubble relative flex w-fit max-w-[85%] min-w-0 flex-col gap-1 group-data-[align=end]/message:self-end data-[align=end]:self-end data-[variant=ghost]:max-w-full',
+  'group/bubble relative flex w-fit max-w-[85%] min-w-0 flex-col gap-1 group-data-[align=end]/message:self-end data-[align=end]:self-end data-[variant=answer]:max-w-full data-[variant=ghost]:max-w-full',
   {
     variants: {
       variant: {
@@ -29,7 +29,11 @@ const bubbleVariants = cva(
         muted:
           '*:data-[slot=bubble-content]:bg-foreground/4 *:data-[slot=bubble-content]:text-muted-foreground',
         outline: '*:data-[slot=bubble-content]:border-border *:data-[slot=bubble-content]:bg-card',
-        // The assistant's answer: plain text across the panel, no surface.
+        // The assistant's answer: a surface of its own, a shade apart from the person's (bg-surface), so who
+        // speaks reads at a glance; as wide as the column — answers carry lists and code.
+        answer:
+          '*:data-[slot=bubble-content]:bg-foreground/5 *:data-[slot=bubble-content]:text-foreground *:data-[slot=bubble-content]:py-3',
+        // Plain text with no surface.
         ghost:
           '*:data-[slot=bubble-content]:rounded-none *:data-[slot=bubble-content]:bg-transparent *:data-[slot=bubble-content]:p-0',
         destructive:

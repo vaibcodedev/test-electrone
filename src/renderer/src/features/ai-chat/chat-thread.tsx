@@ -4,6 +4,7 @@ import { CircleSlash, Copy, Database, RotateCcw, Settings, Sparkles } from 'luci
 import type { AiChat, AiChatMessage } from '@shared/domain/ai-chat'
 import type { EntityRef } from '@shared/domain/common'
 import { ENTITY_META } from '@shared/entity-types'
+import { cn } from '@/lib/utils'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Button } from '@/components/ui/button'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
@@ -32,7 +33,8 @@ import { retryLast, sendMessage, useChatSession, type Outgoing } from './session
  * before each new question, so a question and its answer read as one turn.
  */
 const COLUMN = 'mx-auto w-full max-w-3xl'
-const TURN = 'pt-3 first:pt-0'
+// A question after an answer: the answer's action row already gives the room, a padding on top doubled it.
+const TURN = 'first:pt-0'
 
 /** «14:05», the full date in a tooltip: when it was said, without a timestamp on every line. */
 function Time({ at }: { at: number }): ReactElement {
@@ -104,8 +106,8 @@ function Sources({ message }: { message: AiChatMessage }): ReactElement | null {
 }
 
 /**
- * An answer's own actions under it — «Скопіювати», «Повторити відповідь» on the last one, the time: quiet until
- * the answer is hovered or reached with the keyboard (WCAG 2.4.7: never invisible while focused).
+ * An answer's own actions under it — «Скопіювати», «Повторити відповідь» on the last one, the time. The last
+ * answer shows them always (what you act on next); earlier ones — on hover or keyboard focus (WCAG 2.4.7).
  */
 function AnswerActions({
   message,
@@ -115,7 +117,13 @@ function AnswerActions({
   onRetry?: () => void
 }): ReactElement {
   return (
-    <MessageFooter className="-ml-1.5 gap-0.5 px-0 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 focus-within:opacity-100">
+    <MessageFooter
+      className={cn(
+        '-mt-1 -ml-1.5 gap-0.5 px-0 transition-opacity',
+        !onRetry &&
+          'opacity-0 group-hover/message:opacity-100 group-focus-within/message:opacity-100 focus-within:opacity-100'
+      )}
+    >
       {message.text && (
         <IconAction label="Скопіювати відповідь" onClick={() => void copyText(message.text)}>
           <Copy />
@@ -156,7 +164,7 @@ const SavedMessage = memo(function SavedMessage({
     <Message align="start">
       <MessageContent className="gap-3">
         {message.text && (
-          <Bubble variant="ghost">
+          <Bubble variant="answer">
             <BubbleContent>
               {/* Code in a narrow panel wraps instead of scrolling sideways; its copy button is the Markdown's own. */}
               <Markdown
@@ -317,7 +325,11 @@ export function ChatThread({
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className="min-h-0 flex-1">
         <MessageScrollerViewport aria-label="Повідомлення чату" className="px-4">
-          <MessageScrollerContent className={`${COLUMN} gap-4 py-4`} aria-label="Повідомлення">
+          {/* pb-10: the last message can always scroll clear of the composer, not stop flush against it. */}
+          <MessageScrollerContent
+            className={`${COLUMN} gap-4 pt-4 pb-10`}
+            aria-label="Повідомлення"
+          >
             {empty && <Intro hasContext={hasContext} onStart={(s) => onStart(s.text, !!s.send)} />}
             {messages.map((m) => (
               <MessageScrollerItem

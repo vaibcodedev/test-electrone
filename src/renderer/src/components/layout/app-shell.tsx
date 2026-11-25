@@ -160,7 +160,9 @@ export function AppShell(): ReactElement {
       style={SHELL_VARS}
     >
       <TitleBar />
-      <div className="flex min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5">
+      {/* overflow-clip, not hidden: a box with hidden overflow still scrolls on focus or scrollIntoView, and a
+          row wider than the window once slid the sidebar off the left edge. */}
+      <div className="flex min-h-0 flex-1 gap-2.5 overflow-clip px-2.5 pb-2.5">
         <AppSidebar />
         <ChatLayout>
           <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
