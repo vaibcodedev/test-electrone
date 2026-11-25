@@ -100,11 +100,13 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
   )
 }
 
-function CommandEmpty({ ...props }: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+function CommandEmpty({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.Empty>) {
   return (
     <CommandPrimitive.Empty
       data-slot="command-empty"
-      className="py-6 text-center text-body"
+      // px-4: a long hint («Міток поки немає — введіть назву…») ran edge to edge of the popover. Muted caption:
+      // it's a hint about the list, not content.
+      className={cn('px-4 py-6 text-center text-caption text-balance text-muted-foreground', className)}
       {...props}
     />
   )
