@@ -1,6 +1,7 @@
 import { DEFAULT_PORT, getConnection, setFieldError, validPort, vaultFetch } from './shared.js'
 
 const $ = (id) => document.getElementById(id)
+const EMPTY_KEY = 'Вставте ключ і натисніть «Зберегти й перевірити»'
 
 function setStatus(kind, text) {
   $('status').dataset.state = kind
@@ -17,7 +18,7 @@ async function saveAndCheck() {
   if (port) await chrome.storage.local.set({ port, key })
   const invalid = !port ? 'port' : !key ? 'key' : null
   if (invalid) {
-    setStatus('pending', 'Не перевірено')
+    setStatus('pending', invalid === 'key' ? EMPTY_KEY : 'Не перевірено')
     $(invalid).focus()
     return
   }
@@ -38,7 +39,18 @@ async function init() {
   $('port').value = String(port)
   $('key').value = key
   if (key) void check()
+  else setStatus('pending', EMPTY_KEY)
 }
+
+/** A pasted key is checked by eye before saving: the field is masked only until asked. The spoken name starts
+ * with the visible word (WCAG 2.5.3), so «Сховати» works as a voice command; no aria-pressed next to a changing label. */
+$('reveal').addEventListener('click', () => {
+  const shown = $('key').type === 'password'
+  $('key').type = shown ? 'text' : 'password'
+  const label = shown ? 'Сховати' : 'Показати'
+  $('reveal').textContent = label
+  $('reveal').setAttribute('aria-label', `${label} ключ`)
+})
 
 $('form').addEventListener('submit', (e) => {
   e.preventDefault()

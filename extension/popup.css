@@ -24,13 +24,15 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Values mirror src/renderer/src/styles/globals.css (card → --bg, surface, foreground, muted-foreground, input, ring,
-   destructive → --danger, success) and its type roles: the popup is the same product. */
+/* Values mirror src/renderer/src/styles/globals.css (frame, card → --bg, surface, accent, foreground, muted-foreground,
+   input, ring, destructive → --danger, success, warn) and its type roles: the popup is the same product. */
 :root {
   --lime: #d4f542;
   --lime-fg: #14160f;
+  --frame: #d8dcd2;
   --bg: #f7f8f4;
   --surface: #eceee7;
+  --accent: #e4e7de;
   --fg: #14160f;
   --muted: #5d6255;
   --border: rgb(20 22 15 / 0.09);
@@ -38,6 +40,7 @@
   --ring: #55700a;
   --danger: #b02a33;
   --success: #266632;
+  --warn: #855505;
   --text-meta: 11.5px;
   --text-caption: 12.5px;
   --text-body: 13.5px;
@@ -49,8 +52,10 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --lime: #d8f74a;
+    --frame: #0e0f11;
     --bg: #18191c;
     --surface: #232428;
+    --accent: #2d2e33;
     --fg: #f3f4f1;
     --muted: #b2b4ba;
     --border: rgb(255 255 255 / 0.08);
@@ -58,6 +63,7 @@
     --ring: #d4f542;
     --danger: #ff5c63;
     --success: #6fdc84;
+    --warn: #ffb547;
     color-scheme: dark;
   }
 }
@@ -68,7 +74,7 @@
 
 /* Chrome caps the popup at 600px: the form scrolls, so the scrollbar must be visible (thin, like the app's). */
 body,
-#body {
+textarea {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--fg) 22%, transparent) transparent;
 }
@@ -202,7 +208,8 @@ body {
   border: 0;
   border-radius: 999px;
   padding: 4px 10px;
-  background: color-mix(in oklab, var(--danger) 14%, transparent);
+  /* The plain panel under danger text: a danger tint on the danger plate fell below 4.5:1. */
+  background: var(--bg);
   color: inherit;
   font: inherit;
   font-weight: 600;
@@ -211,7 +218,7 @@ body {
 }
 
 .status-action:hover {
-  background: color-mix(in oklab, var(--danger) 22%, transparent);
+  background: color-mix(in oklab, var(--danger) 8%, var(--bg));
 }
 
 .chips {
@@ -239,10 +246,10 @@ body {
 
 .label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: var(--text-caption);
   font-weight: 500;
-  color: color-mix(in oklab, var(--fg) 72%, transparent);
+  color: var(--muted);
 }
 
 .label .hint {
@@ -255,7 +262,7 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .label-row .label {
@@ -267,6 +274,10 @@ body {
   line-height: 1;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+.count[data-full] {
+  color: var(--warn);
 }
 
 input,
@@ -312,7 +323,7 @@ textarea {
 }
 
 .field-error {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--danger);
   font-size: var(--text-caption);
 }
@@ -349,6 +360,16 @@ textarea {
   color: var(--fg);
 }
 
+/* Not possible on this page (a screenshot of chrome://): still focusable, a click explains why. */
+.segment button[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.segment button[aria-disabled='true']:hover {
+  color: var(--muted);
+}
+
 .segment button[aria-checked='true'] {
   background: var(--bg);
   color: var(--fg);
@@ -375,8 +396,11 @@ textarea {
 }
 
 #kinds button {
-  padding: 4px 8px;
   font-size: var(--text-meta);
+}
+
+.shot-hint {
+  margin-top: 8px;
 }
 
 .preview {
@@ -424,19 +448,30 @@ textarea {
   cursor: default;
 }
 
-.ghost {
+/* Secondary actions: the app's `soft` button (a neutral plate, readable text), never grey text without a plate. */
+.soft {
   border: 0;
   border-radius: 999px;
   padding: 10px 14px;
-  background: transparent;
-  color: var(--muted);
+  background: var(--surface);
+  color: var(--fg);
   font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.ghost:hover {
-  background: var(--surface);
-  color: var(--fg);
+.soft:hover {
+  background: var(--accent);
+}
+
+.soft:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.wide {
+  flex: 1;
 }
 
 .error {
@@ -474,6 +509,16 @@ textarea {
   margin-top: 8px;
 }
 
+/* Saved without the picture: a neutral mark and a warn line instead of a lime «all good». */
+.done[data-state='warn'] .big {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.done[data-state='warn'] #done-type {
+  color: var(--warn);
+}
+
 .done .what {
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -485,7 +530,12 @@ textarea {
   letter-spacing: -0.02em;
 }
 
-/* Options page */
+/* Options page: a panel on the frame, like the app's window (layers, not borders). */
+html:has(> body.options),
+body.options {
+  background: var(--frame);
+}
+
 body.options {
   width: auto;
   max-height: none;
@@ -506,7 +556,16 @@ body.options {
   padding: 20px;
   border-radius: 24px;
   background: var(--bg);
-  border: 1px solid var(--border);
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 .options .actions {
@@ -524,11 +583,12 @@ body.options {
 .row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
+.row .label,
 .row .field-error {
-  margin-top: 2px;
+  margin: 0;
 }
 
 .field {
@@ -546,20 +606,34 @@ body.options {
   overflow-y: auto;
 }
 
+/* «Назва» wraps instead of hiding all but the start of a long title; past three lines it scrolls. */
+#title {
+  field-sizing: content;
+  min-height: 0;
+  max-height: calc(3 * 1.45em + 20px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
 #body {
+  field-sizing: content;
   min-height: 56px;
   max-height: 140px;
   overflow-y: auto;
 }
 
+/* Code lines are not wrapped mid-expression: long ones scroll sideways. */
 #body.code {
   font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
   font-size: var(--text-caption);
   line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+  overflow-wrap: normal;
 }
 
 .tag-row {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .tag-row:empty {

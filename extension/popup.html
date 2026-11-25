@@ -22,9 +22,9 @@
       <div>
         <div class="label-row">
           <label class="label" for="title" id="title-label">Назва</label>
-          <span class="count" id="title-count"></span>
+          <span class="count" id="title-count" aria-live="polite"></span>
         </div>
-        <input id="title" maxlength="500" aria-describedby="title-error" />
+        <textarea id="title" rows="1" maxlength="500" aria-describedby="title-error"></textarea>
         <div class="field-error" id="title-error"></div>
       </div>
       <!-- Per-target fields: shown by renderFields() for the chosen type. -->
@@ -54,12 +54,13 @@
       <div>
         <span class="label" id="shot-label">Скриншот</span>
         <div class="segment" id="shot-mode" aria-labelledby="shot-label"></div>
+        <div class="hint shot-hint" id="shot-hint" hidden>Chrome не дає зробити скриншот цієї сторінки.</div>
       </div>
       <div class="preview" id="preview"><img id="preview-img" alt="Скриншот" /></div>
 
       <div class="error" id="error" role="alert"></div>
       <div class="actions">
-        <button type="button" class="ghost" id="open-options">Налаштування</button>
+        <button type="button" class="soft" id="open-options">Налаштування</button>
         <button type="button" class="primary" id="save" title="Ctrl+Enter" aria-keyshortcuts="Control+Enter">Зберегти у Vault</button>
       </div>
     </main>
@@ -68,10 +69,11 @@
       <span class="big" aria-hidden="true">✓</span>
       <span class="what" id="done-title"></span>
       <span class="hint" id="done-type"></span>
+      <div class="error" id="done-error" role="alert"></div>
       <div class="actions">
-        <button type="button" class="ghost" id="back">Зберегти ще</button>
-        <button type="button" class="ghost" id="open-record">Відкрити у Vault</button>
-        <button type="button" class="primary" id="close">Готово</button>
+        <button type="button" class="soft" id="back">Зберегти ще</button>
+        <button type="button" class="soft" id="open-record">Відкрити у Vault</button>
+        <button type="button" class="soft wide" id="close">Готово</button>
       </div>
     </section>
 

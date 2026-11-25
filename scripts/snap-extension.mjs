@@ -2,9 +2,13 @@
  * Screenshots of the Chrome extension popup and options page in every state, rendered in Electron with a
  * stubbed `chrome.*` API and a fake Vault bridge (no browser, no running Vault needed):
  *   <out>/<theme>/popup-<target>.png              each target type, connected (full height)
- *   <out>/<theme>/popup-<target>-600.png          the same in Chrome's 600px popup cap (warns if «Зберегти» is below it)
- *   <out>/<theme>/popup-nokey | offline | long | selection | restricted | focus .png
- *   <out>/<theme>/popup-saved | back | error .png  after «Зберегти», after «Зберегти ще», server error
+ *   <out>/<theme>/popup-<target>-600.png          the same in Chrome's 600px popup cap (warns if the footer leaves it)
+ *   <out>/<theme>/popup-nokey | offline | unauthorized | timeout .png   connection problems
+ *   <out>/<theme>/popup-long | selection | recent | focus .png
+ *   <out>/<theme>/popup-restricted | restricted-design | restricted-switch .png   chrome:// page (design → bookmark)
+ *   <out>/<theme>/popup-area | area-error .png      back after «Виділити область», a failed selection
+ *   <out>/<theme>/popup-saved | saved-warning | back .png   after «Зберегти» (also without the picture), «Зберегти ще»
+ *   <out>/<theme>/popup-error | tags-error .png     the server refused the title / the tags
  *   <out>/<theme>/options | options-nokey | options-offline | options-badport .png
  * Usage: node scripts/snap-extension.mjs <out> [--themes=dark,light]
  */
@@ -19,10 +23,15 @@ const work = mkdtempSync(join(tmpdir(), 'vault-ext-'))
 const ext = join(work, 'ext')
 cpSync(resolve('extension'), ext, { recursive: true })
 
-/** chrome.* + fetch stub; the state comes from the page URL (?key=…&ping=…&title=…&sel=…&capture=…). */
+/**
+ * chrome.* + fetch stub; the state comes from the page URL:
+ * key=0 · ping=offline|401|timeout · url · title · sel · recent=a,b · area=1 · areaError=1 · capture=error|tags|warning
+ */
 writeFileSync(join(ext, 'stub.js'), `
 const q = new URLSearchParams(location.search)
+const tabUrl = q.get('url') || 'https://dribbble.com/shots/123-dashboard'
 const store = q.get('key') === '0' ? {} : { key: 'test-key', port: 47219 }
+if (q.get('recent')) store.recentTags = q.get('recent').split(',')
 const session = {}
 const area = (s) => ({
   get: async (k) => { const o = {}; for (const x of k == null ? Object.keys(s) : [].concat(k)) if (x in s) o[x] = s[x]; return o },
@@ -36,9 +45,11 @@ function shot() {
   for (let i = 0; i < 3; i++) g.fillRect(80 + i * 380, 220, 350, 260)
   return c.toDataURL('image/png')
 }
+if (q.get('area')) session['area:7'] = { dataUrl: shot(), url: tabUrl, at: Date.now() }
+if (q.get('areaError')) session['area-error:7'] = { url: tabUrl, at: Date.now() }
 window.chrome = {
   tabs: {
-    query: async () => [{ id: 7, windowId: 1, url: q.get('url') || 'https://dribbble.com/shots/123-dashboard', title: q.get('title') || 'Dashboard UI concept — Dribbble' }],
+    query: async () => [{ id: 7, windowId: 1, url: tabUrl, title: q.get('title') || 'Dashboard UI concept — Dribbble' }],
     captureVisibleTab: async () => shot()
   },
   storage: { local: area(store), session: area(session) },
@@ -55,11 +66,16 @@ const realFetch = window.fetch
 window.fetch = async (url, init) => {
   if (!String(url).startsWith('http://127.0.0.1')) return realFetch(url, init)
   if (q.get('ping') === 'offline') throw new TypeError('Failed to fetch')
+  if (q.get('ping') === 'timeout') throw new DOMException('t', 'TimeoutError')
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  if (q.get('ping') === '401') return json(401, { ok: false, error: 'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».' })
   if (String(url).endsWith('/ping')) return json(200, { ok: true, app: 'vault', version: '0.1.0' })
   if (q.get('capture') === 'error') return json(400, { ok: false, error: 'Назва: занадто довго — максимум 500 символів' })
+  if (q.get('capture') === 'tags') return json(400, { ok: false, error: 'Мітки: занадто довго — максимум 60 символів' })
   const body = JSON.parse(init?.body || '{}')
-  return json(200, { ok: true, type: body.target, id: 'x', title: body.title || 'Без назви' })
+  const section = { design: 'Дизайни', bookmark: 'Закладки', library: 'JS-бібліотеки', component: 'Компоненти', application: 'Вакансії' }[body.target]
+  const warning = q.get('capture') === 'warning' ? 'Запис збережено, але скриншот додати не вдалося.' : undefined
+  return json(200, { ok: true, type: body.target, id: 'x', title: body.title || 'Без назви', section, warning })
 }
 `)
 for (const page of ['popup.html', 'options.html']) {
@@ -87,13 +103,24 @@ const STATES = [
   ['popup-application', 'popup', 'url=https://djinni.co/jobs/1-frontend/&title=Middle Frontend Developer at Acme&sel=Ми шукаємо Frontend-розробника з досвідом React від 3 років.'],
   ['popup-nokey', 'popup', 'key=0'],
   ['popup-offline', 'popup', 'ping=offline'],
+  ['popup-unauthorized', 'popup', 'ping=401'],
+  ['popup-timeout', 'popup', 'ping=timeout'],
   ['popup-long', 'popup', `title=${encodeURIComponent('Дуже довга назва сторінки '.repeat(12) + 'Суперкаліфраджилістікекспіалідоціозний'.repeat(3))}`],
   ['popup-selection', 'popup', `url=https://example.com/post&sel=${encodeURIComponent('Виділений текст статті. '.repeat(40))}`],
+  ['popup-recent', 'popup', 'url=https://example.com/post&title=Post&recent=react,дизайн,почитати'],
   ['popup-restricted', 'popup', 'url=chrome://extensions/&title=Розширення'],
+  ['popup-restricted-design', 'popup', 'url=chrome://extensions/&title=Розширення&target=design'],
+  // Design's «needs a screenshot» error must go away on «Закладка».
+  ['popup-restricted-switch', 'popup', 'url=chrome://extensions/&title=Розширення&target=design&then=bookmark'],
+  ['popup-area', 'popup', 'area=1'],
+  // A failed selection with an older picture still stored: the old one must not come back.
+  ['popup-area-error', 'popup', 'area=1&areaError=1'],
   ['popup-focus', 'popup', '', 'focus'],
   ['popup-saved', 'popup', '', 'save'],
+  ['popup-saved-warning', 'popup', 'url=https://example.com/post&title=Post&capture=warning', 'save'],
   ['popup-back', 'popup', '', 'back'],
   ['popup-error', 'popup', 'capture=error', 'save'],
+  ['popup-tags-error', 'popup', 'capture=tags', 'save'],
   ['options', 'options', ''],
   ['options-nokey', 'options', 'key=0'],
   ['options-offline', 'options', 'ping=offline', 'submit'],
@@ -117,8 +144,9 @@ for (const theme of THEMES) {
     await win.goto(url)
     await win.waitForTimeout(500)
     const target = params.get('target') || file.replace('popup-', '')
-    if (page === 'popup' && TARGET_LABEL[target]) {
-      await win.getByRole('radio', { name: TARGET_LABEL[target], exact: true }).click().catch(() => {})
+    for (const t of [target, params.get('then')]) {
+      if (page !== 'popup' || !TARGET_LABEL[t]) continue
+      await win.getByRole('radio', { name: TARGET_LABEL[t], exact: true }).click().catch(() => {})
       await win.waitForTimeout(200)
     }
     if (action === 'save' || action === 'back') {
@@ -140,14 +168,20 @@ for (const theme of THEMES) {
       await win.waitForTimeout(500)
     }
     if (TYPES.includes(file)) {
-      // Chrome caps the popup at 600px: the main button must stay visible there.
+      // Chrome caps the popup at 600px: the body scrolls under the sticky footer, the page itself never does.
       await win.setViewportSize({ width: 420, height: 600 })
       await win.waitForTimeout(100)
-      const bottom = await win.evaluate(() => {
-        document.body.style.maxHeight = ''
-        return document.getElementById('save').getBoundingClientRect().bottom
+      const fit = await win.evaluate(() => {
+        const body = document.body
+        return {
+          footer: document.querySelector('.wrap > .actions').getBoundingClientRect().bottom,
+          page: document.documentElement.scrollHeight,
+          // Taller content must scroll inside body, under the sticky footer.
+          stuck: body.scrollHeight > body.clientHeight + 1 && !/auto|scroll/.test(getComputedStyle(body).overflowY)
+        }
       })
-      if (bottom > 600) console.warn(`[snap-extension] ${theme}/${file}: «Зберегти у Vault» is below the 600px popup cap (${Math.round(bottom)}px)`)
+      if (fit.footer > 600 || fit.page > 600 || fit.stuck)
+        console.warn(`[snap-extension] ${theme}/${file}: the footer leaves the 600px popup cap (footer ${Math.round(fit.footer)}px, page ${fit.page}px${fit.stuck ? ', body does not scroll' : ''})`)
       await win.screenshot({ path: join(dir, `${file}-600.png`) })
     }
     // Full content height: lift the 600px cap so every field is on the picture.

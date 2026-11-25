@@ -6,14 +6,16 @@ import {
   isRestricted,
   setFieldError,
   suggestTarget,
+  urlParts,
   vaultFetch
 } from './shared.js'
 
 const $ = (id) => document.getElementById(id)
-const TARGET_LABEL = Object.fromEntries(TARGETS.map((t) => [t.id, t.label]))
 
 /** captureSchema limits: the popup stops here instead of the server refusing the whole record. */
 const TITLE_MAX = 500
+/** A library name is MAX.name on the server: longer would be cut silently. */
+const NAME_MAX = 200
 const TAG_MAX = 60
 const TAGS_MAX = 20
 
@@ -38,6 +40,7 @@ const FIELDS = {
   },
   library: {
     title: 'Пакет або назва',
+    titleMax: NAME_MAX,
     note: 'Нотатка',
     notePh: 'Для чого знадобиться',
     tagsPh: 'стейт, форми',
@@ -79,40 +82,61 @@ const SHOT_MODES = [
   ['none', 'Без скриншота']
 ]
 
-const RESTRICTED = 'Chrome не дозволяє скриншот цієї сторінки. Збережіть без скриншота.'
-const DESIGN_RESTRICTED = 'Для дизайну потрібен скриншот, а Chrome не дозволяє зняти цю сторінку.'
+const RESTRICTED = 'Chrome не дає зробити скриншот цієї сторінки — збережіть без нього.'
+const DESIGN_RESTRICTED =
+  'Дизайн без скриншота не зберегти — виберіть інший тип, наприклад «Закладка».'
+const CAPTURE_FAILED =
+  'Не вдалося зробити скриншот. Спробуйте «Виділити область» або збережіть без скриншота.'
+const AREA_FAILED = 'Не вдалося зняти область — спробуйте виділити ще раз.'
 const SAVE_FAILED = 'Не вдалося зберегти. Спробуйте ще раз.'
 
 /** The popup always sends `kind`; the server's copy is only a fallback for old versions. */
 function guessKind(url) {
-  let u
-  try {
-    u = new URL(url)
-  } catch {
-    return 'article'
-  }
-  const host = u.hostname.replace(/^www\./, '')
+  const parts = urlParts(url)
+  if (!parts) return 'article'
+  const { host, path } = parts
   if (/youtube\.com|youtu\.be|vimeo\.com/.test(host)) return 'video'
   if (/github\.com/.test(host)) return 'repo'
   if (/udemy|coursera|egghead|frontendmasters/.test(host)) return 'course'
-  if (/^(docs|developer)\./.test(host) || /^\/(docs|reference|api)(\/|$)/.test(u.pathname))
-    return 'docs'
+  if (/^(docs|developer)\./.test(host) || /^\/(docs|reference|api)(\/|$)/.test(path)) return 'docs'
   return 'article'
 }
 
-/** npm `/package/<name>` → package name, GitHub `/<owner>/<repo>` → repo; '' for other pages. */
+/** GitHub pages whose first segment is not an owner. */
+const GITHUB_SERVICE = new Set(['orgs', 'features', 'settings', 'topics', 'marketplace'])
+
+/**
+ * npm `/package/<name>` → package name, GitHub `/<owner>/<repo>/…` → repo; '' for other pages.
+ * Same rules as the server's parseLibraryPage: a repo subpage still names the repo.
+ */
 function packageNameFrom(url) {
-  let u
-  try {
-    u = new URL(url)
-  } catch {
-    return ''
+  const parts = urlParts(url)
+  if (!parts) return ''
+  const { host, path } = parts
+  if (host === 'npmjs.com' || host.endsWith('.npmjs.com')) {
+    const npm = path.match(/^\/package\/((?:@[^/]+\/)?[^/]+)/)
+    return npm ? decodeURIComponent(npm[1]) : ''
   }
-  const host = u.hostname.replace(/^www\./, '')
-  const npm = host.endsWith('npmjs.com') && u.pathname.match(/^\/package\/((?:@[^/]+\/)?[^/]+)/)
-  if (npm) return decodeURIComponent(npm[1])
-  const gh = host === 'github.com' && u.pathname.match(/^\/[^/]+\/([^/]+)\/?$/)
-  return gh ? gh[1] : ''
+  const gh = host === 'github.com' && path.match(/^\/([^/]+)\/([^/]+)/)
+  return gh && !GITHUB_SERVICE.has(gh[1]) ? gh[2] : ''
+}
+
+/**
+ * «Dashboard UI concept — Dribbble» → «Dashboard UI concept»: the tail goes only when it is the site's own
+ * name (the link is saved anyway). Anything else after a dash may be part of the title and stays.
+ */
+function cleanTitle(title, url) {
+  const site = urlParts(url)?.host.split('.').at(-2)
+  const m = title.match(/\s+[-–—|·]\s+([^-–—|·]+)$/)
+  return site && m && m[1].toLowerCase().replace(/\s+/g, '') === site
+    ? title.slice(0, m.index)
+    : title
+}
+
+/** «Middle Frontend Developer at Acme» → position and company; null without « at ». */
+function vacancyParts(title) {
+  const m = title.match(/^(.+?)\s+at\s+(.+)$/i)
+  return m ? { position: m[1], company: m[2] } : null
 }
 
 const state = {
@@ -121,7 +145,10 @@ const state = {
   kind: 'article',
   mode: 'visible',
   modeTouched: false,
-  screenshot: null,
+  /** «Видима область» and «Виділити область» are different pictures: switching the mode must not swap them. */
+  shots: { visible: null, area: null },
+  /** What #error says about the screenshot ('' | 'restricted' | 'capture' | 'area' | 'required'): renderFields() recomputes it. */
+  shotError: '',
   /** In-flight captureVisible(): init, type switches and save share one call (Chrome allows ~2 per second). */
   capturing: null,
   /** A failed capture is retried only by an explicit «Видима область». */
@@ -192,18 +219,29 @@ async function ping() {
   const res = await vaultFetch('/ping')
   if (res.ok) setStatus('ok', 'Vault під’єднано')
   else setStatus('bad', res.error, res.status)
-  if (retry && !$('status-action').hidden) $('status-action').focus()
+  // After a successful check the button is gone: keep the keyboard in the form, not on <body>.
+  if (retry) {
+    if (!$('status-action').hidden) $('status-action').focus()
+    else focusTitle()
+  }
 }
 
-function setError(text) {
+/** `shotError` marks a screenshot problem: the next renderFields() drops it if it no longer applies. */
+function setError(text, shotError = '') {
+  state.shotError = text ? shotError : ''
   $('error').textContent = text || ''
 }
 
-/** Server messages start with the field label («Назва: …»): put them under that field. */
+/**
+ * Server messages start with the field label («Назва: …», older servers «Запис 4 → Мітки: …»): show them
+ * under that field without repeating the label it already has.
+ */
 function showSaveError(text) {
-  if (/^Назва:/.test(text)) return setFieldError('title', text)
-  if (/^Мітк[аи]:/.test(text)) return setFieldError('tags', text)
-  setError(text)
+  const m = text.match(/^(?:Запис \d+ → )?(Назва|Мітк[аи])\s*:\s*(.+)$/s)
+  if (!m) return setError(text)
+  const id = m[1] === 'Назва' ? 'title' : 'tags'
+  setFieldError(id, m[2][0].toUpperCase() + m[2].slice(1))
+  $(id).focus()
 }
 
 /* ───────── single-choice groups ───────── */
@@ -226,7 +264,11 @@ function radioGroup(box, items, onChange, manual = []) {
   })
   box.replaceChildren(...buttons)
   box.addEventListener('keydown', (e) => {
-    const shown = buttons.filter((b) => !b.hidden)
+    // Arrows skip hidden and unavailable choices (the focused one may still be left).
+    const shown = buttons.filter(
+      (b) =>
+        !b.hidden && (b === document.activeElement || b.getAttribute('aria-disabled') !== 'true')
+    )
     const i = shown.indexOf(document.activeElement)
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
     const next = step
@@ -257,6 +299,8 @@ const syncTarget = radioGroup(
     // The title follows the type while it is untouched (library → package name).
     if ($('title').value === defaultTitle(state.target)) $('title').value = defaultTitle(id)
     state.target = id
+    // A length error belongs to the type it was shown for.
+    if ($('title').value.trim().length <= titleMax()) setFieldError('title', '')
     updateCount()
     renderFields()
     scheduleDraft()
@@ -271,13 +315,24 @@ const syncMode = radioGroup($('shot-mode'), SHOT_MODES, (mode) => selectMode(mod
 
 /* ───────── UI ───────── */
 
+const pageTitle = () => cleanTitle(state.tab.title || '', state.tab.url)
+
 function defaultTitle(target) {
-  return (target === 'library' && packageNameFrom(state.tab.url)) || state.tab.title || ''
+  // A library name is capped at NAME_MAX: a long docs title must not arrive already over the limit.
+  if (target === 'library')
+    return (packageNameFrom(state.tab.url) || pageTitle()).slice(0, NAME_MAX).trimEnd()
+  if (target === 'application') return vacancyParts(pageTitle())?.position ?? pageTitle()
+  return pageTitle()
 }
+
+const titleMax = () => FIELDS[state.target].titleMax ?? TITLE_MAX
 
 function updateCount() {
   const n = $('title').value.length
-  $('title-count').textContent = n >= TITLE_MAX * 0.8 ? `${n} / ${TITLE_MAX}` : ''
+  const max = titleMax()
+  const count = $('title-count')
+  count.textContent = n >= max * 0.8 ? `${n} / ${max}` : ''
+  count.toggleAttribute('data-full', n >= max)
 }
 
 /** Caret at the start: a long title shows its beginning, not the tail. */
@@ -285,7 +340,7 @@ function focusTitle() {
   const title = $('title')
   title.focus()
   title.setSelectionRange(0, 0)
-  title.scrollLeft = 0
+  title.scrollTop = 0
 }
 
 async function renderRecentTags() {
@@ -307,11 +362,15 @@ async function renderRecentTags() {
   $('recent-tags').replaceChildren(...chips)
 }
 
+const currentShot = () => (state.mode === 'none' ? null : state.shots[state.mode])
+const restrictedText = () => (FIELDS[state.target].shotRequired ? DESIGN_RESTRICTED : RESTRICTED)
+
 function renderMode() {
   syncMode(state.mode)
   const preview = $('preview')
-  if (state.screenshot && state.mode !== 'none') {
-    $('preview-img').src = state.screenshot
+  const shot = currentShot()
+  if (shot) {
+    $('preview-img').src = shot
     preview.style.display = 'block'
   } else {
     preview.style.display = 'none'
@@ -321,37 +380,54 @@ function renderMode() {
 /** Labels, extra fields and the screenshot default follow the chosen type. */
 function renderFields() {
   const f = FIELDS[state.target]
+  const restricted = isRestricted(state.tab.url)
+  if (state.shotError) setError('')
   syncTarget(state.target)
   for (const el of document.querySelectorAll('.field'))
     el.classList.toggle('on', el.dataset.for.split(' ').includes(state.target))
   $('title-label').textContent = f.title
+  $('title').maxLength = titleMax()
   $('note-label').textContent = f.note
   $('note').placeholder = f.notePh
   $('tags').placeholder = f.tagsPh
   if (f.body) {
     $('body-label').textContent = f.body
-    $('body').placeholder = f.bodyPh
+    // A service page gives no selection: only pasting is left.
+    $('body').placeholder = restricted ? 'Вставте текст сюди' : f.bodyPh
     $('body').classList.toggle('code', !!f.code)
   }
+  const shotMode = $('shot-mode')
   // Design needs a picture: no «Без скриншота» there.
-  $('shot-mode').querySelector('[data-value="none"]').hidden = !!f.shotRequired
+  shotMode.querySelector('[data-value="none"]').hidden = !!f.shotRequired
+  for (const value of ['visible', 'area']) {
+    const button = shotMode.querySelector(`[data-value="${value}"]`)
+    if (restricted) button.setAttribute('aria-disabled', 'true')
+    else button.removeAttribute('aria-disabled')
+  }
+  $('shot-hint').hidden = !restricted
+  // A hidden node referenced directly is still read: the hint is linked only while it is shown.
+  if (restricted) shotMode.setAttribute('aria-describedby', 'shot-hint')
+  else shotMode.removeAttribute('aria-describedby')
   if (!state.modeTouched || (f.shotRequired && state.mode === 'none')) state.mode = f.shot
-  if (state.mode === 'visible' && !state.screenshot && isRestricted(state.tab.url)) {
+  if (restricted && state.mode !== 'none') {
     // Service pages can't be captured: no point trying (and failing) on every switch.
-    if (f.shotRequired) setError(DESIGN_RESTRICTED)
+    if (f.shotRequired) setError(DESIGN_RESTRICTED, 'restricted')
     else state.mode = 'none'
   }
-  if (state.mode === 'visible') void ensureScreenshot()
+  if (state.mode === 'visible') {
+    if (state.captureFailed) setError(CAPTURE_FAILED, 'capture')
+    else void ensureScreenshot()
+  }
   syncKind(state.kind)
   renderMode()
 }
 
 function selectMode(mode) {
   setError('')
+  if (mode !== 'none' && isRestricted(state.tab.url))
+    return setError(restrictedText(), 'restricted')
   state.modeTouched = true
   if (mode === 'area') return void startAreaSelection()
-  if (mode === 'visible' && isRestricted(state.tab.url))
-    return setError(FIELDS[state.target].shotRequired ? DESIGN_RESTRICTED : RESTRICTED)
   state.mode = mode
   if (mode === 'visible') {
     state.captureFailed = false
@@ -382,7 +458,7 @@ function tagsError(tags) {
 /* ───────── page data ───────── */
 
 function ensureScreenshot() {
-  if (state.screenshot || state.captureFailed || isRestricted(state.tab.url))
+  if (state.shots.visible || state.captureFailed || isRestricted(state.tab.url))
     return Promise.resolve()
   state.capturing ??= captureVisible().finally(() => {
     state.capturing = null
@@ -392,13 +468,13 @@ function ensureScreenshot() {
 
 async function captureVisible() {
   try {
-    state.screenshot = await chrome.tabs.captureVisibleTab(state.tab.windowId, { format: 'png' })
+    state.shots.visible = await chrome.tabs.captureVisibleTab(state.tab.windowId, {
+      format: 'png'
+    })
   } catch (e) {
     console.error('[vault screenshot]', e)
     state.captureFailed = true
-    setError(
-      'Не вдалося зробити скриншот. Спробуйте «Виділити область» або збережіть без скриншота.'
-    )
+    if (state.mode === 'visible') setError(CAPTURE_FAILED, 'capture')
   }
   renderMode()
 }
@@ -417,7 +493,6 @@ async function readSelection() {
 }
 
 async function startAreaSelection() {
-  if (isRestricted(state.tab.url)) return setError(RESTRICTED)
   clearTimeout(state.draftTimer)
   await saveDraft()
   try {
@@ -441,6 +516,13 @@ async function save() {
     $('tags').focus()
     return
   }
+  // maxLength stops typing only: a title typed under another type may already be longer than this one allows.
+  const max = titleMax()
+  if ($('title').value.trim().length > max) {
+    setFieldError('title', `Не більше ${max} символів — скоротіть назву`)
+    $('title').focus()
+    return
+  }
   // Written now so that a popup closed mid-request still has the input if the save fails.
   clearTimeout(state.draftTimer)
   await saveDraft()
@@ -455,7 +537,8 @@ async function save() {
     if (CONNECTION_PROBLEMS.includes(res.status)) {
       setStatus('bad', res.error, res.status)
       $('status').scrollIntoView({ block: 'nearest' })
-    } else showSaveError(res.error)
+    } else if (res.shotError) setError(res.error, res.shotError)
+    else showSaveError(res.error)
     return
   }
   state.saved = { type: res.type, id: res.id }
@@ -465,12 +548,13 @@ async function save() {
 
 async function send(tags) {
   if (state.mode === 'visible') await ensureScreenshot()
-  const screenshot = state.mode === 'none' ? null : state.screenshot
+  const screenshot = currentShot()
   if (FIELDS[state.target].shotRequired && !screenshot) {
     const error = isRestricted(state.tab.url)
       ? DESIGN_RESTRICTED
       : 'Для дизайну потрібен скриншот — виберіть «Видима область» або «Виділити область».'
-    return { ok: false, status: 'error', error }
+    // A screenshot problem, not a server one: switching to a type without a picture clears it.
+    return { ok: false, status: 'error', error, shotError: 'required' }
   }
   const body = {
     target: state.target,
@@ -503,7 +587,12 @@ function showDone(res) {
   $('done').style.display = 'flex'
   $('done-title').textContent = title
   $('done-title').title = title
-  $('done-type').textContent = res.warning || `${TARGET_LABEL[state.target]}: збережено у Vault`
+  // A partial success (no picture) must not read as a full one under the same check mark.
+  if (res.warning) $('done').dataset.state = 'warn'
+  else delete $('done').dataset.state
+  $('done-type').textContent =
+    res.warning || (res.section ? `Збережено в розділі «${res.section}»` : 'Збережено у Vault')
+  $('done-error').textContent = ''
   $('open-record').hidden = !res.id
   $('close').focus()
 }
@@ -521,9 +610,12 @@ async function init() {
   const stored = await chrome.storage.session.get([draftKey(), areaKey(), areaErrorKey()])
   const draft = stored[draftKey()]?.url === tab.url ? stored[draftKey()] : null
   const storedArea = stored[areaKey()]
-  const area =
-    storedArea?.url === tab.url && Date.now() - (storedArea.at ?? 0) < AREA_TTL ? storedArea : null
   const areaFailed = stored[areaErrorKey()]?.url === tab.url
+  // After a failed selection an older picture must not stand in for the new one.
+  const area =
+    !areaFailed && storedArea?.url === tab.url && Date.now() - (storedArea.at ?? 0) < AREA_TTL
+      ? storedArea
+      : null
   const { targets = {} } = await chrome.storage.local.get('targets')
 
   state.target = draft?.target || targets[hostOf(tab.url)] || suggestTarget(tab.url)
@@ -531,13 +623,14 @@ async function init() {
   $('note').value = draft?.note ?? ''
   $('tags').value = draft?.tags ?? ''
   $('body').value = draft?.selection || ''
-  $('company').value = draft?.company ?? ''
+  // Guessed only without a draft: a company the user cleared stays cleared.
+  $('company').value = draft ? (draft.company ?? '') : (vacancyParts(pageTitle())?.company ?? '')
   state.kind = draft?.kind ?? guessKind(tab.url)
   // After the area capture the mode stays «area»; otherwise the draft or the type decides.
   state.modeTouched = !!draft?.modeTouched || !!area
   if (area) {
     state.mode = 'area'
-    state.screenshot = area.dataUrl
+    state.shots.area = area.dataUrl
   } else if (draft?.mode === 'none' || draft?.mode === 'visible') state.mode = draft.mode
 
   if (storedArea || areaFailed) {
@@ -547,8 +640,7 @@ async function init() {
 
   updateCount()
   renderFields()
-  if (areaFailed)
-    setError('Не вдалося зняти область. Спробуйте ще раз або виберіть «Видима область».')
+  if (areaFailed) setError(AREA_FAILED, 'area')
   focusTitle()
   void renderRecentTags()
 
@@ -559,6 +651,9 @@ async function init() {
 
 $('form').addEventListener('input', (e) => {
   const id = e.target?.id
+  // «Назва» wraps like a textarea but stays one line: a pasted line break becomes a space.
+  if (id === 'title' && /[\r\n]/.test(e.target.value))
+    e.target.value = e.target.value.replace(/\r?\n/g, ' ')
   if (id === 'title') updateCount()
   if (id === 'title' || id === 'tags') setFieldError(id, '')
   scheduleDraft()
@@ -568,12 +663,23 @@ $('save').addEventListener('click', () => void save())
 $('open-options').addEventListener('click', () => chrome.runtime.openOptionsPage())
 $('close').addEventListener('click', () => window.close())
 $('open-record').addEventListener('click', async () => {
-  const res = await vaultFetch('/open', { method: 'POST', body: state.saved })
+  const button = $('open-record')
+  if (button.disabled) return
+  button.disabled = true
+  $('done-error').textContent = ''
+  const res = await vaultFetch('/open', {
+    method: 'POST',
+    body: state.saved,
+    fallback: 'Не вдалося відкрити запис у Vault.'
+  })
+  button.disabled = false
   if (res.ok) window.close()
-  else $('done-type').textContent = res.error
+  else $('done-error').textContent = res.error
 })
 $('back').addEventListener('click', () => {
   state.saved = null
+  delete $('done').dataset.state
+  $('done-error').textContent = ''
   $('done').style.display = 'none'
   $('form').style.display = ''
   $('note').value = ''
@@ -583,9 +689,9 @@ $('back').addEventListener('click', () => {
   focusTitle()
 })
 document.addEventListener('keydown', (e) => {
-  // Enter in a one-line field or Ctrl+Enter anywhere saves; only from the form, not from the «Збережено» screen.
+  // Enter in a one-line field («Назва» included) or Ctrl+Enter anywhere saves; only from the form.
   if (e.key !== 'Enter' || e.isComposing || state.saved) return
-  if (e.ctrlKey || e.metaKey || e.target instanceof HTMLInputElement) {
+  if (e.ctrlKey || e.metaKey || e.target instanceof HTMLInputElement || e.target.id === 'title') {
     e.preventDefault()
     void save()
   }

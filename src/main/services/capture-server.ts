@@ -6,8 +6,10 @@ import { bookmarkInputSchema, type BookmarkKind } from '@shared/domain/bookmarks
 import { componentInputSchema } from '@shared/domain/components'
 import { applicationInputSchema } from '@shared/domain/jobs'
 import { UserError } from '../core/util'
-import { formatError } from '../ipc/rpc'
-import { app, Notification, net } from 'electron'
+import { showNotification } from '../core/notify'
+import { formatError } from '../ipc/rpc-utils'
+import { configureZod } from '@shared/zod-locale'
+import { app, net } from 'electron'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'http'
 import { randomBytes, timingSafeEqual } from 'crypto'
 import { join } from 'path'
@@ -18,21 +20,34 @@ import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import type { ConfigStore } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
 
+configureZod()
+
 const MAX_BODY = 30 * 1024 * 1024
 /** captureSchema.screenshot.max: checked before parsing, so the popup learns that the picture is the problem. */
-const SCREENSHOT_MAX = 25_000_000
+const SCREENSHOT_MAX = fieldMax(captureSchema.shape.screenshot)
 const TOO_LARGE = 'Скриншот завеликий — виділіть меншу область або збережіть без скриншота.'
 const BAD_KEY = 'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».'
 
 /** A request refused by size (413), not by content. */
 class TooLargeError extends UserError {}
 
-/**
- * Local bridge for the Vault Chrome extension.
- * - listens on 127.0.0.1 only (never the network);
- * - every request must carry the secret key shown in Settings (X-Vault-Key), compared in constant time;
- * - only chrome-extension:// origins get CORS headers.
- */
+/** Popup field names: «Мітки: …» lands under the tags field; no «Запис 4 →» from the array index. */
+const CAPTURE_LABEL: Record<string, string> = {
+  title: 'Назва',
+  tags: 'Мітки',
+  note: 'Нотатка',
+  selection: 'Виділений текст',
+  company: 'Компанія',
+  url: 'Посилання',
+  screenshot: 'Скриншот',
+  kind: 'Вид закладки'
+}
+
+export function captureIssue(e: ZodError): string {
+  const issue = e.issues[0]
+  const label = CAPTURE_LABEL[String(issue?.path[0])]
+  return label ? `${label}: ${issue.message}` : formatError(e).error
+}
 
 /** Host without «www.»; never throws (adds https://, otherwise a board address saved without a scheme won't parse). */
 function hostOf(url: string): string {
@@ -74,12 +89,16 @@ export interface LibraryPage {
   githubUrl: string
 }
 
+/** GitHub sections that look like «owner/repo» but are not repositories. Same list as GITHUB_SERVICE in extension/popup.js. */
+const GITHUB_SERVICE = new Set(['orgs', 'features', 'settings', 'topics', 'marketplace'])
+
 /** Splits a page into what its URL says for sure (npm package, GitHub repo) and the cleaned title. */
 export function parseLibraryPage(url: string, title: string): LibraryPage {
+  // Old popups send the raw tab title. Only known site tails go: «Day.js — дати» typed by hand stays as is.
   const name = title
-    // «GitHub - owner/repo: description» (old popups send the raw tab title) → «repo».
     .replace(/^GitHub\s+-\s+[^/\s]+\/([^:\s]+).*$/i, '$1')
-    .replace(/\s+[-–—|·]\s+.*$/, '')
+    .replace(/^[^/\s]+\/([^:\s]+):\s.*\s·\s*GitHub$/i, '$1')
+    .replace(/\s+[-–—|·]\s+(?:npm|GitHub|Docs|Documentation|Документація)$/i, '')
     .trim()
   const none: LibraryPage = { name, npmName: null, repo: null, npmUrl: '', githubUrl: '' }
   let u: URL
@@ -94,7 +113,7 @@ export function parseLibraryPage(url: string, title: string): LibraryPage {
     if (m) return { ...none, npmName: decodeURIComponent(m[1]), npmUrl: `https://www.npmjs.com/package/${m[1]}` }
   } else if (host === 'github.com') {
     const m = u.pathname.match(/^\/([^/]+)\/([^/]+)/)
-    if (m) return { ...none, repo: { owner: m[1], name: m[2] }, githubUrl: `https://github.com/${m[1]}/${m[2]}` }
+    if (m && !GITHUB_SERVICE.has(m[1])) return { ...none, repo: { owner: m[1], name: m[2] }, githubUrl: `https://github.com/${m[1]}/${m[2]}` }
   }
   return none
 }
@@ -145,6 +164,12 @@ export async function libraryFrom(url: string, title: string, fetchFn: (url: str
   return result
 }
 
+/**
+ * Local bridge for the Vault Chrome extension.
+ * - listens on 127.0.0.1 only (never the network);
+ * - every request must carry the secret key shown in Settings (X-Vault-Key), compared in constant time;
+ * - only chrome-extension:// origins get CORS headers.
+ */
 export class CaptureServer {
   private server: Server | null = null
   private listening = false
@@ -260,12 +285,14 @@ export class CaptureServer {
         if (Number(req.headers['content-length']) > MAX_BODY) throw new TooLargeError(TOO_LARGE)
         const body = JSON.parse(await this.readBody(req)) as { screenshot?: unknown } | null
         if (typeof body?.screenshot === 'string' && body.screenshot.length > SCREENSHOT_MAX) throw new TooLargeError(TOO_LARGE)
-        const saved = await this.capture(captureSchema.parse(body))
+        const input = captureSchema.safeParse(body)
+        if (!input.success) return this.json(res, 400, { ok: false, error: captureIssue(input.error) })
+        const saved = await this.capture(input.data)
         this.bus.dataChanged('all')
-        const n = new Notification({ title: 'Збережено у Vault', body: `${ENTITY_META[saved.type].label}: ${saved.title}`, icon: this.icon })
-        n.on('click', () => this.openRoute(ENTITY_META[saved.type].route(saved.id)))
-        n.show()
-        return this.json(res, 200, { ok: true, ...saved })
+        const meta = ENTITY_META[saved.type]
+        showNotification({ title: 'Збережено у Vault', body: `${meta.label}: ${saved.title}`, icon: this.icon }, () => this.openRoute(meta.route(saved.id)))
+        // `section` tells the popup where to look («Збережено в розділі «Дизайни»»); old popups ignore it.
+        return this.json(res, 200, { ok: true, ...saved, section: meta.plural })
       }
       if (req.method === 'POST' && req.url === '/open') {
         const { type, id } = (JSON.parse(await this.readBody(req)) ?? {}) as { type?: unknown; id?: unknown }

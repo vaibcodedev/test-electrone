@@ -23,7 +23,10 @@
         </div>
         <div class="row">
           <label class="label" for="key">Ключ</label>
-          <input id="key" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-error" />
+          <div class="input-row">
+            <input id="key" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-error" />
+            <button type="button" class="soft" id="reveal" aria-label="Показати ключ" aria-controls="key">Показати</button>
+          </div>
           <div class="field-error" id="key-error"></div>
         </div>
         <div class="status-row">

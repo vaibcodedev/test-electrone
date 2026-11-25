@@ -14,6 +14,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch(async (e) => {
         // The overlay is already gone: without this the user would see nothing happen at all.
         console.error('[vault area]', e)
+        // A picture from an earlier selection must not stand in for the one that just failed.
+        await chrome.storage.session.remove(`area:${tab.id}`)
         await chrome.storage.session.set({
           [`area-error:${tab.id}`]: { url: tab.url, at: Date.now() }
         })

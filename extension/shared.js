@@ -29,14 +29,16 @@ export function setFieldError(id, text) {
 }
 
 const SETTINGS_HINT = 'Налаштування → «Розширення для Chrome»'
+const SAVE_FAILED = 'Не вдалося зберегти. Спробуйте ще раз.'
 
 /**
  * Calls the local Vault bridge. Never talks to anything but 127.0.0.1.
  * Every request has a deadline: a hung Vault or a foreign process on the port must not leave «Зберігаю…» forever.
+ * `fallback` is the error when Vault refuses without saying why.
  */
 export async function vaultFetch(
   path,
-  { method = 'GET', body, timeout = method === 'GET' ? 3000 : 30_000 } = {}
+  { method = 'GET', body, timeout = method === 'GET' ? 3000 : 30_000, fallback = SAVE_FAILED } = {}
 ) {
   const { port, key } = await getConnection()
   if (!key)
@@ -63,7 +65,7 @@ export async function vaultFetch(
     return {
       ok: false,
       status: 'offline',
-      error: `Немає зв’язку з Vault на порту ${port}. Запустіть Vault (досить іконки в треї) і перевірте в ${SETTINGS_HINT}, що приймання даних увімкнено й порт збігається.`
+      error: `Немає зв’язку з Vault (порт ${port}). Запустіть його й перевірте в ньому ${SETTINGS_HINT}.`
     }
   }
   let data = {}
@@ -89,7 +91,7 @@ export async function vaultFetch(
     return {
       ok: false,
       status: 'error',
-      error: data.error || 'Не вдалося зберегти. Спробуйте ще раз.'
+      error: data.error || fallback
     }
   return { ok: true, status: 'ok', ...data }
 }
@@ -121,25 +123,33 @@ async function rememberTags(tags) {
 export async function sendCapture(tabId, body) {
   const res = await vaultFetch('/capture', { method: 'POST', body })
   if (!res.ok) return res
-  await Promise.all([
+  // The record exists: a failed cleanup (say, the tab is already closed) must not report «не вдалося зберегти».
+  const results = await Promise.allSettled([
     rememberTarget(body.url, body.target),
     rememberTags(body.tags),
     chrome.storage.session.remove([`draft:${tabId}`, `area:${tabId}`, `area-error:${tabId}`]),
     chrome.action.setBadgeText({ tabId, text: '' })
   ])
+  for (const r of results)
+    if (r.status === 'rejected') console.error('[vault capture] after-save', r.reason)
   return res
+}
+
+/** { host without «www.», path } of a page, or null for a broken URL: one parser for every guess below. */
+export function urlParts(rawUrl) {
+  try {
+    const u = new URL(rawUrl)
+    return { host: u.hostname.replace(/^www\./, ''), path: u.pathname }
+  } catch {
+    return null
+  }
 }
 
 /** Suggests a target from the page URL. */
 export function suggestTarget(rawUrl) {
-  let u
-  try {
-    u = new URL(rawUrl)
-  } catch {
-    return 'bookmark'
-  }
-  const host = u.hostname.replace(/^www\./, '')
-  const path = u.pathname
+  const parts = urlParts(rawUrl)
+  if (!parts) return 'bookmark'
+  const { host, path } = parts
   if (host === 'npmjs.com' || host.endsWith('.npmjs.com')) return 'library'
   if (host === 'github.com' && /^\/[^/]+\/[^/]+\/?$/.test(path)) return 'library'
   if (/(^|\.)djinni\.co$|(^|\.)dou\.ua$|(^|\.)work\.ua$|(^|\.)robota\.ua$/.test(host))
@@ -161,11 +171,7 @@ export function suggestTarget(rawUrl) {
 }
 
 export function hostOf(rawUrl) {
-  try {
-    return new URL(rawUrl).hostname.replace(/^www\./, '')
-  } catch {
-    return ''
-  }
+  return urlParts(rawUrl)?.host ?? ''
 }
 
 /** Pages where scripts can't be injected (chrome://, Web Store, other extensions…). */
