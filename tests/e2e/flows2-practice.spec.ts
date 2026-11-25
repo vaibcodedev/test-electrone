@@ -169,8 +169,8 @@ test.describe('англійська: слово → тренування', () =>
     expect(created.stage).toBe('new')
     const row = win.getByRole('button').filter({ hasText: term }).first()
     await expect(row).toContainText('Нове')
-    // «повторити сьогодні» or «повтор сьогодні» (the page clock predates the word): either way, today.
-    await expect(row).toContainText('сьогодні')
+    // The page clock follows the list's own refetch, so a word added a moment ago is already due.
+    await expect(row).toContainText('повторити сьогодні')
 
     // Only this word is due today (the seeded ones are answered via RPC), so the session is just it.
     await answerDueExcept(rpc, [created.id])
@@ -189,10 +189,7 @@ test.describe('англійська: слово → тренування', () =>
     await expect(card.getByText('викатка', { exact: true })).toBeVisible()
     await expect(win.getByText('Як ви згадали переклад?')).toBeVisible()
     await win.keyboard.press('4')
-    // «На сьогодні все» instead of the summary is the queue-refetch bug below (it ends the same way here).
-    await expect(
-      win.getByText('Сесію завершено').or(win.getByText('На сьогодні все'))
-    ).toBeVisible()
+    await expect(win.getByText('Сесію завершено')).toBeVisible()
 
     await win.getByRole('button', { name: 'Повернутися до словника' }).click()
     await expect.poll(() => hashPath(win)).toBe('/english')
@@ -207,17 +204,11 @@ test.describe('англійська: слово → тренування', () =>
     await expect(after).not.toContainText('сьогодні')
   })
 
-  // BUG: use-review-session.ts reads the queue as `session?.words ?? initial`. Every answer is a write
-  // (english.review → data:changed → invalidateAll), so the `english.queue` query refetches mid-session and
-  // returns only the words still due — the index keeps counting over a shorter list and words are skipped.
-  // Scenario: 3 words due → «Повторити 3» → answer the first → the counter jumps «2/3» → «2/2», the second
-  // word is never shown, the summary says «1 слово, відповідей: 2»; once the refetched queue is empty the
-  // summary itself is replaced by «На сьогодні все» (`s.total === 0` is checked before `s.finished`).
+  // Regression: every answer is a write (english.review → data:changed → invalidateAll), so the `english.queue`
+  // query refetches mid-session with only the words still due. Read live, the index counted over the shorter
+  // list: «2/3» → «2/2», the second word was never shown, and the summary turned into «На сьогодні все».
+  // The session now copies the queue once (use-review-session.ts).
   test('сесія показує кожне слово, що на сьогодні, рівно раз', async ({ vault }) => {
-    test.fail(
-      !process.env.SHOW_BUGS,
-      'known bug: the review queue refetches mid-session and skips words'
-    )
     test.setTimeout(90_000)
     const { win, rpc, go } = vault
     const token = uid()

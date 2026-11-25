@@ -8,7 +8,7 @@ export type GradeCounts = Record<ReviewGrade, number>
 
 const NO_RESULTS: GradeCounts = { 0: 0, 1: 0, 2: 0, 3: 0 }
 
-/** The session's own queue once it differs from the server's: a forgotten word appended, or extra practice. */
+/** The session's own queue: a copy of the server's, plus forgotten words appended at its end, or extra practice. */
 interface Session {
   words: Word[]
   unique: number
@@ -41,14 +41,30 @@ export interface ReviewSession {
  * answers per grade, and practice beyond the norm.
  */
 export function useReviewSession(): ReviewSession {
-  const { data: initial, isLoading, error, refetch } = useApi('english', 'queue', 50, { staleTime: Infinity, refetchOnMount: 'always' })
+  const {
+    data: initial,
+    isLoading,
+    isFetchedAfterMount,
+    error,
+    refetch
+  } = useApi('english', 'queue', 50, {
+    staleTime: Infinity,
+    refetchOnMount: 'always'
+  })
   const [session, setSession] = useState<Session | null>(null)
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [results, setResults] = useState<GradeCounts>(NO_RESULTS)
 
-  const queue = session?.words ?? initial ?? null
+  // The queue is copied once, from this visit's own fetch (not a cached one from the last visit). Every answer is
+  // a write and refetches all queries: read live, the queue shrank to the words still due under the index and
+  // skipped every other word.
+  if (session === null && initial && isFetchedAfterMount) {
+    setSession({ words: initial, unique: initial.length, extra: false })
+  }
+
+  const queue = session?.words ?? null
   const extra = session?.extra ?? false
   const current = queue?.[index]
   const total = queue?.length ?? 0
@@ -76,7 +92,8 @@ export function useReviewSession(): ReviewSession {
     try {
       await api.english.review({ id: current.id, grade: g, extra })
       setResults((r) => ({ ...r, [g]: r[g] + 1 }))
-      if (g === 0) setSession({ words: [...queue, current], unique: session?.unique ?? queue.length, extra })
+      if (g === 0)
+        setSession({ words: [...queue, current], unique: session?.unique ?? queue.length, extra })
       setIndex((i) => i + 1)
       setRevealed(false)
     } catch (e) {
