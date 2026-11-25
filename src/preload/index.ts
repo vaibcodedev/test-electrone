@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron'
 import { MAIN_EVENTS, RPC_CHANNEL, type MainEventName, type RpcResult } from '@shared/api'
 import type { VaultBridge } from '@shared/bridge'
+import { PROFILE_ARG_PREFIX } from '@shared/domain/sandbox'
 
 /**
  * The ONLY surface the renderer gets. No raw ipcRenderer, no Node.
@@ -23,7 +24,9 @@ const bridge: VaultBridge = {
   pathForFile(file: File): string {
     return webUtils.getPathForFile(file)
   },
-  platform: process.platform
+  platform: process.platform,
+  // webPreferences.additionalArguments land in process.argv of the (sandboxed) preload.
+  profile: process.argv.includes(`${PROFILE_ARG_PREFIX}sandbox`) ? 'sandbox' : 'main'
 }
 
 contextBridge.exposeInMainWorld('vault', bridge)

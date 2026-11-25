@@ -6,9 +6,18 @@ import { Notification, type NotificationConstructorOptions } from 'electron'
  */
 const alive = new Set<Notification>()
 
+/**
+ * «Тест · » in «Тестовий режим»: a reminder from the test data must not pass for a real one. Module state on
+ * purpose (set once at startup, like configureZod) instead of passing the profile into every caller.
+ */
+let titlePrefix = ''
+export function setNotificationPrefix(prefix: string): void {
+  titlePrefix = prefix
+}
+
 export function showNotification(opts: NotificationConstructorOptions, onClick?: () => void): void {
   if (!Notification.isSupported()) return
-  const n = new Notification(opts)
+  const n = new Notification(titlePrefix ? { ...opts, title: titlePrefix + (opts.title ?? '') } : opts)
   alive.add(n)
   const drop = (): void => {
     alive.delete(n)

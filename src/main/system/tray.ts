@@ -1,6 +1,7 @@
 import { app, Menu, nativeImage, Tray } from 'electron'
 import { showNotification } from '../core/notify'
 import type { ConfigStore } from '../core/config-store'
+import type { ProfileKind } from '@shared/domain/sandbox'
 import type { WindowManager } from './window-manager'
 
 /** What the tray needs from time tracking (CRM). */
@@ -30,6 +31,7 @@ export class TrayController {
     private readonly config: ConfigStore,
     private readonly iconPath: string,
     private readonly onToggleAutostart: (enabled: boolean) => void,
+    private readonly profile: ProfileKind = 'main',
     private readonly timer?: TrayTimer
   ) {
     config.onSettingsChange(() => this.refresh())
@@ -89,7 +91,7 @@ export class TrayController {
   create(): void {
     const image = nativeImage.createFromPath(this.iconPath).resize({ width: 16, height: 16 })
     this.tray = new Tray(image)
-    this.tray.setToolTip('Vault')
+    this.tray.setToolTip(this.name)
     this.tray.on('click', () => this.windows.toggleMain())
     // Windows shows a snapshot of the context menu: build it at the moment of opening, so the time is current.
     // Windows only: Linux trays have no right-click event (they get setContextMenu in refresh, like macOS).
@@ -100,27 +102,58 @@ export class TrayController {
   refresh(): void {
     if (!this.tray) return
     const run = this.timer?.running()
-    this.tray.setToolTip(run ? `Vault · ⏱ ${run.projectTitle} ${elapsed(run.startedAt)}` : 'Vault')
+    const short = this.profile === 'sandbox' ? 'Vault · тест' : 'Vault'
+    this.tray.setToolTip(run ? `${short} · ⏱ ${run.projectTitle} ${elapsed(run.startedAt)}` : this.name)
     if (process.platform !== 'win32') this.tray.setContextMenu(this.menu())
+  }
+
+  private get name(): string {
+    return this.profile === 'sandbox' ? 'Vault · тестовий режим' : 'Vault'
+  }
+
+  /**
+   * «Тестовий режим» items. They only open the settings section: the confirm and saving pending edits happen in
+   * the window, so the tray never relaunches by itself.
+   */
+  private profileItems(): Electron.MenuItemConstructorOptions[] {
+    const open = (): void => this.windows.showMain('/settings#sandbox')
+    if (this.profile === 'sandbox') {
+      return [
+        { label: 'Тестовий режим: основні дані не змінюються', enabled: false },
+        { label: 'Налаштування тестового режиму…', click: open },
+        { type: 'separator' }
+      ]
+    }
+    return []
   }
 
   private menu(): Menu {
     const s = this.config.settings
     const accel = s.quickAddShortcut.replace('CommandOrControl', 'Ctrl')
+    const sandbox = this.profile === 'sandbox'
     return Menu.buildFromTemplate([
+        ...this.profileItems(),
         { label: 'Відкрити Vault', click: () => this.windows.showMain() },
         { label: `Швидко додати    ${accel}`, click: () => this.windows.showQuickAdd() },
         { label: 'Пошук', click: () => this.windows.showMain('/?search=1') },
+        ...(sandbox
+          ? []
+          : [{ label: 'Тестовий режим…', click: () => this.windows.showMain('/settings#sandbox') }]),
         { type: 'separator' },
         ...this.timerItems(),
         ...(this.timer ? [{ type: 'separator' as const }] : []),
-        {
-          label: 'Запускати разом із Windows',
-          type: 'checkbox',
-          checked: s.launchAtLogin,
-          click: (item) => this.onToggleAutostart(item.checked)
-        },
-        { type: 'separator' },
+        // Autostart is one login item per OS and belongs to the real Vault: not offered in the sandbox.
+        ...(sandbox
+          ? []
+          : [
+              {
+                label: 'Запускати разом із Windows',
+                type: 'checkbox' as const,
+                checked: s.launchAtLogin,
+                click: (item: Electron.MenuItem) => this.onToggleAutostart(item.checked)
+              },
+              { type: 'separator' as const }
+            ]),
         { label: 'Вийти', click: () => app.quit() }
       ])
   }

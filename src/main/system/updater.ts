@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import electronUpdater from 'electron-updater'
 import type { UpdateStatus } from '@shared/domain/system'
+import type { ProfileKind } from '@shared/domain/sandbox'
 import type { EventBus } from '../core/event-bus'
 import type { ConfigStore } from '../core/config-store'
 import { log } from '../core/logger'
@@ -19,8 +20,14 @@ export class Updater {
 
   constructor(
     private readonly bus: EventBus,
-    private readonly config: ConfigStore
+    private readonly config: ConfigStore,
+    profile: ProfileKind = 'main'
   ) {
+    // The test Vault never updates or installs: the installed app belongs to the real profile.
+    if (profile === 'sandbox') {
+      this.status = { state: 'disabled', reason: 'У тестовому режимі оновлення вимкнено' }
+      return
+    }
     // Screenshot tests only (scripts/snap.mjs), never in an installed build: shows the update plate
     // without a real release. A broken value is ignored instead of breaking the app start.
     const fake = app.isPackaged ? undefined : process.env.VAULT_SNAP_UPDATE
@@ -105,7 +112,17 @@ export class Updater {
     return this.status
   }
 
+  /**
+   * Before a relaunch from the main profile («Тестовий режим»): app.exit(0) may still fire 'quit' with code 0,
+   * and electron-updater would start the silent installer next to the new instance. The downloaded update
+   * installs on the next normal quit instead (it stays in the cache).
+   */
+  holdInstall(): void {
+    if (this.status.state !== 'disabled') autoUpdater.autoInstallOnAppQuit = false
+  }
+
   install(): void {
+    if (this.status.state === 'disabled') return
     if (this.status.state === 'ready') autoUpdater.quitAndInstall()
     // A failed download is reported by the 'error' event; the rejected promise has nothing to add.
     else if (this.status.state === 'available') autoUpdater.downloadUpdate().catch(() => undefined)

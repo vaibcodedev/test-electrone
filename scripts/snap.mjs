@@ -1,10 +1,11 @@
 /**
  * Launches the built app (out/) with an isolated user-data dir and screenshots routes.
  * Usage: node scripts/snap.mjs [outDir] [route...]   e.g. node scripts/snap.mjs shots / /ideas
- * Env: SNAP_THEME=dark|light, SNAP_SEED=1 to create demo data first.
+ * Env: SNAP_THEME=dark|light, SNAP_SEED=1 to create demo data first, SNAP_SANDBOX=1 to open «Тестовий режим»
+ * (its data goes to `${userData}-sandbox`, removed afterwards).
  */
 import { _electron as electron } from 'playwright-core'
-import { mkdirSync, mkdtempSync } from 'fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 
@@ -15,7 +16,11 @@ const userData = process.env.SNAP_USER_DATA ?? mkdtempSync(join(tmpdir(), 'vault
 // SNAP_EXE=dist/win-unpacked/Vault.exe tests the packaged build instead of out/.
 const app = await electron.launch({
   ...(process.env.SNAP_EXE ? { executablePath: resolve(process.env.SNAP_EXE) } : {}),
-  args: [...(process.env.SNAP_EXE ? [] : [resolve('.')]), `--user-data-dir=${userData}`],
+  args: [
+    ...(process.env.SNAP_EXE ? [] : [resolve('.')]),
+    `--user-data-dir=${userData}`,
+    ...(process.env.SNAP_SANDBOX ? ['--vault-sandbox'] : [])
+  ],
   env: { ...process.env, NODE_ENV: 'production' }
 })
 const errors = []
@@ -76,3 +81,4 @@ for (const raw of routes.length ? routes : ['/']) {
 }
 if (errors.length) console.log('ERRORS:\n' + errors.join('\n'))
 await app.close()
+if (process.env.SNAP_SANDBOX) rmSync(`${userData}-sandbox`, { recursive: true, force: true, maxRetries: 3 })

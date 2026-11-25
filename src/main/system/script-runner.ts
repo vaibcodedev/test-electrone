@@ -94,6 +94,13 @@ export class ScriptRunner {
       .map((x) => this.publicRun(x))
   }
 
+  /** How many scripts run right now (the «Тестовий режим» confirm says they will stop). */
+  runningCount(): number {
+    let n = 0
+    for (const r of this.runs.values()) if (r.status === 'running') n++
+    return n
+  }
+
   list(): RunningScript[] {
     return [...this.runs.values()].map((r) => this.publicRun(r)).sort((a, b) => b.startedAt - a.startedAt)
   }

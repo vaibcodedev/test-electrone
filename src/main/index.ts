@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, nativeTheme, session } from 'electron'
+import { mkdirSync } from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -6,25 +7,84 @@ import { Container } from './container'
 import { log, logFilePath, setupLogging } from './core/logger'
 import { registerRpc } from './ipc/rpc'
 import { handleAppProtocol, handleFileProtocol, registerSchemes } from './system/protocols'
-import { applyAutostart, launchedHidden } from './system/autostart'
+import { applyAutostart, HIDDEN_ARG, launchedHidden } from './system/autostart'
+import { setNotificationPrefix } from './core/notify'
+import {
+  resolveProfile,
+  samePath,
+  seedSandboxConfig,
+  wipeSandboxData,
+  writeMarker
+} from './core/profile'
+import type { ProfileKind } from '@shared/domain/sandbox'
 
 const APP_ID = 'dev.vault.app'
 
 // `npm run dev` must never touch the real data of the installed app (Windows paths are case-insensitive,
 // so %APPDATA%/vault and %APPDATA%/Vault are the same folder). Tests pass their own --user-data-dir.
+// setPath throws on a folder that does not exist yet (a fresh machine).
 if (!app.isPackaged && !process.argv.some((a) => a.startsWith('--user-data-dir'))) {
-  app.setPath('userData', join(app.getPath('appData'), 'vault-dev'))
+  const dev = join(app.getPath('appData'), 'vault-dev')
+  mkdirSync(dev, { recursive: true })
+  app.setPath('userData', dev)
 }
 
-setupLogging()
+// «Тестовий режим» is a process flag, never a setting: a normal start always opens the real data. The order
+// below matters: the lock is taken on the MAIN folder before userData moves, so the real and the test Vault
+// never run at the same time (one tray, one hotkey, one extension port).
+const profile = resolveProfile(process.argv, app.getPath('userData'))
+const gotLock = app.requestSingleInstanceLock({ profile: profile.kind })
+if (gotLock && profile.kind === 'sandbox') {
+  mkdirSync(profile.sandboxUserData, { recursive: true })
+  app.setPath('userData', profile.sandboxUserData)
+  // Explicitly, not relying on «sessionData defaults to userData»: cookies, caches, localStorage stay apart.
+  app.setPath('sessionData', profile.sandboxUserData)
+  if (samePath(app.getPath('userData'), profile.mainUserData))
+    throw new Error('[sandbox] resolved to the main profile')
+}
+
+setupLogging({ dir: join(app.getPath('userData'), 'logs'), profile: profile.kind })
+if (profile.kind === 'sandbox') setNotificationPrefix('Тест · ')
 registerSchemes()
 
-if (!app.requestSingleInstanceLock()) {
+if (!gotLock) {
   app.quit()
 } else {
   let container: Container | null = null
+  // Wiping the test data («Очистити тестові дані» inside the sandbox) happens before the database opens.
+  let resetFailed = false
+  if (profile.kind === 'sandbox') {
+    if (profile.reset) {
+      try {
+        wipeSandboxData(profile)
+      } catch (e) {
+        resetFailed = true
+        log.error('[sandbox] reset', e)
+      }
+    }
+    try {
+      writeMarker(profile)
+      seedSandboxConfig(profile)
+    } catch (e) {
+      log.error('[sandbox] prepare', e)
+    }
+  }
 
-  app.on('second-instance', () => container?.windows.showMain())
+  // A second launch (shortcut, autostart) while Vault runs: show this window; say which data it holds when
+  // the launch asked for the other profile.
+  app.on('second-instance', (_e, argv, _cwd, data) => {
+    if (!container || argv.includes(HIDDEN_ARG)) return
+    container.windows.showMain()
+    const wanted = (data as { profile?: ProfileKind } | null)?.profile ?? 'main'
+    if (wanted === profile.kind) return
+    container.bus.emit('toast', {
+      kind: 'info',
+      message:
+        profile.kind === 'sandbox'
+          ? 'Vault зараз у тестовому режимі. Щоб повернутися до своїх даних — «Вийти…» у бічній панелі або Налаштування → «Вийти з тестового режиму».'
+          : 'Vault уже відкрито з вашими даними. Тестовий режим вмикається в Налаштуваннях.'
+    })
+  })
 
   app.whenReady().then(() => {
     electronApp.setAppUserModelId(APP_ID)
@@ -48,7 +108,7 @@ if (!app.requestSingleInstanceLock()) {
     // folder, a disk error) must show the same window instead of leaving a silent background process.
     let c: Container
     try {
-      c = new Container(icon)
+      c = new Container(icon, profile)
     } catch (e) {
       log.error('[startup] container', e)
       dialog.showErrorBox(
@@ -94,10 +154,23 @@ if (!app.requestSingleInstanceLock()) {
     registerRpc(c.api, c.bus)
 
     const s = c.config.settings
-    applyAutostart(s.launchAtLogin)
+    applyAutostart(s.launchAtLogin, profile.kind)
     const hidden = launchedHidden() && s.startHidden
     const main = c.windows.createMain({ show: !hidden })
     c.tray.create()
+    if (resetFailed) {
+      main.webContents.once('did-finish-load', () =>
+        setTimeout(
+          () =>
+            c.bus.emit('toast', {
+              kind: 'error',
+              message:
+                'Не вдалося очистити тестові дані — файли тримає інша програма. Відкрито попередні тестові дані.'
+            }),
+          1500
+        )
+      )
+    }
     if (!c.shortcuts.register()) {
       log.warn('[shortcut]', c.shortcuts.lastError)
       // The renderer subscribes to toasts after its first render, a moment after the page has loaded.
@@ -129,13 +202,5 @@ if (!app.requestSingleInstanceLock()) {
     if (!container?.config.settings.closeToTray) app.quit()
   })
 
-  app.on('will-quit', () => {
-    container?.reminders.stop()
-    container?.scripts.killAll()
-    container?.capture.stop()
-    container?.backup.stop()
-    container?.updater.stop()
-    container?.config.flush()
-    container?.db.close()
-  })
+  app.on('will-quit', () => container?.dispose())
 }

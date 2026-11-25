@@ -3,12 +3,19 @@ import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import type { ConfigStore, WindowState } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
+import { PROFILE_ARG_PREFIX, type ProfileKind } from '@shared/domain/sandbox'
 
 const MIN = { width: 960, height: 640 }
 
 const OVERLAY = {
   light: { color: '#d9ddd3', symbolColor: '#1a1c17' },
   dark: { color: '#0d0e0c', symbolColor: '#e9ebe4' }
+}
+
+/** «Тестовий режим»: the sand frame of globals.css (`[data-profile='sandbox']`), so the window buttons match. */
+const OVERLAY_SANDBOX = {
+  light: { color: '#e6dbc0', symbolColor: '#1a1c17' },
+  dark: { color: '#120e06', symbolColor: '#e9ebe4' }
 }
 
 /** Loads a renderer route in a window (dev server in dev, app:// in production). */
@@ -38,7 +45,8 @@ export class WindowManager {
   constructor(
     private readonly config: ConfigStore,
     private readonly bus: EventBus,
-    private readonly icon: string
+    private readonly icon: string,
+    private readonly profile: ProfileKind = 'main'
   ) {
     app.on('before-quit', () => {
       this.quitting = true
@@ -83,7 +91,9 @@ export class WindowManager {
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
-      spellcheck: true
+      spellcheck: true,
+      // The preload reads it into window.vault.profile (sandboxed preloads still get process.argv).
+      additionalArguments: [`${PROFILE_ARG_PREFIX}${this.profile}`]
     }
   }
 
@@ -94,7 +104,7 @@ export class WindowManager {
     if (theme) this.shownTheme = theme
     if (!this.main || this.main.isDestroyed() || process.platform === 'darwin') return
     const dark = (this.shownTheme ?? (nativeTheme.shouldUseDarkColors ? 'dark' : 'light')) === 'dark'
-    const palette = dark ? OVERLAY.dark : OVERLAY.light
+    const palette = dark ? this.overlay.dark : this.overlay.light
     try {
       this.main.setTitleBarOverlay({ ...palette, height: 44 })
     } catch {
@@ -103,13 +113,17 @@ export class WindowManager {
     this.main.setBackgroundColor(palette.color)
   }
 
+  private get overlay(): typeof OVERLAY {
+    return this.profile === 'sandbox' ? OVERLAY_SANDBOX : OVERLAY
+  }
+
   createMain(opts: { show: boolean }): BrowserWindow {
     const saved = this.config.windowState
     const bounds =
       saved.x !== undefined && saved.y !== undefined && isVisibleOnSomeDisplay(saved as Rectangle)
         ? { x: saved.x, y: saved.y }
         : {}
-    const palette = nativeTheme.shouldUseDarkColors ? OVERLAY.dark : OVERLAY.light
+    const palette = nativeTheme.shouldUseDarkColors ? this.overlay.dark : this.overlay.light
     const win = new BrowserWindow({
       ...bounds,
       width: Math.max(saved.width, MIN.width),
@@ -117,7 +131,7 @@ export class WindowManager {
       minWidth: MIN.width,
       minHeight: MIN.height,
       show: false,
-      title: 'Vault',
+      title: this.profile === 'sandbox' ? 'Vault — тестовий режим' : 'Vault',
       icon: this.icon,
       backgroundColor: palette.color,
       titleBarStyle: 'hidden',
