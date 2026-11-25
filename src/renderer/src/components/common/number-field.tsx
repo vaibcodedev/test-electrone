@@ -59,7 +59,8 @@ export function NumberField({
   disabled,
   autoFocus,
   error,
-  live
+  live,
+  required
 }: {
   /** Ties the label to the input (click on the label focuses it). */
   id?: string
@@ -95,6 +96,8 @@ export function NumberField({
    * pages, where each commit is a save.
    */
   live?: boolean
+  /** Must be filled (`requiredOf(schema)`): the form's submit stays off while it is empty (Field required). */
+  required?: boolean
 }) {
   const readOnly = useReadOnly()
   const autoId = useId()
@@ -175,6 +178,7 @@ export function NumberField({
     <Field
       label={label}
       htmlFor={inputId}
+      required={required}
       className={className}
       hint={hint}
       // Own message first; `|| undefined`: a caller's `cond && 'текст'` gives false, not an error.

@@ -36,6 +36,7 @@ function Input({ className, type, readOnly, onInput, ...props }: React.Component
       title={viewMode && typeof props.value === 'string' && props.value ? props.value : undefined}
       aria-describedby={props['aria-describedby'] ?? field.describedBy}
       aria-invalid={props['aria-invalid'] ?? (outOfRange || field.invalid)}
+      required={props.required ?? field.required}
       className={cn(
         // Visible on any background (card or surface): hairline border + faint tint. docs/design-system.md → Формы.
         'h-9 w-full min-w-0 rounded-xl border border-input bg-foreground/4 hover:border-foreground/40 px-3 py-1 text-body transition-[border-color,box-shadow,background-color] outline-none placeholder:text-muted-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-body file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',

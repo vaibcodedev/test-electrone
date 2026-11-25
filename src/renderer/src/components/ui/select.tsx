@@ -38,6 +38,7 @@ function SelectTrigger({
     <SelectPrimitive.Trigger
       aria-describedby={field.describedBy}
       aria-invalid={field.invalid}
+      aria-required={field.required}
       data-slot="select-trigger"
       disabled={disabled || viewMode}
       data-size={size}

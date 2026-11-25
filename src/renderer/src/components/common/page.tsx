@@ -4,7 +4,9 @@
  */
 import {
   useCallback,
+  useContext,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -34,7 +36,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Progress } from '@/components/ui/progress'
 import { Field as UiField, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
-import { FieldControlProvider } from '@/components/ui/field-control'
+import { FieldControlProvider, FormAttemptContext } from '@/components/ui/field-control'
+import { isBlankRequired } from '@/lib/form-validity'
 import { Kbd as UiKbd } from '@/components/ui/kbd'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -533,12 +536,19 @@ export function Field({
   htmlFor,
   error: errorProp,
   hint,
-  count
+  count,
+  required
 }: {
   label: string
   children: ReactNode
   className?: string
   htmlFor?: string
+  /**
+   * Must be filled — pass `requiredOf(schema).<поле>`. The control `htmlFor` points at gets `required`: the form's
+   * submit stays off until it is filled (useFormGate, FormDialog) and names it («Заповніть: Назва»). Left empty, the
+   * field says so once it was left (blur) or the form tried to submit — never right on open.
+   */
+  required?: boolean
   /** Shown under the control in the destructive colour; the label stays the same. */
   error?: ReactNode
   /** Quiet explanation under the control (hidden while there is an error). */
@@ -565,18 +575,42 @@ export function Field({
   // A text stored before its limit was lowered: it opens and can be shortened, the field says why it won't save.
   const over =
     shown?.max && shown.length > shown.max ? overLimitText(shown.length, shown.max) : undefined
+  // Left empty: told once touched or after a submit try. Only with `required` here — a control marked required by
+  // its form alone (an error row of its own, the English quick form) is gated (useFormGate) but not told here.
+  const box = useRef<HTMLDivElement>(null)
+  const attempted = useContext(FormAttemptContext)
+  const [touched, setTouched] = useState(false)
+  const [blank, setBlank] = useState(false)
+  const checkBlank = useCallback((): void => {
+    const el = box.current
+    setBlank(
+      !!required && !!el && [...el.querySelectorAll('input, textarea')].some(isBlankRequired)
+    )
+  }, [required])
+  useLayoutEffect(() => {
+    if (attempted) checkBlank()
+  }, [attempted, checkBlank])
+  const missing = (touched || attempted) && blank ? 'Заповніть це поле' : undefined
   // `||`: a caller's `cond && 'текст'` gives false, which is no error.
-  const error = viewMode ? undefined : errorProp || over
+  const error = viewMode ? undefined : errorProp || over || missing
   const describedBy = forId && (error ? `${forId}-error` : hint ? `${forId}-hint` : undefined)
   const control = useMemo(
-    () => ({ id: forId, describedBy, invalid: !!error, count: report }),
-    [forId, describedBy, error, report]
+    () => ({ id: forId, describedBy, invalid: !!error, required, count: report }),
+    [forId, describedBy, error, required, report]
   )
   return (
     <UiField
+      ref={box}
       className={cn('min-w-0 gap-2', className)}
       data-invalid={error ? true : undefined}
+      // Red only for being empty: the form's reason stays «Заповніть: …» (useFormGate).
+      data-missing={error && error === missing ? true : undefined}
       aria-labelledby={forId ? undefined : labelId}
+      onBlur={() => {
+        setTouched(true)
+        checkBlank()
+      }}
+      onInput={() => (touched || attempted) && checkBlank()}
     >
       <div className="flex items-baseline justify-between gap-3">
         <FieldLabel id={labelId} htmlFor={forId}>
