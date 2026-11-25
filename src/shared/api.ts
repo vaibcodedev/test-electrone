@@ -140,6 +140,7 @@ import type {
 import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
 import type {
   CaptureInfo,
+  ExtensionInstallResult,
   PairAnswer,
   PairRequestView,
   DevProject,
@@ -711,6 +712,8 @@ export interface CaptureApi {
   /** A new key: every extension (paired or with a pasted key) is disconnected — «Відключити». */
   regenerateKey(): Promise<CaptureInfo>
   openExtensionDir(): Promise<void>
+  /** Refreshes the extension folder, copies its path and opens chrome://extensions when Chrome is found. */
+  installExtension(): Promise<ExtensionInstallResult>
   /** The pairing request waiting for an answer (the dialog reads it on start), or null. */
   pairRequest(): Promise<PairRequestView | null>
   /** «Дозволити» / «Відхилити»: refused when the request is gone or was replaced meanwhile. */

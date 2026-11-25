@@ -1,6 +1,7 @@
 import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { FolderOpen, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import type { CaptureClient, CaptureInfo } from '@shared/domain/dev'
 import { fmtDayFull } from '@/lib/format'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -56,11 +57,10 @@ export function GithubSettingsCard(): ReactElement {
   )
 }
 
-const STEPS = [
-  'Відкрийте chrome://extensions у Chrome (або edge://extensions).',
+const INSTALL_STEPS = [
   'Увімкніть «Режим розробника» праворуч угорі.',
-  'Натисніть «Завантажити розпаковане» й виберіть папку розширення (кнопка нижче).',
-  'Натисніть іконку Vault у браузері → «Під’єднати до Vault» і дозвольте доступ тут.'
+  'Натисніть «Завантажити розпаковане».',
+  'Вставте шлях (Ctrl+V) у поле «Папка» й натисніть «Вибрати папку».'
 ]
 
 /** «Розширення Vault · …abcdef · з 25 листопада»: which extension got the key, and when. */
@@ -113,19 +113,48 @@ function ExtensionConnection({ info }: { info: CaptureInfo }): ReactElement {
   )
 }
 
-/** Loading the unpacked extension: the steps and its folder. */
-function ExtensionInstall(): ReactElement {
+/** «Встановити розширення»: a fresh folder, its path on the clipboard, Chrome on chrome://extensions. */
+function ExtensionInstall({ info }: { info: CaptureInfo }): ReactElement {
+  const install = useApiMutation('capture', 'installExtension', {
+    onSuccess: ({ browserOpened }) => {
+      if (browserOpened) toast.success('Шлях скопійовано, Chrome відкрито на сторінці розширень')
+      else
+        toast.info('Шлях скопійовано', {
+          description: 'Chrome не знайдено — відкрийте в ньому chrome://extensions вручну.'
+        })
+    }
+  })
   const openDir = useApiMutation('capture', 'openExtensionDir')
   return (
     <>
-      <ol className="flex list-decimal flex-col gap-1 pl-5 text-caption text-muted-foreground">
-        {STEPS.map((s) => (
+      <SettingsRow
+        label="Встановити в Chrome"
+        hint={
+          info.extensionVersion
+            ? `Версія ${info.extensionVersion} · оновлюється сама разом із Vault`
+            : 'Оновлюється сама разом із Vault'
+        }
+      >
+        <IconAction label="Відкрити папку розширення" onClick={() => openDir.mutate(undefined)}>
+          <FolderOpen />
+        </IconAction>
+        <Button
+          size="sm"
+          variant="soft"
+          disabled={install.isPending}
+          onClick={() => install.mutate(undefined)}
+        >
+          Встановити розширення
+        </Button>
+      </SettingsRow>
+      <p className="px-1 text-caption text-muted-foreground">
+        Кнопка скопіює шлях до папки розширення й відкриє chrome://extensions. Далі:
+      </p>
+      <ol className="flex list-decimal flex-col gap-1 pl-6 text-caption text-muted-foreground">
+        {INSTALL_STEPS.map((s) => (
           <li key={s}>{s}</li>
         ))}
       </ol>
-      <Button variant="soft" className="self-start" onClick={() => openDir.mutate(undefined)}>
-        <FolderOpen /> Відкрити папку розширення
-      </Button>
     </>
   )
 }
@@ -212,7 +241,7 @@ export function ExtensionSettingsCard(): ReactElement | null {
       {info && (
         <>
           <ExtensionConnection info={info} />
-          <ExtensionInstall />
+          <ExtensionInstall info={info} />
           <ExtensionManualKey info={info} />
         </>
       )}

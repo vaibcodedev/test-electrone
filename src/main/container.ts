@@ -2,8 +2,8 @@
  * Composition root: builds every service once and wires them by constructor injection.
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
-import { app, net, session } from 'electron'
-import { dirname } from 'path'
+import { app, clipboard, net, session } from 'electron'
+import { dirname, join } from 'path'
 import { log, logFilePath } from './core/logger'
 import { openPathOrThrow } from './core/open-path'
 import type { Api, CaptureApi } from '@shared/api'
@@ -51,7 +51,9 @@ import { OpenAiAdapter } from './services/ai/openai'
 import { GitClient } from './services/git-client'
 import { ScriptRunner } from './system/script-runner'
 import { WeeklyReviewService } from './services/weekly-review-service'
-import { CaptureServer } from './services/capture-server'
+import { bundledExtensionDir, CaptureServer } from './services/capture-server'
+import { ExtensionFolder } from './services/extension-folder'
+import { openChromeExtensions } from './system/browser-launcher'
 import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import type { ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
@@ -165,6 +167,7 @@ export class Container {
   readonly updater: Updater
   readonly reminders: ReminderService
   readonly capture: CaptureServer
+  readonly extensionFolder: ExtensionFolder
   readonly sandbox: SandboxService
   readonly api: Api
   private disposed = false
@@ -226,13 +229,20 @@ export class Container {
       dispose: () => this.dispose(),
       demo: new DemoSeedService(() => this.api, this.config, this.bus, iconPath)
     })
+    // The folder Chrome loads lives in the REAL profile; the test profile only reads it.
+    this.extensionFolder = new ExtensionFolder({
+      bundledDir: bundledExtensionDir(),
+      stableDir: join(profile.mainUserData, 'extension'),
+      canWrite: profile.kind === 'main'
+    })
     this.api = this.buildApi()
     this.capture = new CaptureServer(
       this.config,
       () => this.api,
       this.bus,
       (route) => this.windows.showMain(route),
-      iconPath
+      iconPath,
+      { folder: this.extensionFolder }
     )
     // «Під’єднати до Vault» in the extension: the window comes up with the question; the dialog follows changes.
     this.capture.onPairChange((pending) => {
@@ -316,6 +326,8 @@ export class Container {
     this.registerCalendarFeeds()
     housekeep('trash purge', () => this.trash.purgeExpired())
     housekeep('stale drafts', () => this.trash.purgeStaleDrafts())
+    // A newer bundled extension goes to the folder Chrome loads (async; logs and never throws).
+    void this.extensionFolder.sync()
     setInterval(() => housekeep('trash purge', () => this.trash.purgeExpired()), 6 * 3600_000)
   }
 
@@ -347,11 +359,20 @@ export class Container {
         this.capture.regenerate()
         return this.capture.info()
       },
-      openExtensionDir: () =>
-        openPathOrThrow(
+      openExtensionDir: async () => {
+        await this.extensionFolder.sync()
+        await openPathOrThrow(
           this.capture.extensionDir,
           'Папку розширення не знайдено — перевстановіть Vault'
-        ),
+        )
+      },
+      installExtension: async () => {
+        await this.extensionFolder.sync()
+        const dir = this.capture.extensionDir
+        // Electron 44: the W3C-style async clipboard.
+        await clipboard.writeText(dir)
+        return { dir, browserOpened: await openChromeExtensions() }
+      },
       pairRequest: async () => this.capture.pendingPair(),
       answerPair: async (input) => this.capture.answerPair(pairAnswerSchema.parse(input))
     }

@@ -211,3 +211,9 @@ export const pairAnswerSchema = z.object({
   allow: z.boolean()
 })
 export type PairAnswer = z.infer<typeof pairAnswerSchema>
+
+/** «Встановити розширення»: the folder (its path is on the clipboard) and whether Chrome was opened. */
+export interface ExtensionInstallResult {
+  dir: string
+  browserOpened: boolean
+}
