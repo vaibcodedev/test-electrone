@@ -582,7 +582,7 @@ export class CaptureServer {
           { title: 'Збережено у Vault', body: `${meta.label}: ${saved.title}`, icon: this.icon },
           () => this.openRoute(meta.route(saved.id))
         )
-        // `section` tells the popup where to look («Збережено в розділі «Дизайни»»); old popups ignore it.
+        // `section` tells the popup where to look («Збережено в розділі «Галерея»»); old popups ignore it.
         return this.json(res, 200, { ok: true, ...saved, section: meta.plural })
       }
       if (req.method === 'POST' && req.url === '/open') {

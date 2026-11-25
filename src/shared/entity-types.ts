@@ -46,7 +46,7 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   claude: { label: 'Claude', plural: 'Claude', route: (id) => `/claude?open=${id}` },
   library: { label: 'Бібліотека', plural: 'JS-бібліотеки', route: (id) => `/libraries?open=${id}` },
   component: { label: 'Компонент', plural: 'Компоненти', route: (id) => `/components/${id}` },
-  design: { label: 'Дизайн', plural: 'Дизайни', route: (id) => `/designs?open=${id}` },
+  design: { label: 'Дизайн', plural: 'Галерея', route: (id) => `/designs?open=${id}` },
   moodboard: { label: 'Добірка', plural: 'Добірки', route: (id) => `/designs/boards/${id}` },
   snippet: { label: 'Сніпет', plural: 'Сніпети', route: (id) => `/snippets?open=${id}` },
   client: { label: 'Клієнт', plural: 'Клієнти', route: (id) => `/clients/${id}` },

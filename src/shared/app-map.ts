@@ -146,7 +146,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
   s('/libraries', 'JS-бібліотеки', 'Знання', 'npm-пакети', ['library'], 'create_library'),
   s('/fixes', 'Помилки й рішення', 'Знання', 'помилки, причини, рішення', ['fix'], 'create_fix'),
   // Натхнення й навчання
-  s('/designs', 'Дизайни', 'Натхнення й навчання', 'скріншоти, добірки', ['design', 'moodboard']),
+  s('/designs', 'Галерея', 'Натхнення й навчання', 'скріншоти, добірки', ['design', 'moodboard']),
   s(
     '/bookmarks',
     'Закладки',

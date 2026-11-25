@@ -224,7 +224,7 @@ export function DesignsPage(): ReactElement | null {
       <div {...props} className="flex min-h-0 flex-1 flex-col">
         <DropOverlay show={isOver} />
         <PageHeader
-          title="Дизайни й приклади"
+          title="Галерея"
           subtitle="Перетягніть картинки у вікно або вставте скриншот через Ctrl+V."
           actions={
             <>

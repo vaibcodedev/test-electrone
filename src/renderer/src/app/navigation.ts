@@ -181,7 +181,7 @@ export const HUBS: NavHub[] = [
     title: 'Натхнення й навчання',
     icon: GraduationCap,
     items: [
-      { path: '/designs', label: 'Дизайни', icon: Image, countOf: 'design' },
+      { path: '/designs', label: 'Галерея', icon: Image, countOf: 'design' },
       { path: '/bookmarks', label: 'Закладки', icon: Bookmark, countOf: 'bookmark' },
       { path: '/english', label: 'Англійська', icon: Languages, countOf: 'word' }
     ]

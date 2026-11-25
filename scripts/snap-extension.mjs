@@ -140,7 +140,7 @@ window.fetch = async (url, init) => {
   if (q.get('capture') === 'tags') return json(400, { ok: false, error: 'Мітки: занадто довго — максимум 60 символів' })
   if (q.get('capture') === 'code') return json(400, { ok: false, error: 'Код: виділіть код на сторінці або вставте його сюди' })
   const body = JSON.parse(init?.body || '{}')
-  const section = { design: 'Дизайни', bookmark: 'Закладки', library: 'JS-бібліотеки', component: 'Компоненти', application: 'Вакансії', snippet: 'Сніпети', note: 'Нотатки', fix: 'Помилки й рішення' }[body.target]
+  const section = { design: 'Галерея', bookmark: 'Закладки', library: 'JS-бібліотеки', component: 'Компоненти', application: 'Вакансії', snippet: 'Сніпети', note: 'Нотатки', fix: 'Помилки й рішення' }[body.target]
   const warning = q.get('capture') === 'warning' ? 'Запис збережено, але скриншот додати не вдалося.' : undefined
   return json(200, { ok: true, type: body.target, id: 'x', title: body.title || 'Без назви', section, warning })
 }

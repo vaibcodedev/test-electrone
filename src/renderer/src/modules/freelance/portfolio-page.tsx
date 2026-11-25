@@ -424,8 +424,8 @@ export function PortfolioPage() {
                 <Card
                   {...clickableProps(() => setOpen(c.id))}
                   className={cn(
-                    // Same tile language as Дизайни: a surface frame, so a dark cover never melts into the page.
-                    // rounded-2xl (24) = the cover's 18 + the 6px frame (concentric corners, as in Дизайни).
+                    // Same tile language as Галерея: a surface frame, so a dark cover never melts into the page.
+                    // rounded-2xl (24) = the cover's 18 + the 6px frame (concentric corners, as in Галерея).
                     'tile h-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5',
                     c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
                   )}

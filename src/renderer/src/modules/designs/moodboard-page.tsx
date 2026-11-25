@@ -184,7 +184,7 @@ function DesignPicker({
         onValueChange={(v) => onSelectedChange(new Set(v))}
         // Grows with the designs up to the cap: six of them no longer leave half the dialog blank.
         className="max-h-[min(60vh,520px)] min-h-44 w-full flex-col flex-nowrap items-stretch"
-        aria-label="Дизайни"
+        aria-label="Дизайни з галереї"
       >
         <VirtualGrid
           className="p-1"
@@ -392,7 +392,7 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
               size="sm"
               onClick={() => (mode.confirmClose ? mode.confirmClose(close) : close())}
             >
-              <ArrowLeft /> Дизайни
+              <ArrowLeft /> Галерея
             </Button>
             {/* The record header of every editor: pin, trash (restorable, so no question), edit, ✕ — Esc closes. */}
             <RecordActions
