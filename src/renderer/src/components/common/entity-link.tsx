@@ -28,14 +28,17 @@ export function EntityRow({
   const open = useOpenEntity()
   const Icon = ENTITY_ICON[item.type]
   return (
-    <Item size="xs" className={cn('group cursor-pointer hover:bg-surface', className)} asChild>
+    <Item size="xs" className={cn('group cursor-pointer hover:bg-(--tile-hover)', className)} asChild>
       <div {...clickableProps(() => (onOpen ? onOpen() : open(item)))}>
         <ItemMedia variant="icon" className="group-hover:bg-card">
           <Icon />
         </ItemMedia>
         <ItemContent className="min-w-0 gap-0.5">
-          <ItemTitle className="w-full truncate text-body">{item.title}</ItemTitle>
-          <ItemDescription className="truncate text-meta">
+          <ItemTitle className="w-full truncate text-body" title={item.title}>
+            {item.title}
+          </ItemTitle>
+          {/* line-clamp-1, not truncate: ItemDescription's own line-clamp-2 wins over truncate and wrapped the meta. */}
+          <ItemDescription className="line-clamp-1 text-meta">
             {ENTITY_META[item.type].label}
             {item.subtitle ? ` — ${item.subtitle}` : ''}
           </ItemDescription>

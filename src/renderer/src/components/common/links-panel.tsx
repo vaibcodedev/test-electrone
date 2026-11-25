@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import { Plus, Unlink } from 'lucide-react'
 import type { EntityRef, EntitySummary } from '@shared/domain/common'
 import { ENTITY_META } from '@shared/entity-types'
@@ -19,23 +18,16 @@ const LINKS_HINT = "Пов’яжіть запис з іншим — ідею з
 
 /** Links between any objects: idea → project → board → snippets → designs. */
 export function LinksPanel({ entity }: { entity: EntityRef }) {
-  const navigate = useNavigate()
   const viewMode = useReadOnly()
   const { data: links = [] } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
   return (
-    <section className="flex flex-col gap-1">
+    <section className="flex flex-col gap-2">
       <SectionLabel action={<LinkPicker entity={entity} linked={links} />}>Зв’язки</SectionLabel>
-      {/* No links: reading needs only the title and «Зв’язати» (the full hint is on its tooltip). */}
+      {/* No links: reading needs only the title and «Зв’язати» (the full hint is on its tooltip). No link to the
+          guide here: leaving the page mid-edit would skip «Зберегти зміни?». */}
       {links.length === 0 ? (
-        !viewMode && (
-          <p className="py-1 text-caption text-muted-foreground">
-            Зв’язок видно з обох записів.{' '}
-            <Button variant="link" className="text-caption" onClick={() => navigate('/guide#faq-links')}>
-              Докладніше
-            </Button>
-          </p>
-        )
+        !viewMode && <p className="py-1 text-caption text-muted-foreground">Зв’язок видно з обох записів.</p>
       ) : (
         <div className="-mx-2.5 flex flex-col">
           {links.map((l) => (
@@ -79,7 +71,7 @@ function LinkPicker({ entity, linked }: { entity: EntityRef; linked: EntitySumma
       <Tooltip>
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
-            <Button variant="subtle" size="xs">
+            <Button variant="outline" size="xs">
               <Plus /> Зв’язати
             </Button>
           </PopoverTrigger>
@@ -95,10 +87,9 @@ function LinkPicker({ entity, linked }: { entity: EntityRef; linked: EntitySumma
               {list.map((item) => {
                 const Icon = ENTITY_ICON[item.type]
                 const snippet = 'snippet' in item ? plainSnippet((item as { snippet?: string }).snippet) : ''
-                // Identical titles («Нова нотатка» ×10) are told apart by type, date and a preview line.
-                const meta = [ENTITY_META[item.type].label, item.updatedAt ? fmtRelative(item.updatedAt) : '']
-                  .filter(Boolean)
-                  .join(' · ')
+                // Type plus one fact: a preview line, else the time — identical titles («Нова нотатка» ×10) differ by it.
+                const detail = snippet || item.subtitle || (item.updatedAt ? fmtRelative(item.updatedAt) : '')
+                const meta = [ENTITY_META[item.type].label, detail].filter(Boolean).join(' · ')
                 return (
                   <CommandItem
                     key={`${item.type}:${item.id}`}
@@ -113,10 +104,7 @@ function LinkPicker({ entity, linked }: { entity: EntityRef; linked: EntitySumma
                     <Icon className="mt-0.5" />
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="truncate">{item.title}</span>
-                      <span className="truncate text-meta text-muted-foreground">
-                        {meta}
-                        {snippet || item.subtitle ? ` — ${snippet || item.subtitle}` : ''}
-                      </span>
+                      <span className="truncate text-meta text-muted-foreground">{meta}</span>
                     </div>
                   </CommandItem>
                 )

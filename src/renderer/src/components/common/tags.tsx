@@ -18,6 +18,8 @@ import { tagInputSchema } from '@shared/domain/system'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { SectionLabel } from './section-label'
 
 /** Same limit as tagInputSchema.name — a new tag can be created right from the picker. */
 const TAG_NAME_MAX = limitsOf(tagInputSchema).name
@@ -49,7 +51,8 @@ export function TagChip({
         <Button
           variant="ghost"
           size="icon-xs"
-          className="size-4 shrink-0 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
+          // 24px target inside the 32px chip (WCAG 2.5.8); the icon stays small.
+          className="-mr-0.5 size-6 shrink-0 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()
             onRemove()
@@ -60,6 +63,18 @@ export function TagChip({
         </Button>
       )}
     </Badge>
+  )
+}
+
+/** Colour dot + name of a tag in a picker list; a long name ends with «…» inside the popover. */
+function TagOptionName({ tag }: { tag: Pick<Tag, 'name' | 'color'> }) {
+  return (
+    <>
+      <span className="size-2 shrink-0 rounded-full" style={{ background: tag.color ?? 'var(--muted-foreground)' }} />
+      <span className="min-w-0 flex-1 truncate" title={tag.name}>
+        {tag.name}
+      </span>
+    </>
   )
 }
 
@@ -133,8 +148,7 @@ export function TagPicker({
               <CommandGroup>
                 {all.map((t) => (
                   <CommandItem key={t.id} value={t.name} onSelect={() => toggle(t.id)}>
-                    <span className="size-2 rounded-full" style={{ background: t.color ?? 'var(--muted-foreground)' }} />
-                    <span className="flex-1">{t.name}</span>
+                    <TagOptionName tag={t} />
                     {selected.has(t.id) && <Check className="size-3.5" />}
                   </CommandItem>
                 ))}
@@ -155,8 +169,8 @@ export function TagPicker({
                       )
                     }
                   >
-                    <Plus className="size-3.5" />
-                    Створити «{query.trim()}»
+                    <Plus className="size-3.5 shrink-0" />
+                    <span className="min-w-0 truncate">Створити «{query.trim()}»</span>
                   </CommandItem>
                 )}
               </CommandGroup>
@@ -165,6 +179,18 @@ export function TagPicker({
         </PopoverContent>
       </Popover>
     </div>
+  )
+}
+
+/** «Мітки» section of a record column; while reading, a record without tags shows no section at all. */
+export function TagsSection({ value, onChange }: { value: Tag[]; onChange: (tagIds: string[]) => void }) {
+  const viewMode = useReadOnly()
+  if (viewMode && !value.length) return null
+  return (
+    <section className="flex flex-col gap-2">
+      <SectionLabel>Мітки</SectionLabel>
+      <TagPicker value={value} onChange={onChange} />
+    </section>
   )
 }
 
@@ -197,9 +223,14 @@ export function TagFilter({
           </Button>
         </PopoverTrigger>
         {current && (
-          <Button variant={variant} size="icon-sm" className={chosen || undefined} aria-label="Скинути мітку" onClick={() => onChange(undefined)}>
-            <X />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant={variant} size="icon-sm" className={chosen || undefined} aria-label="Скинути мітку" onClick={() => onChange(undefined)}>
+                <X />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Скинути мітку</TooltipContent>
+          </Tooltip>
         )}
       </ButtonGroup>
       <PopoverContent className="w-56 rounded-2xl p-0" align="start">
@@ -217,9 +248,8 @@ export function TagFilter({
                     setOpen(false)
                   }}
                 >
-                  <span className="size-2 rounded-full" style={{ background: t.color ?? 'var(--muted-foreground)' }} />
-                  <span className="flex-1">{t.name}</span>
-                  <span className="text-meta text-muted-foreground">{t.usage}</span>
+                  <TagOptionName tag={t} />
+                  <span className="shrink-0 text-meta text-muted-foreground">{t.usage}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

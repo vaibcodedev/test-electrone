@@ -44,7 +44,9 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     if (isNew) useUi.getState().takeCreated(id)
   }, [id, isNew])
   const [editing, setEditing] = useState(isNew)
-  const fresh = useRef(isNew)
+  // State, not a ref: the context must see «no longer fresh» after «Зберегти», or a title re-mounted on E
+  // would select itself again.
+  const [fresh, setFresh] = useState(isNew)
   // The snapshot is a promise: «Скасувати» pressed before it arrived waits for it instead of reverting nothing.
   const snap = useRef<Promise<RecordSnapshot | null>>(Promise.resolve(null))
 
@@ -62,9 +64,9 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
 
   return useMemo<DetailMode>(() => {
     const ref = type ? { type, id } : null
-    /** Pending autosaves first, then ask the server whether anything differs from the snapshot. */
-    /** Unsaved-edit failures from the last flush (server rejected a field): saving must not pretend success. */
+    // Unsaved-edit failures from the last flush (server rejected a field): saving must not pretend success.
     let lastFailed = 0
+    /** Pending autosaves first, then ask the server whether anything differs from the snapshot. */
     const hasChanges = async (): Promise<boolean> => {
       // Wait for the saves to land: otherwise «changed» is asked before the last keystrokes reach main.
       lastFailed = (await flushAndSettle()).failed
@@ -82,7 +84,7 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         toast.error('Не все збережено — виправте поле з помилкою й натисніть «Зберегти» ще раз')
         return false
       }
-      fresh.current = false
+      setFresh(false)
       setEditing(false)
       if (changed) toast.success('Збережено')
       return true
@@ -102,7 +104,7 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
             resetAllAutosaves()
           }
           // A record created a moment ago and then cancelled shouldn't stay as an empty leftover.
-          if (fresh.current) {
+          if (fresh) {
             const discarded = await api.trash.discardNew(ref).catch((e) => {
               reportError(e, 'detail-mode:discardNew')
               return false
@@ -124,7 +126,7 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     /** Leave editing (Esc): asks only when something actually changed. */
     const exit = (close?: () => void): void => {
       void hasChanges().then((changed) => {
-        if (!changed) return fresh.current && cancel ? void cancel(close) : setEditing(false)
+        if (!changed) return fresh && cancel ? void cancel(close) : setEditing(false)
         useUi.getState().askClose({ keep: () => void save(), discard: () => void cancel?.(close) })
       })
     }
@@ -140,8 +142,8 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         })
       })
     }
-    return { editing, setEditing, fresh: isNew, save, cancel, exit, confirmClose }
-  }, [editing, id, isNew, type])
+    return { editing, setEditing, fresh, save, cancel, exit, confirmClose }
+  }, [editing, fresh, id, type])
 }
 
 /** Wrap a custom record editor (sheet, page) so its fields follow the view/edit mode. */

@@ -4,18 +4,28 @@ import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { reportError } from '@/lib/error-reporting'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-export async function copyText(text: string, message = 'Скопійовано'): Promise<void> {
-  await api.app.copyText(text)
-  toast.success(message)
+/** Copies via the main process clipboard and says how it went; never throws. false — nothing was copied. */
+export async function copyText(text: string, message = 'Скопійовано'): Promise<boolean> {
+  try {
+    await api.app.copyText(text)
+    toast.success(message)
+    return true
+  } catch (e) {
+    toast.error('Не вдалося скопіювати')
+    reportError(e, 'copy')
+    return false
+  }
 }
 
-/** Copies text via the main process clipboard. `onCopied` lets modules count usage. */
+const ICON_SIZE = { xs: 'icon-xs', sm: 'icon-sm', default: 'icon' } as const
+
+/** Copies text via the main process clipboard. `onCopied` (only after a successful copy) lets modules count usage. */
 export function CopyButton({
   text,
   label,
+  message,
   onCopied,
   className,
   variant = 'soft',
@@ -23,6 +33,8 @@ export function CopyButton({
 }: {
   text: string
   label?: string
+  /** Toast after copying («Промт скопійовано»); «Скопійовано» by default. */
+  message?: string
   onCopied?: () => void
   className?: string
   variant?: 'soft' | 'lime' | 'default' | 'ghost' | 'code'
@@ -33,18 +45,13 @@ export function CopyButton({
     <Button
       type="button"
       variant={variant}
-      size={label ? size : size === 'sm' ? 'icon-sm' : size}
-      className={cn(className)}
+      // Without a label the button is a square icon button of the same height.
+      size={label || size === 'icon-sm' ? size : ICON_SIZE[size]}
+      className={className}
       aria-label={label ? undefined : 'Скопіювати'}
       onClick={async (e) => {
         e.stopPropagation()
-        try {
-          await copyText(text)
-        } catch (err) {
-          toast.error('Не вдалося скопіювати')
-          reportError(err, 'copy-button')
-          return
-        }
+        if (!(await copyText(text, message))) return
         onCopied?.()
         setDone(true)
         setTimeout(() => setDone(false), 1400)

@@ -13,9 +13,11 @@ import {
 } from '@/components/ui/alert-dialog'
 
 /**
- * Wraps a trigger with a confirmation dialog. Use for irreversible actions only.
+ * Confirmation before an irreversible or cascading action (a file off the disk, a record with its children).
+ * The trigger can be an `IconAction`: Slot props reach its Button. Without `children` it is controlled by
+ * `open` / `onOpenChange` — for an item of a ⋯ menu, which unmounts as the menu closes.
  * tone="destructive" (default): red action with a trash icon — never lime (lime means "go ahead").
- * Focus starts on «Скасувати» (the safe choice) without the keyboard focus ring.
+ * Focus starts on «Скасувати», the safe choice.
  */
 export function Confirm({
   children,
@@ -23,31 +25,38 @@ export function Confirm({
   description,
   confirmLabel = 'Видалити',
   tone = 'destructive',
-  onConfirm
+  onConfirm,
+  open,
+  onOpenChange
 }: {
-  children: ReactNode
+  children?: ReactNode
   title: string
   description?: ReactNode
   confirmLabel?: string
   tone?: 'destructive' | 'default'
   onConfirm: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [inner, setInner] = useState(false)
+  const isOpen = open ?? inner
+  const setOpen = onOpenChange ?? setInner
   const cancelRef = useRef<HTMLButtonElement>(null)
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
+    <AlertDialog open={isOpen} onOpenChange={setOpen}>
+      {children && <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>}
       <AlertDialogContent
         className="rounded-3xl"
         onOpenAutoFocus={(e) => {
-          // Focus the safe button, but don't paint a keyboard focus ring on a mouse-opened dialog.
+          // Chromium shows the ring only when the dialog was opened from the keyboard.
           e.preventDefault()
-          cancelRef.current?.focus({ focusVisible: false } as FocusOptions)
+          cancelRef.current?.focus()
         }}
       >
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          {description && <AlertDialogDescription>{description}</AlertDialogDescription>}
+          {/* A file name or title without spaces wraps instead of leaving the dialog. */}
+          <AlertDialogTitle className="[overflow-wrap:anywhere]">{title}</AlertDialogTitle>
+          {description && <AlertDialogDescription className="[overflow-wrap:anywhere]">{description}</AlertDialogDescription>}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel ref={cancelRef} variant="soft">

@@ -12,6 +12,7 @@ import { useFileDrop } from '@/hooks/use-file-drop'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Confirm } from './confirm'
 import { IconAction } from './icon-action'
 import { SectionLabel } from './section-label'
@@ -34,11 +35,32 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
   const { isOver, props } = useFileDrop(addAll)
 
   return (
-    <section className="flex flex-col gap-2">
-      <SectionLabel>Файли</SectionLabel>
-      <div {...props} className={cn('flex flex-col gap-1 rounded-2xl transition-colors', isOver && 'bg-lime-soft')}>
+    // The whole section takes drops, its title included; -m-2 p-2 gives the highlight room without moving anything.
+    <section
+      {...props}
+      className={cn('-m-2 flex flex-col gap-2 rounded-2xl p-2 transition-colors', isOver && 'bg-lime-soft')}
+    >
+      <SectionLabel
+        action={
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="xs" onClick={() => picker.current?.click()}>
+                <Paperclip /> Додати файл
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Або перетягніть файли на цю секцію</TooltipContent>
+          </Tooltip>
+        }
+      >
+        Файли
+      </SectionLabel>
+      {isOver && (
+        <p className="rounded-xl border border-dashed border-ring px-3 py-2 text-caption">Відпустіть, щоб додати</p>
+      )}
+      {/* empty:hidden — no files, no extra gap under the title. */}
+      <div className="flex flex-col gap-1 empty:hidden">
         {files.map((f) => (
-          <Item key={f.id} size="xs" className="group hover:bg-surface">
+          <Item key={f.id} size="xs" className="group hover:bg-(--tile-hover)">
             <ItemMedia variant="image" className="size-8">
               {f.mime.startsWith('image/') ? <img src={fileUrl(f.path)} alt="" /> : <Paperclip className="size-4" />}
             </ItemMedia>
@@ -69,32 +91,18 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
             </ItemActions>
           </Item>
         ))}
-        {/* A real action (keyboard, no drag needed), like «Зв’язати» available while reading; dropping still works. */}
-        <div
-          className={cn(
-            'flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-transparent p-1 transition-colors',
-            isOver && 'border-ring'
-          )}
-        >
-          <Button variant="subtle" size="xs" onClick={() => picker.current?.click()}>
-            <Paperclip /> Додати файл
-          </Button>
-          <span className="text-meta text-muted-foreground">
-            або перетягніть сюди
-          </span>
-          <input
-            ref={picker}
-            type="file"
-            multiple
-            hidden
-            onChange={async (e) => {
-              const picked = Array.from(e.target.files ?? [])
-              e.target.value = ''
-              if (picked.length) addAll(await toFileSources(picked))
-            }}
-          />
-        </div>
       </div>
+      <input
+        ref={picker}
+        type="file"
+        multiple
+        hidden
+        onChange={async (e) => {
+          const picked = Array.from(e.target.files ?? [])
+          e.target.value = ''
+          if (picked.length) addAll(await toFileSources(picked))
+        }}
+      />
     </section>
   )
 }
