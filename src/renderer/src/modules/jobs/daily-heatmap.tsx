@@ -1,8 +1,10 @@
 import { format } from 'date-fns'
 import type { BoardDay, DailyBoard } from '@shared/domain/jobs'
-import { LOCALE, plural } from '@/lib/format'
+import { fmtPercent, LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { BoardDot } from './board-label'
+import { daysWord } from './labels'
 
 const parseDay = (key: string): Date => {
   const [y, m, d] = key.split('-').map(Number)
@@ -32,11 +34,12 @@ function describe(day: BoardDay, target: number): string {
 const chunk = <T,>(arr: T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
 
-function Stat({ label, value }: { label: string; value: string }) {
+/** Mini tile; `phrase` = a sentence instead of a number when there is no data yet. */
+function Stat({ label, value, phrase }: { label: string; value: string; phrase?: boolean }) {
   return (
     <div className="flex flex-col gap-1 rounded-2xl bg-card px-4 py-3">
       <span className="text-caption text-muted-foreground">{label}</span>
-      <span className="font-display text-stat-sm leading-none tabular-nums">{value}</span>
+      <span className={phrase ? 'text-body text-muted-foreground' : 'font-display text-stat-sm leading-none tabular-nums'}>{value}</span>
     </div>
   )
 }
@@ -50,14 +53,14 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
   const expected = boards.reduce((n, b) => n + b.history.filter((d) => d.expected).length, 0)
   const done = boards.reduce((n, b) => n + b.history.filter((d) => d.expected && d.done).length, 0)
   const best = boards.reduce((n, b) => Math.max(n, b.streak), 0)
-  const cols = `minmax(84px, 112px) repeat(${weeks.length}, minmax(0, 1fr)) 48px`
+  const cols = `minmax(84px, 112px) repeat(${weeks.length}, minmax(0, 1fr)) 56px`
 
   return (
     <div className="flex flex-1 flex-col gap-5">
       <div className="grid grid-cols-3 gap-2">
         <Stat label="Відгуків" value={String(applied)} />
-        <Stat label="Днів з нормою" value={expected ? `${Math.round((done / expected) * 100)}%` : '—'} />
-        <Stat label="Найдовша серія" value={`${best} ${plural(best, ['день', 'дні', 'днів'])}`} />
+        <Stat label="Норма виконана" value={expected ? fmtPercent((done / expected) * 100) : 'ще немає днів'} phrase={!expected} />
+        <Stat label="Найдовша серія" value={daysWord(best)} />
       </div>
 
       <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden">
@@ -70,24 +73,33 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
           ))}
           <span className="text-right text-meta text-muted-foreground">серія</span>
         </div>
-        {boards.map((b) => (
-          <div key={b.id} className="grid items-center gap-x-2.5" style={{ gridTemplateColumns: cols }}>
-            <span className="flex min-w-0 items-center gap-2 text-body font-medium">
-              <span className="size-2 shrink-0 rounded-full" style={{ background: b.color ?? 'var(--muted-foreground)' }} />
-              <span className="truncate">{b.name}</span>
-            </span>
-            {chunk(b.history, 7).map((w) => (
-              <div key={w[0].day} className="grid grid-cols-7 gap-[3px]">
-                {w.map((d) => (
-                  <Cell key={d.day} board={b} day={d} />
-                ))}
-              </div>
-            ))}
-            <span className={cn('text-right text-caption tabular-nums', b.streak ? 'font-semibold' : 'text-muted-foreground')}>
-              {b.streak} дн.
-            </span>
-          </div>
-        ))}
+        {boards.map((b) => {
+          const boardExpected = b.history.filter((d) => d.expected).length
+          const boardDone = b.history.filter((d) => d.expected && d.done).length
+          return (
+            <div key={b.id} className="grid items-center gap-x-2.5" style={{ gridTemplateColumns: cols }}>
+              {/* One Tab stop per board (not per cell): the row name carries the summary; cells keep hover tooltips. */}
+              <span
+                tabIndex={0}
+                aria-label={`${b.name}: норму виконано ${boardDone} з ${boardExpected} днів, серія ${daysWord(b.streak)}`}
+                className="flex min-w-0 items-center gap-2 rounded-md text-body font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <BoardDot color={b.color} />
+                <span className="truncate">{b.name}</span>
+              </span>
+              {chunk(b.history, 7).map((w) => (
+                <div key={w[0].day} className="grid grid-cols-7 gap-[3px]">
+                  {w.map((d) => (
+                    <Cell key={d.day} board={b} day={d} />
+                  ))}
+                </div>
+              ))}
+              <span className={cn('text-right text-caption tabular-nums', b.streak ? 'font-semibold' : 'text-muted-foreground')}>
+                {b.streak ? daysWord(b.streak) : '—'}
+              </span>
+            </div>
+          )
+        })}
       </div>
 
       <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-muted-foreground">
@@ -112,11 +124,7 @@ function Cell({ board, day: d }: { board: DailyBoard; day: BoardDay }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span
-          tabIndex={0}
-          aria-label={`${board.name}, ${d.day}: ${describe(d, board.dailyTarget)}`}
-          className={cn('h-7 w-full rounded-[5px] outline-none focus-visible:ring-2 focus-visible:ring-ring', cellClass(d, board.dailyTarget))}
-        />
+        <span className={cn('h-7 w-full rounded-[5px]', cellClass(d, board.dailyTarget))} />
       </TooltipTrigger>
       <TooltipContent>
         <div className="font-medium">{format(parseDay(d.day), 'EEEE, d MMMM', { locale: LOCALE })}</div>

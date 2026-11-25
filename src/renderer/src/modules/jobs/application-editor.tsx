@@ -1,22 +1,19 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { useEffect, useState, type ReactElement, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { FileText, Trash2, X } from 'lucide-react'
+import { CURRENCIES } from '@shared/domain/crm'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import { NumberInput } from '@/components/common/number-input'
-
-const LIMITS = limitsOf(applicationInputSchema)
-const RANGES = rangesOf(applicationInputSchema)
-import { CURRENCIES } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
-import { api } from '@/lib/api'
+import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
-import { fmtDate, fmtDateTime } from '@/lib/format'
+import { fmtDateTime } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { NumberInput } from '@/components/common/number-input'
 import { Field, Segmented } from '@/components/common/page'
 import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
@@ -25,7 +22,8 @@ import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { PinButtons } from '@/components/common/pin-buttons'
-import { promptAfterStatusChange } from './schedule-stage'
+import { IconAction } from '@/components/common/icon-action'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
   EditToggle,
   guardSheet,
@@ -36,12 +34,16 @@ import {
   type DetailMode
 } from '@/components/common/detail-mode'
 import { Confirm } from '@/components/common/confirm'
-import { Choice } from '../crm/parts'
-import { CompanyCombobox } from './j1-fields'
 import { LinkInput, TextField } from '@/components/common/text-field'
-import { APP_STATUS_LABEL, FORMAT_LABEL } from './j1-labels'
+import { Choice } from '../crm/parts'
+import { promptAfterStatusChange } from './schedule-stage'
+import { CompanyCombobox } from './j1-fields'
+import { APP_STATUS_LABEL, FORMAT_LABEL, salaryLabel } from './labels'
 import { StageSection } from './stage-section'
 import { AskedQuestions } from './application-questions'
+
+const LIMITS = limitsOf(applicationInputSchema)
+const RANGES = rangesOf(applicationInputSchema)
 
 /**
  * Salary «від … до …». The pair is saved only when it makes sense: «від» above «до» stays in the
@@ -95,21 +97,24 @@ function SalaryFields({
 
 function CoverTemplatePicker({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }) {
   const { data: letters = [] } = useApi('templates', 'list', { situation: 'cover_letter' })
+  const mark = useApiMutation('templates', 'markCopied', { silent: true, onError: (e) => reportError(e) })
   const [selected, setSelected] = useState<string | null>(a.templateId)
   const tpl = letters.find((t) => t.id === selected)
   const insert = (): void => {
     if (!tpl) return
     patch({ coverLetter: tpl.body, templateId: tpl.id })
-    void api.templates.markCopied(tpl.id)
+    mark.mutate(tpl.id)
     toast.success('Шаблон вставлено — замініть {змінні}')
   }
+  // With a letter already written, «Вставити» asks first (Confirm handles the click).
   const button = (
-    <Button variant="soft" disabled={!tpl}>
+    <Button variant="soft" disabled={!tpl} onClick={a.coverLetter.trim() ? undefined : insert}>
       <FileText /> Вставити
     </Button>
   )
   return (
-    <div className="flex items-end gap-2">
+    // Picking a template changes the record, so it lives in edit mode only.
+    <div data-edit-only className="flex items-end gap-2">
       <Field label="Шаблон супровідного листа" className="flex-1">
         <Choice
           value={selected}
@@ -127,10 +132,136 @@ function CoverTemplatePicker({ application: a, patch }: { application: Applicati
           {button}
         </Confirm>
       ) : (
-        <Button variant="soft" disabled={!tpl} onClick={insert}>
-          <FileText /> Вставити
-        </Button>
+        button
       )}
+    </div>
+  )
+}
+
+/** «Умови»: one readable salary line in view mode, the fields while editing. */
+function ConditionsSection({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }): ReactElement {
+  const readOnly = useReadOnly()
+  const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionLabel>Умови</SectionLabel>
+      {readOnly ? (
+        <Field label="Зарплата">{salary ? <span className="text-body tabular-nums">{salary}</span> : <span data-empty />}</Field>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <SalaryFields min={a.salaryMin} max={a.salaryMax} patch={patch} />
+          <Field label="Валюта">
+            <Choice value={a.currency} onChange={(v) => v && patch({ currency: v })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
+          </Field>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Формат">
+          <Segmented
+            value={a.format}
+            onChange={(format) => patch({ format })}
+            options={WORK_FORMATS.map((f) => ({ value: f, label: FORMAT_LABEL[f] }))}
+          />
+        </Field>
+        <TextField
+          label="Місто / часовий пояс"
+          value={a.location}
+          onSave={(location) => patch({ location })}
+          placeholder="Київ, EU timezone…"
+          maxLength={LIMITS.location}
+        />
+      </div>
+    </section>
+  )
+}
+
+/** «Що надіслано»: resume version, cover letter (template or text) and the recruiter contact. */
+function SentSection({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }): ReactElement {
+  const { data: resumes = [] } = useApi('jobs', 'resumes')
+  const [cover, setCover] = useAutosave(a.coverLetter, (v) => patch({ coverLetter: v }))
+  const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionLabel>Що надіслано</SectionLabel>
+      <Field label="Версія резюме">
+        <Choice
+          value={a.resumeId}
+          onChange={(resumeId) => patch({ resumeId })}
+          none="Не вказано"
+          placeholder={resumes.length ? 'Виберіть версію' : 'Завантажте резюме в розділі «Резюме»'}
+          options={resumes.map((r) => ({ value: r.id, label: `${r.title}${r.isCurrent ? ' (поточна)' : ''}` }))}
+        />
+      </Field>
+      <CoverTemplatePicker key={a.id} application={a} patch={patch} />
+      <MarkdownField
+        label="Супровідний лист"
+        value={cover}
+        onChange={setCover}
+        placeholder="Текст супровідного листа…"
+        minHeight="160px"
+        maxLength={LIMITS.coverLetter}
+      />
+      <Field label="Контакт (рекрутер, HR)" count={{ length: contact.length, max: LIMITS.contact }}>
+        <Textarea
+          value={contact}
+          onChange={(e) => setContact(e.target.value)}
+          placeholder="Ім’я, Telegram, LinkedIn, email"
+          className="min-h-12"
+          maxLength={LIMITS.contact}
+        />
+      </Field>
+    </section>
+  )
+}
+
+/** Sheet header: pins, view/edit toggle, status (always changeable), trash and close. */
+function ApplicationEditorHeader({
+  application: a,
+  mode,
+  patch,
+  onClose
+}: {
+  application: ApplicationDetails
+  mode: DetailMode
+  patch: (p: ApplicationPatch) => void
+  onClose: () => void
+}): ReactElement {
+  const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
+  return (
+    <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+      <PinButtons entity={{ type: 'application', id: a.id }} />
+      <div className="flex-1" />
+      <EditToggle mode={mode} onClose={onClose} />
+      <Choice
+        size="sm"
+        value={a.status}
+        onChange={(v) => {
+          if (!v) return
+          patch({ status: v })
+          promptAfterStatusChange(a, v)
+        }}
+        options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
+        className="w-44"
+      />
+      {/* Confirm's trigger needs a DOM child, so the tooltip wraps it instead of IconAction. */}
+      <Tooltip>
+        <Confirm
+          title="Перемістити вакансію в кошик?"
+          description="Пов’язані події календаря теж потраплять у кошик."
+          confirmLabel="У кошик"
+          onConfirm={() => remove.mutate(a.id)}
+        >
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-xs" aria-label="У кошик">
+              <Trash2 />
+            </Button>
+          </TooltipTrigger>
+        </Confirm>
+        <TooltipContent>У кошик</TooltipContent>
+      </Tooltip>
+      <IconAction label="Закрити · Esc" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
+        <X />
+      </IconAction>
     </div>
   )
 }
@@ -145,49 +276,17 @@ function Editor({
   modeRef?: RefObject<DetailMode | null>
 }) {
   const update = useApiMutation('jobs', 'update')
-  const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
-  const { data: resumes = [] } = useApi('jobs', 'resumes')
   const patch = (p: ApplicationPatch): void => update.mutate({ id: a.id, patch: p })
   const [title, setTitle] = useAutosave(a.title, (t) => t.trim() && patch({ title: t.trim() }))
-  const [cover, setCover] = useAutosave(a.coverLetter, (v) => patch({ coverLetter: v }))
   const [description, setDescription] = useAutosave(a.description, (v) => patch({ description: v }))
   const [notes, setNotes] = useAutosave(a.notes, (v) => patch({ notes: v }))
-  const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
 
   const mode = useRecordMode(a.id, 'application')
   usePublishMode(modeRef, mode)
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-        <PinButtons entity={{ type: 'application', id: a.id }} />
-        <div className="flex-1" />
-        <EditToggle mode={mode} onClose={onClose} />
-        <Choice
-          size="sm"
-          value={a.status}
-          onChange={(v) => {
-            if (!v) return
-            patch({ status: v })
-            promptAfterStatusChange(a, v)
-          }}
-          options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
-          className="w-44"
-        />
-        <Confirm title="Перемістити вакансію в кошик?" description="Пов’язані події календаря теж потраплять у кошик." confirmLabel="У кошик" onConfirm={() => remove.mutate(a.id)}>
-          <Button variant="ghost" size="icon-sm" aria-label="У кошик">
-            <Trash2 />
-          </Button>
-        </Confirm>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
-              <X />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Закрити · Esc</TooltipContent>
-        </Tooltip>
-      </div>
+      <ApplicationEditorHeader application={a} mode={mode} patch={patch} onClose={onClose} />
 
       <RecordMode mode={mode}>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -223,31 +322,7 @@ function Editor({
 
         <Separator className="my-6" />
 
-        <section className="flex flex-col gap-4">
-          <SectionLabel>Умови</SectionLabel>
-          <div className="grid grid-cols-3 gap-3">
-            <SalaryFields min={a.salaryMin} max={a.salaryMax} patch={patch} />
-            <Field label="Валюта">
-              <Choice value={a.currency} onChange={(v) => v && patch({ currency: v })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Формат">
-              <Segmented
-                value={a.format}
-                onChange={(format) => patch({ format })}
-                options={WORK_FORMATS.map((f) => ({ value: f, label: FORMAT_LABEL[f] }))}
-              />
-            </Field>
-            <TextField
-              label="Місто / часовий пояс"
-              value={a.location}
-              onSave={(location) => patch({ location })}
-              placeholder="Київ, EU timezone…"
-              maxLength={LIMITS.location}
-            />
-          </div>
-        </section>
+        <ConditionsSection application={a} patch={patch} />
 
         <Separator className="my-6" />
 
@@ -255,32 +330,7 @@ function Editor({
 
         <Separator className="my-6" />
 
-        <section className="flex flex-col gap-4">
-          <SectionLabel>Що надіслав</SectionLabel>
-          <Field label="Версія резюме">
-            <Choice
-              value={a.resumeId}
-              onChange={(resumeId) => patch({ resumeId })}
-              none="Не вказано"
-              placeholder={resumes.length ? 'Виберіть версію' : 'Завантажте резюме в розділі «Резюме»'}
-              options={resumes.map((r) => ({
-                value: r.id,
-                label: `${r.title}${r.isCurrent ? ' · поточна' : ''} — ${fmtDate(r.createdAt, 'd MMM')}`
-              }))}
-            />
-          </Field>
-          <CoverTemplatePicker key={a.id} application={a} patch={patch} />
-          <MarkdownField label="Супровідний лист" value={cover} onChange={setCover} placeholder="Cover letter…" minHeight="160px" maxLength={LIMITS.coverLetter} />
-          <Field label="Контакт (рекрутер, HR)" count={{ length: contact.length, max: LIMITS.contact }}>
-            <Textarea
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              placeholder="Ім’я, Telegram, LinkedIn, email"
-              className="min-h-12"
-              maxLength={LIMITS.contact}
-            />
-          </Field>
-        </section>
+        <SentSection application={a} patch={patch} />
 
         <Separator className="my-6" />
 
@@ -319,7 +369,7 @@ export function ApplicationEditorSheet({ applicationId, onClose }: { application
   const guard = guardSheet(modeRef, onClose)
   return (
     <Sheet open={!!applicationId} onOpenChange={guard.onOpenChange}>
-      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[660px]">
+      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 outline-none focus-visible:outline-none sm:max-w-[660px]">
         {application && application.id === applicationId ? (
           <Editor key={application.id} application={application} onClose={onClose} modeRef={modeRef} />
         ) : (

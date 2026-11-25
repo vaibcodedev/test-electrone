@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ACTIVE_APP_STATUSES, APP_STATUS_LABEL, CLOSED_APP_STATUSES } from './j1-labels'
+import { ACTIVE_APP_STATUSES, APP_STATUS_LABEL, CLOSED_APP_STATUSES } from './labels'
 import { ApplicationCard } from './application-card'
 import { promptAfterStatusChange } from './schedule-stage'
 
@@ -43,19 +43,21 @@ function DraggableApplication({
       now={now}
       dragging={isDragging}
       onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onOpen()
-      }}
       {...attributes}
       {...listeners}
+      // After the dnd-kit listeners: theirs would otherwise replace this handler. Enter opens, Space drags.
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onOpen()
+          return
+        }
+        listeners?.onKeyDown?.(e)
+      }}
     />
   )
 }
 
-/**
- * Vacancies kanban: one column per pipeline status plus a collapsed «Закрытые» lane.
- * Dropping a card on a column changes its status (optimistic, rolled back on error).
- */
 /** A column renders 30 cards at a time (it scrolls on its own); «Ще N» adds the next 30. */
 function PagedCards<T>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {
   const [limit, setLimit] = useState(30)
@@ -72,6 +74,13 @@ function PagedCards<T>({ items, render }: { items: T[]; render: (item: T) => Rea
   )
 }
 
+/** Enter opens a card, so only Space picks it up for a keyboard drag. */
+const KEYBOARD_CODES = { start: ['Space'], cancel: ['Escape'], end: ['Space'] }
+
+/**
+ * Vacancies kanban: one column per pipeline status plus a collapsed «Закриті» lane.
+ * Dropping a card on a column changes its status (optimistic, rolled back on error).
+ */
 export function ApplicationBoard({
   applications,
   boards,
@@ -93,7 +102,7 @@ export function ApplicationBoard({
         return next
       })
   })
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor, { keyboardCodes: KEYBOARD_CODES }))
   const boardById = useMemo(() => new Map(boards.map((b) => [b.id, b])), [boards])
 
   // Drop optimistic overrides once the server data caught up.
@@ -167,7 +176,11 @@ export function ApplicationBoard({
                 <span className="text-caption text-muted-foreground tabular-nums">{list.length}</span>
               </div>
               <DropZone id={`status:${status}`} className="overflow-y-auto">
-                <PagedCards items={list} render={renderCard} />
+                {list.length === 0 ? (
+                  <p className="px-2 py-3 text-meta text-muted-foreground">Перетягніть сюди картку</p>
+                ) : (
+                  <PagedCards items={list} render={renderCard} />
+                )}
               </DropZone>
             </Card>
           )

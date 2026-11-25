@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { askToSchedule, needsSchedule } from './schedule-stage'
 import type { Application, JobBoard } from '@shared/domain/jobs'
+import { daysSince } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { agoLabel, daysSince, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './j1-labels'
+import { agoLabel, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './labels'
+import { BoardLabel } from './board-label'
 
 /** Compact vacancy tile for the kanban (shadcn Card + Badge). */
 export const ApplicationCard = forwardRef<
@@ -15,6 +17,7 @@ export const ApplicationCard = forwardRef<
   ComponentProps<'div'> & { application: Application; board?: JobBoard; now: number; dragging?: boolean }
 >(function ApplicationCard({ application: a, board, now, dragging, className, ...rest }, ref) {
   const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
+  const salaryShort = salaryLabel(a.salaryMin, a.salaryMax, a.currency, true)
   const days = daysSince(a.appliedAt, now)
   const unscheduled = needsSchedule(a, a.status)
   const nextSoon = a.nextStage?.at && a.nextStage.at - now < 2 * 86_400_000 && a.nextStage.at > now - 3 * 3600_000
@@ -67,16 +70,21 @@ export const ApplicationCard = forwardRef<
               </span>
             </Badge>
           )}
-          {salary && <Badge variant="outline">{salary}</Badge>}
+          {salary &&
+            (salaryShort === salary ? (
+              <Badge variant="outline">{salary}</Badge>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline">{salaryShort}</Badge>
+                </TooltipTrigger>
+                <TooltipContent>{salary}</TooltipContent>
+              </Tooltip>
+            ))}
         </div>
       )}
       <div className="flex items-center gap-2 text-meta text-muted-foreground">
-        {board && (
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="size-2 shrink-0 rounded-full" style={{ background: board.color ?? 'var(--muted-foreground)' }} />
-            <span className="truncate">{board.name}</span>
-          </span>
-        )}
+        {board && <BoardLabel board={board} />}
         <span className="ml-auto shrink-0">{a.status === 'saved' ? 'не надіслано' : agoLabel(days)}</span>
       </div>
     </Card>

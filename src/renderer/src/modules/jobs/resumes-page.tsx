@@ -3,26 +3,29 @@ import { CircleCheck, Eye, FileText, FileUp, Trash2, Upload } from 'lucide-react
 import type { FileSource } from '@shared/domain/designs'
 import { resumeInputSchema, type JobBoard, type Resume } from '@shared/domain/jobs'
 import { limitsOf } from '@/lib/limits'
-
-const LIMITS = limitsOf(resumeInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fileUrl, toFileSources } from '@/lib/files'
 import { fmtBytes, fmtDateTime, fmtDay, fmtPercent } from '@/lib/format'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
 import { cn } from '@/lib/utils'
-import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
+import { EmptyState, Field, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
+import { FormDialog } from '@/components/common/form-dialog'
+import { IconAction } from '@/components/common/icon-action'
+import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Field, FieldLabel } from '@/components/ui/field'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+const LIMITS = limitsOf(resumeInputSchema)
 
 /** Hidden native file input driven by a shadcn Button (the only allowed native input). */
 function useFilePicker(onPick: (sources: FileSource[]) => void): { open: () => void; input: ReactNode } {
@@ -44,6 +47,7 @@ function useFilePicker(onPick: (sources: FileSource[]) => void): { open: () => v
   }
 }
 
+/** Remounted (key) on every open, so the fields start fresh: Radix calls onOpenChange only on close. */
 function NewVersionDialog({
   open,
   onOpenChange,
@@ -55,69 +59,46 @@ function NewVersionDialog({
   source: FileSource | null
   suggestedTitle: string
 }) {
-  const create = useApiMutation('jobs', 'createResume', { successMessage: 'Версію резюме додано' })
+  const create = useApiMutation('jobs', 'createResume', { successMessage: 'Версію резюме додано', onSuccess: () => onOpenChange(false) })
   const [title, setTitle] = useState(suggestedTitle)
   const [changes, setChanges] = useState('')
   const [isCurrent, setIsCurrent] = useState(true)
   const fileName = source?.kind === 'path' ? source.path.split(/[\\/]/).pop() : source?.kind === 'bytes' ? source.name : ''
 
   return (
-    <Dialog
+    <FormDialog
       open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o)
-        if (o) {
-          setTitle(suggestedTitle)
-          setChanges('')
-          setIsCurrent(true)
-        }
-      }}
+      onOpenChange={onOpenChange}
+      title="Нова версія резюме"
+      submitLabel="Додати версію"
+      invalid={!title.trim()}
+      pending={create.isPending}
+      onSubmit={() => create.mutate({ input: { title: title.trim(), changes, isCurrent }, source: source ?? undefined })}
     >
-      <DialogContent className="rounded-3xl sm:max-w-[520px]">
-        <DialogHeader>
-          <DialogTitle className="font-display text-heading">Нова версія резюме</DialogTitle>
-        </DialogHeader>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!title.trim()) return
-            create.mutate(
-              { input: { title: title.trim(), changes, isCurrent }, source: source ?? undefined },
-              { onSuccess: () => onOpenChange(false) }
-            )
-          }}
-        >
-          {fileName && (
-            <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-body">
-              <FileText className="size-4 text-muted-foreground" /> {fileName}
-            </div>
-          )}
-          <Field className="gap-2">
-            <FieldLabel htmlFor="resume-title">Назва версії</FieldLabel>
-            <Input id="resume-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="v3 Frontend, акцент на Next.js" maxLength={LIMITS.title} />
-          </Field>
-          <Field className="gap-2">
-            <FieldLabel htmlFor="resume-changes">Що змінив</FieldLabel>
-            <Textarea id="resume-changes" value={changes} onChange={(e) => setChanges(e.target.value)} placeholder="Додав проєкт на Hydrogen, прибрав старий досвід…" maxLength={LIMITS.changes} />
-          </Field>
-          <div className="flex items-center gap-2">
-            <Checkbox id="resume-current" checked={isCurrent} onCheckedChange={(v) => setIsCurrent(v === true)} />
-            <Label htmlFor="resume-current" className="text-body text-foreground">
-              Зробити поточною — її надсилатиму
-            </Label>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
-              Скасувати
-            </Button>
-            <Button type="submit" variant="lime" disabled={!title.trim() || create.isPending}>
-              Додати версію
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      {fileName && (
+        <div className="flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-body">
+          <FileText className="size-4 text-muted-foreground" /> {fileName}
+        </div>
+      )}
+      <Field label="Назва версії" htmlFor="resume-title">
+        <Input id="resume-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="v3 Frontend, акцент на Next.js" maxLength={LIMITS.title} />
+      </Field>
+      <Field label="Що змінилося" htmlFor="resume-changes" count={{ length: changes.length, max: LIMITS.changes }}>
+        <Textarea
+          id="resume-changes"
+          value={changes}
+          onChange={(e) => setChanges(e.target.value)}
+          placeholder="Додано проєкт на Hydrogen, прибрано старий досвід…"
+          maxLength={LIMITS.changes}
+        />
+      </Field>
+      <div className="flex items-center gap-2">
+        <Switch id="resume-current" checked={isCurrent} onCheckedChange={setIsCurrent} />
+        <Label htmlFor="resume-current" className="text-body text-foreground">
+          Зробити поточною — її надсилатиму
+        </Label>
+      </div>
+    </FormDialog>
   )
 }
 
@@ -145,24 +126,25 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
         </CardDescription>
         <CardAction className="flex gap-1">
           {!resume.isCurrent && (
-            <Tooltip>
+            <IconAction label="Зробити поточною" onClick={() => update.mutate({ id: resume.id, patch: { isCurrent: true } })}>
+              <CircleCheck />
+            </IconAction>
+          )}
+          {/* Confirm's trigger needs a DOM child, so the tooltip wraps it instead of IconAction. */}
+          <Tooltip>
+            <Confirm
+              title={`Видалити «${resume.title}»?`}
+              description="Файл буде видалено; у надісланих відгуках залишиться позначка без файлу."
+              onConfirm={() => remove.mutate(resume.id)}
+            >
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Зробити поточною" onClick={() => update.mutate({ id: resume.id, patch: { isCurrent: true } })}>
-                  <CircleCheck />
+                <Button variant="ghost" size="icon-xs" aria-label="Видалити версію">
+                  <Trash2 />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Зробити поточною</TooltipContent>
-            </Tooltip>
-          )}
-          <Confirm
-            title={`Видалити «${resume.title}»?`}
-            description="Файл буде видалено; у надісланих відгуках залишиться позначка без файлу."
-            onConfirm={() => remove.mutate(resume.id)}
-          >
-            <Button variant="ghost" size="icon-sm" aria-label="Видалити версію">
-              <Trash2 />
-            </Button>
-          </Confirm>
+            </Confirm>
+            <TooltipContent>Видалити версію</TooltipContent>
+          </Tooltip>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -232,16 +214,20 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
 
 /** Resume versions: files, what changed, where each version is uploaded, which one gets replies. */
 export function ResumesPage() {
-  const { data: resumes = [] } = useApi('jobs', 'resumes')
+  const { data: resumes = [], isLoading } = useApi('jobs', 'resumes')
   const { data: boards = [] } = useApi('jobs', 'boards')
   const [pending, setPending] = useState<FileSource | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogKey, setDialogKey] = useState(0)
   const [preview, setPreview] = useState<Resume | null>(null)
 
-  const startUpload = (sources: FileSource[]): void => {
-    if (!sources[0]) return
-    setPending(sources[0])
+  const openDialog = (source: FileSource | null): void => {
+    setPending(source)
+    setDialogKey((k) => k + 1)
     setDialogOpen(true)
+  }
+  const startUpload = (sources: FileSource[]): void => {
+    if (sources[0]) openDialog(sources[0])
   }
   const picker = useFilePicker(startUpload)
   const { isOver, props } = useFileDrop(startUpload)
@@ -255,14 +241,8 @@ export function ResumesPage() {
         subtitle="Кожне надсилання позначається версією — статистика покаже, яка частіше отримує відповіді."
         actions={
           <>
-            <Button
-              variant="soft"
-              onClick={() => {
-                setPending(null)
-                setDialogOpen(true)
-              }}
-            >
-              Без файлу
+            <Button variant="soft" onClick={() => openDialog(null)}>
+              Версія без файлу
             </Button>
             <Button variant="lime" onClick={picker.open}>
               <Upload /> Завантажити версію
@@ -273,11 +253,23 @@ export function ResumesPage() {
       />
       <PageBody>
         <div {...props} className={cn('flex flex-col gap-3 rounded-3xl transition-colors', isOver && 'bg-lime-soft')}>
-          {resumes.length === 0 ? (
+          {isLoading ? (
+            <Delayed delay={150}>
+              <div className="grid grid-cols-2 gap-3">
+                <CardSkeleton height={260} />
+                <CardSkeleton height={260} />
+              </div>
+            </Delayed>
+          ) : resumes.length === 0 ? (
             <EmptyState
               icon={FileText}
               title="Резюме ще немає"
               hint="Перетягніть PDF або DOCX сюди, вставте через Ctrl+V або натисніть «Завантажити версію»."
+              action={
+                <Button variant="subtle" onClick={picker.open}>
+                  <Upload /> Завантажити версію
+                </Button>
+              }
             />
           ) : (
             <div className="grid grid-cols-2 gap-3">
@@ -296,7 +288,7 @@ export function ResumesPage() {
           )}
         </div>
       </PageBody>
-      <NewVersionDialog open={dialogOpen} onOpenChange={setDialogOpen} source={pending} suggestedTitle={suggested} />
+      <NewVersionDialog key={dialogKey} open={dialogOpen} onOpenChange={setDialogOpen} source={pending} suggestedTitle={suggested} />
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="flex h-[85vh] flex-col gap-3 rounded-3xl sm:max-w-[860px]">
           <DialogHeader>

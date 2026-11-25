@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router'
 import { BellRing, FileUser, Kanban, List, Plus } from 'lucide-react'
 import { applicationInputSchema, type Application } from '@shared/domain/jobs'
 import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
-
-const LIMITS = limitsOf(applicationInputSchema)
+import { normalizeUrl } from '@/lib/open-url'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useUi } from '@/stores/ui-store'
-import { plural } from '@/lib/format'
+import { daysSince, plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,11 +17,13 @@ import { useOpenParam } from '@/components/common/master-detail'
 import { TagFilter } from '@/components/common/tags'
 import { Choice } from '../crm/parts'
 import { CompanyCombobox, type CompanyValue } from './j1-fields'
-import { agoLabel, daysSince } from './j1-labels'
+import { agoLabel } from './labels'
 import { ApplicationBoard } from './application-board'
 import { ApplicationList } from './application-list'
 import { ApplicationEditorSheet } from './application-editor'
 import { ScheduleStageHost } from './schedule-stage'
+
+const LIMITS = limitsOf(applicationInputSchema)
 
 type View = 'kanban' | 'list'
 
@@ -43,8 +44,8 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
     }
   })
   const submit = (): void => {
-    if (!title.trim()) return
-    create.mutate({ title: title.trim(), ...company, boardId, url: url.trim() })
+    if (!title.trim() || create.isPending) return
+    create.mutate({ title: title.trim(), ...company, boardId, url: url.trim() ? normalizeUrl(url.trim()) : '' })
   }
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -66,34 +67,36 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Middle Frontend Developer"
+              placeholder="Напр., Middle Frontend Developer"
               maxLength={LIMITS.title}
             />
           </Field>
           <Field label="Компанія">
             <CompanyCombobox value={company} onChange={setCompany} showLink={false} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Майданчик">
-              <Choice value={boardId} onChange={setBoardId} none="Не вказано" options={boards.map((b) => ({ value: b.id, label: b.name }))} />
-            </Field>
-            <Field label="Посилання" error={isLikelyUrl(url) ? undefined : URL_ERROR}>
-              <Input
-                type="url"
-                inputMode="url"
-                spellCheck={false}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://…"
-                maxLength={LIMITS.url}
-                aria-invalid={!isLikelyUrl(url) || undefined}
-              />
-            </Field>
-          </div>
+          <Field label="Майданчик">
+            <Choice value={boardId} onChange={setBoardId} none="Не вказано" options={boards.map((b) => ({ value: b.id, label: b.name }))} />
+          </Field>
+          <Field label="Посилання" error={isLikelyUrl(url) ? undefined : URL_ERROR}>
+            <Input
+              type="url"
+              inputMode="url"
+              spellCheck={false}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://…"
+              maxLength={LIMITS.url}
+              aria-invalid={!isLikelyUrl(url) || undefined}
+            />
+          </Field>
           <Button type="submit" variant="lime" disabled={!title.trim() || !isLikelyUrl(url) || create.isPending}>
             Додати й відкрити
           </Button>
-          <p className="text-caption text-muted-foreground">Статус «Надіслано» і сьогоднішня дата — майданчик одразу зарахується в денну норму.</p>
+          <p className="text-caption text-muted-foreground">
+            {title.trim()
+              ? 'Статус «Надіслано» і сьогоднішня дата — майданчик одразу зарахується в денну норму.'
+              : 'Вкажіть посаду, щоб додати'}
+          </p>
         </form>
       </PopoverContent>
     </Popover>
@@ -115,14 +118,14 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }) {
           {list.length} {plural(list.length, ['вакансія', 'вакансії', 'вакансій'])}: настав час нагадування або немає відповіді тиждень.
         </CardDescription>
         <CardAction>
-          <Button variant="soft" size="sm" className="bg-card" onClick={() => navigate('/freelance/templates?situation=recruiter')}>
-            Шаблони відповідей
+          <Button variant="subtle" size="sm" onClick={() => navigate('/freelance/templates?situation=follow_up')}>
+            Шаблони нагадувань
           </Button>
         </CardAction>
       </CardHeader>
       <div className="flex flex-wrap gap-1.5 px-5">
         {list.slice(0, 8).map((a) => (
-          <Button key={a.id} variant="soft" size="sm" className="max-w-[300px] bg-card font-normal" onClick={() => onOpen(a.id)}>
+          <Button key={a.id} variant="subtle" size="sm" className="max-w-[300px] font-normal" onClick={() => onOpen(a.id)}>
             <span className="truncate">
               {a.title}
               {a.company ? ` — ${a.company}` : ''}
@@ -149,25 +152,34 @@ export function ApplicationsPage() {
   const { data: companies = [] } = useApi('jobs', 'companies')
   const { data: resumes = [] } = useApi('jobs', 'resumes')
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, companyId: companyId ?? undefined, resumeId: resumeId ?? undefined, tagId }
-  // Kanban needs every card (and the board chips count them); the list view pages through the server.
-  const { data: all = [], isLoading } = useApi('jobs', 'list', base)
-  const paged = useInfiniteApi('jobs', 'list', { ...base, boardId })
+  const base = { search: q || undefined, companyId: companyId ?? undefined, resumeId: resumeId ?? undefined, tagId, boardId }
+  // Kanban needs every card of the filter; the list view pages through the server. Both filter on the server.
+  const kanban = useApi('jobs', 'list', base, { enabled: view === 'kanban' })
+  const paged = useInfiniteApi('jobs', 'list', base)
+  const { data: stats } = useApi('jobs', 'stats', {})
 
+  // Board chips: active boards plus switched-off ones that still have applications; counts from the stats.
   const boardChips = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const a of all) if (a.boardId) counts.set(a.boardId, (counts.get(a.boardId) ?? 0) + 1)
-    return boards.filter((b) => counts.has(b.id)).map((b) => ({ value: b.id, label: b.name, count: counts.get(b.id) }))
-  }, [all, boards])
+    const applied = new Map((stats?.byBoard ?? []).map((r) => [r.key, r.applied]))
+    return boards
+      .filter((b) => b.active || (applied.get(b.id) ?? 0) > 0)
+      .map((b) => ({ value: b.id, label: b.name, count: applied.get(b.id) ?? 0 }))
+  }, [boards, stats])
 
-  const list = boardId ? all.filter((a) => a.boardId === boardId) : all
+  const list = kanban.data ?? []
+  const isLoading = view === 'kanban' ? kanban.isLoading : paged.isLoading
+  const total = view === 'kanban' ? list.length : paged.items.length
   const filtered = !!(search || boardId || companyId || resumeId || tagId)
 
   return (
     <Page>
       <PageHeader
         title="Вакансії"
-        subtitle="Перетягуйте картки між колонками. Співбесіди й тестові завдання автоматично потрапляють у календар."
+        subtitle={
+          view === 'kanban'
+            ? 'Перетягуйте картки між колонками. Співбесіди й тестові завдання автоматично потрапляють у календар.'
+            : 'Усі відгуки з етапами й зарплатою. Співбесіди й тестові автоматично потрапляють у календар.'
+        }
         actions={
           <>
             <Segmented
@@ -212,12 +224,12 @@ export function ApplicationsPage() {
       <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-6">
         <FollowUpBanner onOpen={setOpenId} />
         <div className="min-h-0 flex-1">
-          {!isLoading && all.length === 0 && !filtered ? (
+          {!isLoading && total === 0 && !filtered ? (
             <EmptyState
               icon={FileUser}
               title="Вакансій поки немає"
               hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які майданчики й версії резюме дають відповіді."
-              action={<NewApplicationButton onCreated={(a) => setOpenId(a.id)} />}
+              action={<NewApplicationButton variant="soft" onCreated={(a) => setOpenId(a.id)} />}
             />
           ) : view === 'kanban' ? (
             <ApplicationBoard applications={list} boards={boards} onOpen={setOpenId} />

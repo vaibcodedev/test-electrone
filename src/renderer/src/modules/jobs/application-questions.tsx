@@ -9,13 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { SectionLabel } from '@/components/common/master-detail'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Choice } from '../crm/parts'
-import { QUESTION_CATEGORY_LABEL } from './j1-labels'
+import { QUESTION_CATEGORY_LABEL } from './labels'
 
 const QUESTION_MAX = limitsOf(questionInputSchema).question
 
 /**
- * «Какие вопросы задавали»: questions asked at this vacancy/company, with a quick add
+ * «Які питання ставили»: questions asked at this vacancy/company, with a quick add (edit mode only)
  * that files them into the shared question bank (with company and vacancy prefilled).
  */
 export function AskedQuestions({
@@ -30,6 +31,7 @@ export function AskedQuestions({
   title?: string
 }) {
   const navigate = useNavigate()
+  const readOnly = useReadOnly()
   const [text, setText] = useState('')
   const [category, setCategory] = useState<QuestionCategory>('technical')
   const create = useApiMutation('jobs', 'createQuestion', {
@@ -51,6 +53,9 @@ export function AskedQuestions({
       >
         {title}
       </SectionLabel>
+      {questions.length === 0 && readOnly && (
+        <p className="text-body leading-relaxed text-muted-foreground">Питань ще не записали — додайте їх у режимі правки (E).</p>
+      )}
       {questions.length > 0 && (
         <ItemGroup className="gap-1">
           {questions.map((q) => (
@@ -70,7 +75,7 @@ export function AskedQuestions({
           ))}
         </ItemGroup>
       )}
-      <div className="flex flex-col gap-2">
+      <div data-edit-only className="flex flex-col gap-2">
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}

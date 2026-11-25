@@ -1,6 +1,6 @@
 import { groupOf, NON_TECH_CATEGORIES, QUESTION_GROUPS, type QuestionCategory, type QuestionGroup } from '@shared/domain/jobs'
 import { FilterChips, Segmented } from '@/components/common/page'
-import { QUESTION_CATEGORY_LABEL, QUESTION_GROUP_LABEL } from './j2-labels'
+import { QUESTION_CATEGORY_LABEL, QUESTION_GROUP_LABEL } from './labels'
 
 /**
  * Category of a question as the user thinks about it: «Технічні / Нетехнічні» first,

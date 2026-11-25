@@ -1,13 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
 import { Building2, ExternalLink, Plus, Star } from 'lucide-react'
 import { companyInputSchema, type Company, type CompanyPatch } from '@shared/domain/jobs'
 import { limitsOf } from '@/lib/limits'
-
-const LIMITS = limitsOf(companyInputSchema)
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
-import { countLabel } from '@/lib/format'
+import { countLabel, plural } from '@/lib/format'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -31,10 +29,25 @@ import {
 } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { LinkInput, TextField } from '@/components/common/text-field'
-import { APP_STATUS_LABEL, CLOSED_APP_STATUSES, salaryLabel } from './j1-labels'
+import { useReadOnly } from '@/components/common/detail-mode-context'
+import { APP_STATUS_LABEL, appStatusVariant, salaryLabel } from './labels'
 import { AskedQuestions } from './application-questions'
 
+const LIMITS = limitsOf(companyInputSchema)
+
 function Stars({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  // View mode: the CSS that keeps only the chosen toggle item would leave a single star, so draw all five.
+  const readOnly = useReadOnly()
+  if (readOnly) {
+    if (!value) return <span data-empty />
+    return (
+      <div role="img" aria-label={`Оцінка ${value} з 5`} className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Star key={n} className={cn('size-4', n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')} />
+        ))}
+      </div>
+    )
+  }
   return (
     <ToggleGroup
       type="single"
@@ -78,7 +91,7 @@ function CompanyApplications({ companyId }: { companyId: string }) {
                     {salary && <ItemDescription className="text-meta">{salary}</ItemDescription>}
                   </ItemContent>
                   <ItemActions>
-                    <Badge variant={a.status === 'offer' || a.status === 'accepted' ? 'lime' : CLOSED_APP_STATUSES.includes(a.status) ? 'outline' : 'soft'}>
+                    <Badge variant={appStatusVariant(a.status)}>
                       {APP_STATUS_LABEL[a.status]}
                     </Badge>
                   </ItemActions>
@@ -116,7 +129,7 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           )}
           {/^https?:\/\//i.test(c.reviewsUrl) && (
             <Button variant="soft" size="sm" onClick={() => open(c.reviewsUrl)}>
-              Відгуки <ExternalLink />
+              Думки працівників <ExternalLink />
             </Button>
           )}
         </div>
@@ -140,12 +153,12 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
         <Field label="Сайт">
           <LinkInput value={c.website} onSave={(website) => patch({ website })} />
         </Field>
-        <Field label="Відгуки (DOU, Glassdoor)">
+        <Field label="Думки працівників (DOU, Glassdoor)">
           <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="https://jobs.dou.ua/companies/…" />
         </Field>
-        <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="React, Node.js, AWS" className="col-span-2" maxLength={LIMITS.stack} />
-        <TextField label="Розмір" value={c.size} onSave={(size) => patch({ size })} placeholder="50–200 людей" maxLength={LIMITS.size} />
-        <TextField label="Де" value={c.location} onSave={(location) => patch({ location })} placeholder="Київ, віддалено" maxLength={LIMITS.location} />
+        <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="Напр.: React, Node.js, AWS" className="col-span-2" maxLength={LIMITS.stack} />
+        <TextField label="Розмір" value={c.size} onSave={(size) => patch({ size })} placeholder="Напр.: 50–200 людей" maxLength={LIMITS.size} />
+        <TextField label="Де" value={c.location} onSave={(location) => patch({ location })} placeholder="Напр.: Київ, віддалено" maxLength={LIMITS.location} />
       </div>
       <Field label="Контакти HR і команди" className="mt-4" count={{ length: contacts.length, max: LIMITS.contacts }}>
         <Textarea
@@ -171,6 +184,8 @@ export function CompaniesPage() {
   const [search, setSearch] = useState('')
   const [name, setName] = useState('')
   const [openId, setOpenId] = useOpenParam()
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const focusNew = (): void => nameInputRef.current?.focus()
   const debounced = useDebounced(search.trim())
   // Paged on the server (100 per page) + virtualized; search runs on the server too.
   const list = useInfiniteApi('jobs', 'companies', { search: debounced || undefined })
@@ -185,7 +200,7 @@ export function CompaniesPage() {
     }
   })
   const submit = (): void => {
-    if (!name.trim()) return
+    if (!name.trim() || create.isPending) return
     if (existing) {
       setName('')
       setOpenId(existing.id)
@@ -196,9 +211,11 @@ export function CompaniesPage() {
 
   const listPane = (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex flex-col gap-1">
+      {/* pr-2 = the list's scrollbar lane: the field lines up with the rows under it. */}
+      <div className="flex flex-col gap-1 pr-2">
         <InputGroup>
           <InputGroupInput
+            ref={nameInputRef}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -207,7 +224,7 @@ export function CompaniesPage() {
             aria-label="Назва нової компанії"
           />
           <InputGroupAddon align="inline-end">
-            <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Додати компанію" disabled={!name.trim()} onClick={submit}>
+            <InputGroupButton size="icon-xs" variant="default" className="rounded-full" aria-label="Додати компанію" disabled={!name.trim() || create.isPending} onClick={submit}>
               <Plus />
             </InputGroupButton>
           </InputGroupAddon>
@@ -244,6 +261,13 @@ export function CompaniesPage() {
               icon={Building2}
               title={search ? 'Нічого не знайдено' : 'Компаній поки немає'}
               hint={search ? undefined : 'Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці.'}
+              action={
+                search ? undefined : (
+                  <Button variant="subtle" onClick={focusNew}>
+                    Додати компанію
+                  </Button>
+                )
+              }
               className="py-8"
             />
           )
@@ -251,7 +275,12 @@ export function CompaniesPage() {
         renderItem={(c) => {
           // Meta only when there is something real to say — no «Без опису» filler.
           const meta = [c.stack, c.location].filter(Boolean).join(' · ')
-          const apps = c.applicationCount > 0 ? (c.activeCount > 0 ? `${c.activeCount} активн.` : `${c.applicationCount} відг.`) : ''
+          const apps =
+            c.activeCount > 0
+              ? `${c.activeCount} ${plural(c.activeCount, ['активна вакансія', 'активні вакансії', 'активних вакансій'])}`
+              : c.applicationCount > 0
+                ? `${c.applicationCount} ${plural(c.applicationCount, ['відгук', 'відгуки', 'відгуків'])}`
+                : ''
           return (
             <ListItem active={c.id === openId} onClick={() => setOpenId(c.id)}>
               <div className="flex min-w-0 items-center gap-2">
@@ -282,8 +311,14 @@ export function CompaniesPage() {
         title="Компанії"
         subtitle={
           list.items.length
-            ? `${countLabel(list.items.length, list.hasMore, ['компанія', 'компанії', 'компаній'])} · відгуки, стек, контакти HR та історія відгуків`
-            : 'Відгуки, стек, контакти HR та історія відгуків щодо кожної компанії.'
+            ? `${countLabel(list.items.length, list.hasMore, ['компанія', 'компанії', 'компаній'])}. Стек, контакти HR, думки працівників та історія ваших відгуків.`
+            : 'Стек, контакти HR, думки працівників та історія ваших відгуків у кожну компанію.'
+        }
+        actions={
+          // Lime = the N key: «N» puts the cursor into «Нова компанія…».
+          <Button variant="lime" onClick={focusNew}>
+            <Plus /> Компанія
+          </Button>
         }
       >
         <SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" className="w-72" />

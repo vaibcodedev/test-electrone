@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { APP_STATUS_LABEL, CLOSED_APP_STATUSES, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './j1-labels'
+import { APP_STATUS_LABEL, appStatusVariant, CLOSED_APP_STATUSES, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './labels'
+import { BoardLabel } from './board-label'
 
 /** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
 const COL = {
@@ -70,6 +71,7 @@ export function ApplicationList({
         renderItem={(a) => {
           const board = a.boardId ? boardById.get(a.boardId) : undefined
           const closed = CLOSED_APP_STATUSES.includes(a.status)
+          const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
           return (
             <Table className="table-fixed">
               <TableBody>
@@ -83,25 +85,18 @@ export function ApplicationList({
                   <TableCell className="truncate font-medium">{a.title}</TableCell>
                   <TableCell className={cn(COL.company, 'truncate')}>{a.company || '—'}</TableCell>
                   <TableCell className={COL.status}>
-                    <Badge variant={a.status === 'offer' || a.status === 'accepted' ? 'lime' : closed ? 'outline' : 'soft'}>
+                    <Badge variant={appStatusVariant(a.status)}>
                       {APP_STATUS_LABEL[a.status]}
                     </Badge>
                   </TableCell>
                   <TableCell className={cn(COL.next, 'truncate text-caption')}>
                     {a.nextStage ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}` : '—'}
                   </TableCell>
-                  <TableCell className={cn(COL.salary, 'truncate tabular-nums')}>
-                    {salaryLabel(a.salaryMin, a.salaryMax, a.currency) ?? '—'}
+                  <TableCell className={cn(COL.salary, 'truncate tabular-nums')} title={salary ?? undefined}>
+                    {salaryLabel(a.salaryMin, a.salaryMax, a.currency, true) ?? '—'}
                   </TableCell>
                   <TableCell className={cn(COL.board, 'truncate')}>
-                    {board ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="size-2 shrink-0 rounded-full" style={{ background: board.color ?? 'var(--muted-foreground)' }} />
-                        <span className="truncate">{board.name}</span>
-                      </span>
-                    ) : (
-                      '—'
-                    )}
+                    {board ? <BoardLabel board={board} /> : '—'}
                   </TableCell>
                   <TableCell className={cn(COL.applied, 'text-right tabular-nums')}>
                     {a.appliedAt ? fmtDate(a.appliedAt, 'd MMM') : '—'}

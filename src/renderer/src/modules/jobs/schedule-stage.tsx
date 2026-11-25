@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Application, ApplicationStatus, StageKind } from '@shared/domain/jobs'
-import { AddStageDialog } from './stage-section'
+import { AddStageDialog } from './add-stage-dialog'
 
 type Scheduling = Pick<Application, 'id' | 'title' | 'company' | 'nextStage' | 'stageCount'>
 

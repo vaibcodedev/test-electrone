@@ -2,19 +2,23 @@ import { useState } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
 import { format, isToday, isTomorrow } from 'date-fns'
-import { CalendarDays, CalendarPlus, ExternalLink, Video } from 'lucide-react'
+import { ArrowRight, CalendarDays, CalendarPlus, Video } from 'lucide-react'
 import type { StageWithApplication } from '@shared/domain/jobs'
-import { useApi } from '@/lib/query'
-import { fmtDate, LOCALE } from '@/lib/format'
+import { KEEP_PERIOD, useApi } from '@/lib/query'
+import { LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
-import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT } from './j1-labels'
+import { IconAction } from '@/components/common/icon-action'
+import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT } from './labels'
 import { askToSchedule, needsSchedule, ScheduleStageHost } from './schedule-stage'
+import { StageDate } from './stage-row'
+
+/** History is a range: 30 at a time, «Показати раніші» adds the next 30 (docs/design-system.md → Формы). */
+const PAST_STEP = 30
 
 const when = (s: StageWithApplication): number | null => (s.kind === 'test_task' ? (s.deadlineAt ?? s.at) : s.at)
 
@@ -41,10 +45,7 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
   const isLink = /^https?:\/\//i.test(stage.location)
   return (
     <Item variant="muted" size="sm" className={cn('gap-3', past && stage.status === 'cancelled' && 'opacity-60')}>
-      <ItemMedia className="w-16 flex-col items-start gap-0 self-center text-left">
-        <span className="text-body font-medium tabular-nums">{t ? format(t, 'HH:mm') : '—'}</span>
-        <span className="text-meta text-muted-foreground">{t ? fmtDate(t, 'd MMM') : 'без дати'}</span>
-      </ItemMedia>
+      <StageDate when={t} className="bg-card" />
       <ItemContent className="min-w-0">
         <ItemTitle className="w-full truncate">
           {stage.kind === 'test_task' ? 'Здати тестове' : stage.title || STAGE_KIND_LABEL[stage.kind]}
@@ -56,29 +57,23 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
         </ItemDescription>
       </ItemContent>
       <ItemActions className="gap-1">
-        {past && <Badge variant={STAGE_STATUS_VARIANT[stage.status]}>{STAGE_STATUS_LABEL[stage.status]}</Badge>}
+        {past ? (
+          <Badge variant={STAGE_STATUS_VARIANT[stage.status]}>{STAGE_STATUS_LABEL[stage.status]}</Badge>
+        ) : (
+          <Badge variant={stage.kind === 'test_task' ? 'warn' : 'info'}>{STAGE_KIND_LABEL[stage.kind]}</Badge>
+        )}
         {!past && isLink && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="soft" size="icon-sm" className="bg-card" aria-label="Відкрити посилання" onClick={() => void openUrl(stage.location)}>
-                <Video />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{stage.kind === 'test_task' ? 'Відкрити завдання' : 'Підключитися'}</TooltipContent>
-          </Tooltip>
+          <IconAction label={stage.kind === 'test_task' ? 'Відкрити завдання' : 'Підключитися'} onClick={() => void openUrl(stage.location)}>
+            <Video />
+          </IconAction>
         )}
         {eventId && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="soft" size="icon-sm" className="bg-card" aria-label="Відкрити в календарі" onClick={() => navigate(`/calendar?open=${eventId}`)}>
-                <CalendarDays />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Відкрити в календарі</TooltipContent>
-          </Tooltip>
+          <IconAction label="Відкрити в календарі" onClick={() => navigate(`/calendar?open=${eventId}`)}>
+            <CalendarDays />
+          </IconAction>
         )}
-        <Button variant="soft" size="sm" className="bg-card" onClick={() => navigate(`/jobs/applications?open=${stage.applicationId}`)}>
-          Вакансія <ExternalLink />
+        <Button variant="subtle" size="xs" onClick={() => navigate(`/jobs/applications?open=${stage.applicationId}`)}>
+          Вакансія <ArrowRight />
         </Button>
       </ItemActions>
     </Item>
@@ -89,11 +84,19 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
 export function InterviewsPage() {
   const navigate = useNavigate()
   const [now] = useState(() => Date.now())
-  const { data: upcoming = [], isLoading } = useApi('jobs', 'upcoming', 100)
-  const { data: past = [] } = useApi('jobs', 'pastStages', 100)
+  const [pastLimit, setPastLimit] = useState(PAST_STEP)
+  const upcomingQ = useApi('jobs', 'upcoming', 100)
+  const pastQ = useApi('jobs', 'pastStages', pastLimit, KEEP_PERIOD)
   // Vacancies already in «Співбесіда» / «Тестове» with nothing in the calendar — the page must show them too.
-  const { data: inInterview = [] } = useApi('jobs', 'list', { status: 'interview', limit: 100, offset: 0 })
-  const { data: inTest = [] } = useApi('jobs', 'list', { status: 'test', limit: 100, offset: 0 })
+  const interviewQ = useApi('jobs', 'list', { status: 'interview', limit: 100, offset: 0 })
+  const testQ = useApi('jobs', 'list', { status: 'test', limit: 100, offset: 0 })
+  const upcoming = upcomingQ.data ?? []
+  const past = pastQ.data ?? []
+  const inInterview = interviewQ.data ?? []
+  const inTest = testQ.data ?? []
+  // The empty state waits for all four: otherwise it flashes while the history is still loading.
+  const loading = upcomingQ.isLoading || pastQ.isLoading || interviewQ.isLoading || testQ.isLoading
+  const pastCut = past.length >= pastLimit
   const undated = [...inInterview, ...inTest].filter((a) => needsSchedule(a, a.status))
   const groups = groupUpcoming(upcoming, now)
   const passed = past.filter((s) => s.status === 'passed').length
@@ -111,7 +114,7 @@ export function InterviewsPage() {
         }
       />
       <PageBody className="flex flex-col gap-6">
-        {!isLoading && upcoming.length === 0 && past.length === 0 && undated.length === 0 ? (
+        {loading ? null : upcoming.length === 0 && past.length === 0 && undated.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             title="Співбесід поки немає"
@@ -148,8 +151,8 @@ export function InterviewsPage() {
                         <Button variant="subtle" size="sm" onClick={() => askToSchedule(a, a.status)}>
                           <CalendarPlus /> Запланувати
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/jobs/applications?open=${a.id}`)}>
-                          Відкрити <ExternalLink />
+                        <Button variant="subtle" size="sm" onClick={() => navigate(`/jobs/applications?open=${a.id}`)}>
+                          Відкрити <ArrowRight />
                         </Button>
                       </ItemActions>
                     </Item>
@@ -180,14 +183,20 @@ export function InterviewsPage() {
             {past.length > 0 && (
               <section className="flex flex-col gap-2 pt-2">
                 <h2 className="text-body font-medium text-muted-foreground">
-                  Минулі · {past.length}
-                  {(passed > 0 || failed > 0) && ` — успішно ${passed}, не пройшов ${failed}`}
+                  {/* A cut list doesn't show its size: «Минулі · 30» would read as «all of them». */}
+                  Минулі{pastCut ? '' : ` · ${past.length}`}
+                  {(passed > 0 || failed > 0) && ` — пройдено ${passed}, не пройдено ${failed}`}
                 </h2>
                 <ItemGroup className="gap-2">
                   {past.map((s) => (
                     <StageItem key={s.id} stage={s} past />
                   ))}
                 </ItemGroup>
+                {pastCut && (
+                  <Button variant="subtle" size="sm" className="self-start" onClick={() => setPastLimit((n) => n + PAST_STEP)}>
+                    Показати раніші
+                  </Button>
+                )}
               </section>
             )}
           </>
