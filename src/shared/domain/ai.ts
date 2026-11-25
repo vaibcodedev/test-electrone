@@ -21,6 +21,15 @@ export const AI_PRESET_IDS = [
 ] as const
 export type AiPresetId = (typeof AI_PRESET_IDS)[number]
 
+/** Groups of the provider list, in order. */
+export const AI_PRESET_GROUPS = [
+  { id: 'free', label: 'Безкоштовно' },
+  { id: 'local', label: 'На цьому комп’ютері' },
+  { id: 'paid', label: 'За ваш рахунок' },
+  { id: 'other', label: 'Інше' }
+] as const
+export type AiPresetGroup = (typeof AI_PRESET_GROUPS)[number]['id']
+
 /**
  * A ready-made provider choice in «Налаштування → Штучний інтелект»: picking it fills the address and the
  * model, and gives the «Отримати ключ» link. Prices and privacy notes are as of 25.11.2026 (план.md, п. 13),
@@ -32,6 +41,7 @@ export interface AiPreset {
   name: string
   /** Name inside sentences («Немає зв’язку з Google Gemini»). */
   short: string
+  group: AiPresetGroup
   protocol: AiProtocol
   /** API root; '' for «Своя адреса» (the person types it). */
   baseUrl: string
@@ -57,6 +67,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'gemini',
     name: 'Google Gemini — безкоштовно',
     short: 'Google Gemini',
+    group: 'free',
     protocol: 'openai',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
     model: 'gemini-3.1-flash-lite',
@@ -70,6 +81,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'openrouter',
     name: 'OpenRouter — безкоштовні моделі',
     short: 'OpenRouter',
+    group: 'free',
     protocol: 'openai',
     baseUrl: 'https://openrouter.ai/api/v1',
     model: 'openrouter/free',
@@ -83,6 +95,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'groq',
     name: 'Groq — безкоштовно, швидко',
     short: 'Groq',
+    group: 'free',
     protocol: 'openai',
     baseUrl: 'https://api.groq.com/openai/v1',
     model: 'openai/gpt-oss-20b',
@@ -96,6 +109,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'ollama',
     name: 'Ollama — на цьому комп’ютері',
     short: 'Ollama',
+    group: 'local',
     protocol: 'openai',
     baseUrl: 'http://localhost:11434/v1',
     model: 'qwen3.5:9b',
@@ -111,6 +125,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'lmstudio',
     name: 'LM Studio — на цьому комп’ютері',
     short: 'LM Studio',
+    group: 'local',
     protocol: 'openai',
     baseUrl: 'http://localhost:1234/v1',
     model: '',
@@ -125,6 +140,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'anthropic',
     name: 'Claude (Anthropic)',
     short: 'Claude',
+    group: 'paid',
     protocol: 'anthropic',
     baseUrl: 'https://api.anthropic.com',
     model: 'claude-haiku-5-5',
@@ -139,6 +155,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'openai',
     name: 'OpenAI',
     short: 'OpenAI',
+    group: 'paid',
     protocol: 'openai',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-6-luna',
@@ -153,6 +170,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'deepseek',
     name: 'DeepSeek',
     short: 'DeepSeek',
+    group: 'paid',
     protocol: 'openai',
     baseUrl: 'https://api.deepseek.com',
     model: 'deepseek-flash',
@@ -166,6 +184,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'mistral',
     name: 'Mistral',
     short: 'Mistral',
+    group: 'paid',
     protocol: 'openai',
     baseUrl: 'https://api.mistral.ai/v1',
     model: 'mistral-small-latest',
@@ -179,6 +198,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     id: 'custom',
     name: 'Своя адреса (OpenAI-сумісна)',
     short: 'сервіс',
+    group: 'other',
     protocol: 'openai',
     baseUrl: '',
     model: '',

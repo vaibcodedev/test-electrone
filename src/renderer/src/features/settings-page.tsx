@@ -28,6 +28,7 @@ import { ThemePicker } from './settings/theme-picker'
 import { ShortcutInput } from './settings/shortcut-input'
 import { BackupSection } from './settings/backup-section'
 import { UpdatesSection } from './settings/updates-section'
+import { AiSection } from './settings/ai-section'
 import { LoadError } from './route-error'
 
 const LIMITS = limitsOf(settingsSchema)
@@ -243,6 +244,7 @@ export function SettingsPage(): ReactElement {
             </p>
           </SettingsSection>
 
+          <AiSection />
           <GithubSettingsCard />
           <ExtensionSettingsCard />
 
