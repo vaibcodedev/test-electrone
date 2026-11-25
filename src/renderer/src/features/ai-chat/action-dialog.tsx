@@ -84,29 +84,32 @@ export function ActionDialog({
           <DialogDescription className="sr-only">
             Так запис виглядатиме після «Застосувати». «Змінити» — поправити поля перед цим.
           </DialogDescription>
-          <Segmented<PreviewMode>
-            value={mode}
-            onChange={onModeChange}
-            size="xs"
-            options={[
-              {
-                value: 'view',
-                label: (
-                  <>
-                    <Eye /> Перегляд
-                  </>
-                )
-              },
-              {
-                value: 'edit',
-                label: (
-                  <>
-                    <Pencil /> Змінити
-                  </>
-                )
-              }
-            ]}
-          />
+          {/* The two modes are one radio group: it needs a name of its own (4.1.2). */}
+          <div role="group" aria-label="Перегляд чи зміни" className="w-fit">
+            <Segmented<PreviewMode>
+              value={mode}
+              onChange={onModeChange}
+              size="xs"
+              options={[
+                {
+                  value: 'view',
+                  label: (
+                    <>
+                      <Eye /> Перегляд
+                    </>
+                  )
+                },
+                {
+                  value: 'edit',
+                  label: (
+                    <>
+                      <Pencil /> Змінити
+                    </>
+                  )
+                }
+              ]}
+            />
+          </div>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto px-6 py-5" data-ai-preview={mode}>
           {mode === 'view' ? (

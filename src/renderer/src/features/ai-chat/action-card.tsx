@@ -73,7 +73,8 @@ export const ActionCard = memo(function ActionCard({
       variant="outline"
       size="sm"
       role="group"
-      aria-labelledby={labelId}
+      // Named by its type line and its title («Чек-лист · 12 пунктів… Запуск лендингу»), not the summary alone.
+      aria-labelledby={pending ? `${labelId} ${labelId}-title` : labelId}
       data-ai-action={action.type}
       data-status={status}
       className="items-start gap-x-3 gap-y-0 rounded-xl bg-card"
@@ -87,7 +88,7 @@ export const ActionCard = memo(function ActionCard({
           <ItemDescription className="line-clamp-1 text-caption" id={labelId}>
             {edit ? preview.label : `${typeLabel} · ${summaryOf(action, preview)}`}
           </ItemDescription>
-          <ItemTitle className="w-full" title={title}>
+          <ItemTitle id={`${labelId}-title`} className="w-full" title={title}>
             <span className="line-clamp-2">{title}</span>
           </ItemTitle>
         </ItemContent>
