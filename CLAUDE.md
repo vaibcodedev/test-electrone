@@ -148,7 +148,8 @@ SemVer с пререлизами. Сейчас этап **beta**: версии `
   - 1.0.0 — когда всё стабильно; тогда в `electron-builder.yml` `releaseType: release`.
 - `npm version` сам делает коммит `build: release <версия>` и тег `v<версия>` (настроено в `.npmrc`).
 - Беты публикуются как GitHub pre-release в канал `beta`; установленная бета сама получает следующие беты.
-- После поднятия версии — `npm run build:win` (или `npm run release:win` для публикации).
+- **Установщик (`npm run build:win`) и релиз (`release:win`) — только по просьбе пользователя.** Поднятие версии их не запускает; для проверки правок хватает `npm run build`. Разовая просьба действует один раз.
+- **Прошлые установщики удалять:** после сборки в `dist/` остаются `setup.exe` и `.blockmap` только текущей версии (каждая — ~135 МБ). Релизы на GitHub это не касается.
 - Публикация: `$env:GH_TOKEN = "…"; npm run release:win` (fine-grained токен на `vaibcodedev/test-electrone`, Contents: Read and write). Сборка идёт с `--publish never`, загрузку делает `scripts/publish-release.mjs`: один релиз на тег, файлы по очереди (`setup.exe`, `.blockmap`, `beta.yml`). Встроенная публикация electron-builder грузила параллельно и создавала дубли релиза.
 - Беты читают `beta.yml` (`publish.channel: beta`); с 1.0.0 убрать `channel` и поставить `releaseType: release`.
 - **Публикуем, только когда пользователь сказал «заливай»** (публикация уходит всем установленным копиям). «Чекай» во время релиза — остановить: `TaskStop` гасит лишь bash, а `cmd.exe` / `electron-builder` / `7za` продолжают и опубликуют — найти их по `CommandLine` (`Get-CimInstance Win32_Process`) и `Stop-Process -Force`; версия уже поднята, продолжить — снова `release:win`.
