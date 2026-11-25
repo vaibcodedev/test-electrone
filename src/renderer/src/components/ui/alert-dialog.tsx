@@ -4,11 +4,16 @@ import { cn } from "@/lib/utils"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
 
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+  return (
+    <OverlayOpenContext.Provider value={props.open}>
+      <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+    </OverlayOpenContext.Provider>
+  )
 }
 
 function AlertDialogTrigger({
@@ -35,7 +40,7 @@ function AlertDialogOverlay({
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 ease-soft data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-50 bg-black/50 duration-200 ease-soft data-[state=closed]:duration-150 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className
       )}
       {...props}
@@ -46,24 +51,29 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
 }) {
+  // The question stays as it was while the dialog fades out, even after its state is cleared (overlay-hold).
+  const body = useHeldWhileClosing(children)
   return (
+    // The portal wraps each child in Radix Presence, which waits for that child's DOM node to finish its exit
+    // animation. EditableScope has no node: as the portal's child it made the dialog vanish at once on close.
     <AlertDialogPortal>
-      <EditableScope>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "group/alert-dialog-content fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-3xl border bg-card p-6 shadow-lg duration-200 ease-soft data-[size=sm]:max-w-xs data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[size=default]:sm:max-w-lg",
+          "group/alert-dialog-content fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-3xl border bg-card p-6 shadow-lg duration-200 ease-soft data-[state=closed]:duration-150 data-[size=sm]:max-w-xs data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[size=default]:sm:max-w-lg",
           className
         )}
         {...props}
-      />
-      </EditableScope>
+      >
+        <EditableScope>{body}</EditableScope>
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }

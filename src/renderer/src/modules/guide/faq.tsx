@@ -26,7 +26,7 @@ function FaqItem({
           <ChevronDown className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} />
         </Button>
       </CollapsibleTrigger>
-      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+      <CollapsibleContent>
         <p className="max-w-[70ch] px-4 pb-4 text-body leading-relaxed text-foreground/85">{faq.a}</p>
       </CollapsibleContent>
     </Collapsible>

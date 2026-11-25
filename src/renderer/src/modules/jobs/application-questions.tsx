@@ -13,10 +13,12 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle }
 import { SectionLabel } from '@/components/common/master-detail'
 import { Field, Kbd } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { Choice } from '@/components/common/choice'
 import { QUESTION_CATEGORY_LABEL } from './labels'
 
 const QUESTION_MAX = limitsOf(questionInputSchema).question
+const questionKey = (q: InterviewQuestion): string => q.id
 
 /**
  * «Які питання ставили»: questions asked at this vacancy/company, with a quick add (edit mode only)
@@ -47,6 +49,8 @@ export function AskedQuestions({
     successMessage: 'Питання в банку — допишіть відповідь',
     onSuccess: () => setText('')
   })
+  // `questions` is query data (stable between renders), as usePresenceList needs.
+  const rows = usePresenceList(questions, questionKey)
   const submit = (): void => {
     if (!text.trim() || create.isPending) return
     create.mutate({ question: text.trim(), category, applicationId: applicationId ?? null, companyId })
@@ -67,21 +71,27 @@ export function AskedQuestions({
         {title}
       </SectionLabel>
       {questions.length > 0 && (
-        <ItemGroup className="gap-1">
-          {questions.map((q) => (
-            <Item key={q.id} asChild size="xs" variant="muted" className="cursor-pointer">
-              <button type="button" className="w-full text-left" onClick={() => navigate(`/jobs/questions?open=${q.id}`)}>
-                <ItemContent className="min-w-0">
-                  <ItemTitle className="line-clamp-2 w-full font-normal">{q.question}</ItemTitle>
-                  <ItemDescription className="text-meta">
-                    {q.answer.trim() ? 'є відповідь' : 'відповідь ще не записана'}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Badge variant="soft">{QUESTION_CATEGORY_LABEL[q.category]}</Badge>
-                </ItemActions>
-              </button>
-            </Item>
+        // A new question and the next page («Показати ще») unfold in place; the 4px between rows is inside each
+        // row (pb-1), so nothing jumps while a row unfolds.
+        <ItemGroup className="-mb-1">
+          {rows.map(({ key, item: q, ...state }) => (
+            <div key={key} {...presenceProps({ key, item: q, ...state })}>
+              <div className="pb-1">
+                <Item asChild size="xs" variant="muted" className="cursor-pointer">
+                  <button type="button" className="w-full text-left" onClick={() => navigate(`/jobs/questions?open=${q.id}`)}>
+                    <ItemContent className="min-w-0">
+                      <ItemTitle className="line-clamp-2 w-full font-normal">{q.question}</ItemTitle>
+                      <ItemDescription className="text-meta">
+                        {q.answer.trim() ? 'є відповідь' : 'відповідь ще не записана'}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      <Badge variant="soft">{QUESTION_CATEGORY_LABEL[q.category]}</Badge>
+                    </ItemActions>
+                  </button>
+                </Item>
+              </div>
+            </div>
           ))}
         </ItemGroup>
       )}

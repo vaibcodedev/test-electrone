@@ -287,7 +287,7 @@ function Archive({ current, onPick }: { current: string; onPick: (key: string) =
           <ArchiveRestore /> Архів
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 rounded-2xl p-0" align="end">
+      <PopoverContent className="w-72 p-0" align="end">
         <Command value={sel} onValueChange={setSel}>
           <CommandList>
             <CommandEmpty>Минулих тижнів поки немає</CommandEmpty>

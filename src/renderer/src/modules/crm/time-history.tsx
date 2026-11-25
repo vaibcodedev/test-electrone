@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { format } from 'date-fns'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { TimeEntry } from '@shared/domain/crm'
@@ -9,6 +9,7 @@ import { IconAction } from '@/components/common/icon-action'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { EntryForm } from './entry-form'
 import { useInlineForm } from './inline-form'
 import { draftOf, toRange } from './time-range'
@@ -18,6 +19,7 @@ const fmtDuration = (min: number): string => (min < 1 ? '<1 хв' : fmtMinutes(m
 
 /** Rows shown per day before «ще N». */
 const DAY_LIMIT = 8
+const entryKey = (e: TimeEntry): string => e.id
 
 /** Shared grid: range · description · money/badge · duration · actions — day totals use the same columns. */
 const ROW_GRID = 'grid grid-cols-[96px_minmax(0,1fr)_auto_84px_56px] items-center gap-3 px-3'
@@ -128,7 +130,12 @@ export function DayGroup({
 }): ReactElement {
   const [expanded, setExpanded] = useState(false)
   const total = entries.reduce((sum, e) => sum + e.minutes, 0)
-  const shown = expanded ? entries : entries.slice(0, DAY_LIMIT)
+  // Memoised (usePresenceList compares the array): «ще N» unfolds the rest of the day, «Згорнути» folds it.
+  const shown = useMemo(
+    () => (expanded ? entries : entries.slice(0, DAY_LIMIT)),
+    [expanded, entries]
+  )
+  const rows = usePresenceList(shown, entryKey)
   return (
     <div className="flex flex-col gap-0.5">
       <div className={cn(ROW_GRID, 'pb-1 text-caption')}>
@@ -136,14 +143,10 @@ export function DayGroup({
         <span className="text-right font-semibold tabular-nums">{fmtDuration(total)}</span>
         <span />
       </div>
-      {shown.map((e) => (
-        <EntryRow
-          key={e.id}
-          entry={e}
-          rate={rate}
-          currency={currency}
-          showBillable={showBillable}
-        />
+      {rows.map((row) => (
+        <div key={row.key} {...presenceProps(row)}>
+          <EntryRow entry={row.item} rate={rate} currency={currency} showBillable={showBillable} />
+        </div>
       ))}
       {entries.length > DAY_LIMIT && (
         <Button

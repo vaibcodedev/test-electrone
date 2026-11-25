@@ -98,8 +98,9 @@ function CaseCover({ c }: { c: PortfolioCase }): ReactElement | null {
       {c.coverPath ? (
         <>
           {/* Framed like a design preview: the whole screenshot is visible and never melts into the pane. */}
-          <Card className={cn('overflow-hidden bg-surface p-2', isOver && 'ring-2 ring-inset ring-ring')}>
-            <img src={fileUrl(c.coverPath)} alt="" className="max-h-80 w-full rounded-2xl object-contain ring-1 ring-foreground/8" />
+          {/* Concentric: Card 28 − the 10px frame = the screenshot's 18 (it had 24 in an 8px frame). */}
+          <Card className={cn('overflow-hidden bg-surface p-2.5', isOver && 'ring-2 ring-inset ring-ring')}>
+            <img src={fileUrl(c.coverPath)} alt="" className="max-h-80 w-full rounded-xl object-contain ring-1 ring-foreground/8" />
           </Card>
           <Button
             variant="ghost"
@@ -424,7 +425,8 @@ export function PortfolioPage() {
                   {...clickableProps(() => setOpen(c.id))}
                   className={cn(
                     // Same tile language as Дизайни: a surface frame, so a dark cover never melts into the page.
-                    'tile h-full gap-0 overflow-hidden bg-surface p-1.5',
+                    // rounded-2xl (24) = the cover's 18 + the 6px frame (concentric corners, as in Дизайни).
+                    'tile h-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5',
                     c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
                   )}
                 >

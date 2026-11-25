@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 
 /** The fade at the bottom of folded text: says «there is more» without a hard cut. */
 const FADE = 'mask-[linear-gradient(to_bottom,black_70%,transparent)]'
+/** --ease-soft and the 220ms of the record pane: unfolding reads as the same motion as the rest of the app. */
+const UNFOLD = { duration: 220, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
 
 /**
  * Long text in a record being read, folded to `collapsedClass` with «Показати повністю» / «Згорнути» under it
@@ -27,6 +29,24 @@ export function ShowMore({
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const [overflows, setOverflows] = useState(enabled === true)
+  // Height before «Показати повністю» / «Згорнути»: the box then grows or shrinks to its new height instead of
+  // jumping (the folded class is a line-clamp or a max-height, neither of which CSS can transition to «none»).
+  const from = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    const el = box.current
+    const start = from.current
+    from.current = null
+    if (!el || start === null || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const end = el.getBoundingClientRect().height
+    if (Math.abs(end - start) < 1) return
+    el.animate(
+      [
+        { height: `${start}px`, maxHeight: 'none', overflow: 'hidden' },
+        { height: `${end}px`, maxHeight: 'none', overflow: 'hidden' }
+      ],
+      UNFOLD
+    )
+  }, [open])
   useLayoutEffect(() => {
     if (enabled !== 'auto' || open) return
     const el = box.current
@@ -53,7 +73,15 @@ export function ShowMore({
         {children}
       </div>
       {(overflows || open) && (
-        <Button variant="link" size="xs" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Button
+          variant="link"
+          size="xs"
+          aria-expanded={open}
+          onClick={() => {
+            from.current = box.current?.getBoundingClientRect().height ?? null
+            setOpen(!open)
+          }}
+        >
           {open ? 'Згорнути' : moreLabel}
         </Button>
       )}

@@ -100,7 +100,7 @@ function HubRow({
           />
         </ItemActions>
       </Item>
-      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+      <CollapsibleContent>
         {/* ml-14.5 = the card's 16px padding + the 32px icon + its 10px gap: the line and the items start under
             the group's title. */}
         <ItemGroup className="mr-4 mb-2 ml-14.5 gap-0 border-t border-border/60 pt-1">

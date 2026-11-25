@@ -68,12 +68,7 @@ export function ChecklistEditor({
           placeholder="Новий пункт, наприклад «Клієнт із потрібного часового поясу»"
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            size="xs"
-            className="rounded-full"
-            disabled={!text.trim() || full}
-            onClick={add}
-          >
+          <InputGroupButton size="xs" disabled={!text.trim() || full} onClick={add}>
             <Plus /> Додати
           </InputGroupButton>
         </InputGroupAddon>

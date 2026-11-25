@@ -57,7 +57,9 @@ function CommandDialog({
         </DialogHeader>
         <Command
           {...commandProps}
-          className="**:data-[slot=command-input-wrapper]:h-12 **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground **:[[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 **:[[cmdk-input]]:h-12 **:[[cmdk-item]]:px-2 **:[[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
+          // Rows rounded-xl (18) ≈ the dialog's 28 − the group's 8px: the last row, highlighted in the bottom
+          // corner, follows the dialog's curve (with 12 its corner poked into it).
+          className="**:data-[slot=command-input-wrapper]:h-12 **:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground **:[[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 **:[[cmdk-input]]:h-12 **:[[cmdk-item]]:rounded-xl **:[[cmdk-item]]:px-2 **:[[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
           {children}
         </Command>
@@ -142,9 +144,10 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        // Radius 10 = popover radius 16 − group padding 6 (concentric corners, nothing gets clipped).
-        // The active row also gets a straight ring-coloured bar: the /10 fill alone is 1.2:1 on the popover.
-        "relative flex cursor-pointer items-center gap-2 rounded-[10px] px-2.5 py-1.5 text-body outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-foreground/10 data-[selected=true]:text-accent-foreground data-[selected=true]:before:absolute data-[selected=true]:before:inset-y-1.5 data-[selected=true]:before:left-0 data-[selected=true]:before:w-0.5 data-[selected=true]:before:rounded-full data-[selected=true]:before:bg-ring [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        // Radius 12 = the Command popover's 18 (rounded-xl) − the group's 6px padding: concentric corners.
+        // The active row also gets a short ring-coloured bar in the middle of its left edge (the /10 fill alone
+        // is 1.2:1 on the popover); 16px tall, it stays on the straight part of the edge at any row radius.
+        "relative flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-body outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-foreground/10 data-[selected=true]:text-accent-foreground data-[selected=true]:before:absolute data-[selected=true]:before:top-1/2 data-[selected=true]:before:h-4 data-[selected=true]:before:-translate-y-1/2 data-[selected=true]:before:left-0 data-[selected=true]:before:w-0.5 data-[selected=true]:before:rounded-full data-[selected=true]:before:bg-ring [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className
       )}
       {...props}

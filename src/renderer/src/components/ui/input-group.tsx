@@ -75,12 +75,14 @@ function InputGroupAddon({
   )
 }
 
-const inputGroupButtonVariants = cva('flex items-center gap-2 text-body shadow-none', {
+// Pills, like the group itself (rounded-full): a 9–12px corner at the round end of the field poked out of it, and
+// every caller added its own `rounded-full`.
+const inputGroupButtonVariants = cva('flex items-center gap-2 rounded-full text-body shadow-none', {
   variants: {
     size: {
-      xs: "h-6 gap-1 rounded-[calc(var(--radius)-5px)] px-2 has-[>svg]:px-2 [&>svg:not([class*='size-'])]:size-3.5",
-      sm: 'h-8 gap-1.5 rounded-md px-2.5 has-[>svg]:px-2.5',
-      'icon-xs': 'size-6 rounded-[calc(var(--radius)-5px)] p-0 has-[>svg]:p-0',
+      xs: "h-6 gap-1 px-2 has-[>svg]:px-2 [&>svg:not([class*='size-'])]:size-3.5",
+      sm: 'h-8 gap-1.5 px-2.5 has-[>svg]:px-2.5',
+      'icon-xs': 'size-6 p-0 has-[>svg]:p-0',
       'icon-sm': 'size-8 p-0 has-[>svg]:p-0'
     }
   },

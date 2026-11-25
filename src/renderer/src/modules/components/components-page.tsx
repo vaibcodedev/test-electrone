@@ -80,7 +80,8 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
   return (
     <Card
       {...clickableProps(onOpen)}
-      className="group tile h-full min-w-0 gap-0 overflow-hidden p-1.5 text-left"
+      // rounded-2xl (24) = the preview's 18 + the 6px frame: with Card's own 28 the preview's corner looked off.
+      className="group tile h-full min-w-0 gap-0 overflow-hidden rounded-2xl p-1.5 text-left"
     >
       <div className="relative aspect-16/10 overflow-hidden rounded-xl bg-card bg-[conic-gradient(var(--surface)_25%,transparent_0_50%,var(--surface)_0_75%,transparent_0)] bg-size-[16px_16px]">
         <div className="absolute inset-0 transition-transform duration-300 group-hover:scale-[1.02]">

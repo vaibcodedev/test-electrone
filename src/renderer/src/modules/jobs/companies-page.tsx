@@ -7,6 +7,7 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { countLabel, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useDebounced } from '@/hooks/use-debounced'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { VirtualList } from '@/components/common/virtual-list'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Badge } from '@/components/ui/badge'
@@ -34,34 +35,47 @@ import { AskedQuestions } from './application-questions'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const LIMITS = limitsOf(companyInputSchema)
+const appKey = (a: { id: string }): string => a.id
 
 function CompanyApplications({ companyId }: { companyId: string }): ReactElement {
   const navigate = useNavigate()
   // A long history pages from the server, 30 at a time (docs/design-system.md → Длинные колонки и история).
   const list = useInfiniteApi('jobs', 'list', { companyId }, 30)
+  // list.items is memoised: «Показати ще» unfolds the next page under the list instead of dropping it in.
+  const rows = usePresenceList(list.items, appKey)
   return (
     <section className="flex flex-col gap-3">
       <SectionLabel>Вакансії в компанії</SectionLabel>
       {list.isLoading ? null : list.items.length === 0 ? (
         <p className="text-body leading-relaxed text-muted-foreground">Вакансій у цій компанії поки немає.</p>
       ) : (
-        <ItemGroup className="gap-1.5">
-          {list.items.map((a) => {
+        // The 6px between rows is inside each row (pb-1.5): a gap would stay while a row unfolds and then jump.
+        <ItemGroup className="-mb-1.5">
+          {rows.map((row) => {
+            const a = row.item
             const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
             return (
-              <Item key={a.id} asChild size="xs" variant="muted" className="cursor-pointer">
-                <button type="button" className="w-full text-left" onClick={() => navigate(`/jobs/applications?open=${a.id}`)}>
-                  <ItemContent className="min-w-0">
-                    <ItemTitle className="w-full truncate">{a.title}</ItemTitle>
-                    {salary && <ItemDescription className="text-meta">{salary}</ItemDescription>}
-                  </ItemContent>
-                  <ItemActions>
-                    <Badge variant={appStatusVariant(a.status)}>
-                      {APP_STATUS_LABEL[a.status]}
-                    </Badge>
-                  </ItemActions>
-                </button>
-              </Item>
+              <div key={row.key} {...presenceProps(row)}>
+                <div className="pb-1.5">
+                  <Item asChild size="xs" variant="muted" className="cursor-pointer">
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => navigate(`/jobs/applications?open=${a.id}`)}
+                    >
+                      <ItemContent className="min-w-0">
+                        <ItemTitle className="w-full truncate">{a.title}</ItemTitle>
+                        {salary && <ItemDescription className="text-meta">{salary}</ItemDescription>}
+                      </ItemContent>
+                      <ItemActions>
+                        <Badge variant={appStatusVariant(a.status)}>
+                          {APP_STATUS_LABEL[a.status]}
+                        </Badge>
+                      </ItemActions>
+                    </button>
+                  </Item>
+                </div>
+              </div>
             )
           })}
         </ItemGroup>
@@ -197,7 +211,6 @@ export function CompaniesPage(): ReactElement {
                 <InputGroupButton
                   size="icon-xs"
                   variant="ghost"
-                  className="rounded-full"
                   aria-label="Додати компанію"
                   disabled={!name.trim() || create.isPending}
                   onClick={submit}

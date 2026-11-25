@@ -109,7 +109,7 @@ export function LinkInput({
         <InputGroupAddon align="inline-end">
           <Tooltip>
             <TooltipTrigger asChild>
-              <InputGroupButton size="icon-xs" className="rounded-full" aria-label={openLabel} onClick={() => void openUrl(draft)}>
+              <InputGroupButton size="icon-xs" aria-label={openLabel} onClick={() => void openUrl(draft)}>
                 <ExternalLink />
               </InputGroupButton>
             </TooltipTrigger>

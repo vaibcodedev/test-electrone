@@ -240,11 +240,13 @@ function Column({
   return (
     <UiCard className="max-h-full w-[288px] shrink-0 gap-0 rounded-3xl p-2">
       <ColumnHeader column={column} count={cardIds.length} columns={columns} />
-      {/* An empty column with the add form open: no blank drop area above the form, it sits under the header. */}
+      {/* An empty column with the add form open: no blank drop area above the form, it sits under the header.
+          No reserved scrollbar lane (scrollbar-gutter-auto): with the global stable lane the cards stood 10px
+          from the column's left edge and 18px from its right; only a column long enough to scroll gives it up. */}
       <DropZone
         id={column.id}
         className={cn(
-          'overflow-y-auto px-0.5',
+          'overflow-y-auto px-0.5 scrollbar-gutter-auto',
           cardIds.length || !adding ? 'min-h-12 py-1' : 'min-h-1 py-0'
         )}
       >
@@ -273,7 +275,9 @@ function Column({
           </Button>
         )}
       </DropZone>
-      <div className="pt-1">
+      {/* px-0.5 as on the cards' drop zone: the add form lines up with the cards above it, and the «Додати
+          картку» button (rounded-xl) is 10px from the column's 28px corner — concentric. */}
+      <div className="px-0.5 pt-1">
         <QuickAddCard
           boardId={column.boardId}
           columnId={column.id}
@@ -312,13 +316,7 @@ function AddColumn({ boardId }: { boardId: string }) {
         />
         {title.trim() && (
           <InputGroupAddon align="inline-end">
-            <InputGroupButton
-              type="submit"
-              size="xs"
-              variant="default"
-              className="rounded-full"
-              disabled={add.isPending}
-            >
+            <InputGroupButton type="submit" size="xs" variant="default" disabled={add.isPending}>
               Додати
             </InputGroupButton>
           </InputGroupAddon>

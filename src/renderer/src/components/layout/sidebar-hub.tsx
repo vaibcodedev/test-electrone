@@ -141,7 +141,7 @@ export function HubGroup({ hub, pathname, search, presence }: HubGroupProps): Re
             </SidebarMenuAction>
           </>
         )}
-        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        <CollapsibleContent>
           <SidebarMenuSub className="mr-0 gap-0.5 pr-0">
             {hub.platforms &&
               platforms.map((p) => {

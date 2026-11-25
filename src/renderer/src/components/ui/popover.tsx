@@ -2,11 +2,16 @@ import * as React from "react"
 import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
 import { Popover as PopoverPrimitive } from "radix-ui"
+import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
 
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+  return (
+    <OverlayOpenContext.Provider value={props.open}>
+      <PopoverPrimitive.Root data-slot="popover" {...props} />
+    </OverlayOpenContext.Provider>
+  )
 }
 
 function PopoverTrigger({
@@ -21,23 +26,30 @@ function PopoverContent({
   sideOffset = 4,
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
   collisionPadding = 12,
+  children,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  // A search cleared on close doesn't refill the list while the popover fades out (overlay-hold).
+  // A popover holding a Command is rounded-xl whatever the caller passes: 18 − the group's 6px = the items' 12
+  // (concentric corners; :has() outweighs a caller's rounded-*).
+  const body = useHeldWhileClosing(children)
   return (
+    // EditableScope inside the content, not around it: the portal's Radix Presence needs a DOM node to wait for
+    // the exit animation, and a context provider in its place made every popover vanish at once on close.
     <PopoverPrimitive.Portal>
-      <EditableScope>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden ease-soft data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+          "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border has-data-[slot=command]:rounded-xl bg-popover p-4 text-popover-foreground shadow-md outline-hidden ease-soft data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           className
         )}
         {...props}
-      />
-      </EditableScope>
+      >
+        <EditableScope>{body}</EditableScope>
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   )
 }

@@ -68,7 +68,7 @@ export function MoodboardStrip({ galleryEmpty }: { galleryEmpty: boolean }): Rea
       <Collapsible
         open={!collapsed}
         onOpenChange={(o) => setCollapsed(!o)}
-        className="flex flex-col gap-2"
+        className="flex flex-col"
       >
         <div className={LINE}>
           <Tooltip>
@@ -114,16 +114,18 @@ export function MoodboardStrip({ galleryEmpty }: { galleryEmpty: boolean }): Rea
             <NewMoodboardButton {...newBoard} />
           </div>
         </div>
-        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        <CollapsibleContent>
           {/* Native horizontal scroll without the bar: a touchpad swipe and Shift+wheel work as is; ←/→ page.
-              py-0.5 / px-0.5 keep the tiles' inset focus ring and hover hairline off the clipping edge. */}
+              py-0.5 / px-0.5 keep the tiles' inset focus ring and hover hairline off the clipping edge. The gap
+              under the header is mt-2 in here, not gap-2 on the root: the root's gap stayed for the whole fold
+              and the gallery jumped 8px when it ended (and before the unfold began). */}
           <div
             ref={scroller}
             data-scroll-row
             role="region"
             aria-label="Добірки"
             onKeyDown={onKeyDown}
-            className="-mx-0.5 scroll-px-0.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-0.5 py-0.5 scrollbar-none snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
+            className="-mx-0.5 mt-2 scroll-px-0.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-0.5 py-0.5 scrollbar-none snap-x snap-mandatory [&::-webkit-scrollbar]:hidden"
           >
             <div ref={track} role="list" className="flex w-max gap-2.5">
               {boards.map((b) => (
