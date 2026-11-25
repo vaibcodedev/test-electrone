@@ -346,13 +346,14 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  /* Thin overlay-style scrollbar: barely there at rest, clearer while the area is hovered or the thumb is grabbed. */
+  /* Thin overlay-style scrollbar: invisible at rest (a faint line on every panel that could scroll read as
+     clutter), shown while the area is hovered, clearer when the thumb is grabbed. */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   ::-webkit-scrollbar-thumb {
-    background: color-mix(in oklab, var(--foreground) 7%, transparent);
+    background: transparent;
     border-radius: 99px;
     border: 2px solid transparent;
     background-clip: content-box;
