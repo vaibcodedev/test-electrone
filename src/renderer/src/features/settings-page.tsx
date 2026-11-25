@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/item'
 import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/settings-cards'
 import { SettingsRow, SettingsSection } from './settings/section'
+import { AutosaveInput } from './settings/autosave-input'
 import { ThemePicker } from './settings/theme-picker'
 import { ShortcutInput } from './settings/shortcut-input'
 import { BackupSection } from './settings/backup-section'
@@ -82,16 +83,12 @@ export function SettingsPage(): ReactElement {
           <SettingsSection id="you" title="Ви" hint="Ім’я показується в привітанні.">
             <SettingsRow label="Як до вас звертатися">
               {(id) => (
-                <Input
+                <AutosaveInput
                   id={id}
-                  key={settings.userName}
-                  defaultValue={settings.userName}
+                  value={settings.userName}
+                  onSave={(userName) => userName !== settings.userName && set({ userName })}
                   placeholder="Напр.: Олена"
                   maxLength={LIMITS.userName}
-                  onBlur={(e) =>
-                    e.target.value !== settings.userName && set({ userName: e.target.value })
-                  }
-                  onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                   className="w-56"
                 />
               )}
