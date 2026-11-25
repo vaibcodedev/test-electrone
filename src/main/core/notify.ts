@@ -16,7 +16,9 @@ export function setNotificationPrefix(prefix: string): void {
 }
 
 export function showNotification(opts: NotificationConstructorOptions, onClick?: () => void): void {
-  if (!Notification.isSupported()) return
+  // Automated runs (e2e, snap and audit scripts) set it: their test data («Видео про Electron» captured by the
+  // seed) popped real Windows notifications on the desktop of whoever ran them.
+  if (process.env.VAULT_NO_NOTIFY === '1' || !Notification.isSupported()) return
   const n = new Notification(titlePrefix ? { ...opts, title: titlePrefix + (opts.title ?? '') } : opts)
   alive.add(n)
   const drop = (): void => {

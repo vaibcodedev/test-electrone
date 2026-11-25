@@ -120,7 +120,7 @@ test('тестовий режим: окремі дані, позначки, де
 
     // A normal start while the sandbox runs: it ends at once, the sandbox says which data is open.
     const second = spawn(electronExe, [resolve('.'), `--user-data-dir=${userData}`], {
-      env: { ...process.env, NODE_ENV: 'production' },
+      env: { ...process.env, NODE_ENV: 'production', VAULT_NO_NOTIFY: '1' },
       stdio: 'ignore'
     })
     const code = await new Promise<number | null>((done, fail) => {

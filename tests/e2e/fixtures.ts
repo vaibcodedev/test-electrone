@@ -35,7 +35,7 @@ const IGNORED = [/Electron Security Warning/i, /Download the React DevTools/i]
 export async function launchVault(opts: { userData: string; args?: string[] }): Promise<Vault> {
   const app = await electron.launch({
     args: [resolve('.'), `--user-data-dir=${opts.userData}`, ...(opts.args ?? [])],
-    env: { ...process.env, NODE_ENV: 'production' }
+    env: { ...process.env, NODE_ENV: 'production', VAULT_NO_NOTIFY: '1' }
   })
   const win = await app.firstWindow()
   const errors: string[] = []

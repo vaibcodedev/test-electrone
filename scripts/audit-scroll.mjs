@@ -16,7 +16,7 @@ if (!out) throw new Error('Usage: node scripts/audit-scroll.mjs <outDir> [dark|l
 mkdirSync(out, { recursive: true })
 const app = await electron.launch({
   args: [resolve('.'), `--user-data-dir=${mkdtempSync(join(tmpdir(), 'vault-scroll-'))}`],
-  env: { ...process.env, NODE_ENV: 'production' }
+  env: { ...process.env, NODE_ENV: 'production', VAULT_NO_NOTIFY: '1' }
 })
 const win = await app.firstWindow()
 await app.evaluate(({ BrowserWindow }) => {

@@ -21,7 +21,7 @@ const app = await electron.launch({
     `--user-data-dir=${userData}`,
     ...(process.env.SNAP_SANDBOX ? ['--vault-sandbox'] : [])
   ],
-  env: { ...process.env, NODE_ENV: 'production' }
+  env: { ...process.env, NODE_ENV: 'production', VAULT_NO_NOTIFY: '1' }
 })
 const errors = []
 const win = await app.firstWindow()

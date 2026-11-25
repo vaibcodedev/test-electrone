@@ -34,7 +34,7 @@ const name = (route) => route.replace(/[/?=&]+/g, '_').replace(/^_|_$/g, '') || 
 async function launch(theme) {
   const app = await electron.launch({
     args: [resolve('.'), `--user-data-dir=${mkdtempSync(join(tmpdir(), 'vault-snap-'))}`],
-    env: { ...process.env, NODE_ENV: 'production' }
+    env: { ...process.env, NODE_ENV: 'production', VAULT_NO_NOTIFY: '1' }
   })
   const win = await app.firstWindow()
   const errors = []
