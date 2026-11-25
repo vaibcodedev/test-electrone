@@ -134,9 +134,14 @@ export function useApiMutation<N extends ApiNamespace, M extends MethodOf<N>>(
   options?: Omit<UseMutationOptions<ResultOf<N, M>, Error, ArgOf<N, M>>, 'mutationFn'> & {
     successMessage?: string
     silent?: boolean
+    /**
+     * false — the record is complete already (a title typed into a quick field and Enter): it opens for reading,
+     * not in «Редагувати» with «Зберегти / Скасувати», which made it look unsaved.
+     */
+    openInEdit?: boolean
   }
 ) {
-  const { successMessage, silent, onSuccess, onError, ...rest } = options ?? {}
+  const { successMessage, silent, onSuccess, onError, openInEdit = true, ...rest } = options ?? {}
   return useMutation<ResultOf<N, M>, Error, ArgOf<N, M>>({
     mutationFn: (arg) => {
       // Pending edits of the open editor go first (IPC keeps order), so the new record is the newest one.
@@ -147,7 +152,12 @@ export function useApiMutation<N extends ApiNamespace, M extends MethodOf<N>>(
       invalidateAll()
       if (method === 'remove') useUi.getState().bumpTrash()
       const created = args[0] as { id?: unknown } | null
-      if (String(method).startsWith('create') && created && typeof created.id === 'string')
+      if (
+        openInEdit &&
+        String(method).startsWith('create') &&
+        created &&
+        typeof created.id === 'string'
+      )
         useUi.getState().markCreated(created.id)
       if (successMessage) toast.success(successMessage)
       return onSuccess?.(...args)

@@ -23,7 +23,13 @@ import { noResultsHint, presentChips } from '../claude/chips'
 
 function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
   const [title, setTitle] = useState('')
-  const create = useApiMutation('ideas', 'create', { onSuccess: (idea) => onCreated(idea.id) })
+  // Enter here creates the idea: it opens for reading with a «Ідею додано» toast, not in «Редагувати» asking
+  // «Зберегти» as if it were still a draft.
+  const create = useApiMutation('ideas', 'create', {
+    openInEdit: false,
+    successMessage: 'Ідею додано',
+    onSuccess: (idea) => onCreated(idea.id)
+  })
   return (
     <form
       onSubmit={(e) => {

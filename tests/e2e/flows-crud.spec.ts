@@ -77,10 +77,12 @@ test.describe('ідея: повний цикл через інтерфейс', (
     const tagName = `мітка-${token}`
     const other = await rpc('ideas.create', { title: `Сусідня ідея ${uid()}` })
 
-    // Create: the quick input on the list opens the new idea straight in edit mode.
+    // Create: the quick input adds the idea and opens it for reading; «Редагувати» to fill it in.
     await go('/ideas')
     await win.getByPlaceholder('Нова ідея…').fill(title)
     await win.getByRole('button', { name: 'Додати ідею' }).click()
+    await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
+    await pane(win).getByRole('button', { name: 'Редагувати' }).click()
     await expect(pane(win)).toHaveAttribute('data-detail-mode', 'edit')
     const id = (await openParam(win))!
     expect(id).toBeTruthy()

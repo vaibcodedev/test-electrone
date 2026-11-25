@@ -125,20 +125,20 @@ test.describe('«Скасувати» on a record created a moment ago', () => {
     await expect.poll(() => rpc('notes.get', id)).toBeNull()
   })
 
-  // Regression (was a bug): guide-page.tsx («Новий запис після «Скасувати» не створюється зовсім») and design-system.md promise that
-  // «Скасувати» removes a just-created record. useRecordMode.cancel only calls trash.discardDraft, which deletes
-  // nothing for types without a `draft` descriptor (ideas, proposals, boards…) or with a non-default title.
-  test('a new idea from «Нова ідея…» is not created at all', async ({ vault }) => {
+  // «Нова ідея…» + Enter is the save itself: the idea opens for reading with «Ідею додано», not in «Редагувати»
+  // with «Зберегти / Скасувати» — that made a created idea look like an unsaved draft.
+  test('a new idea from «Нова ідея…» is added at once and opens for reading', async ({ vault }) => {
     const { win, rpc, go } = vault
     await go('/ideas')
     const title = `Нова з UI ${uid()}`
     await win.getByPlaceholder('Нова ідея…').fill(title)
     await win.getByRole('button', { name: 'Додати ідею' }).click()
-    await expect(pane(win)).toHaveAttribute('data-detail-mode', 'edit')
+    await expect(
+      win.locator('[data-sonner-toast]').filter({ hasText: 'Ідею додано' })
+    ).toBeVisible()
+    await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
     const id = await openParam(win)
-    expect(id).toBeTruthy()
-    await win.getByRole('button', { name: 'Скасувати' }).click()
-    await expect.poll(() => rpc('ideas.get', id), { timeout: 4000 }).toBeNull()
+    expect((await rpc('ideas.get', id))?.title).toBe(title)
   })
 })
 
