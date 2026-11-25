@@ -82,7 +82,8 @@ export function WithdrawalDialog({
   const estimate = receivedOf(amount ?? 0, fee ?? 0, effectiveRate)
   // A rate of 0 / empty was silently saved as 1, a fee above the amount as «received 0»: both are typos.
   const rateBad = !sameCurrency && !(effectiveRate > 0)
-  const feeBad = (fee ?? 0) > (amount ?? 0) && (amount ?? 0) > 0
+  const hasAmount = (amount ?? 0) > 0
+  const feeBad = hasAmount && (fee ?? 0) > (amount ?? 0)
   const payload = {
     platformId: platformId === NO_PLATFORM ? null : platformId,
     amount: amount ?? 0,
@@ -171,6 +172,7 @@ export function WithdrawalDialog({
           <NumberField
             id={`${id}-rate`}
             label={`Курс: 1 ${currency} =`}
+            unit={receivedCurrency}
             {...WD_R.rate}
             value={rate}
             onCommit={setRate}
@@ -178,7 +180,7 @@ export function WithdrawalDialog({
             hint={
               rateBad ? (
                 <span className="text-destructive">Курс має бути більше 0</span>
-              ) : rate === 1 ? (
+              ) : hasAmount && rate === 1 ? (
                 `Курс 1:1 для ${currency} → ${receivedCurrency} — перевірте`
               ) : undefined
             }
@@ -201,17 +203,24 @@ export function WithdrawalDialog({
           />
         </Field>
       </div>
+      {/* Stays in place while empty (the dialog doesn't jump), but no formula of zeros before input. */}
       <div className="rounded-xl bg-surface px-4 py-3 text-body">
-        <span className="text-muted-foreground">Надійде ≈ </span>
-        <span className="font-medium tabular-nums">
-          {fmtMoney(received ?? estimate, receivedCurrency)}
-        </span>
-        <span className="text-muted-foreground">
-          {' '}
-          = {sameCurrency ? '' : '('}
-          {fmtMoney(amount ?? 0, currency)} − {fmtMoney(fee ?? 0, currency)}
-          {sameCurrency ? '' : `) × ${fmtRate(effectiveRate)}`}
-        </span>
+        {hasAmount ? (
+          <>
+            <span className="text-muted-foreground">Надійде ≈ </span>
+            <span className="font-medium tabular-nums">
+              {fmtMoney(received ?? estimate, receivedCurrency)}
+            </span>
+            <span className="text-muted-foreground">
+              {' '}
+              = {sameCurrency ? '' : '('}
+              {fmtMoney(amount ?? 0, currency)} − {fmtMoney(fee ?? 0, currency)}
+              {sameCurrency ? '' : `) × ${fmtRate(effectiveRate)}`}
+            </span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">Вкажіть суму — порахуємо, скільки надійде</span>
+        )}
       </div>
       <Field label="Спосіб" htmlFor={`${id}-method`}>
         <Input

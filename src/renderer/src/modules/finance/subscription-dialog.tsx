@@ -51,7 +51,10 @@ export function SubscriptionDialog({
   const [currency, setCurrency] = useState<Currency>(s?.currency ?? 'USD')
   const [period, setPeriod] = useState<SubscriptionPeriod>(s?.period ?? 'monthly')
   const [billingDay, setBillingDay] = useState<number | null>(s?.billingDay ?? new Date().getDate())
-  const [billingMonth, setBillingMonth] = useState(String(s?.billingMonth ?? new Date().getMonth()))
+  // A yearly one added while a month is shown bills in that month, so it appears in that list at once.
+  const [billingMonth, setBillingMonth] = useState(
+    String(s?.billingMonth ?? Number(month.slice(5)) - 1)
+  )
   const [category, setCategory] = useState<ExpenseCategory>(s?.category ?? 'subscription')
   const [url, setUrl] = useState(s?.url ?? '')
   const [note, setNote] = useState(s?.note ?? '')
@@ -208,12 +211,15 @@ export function SubscriptionDialog({
           className="min-h-14"
         />
       </Field>
-      <div className="flex items-center gap-3">
-        <Switch id={`${id}-active`} checked={active} onCheckedChange={setActive} />
-        <Label htmlFor={`${id}-active`} className="text-body text-foreground">
-          Активна — показувати в списку місяця
-        </Label>
-      </div>
+      {/* Only when editing: a new one switched off would vanish from the list right after «додано». */}
+      {s && (
+        <div className="flex items-center gap-3">
+          <Switch id={`${id}-active`} checked={active} onCheckedChange={setActive} />
+          <Label htmlFor={`${id}-active`} className="text-body text-foreground">
+            Активна — показувати в списку місяця
+          </Label>
+        </div>
+      )}
     </FormDialog>
   )
 }

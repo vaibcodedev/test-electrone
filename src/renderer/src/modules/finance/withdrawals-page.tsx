@@ -2,7 +2,8 @@ import type { ReactElement } from 'react'
 import { ArrowDownToLine, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Withdrawal } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { fmtDayFull, fmtMoney } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,10 @@ import { WithdrawalDialog } from './withdrawal-dialog'
 import { fmtRate, sumByCurrency } from './money'
 import { defaultDayIn, monthRange, useMonth } from './month'
 import { useEditDialog } from './use-edit-dialog'
+
+/** Secondary columns, hidden in a narrow card (body, header and footer use the same class). */
+const METHOD_COL = 'hidden @2xl:table-cell'
+const RATE_COL = 'hidden @xl:table-cell'
 
 export function WithdrawalsPage(): ReactElement {
   const [month, setMonth] = useMonth()
@@ -73,38 +78,40 @@ export function WithdrawalsPage(): ReactElement {
             }
           />
         ) : (
-          <div className="@container flex flex-col gap-3">
-            <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-3">
-              <MoneyStatTile label="Виведено" value={totals.amount} empty="ще немає" />
+          <div className="flex flex-col gap-3">
+            {/* Always three across: compact sums fit, a column of full-width tiles pushed the table down. */}
+            <div className="grid grid-cols-3 gap-3">
+              <MoneyStatTile label="Виведено" value={totals.amount} empty="виведень ще немає" />
               <MoneyStatTile label="Комісії за виведення" value={totals.fee} empty="без комісій" />
               <MoneyStatTile
                 tone="ink"
                 label="Надійшло"
                 value={totals.received}
-                empty="ще немає"
+                empty="ще нічого не надійшло"
                 hint="після комісії та обміну"
               />
             </div>
-            <Card className="py-2">
+            {/* The card is the container: narrow, «Спосіб» and «Курс» go first, the sums stay. */}
+            <Card className="@container py-2">
               <CardContent className="px-2">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Дата</TableHead>
                       <TableHead>Звідки</TableHead>
+                      <TableHead className={cn('w-full max-w-0', METHOD_COL)}>Спосіб</TableHead>
                       <TableHead className="text-right">Сума</TableHead>
                       <TableHead className="text-right">Комісія</TableHead>
-                      <TableHead className="text-right">Курс</TableHead>
+                      <TableHead className={cn('text-right', RATE_COL)}>Курс</TableHead>
                       <TableHead className="text-right">Надійшло</TableHead>
-                      <TableHead className="pl-6">Спосіб</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rows.map((w) => (
                       <TableRow key={w.id}>
-                        <TableCell className="text-muted-foreground tabular-nums">
-                          {fmtDate(w.at, 'd MMM')}
+                        <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                          {fmtDayFull(w.at)}
                         </TableCell>
                         <TableCell>
                           {w.platformId ? (
@@ -112,25 +119,32 @@ export function WithdrawalsPage(): ReactElement {
                               {platformName.get(w.platformId) ?? 'Платформа'}
                             </Badge>
                           ) : (
-                            <span className="text-muted-foreground">Інше</span>
+                            <Badge variant="outline">Інше</Badge>
                           )}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {fmtMoney(w.amount, w.currency)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground tabular-nums">
-                          {w.fee ? fmtMoney(w.fee, w.currency) : '—'}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground tabular-nums">
-                          {w.currency === w.receivedCurrency ? '—' : fmtRate(w.rate)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">
-                          {fmtMoney(w.received, w.receivedCurrency)}
-                        </TableCell>
-                        <TableCell className="w-full max-w-0 pl-6 text-muted-foreground">
+                        <TableCell
+                          className={cn('w-full max-w-0 text-muted-foreground', METHOD_COL)}
+                        >
                           <span className="block truncate" title={w.method || undefined}>
                             {w.method || '—'}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap tabular-nums">
+                          {fmtMoney(w.amount, w.currency)}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                          {w.fee ? fmtMoney(w.fee, w.currency) : '—'}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            'text-right whitespace-nowrap text-muted-foreground tabular-nums',
+                            RATE_COL
+                          )}
+                        >
+                          {w.currency === w.receivedCurrency ? '—' : fmtRate(w.rate)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                          {fmtMoney(w.received, w.receivedCurrency)}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end">
@@ -156,18 +170,20 @@ export function WithdrawalsPage(): ReactElement {
                   </TableBody>
                   <TableFooter>
                     <TableRow>
+                      {/* Hidden columns get their own hidden cells: a colSpan over them shifts the sums. */}
                       <TableCell colSpan={2}>Разом</TableCell>
+                      <TableCell className={METHOD_COL} />
                       <TableCell className="text-right">
                         <MoneyLines value={totals.amount} className="items-end" />
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">
                         <MoneyLines value={totals.fee} className="items-end" />
                       </TableCell>
-                      <TableCell />
+                      <TableCell className={RATE_COL} />
                       <TableCell className="text-right font-semibold">
                         <MoneyLines value={totals.received} className="items-end" />
                       </TableCell>
-                      <TableCell colSpan={2} />
+                      <TableCell />
                     </TableRow>
                   </TableFooter>
                 </Table>

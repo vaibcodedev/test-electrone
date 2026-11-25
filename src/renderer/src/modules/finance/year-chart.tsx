@@ -1,11 +1,12 @@
 import { useMemo, useState, type ReactElement } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import { ChartColumn } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import { useApi } from '@/lib/query'
 import { fmtMoney } from '@/lib/format'
 import { CURRENCY_SIGN } from '../crm/labels'
-import { EmptyState, Segmented } from '@/components/common/page'
+import { Segmented } from '@/components/common/page'
 import {
   Card,
   CardAction,
@@ -23,6 +24,7 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from '@/components/ui/chart'
+import { CardState } from './parts'
 import { moneyEntries } from './money'
 import { monthLabel, monthShort } from './month'
 
@@ -143,10 +145,7 @@ export function YearChart({ month }: { month: string }): ReactElement {
             </BarChart>
           </ChartContainer>
         ) : (
-          <EmptyState
-            title="Поки нічого показати"
-            hint="Позначте оплату за контрактом або додайте витрату — тут з’явиться динаміка по місяцях."
-          />
+          <CardState icon={ChartColumn} text="Графік з’явиться після першої оплати або витрати" />
         )}
       </CardContent>
     </Card>

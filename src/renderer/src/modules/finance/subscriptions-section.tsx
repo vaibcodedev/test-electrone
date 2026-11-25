@@ -8,7 +8,7 @@ import {
 import { openUrl } from '@/lib/open-url'
 import { rangesOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { fmtDayFull, fmtMoney } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { NumberInput } from '@/components/common/number-input'
 import { Confirm } from '@/components/common/confirm'
@@ -52,11 +52,13 @@ function PaidAmountAction({
   month: string
 }): ReactElement {
   const id = useId()
-  const setPaid = useApiMutation('finance', 'setSubscriptionPaid')
+  const setPaid = useApiMutation('finance', 'setSubscriptionPaid', {
+    successMessage: 'Підписку позначено оплаченою'
+  })
   const [amount, setAmount] = useState<number | null>(null)
   const [open, setOpen] = useState(false)
-  // An empty field is not «paid 0»: the button waits for a number.
-  const canSubmit = amount !== null && amount >= 0 && !setPaid.isPending
+  // Neither an empty field nor 0 is a payment: the same «more than 0» rule as the dialogs.
+  const canSubmit = amount !== null && amount > 0 && !setPaid.isPending
   return (
     <Popover
       open={open}
@@ -133,8 +135,8 @@ function SubscriptionRow({
           {!r.active && <Badge variant="outline">вимкнена</Badge>}
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground tabular-nums">
-        {fmtDate(r.dueAt, 'd MMM')}
+      <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+        {fmtDayFull(r.dueAt)}
       </TableCell>
       <TableCell className="text-muted-foreground">{CATEGORY_LABEL[r.category]}</TableCell>
       <TableCell className="text-right tabular-nums">
@@ -197,13 +199,16 @@ export function SubscriptionsSection({ month }: { month: string }): ReactElement
           Підписки на {monthName(month)}
         </CardTitle>
         <CardDescription>
-          Позначте, що вже списалося, — позначка стає витратою цього місяця.
+          Позначте, що вже списалося: позначка стає витратою цього місяця.
         </CardDescription>
-        <CardAction>
-          <Button variant="subtle" size="xs" onClick={() => dialog.openWith(null)}>
-            <Plus /> Додати підписку
-          </Button>
-        </CardAction>
+        {/* Empty: the button lives in the card's empty state, not twice side by side. */}
+        {rows && rows.length > 0 && (
+          <CardAction>
+            <Button variant="subtle" size="xs" onClick={() => dialog.openWith(null)}>
+              <Plus /> Додати підписку
+            </Button>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="px-2">
         {!rows ? (

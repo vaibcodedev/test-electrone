@@ -2,7 +2,7 @@ import type { ComponentProps, ReactElement, ReactNode } from 'react'
 import { StatTile } from '@/components/common/stat-tile'
 import { MoneyValue } from '@/components/common/money-value'
 import { Link, useLocation } from 'react-router'
-import { Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Plus, type LucideIcon } from 'lucide-react'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import { fmtMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -107,30 +107,37 @@ export function MonthSwitcher({
 
 /**
  * Month-summary tile: one line per currency, big sums shortened («250 тис. USD»). Without money it
- * says `empty` in words («ще немає оплат»), never a lone «—» (docs/design-system.md → Паттерны форм).
+ * says `empty` in words («цього місяця оплат немає»), never a lone «—» (docs/design-system.md →
+ * Паттерны форм). `hint` explains a number, so it is dropped with the number; `warning` always shows.
  */
 export function MoneyStatTile({
   value,
   empty,
+  hint,
+  warning,
   ...props
 }: Omit<ComponentProps<typeof StatTile>, 'value'> & {
   value: MoneyByCurrency | undefined
   empty: string
+  warning?: ReactNode
 }): ReactElement {
+  const hasMoney = moneyEntries(value).length > 0
   return (
     <StatTile
       {...props}
+      hint={warning ?? (hasMoney ? hint : undefined)}
       value={
-        moneyEntries(value).length ? (
+        hasMoney ? (
           <MoneyLines
             value={value}
             compact
             className="text-stat-sm leading-tight tracking-normal"
           />
         ) : (
+          // A block of its own: inline, the phrase would sit on the tile's 28px headline line box.
           <span
             className={cn(
-              'font-sans text-body font-normal tracking-normal',
+              'block font-sans text-body leading-snug font-normal tracking-normal',
               props.tone === 'ink' ? 'text-ink-muted' : 'text-muted-foreground'
             )}
           >
@@ -146,11 +153,14 @@ export function MoneyStatTile({
 export function CardState({
   text,
   action,
-  done
+  done,
+  icon: Icon = Plus
 }: {
   text: string
   action?: ReactNode
   done?: boolean
+  /** What the action does: «+» adds a record, another icon for a jump elsewhere. */
+  icon?: LucideIcon
 }): ReactElement {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-2 text-center">
@@ -160,7 +170,7 @@ export function CardState({
           done ? 'bg-success/15 text-success' : 'bg-foreground/7 text-muted-foreground'
         )}
       >
-        {done ? <Check className="size-4" /> : <Plus className="size-4" />}
+        {done ? <Check className="size-4" /> : <Icon className="size-4" />}
       </span>
       <p className="max-w-64 text-body text-muted-foreground">{text}</p>
       {action}

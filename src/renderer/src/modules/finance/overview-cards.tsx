@@ -1,7 +1,9 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { useMemo, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { Check, Landmark, Plus, Receipt } from 'lucide-react'
+import { startOfDay } from 'date-fns'
+import { ArrowRight, Check, Landmark, Plus, Receipt } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
+import type { MonthReport } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { fmtDay, fmtPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -53,7 +55,10 @@ export function UnpaidSubscriptions({
     successMessage: 'Підписку позначено оплаченою'
   })
   const navigate = useNavigate()
-  const [nowTs] = useState(() => Date.now())
+  // dueAt is noon of the billing day: compare with the start of today, so today stays «спишеться».
+  const today = startOfDay(new Date()).getTime()
+  const dueText = (ts: number): string =>
+    `${ts < today ? 'списання було' : 'спишеться'} ${fmtDay(ts)}`
   const unpaid = rows?.filter((r) => !r.expenseId) ?? []
   return (
     <Card className="h-full">
@@ -100,18 +105,19 @@ export function UnpaidSubscriptions({
                   <ItemDescription className="text-caption">
                     <MoneyValue amount={s.amount} currency={s.currency} />
                   </ItemDescription>
-                  <ItemDescription className="text-caption">
-                    {s.dueAt < nowTs ? 'списання було ' : 'спишеться '}
-                    {fmtDay(s.dueAt)}
+                  <ItemDescription className="truncate text-caption" title={dueText(s.dueAt)}>
+                    {dueText(s.dueAt)}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>
                   <Button
                     size="xs"
                     variant="subtle"
+                    aria-label={`Позначити «${s.title}» оплаченою`}
+                    disabled={setPaid.isPending}
                     onClick={() => setPaid.mutate({ id: s.id, month, paid: true })}
                   >
-                    <Check /> Оплачено
+                    <Check /> Позначити
                   </Button>
                 </ItemActions>
               </Item>
@@ -123,13 +129,7 @@ export function UnpaidSubscriptions({
   )
 }
 
-export function PlatformBalances({
-  month,
-  onAdd
-}: {
-  month: string
-  onAdd: () => void
-}): ReactElement {
+export function PlatformBalances({ month }: { month: string }): ReactElement {
   const { data } = useApi('finance', 'overview')
   const navigate = useNavigate()
   const list = (data?.platformBalances ?? []).filter((b) => Math.abs(b.balance) >= 0.01)
@@ -155,21 +155,15 @@ export function PlatformBalances({
           <RowsSkeleton />
         ) : list.length === 0 ? (
           earned ? (
-            <CardState
-              done
-              text="Усе виведено — на платформах нічого не лишилося"
-              action={
-                <Button variant="subtle" size="xs" onClick={onAdd}>
-                  <Plus /> Додати виведення
-                </Button>
-              }
-            />
+            // Nothing left to withdraw: no «add» here, the header already links to withdrawals.
+            <CardState done text="Усе виведено — на платформах нічого не лишилося" />
           ) : (
             <CardState
-              text="Тут буде, скільки грошей лежить на платформах після оплат за контрактами"
+              icon={Landmark}
+              text="Після першої оплати тут буде видно, скільки грошей лежить на платформах"
               action={
                 <Button variant="subtle" size="xs" onClick={() => navigate('/clients')}>
-                  До контрактів
+                  До контрактів <ArrowRight />
                 </Button>
               }
             />
@@ -205,16 +199,15 @@ type CategoryRow = { label: string; amount: number; share: number; rest?: boolea
  * labelled, so all bars share one colour: colour by rank repainted a category between months.
  */
 export function ExpensesByCategory({
-  month,
+  rows,
   onAdd
 }: {
-  month: string
+  rows: MonthReport['expensesByCategory']
   onAdd: () => void
 }): ReactElement {
-  const { data } = useApi('finance', 'month', { month }, KEEP_PERIOD)
   const groups = useMemo(() => {
     const byCurrency = new Map<Currency, { label: string; amount: number }[]>()
-    for (const r of data?.expensesByCategory ?? []) {
+    for (const r of rows) {
       const list = byCurrency.get(r.currency) ?? []
       list.push({ label: CATEGORY_LABEL[r.category], amount: r.amount })
       byCurrency.set(r.currency, list)
@@ -235,7 +228,7 @@ export function ExpensesByCategory({
         })
       return { currency, items }
     })
-  }, [data])
+  }, [rows])
   const percent = (share: number): string =>
     share > 0 && share < 0.5 ? '<1%' : fmtPercent(Math.round(share))
 
@@ -245,9 +238,7 @@ export function ExpensesByCategory({
         <CardTitle>Витрати за категоріями</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col">
-        {!data ? (
-          <RowsSkeleton />
-        ) : groups.length === 0 ? (
+        {groups.length === 0 ? (
           <CardState
             text="Цього місяця витрат немає"
             action={
@@ -264,12 +255,6 @@ export function ExpensesByCategory({
                 {g.items.map((r) => (
                   <div key={r.label} className="flex flex-col gap-1.5">
                     <div className="flex items-baseline gap-2 text-body">
-                      <span
-                        className={cn(
-                          'size-2 shrink-0 self-center rounded-full',
-                          r.rest ? 'bg-muted-foreground' : 'bg-chart-1'
-                        )}
-                      />
                       <span className="min-w-16 flex-1 truncate" title={r.label}>
                         {r.label}
                       </span>
@@ -285,9 +270,7 @@ export function ExpensesByCategory({
                       aria-label={`${r.label}: ${percent(r.share)}`}
                       className={cn(
                         'h-1.5',
-                        r.rest
-                          ? '[&>[data-slot=progress-indicator]]:bg-muted-foreground'
-                          : '[&>[data-slot=progress-indicator]]:bg-chart-1'
+                        r.rest && '[&>[data-slot=progress-indicator]]:bg-muted-foreground'
                       )}
                     />
                   </div>

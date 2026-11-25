@@ -2,7 +2,8 @@ import type { ReactElement } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ArrowRight, TrendingUp } from 'lucide-react'
 import { KEEP_PERIOD, useApi } from '@/lib/query'
-import { fmtDate, fmtMoney, fmtPercent } from '@/lib/format'
+import { fmtDayFull, fmtMoney, fmtPercent } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +21,13 @@ import {
 import { FinanceNav, MoneyLines, MonthSwitcher } from './parts'
 import { sumByCurrency } from './money'
 import { monthRange, useMonth } from './month'
+
+/**
+ * Secondary columns, hidden in a narrow card so «На руки» never scrolls away; the client moves under
+ * the contract. Body, header and footer use the same classes.
+ */
+const CLIENT_COL = 'hidden @3xl:table-cell'
+const PLATFORM_COL = 'hidden @2xl:table-cell'
 
 export function IncomePage(): ReactElement {
   const [month, setMonth] = useMonth()
@@ -57,23 +65,18 @@ export function IncomePage(): ReactElement {
           <EmptyState
             icon={TrendingUp}
             title="Цього місяця оплат немає"
-            hint="Оплати додаються в контракті: відкрийте його в «Клієнти й контракти» й позначте оплату — вона з’явиться тут з урахуванням комісії."
-            action={
-              <Button variant="soft" onClick={() => navigate('/clients')}>
-                До контрактів
-              </Button>
-            }
+            hint="Оплати позначаються в контракті. Позначте оплату там — вона з’явиться тут разом із комісією."
           />
         ) : (
-          <Card className="py-2">
+          <Card className="@container py-2">
             <CardContent className="px-2">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Дата</TableHead>
                     <TableHead>Контракт</TableHead>
-                    <TableHead>Клієнт</TableHead>
-                    <TableHead>Платформа</TableHead>
+                    <TableHead className={CLIENT_COL}>Клієнт</TableHead>
+                    <TableHead className={PLATFORM_COL}>Платформа</TableHead>
                     <TableHead className="text-right">Сума</TableHead>
                     <TableHead className="text-right">Комісія</TableHead>
                     <TableHead className="text-right">На руки</TableHead>
@@ -82,10 +85,10 @@ export function IncomePage(): ReactElement {
                 <TableBody>
                   {rows.map((r) => (
                     <TableRow key={r.paymentId}>
-                      <TableCell className="text-muted-foreground tabular-nums">
-                        {fmtDate(r.paidAt, 'd MMM')}
+                      <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                        {fmtDayFull(r.paidAt)}
                       </TableCell>
-                      <TableCell className="w-full max-w-0">
+                      <TableCell className="w-full max-w-0 min-w-40">
                         <Button
                           asChild
                           variant="link"
@@ -95,28 +98,36 @@ export function IncomePage(): ReactElement {
                             <span className="truncate">{r.projectTitle}</span>
                           </Link>
                         </Button>
+                        {r.clientName && (
+                          <span
+                            className="block truncate text-caption text-muted-foreground @3xl:hidden"
+                            title={r.clientName}
+                          >
+                            {r.clientName}
+                          </span>
+                        )}
                       </TableCell>
-                      <TableCell className="max-w-[180px]">
+                      <TableCell className={cn('max-w-[180px]', CLIENT_COL)}>
                         <span className="block truncate" title={r.clientName ?? undefined}>
                           {r.clientName ?? '—'}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className={PLATFORM_COL}>
                         {r.platformName ? (
                           <Badge variant="soft">{r.platformName}</Badge>
                         ) : (
                           <Badge variant="outline">Напряму</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {fmtMoney(r.gross, r.currency)}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground tabular-nums">
+                      <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
                         {r.fee
                           ? `${fmtMoney(r.fee, r.currency)} · ${fmtPercent(r.feePercent)}`
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
+                      <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
                         {fmtMoney(r.net, r.currency)}
                       </TableCell>
                     </TableRow>
@@ -124,7 +135,10 @@ export function IncomePage(): ReactElement {
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={4}>Разом за місяць</TableCell>
+                    {/* Hidden columns get their own hidden cells: a colSpan over them shifts the sums. */}
+                    <TableCell colSpan={2}>Разом за місяць</TableCell>
+                    <TableCell className={CLIENT_COL} />
+                    <TableCell className={PLATFORM_COL} />
                     <TableCell className="text-right">
                       <MoneyLines value={totals.gross} className="items-end" />
                     </TableCell>

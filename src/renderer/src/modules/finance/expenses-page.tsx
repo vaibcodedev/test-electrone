@@ -1,8 +1,8 @@
 import type { ReactElement } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import type { Expense, MoneyByCurrency } from '@shared/domain/finance'
+import type { Expense } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { fmtDayFull, fmtMoney, fmtMoneyCompact } from '@/lib/format'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
@@ -22,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { CardState, FinanceNav, MoneyLines, MonthSwitcher } from './parts'
 import { ExpenseDialog } from './expense-dialog'
 import { SubscriptionsSection } from './subscriptions-section'
-import { CATEGORY_LABEL, sumByCurrency } from './money'
+import { CATEGORY_LABEL, moneyEntries, sumByCurrency } from './money'
 import { defaultDayIn, monthName, monthRange, useMonth } from './month'
 import { useEditDialog } from './use-edit-dialog'
 
@@ -41,12 +41,20 @@ function ExpensesSection({
 
   const total = sumByCurrency(rows, (e) => [e.currency, e.amount])
   // From the table rows, not the server's expensesByCategory: that one also counts connects.
-  const byCategory = new Map<string, { label: string; amount: MoneyByCurrency }>()
-  for (const e of rows ?? []) {
-    const cat = byCategory.get(e.category) ?? { label: CATEGORY_LABEL[e.category], amount: {} }
-    cat.amount[e.currency] = (cat.amount[e.currency] ?? 0) + e.amount
-    byCategory.set(e.category, cat)
-  }
+  const byCategory = [...new Set(rows?.map((e) => e.category))].map((category) => {
+    const amount = moneyEntries(
+      sumByCurrency(
+        rows?.filter((e) => e.category === category),
+        (e) => [e.currency, e.amount]
+      )
+    )
+    return {
+      label: CATEGORY_LABEL[category],
+      // One line in the badge (compact), exact sums on hover: the table below has the full ones.
+      short: amount.map(([c, v]) => fmtMoneyCompact(v, c)).join(' · '),
+      exact: amount.map(([c, v]) => fmtMoney(v, c)).join(' · ')
+    }
+  })
 
   return (
     <Card>
@@ -64,7 +72,7 @@ function ExpensesSection({
           <Skeleton className="mx-3 h-24 rounded-2xl" />
         ) : rows.length === 0 ? (
           <CardState
-            text="Цього місяця витрат немає. Оплачені підписки потраплять сюди самі."
+            text="Цього місяця витрат немає"
             action={
               <Button variant="subtle" size="xs" onClick={onAdd}>
                 <Plus /> Додати витрату
@@ -74,10 +82,15 @@ function ExpensesSection({
         ) : (
           <>
             <div className="flex flex-wrap gap-2 px-3">
-              {[...byCategory.values()].map((c) => (
-                <Badge key={c.label} variant="soft" className="h-7 gap-2 px-3">
+              {byCategory.map((c) => (
+                <Badge
+                  key={c.label}
+                  variant="soft"
+                  className="h-7 gap-2 px-3"
+                  title={`${c.label}: ${c.exact}`}
+                >
                   {c.label}
-                  <MoneyLines value={c.amount} className="font-semibold" />
+                  <span className="font-semibold tabular-nums">{c.short}</span>
                 </Badge>
               ))}
             </div>
@@ -94,8 +107,8 @@ function ExpensesSection({
               <TableBody>
                 {rows.map((e) => (
                   <TableRow key={e.id}>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {fmtDate(e.at, 'd MMM')}
+                    <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                      {fmtDayFull(e.at)}
                     </TableCell>
                     <TableCell className="w-full max-w-0 font-medium">
                       <div className="flex min-w-0 items-center gap-2">
