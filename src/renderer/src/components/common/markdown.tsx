@@ -8,7 +8,8 @@ import { parseVaultHref } from '@shared/wikilinks'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
-import { FieldLabel } from '@/components/ui/field'
+import { FieldError, FieldLabel } from '@/components/ui/field'
+import { overLimitText } from '@/lib/limits'
 import { CharCount, Segmented } from './page'
 import { ShowMore } from './show-more'
 import { CopyButton } from './copy-button'
@@ -251,6 +252,10 @@ export function MarkdownField({
             </span>
           )}
         </div>
+      )}
+      {/* A text stored before the limit was lowered: it opens and can be shortened, nothing is cut. */}
+      {maxLength !== undefined && value.length > maxLength && (
+        <FieldError className="text-caption">{overLimitText(value.length, maxLength)}</FieldError>
       )}
     </div>
   )
