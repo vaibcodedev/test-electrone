@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Plus, SquareKanban } from 'lucide-react'
 import { boardInputSchema, type BoardSummary } from '@shared/domain/boards'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, requiredOf } from '@/lib/limits'
 import { useApiMutation, useInfiniteApi } from '@/lib/query'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { EmptyState, Field, Page, PageHeader, SegmentBar } from '@/components/common/page'
@@ -19,6 +19,7 @@ import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const LIMITS = limitsOf(boardInputSchema)
+const REQUIRED = requiredOf(boardInputSchema)
 
 function CreateBoardDialog({
   open,
@@ -48,14 +49,13 @@ function CreateBoardDialog({
       title="Нова дошка"
       description="Колонки «Беклог → У роботі → Рев’ю → Готово» створяться самі, їх можна змінити."
       submitLabel="Створити дошку"
-      invalid={!title.trim()}
-      invalidReason="Вкажіть назву дошки"
       pending={create.isPending}
       onSubmit={() => create.mutate({ title: title.trim(), description })}
       className="sm:max-w-md"
     >
-      <Field label="Назва" count={{ length: title.length, max: LIMITS.title }}>
+      <Field label="Назва" htmlFor="board-title" required={REQUIRED.title}>
         <Input
+          id="board-title"
           autoFocus
           value={title}
           maxLength={LIMITS.title}

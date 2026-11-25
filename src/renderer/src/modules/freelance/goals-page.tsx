@@ -11,7 +11,7 @@ import {
 } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
-import { limitsOf, rangesOf } from '@/lib/limits'
+import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { fmtNumber } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -43,6 +43,7 @@ import { formatGoalValue, goalTitle } from './goal-format'
 
 const TITLE_MAX = limitsOf(goalInputSchema).title
 const GOAL_R = rangesOf(goalInputSchema)
+const GOAL_REQ = requiredOf(goalInputSchema)
 
 const ALL = '__all__'
 
@@ -158,6 +159,7 @@ function GoalDialog({
         <NumberField
           id="goal-target"
           label="Ціль"
+          required={GOAL_REQ.target}
           min={1}
           max={rate ? 100 : GOAL_R.target?.max}
           integer={form.metric !== 'net_income' && !rate}

@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode, type ReactElement } from 'react'
 import { CircleCheck, Eye, FileText, FileUp, Trash2, Upload } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { resumeInputSchema, type JobBoard, type Resume } from '@shared/domain/jobs'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, requiredOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fileUrl, toFileSources } from '@/lib/files'
@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const LIMITS = limitsOf(resumeInputSchema)
+const REQUIRED = requiredOf(resumeInputSchema)
 
 /** Hidden native file input driven by a shadcn Button (the only allowed native input). */
 function useFilePicker(onPick: (sources: FileSource[]) => void): { open: () => void; input: ReactNode } {
@@ -71,7 +72,6 @@ function NewVersionDialog({
       onOpenChange={onOpenChange}
       title="Нова версія резюме"
       submitLabel="Додати версію"
-      invalid={!title.trim()}
       pending={create.isPending}
       onSubmit={() => create.mutate({ input: { title: title.trim(), changes, isCurrent }, source: source ?? undefined })}
     >
@@ -80,7 +80,7 @@ function NewVersionDialog({
           <FileText className="size-4 text-muted-foreground" /> {fileName}
         </div>
       )}
-      <Field label="Назва версії" htmlFor="resume-title">
+      <Field label="Назва версії" htmlFor="resume-title" required={REQUIRED.title}>
         <Input id="resume-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="v3 Frontend, акцент на Next.js" maxLength={LIMITS.title} />
       </Field>
       <Field label="Що змінилося" htmlFor="resume-changes" count={{ length: changes.length, max: LIMITS.changes }}>

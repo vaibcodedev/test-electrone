@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { projectInputSchema } from '@shared/domain/crm'
 import type { Platform, Proposal } from '@shared/domain/freelance'
 import { useApiMutation } from '@/lib/query'
-import { limitsOf, rangesOf } from '@/lib/limits'
+import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { fmtMoney } from '@/lib/format'
 import { Input } from '@/components/ui/input'
 import { Field, Segmented } from '@/components/common/page'
@@ -12,6 +12,7 @@ import { NumberField, useInvalidFields } from '@/components/common/number-field'
 
 const TITLE_MAX = limitsOf(projectInputSchema).title
 const PROJECT_R = rangesOf(projectInputSchema)
+const PROJECT_REQ = requiredOf(projectInputSchema)
 
 /**
  * «Контракт»: turns a won proposal into a CRM client + contract (project) on this platform.
@@ -62,7 +63,7 @@ export function HireDialog({
       }
       submitLabel="Створити контракт"
       className="sm:max-w-115"
-      invalid={!title.trim() || numbers.invalid}
+      invalid={numbers.invalid}
       pending={hire.isPending}
       onSubmit={() =>
         hire.mutate({
@@ -75,8 +76,9 @@ export function HireDialog({
         })
       }
     >
-      <Field label="Назва контракту" error={title.trim() ? undefined : 'Вкажіть назву контракту'}>
+      <Field label="Назва контракту" htmlFor="hire-title" required={PROJECT_REQ.title}>
         <Input
+          id="hire-title"
           value={title}
           maxLength={TITLE_MAX}
           onChange={(e) => setTitle(e.target.value)}

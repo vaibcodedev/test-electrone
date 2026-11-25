@@ -8,7 +8,7 @@ import {
   type PreCheck
 } from '@shared/domain/freelance'
 import { useApiMutation } from '@/lib/query'
-import { limitsOf, rangesOf } from '@/lib/limits'
+import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { useUi } from '@/stores/ui-store'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,6 +22,7 @@ import { PLATFORM_COLOR_NAME, PLATFORM_COLORS, PLATFORM_KIND_LABEL } from './pro
 
 const PLATFORM_L = limitsOf(platformInputSchema)
 const PLATFORM_R = rangesOf(platformInputSchema)
+const PLATFORM_REQ = requiredOf(platformInputSchema)
 
 interface Preset {
   name: string
@@ -121,7 +122,7 @@ export function PlatformDialogHost(): ReactElement {
       title="Нова платформа"
       description="Кожна платформа має свої відгуки, контракти, комісію й статистику."
       submitLabel="Додати платформу"
-      invalid={!name.trim() || numbers.invalid}
+      invalid={numbers.invalid}
       pending={create.isPending}
       onSubmit={() =>
         create.mutate({
@@ -159,13 +160,13 @@ export function PlatformDialogHost(): ReactElement {
         ))}
       </RadioGroup>
       <div className="grid grid-cols-2 items-start gap-4">
-        <Field label="Назва" error={name.trim() ? undefined : 'Вкажіть назву'}>
+        <Field label="Назва" htmlFor="platform-name" required={PLATFORM_REQ.name}>
           <Input
+            id="platform-name"
             value={name}
             maxLength={PLATFORM_L.name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Напр.: Fiverr"
-            aria-invalid={!name.trim() || undefined}
             autoFocus
           />
         </Field>

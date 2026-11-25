@@ -7,7 +7,7 @@ import {
   type SubscriptionPeriod
 } from '@shared/domain/finance'
 import { useApiMutation } from '@/lib/query'
-import { isLikelyUrl, limitsOf, rangesOf, URL_ERROR } from '@/lib/limits'
+import { isLikelyUrl, limitsOf, rangesOf, requiredOf, URL_ERROR } from '@/lib/limits'
 import { normalizeUrl } from '@/lib/open-url'
 import { Field, Segmented } from '@/components/common/page'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
@@ -29,6 +29,7 @@ import { MONTH_NAMES, monthRange } from './month'
 
 const SUB_L = limitsOf(subscriptionInputSchema)
 const SUB_R = rangesOf(subscriptionInputSchema)
+const SUB_REQ = requiredOf(subscriptionInputSchema)
 
 export function SubscriptionDialog({
   open,
@@ -116,6 +117,7 @@ export function SubscriptionDialog({
     >
       <Field
         label="Назва"
+        required={SUB_REQ.title}
         htmlFor={`${id}-title`}
         error={titleMissing ? 'Вкажіть назву' : undefined}
       >
@@ -134,6 +136,7 @@ export function SubscriptionDialog({
         <NumberField
           id={`${id}-amount`}
           label="Сума"
+          required={SUB_REQ.amount}
           live
           {...SUB_R.amount}
           value={amount}

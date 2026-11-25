@@ -11,7 +11,7 @@ import {
 } from '@shared/domain/crm'
 import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
-import { limitsOf, rangesOf } from '@/lib/limits'
+import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
@@ -27,8 +27,10 @@ import { usePlatforms } from './use-platforms'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
+const CLIENT_REQ = requiredOf(clientInputSchema)
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
+const PROJECT_REQ = requiredOf(projectInputSchema)
 
 const AMOUNT_PLACEHOLDER: Record<BillingType, string> = {
   fixed: 'Напр.: 1 500',
@@ -130,12 +132,11 @@ export function ClientDialog({
       title="Новий клієнт"
       submitLabel="Додати клієнта"
       className="sm:max-w-140"
-      invalid={!form.name.trim() || !emailOk || numbers.invalid}
-      invalidReason={!form.name.trim() ? 'Вкажіть ім’я клієнта' : undefined}
+      invalid={!emailOk || numbers.invalid}
       pending={create.isPending}
       onSubmit={() => create.mutate({ ...form, email: (form.email ?? '').trim() })}
     >
-      <Field label="Ім’я або назва" htmlFor={`${uid}-name`}>
+      <Field label="Ім’я або назва" htmlFor={`${uid}-name`} required={CLIENT_REQ.name}>
         <Input
           id={`${uid}-name`}
           autoFocus
@@ -321,8 +322,7 @@ export function ProjectDialog({
       title="Новий проєкт"
       submitLabel="Створити проєкт"
       className="sm:max-w-140"
-      invalid={!form.title.trim() || dueBeforeStart || numbers.invalid}
-      invalidReason={!form.title.trim() ? 'Вкажіть назву проєкту' : undefined}
+      invalid={dueBeforeStart || numbers.invalid}
       pending={create.isPending}
       onSubmit={() =>
         create.mutate({
@@ -334,7 +334,7 @@ export function ProjectDialog({
         })
       }
     >
-      <Field label="Назва" htmlFor={`${uid}-title`}>
+      <Field label="Назва" htmlFor={`${uid}-title`} required={PROJECT_REQ.title}>
         <Input
           id={`${uid}-title`}
           autoFocus
