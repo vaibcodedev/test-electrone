@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
-import { toast } from 'sonner'
-import { openUrl } from '@/lib/open-url'
-import { ChevronDown, Copy, ExternalLink, Plus, Sparkles, ThumbsUp } from 'lucide-react'
+import { ChevronDown, Copy, Plus, Sparkles, ThumbsUp } from 'lucide-react'
 import { CLAUDE_KINDS, claudeInputSchema, type ClaudeItem, type ClaudeKind, type ClaudePatch } from '@shared/domain/claude'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -15,7 +13,8 @@ import { Toggle } from '@/components/ui/toggle'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { LinkInput } from '@/components/common/text-field'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton, copyText } from '@/components/common/copy-button'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
@@ -26,10 +25,9 @@ import {
   EditorStack,
   EnumSelect,
   TextareaBlock,
-  UrlBlock,
   countBy
 } from './editor-kit'
-import { presentChips } from './chips'
+import { noResultsHint, presentChips } from './chips'
 
 const LIMITS = limitsOf(claudeInputSchema)
 
@@ -72,14 +70,9 @@ const NEW_TITLE: Record<ClaudeKind, string> = {
 
 function useCopyPrompt() {
   const markCopied = useApiMutation('claude', 'markCopied', { silent: true })
-  return async (item: Pick<ClaudeItem, 'id' | 'content' | 'title'>): Promise<void> => {
-    try {
-      await copyText(item.content || item.title, 'Промт скопійовано')
-    } catch {
-      toast.error('Не вдалося скопіювати')
-      return
-    }
-    markCopied.mutate(item.id)
+  // copyText shows the error toast and logs the failure itself; a failed copy is not counted.
+  return async (item: Pick<ClaudeItem, 'id' | 'content'>): Promise<void> => {
+    if (await copyText(item.content, 'Промт скопійовано')) markCopied.mutate(item.id)
   }
 }
 
@@ -90,6 +83,8 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
   const save = (patch: ClaudePatch): void => update.mutate({ id: item.id, patch })
   const entity = { type: 'claude' as const, id: item.id }
   const isPrompt = item.kind === 'prompt'
+  // A prompt without text has nothing to copy: its title in the clipboard would pass for the prompt.
+  const hasText = !!item.content.trim()
 
   return (
     <DetailPane
@@ -102,20 +97,23 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
       headerExtra={
         isPrompt && (
           <div className="flex items-center gap-2">
-            <CopyButton
-              text={item.content || item.title}
-              label="Скопіювати промт"
-              variant="lime"
-              onCopied={() => markCopied.mutate(item.id)}
-            />
+            {hasText && (
+              <CopyButton
+                text={item.content}
+                label="Скопіювати промт"
+                variant="lime"
+                onCopied={() => markCopied.mutate(item.id)}
+              />
+            )}
+            {/* Pressed = a success tint, not the outline variant's ink inversion (docs/design-system.md → Бейджи). */}
             <Toggle
               size="sm"
               variant="outline"
               pressed={item.works}
               onPressedChange={(works) => save({ works })}
-              className="font-normal"
+              className="font-normal on:border-transparent on:bg-success/12 on:text-success on:hover:bg-success/16"
             >
-              <ThumbsUp className={cn(item.works && 'text-ink-accent')} />
+              <ThumbsUp />
               {item.works ? 'Працює' : 'Позначити «працює»'}
             </Toggle>
             {item.copyCount > 0 && (
@@ -136,6 +134,7 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
         >
           <Block label="Тип">
             <EnumSelect
+              size="sm"
               ariaLabel="Тип"
               options={CLAUDE_KINDS.map((k) => ({ value: k, label: KIND_SINGLE[k] }))}
               value={item.kind}
@@ -158,19 +157,7 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
           maxLength={LIMITS.summary}
           placeholder="Про що це й коли знадобиться"
         />
-        <UrlBlock
-          label="Посилання"
-          value={item.url}
-          onSave={(url) => save({ url })}
-          maxLength={LIMITS.url}
-          trailing={(draft) =>
-            /^https?:\/\//i.test(draft) && (
-              <Button variant="soft" size="icon" aria-label="Відкрити посилання" onClick={() => openUrl(draft)}>
-                <ExternalLink />
-              </Button>
-            )
-          }
-        />
+        <LinkInput label="Посилання" value={item.url} onSave={(url) => save({ url })} maxLength={LIMITS.url} />
         <AutoMarkdown
           label={isPrompt ? 'Текст промту' : 'Вміст'}
           value={item.content}
@@ -200,11 +187,21 @@ export function ClaudePage() {
   const counts = useMemo(() => countBy(all, (i) => i.kind), [all])
   const { data: openItem } = useApi('claude', 'get', openId ?? '', { enabled: !!openId })
   const kindChips = presentChips(CLAUDE_KINDS, counts, (k) => KIND_LABEL[k], kind)
-  const filtered = !!(search || tagId || kind)
+  const filtered = !!(search.trim() || tagId || kind)
+  const resetFilters = (): void => {
+    setSearch('')
+    setTagId(undefined)
+    setKind(undefined)
+  }
 
   const createKind = async (k: ClaudeKind): Promise<void> => {
-    const created = await create.mutateAsync({ kind: k, title: NEW_TITLE[k] })
-    setOpen(created.id)
+    if (create.isPending) return
+    try {
+      const created = await create.mutateAsync({ kind: k, title: NEW_TITLE[k] })
+      setOpen(created.id)
+    } catch {
+      // useApiMutation has already shown the error toast; there is nothing to open.
+    }
   }
   const createNew = (): Promise<void> => createKind(kind ?? 'note')
 
@@ -237,13 +234,15 @@ export function ClaudePage() {
           </ButtonGroup>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {kindChips.length > 0 && <FilterChips allLabel="Усе" value={kind} onChange={setKind} options={kindChips} />}
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Шукати в Claude" className="w-64" />
-          </div>
-        </div>
+        <FilterBar
+          chips={kindChips.length > 0 && <FilterChips allLabel="Усе" value={kind} onChange={setKind} options={kindChips} />}
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Шукати в Claude" />
+            </>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -253,62 +252,59 @@ export function ClaudePage() {
               items={list.items}
               loading={list.isLoading}
               getKey={(i) => i.id}
-              estimateSize={92}
+              estimateSize={76}
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (filtered ? (
+                  <NoResults icon={Sparkles} hint={noResultsHint(search, !!(tagId || kind))} onReset={resetFilters} />
+                ) : (
                   <EmptyState
                     icon={Sparkles}
-                    title={filtered ? 'Нічого не знайшлося' : 'Записів про Claude поки немає'}
-                    hint={
-                      filtered
-                        ? 'Спробуйте інше слово або зніміть фільтр.'
-                        : 'Зберігайте промти, що спрацювали, і нотатки про роботу з Claude.'
-                    }
-                    action={
-                      !filtered && (
-                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
-                          <Plus /> Створити запис
-                        </Button>
-                      )
-                    }
+                    title="Записів про Claude поки немає"
+                    hint="Зберігайте промти, що спрацювали, і нотатки про роботу з Claude."
+                    cta={{ label: 'Створити запис', icon: Plus, onClick: () => void createNew() }}
                   />
-                )
+                ))
               }
               renderItem={(i) => {
                 const active = i.id === openId
-                const isPrompt = i.kind === 'prompt'
+                const copyable = i.kind === 'prompt' && !!i.content.trim()
+                const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
                 return (
                   <div className="relative">
-                    <ListItem active={active} onClick={() => setOpen(i.id)} className={cn(isPrompt && 'pr-14')}>
-                      <div className={cn('mb-0.5 text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                        {KIND_SINGLE[i.kind]}
-                      </div>
+                    <ListItem active={active} onClick={() => setOpen(i.id)} className={cn(copyable && 'pr-14')}>
                       <div className="truncate text-body font-medium">{i.title}</div>
-                      {i.summary && (
-                        <div className={cn('mt-0.5 line-clamp-2 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
-                          {i.summary}
+                      {i.summary && <div className={cn('mt-1 line-clamp-2 text-caption', muted)}>{i.summary}</div>}
+                      {/* One meta line like notes and fixes: type (unless filtered by it) · status · tags … time. */}
+                      <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+                        {!kind && (
+                          <Badge
+                            variant="outline"
+                            className={cn('h-5 shrink-0 font-normal', active && 'border-ink-foreground/20 text-ink-foreground')}
+                          >
+                            {KIND_SINGLE[i.kind]}
+                          </Badge>
+                        )}
+                        {i.kind === 'prompt' && i.works && (
+                          <Badge
+                            variant={active ? 'soft' : 'success'}
+                            className={cn('h-5 shrink-0', active && 'bg-ink-foreground/12 text-ink-foreground')}
+                          >
+                            <ThumbsUp /> Працює
+                          </Badge>
+                        )}
+                        <div className="flex min-w-0 flex-1 overflow-hidden">
+                          <TagList tags={i.tags} max={2} className="flex-nowrap" />
                         </div>
-                      )}
-                      {/* Status is a badge, not coloured text after a dot (docs/design-system.md → Чипы и строки). */}
-                      {((isPrompt && i.works) || (!active && i.tags.length > 0)) && (
-                        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
-                          {isPrompt && i.works && (
-                            <Badge
-                              variant={active ? 'soft' : 'success'}
-                              className={cn('h-5 shrink-0', active && 'bg-ink-foreground/12 text-ink-foreground')}
-                            >
-                              <ThumbsUp /> Працює
-                            </Badge>
-                          )}
-                          {!active && <TagList tags={i.tags} />}
-                        </div>
-                      )}
-                      {!openId && <div className="mt-1.5 text-meta text-muted-foreground">{fmtRelative(i.updatedAt)}</div>}
+                        <span className={cn('ml-auto shrink-0 text-meta whitespace-nowrap', muted)}>
+                          {fmtRelative(i.updatedAt)}
+                        </span>
+                      </div>
                     </ListItem>
-                    {isPrompt && (
+                    {copyable && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button

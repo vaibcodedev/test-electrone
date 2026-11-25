@@ -7,10 +7,11 @@ import { VirtualGrid } from '@/components/common/virtual-list'
 import { cn } from '@/lib/utils'
 import { fmtRelative, plural } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
+import { clickableProps } from '@/lib/clickable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton, copyText } from '@/components/common/copy-button'
 import { CodeBlock, LANGUAGE_LABEL } from '@/components/common/code'
@@ -25,7 +26,7 @@ import {
   TextareaBlock,
   countBy
 } from '../claude/editor-kit'
-import { presentChips } from '../claude/chips'
+import { noResultsHint, presentChips } from '../claude/chips'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
 /**
@@ -87,6 +88,7 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
         >
           <Block label="Мова">
             <EnumSelect
+              size="sm"
               ariaLabel="Мова"
               options={SNIPPET_LANGUAGES.map((l) => ({ value: l, label: LANGUAGE_LABEL[l] }))}
               value={item.language}
@@ -128,18 +130,16 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
 
 /**
  * Grid card: header (title + language dot), one-line description, a fixed 6-line code preview
- * (wrapped, no scroll), footer with tags, date/copies and an always-visible «Копіювати».
- * Every card has the same height: the code box and the description line are always there.
+ * (wrapped, no scroll), footer with tags, date/copies and «Скопіювати» when there is code to copy.
+ * Every card has the same height: the code box, the description line and the footer height are always there.
  */
 function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active: boolean; compact: boolean; onOpen: () => void }) {
   const markCopied = useApiMutation('snippets', 'markCopied', { silent: true })
   const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
+  const hasCode = !!item.code.trim()
   return (
     <Card
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && onOpen()}
+      {...clickableProps(onOpen)}
       aria-current={active || undefined}
       className={cn(
         'h-full min-w-0 cursor-pointer gap-3 py-4 transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
@@ -158,7 +158,7 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
       </CardHeader>
       {!compact && (
         <CardContent className="min-w-0 px-4">
-          {item.code.trim() ? (
+          {hasCode ? (
             <div className="h-36 overflow-hidden rounded-xl">
               <CodeBlock preview code={item.code} language={item.language} maxLines={6} className="h-full rounded-xl text-meta" />
             </div>
@@ -174,7 +174,7 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
           )}
         </CardContent>
       )}
-      <CardFooter className="mt-auto min-w-0 gap-3 px-4">
+      <CardFooter className="mt-auto min-h-7 min-w-0 gap-3 px-4">
         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
           {!compact && <TagList tags={item.tags} max={2} className="flex-nowrap" />}
           <span className={cn('shrink-0 truncate text-meta', muted)}>
@@ -183,19 +183,21 @@ function SnippetCard({ item, active, compact, onOpen }: { item: Snippet; active:
               : fmtRelative(item.updatedAt)}
           </span>
         </div>
-        <Button
-          variant="subtle"
-          size="xs"
-          className={cn('shrink-0', active && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')}
-          disabled={!item.code.trim()}
-          onClick={async (e) => {
-            e.stopPropagation()
-            await copyText(item.code, 'Код скопійовано')
-            markCopied.mutate(item.id)
-          }}
-        >
-          <Copy /> Копіювати
-        </Button>
+        {/* No code — no button: a disabled «Скопіювати» in every empty card did nothing and said nothing. */}
+        {hasCode && (
+          <Button
+            variant="subtle"
+            size="xs"
+            className={cn('shrink-0', active && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')}
+            onClick={async (e) => {
+              e.stopPropagation()
+              // copyText shows the error toast and logs the failure itself; a failed copy is not counted.
+              if (await copyText(item.code, 'Код скопійовано')) markCopied.mutate(item.id)
+            }}
+          >
+            <Copy /> Скопіювати
+          </Button>
+        )}
       </CardFooter>
     </Card>
   )
@@ -216,11 +218,23 @@ export function SnippetsPage() {
 
   const counts = useMemo(() => countBy(all, (s) => s.language), [all])
   const languageChips = presentChips(SNIPPET_LANGUAGES, counts, (l) => LANGUAGE_LABEL[l], language)
-  const filtered = !!(search || tagId || language)
+  const filtered = !!(search.trim() || tagId || language)
+  // The same list for the button's state and for what it copies: a selected empty language copied «[]».
+  const exportItems = useMemo(() => all.filter((s) => !language || s.language === language), [all, language])
+  const resetFilters = (): void => {
+    setSearch('')
+    setTagId(undefined)
+    setLanguage(undefined)
+  }
 
   const createNew = async (): Promise<void> => {
-    const created = await create.mutateAsync({ title: 'Новий сніпет', language: language ?? 'typescript' })
-    setOpen(created.id)
+    if (create.isPending) return
+    try {
+      const created = await create.mutateAsync({ title: 'Новий сніпет', language: language ?? 'typescript' })
+      setOpen(created.id)
+    } catch {
+      // useApiMutation has already shown the error toast; there is nothing to open.
+    }
   }
 
   return (
@@ -232,12 +246,10 @@ export function SnippetsPage() {
           <>
             <CopyJsonButton
               what="Сніпети"
-              disabled={!all.length}
+              disabled={!exportItems.length}
               // The whole filtered list, not just the loaded pages of the grid.
               getData={() =>
-                all
-                  .filter((s) => !language || s.language === language)
-                  .map((s) => ({ title: s.title, language: s.language, description: s.description, code: s.code }))
+                exportItems.map((s) => ({ title: s.title, language: s.language, description: s.description, code: s.code }))
               }
             />
             <ImportButton kind="snippet" onImported={(id) => id && setOpen(id)} />
@@ -247,20 +259,19 @@ export function SnippetsPage() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {languageChips.length > 0 && (
-            <FilterChips
-              allLabel="Усі мови"
-              value={language}
-              onChange={setLanguage}
-              options={languageChips}
-            />
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Назва, опис або код" className="w-64" />
-          </div>
-        </div>
+        <FilterBar
+          chips={
+            languageChips.length > 0 && (
+              <FilterChips allLabel="Усі мови" value={language} onChange={setLanguage} options={languageChips} />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Назва, опис або код" />
+            </>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -280,24 +291,17 @@ export function SnippetsPage() {
                 <SnippetCard item={s} active={s.id === openId} compact={!!openId} onOpen={() => setOpen(s.id)} />
               )}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (filtered ? (
+                  <NoResults icon={CodeXml} hint={noResultsHint(search, !!(tagId || language))} onReset={resetFilters} />
+                ) : (
                   <EmptyState
                     icon={CodeXml}
-                    title={filtered ? 'Нічого не знайшлося' : 'Сніпетів поки немає'}
-                    hint={
-                      filtered
-                        ? 'Пошук іде й по коду — спробуйте ім’я функції чи поле запиту.'
-                        : 'Збережіть шматок коду, який пишете вже не вперше.'
-                    }
-                    action={
-                      !filtered && (
-                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
-                          <Plus /> Додати сніпет
-                        </Button>
-                      )
-                    }
+                    title="Сніпетів поки немає"
+                    hint="Збережіть шматок коду, який пишете вже не вперше."
+                    cta={{ label: 'Додати сніпет', icon: Plus, onClick: () => void createNew() }}
                   />
-                )
+                ))
               }
             />
           }

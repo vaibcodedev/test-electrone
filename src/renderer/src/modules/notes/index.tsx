@@ -1,6 +1,6 @@
 /** General notes — everything that is not Claude-specific. Optional folders + global tags. */
 import { useState } from 'react'
-import { NotebookPen, Plus } from 'lucide-react'
+import { Folder, NotebookPen, Plus } from 'lucide-react'
 import { noteInputSchema, type Note, type NotePatch } from '@shared/domain/notes'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -10,11 +10,12 @@ import { fmtRelative, mdPreview } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { Combobox } from '@/components/common/combobox'
 import { TagFilter, TagList } from '@/components/common/tags'
-import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
+import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
-import { FolderPicker } from './folder-picker'
+import { noResultsHint } from '../claude/chips'
 
 const LIMITS = limitsOf(noteInputSchema)
 const NEW_TITLE = 'Нова нотатка'
@@ -27,6 +28,12 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
   const remove = useApiMutation('notes', 'remove', { successMessage: 'Нотатку переміщено в кошик' })
   const save = (patch: NotePatch): void => update.mutate({ id: note.id, patch })
   const entity = { type: 'note' as const, id: note.id }
+  const { data: folders = [] } = useApi('notes', 'folders')
+  // The note's own folder is always an option: otherwise the field could not show its name.
+  const folderOptions = [...folders, ...(note.folder && !folders.includes(note.folder) ? [note.folder] : [])].map(
+    (f) => ({ value: f, label: f })
+  )
+  const current = note.folder || null
 
   return (
     <DetailPane
@@ -44,10 +51,23 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
           createdAt={note.createdAt}
           updatedAt={note.updatedAt}
         >
-          <section className="flex flex-col gap-2">
-            <SectionLabel>Тека</SectionLabel>
-            <FolderPicker value={note.folder} onChange={(folder) => save({ folder })} />
-          </section>
+          {/* Reading a note without a folder: the field hides itself (Combobox → data-empty). */}
+          <Field label="Тека">
+            <Combobox
+              value={current}
+              options={folderOptions}
+              icon={Folder}
+              placeholder="Без теки"
+              searchPlaceholder="Знайти або створити теку…"
+              emptyText="Тек поки немає"
+              creatable
+              onCreate={(f) => save({ folder: f.slice(0, LIMITS.folder) })}
+              maxLength={LIMITS.folder}
+              clearable
+              clearLabel="Без теки"
+              onChange={(v) => v !== current && save({ folder: v ?? '' })}
+            />
+          </Field>
         </EntityAside>
       }
     >
@@ -84,7 +104,7 @@ export function NotesPage() {
 
   const countIn = (f: string): number => all.filter((n) => n.folder === f).length
   const unfiled = countIn('')
-  const filtered = !!(search || tagId || folder)
+  const filtered = !!(search.trim() || tagId || folder)
   // The selected folder stays a chip even when it has just been emptied, so the active filter is visible.
   const folderChips = [
     ...folders.map((f) => ({ value: f, label: f, count: countIn(f) })),
@@ -92,10 +112,21 @@ export function NotesPage() {
     ...((folders.length && unfiled) || folder === NO_FOLDER ? [{ value: NO_FOLDER, label: 'Без теки', count: unfiled }] : [])
   ]
 
+  const resetFilters = (): void => {
+    setSearch('')
+    setTagId(undefined)
+    setFolder(undefined)
+  }
+
   // The server reuses an untouched empty draft (SoftRepository.insert), so this never piles up blank notes.
   const createNew = async (): Promise<void> => {
-    const created = await create.mutateAsync({ title: NEW_TITLE, folder: folder && folder !== NO_FOLDER ? folder : '' })
-    setOpen(created.id)
+    if (create.isPending) return
+    try {
+      const created = await create.mutateAsync({ title: NEW_TITLE, folder: folder && folder !== NO_FOLDER ? folder : '' })
+      setOpen(created.id)
+    } catch {
+      // useApiMutation has already shown the error toast; there is nothing to open.
+    }
   }
 
   return (
@@ -109,15 +140,19 @@ export function NotesPage() {
           </Button>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {folderChips.length > 0 && (
-            <FilterChips allLabel="Усі" value={folder} onChange={setFolder} options={folderChips} />
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Шукати в нотатках" className="w-64" />
-          </div>
-        </div>
+        <FilterBar
+          chips={
+            folderChips.length > 0 && (
+              <FilterChips allLabel="Усі" value={folder} onChange={setFolder} options={folderChips} />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Шукати в нотатках" />
+            </>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -132,24 +167,17 @@ export function NotesPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (filtered ? (
+                  <NoResults icon={NotebookPen} hint={noResultsHint(search, !!(tagId || folder))} onReset={resetFilters} />
+                ) : (
                   <EmptyState
                     icon={NotebookPen}
-                    title={filtered ? 'Нічого не знайшлося' : 'Нотаток поки немає'}
-                    hint={
-                      filtered
-                        ? 'Пошук іде за назвою й текстом нотаток.'
-                        : 'Створіть першу нотатку — розкласти по теках можна потім.'
-                    }
-                    action={
-                      !filtered && (
-                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
-                          <Plus /> Створити нотатку
-                        </Button>
-                      )
-                    }
+                    title="Нотаток поки немає"
+                    hint="Створіть першу нотатку — розкласти по теках можна потім."
+                    cta={{ label: 'Створити нотатку', icon: Plus, onClick: () => void createNew() }}
                   />
-                )
+                ))
               }
               renderItem={(n) => {
                 const active = n.id === openId
@@ -177,11 +205,9 @@ export function NotesPage() {
                           <span className="truncate">{n.folder}</span>
                         </Badge>
                       )}
-                      {!active && (
-                        <div className="flex min-w-0 flex-1 overflow-hidden">
-                          <TagList tags={n.tags} max={2} className="flex-nowrap" />
-                        </div>
-                      )}
+                      <div className="flex min-w-0 flex-1 overflow-hidden">
+                        <TagList tags={n.tags} max={2} className="flex-nowrap" />
+                      </div>
                       <span className={cn('ml-auto shrink-0 text-meta whitespace-nowrap', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {fmtRelative(n.updatedAt)}
                       </span>

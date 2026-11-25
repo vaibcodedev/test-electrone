@@ -1,26 +1,24 @@
 /**
  * Autosaving field primitives shared by the text-knowledge modules
  * (Claude, snippets, libraries, fixes, bookmarks). All built on shadcn
- * (Field/FieldLabel, Input, Textarea, Select, ToggleGroup) + common MarkdownField/CodeEditor.
+ * (Field/FieldLabel, Input, Textarea, Select) + common MarkdownField/CodeEditor.
  * Each field keeps a local draft and saves itself after typing stops (useAutosave).
  * Key the detail by entity id so pending edits flush to the right record when switching items.
  */
 import { useId, useMemo, useState, type ComponentProps, type ReactNode } from 'react'
-import { normalizeUrl } from '@/lib/open-url'
 import { X } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { CodeEditor, detectLanguage, LANGUAGE_LABEL, type CodeLanguage } from '@/components/common/code'
 import { Button } from '@/components/ui/button'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { IconAction } from '@/components/common/icon-action'
 import { cn } from '@/lib/utils'
-import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
 
 /** Vertical rhythm for editor bodies: one gap everywhere. */
 export function EditorStack({ children, className }: { children: ReactNode; className?: string }) {
@@ -194,53 +192,6 @@ export function TextareaBlock({
   )
 }
 
-/**
- * Labelled autosaving link field: type="url", an error under the field for text that isn't a link,
- * and an invalid non-empty value is never saved. `trailing` renders next to the input (e.g. open button).
- */
-export function UrlBlock({
-  label,
-  value,
-  onSave,
-  maxLength,
-  placeholder = 'https://…',
-  trailing,
-  hint
-}: {
-  label: string
-  value: string
-  onSave: (value: string) => void
-  maxLength?: number
-  placeholder?: string
-  trailing?: (draft: string) => ReactNode
-  hint?: ReactNode
-}) {
-  const id = useId()
-  const readOnly = useReadOnly()
-  const [draft, setDraft] = useAutosave(value, (v) => {
-    if (isLikelyUrl(v)) onSave(normalizeUrl(v))
-  })
-  const invalid = !isLikelyUrl(draft)
-  return (
-    <Block label={label} htmlFor={id} hint={hint} error={invalid && !readOnly ? URL_ERROR : undefined}>
-      <div className="flex gap-2">
-        <Input
-          id={id}
-          type="url"
-          inputMode="url"
-          spellCheck={false}
-          value={draft}
-          maxLength={maxLength}
-          placeholder={placeholder}
-          aria-invalid={invalid || undefined}
-          onChange={(e) => setDraft(e.target.value)}
-        />
-        {trailing?.(draft)}
-      </div>
-    </Block>
-  )
-}
-
 /** Labelled autosaving text input in one line. */
 export function InputField({
   label,
@@ -260,53 +211,25 @@ export function InputField({
   )
 }
 
-/** Single-select pill group for short enums (shadcn ToggleGroup, chip variant; can't be cleared). */
-export function PillSelect<T extends string>({
-  options,
-  value,
-  onChange,
-  size = 'sm'
-}: {
-  options: { value: T; label: string }[]
-  value: T
-  onChange: (value: T) => void
-  size?: 'sm' | 'xs'
-}) {
-  return (
-    <ToggleGroup
-      type="single"
-      variant="chip"
-      size={size}
-      spacing={1}
-      value={value}
-      onValueChange={(v) => v && onChange(v as T)}
-    >
-      {options.map((o) => (
-        <ToggleGroupItem key={o.value} value={o.value}>
-          {o.label}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  )
-}
-
-/** Dropdown for longer enums (shadcn Select). */
+/** Dropdown for longer enums (shadcn Select). `size="sm"` in a narrow aside column (docs/design-system.md → Переключатели). */
 export function EnumSelect<T extends string>({
   options,
   value,
   onChange,
   className,
-  ariaLabel
+  ariaLabel,
+  size
 }: {
   options: { value: T; label: string }[]
   value: T
   onChange: (value: T) => void
   className?: string
   ariaLabel?: string
+  size?: 'sm' | 'default'
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as T)}>
-      <SelectTrigger aria-label={ariaLabel} className={cn('w-full', className)}>
+      <SelectTrigger size={size} aria-label={ariaLabel} className={cn('w-full', className)}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -362,17 +285,18 @@ export function LanguageSuggestion<L extends string>({
   const suggestion = detected && (languages as readonly string[]).includes(detected) ? (detected as L) : null
   if (readOnly || !suggestion || suggestion === language || dismissed === suggestion) return null
   if (COMPATIBLE[language]?.includes(suggestion)) return null
+  const name = LANGUAGE_LABEL[suggestion as CodeLanguage] ?? suggestion
   return (
     <div className="flex animate-enter items-center gap-2 rounded-xl bg-foreground/5 py-1.5 pr-1.5 pl-3 text-caption">
       <span className="flex-1 text-muted-foreground">
-        Схоже на <span className="font-medium text-foreground">{LANGUAGE_LABEL[suggestion as CodeLanguage] ?? suggestion}</span>
+        Схоже на <span className="font-medium text-foreground">{name}</span>
       </span>
       <Button variant="subtle" size="xs" onClick={() => onSwitch(suggestion)}>
-        Перемкнути
+        Перемкнути на {name}
       </Button>
-      <Button variant="ghost" size="icon-xs" aria-label="Сховати підказку" onClick={() => setDismissed(suggestion)}>
+      <IconAction label="Сховати підказку" onClick={() => setDismissed(suggestion)}>
         <X />
-      </Button>
+      </IconAction>
     </div>
   )
 }

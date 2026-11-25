@@ -3,14 +3,17 @@ import { openUrl } from '@/lib/open-url'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
 import { LIBRARY_STATUSES, libraryInputSchema, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
 import { limitsOf, isLikelyUrl } from '@/lib/limits'
+import { clickableProps } from '@/lib/clickable'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
+import { LinkInput } from '@/components/common/text-field'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton } from '@/components/common/copy-button'
 import { useReadOnly } from '@/components/common/detail-mode-context'
@@ -21,12 +24,10 @@ import {
   Block,
   EditorStack,
   InputField,
-  PillSelect,
   TextareaBlock,
-  UrlBlock,
   countBy
 } from '../claude/editor-kit'
-import { presentChips } from '../claude/chips'
+import { noResultsHint, presentChips } from '../claude/chips'
 import { ImportButton } from '@/components/common/import-dialog'
 
 const LIMITS = limitsOf(libraryInputSchema)
@@ -39,19 +40,22 @@ const STATUS_LABEL: Record<LibraryStatus, string> = {
   dropped: 'Не зайшла'
 }
 
-const STATUS_DOT: Record<LibraryStatus, string> = {
-  used: 'bg-success',
-  // Not lime: the accent would repeat in every card of the grid.
-  favorite: 'bg-chart-1',
-  want: 'bg-info',
-  testing: 'bg-warn',
-  dropped: 'bg-muted-foreground'
+/** Status badge tone (docs/design-system.md → Чипы и строки): in use — success, trying — info, the rest neutral. */
+const STATUS_BADGE: Record<LibraryStatus, 'success' | 'info' | 'soft'> = {
+  used: 'success',
+  favorite: 'success',
+  testing: 'info',
+  want: 'soft',
+  dropped: 'soft'
 }
 
 const isUrl = (value: string): boolean => !!value.trim() && isLikelyUrl(value)
 
-/** Opens npm / GitHub / docs in the system browser. */
-function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
+/**
+ * Opens npm / GitHub / docs in the system browser. `subtle` on a card (surface); `soft` in the record header,
+ * which is card itself — subtle (= bg-card) would read as plain text there.
+ */
+function LinkButtons({ lib, onInk, variant = 'subtle' }: { lib: Library; onInk?: boolean; variant?: 'subtle' | 'soft' }): ReactElement | null {
   const links = [
     { url: lib.npmUrl, label: 'npm', icon: Package },
     { url: lib.githubUrl, label: 'GitHub', icon: GitBranch },
@@ -63,7 +67,7 @@ function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
       {links.map((l) => (
         <Button
           key={l.label}
-          variant="subtle"
+          variant={variant}
           size="xs"
           className={cn(onInk && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')}
           onClick={(e) => {
@@ -145,7 +149,7 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
         remove.mutate(lib.id)
         onClose()
       }}
-      headerExtra={<LinkButtons lib={lib} />}
+      headerExtra={<LinkButtons lib={lib} variant="soft" />}
       aside={
         <EntityAside
           entity={entity}
@@ -166,19 +170,22 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
           maxLength={LIMITS.purpose}
           placeholder="Форми, анімації, слайдери…"
         />
-        <Block label="Статус">
-          <PillSelect
-            options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
+        {/* A record value, not a screen filter: segments; reading shows only the selected one. */}
+        <Field label="Статус">
+          <Segmented<LibraryStatus>
+            size="xs"
+            className="data-[variant=segment]:flex-wrap"
             value={lib.status}
             onChange={(status) => save({ status })}
+            options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))}
           />
-        </Block>
+        </Field>
         <InstallField lib={lib} save={save} />
         {/* Full-width rows: three columns left ~110px per link. Reading: the header's link buttons open them. */}
         <div data-edit-only className="flex flex-col gap-5">
-          <UrlBlock label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} maxLength={LIMITS.npmUrl} placeholder="https://npmjs.com/package/…" />
-          <UrlBlock label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} maxLength={LIMITS.githubUrl} placeholder="https://github.com/…" />
-          <UrlBlock label="Документація" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} maxLength={LIMITS.docsUrl} />
+          <LinkInput label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} maxLength={LIMITS.npmUrl} placeholder="https://npmjs.com/package/…" />
+          <LinkInput label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} maxLength={LIMITS.githubUrl} placeholder="https://github.com/…" />
+          <LinkInput label="Документація" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} maxLength={LIMITS.docsUrl} />
         </div>
         <AutoMarkdown
           label="Нотатки"
@@ -192,12 +199,19 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
   )
 }
 
-function StatusLabel({ status, muted }: { status: LibraryStatus; muted: string }) {
+/** No status colours on ink: the active card gets the tag-like tint (docs/design-system.md → Бейджи). */
+function StatusBadge({ status, onInk }: { status: LibraryStatus; onInk?: boolean }): ReactElement {
   return (
-    <span className={cn('flex shrink-0 items-center gap-1.5 text-meta whitespace-nowrap', muted)}>
-      <span className={cn('size-2 rounded-full', STATUS_DOT[status])} />
+    <Badge
+      variant={onInk ? 'soft' : STATUS_BADGE[status]}
+      className={cn(
+        'h-5 shrink-0',
+        status === 'dropped' && !onInk && 'text-muted-foreground',
+        onInk && 'bg-ink-foreground/12 text-ink-foreground'
+      )}
+    >
       {STATUS_LABEL[status]}
-    </span>
+    </Badge>
   )
 }
 
@@ -212,25 +226,22 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
     'h-full min-w-0 cursor-pointer transition-colors outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
     active ? 'bg-ink text-ink-foreground' : 'tile'
   )
-  const keys = (e: React.KeyboardEvent): void => {
-    if (e.key === 'Enter' && e.target === e.currentTarget) onOpen()
-  }
   if (compact) {
     return (
-      <Card role="button" tabIndex={0} onClick={onOpen} onKeyDown={keys} aria-current={active || undefined} className={cn(base, 'gap-0 px-4 py-3')}>
+      <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-0 px-4 py-3')}>
         <div className="flex min-w-0 items-center gap-3">
           <span className="min-w-0 flex-1 truncate text-body font-semibold">{lib.name}</span>
-          <StatusLabel status={lib.status} muted={muted} />
+          <StatusBadge status={lib.status} onInk={active} />
         </div>
       </Card>
     )
   }
   return (
-    <Card role="button" tabIndex={0} onClick={onOpen} onKeyDown={keys} aria-current={active || undefined} className={cn(base, 'gap-3 py-4')}>
+    <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-3 py-4')}>
       <CardHeader className="gap-1 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="font-display min-w-0 flex-1 truncate text-heading leading-tight">{lib.name}</span>
-          <StatusLabel status={lib.status} muted={muted} />
+          <span className="min-w-0 flex-1 truncate text-body font-semibold">{lib.name}</span>
+          <StatusBadge status={lib.status} onInk={active} />
         </div>
         <div className={cn('min-h-5 truncate text-caption', muted)}>
           {lib.purpose || ' '}
@@ -264,11 +275,21 @@ export function LibrariesPage() {
 
   const counts = useMemo(() => countBy(all, (l) => l.status), [all])
   const statusChips = presentChips(LIBRARY_STATUSES, counts, (s) => STATUS_LABEL[s], status)
-  const filtered = !!(search || tagId || status)
+  const filtered = !!(search.trim() || tagId || status)
+  const resetFilters = (): void => {
+    setSearch('')
+    setTagId(undefined)
+    setStatus(undefined)
+  }
 
   const createNew = async (): Promise<void> => {
-    const created = await create.mutateAsync({ name: 'new-package', status: status ?? 'want' })
-    setOpen(created.id)
+    if (create.isPending) return
+    try {
+      const created = await create.mutateAsync({ name: 'new-package', status: status ?? 'want' })
+      setOpen(created.id)
+    } catch {
+      // useApiMutation has already shown the error toast; there is nothing to open.
+    }
   }
 
   return (
@@ -285,15 +306,19 @@ export function LibrariesPage() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {statusChips.length > 0 && (
-            <FilterChips allLabel="Усі" value={status} onChange={setStatus} options={statusChips} />
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Назва або призначення" className="w-60" />
-          </div>
-        </div>
+        <FilterBar
+          chips={
+            statusChips.length > 0 && (
+              <FilterChips allLabel="Усі" value={status} onChange={setStatus} options={statusChips} />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Назва або призначення" />
+            </>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -311,24 +336,17 @@ export function LibrariesPage() {
               onLoadMore={list.loadMore}
               renderItem={(l) => <LibraryCard lib={l} active={l.id === openId} compact={!!openId} onOpen={() => setOpen(l.id)} />}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (filtered ? (
+                  <NoResults icon={Package} hint={noResultsHint(search, !!(tagId || status))} onReset={resetFilters} />
+                ) : (
                   <EmptyState
                     icon={Package}
-                    title={filtered ? 'Нічого не знайшлося' : 'Бібліотек поки немає'}
-                    hint={
-                      filtered
-                        ? 'Зніміть фільтр або шукайте за призначенням: «форми», «анімації».'
-                        : 'Додайте пакет, який сподобався, з командою встановлення й посиланнями.'
-                    }
-                    action={
-                      !filtered && (
-                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
-                          <Plus /> Додати бібліотеку
-                        </Button>
-                      )
-                    }
+                    title="Бібліотек поки немає"
+                    hint="Додайте пакет, який сподобався, з командою встановлення й посиланнями."
+                    cta={{ label: 'Додати бібліотеку', icon: Plus, onClick: () => void createNew() }}
                   />
-                )
+                ))
               }
             />
           }

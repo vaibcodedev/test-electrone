@@ -6,13 +6,15 @@ import { useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { fileUrl } from '@/lib/files'
 import { mdPreview } from '@/lib/format'
-import { EmptyState, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { clickableProps } from '@/lib/clickable'
+import { EmptyState, FilterBar, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { LivePreview } from '@/components/common/live-preview'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { noResultsHint } from '../claude/chips'
 import { STARTER } from './starter'
 
 /** Virtual size the live preview renders at; the tile scales it down to fit (same 16:10 aspect). */
@@ -57,10 +59,7 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
   const hasCode = !!item.code.trim()
   return (
     <Card
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
+      {...clickableProps(onOpen)}
       className="group tile h-full min-w-0 gap-0 overflow-hidden p-1.5 text-left"
     >
       <div className="relative aspect-[16/10] overflow-hidden rounded-[18px] bg-card bg-[conic-gradient(var(--surface)_25%,transparent_0_50%,var(--surface)_0_75%,transparent_0)] bg-[length:16px_16px]">
@@ -111,9 +110,21 @@ export function ComponentsPage() {
   const list = useInfiniteApi('components', 'list', { search: q || undefined, tagId }, 60)
   const create = useApiMutation('components', 'create')
 
+  const filtered = !!(search.trim() || tagId)
+  const resetFilters = (): void => {
+    setSearch('')
+    setTagId(undefined)
+  }
+
   const createNew = async (): Promise<void> => {
-    const c = await create.mutateAsync({ title: 'Новий компонент', code: STARTER.tsx, language: 'tsx' })
-    navigate(`/components/${c.id}`)
+    // Enter or a double click while the request is running must not create a second component.
+    if (create.isPending) return
+    try {
+      const c = await create.mutateAsync({ title: 'Новий компонент', code: STARTER.tsx, language: 'tsx' })
+      void navigate(`/components/${c.id}`)
+    } catch {
+      // useApiMutation has already shown the error toast; there is nothing to open.
+    }
   }
 
   return (
@@ -123,17 +134,18 @@ export function ComponentsPage() {
         subtitle="Код, живе превʼю й скриншот — щоб готові шматки інтерфейсу завжди були під рукою."
         actions={
           <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
-            <Plus /> Новий компонент
+            <Plus /> Компонент
           </Button>
         }
       >
-        {/* Same place as on the other lists: «Мітка» and search on the right. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Пошук за назвою й кодом" className="w-64" />
-          </div>
-        </div>
+        <FilterBar
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Пошук за назвою й кодом" />
+            </>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <VirtualGrid
@@ -148,21 +160,17 @@ export function ComponentsPage() {
           onLoadMore={list.loadMore}
           renderItem={(c) => <ComponentTile item={c} onOpen={() => navigate(`/components/${c.id}`)} />}
           empty={
-            !list.isLoading && (
+            !list.isLoading &&
+            (filtered ? (
+              <NoResults icon={Component} hint={noResultsHint(search, !!tagId)} onReset={resetFilters} />
+            ) : (
               <EmptyState
                 icon={Component}
-                title={search || tagId ? 'Нічого не знайдено' : 'Компонентів поки немає'}
-                hint="Збережіть кнопку, картку чи цілий блок — превʼю збереться просто в застосунку."
-                action={
-                  !search &&
-                  !tagId && (
-                    <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
-                      <Plus /> Створити компонент
-                    </Button>
-                  )
-                }
+                title="Компонентів поки немає"
+                hint="Збережіть кнопку, картку чи цілий блок — превʼю збереться просто в застосунку."
+                cta={{ label: 'Створити компонент', icon: Plus, onClick: () => void createNew() }}
               />
-            )
+            ))
           }
         />
       </PageBody>

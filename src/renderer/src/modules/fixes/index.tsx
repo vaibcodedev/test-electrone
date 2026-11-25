@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bug, CircleCheck, CircleDot, Plus } from 'lucide-react'
+import { Bug, CircleCheck, Plus } from 'lucide-react'
 import { fixInputSchema, type Fix, type FixPatch } from '@shared/domain/fixes'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Toggle } from '@/components/ui/toggle'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
@@ -21,6 +21,7 @@ import {
   EditorStack,
   InputField
 } from '../claude/editor-kit'
+import { noResultsHint, presentChips } from '../claude/chips'
 
 const LIMITS = limitsOf(fixInputSchema)
 
@@ -45,16 +46,16 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
         onClose()
       }}
       headerExtra={
-        // Neutral like «Працює» in Claude: the record's lime is «Скопіювати» / «Зберегти», not a status.
+        // Like «Працює» in Claude: an action while off, a success tint (not an ink inversion) once pressed.
         <Toggle
           size="sm"
           variant="outline"
           pressed={fix.resolved}
           onPressedChange={(resolved) => save({ resolved })}
-          className="font-normal"
+          className="font-normal on:border-transparent on:bg-success/12 on:text-success on:hover:bg-success/16"
         >
-          {fix.resolved ? <CircleCheck className="text-ink-accent" /> : <CircleDot />}
-          {fix.resolved ? 'Вирішено' : 'Ще не вирішено'}
+          <CircleCheck />
+          {fix.resolved ? 'Вирішено' : 'Позначити вирішеною'}
         </Toggle>
       }
       aside={
@@ -124,16 +125,27 @@ export function FixesPage() {
 
   const openCount = all.filter((f) => !f.resolved).length
   const resolvedCount = all.length - openCount
-  // Chips only for states that have records (plus the selected one): «0» chips over an empty list are noise.
-  const stateChips = [
-    { value: 'open' as const, label: 'Не вирішено', count: openCount },
-    { value: 'resolved' as const, label: 'Вирішено', count: resolvedCount }
-  ].filter((c) => c.count > 0 || c.value === resolved)
-  const filtered = !!(search || tagId || resolved)
+  const stateChips = presentChips(
+    ['open', 'resolved'] as const,
+    { open: openCount, resolved: resolvedCount },
+    (v) => (v === 'open' ? 'Не вирішено' : 'Вирішено'),
+    resolved
+  )
+  const filtered = !!(search.trim() || tagId || resolved)
+  const resetFilters = (): void => {
+    setSearch('')
+    setTagId(undefined)
+    setResolved(undefined)
+  }
 
   const createNew = async (): Promise<void> => {
-    const created = await create.mutateAsync({ title: 'Нова помилка', resolved: false })
-    setOpen(created.id)
+    if (create.isPending) return
+    try {
+      const created = await create.mutateAsync({ title: 'Нова помилка', resolved: false })
+      setOpen(created.id)
+    } catch {
+      // useApiMutation has already shown the error toast; there is nothing to open.
+    }
   }
 
   return (
@@ -147,15 +159,19 @@ export function FixesPage() {
           </Button>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {stateChips.length > 0 && (
-            <FilterChips allLabel="Усі" value={resolved} onChange={setResolved} options={stateChips} />
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Текст помилки або рішення" className="w-64" />
-          </div>
-        </div>
+        <FilterBar
+          chips={
+            stateChips.length > 0 && (
+              <FilterChips allLabel="Усі" value={resolved} onChange={setResolved} options={stateChips} />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Текст помилки або рішення" />
+            </>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -170,24 +186,17 @@ export function FixesPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (filtered ? (
+                  <NoResults icon={Bug} hint={noResultsHint(search, !!(tagId || resolved))} onReset={resetFilters} />
+                ) : (
                   <EmptyState
                     icon={Bug}
-                    title={filtered ? 'Нічого не знайшлося' : 'Помилок поки немає'}
-                    hint={
-                      filtered
-                        ? 'Вставте шматок тексту помилки в пошук — він шукає й по рішеннях.'
-                        : 'Запишіть наступну помилку разом із рішенням, і пошук знайде її за пів року.'
-                    }
-                    action={
-                      !filtered && (
-                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
-                          <Plus /> Записати помилку
-                        </Button>
-                      )
-                    }
+                    title="Помилок поки немає"
+                    hint="Запишіть наступну помилку разом із рішенням, і пошук знайде її за пів року."
+                    cta={{ label: 'Записати помилку', icon: Plus, onClick: () => void createNew() }}
                   />
-                )
+                ))
               }
               renderItem={(f) => {
                 const active = f.id === openId
@@ -224,11 +233,9 @@ export function FixesPage() {
                           <span className="truncate">{f.context}</span>
                         </Badge>
                       )}
-                      {!active && (
-                        <div className="flex min-w-0 flex-1 overflow-hidden">
-                          <TagList tags={f.tags} max={2} className="flex-nowrap" />
-                        </div>
-                      )}
+                      <div className="flex min-w-0 flex-1 overflow-hidden">
+                        <TagList tags={f.tags} max={2} className="flex-nowrap" />
+                      </div>
                       <span className={cn('ml-auto shrink-0 text-meta whitespace-nowrap', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {fmtRelative(f.updatedAt)}
                       </span>

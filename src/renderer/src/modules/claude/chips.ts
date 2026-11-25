@@ -12,3 +12,14 @@ export function presentChips<K extends string>(
     .filter((v) => counts[v] || v === selected)
     .map((v) => ({ value: v, label: label(v), count: counts[v] ?? 0 }))
 }
+
+/**
+ * Hint of an empty filter result, built from the conditions that are really active
+ * (docs/design-system.md → Пустые состояния): the query, then «зніміть фільтри» when a chip or tag is on.
+ */
+export function noResultsHint(search: string, otherFilters: boolean): string {
+  const q = search.trim()
+  return [q && `За запитом «${q}» нічого немає.`, otherFilters && 'Спробуйте зняти фільтри.']
+    .filter(Boolean)
+    .join(' ')
+}

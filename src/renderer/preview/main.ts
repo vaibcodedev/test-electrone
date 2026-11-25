@@ -47,7 +47,7 @@ function showError(err: unknown): void {
   post({ ok: false, error: msg })
 }
 
-class Boundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+class Boundary extends React.Component<{ children?: React.ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null }
   static getDerivedStateFromError(error: Error) {
     return { error }
@@ -116,12 +116,12 @@ function renderMessage(msg: RenderMessage): void {
       return
     }
     const Component = evaluate(msg.code)
-    if (!Component) throw new Error('Нічого показати. Додайте export default function Demo() або виклик render(<X />).')
+    if (!Component) throw new Error('Немає чого показати. Додайте export default function Demo() або виклик render(<X />).')
     if (!root) {
       rootEl.innerHTML = ''
       root = ReactDOMClient.createRoot(rootEl)
     }
-    root.render(React.createElement(Boundary, { key: Date.now(), children: React.createElement(Component) }))
+    root.render(React.createElement(Boundary, { key: Date.now() }, React.createElement(Component)))
     post({ ok: true })
   } catch (e) {
     showError(e)

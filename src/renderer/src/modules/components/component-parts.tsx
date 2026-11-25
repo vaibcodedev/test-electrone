@@ -206,7 +206,7 @@ function CoverField({ item }: { item: UiComponent }): ReactElement | null {
   )
 }
 
-/** Description, source link, cover, what the preview can import, tags and links. */
+/** Description, source link, cover, tags and links; while editing — what the preview can import. */
 export function ComponentSidePanel({
   item,
   save
@@ -214,20 +214,30 @@ export function ComponentSidePanel({
   item: UiComponent
   save: (patch: ComponentPatch) => void
 }): ReactElement {
+  const readOnly = useReadOnly()
   const [description, setDescription] = useAutosave(item.description, (description) =>
     save({ description })
   )
   return (
     <Card className="w-[280px] shrink-0 gap-6 overflow-y-auto px-4 py-4">
-      <Field label="Опис" count={{ length: description.length, max: LIMITS.description }}>
-        <Textarea
-          value={description}
-          maxLength={LIMITS.description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Де використовується, які пропси"
-          className="min-h-20 bg-card"
-        />
-      </Field>
+      {/* Reading: plain text — a read-only textarea kept its own scrollbar inside the scrolling column. */}
+      {readOnly ? (
+        description.trim() ? (
+          <p className="text-body leading-relaxed whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+            {description}
+          </p>
+        ) : null
+      ) : (
+        <Field label="Опис" count={{ length: description.length, max: LIMITS.description }}>
+          <Textarea
+            value={description}
+            maxLength={LIMITS.description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Де використовується, які пропси"
+            className="min-h-20 bg-card"
+          />
+        </Field>
+      )}
       <LinkInput
         label="Джерело"
         value={item.sourceUrl}
@@ -236,22 +246,6 @@ export function ComponentSidePanel({
         openLabel="Відкрити джерело"
       />
       <CoverField item={item} />
-      <Separator />
-      <section className="flex flex-col gap-2">
-        <SectionLabel>Доступно в превʼю</SectionLabel>
-        <div className="flex flex-wrap gap-1">
-          {PREVIEW_IMPORTS.map((m) => (
-            <Badge key={m} variant="outline" className="bg-card font-mono text-meta font-normal">
-              {m}
-            </Badge>
-          ))}
-        </div>
-        <p className="text-meta leading-relaxed text-muted-foreground">
-          Tailwind-класи працюють. Покажеться <code className="font-mono">export default</code> або
-          компонент з іменем App / Demo / Preview чи виклик{' '}
-          <code className="font-mono">render(&lt;X /&gt;)</code>.
-        </p>
-      </section>
       <EntityAside
         entity={{ type: 'component', id: item.id }}
         tags={item.tags}
@@ -260,6 +254,25 @@ export function ComponentSidePanel({
         updatedAt={item.updatedAt}
         files={false}
       />
+      {/* A reference for whoever writes the code: after tags and links, and only while editing. */}
+      <div data-edit-only className="flex flex-col gap-6">
+        <Separator />
+        <section className="flex flex-col gap-2">
+          <SectionLabel>Доступно в превʼю</SectionLabel>
+          <div className="flex flex-wrap gap-1">
+            {PREVIEW_IMPORTS.map((m) => (
+              <Badge key={m} variant="outline" className="bg-card font-mono text-meta font-normal">
+                {m}
+              </Badge>
+            ))}
+          </div>
+          <p className="text-meta leading-relaxed text-muted-foreground">
+            Tailwind-класи працюють. Покажеться <code className="font-mono">export default</code> або
+            компонент з іменем App / Demo / Preview чи виклик{' '}
+            <code className="font-mono">render(&lt;X /&gt;)</code>.
+          </p>
+        </section>
+      </div>
     </Card>
   )
 }
