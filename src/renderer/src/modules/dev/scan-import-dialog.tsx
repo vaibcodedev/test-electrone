@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { EmptyState } from '@/components/common/page'
 import { FormDialog } from '@/components/common/form-dialog'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 export interface ScanResult {
   root: string
@@ -16,7 +17,7 @@ export interface ScanResult {
 }
 
 /** «Імпорт із папки»: folders found under a root, the checked ones become projects. */
-export function ScanImportDialog({ scan, onClose }: { scan: ScanResult | null; onClose: () => void }): ReactElement {
+function ScanImportDialogForm({ scan, onClose }: { scan: ScanResult | null; onClose: () => void }): ReactElement {
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const items = scan?.items ?? []
@@ -51,12 +52,7 @@ export function ScanImportDialog({ scan, onClose }: { scan: ScanResult | null; o
   return (
     <FormDialog
       open={!!scan}
-      onOpenChange={(o) => {
-        if (!o) {
-          setPicked(new Set())
-          onClose()
-        }
-      }}
+      onOpenChange={(o) => !o && onClose()}
       title="Імпорт проєктів"
       description={
         <span className="block truncate" title={scan?.root}>
@@ -107,3 +103,6 @@ export function ScanImportDialog({ scan, onClose }: { scan: ScanResult | null; o
     </FormDialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+export const ScanImportDialog = freshOnOpen(ScanImportDialogForm, { open: (p) => !!p.scan })

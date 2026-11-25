@@ -36,6 +36,7 @@ import { NO_CHANGES } from '@/lib/edit-session'
 import { useFormGate } from '@/hooks/use-form-gate'
 import { FormAttemptContext } from '@/components/ui/field-control'
 import { PALETTE } from '@shared/colors'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const LIMITS = limitsOf(eventInputSchema)
 const REQUIRED = requiredOf(eventInputSchema)
@@ -128,7 +129,7 @@ function convert(ts: number | null, toAllDay: boolean): number | null {
  * Create/edit dialog for calendar events.
  * `event` = edit mode; otherwise `date` pre-fills a new event.
  */
-export function EventDialog({
+function EventDialogForm({
   open,
   onOpenChange,
   event,
@@ -143,22 +144,10 @@ export function EventDialog({
     event ? fromEvent(event) : blank(date ?? new Date())
   )
   // An existing event as it was when the dialog opened: «Зберегти» stays off until the form differs from it.
-  const [baseline, setBaseline] = useState(() => (event ? JSON.stringify(fromEvent(event)) : null))
+  const [baseline] = useState(() => (event ? JSON.stringify(fromEvent(event)) : null))
   const create = useApiMutation('events', 'create', { successMessage: 'Подію додано' })
   const update = useApiMutation('events', 'update', { successMessage: 'Збережено' })
   const remove = useApiMutation('events', 'remove', { successMessage: 'Подію переміщено в кошик' })
-
-  // Reset once per opening (or when another event is opened), during render: a refetch of `event` while the
-  // dialog is open must not wipe what was typed (docs/design-system.md → Сброс формы диалога).
-  const session = open ? (event?.id ?? 'new') : ''
-  const [lastSession, setLastSession] = useState(session)
-  if (session !== lastSession) {
-    setLastSession(session)
-    if (open) {
-      setForm(event ? fromEvent(event) : blank(date ?? new Date()))
-      setBaseline(event ? JSON.stringify(fromEvent(event)) : null)
-    }
-  }
 
   const linked = !!event?.sourceType
   const set = <K extends keyof FormState>(key: K, value: FormState[K]): void =>
@@ -409,3 +398,9 @@ export function EventDialog({
     </Dialog>
   )
 }
+
+/**
+ * Created anew on each opening and for another event (freshOnOpen); a refetch of `event` while it is open keeps
+ * what was typed.
+ */
+export const EventDialog = freshOnOpen(EventDialogForm, { identity: (p) => p.event?.id })

@@ -8,6 +8,7 @@ import { Field } from '@/components/common/page'
 import { Choice } from '@/components/common/choice'
 import { checklistInputSchema } from '@shared/domain/checklists'
 import { limitsOf, requiredOf } from '@/lib/limits'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const LIMITS = limitsOf(checklistInputSchema)
 const REQUIRED = requiredOf(checklistInputSchema)
@@ -23,7 +24,7 @@ const runTitle = (template: string): string => {
 }
 
 /** Creates a run (a tickable copy) from a template, optionally tied to a project. */
-export function LaunchDialog({
+function LaunchDialogForm({
   template,
   open,
   onOpenChange
@@ -34,7 +35,8 @@ export function LaunchDialog({
 }) {
   const navigate = useNavigate()
   const { data: projects = [] } = useApi('projects', 'list', undefined, { enabled: open })
-  const [title, setTitle] = useState('')
+  // Created anew on each opening (freshOnOpen): the run's name comes from the template it was opened for.
+  const [title, setTitle] = useState(() => (template ? runTitle(template.title) : ''))
   const [projectId, setProjectId] = useState<string | null>(null)
   const instantiate = useApiMutation('checklists', 'instantiate', {
     successMessage: 'Прогін створено',
@@ -43,17 +45,6 @@ export function LaunchDialog({
       navigate(`/checklists/${run.id}`)
     }
   })
-
-  // Reset once per opening, during render: `template` is a new object on every parent render, and a refetch
-  // while the dialog is open used to wipe the typed name (docs/design-system.md → Сброс формы диалога).
-  const [wasOpen, setWasOpen] = useState(false)
-  if (open !== wasOpen) {
-    setWasOpen(open)
-    if (open && template) {
-      setTitle(runTitle(template.title))
-      setProjectId(null)
-    }
-  }
 
   return (
     <FormDialog
@@ -93,3 +84,6 @@ export function LaunchDialog({
     </FormDialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+export const LaunchDialog = freshOnOpen(LaunchDialogForm, { identity: (p) => p.template?.id })

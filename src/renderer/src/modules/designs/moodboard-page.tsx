@@ -63,6 +63,7 @@ import { useImportImages } from './use-import-images'
 import { isMediaFile } from './media'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { useFavorites } from '@/hooks/use-favorites'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const LIMITS = limitsOf(moodboardInputSchema)
 
@@ -235,7 +236,7 @@ function DesignPicker({
 }
 
 /** Multi-select picker of designs not yet in the board. */
-function AddDesignsDialog({
+function AddDesignsDialogForm({
   open,
   onOpenChange,
   board
@@ -249,13 +250,7 @@ function AddDesignsDialog({
   const inBoard = useMemo(() => new Set(board.designs.map((d) => d.id)), [board.designs])
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o)
-        if (!o) setSelected(new Set())
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-220">
         <DialogHeader>
           <DialogTitle className="font-display text-heading">Додати в «{board.title}»</DialogTitle>
@@ -298,6 +293,9 @@ function AddDesignsDialog({
     </Dialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+const AddDesignsDialog = freshOnOpen(AddDesignsDialogForm)
 
 function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
   const navigate = useNavigate()

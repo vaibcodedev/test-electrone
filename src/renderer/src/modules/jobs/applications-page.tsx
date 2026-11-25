@@ -29,6 +29,7 @@ import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { Choice } from '@/components/common/choice'
 import { SubmitButton } from '@/components/common/submit-button'
 import { useFormGate } from '@/hooks/use-form-gate'
+import { useResetOnOpen } from '@/hooks/use-open-session'
 import { CompanyCombobox, type CompanyValue } from './j1-fields'
 import { agoLabel } from './labels'
 import { ApplicationBoard } from './application-board'
@@ -53,13 +54,17 @@ function NewApplicationButton({
   const [company, setCompany] = useState<CompanyValue>({ companyId: null, companyName: '' })
   const [boardId, setBoardId] = useState<string | null>(null)
   const [url, setUrl] = useState('')
+  // Every opening starts empty, also after Esc or a click outside (reset on opening, not on closing).
+  useResetOnOpen(open, () => {
+    setTitle('')
+    setCompany({ companyId: null, companyName: '' })
+    setBoardId(null)
+    setUrl('')
+  })
   const { data: boards = [] } = useApi('jobs', 'boards', undefined, { enabled: open })
   const create = useApiMutation('jobs', 'create', {
     onSuccess: (a) => {
       setOpen(false)
-      setTitle('')
-      setCompany({ companyId: null, companyName: '' })
-      setUrl('')
       onCreated(a)
     }
   })
