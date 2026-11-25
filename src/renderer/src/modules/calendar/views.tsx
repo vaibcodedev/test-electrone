@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { IconAction } from '@/components/common/icon-action'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { itemColor, SOURCE_LABEL, timeOnDay } from './items'
+import { itemColor, timeOnDay } from './items'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 /** Month cell geometry (px) for the «how many lines fit» count: padding, day header, one item line, gap. */
@@ -53,7 +53,8 @@ function ItemChip({
         e.stopPropagation()
         onOpen(item)
       }}
-      title={`${SOURCE_LABEL[item.source]}: ${item.title}`}
+      // main already starts the title with its type («Підписка: …»); the bar colour and the legend say it too.
+      title={item.title}
       className={cn(
         'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card active:translate-y-0',
         (item.done || dim) && 'text-muted-foreground',
@@ -61,7 +62,10 @@ function ItemChip({
       )}
     >
       {/* The legend's outline: a lime «Подія» bar is invisible on card in the light theme without it. */}
-      <span className="h-3 w-1 shrink-0 rounded-full ring-1 ring-foreground/20" style={{ background: itemColor(item) }} />
+      <span
+        className="h-3 w-1 shrink-0 rounded-full ring-1 ring-foreground/20"
+        style={{ background: itemColor(item) }}
+      />
       {time && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
       <span className="truncate">{item.title}</span>
     </Button>
@@ -95,7 +99,9 @@ function MoreItems({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-2" onClick={(e) => e.stopPropagation()}>
-        <div className="px-1.5 pb-1.5 text-caption font-semibold">{capitalize(format(day, 'EEEE, d MMMM', { locale: LOCALE }))}</div>
+        <div className="px-1.5 pb-1.5 text-caption font-semibold">
+          {capitalize(format(day, 'EEEE, d MMMM', { locale: LOCALE }))}
+        </div>
         <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
           {items.map((item) => (
             <ItemChip key={item.key} item={item} day={day} onOpen={onOpen} />
@@ -134,7 +140,11 @@ export function MonthView({
           </div>
         ))}
       </div>
-      <div ref={gridRef} className="grid min-h-0 flex-1 grid-cols-7 gap-1.5" style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}>
+      <div
+        ref={gridRef}
+        className="grid min-h-0 flex-1 grid-cols-7 gap-1.5"
+        style={{ gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` }}
+      >
         {days.map((day) => {
           const items = byDay.get(dayKey(day)) ?? []
           const inMonth = isSameMonth(day, cursor)
@@ -187,9 +197,17 @@ export function MonthView({
                 return (
                   <>
                     {shown.map((item) => (
-                      <ItemChip key={item.key} item={item} day={day} onOpen={onItemClick} dim={!inMonth} />
+                      <ItemChip
+                        key={item.key}
+                        item={item}
+                        day={day}
+                        onOpen={onItemClick}
+                        dim={!inMonth}
+                      />
                     ))}
-                    {rest > 0 && <MoreItems day={day} items={items} count={rest} onOpen={onItemClick} />}
+                    {rest > 0 && (
+                      <MoreItems day={day} items={items} count={rest} onOpen={onItemClick} />
+                    )}
                   </>
                 )
               })()}
@@ -225,10 +243,15 @@ export function WeekView({
             key={day.toISOString()}
             // Today = lime frame + lime date pill, same language as the month grid (an inverted ink column
             // turned into a blinding light strip in the dark theme).
-            className={cn('min-h-0 gap-0 rounded-3xl p-3', today && 'ring-2 ring-lime/70 ring-inset')}
+            className={cn(
+              'min-h-0 gap-0 rounded-3xl p-3',
+              today && 'ring-2 ring-lime/70 ring-inset'
+            )}
           >
             <div className="flex items-center justify-between px-1">
-              <span className="text-caption text-muted-foreground capitalize">{format(day, 'EEEEEE', { locale: LOCALE })}</span>
+              <span className="text-caption text-muted-foreground capitalize">
+                {format(day, 'EEEEEE', { locale: LOCALE })}
+              </span>
               <span
                 className={cn(
                   'font-display rounded-full px-2 py-0.5 text-stat-sm leading-none tabular-nums',
@@ -257,8 +280,15 @@ export function WeekView({
                     className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full ring-1 ring-foreground/20"
                     style={{ background: itemColor(item) }}
                   />
-                  <span className="text-meta text-muted-foreground tabular-nums">{timeOnDay(item, day).long}</span>
-                  <span className={cn('line-clamp-3 text-caption leading-snug font-medium', item.done && 'line-through')}>
+                  <span className="text-meta text-muted-foreground tabular-nums">
+                    {timeOnDay(item, day).long}
+                  </span>
+                  <span
+                    className={cn(
+                      'line-clamp-3 text-caption leading-snug font-medium',
+                      item.done && 'line-through'
+                    )}
+                  >
                     {item.title}
                   </span>
                 </Button>
@@ -267,6 +297,8 @@ export function WeekView({
                 variant="ghost"
                 size="sm"
                 onClick={() => onDayClick(day)}
+                // Seven «Подія» buttons in a week: the spoken name says which day each one is for.
+                aria-label={`Нова подія ${format(day, 'd MMMM', { locale: LOCALE })}`}
                 className="mt-auto font-normal text-muted-foreground hover:bg-card"
               >
                 <Plus /> Подія

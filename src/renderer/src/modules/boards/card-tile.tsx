@@ -1,6 +1,6 @@
 import { forwardRef, type HTMLAttributes } from 'react'
 import { format } from 'date-fns'
-import { CalendarClock, ListChecks } from 'lucide-react'
+import { CalendarClock, CircleAlert, ListChecks } from 'lucide-react'
 import type { Card } from '@shared/domain/boards'
 import { fmtDay, mdPreview } from '@/lib/format'
 import { TagList } from '@/components/common/tags'
@@ -10,16 +10,28 @@ import { Card as UiCard } from '@/components/ui/card'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { hasTime, isOverdue } from './use-card-param'
 
-export function DueChip({ dueAt, done, className }: { dueAt: number; done: boolean; className?: string }) {
+export function DueChip({
+  dueAt,
+  done,
+  className
+}: {
+  dueAt: number
+  done: boolean
+  className?: string
+}) {
   const late = isOverdue(dueAt, done)
+  const when = hasTime(dueAt) ? `${fmtDay(dueAt)} о ${format(dueAt, 'HH:mm')}` : fmtDay(dueAt)
+  // Overdue is said in words and by the icon too, not by the red colour alone (WCAG 1.4.1). The words go
+  // in as sr-only text: aria-label on a plain span is not announced.
   return (
     <Badge
       variant={late ? 'destructive' : done ? 'success' : 'outline'}
+      title={late ? `Прострочено: ${when}` : undefined}
       className={cn('h-5 px-2 text-meta', !late && !done && 'text-muted-foreground', className)}
     >
-      <CalendarClock />
-      {fmtDay(dueAt)}
-      {hasTime(dueAt) && ` ${format(dueAt, 'HH:mm')}`}
+      {late ? <CircleAlert aria-hidden /> : <CalendarClock aria-hidden />}
+      {late && <span className="sr-only">Прострочено: </span>}
+      {when}
     </Badge>
   )
 }
@@ -27,7 +39,12 @@ export function DueChip({ dueAt, done, className }: { dueAt: number; done: boole
 /** Compact kanban card. Presentational: drag props are passed in by the sortable wrapper. */
 export const CardTile = forwardRef<
   HTMLDivElement,
-  HTMLAttributes<HTMLDivElement> & { card: Card; done: boolean; dragging?: boolean; overlay?: boolean }
+  HTMLAttributes<HTMLDivElement> & {
+    card: Card
+    done: boolean
+    dragging?: boolean
+    overlay?: boolean
+  }
 >(function CardTile({ card, done, dragging, overlay, className, ...rest }, ref) {
   return (
     <UiCard
@@ -47,12 +64,22 @@ export const CardTile = forwardRef<
             className={cn('mt-[5px] size-2 shrink-0 rounded-full', PRIORITY_DOT[card.priority])}
           />
         )}
-        <span className={cn('line-clamp-4 min-w-0 flex-1 text-body leading-snug [overflow-wrap:anywhere]', done && 'text-muted-foreground line-through')}>
+        <span
+          className={cn(
+            'line-clamp-4 min-w-0 flex-1 text-body leading-snug [overflow-wrap:anywhere]',
+            done && 'text-muted-foreground line-through'
+          )}
+        >
           {card.title}
         </span>
       </div>
       {card.description.trim() && (
-        <p className={cn('mt-1 line-clamp-2 text-caption text-muted-foreground', card.priority !== 'none' && 'pl-4')}>
+        <p
+          className={cn(
+            'mt-1 line-clamp-2 text-caption text-muted-foreground',
+            card.priority !== 'none' && 'pl-4'
+          )}
+        >
           {mdPreview(card.description)}
         </p>
       )}
@@ -63,7 +90,10 @@ export const CardTile = forwardRef<
           {card.checklistTotal > 0 && (
             <Badge
               variant={card.checklistDone === card.checklistTotal ? 'success' : 'soft'}
-              className={cn('h-5 px-2 text-meta', card.checklistDone !== card.checklistTotal && 'text-muted-foreground')}
+              className={cn(
+                'h-5 px-2 text-meta',
+                card.checklistDone !== card.checklistTotal && 'text-muted-foreground'
+              )}
             >
               <ListChecks />
               {card.checklistDone}/{card.checklistTotal}

@@ -1,25 +1,40 @@
 import { useId, useState, type RefObject } from 'react'
 import { Plus, SquareKanban, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { cardInputSchema, PRIORITIES, type BoardColumn, type CardDetails, type CardPatch, type ChecklistEntry, type Priority } from '@shared/domain/boards'
+import {
+  cardCheckInputSchema,
+  cardInputSchema,
+  PRIORITIES,
+  type BoardColumn,
+  type CardDetails,
+  type CardPatch,
+  type ChecklistEntry,
+  type Priority
+} from '@shared/domain/boards'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import { InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
-import { EmptyState, Field, Kbd, SegmentBar } from '@/components/common/page'
+import { EmptyState, Field, Kbd } from '@/components/common/page'
+import { ProgressLine } from '@/components/common/progress-line'
 import { RowSkeleton } from '@/components/common/page-skeleton'
 import { IconAction } from '@/components/common/icon-action'
-import { TagPicker } from '@/components/common/tags'
+import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import {
   guardSheet,
@@ -37,15 +52,15 @@ import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { DueChip } from './card-tile'
 
 const LIMITS = limitsOf(cardInputSchema)
-/** Card checklist entry text limit (validated in main: boards.addChecklistItem, max 1000). */
-const ENTRY_MAX = 1000
-/** Up to this many items the bar has one segment per item (docs/design-system.md → Прогресс). */
-const PER_ITEM_MAX = 12
+const ENTRY_MAX = limitsOf(cardCheckInputSchema).text
 
 function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
   const update = useApiMutation('cards', 'updateCheck')
   const remove = useApiMutation('cards', 'removeCheck')
-  const [text, setText] = useAutosave(entry.text, (t) => t.trim() && update.mutate({ id: entry.id, text: t.trim() }))
+  const [text, setText] = useAutosave(
+    entry.text,
+    (t) => t.trim() && update.mutate({ id: entry.id, text: t.trim() })
+  )
   const readOnly = useReadOnly()
   const cbId = useId()
   return (
@@ -73,10 +88,7 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
           maxLength={ENTRY_MAX}
           onChange={(e) => setText(e.target.value)}
           aria-label="Текст пункту"
-          className={cn(
-            'h-8 min-w-0 flex-1 bg-transparent px-1 focus-visible:bg-card',
-            entry.done && 'text-muted-foreground'
-          )}
+          className={cn('h-8 min-w-0 flex-1 px-1', entry.done && 'text-muted-foreground')}
         />
       )}
       {/* Hidden until hover, but shown as soon as the keyboard reaches the row (WCAG 2.4.7). */}
@@ -97,29 +109,13 @@ function Checklist({ card }: { card: CardDetails }) {
   const add = useApiMutation('cards', 'addCheck')
   const readOnly = useReadOnly()
   const done = card.checklist.filter((c) => c.done).length
+  const n = card.checklist.length
   // While reading, a card without a checklist shows no empty «Чек-лист» heading.
   if (readOnly && card.checklist.length === 0) return null
   return (
     <section className="flex flex-col gap-2">
-      <div>
-        <SectionLabel
-          action={
-            card.checklist.length > 0 && (
-              <span className="text-caption text-muted-foreground tabular-nums">
-                Готово {done} з {card.checklist.length}
-              </span>
-            )
-          }
-        >
-          Чек-лист
-        </SectionLabel>
-      </div>
-      {card.checklist.length > 0 &&
-        (card.checklist.length <= PER_ITEM_MAX ? (
-          <SegmentBar value={done} total={card.checklist.length} states={card.checklist.map((c) => c.done)} />
-        ) : (
-          <Progress value={(done / card.checklist.length) * 100} className="h-1.5" />
-        ))}
+      <SectionLabel>Чек-лист</SectionLabel>
+      {n > 0 && <ProgressLine value={done} total={n} states={card.checklist.map((c) => c.done)} />}
       <ul className="-mx-2 flex flex-col">
         {card.checklist.map((e) => (
           <ChecklistRow key={e.id} entry={e} />
@@ -127,7 +123,8 @@ function Checklist({ card }: { card: CardDetails }) {
       </ul>
       <form
         data-edit-only
-        className="flex items-center gap-2"
+        // Under the item texts: checkbox width (1rem) + the row gap (gap-2.5).
+        className="flex items-center gap-2 pl-[calc(1rem+0.625rem)]"
         onSubmit={(e) => {
           e.preventDefault()
           if (!text.trim() || add.isPending) return
@@ -135,8 +132,19 @@ function Checklist({ card }: { card: CardDetails }) {
           add.mutate({ cardId: card.id, text: text.trim() }, { onSuccess: () => setText('') })
         }}
       >
-        <Input value={text} maxLength={ENTRY_MAX} onChange={(e) => setText(e.target.value)} placeholder="Додати пункт" />
-        <Button type="submit" variant="soft" size="icon" disabled={!text.trim() || add.isPending} aria-label="Додати пункт">
+        <Input
+          value={text}
+          maxLength={ENTRY_MAX}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Додати пункт"
+        />
+        <Button
+          type="submit"
+          variant="soft"
+          size="icon"
+          disabled={!text.trim() || add.isPending}
+          aria-label="Додати пункт"
+        >
           <Plus />
         </Button>
       </form>
@@ -164,7 +172,9 @@ function CardEditor({
   })
   const patch = (p: CardPatch): void => update.mutate({ id: card.id, patch: p })
   const [title, setTitle] = useAutosave(card.title, (t) => t.trim() && patch({ title: t.trim() }))
-  const [description, setDescription] = useAutosave(card.description, (d) => patch({ description: d }))
+  const [description, setDescription] = useAutosave(card.description, (d) =>
+    patch({ description: d })
+  )
 
   const mode = useRecordMode(card.id, 'card')
   usePublishMode(modeRef, mode)
@@ -177,7 +187,7 @@ function CardEditor({
         mode={mode}
         extra={
           <span className="min-w-0 truncate text-caption text-muted-foreground">
-            {card.boardTitle} · {card.columnTitle}
+            {card.boardTitle}
           </span>
         }
         onDelete={() => remove.mutate(card.id)}
@@ -187,8 +197,14 @@ function CardEditor({
       <RecordMode mode={mode}>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <SheetTitle className="sr-only">{card.title}</SheetTitle>
-          <SheetDescription className="sr-only">Редагування картки</SheetDescription>
-          <InlineTitle value={title} onChange={setTitle} placeholder="Назва картки" maxLength={LIMITS.title} className="text-headline" />
+          <SheetDescription className="sr-only">Картка дошки</SheetDescription>
+          <InlineTitle
+            value={title}
+            onChange={setTitle}
+            placeholder="Назва картки"
+            maxLength={LIMITS.title}
+            className="text-headline"
+          />
 
           <div className="mt-5 grid grid-cols-2 gap-4">
             <Field label="Колонка">
@@ -207,7 +223,10 @@ function CardEditor({
             </Field>
             <Field label="Пріоритет">
               {/* «Без пріоритету» is a placeholder, not a value: view mode hides the field (globals.css). */}
-              <Select value={card.priority === 'none' ? '' : card.priority} onValueChange={(v) => patch({ priority: v as Priority })}>
+              <Select
+                value={card.priority === 'none' ? '' : card.priority}
+                onValueChange={(v) => patch({ priority: v as Priority })}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={PRIORITY_LABEL.none} />
                 </SelectTrigger>
@@ -223,7 +242,12 @@ function CardEditor({
             </Field>
             {mode.editing ? (
               <Field label="Дедлайн" className="col-span-2">
-                <DatePicker withTime value={card.dueAt} onChange={(dueAt) => patch({ dueAt })} placeholder="Без дедлайну" />
+                <DatePicker
+                  withTime
+                  value={card.dueAt}
+                  onChange={(dueAt) => patch({ dueAt })}
+                  placeholder="Без дедлайну"
+                />
               </Field>
             ) : (
               card.dueAt && (
@@ -231,7 +255,10 @@ function CardEditor({
                 <Field label="Дедлайн" className="col-span-2">
                   {/* Field stretches its direct children: the wrapper takes the width, the chip stays as wide as its text. */}
                   <div>
-                    <DueChip dueAt={card.dueAt} done={columns.find((c) => c.id === card.columnId)?.isDone ?? false} />
+                    <DueChip
+                      dueAt={card.dueAt}
+                      done={columns.find((c) => c.id === card.columnId)?.isDone ?? false}
+                    />
                   </div>
                 </Field>
               )
@@ -239,15 +266,9 @@ function CardEditor({
           </div>
           {!mode.editing && sparse && (
             <p className="mt-5 text-body text-muted-foreground">
-              Опису, дедлайну й чек-листа поки немає. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб додати.
+              Опису, дедлайну й чек-листа поки немає. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб
+              додати.
             </p>
-          )}
-
-          {(mode.editing || card.tags.length > 0) && (
-            <section className="mt-5 flex flex-col gap-2">
-              <SectionLabel>Мітки</SectionLabel>
-              <TagPicker value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
-            </section>
           )}
 
           <section className="mt-5">
@@ -266,6 +287,8 @@ function CardEditor({
           </div>
 
           <div className="mt-6 flex flex-col gap-6">
+            {/* Same order as every record column: fields → мітки → зв’язки → файли. */}
+            <TagsSection value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
             <LinksPanel entity={{ type: 'card', id: card.id }} />
             <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
             <div className="text-meta text-muted-foreground">
@@ -280,7 +303,15 @@ function CardEditor({
 }
 
 /** Right-side card editor, opened by ?card=<id>. */
-export function CardSheet({ cardId, columns, onClose }: { cardId: string | null; columns: BoardColumn[]; onClose: () => void }) {
+export function CardSheet({
+  cardId,
+  columns,
+  onClose
+}: {
+  cardId: string | null
+  columns: BoardColumn[]
+  onClose: () => void
+}) {
   const { data: card, isLoading } = useApi('cards', 'get', cardId ?? '', { enabled: !!cardId })
   const modeRef = useModeRef()
   const guard = guardSheet(modeRef, onClose)
@@ -293,11 +324,19 @@ export function CardSheet({ cardId, columns, onClose }: { cardId: string | null;
         className="w-full gap-0 p-0 sm:max-w-[560px]"
       >
         {card && card.id === cardId ? (
-          <CardEditor key={card.id} card={card} columns={columns} onClose={onClose} modeRef={modeRef} />
+          <CardEditor
+            key={card.id}
+            card={card}
+            columns={columns}
+            onClose={onClose}
+            modeRef={modeRef}
+          />
         ) : (
           <>
             <SheetTitle className="sr-only">Картка</SheetTitle>
-            <SheetDescription className="sr-only">{isLoading ? 'Завантаження' : 'Картку не знайдено'}</SheetDescription>
+            <SheetDescription className="sr-only">
+              {isLoading ? 'Завантаження' : 'Картку не знайдено'}
+            </SheetDescription>
             {isLoading ? (
               <div className="flex flex-col gap-3 p-6">
                 <Skeleton className="h-8 w-2/3" />

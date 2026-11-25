@@ -9,11 +9,11 @@ import { useAutosave } from '@/hooks/use-autosave'
 import { useUi } from '@/stores/ui-store'
 import { EmptyState, Page, Segmented } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
-import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import { InlineTitle } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
 import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { MarkdownField } from '@/components/common/markdown'
-import { TagPicker } from '@/components/common/tags'
+import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { Confirm } from '@/components/common/confirm'
@@ -36,16 +36,27 @@ import { CalendarView } from './calendar-view'
 import { CardSheet } from './card-sheet'
 
 const LIMITS = limitsOf(boardInputSchema)
+const TITLE_EDIT_HINT = 'Спершу збережіть або скасуйте зміни назви'
 
-function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boolean; onOpenChange: (o: boolean) => void }) {
+function BoardInfoSheet({
+  board,
+  open,
+  onOpenChange
+}: {
+  board: Board
+  open: boolean
+  onOpenChange: (o: boolean) => void
+}) {
   const update = useApiMutation('boards', 'update')
   const patch = (p: BoardPatch): void => update.mutate({ id: board.id, patch: p })
-  const [description, setDescription] = useAutosave(board.description, (d) => patch({ description: d }))
+  const [description, setDescription] = useAutosave(board.description, (d) =>
+    patch({ description: d })
+  )
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-6 sm:max-w-[480px]">
         <SheetTitle className="font-display text-heading">Про дошку</SheetTitle>
-        <SheetDescription className="text-caption">Опис, мітки, звʼязки й файли.</SheetDescription>
+        <SheetDescription className="text-caption">Опис, мітки, зв’язки й файли.</SheetDescription>
         <div className="mt-5 flex flex-col gap-6">
           <MarkdownField
             label="Опис"
@@ -55,10 +66,7 @@ function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boo
             maxLength={LIMITS.description}
             minHeight="160px"
           />
-          <section className="flex flex-col gap-2">
-            <SectionLabel>Мітки</SectionLabel>
-            <TagPicker value={board.tags} onChange={(tagIds) => patch({ tagIds })} />
-          </section>
+          <TagsSection value={board.tags} onChange={(tagIds) => patch({ tagIds })} />
           <LinksPanel entity={{ type: 'board', id: board.id }} />
           <AttachmentsPanel entity={{ type: 'board', id: board.id }} />
         </div>
@@ -79,7 +87,10 @@ function BoardHeader({ board }: { board: Board }) {
       navigate('/boards')
     }
   })
-  const [title, setTitle] = useAutosave(board.title, (t) => t.trim() && update.mutate({ id: board.id, patch: { title: t.trim() } }))
+  const [title, setTitle] = useAutosave(
+    board.title,
+    (t) => t.trim() && update.mutate({ id: board.id, patch: { title: t.trim() } })
+  )
   // Only the title follows view/edit: the kanban and the view switch work in any mode.
   const mode = useRecordMode(board.id, 'board')
 
@@ -88,10 +99,18 @@ function BoardHeader({ board }: { board: Board }) {
       <RecordMode mode={mode}>
         <div className="min-w-0 flex-1">
           {/* Two lines while reading so a long name never pushes the kanban down; the whole name while editing. */}
-          <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} placeholder="Назва дошки"
+          <InlineTitle
+            value={title}
+            onChange={setTitle}
+            maxLength={LIMITS.title}
+            placeholder="Назва дошки"
             className={mode.editing ? undefined : 'line-clamp-2'}
           />
-          {board.archived && <Badge variant="outline" className="mt-2">В архіві</Badge>}
+          {board.archived && (
+            <Badge variant="outline" className="mt-2">
+              Архів
+            </Badge>
+          )}
         </div>
       </RecordMode>
       <div className="flex shrink-0 items-center gap-2 pt-1">
@@ -101,14 +120,25 @@ function BoardHeader({ board }: { board: Board }) {
           options={BOARD_VIEWS.map((v) => ({ value: v.value, label: v.label }))}
         />
         <PinButtons entity={{ type: 'board', id: board.id }} />
-        <EditToggle mode={mode} />
+        {/* «Скасувати» of a title edit reverts the whole board row (description, tags, archive too), so those
+            wait until the title is saved or cancelled. A disabled button gets no hover: the span holds the tooltip. */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="soft" size="icon-sm" aria-label="Про дошку" onClick={() => setInfoOpen(true)}>
-              <Info />
-            </Button>
+            <span tabIndex={mode.editing ? 0 : undefined} className="inline-flex rounded-full">
+              <Button
+                variant="soft"
+                size="icon-sm"
+                aria-label="Про дошку"
+                disabled={mode.editing}
+                onClick={() => setInfoOpen(true)}
+              >
+                <Info />
+              </Button>
+            </span>
           </TooltipTrigger>
-          <TooltipContent>Про дошку: опис, мітки, звʼязки, файли</TooltipContent>
+          <TooltipContent>
+            {mode.editing ? TITLE_EDIT_HINT : 'Про дошку: опис, мітки, зв’язки, файли'}
+          </TooltipContent>
         </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -117,14 +147,21 @@ function BoardHeader({ board }: { board: Board }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52 rounded-2xl">
-            <DropdownMenuItem onSelect={() => update.mutate({ id: board.id, patch: { archived: !board.archived } })}>
+            <DropdownMenuItem
+              disabled={mode.editing}
+              onSelect={() => update.mutate({ id: board.id, patch: { archived: !board.archived } })}
+            >
               {board.archived ? <ArchiveRestore /> : <Archive />}
-              {board.archived ? 'Повернути з архіву' : 'В архів'}
+              <span className="flex min-w-0 flex-col">
+                {board.archived ? 'Повернути з архіву' : 'В архів'}
+                {mode.editing && <span className="text-meta">{TITLE_EDIT_HINT}</span>}
+              </span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <Confirm
               title={`Видалити дошку «${board.title}»?`}
               description="Дошка та її картки підуть у кошик на 30 днів."
+              confirmLabel="У кошик"
               onConfirm={() => remove.mutate(board.id)}
             >
               <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
@@ -133,6 +170,8 @@ function BoardHeader({ board }: { board: Board }) {
             </Confirm>
           </DropdownMenuContent>
         </DropdownMenu>
+        {/* Last, by the right edge (DS §8); cancelling a just-created board leaves its page for the list. */}
+        <EditToggle mode={mode} onClose={() => navigate('/boards')} />
       </div>
       <BoardInfoSheet board={board} open={infoOpen} onOpenChange={setInfoOpen} />
     </header>

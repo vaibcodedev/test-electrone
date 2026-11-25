@@ -1,7 +1,7 @@
 import { useId, useState, type ReactElement } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Trash2 } from 'lucide-react'
+import { GripVertical, Pencil, Trash2 } from 'lucide-react'
 import type { ChecklistItem } from '@shared/domain/checklists'
 import { useApiMutation } from '@/lib/query'
 import { useReadOnly } from '@/components/common/detail-mode'
@@ -13,8 +13,9 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { ITEM_LIMITS } from './use-checklist-order'
 
-/** Hidden until the row is hovered, but visible as soon as the keyboard reaches it (WCAG 2.4.7). */
-const ROW_ACTION = 'text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
+/** The drag handle: hidden until the row is hovered, but visible as soon as the keyboard reaches it (WCAG 2.4.7). */
+const ROW_ACTION =
+  'text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100'
 
 /** One checklist item: a tickable step in a run, a plain step in a template; text and hint editable in place. */
 export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }): ReactElement {
@@ -45,8 +46,12 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
 
   const label = (
     <>
-      <span className={cn('text-lead leading-snug', item.done && isRun && 'text-muted-foreground')}>{item.text}</span>
-      {item.hint && <span className="mt-0.5 block text-caption text-muted-foreground">{item.hint}</span>}
+      <span className={cn('text-lead leading-snug', item.done && isRun && 'text-muted-foreground')}>
+        {item.text}
+      </span>
+      {item.hint && (
+        <span className="mt-0.5 block text-caption text-muted-foreground">{item.hint}</span>
+      )}
     </>
   )
 
@@ -79,7 +84,8 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
           checked={item.done}
           onCheckedChange={(v) => update.mutate({ id: item.id, patch: { done: v === true } })}
           aria-label={item.text}
-          className="mt-0.5 size-[22px] rounded-full border-input bg-card data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground"
+          variant="round"
+          className="mt-0.5"
         />
       ) : (
         <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
@@ -88,7 +94,10 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
         {readOnly ? (
           isRun ? (
             // A tick works while reading: the text is the checkbox's label and toggles it too.
-            <Label htmlFor={cbId} className="flex cursor-pointer flex-col items-start gap-0 leading-normal font-normal text-foreground">
+            <Label
+              htmlFor={cbId}
+              className="flex cursor-pointer flex-col items-start gap-0 leading-normal font-normal text-foreground"
+            >
               {label}
             </Label>
           ) : (
@@ -115,20 +124,24 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
             <Input
               value={hint}
               maxLength={ITEM_LIMITS.hint}
-              placeholder="Підказка (необовʼязково)"
+              placeholder="Підказка (необов’язково)"
               onChange={(e) => setHint(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && save()}
               className="text-caption"
             />
           </div>
         ) : (
+          // Editable in place, like InlineTitle: a tint and a pencil on hover / focus say the text can be changed.
           <Button
             variant="ghost"
             onClick={startEditing}
-            className="h-auto w-full flex-col items-start gap-0 rounded-lg p-0 text-left font-normal whitespace-normal hover:bg-transparent"
-            title="Натисніть, щоб змінити"
+            className="group/text relative -mx-1 h-auto w-[calc(100%+0.5rem)] flex-col items-start gap-0 rounded-lg px-1 py-0 pr-7 text-left font-normal whitespace-normal hover:bg-foreground/5"
           >
             {label}
+            <Pencil
+              aria-hidden
+              className="absolute top-1.5 right-1.5 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/text:opacity-100 group-focus-visible/text:opacity-100"
+            />
           </Button>
         )}
       </div>
@@ -136,7 +149,8 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
         label="Видалити пункт"
         data-edit-only
         onClick={() => remove.mutate(item.id)}
-        className={cn('mt-0.5 hover:text-destructive', ROW_ACTION)}
+        // Always visible while editing: the step can be removed without hunting for it.
+        className="mt-0.5 text-muted-foreground hover:text-destructive"
       >
         <Trash2 />
       </IconAction>

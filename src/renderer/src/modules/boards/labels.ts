@@ -11,8 +11,8 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
 export const PRIORITY_DOT: Record<Priority, string> = {
   none: 'bg-transparent ring-1 ring-inset ring-border',
   low: 'bg-ink-muted',
-  medium: 'bg-info',
-  high: 'bg-warn',
+  medium: 'bg-info-fill',
+  high: 'bg-warn-fill',
   urgent: 'bg-destructive'
 }
 

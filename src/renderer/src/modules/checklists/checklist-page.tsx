@@ -1,15 +1,20 @@
-import { useRef, useState, type ReactElement } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ArrowLeft, Plus, RotateCcw, Rocket, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Plus, RotateCcw, Rocket, X } from 'lucide-react'
 import { checklistInputSchema, type ChecklistPatch } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
-import { EntityAside, InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
+import {
+  EntityAside,
+  InlineTitle,
+  RecordActions,
+  SectionLabel
+} from '@/components/common/master-detail'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { CopyJsonButton } from '@/components/common/import-dialog'
 import { MarkdownField } from '@/components/common/markdown'
@@ -39,24 +44,57 @@ function ChecklistView({ id }: { id: string }): ReactElement {
   const update = useApiMutation('checklists', 'update')
   const reset = useApiMutation('checklists', 'reset', { successMessage: 'Позначки знято' })
   const listPath = data?.kind === 'run' ? '/checklists?tab=runs' : '/checklists'
+  // Closing is async (Esc on a fresh draft reverts and deletes it first): if the person has gone elsewhere
+  // meanwhile (sidebar, Ctrl+K), don't pull them back to the list.
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  const toList = (): void => {
+    if (mounted.current) void navigate(listPath)
+  }
   const remove = useApiMutation('checklists', 'remove', {
     successMessage: 'Чек-лист переміщено в кошик',
-    onSuccess: () => navigate(listPath)
+    onSuccess: toList
   })
   const [launchOpen, setLaunchOpen] = useState(false)
   const patch = (p: ChecklistPatch): void => update.mutate({ id, patch: p })
-  const [title, setTitle] = useAutosave(data?.title ?? '', (t) => t.trim() && patch({ title: t.trim() }))
-  const [description, setDescription] = useAutosave(data?.description ?? '', (d) => patch({ description: d }))
+  const [title, setTitle] = useAutosave(
+    data?.title ?? '',
+    (t) => t.trim() && patch({ title: t.trim() })
+  )
+  const [description, setDescription] = useAutosave(data?.description ?? '', (d) =>
+    patch({ description: d })
+  )
   const mode = useRecordMode(id, 'checklist')
   const { items, groups, sensors, onDragEnd } = useChecklistOrder(id, data?.items)
   const [draftSections, setDraftSections] = useState<string[]>([])
   const [sectionName, setSectionName] = useState('')
   const firstItem = useRef<HTMLInputElement>(null)
+  const focusFirstItem = (): void => {
+    requestAnimationFrame(() => {
+      firstItem.current?.focus()
+      firstItem.current?.scrollIntoView({ block: 'center' })
+    })
+  }
   /** «Додати пункти» while reading: the add field exists only in edit mode, so switch first, then focus it. */
   const startAdding = (): void => {
     mode.setEditing(true)
-    requestAnimationFrame(() => firstItem.current?.focus())
+    focusFirstItem()
   }
+  // «Додати пункти» on a list tile comes here as ?add=1: straight to the add field, not a second click.
+  // The URL is the one-shot flag — switched to editing during render, dropped once the field is shown.
+  const [params, setParams] = useSearchParams()
+  const addOnOpen = params.get('add') === '1'
+  if (addOnOpen && data && !mode.editing) mode.setEditing(true)
+  useEffect(() => {
+    if (!addOnOpen || !mode.editing) return
+    setParams({}, { replace: true })
+    focusFirstItem()
+  }, [addOnOpen, mode.editing, setParams])
 
   if (isLoading) return <PageSkeleton kind="detail" />
   if (!data) {
@@ -93,6 +131,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
               mode={mode}
               extra={
                 <>
+                  <Badge variant="outline">{isRun ? 'Прогін' : 'Шаблон'}</Badge>
                   {isRun ? (
                     <Confirm
                       title="Зняти всі позначки?"
@@ -135,18 +174,16 @@ function ChecklistView({ id }: { id: string }): ReactElement {
                 </>
               }
               onDelete={() => remove.mutate(id)}
-              onClose={() => navigate(listPath)}
+              onClose={toList}
             />
           </div>
 
-          <Badge variant={isRun ? 'ink' : 'soft'} className="mb-2">
-            {isRun ? 'Прогін' : 'Шаблон'}
-          </Badge>
           <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} />
 
           {isRun && <RunProgress items={items} />}
 
-          <div className="mt-5">
+          {/* A readable line length in both modes, so E doesn't change the width. */}
+          <div className="mt-5 max-w-[72ch]">
             <MarkdownField
               label={isRun ? 'Нотатки' : 'Опис'}
               value={description}
@@ -191,7 +228,9 @@ function ChecklistView({ id }: { id: string }): ReactElement {
             <div className="flex flex-col items-start gap-2">
               {(!isRun || !mode.editing) && (
                 <p className="text-body text-muted-foreground">
-                  {isRun ? 'Пунктів поки немає.' : 'Додайте кроки, які повторюєте щоразу, — потім запускайте прогін.'}
+                  {isRun
+                    ? 'Пунктів поки немає.'
+                    : 'Додайте кроки, які повторюєте щоразу, — потім запускайте прогін.'}
                 </p>
               )}
               {!mode.editing && (
@@ -227,7 +266,8 @@ function ChecklistView({ id }: { id: string }): ReactElement {
               e.preventDefault()
               const name = sectionName.trim()
               if (!name) return
-              if (!groups.some(([s]) => s === name) && !draftSections.includes(name)) setDraftSections((d) => [...d, name])
+              if (!groups.some(([s]) => s === name) && !draftSections.includes(name))
+                setDraftSections((d) => [...d, name])
               setSectionName('')
             }}
           >
@@ -235,7 +275,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
               value={sectionName}
               maxLength={ITEM_LIMITS.section}
               onChange={(e) => setSectionName(e.target.value)}
-              placeholder="Назва нового розділу, напр. «Перед релізом»"
+              placeholder="Напр.: Перед релізом"
               className="max-w-sm"
               aria-label="Назва нового розділу"
             />
@@ -254,12 +294,17 @@ function ChecklistView({ id }: { id: string }): ReactElement {
             updatedAt={data.updatedAt}
           >
             {isRun && data.templateId && (
-              <section className="flex flex-col gap-1">
-                <SectionLabel>Шаблон</SectionLabel>
-                <Button variant="subtle" size="xs" asChild className="w-fit">
-                  <Link to={`/checklists/${data.templateId}`}>Відкрити вихідний шаблон</Link>
-                </Button>
-              </section>
+              <SectionLabel
+                action={
+                  <Button variant="outline" size="xs" asChild>
+                    <Link to={`/checklists/${data.templateId}`}>
+                      <ArrowUpRight /> Відкрити вихідний шаблон
+                    </Link>
+                  </Button>
+                }
+              >
+                Шаблон
+              </SectionLabel>
             )}
           </EntityAside>
         </aside>

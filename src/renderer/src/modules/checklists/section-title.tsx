@@ -12,14 +12,22 @@ import { ITEM_LIMITS, NO_SECTION } from './use-checklist-order'
  * those items into a real section.
  * Saves on blur / Enter; Esc restores. The parent keys sections by name, so a renamed one starts fresh.
  */
-export function SectionTitle({ section, items }: { section: string; items: ChecklistItem[] }): ReactElement {
+export function SectionTitle({
+  section,
+  items
+}: {
+  section: string
+  items: ChecklistItem[]
+}): ReactElement {
   const readOnly = useReadOnly()
   const [value, setValue] = useState(section)
   const commit = async (): Promise<void> => {
     const next = value.trim()
     if (next === section) return
     try {
-      await Promise.all(items.map((it) => api.checklists.updateItem({ id: it.id, patch: { section: next } })))
+      await Promise.all(
+        items.map((it) => api.checklists.updateItem({ id: it.id, patch: { section: next } }))
+      )
       invalidateAll()
       toast.success(next ? `Розділ «${next}»` : 'Пункти без розділу')
     } catch (e) {
@@ -33,7 +41,6 @@ export function SectionTitle({ section, items }: { section: string; items: Check
       value={value}
       placeholder={NO_SECTION}
       aria-label={`Назва розділу ${section || NO_SECTION}`}
-      title="Натисніть, щоб перейменувати розділ"
       maxLength={ITEM_LIMITS.section}
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => void commit()}
@@ -41,7 +48,7 @@ export function SectionTitle({ section, items }: { section: string; items: Check
         if (e.key === 'Enter') e.currentTarget.blur()
         if (e.key === 'Escape') setValue(section)
       }}
-      className="font-display h-auto max-w-sm border-transparent bg-transparent px-1 py-0.5 text-heading placeholder:text-foreground hover:border-input focus-visible:bg-foreground/[0.04]"
+      className="font-display h-auto max-w-sm px-2 py-0.5 text-heading"
     />
   )
 }

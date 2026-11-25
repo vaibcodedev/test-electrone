@@ -5,14 +5,21 @@ import { fmtDayFull } from '@/lib/format'
 import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
-import { Choice } from '@/modules/crm/parts'
+import { Choice } from '@/components/common/choice'
 import { checklistInputSchema } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
 
 const LIMITS = limitsOf(checklistInputSchema)
 
-/** «Деплой — 25 листопада»: the run is named after its template and the day it was started. */
-const runTitle = (template: string): string => `${template} — ${fmtDayFull(Date.now())}`
+/**
+ * «Деплой — 25 листопада»: the run is named after its template and the day it was started. A template name
+ * near the limit is shortened so the dated name still fits the schema (maxLength doesn't cut a value set in code).
+ */
+const runTitle = (template: string): string => {
+  const suffix = ` — ${fmtDayFull(Date.now())}`
+  const room = (LIMITS.title ?? Infinity) - suffix.length
+  return (template.length > room ? template.slice(0, room - 1).trimEnd() + '…' : template) + suffix
+}
 
 /** Creates a run (a tickable copy) from a template, optionally tied to a project. */
 export function LaunchDialog({
@@ -55,14 +62,21 @@ export function LaunchDialog({
       description="Створюється копія шаблону, у якій можна позначати пункти. Шаблон не змінюється."
       submitLabel="Запустити"
       invalid={!title.trim() || !template}
+      invalidReason="Вкажіть назву прогону"
       pending={instantiate.isPending}
       onSubmit={() => {
-        if (template) instantiate.mutate({ templateId: template.id, title: title.trim(), projectId })
+        if (template)
+          instantiate.mutate({ templateId: template.id, title: title.trim(), projectId })
       }}
       className="sm:max-w-[480px]"
     >
       <Field label="Назва прогону">
-        <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
+        <Input
+          autoFocus
+          value={title}
+          maxLength={LIMITS.title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
       </Field>
       <Field label="Проєкт">
         <Choice

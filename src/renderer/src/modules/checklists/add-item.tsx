@@ -27,7 +27,8 @@ export function AddItem({
         add.mutate({ checklistId, text: text.trim(), section })
       }}
     >
-      <Plus className="ml-2.5 size-4 shrink-0 text-muted-foreground" />
+      {/* Centred on the item dots: row px-2 + half the 6px dot = 11px, minus half the 16px icon. */}
+      <Plus className="ml-[3px] size-4 shrink-0 text-muted-foreground" />
       <Input
         ref={inputRef}
         value={text}

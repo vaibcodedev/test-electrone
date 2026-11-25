@@ -3,27 +3,37 @@ import { Link, useNavigate } from 'react-router'
 import { Plus, SquareKanban } from 'lucide-react'
 import { boardInputSchema, type BoardSummary } from '@shared/domain/boards'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInfiniteApi } from '@/lib/query'
 import { fmtRelative, mdPreview } from '@/lib/format'
-import { EmptyState, Field, Page, PageBody, PageHeader, SegmentBar } from '@/components/common/page'
+import { EmptyState, Field, Page, PageHeader, SegmentBar } from '@/components/common/page'
 import { FormDialog } from '@/components/common/form-dialog'
-import { PageSkeleton } from '@/components/common/page-skeleton'
+import { VirtualGrid } from '@/components/common/virtual-list'
 import { TagList } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { useUi } from '@/stores/ui-store'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 
 const LIMITS = limitsOf(boardInputSchema)
 
-function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+function CreateBoardDialog({
+  open,
+  onOpenChange
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+}) {
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const create = useApiMutation('boards', 'create', {
     onSuccess: (board) => {
+      // The name is already typed in this dialog: the board opens for reading, not as a fresh draft that
+      // «Скасувати»/Esc would purge together with the cards added to it.
+      useUi.getState().takeCreated(board.id)
       onOpenChange(false)
       setTitle('')
       setDescription('')
@@ -35,18 +45,30 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
       open={open}
       onOpenChange={onOpenChange}
       title="Нова дошка"
-      description="Колонки «Беклог → У роботі → Ревʼю → Готово» створяться самі, їх можна змінити."
+      description="Колонки «Беклог → У роботі → Рев’ю → Готово» створяться самі, їх можна змінити."
       submitLabel="Створити дошку"
       invalid={!title.trim()}
+      invalidReason="Вкажіть назву дошки"
       pending={create.isPending}
       onSubmit={() => create.mutate({ title: title.trim(), description })}
       className="sm:max-w-md"
     >
       <Field label="Назва" count={{ length: title.length, max: LIMITS.title }}>
-        <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Наприклад, Bloom Store — редизайн" />
+        <Input
+          autoFocus
+          value={title}
+          maxLength={LIMITS.title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Напр.: Bloom Store — редизайн"
+        />
       </Field>
-      <Field label="Опис (необовʼязково)">
-        <Textarea value={description} maxLength={LIMITS.description} onChange={(e) => setDescription(e.target.value)} placeholder="Мета, посилання, домовленості…" />
+      <Field label="Опис (необов’язково)">
+        <Textarea
+          value={description}
+          maxLength={LIMITS.description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Мета, посилання, домовленості…"
+        />
       </Field>
     </FormDialog>
   )
@@ -58,35 +80,49 @@ function BoardTile({ board }: { board: BoardSummary }) {
     <Card
       className={cn(
         // The overlay link takes the focus, so the tile draws the same inner ring that `tile` gives on focus-visible.
-        'tile group relative min-h-[188px] gap-0 p-5 has-[a:focus-visible]:shadow-[inset_0_0_0_2px_var(--ring)]',
+        'tile group relative h-full min-h-[188px] gap-0 p-5 has-[a:focus-visible]:shadow-[inset_0_0_0_2px_var(--ring)]',
         board.archived && 'opacity-55'
       )}
     >
-      <Link to={`/boards/${board.id}`} className="absolute inset-0 rounded-3xl outline-none" aria-label={board.title} />
+      <Link
+        to={`/boards/${board.id}`}
+        className="absolute inset-0 rounded-3xl outline-none"
+        aria-label={board.title}
+      />
       {/* The title is always first, so titles of one row line up whatever badges a board has. */}
-      <CardTitle title={board.title} className="font-display line-clamp-2 text-stat-sm leading-tight font-normal text-foreground">
+      <CardTitle
+        title={board.title}
+        className="font-display line-clamp-2 text-stat-sm leading-tight font-normal text-foreground"
+      >
         {board.title}
       </CardTitle>
       {board.description && (
-        <CardDescription className="mt-1 line-clamp-2 text-caption">{mdPreview(board.description)}</CardDescription>
+        <CardDescription className="mt-1 line-clamp-2 text-caption">
+          {mdPreview(board.description)}
+        </CardDescription>
       )}
       <div className="mt-auto pt-4">
+        {/* Not positioned: the overlay link stays on top, so a click on the badges opens the board too. */}
         {marked && (
-          <div className="relative mb-3 flex flex-wrap items-center gap-1.5">
-            {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} прострочено</Badge>}
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            {board.overdueCount > 0 && (
+              <Badge variant="destructive">{board.overdueCount} прострочено</Badge>
+            )}
             {board.archived && <Badge variant="outline">Архів</Badge>}
             {board.tags.length > 0 && <TagList tags={board.tags} max={3} />}
           </div>
         )}
         {/* One segment per card (up to 8), so the bar reads as "how many are done". */}
         {board.cardCount > 0 && (
-          <SegmentBar value={board.doneCount} total={board.cardCount} segments={Math.min(board.cardCount, 8)} />
+          <SegmentBar
+            value={board.doneCount}
+            total={board.cardCount}
+            segments={Math.min(board.cardCount, 8)}
+          />
         )}
         <div className="mt-1.5 flex justify-between gap-3 text-meta text-muted-foreground">
           <span className="min-w-0 truncate">
-            {board.cardCount
-              ? `Готово ${board.doneCount} з ${board.cardCount}`
-              : 'Поки без карток'}
+            {board.cardCount ? `Готово ${board.doneCount} з ${board.cardCount}` : 'Поки без карток'}
           </span>
           <span className="shrink-0">{fmtRelative(board.updatedAt)}</span>
         </div>
@@ -96,10 +132,8 @@ function BoardTile({ board }: { board: BoardSummary }) {
 }
 
 export function BoardsPage() {
-  const { data: boards = [], isLoading } = useApi('boards', 'list')
+  const page = useInfiniteApi('boards', 'list')
   const [creating, setCreating] = useState(false)
-  // The route's own skeleton (header + cards): an empty grid under a real header used to flash instead.
-  if (isLoading) return <PageSkeleton kind="grid" />
   return (
     <Page>
       <PageHeader
@@ -111,23 +145,29 @@ export function BoardsPage() {
           </Button>
         }
       />
-      <PageBody>
-        {/* Boards number in the dozens and boards.list has no paging, so a plain grid, not VirtualGrid. */}
-        {boards.length === 0 ? (
-          <EmptyState
-            icon={SquareKanban}
-            title="Дошок поки немає"
-            hint="Створіть дошку вручну або перетворіть ідею на дошку однією кнопкою."
-            cta={{ label: 'Нова дошка', icon: Plus, onClick: () => setCreating(true) }}
-          />
-        ) : (
-          <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
-            {boards.map((b) => (
-              <BoardTile key={b.id} board={b} />
-            ))}
-          </div>
-        )}
-      </PageBody>
+      <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
+        <VirtualGrid
+          items={page.items}
+          loading={page.isLoading}
+          getKey={(b) => b.id}
+          minColumnWidth={260}
+          rowHeight={200}
+          hasMore={page.hasMore}
+          loadingMore={page.loadingMore}
+          onLoadMore={page.loadMore}
+          renderItem={(b) => <BoardTile board={b} />}
+          empty={
+            !page.isLoading && (
+              <EmptyState
+                icon={SquareKanban}
+                title="Дошок поки немає"
+                hint="Створіть дошку вручну або перетворіть ідею на дошку однією кнопкою."
+                cta={{ label: 'Нова дошка', icon: Plus, onClick: () => setCreating(true) }}
+              />
+            )
+          }
+        />
+      </div>
       <CreateBoardDialog open={creating} onOpenChange={setCreating} />
     </Page>
   )

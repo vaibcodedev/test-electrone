@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MAX } from '@shared/domain/limits'
 import {
   closestCorners,
@@ -38,7 +38,12 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput
+} from '@/components/ui/input-group'
 import { CardTile } from './card-tile'
 import { ColumnHeader } from './column-header'
 
@@ -63,7 +68,9 @@ function SortableCard({
   onOpen: () => void
   columns: BoardColumn[]
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: card.id
+  })
   const move = useApiMutation('cards', 'move')
   const remove = useApiMutation('cards', 'remove', { successMessage: 'Картку переміщено в кошик' })
   // Right-click menu: the quick way to move or delete without opening the card.
@@ -160,7 +167,10 @@ function QuickAddCard({
           e.preventDefault()
           if (!title.trim() || create.isPending) return
           // Cleared only after the server accepted it; the field stays open for the next card.
-          create.mutate({ boardId, columnId, title: title.trim() }, { onSuccess: () => setTitle('') })
+          create.mutate(
+            { boardId, columnId, title: title.trim() },
+            { onSuccess: () => setTitle('') }
+          )
         }
         if (e.key === 'Escape') {
           setTitle('')
@@ -204,18 +214,34 @@ function Column({
           {shownIds.map((id) => {
             const card = cardsById.get(id)
             return card ? (
-              <SortableCard key={id} card={card} done={column.isDone} columns={columns} onOpen={() => onOpen(id)} />
+              <SortableCard
+                key={id}
+                card={card}
+                done={column.isDone}
+                columns={columns}
+                onOpen={() => onOpen(id)}
+              />
             ) : null
           })}
         </SortableContext>
         {hidden > 0 && (
-          <Button variant="subtle" size="sm" className="mx-auto my-1" onClick={() => setLimit((l) => l + COLUMN_PAGE)}>
+          <Button
+            variant="subtle"
+            size="sm"
+            className="mx-auto my-1"
+            onClick={() => setLimit((l) => l + COLUMN_PAGE)}
+          >
             Ще {Math.min(hidden, COLUMN_PAGE)} з {hidden}
           </Button>
         )}
       </DropZone>
       <div className="pt-1">
-        <QuickAddCard boardId={column.boardId} columnId={column.id} open={adding} onOpenChange={onAddingChange} />
+        <QuickAddCard
+          boardId={column.boardId}
+          columnId={column.id}
+          open={adding}
+          onOpenChange={onAddingChange}
+        />
       </div>
     </UiCard>
   )
@@ -248,7 +274,13 @@ function AddColumn({ boardId }: { boardId: string }) {
         />
         {title.trim() && (
           <InputGroupAddon align="inline-end">
-            <InputGroupButton type="submit" size="xs" variant="default" className="rounded-full" disabled={add.isPending}>
+            <InputGroupButton
+              type="submit"
+              size="xs"
+              variant="default"
+              className="rounded-full"
+              disabled={add.isPending}
+            >
               Додати
             </InputGroupButton>
           </InputGroupAddon>
@@ -262,23 +294,33 @@ function AddColumn({ boardId }: { boardId: string }) {
  * Drag & drop kanban. Local layout is the source of truth during a drag (optimistic),
  * the server is told the final column + index on drop, then caches refresh.
  */
-export function KanbanView({ details, onOpenCard }: { details: BoardDetails; onOpenCard: (id: string) => void }) {
+export function KanbanView({
+  details,
+  onOpenCard
+}: {
+  details: BoardDetails
+  onOpenCard: (id: string) => void
+}) {
   const [layout, setLayout] = useState<Layout>(() => buildLayout(details))
   const [activeId, setActiveId] = useState<string | null>(null)
   // Column whose «Додати картку» field is open; N opens the first one (the board has no lime header button).
   const [quickAdd, setQuickAdd] = useState<string | null>(null)
-  useHotkey('n', () => {
-    // Not behind an open card sheet or dialog.
-    if (!document.querySelector('[role="dialog"][data-state="open"]')) setQuickAdd(details.columns[0]?.id ?? null)
-  })
+  useHotkey('n', () => setQuickAdd(details.columns[0]?.id ?? null))
   const move = useApiMutation('cards', 'move', { onError: () => setLayout(buildLayout(details)) })
 
-  useEffect(() => {
-    if (!activeId) setLayout(buildLayout(details))
-  }, [details, activeId])
+  // Fresh server data replaces the local layout, but never mid-drag, and not on the drop itself: the old data
+  // would snap the card back until the move's refetch lands. Synced during render (no effect, no extra paint).
+  const [synced, setSynced] = useState(details)
+  if (details !== synced && !activeId) {
+    setSynced(details)
+    setLayout(buildLayout(details))
+  }
 
   const cardsById = useMemo(() => new Map(details.cards.map((c) => [c.id, c])), [details.cards])
-  const doneColumns = useMemo(() => new Set(details.columns.filter((c) => c.isDone).map((c) => c.id)), [details.columns])
+  const doneColumns = useMemo(
+    () => new Set(details.columns.filter((c) => c.isDone).map((c) => c.id)),
+    [details.columns]
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -367,7 +409,12 @@ export function KanbanView({ details, onOpenCard }: { details: BoardDetails; onO
       </div>
       <DragOverlay dropAnimation={{ duration: 160, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
         {active ? (
-          <CardTile card={active} done={doneColumns.has(containerOf(active.id) ?? '')} overlay className="w-[272px]" />
+          <CardTile
+            card={active}
+            done={doneColumns.has(containerOf(active.id) ?? '')}
+            overlay
+            className="w-[272px]"
+          />
         ) : null}
       </DragOverlay>
     </DndContext>

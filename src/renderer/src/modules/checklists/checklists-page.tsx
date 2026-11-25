@@ -6,16 +6,24 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { fmtRelative, mdPreview, plural } from '@/lib/format'
-import { EmptyState, FilterBar, Page, PageHeader, SearchInput, SegmentBar, Segmented } from '@/components/common/page'
+import {
+  EmptyState,
+  FilterBar,
+  NoResults,
+  Page,
+  PageHeader,
+  SearchInput,
+  Segmented
+} from '@/components/common/page'
+import { ProgressLine } from '@/components/common/progress-line'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { ImportButton } from '@/components/common/import-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+import { Card, CardTitle } from '@/components/ui/card'
 import { clickableProps } from '@/lib/clickable'
+import { noResultsHint } from '../claude/chips'
 import { LaunchDialog } from './launch-dialog'
-import { PER_ITEM_MAX } from './run-progress'
 
 type Tab = 'template' | 'run'
 
@@ -36,30 +44,32 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
   return (
     <Card
       {...clickableProps(open)}
-      // Fixed order top-down (count → title → description), button pinned to the bottom: titles line up
-      // across a row whether a card has a description or not.
+      // The title is always first and the button pinned to the bottom: titles line up across a row whether a
+      // card has a description or not.
       className="group tile h-full min-h-[190px] gap-0 p-5"
     >
-      <span className="text-caption text-muted-foreground tabular-nums">
-        {item.total} {plural(item.total, ['пункт', 'пункти', 'пунктів'])}
-      </span>
-      <div className="mt-3 min-w-0">
-        <div title={item.title} className="font-display line-clamp-2 text-stat-sm leading-tight">
+      <div className="min-w-0">
+        <CardTitle
+          title={item.title}
+          className="font-display line-clamp-2 text-stat-sm leading-tight font-normal"
+        >
           {item.title}
-        </div>
+        </CardTitle>
         {item.description && (
-          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">{mdPreview(item.description)}</p>
+          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
+            {mdPreview(item.description)}
+          </p>
         )}
         <TagList tags={item.tags} className="mt-2" />
       </div>
-      <div className="mt-auto pt-4">
-        {/* An empty template would launch a «0 з 0» run: lead to adding items instead. */}
+      <div className="mt-auto flex items-center justify-between gap-3 pt-4">
+        {/* An empty template would launch a «0 з 0» run: lead straight to the add field instead. */}
         <Button
           variant="subtle"
           size="sm"
           onClick={(e) => {
             e.stopPropagation()
-            if (item.total === 0) open()
+            if (item.total === 0) void navigate(`/checklists/${item.id}?add=1`)
             else onLaunch()
           }}
         >
@@ -73,6 +83,11 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
             </>
           )}
         </Button>
+        {item.total > 0 && (
+          <span className="shrink-0 text-meta text-muted-foreground tabular-nums">
+            {item.total} {plural(item.total, ['пункт', 'пункти', 'пунктів'])}
+          </span>
+        )}
       </div>
     </Card>
   )
@@ -85,25 +100,25 @@ function RunCard({ item }: { item: Checklist }) {
   }
   const complete = item.total > 0 && item.done === item.total
   return (
-    <Card {...clickableProps(open)} className="tile h-full min-h-[150px] gap-0 p-5"
-    >
-      <div className="flex items-center gap-2">
-        <Badge variant={complete ? 'success' : 'info'}>{complete ? 'Готово' : 'У процесі'}</Badge>
-        <span className="min-w-0 truncate text-meta text-muted-foreground">{fmtRelative(item.updatedAt)}</span>
-      </div>
-      <div title={item.title} className="mt-3 line-clamp-2 text-lead font-medium">
+    <Card {...clickableProps(open)} className="tile h-full min-h-[150px] gap-0 p-5">
+      <CardTitle
+        title={item.title}
+        className="font-display line-clamp-2 text-stat-sm leading-tight font-normal"
+      >
         {item.title}
-      </div>
-      <div className="mt-auto flex flex-col gap-1.5 pt-4">
-        {item.total > 0 &&
-          (item.total <= PER_ITEM_MAX ? (
-            <SegmentBar value={item.done} total={item.total} segments={item.total} />
-          ) : (
-            <Progress value={(item.done / item.total) * 100} className="h-1.5" />
-          ))}
-        <span className="min-w-0 truncate text-meta text-muted-foreground">
-          {item.total ? `Готово ${item.done} з ${item.total}` : 'Поки без пунктів'}
-        </span>
+      </CardTitle>
+      <div className="mt-auto flex flex-col gap-2 pt-4">
+        <div className="flex items-center justify-between gap-2">
+          <Badge variant={complete ? 'success' : 'info'}>{complete ? 'Готово' : 'У процесі'}</Badge>
+          <span className="min-w-0 truncate text-meta text-muted-foreground">
+            {fmtRelative(item.updatedAt)}
+          </span>
+        </div>
+        {item.total > 0 ? (
+          <ProgressLine value={item.done} total={item.total} />
+        ) : (
+          <span className="text-caption text-muted-foreground">Поки без пунктів</span>
+        )}
       </div>
     </Card>
   )
@@ -118,7 +133,6 @@ export function ChecklistsPage() {
   const navigate = useNavigate()
   const q = useDebounced(search.trim())
   const filtered = !!(q || tagId)
-  const what = tab === 'template' ? 'шаблонів' : 'прогонів'
   const page = useInfiniteApi('checklists', 'list', { kind: tab, search: q || undefined, tagId })
   const { data: counts } = useApi('checklists', 'counts')
   const create = useApiMutation('checklists', 'create', {
@@ -129,10 +143,13 @@ export function ChecklistsPage() {
     <Page>
       <PageHeader
         title="Чек-листи"
-        subtitle="Шаблони для повторюваних процесів: запуск магазину, деплой, SEO. Кожен запуск — окремий прогін із галочками."
+        subtitle="Шаблони для повторюваних процесів: запуск магазину, деплой, SEO. Кожен запуск — окремий прогін."
         actions={
           <>
-            <ImportButton kind="checklist" onImported={(id) => id && navigate(`/checklists/${id}`)} />
+            <ImportButton
+              kind="checklist"
+              onImported={(id) => id && navigate(`/checklists/${id}`)}
+            />
             <Button
               variant="lime"
               disabled={create.isPending}
@@ -157,7 +174,7 @@ export function ChecklistsPage() {
           trailing={
             <>
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" className="w-72" />
+              <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" />
             </>
           }
         />
@@ -182,16 +199,11 @@ export function ChecklistsPage() {
           empty={
             !page.isLoading &&
             (filtered ? (
-              <EmptyState
-                icon={ListChecks}
-                title="Нічого не знайдено"
-                hint={q ? `Немає ${what} за запитом «${q}».` : `Немає ${what} з вибраною міткою.`}
-                cta={{
-                  label: 'Скинути фільтри',
-                  onClick: () => {
-                    setSearch('')
-                    setTagId(undefined)
-                  }
+              <NoResults
+                hint={noResultsHint(q, !!tagId)}
+                onReset={() => {
+                  setSearch('')
+                  setTagId(undefined)
                 }}
               />
             ) : tab === 'template' ? (
@@ -210,7 +222,7 @@ export function ChecklistsPage() {
               <EmptyState
                 icon={ListChecks}
                 title="Прогонів поки немає"
-                hint="Відкрийте шаблон і натисніть «Запустити» — зʼявиться прогін, у якому можна ставити галочки."
+                hint="Відкрийте шаблон і натисніть «Запустити» — з’явиться прогін, у якому можна ставити галочки."
                 cta={{ label: 'До шаблонів', onClick: () => setParams({}, { replace: true }) }}
               />
             ))
