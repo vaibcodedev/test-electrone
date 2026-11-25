@@ -145,7 +145,7 @@ export function ClientPage(): ReactElement {
                 {mode.editing ? <SourceEdit c={c} patch={patch} /> : <SourceView c={c} />}
               </AsideGroup>
               <Separator />
-              <AsideGroup title="Типова оплата">
+              <AsideGroup title="Оплата за замовчуванням">
                 {mode.editing ? <BillingEdit c={c} patch={patch} /> : <BillingView c={c} />}
               </AsideGroup>
               <Separator />

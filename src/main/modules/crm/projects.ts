@@ -66,8 +66,22 @@ export class Projects {
       },
       create: async (input) => {
         const [data, tagIds] = splitTags(projectInputSchema.parse(input))
-        if (data.clientId) this.clientRepo.rowOrThrow(data.clientId)
-        return one(repo.insert({ ...data, proposalId: null }, tagIds).id)
+        const id = this.m.db.tx(() => {
+          if (data.clientId) {
+            const client = this.clientRepo.rowOrThrow(data.clientId)
+            // «Новий клієнт» asks no payment terms: a client without them (amount 0) takes the first project's,
+            // so the next projects of this client start from them (ProjectDialog → withClientDefaults).
+            const amount = data.billing === 'hourly' ? data.rate : data.fixedPrice
+            if (client.defaultRate === 0 && amount > 0 && data.billing !== 'none')
+              this.clientRepo.patch(client.id, {
+                defaultBilling: data.billing,
+                defaultRate: amount,
+                currency: data.currency
+              })
+          }
+          return repo.insert({ ...data, proposalId: null }, tagIds).id
+        })
+        return one(id)
       },
       update: async (args) => {
         const { id, patch } = updateArgs(projectPatchSchema).parse(args)

@@ -26,7 +26,6 @@ import { ClientPlatformFields, FeeField, PlatformSelect } from './platform-field
 import { usePlatforms } from './use-platforms'
 
 const CLIENT_L = limitsOf(clientInputSchema)
-const CLIENT_R = rangesOf(clientInputSchema)
 const CLIENT_REQ = requiredOf(clientInputSchema)
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
@@ -123,7 +122,6 @@ export function ClientDialog({
     }
   })
   const set = (patch: Partial<ClientInput>): void => setForm((f) => ({ ...f, ...patch }))
-  const billing = (form.defaultBilling ?? 'fixed') as BillingType
   const emailOk = isLikelyEmail(form.email ?? '')
   return (
     <FormDialog
@@ -194,28 +192,8 @@ export function ClientDialog({
           onInvalidChange={numbers.report}
         />
       )}
-      <Field label="Типова оплата">
-        <BillingPicker value={billing} onChange={(defaultBilling) => set({ defaultBilling })} />
-      </Field>
-      <div className="grid grid-cols-2 items-start gap-3">
-        <Field label="Валюта" htmlFor={`${uid}-currency`}>
-          <CurrencySelect
-            id={`${uid}-currency`}
-            value={form.currency as Currency}
-            onChange={(currency) => set({ currency })}
-          />
-        </Field>
-        <AmountField
-          id={`${uid}-amount`}
-          forClient
-          billing={billing}
-          value={form.defaultRate ?? 0}
-          max={CLIENT_R.defaultRate?.max}
-          onChange={(defaultRate) => set({ defaultRate })}
-          currency={(form.currency ?? 'USD') as Currency}
-          onValidityChange={numbers.report('defaultRate')}
-        />
-      </div>
+      {/* No payment terms here: a short form to create (best practice), the terms come by themselves — from the
+          hire («Найняли» on a proposal) or from the client's first project — and are edited on the client page. */}
     </FormDialog>
   )
 }
@@ -305,7 +283,10 @@ export function ProjectDialog({
       const next = { ...f, clientId: c?.id ?? null }
       return c ? withClientDefaults(next, c, touched) : next
     })
+    setAppliedFor(c?.id ?? null)
   }
+  // The terms came from the client and weren't changed here: say so, a changed one stays this project's own.
+  const fromClient = !!form.clientId && appliedFor === form.clientId && !touched.has('billing')
   const billing = (form.billing ?? 'fixed') as BillingType
   const currency = (form.currency ?? 'USD') as Currency
   const platforms = usePlatforms()
@@ -374,7 +355,14 @@ export function ProjectDialog({
           />
         )}
       </div>
-      <Field label="Оплата">
+      <Field
+        label="Оплата"
+        hint={
+          fromClient
+            ? 'З умов клієнта за замовчуванням — тут змінюється лише для цього проєкту'
+            : undefined
+        }
+      >
         <BillingPicker value={billing} onChange={(b) => set({ billing: b })} />
       </Field>
       <div className="grid grid-cols-2 items-start gap-3">

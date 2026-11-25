@@ -267,7 +267,8 @@ test.describe('конвертації', () => {
     await expect(win.getByText('Контракт створено')).toBeVisible()
     await expect.poll(() => hashPath(win)).toMatch(/^\/projects\/.+/)
     const projectId = (await hashPath(win)).split('/').pop()!
-    await expect(win.getByRole('heading', { name: proposal.jobTitle })).toBeVisible()
+    // On the page, not in the proposal's sheet: its hidden title stays while the sheet animates out.
+    await expect(win.locator('main').getByRole('heading', { name: proposal.jobTitle })).toBeVisible()
 
     const project = await rpc('projects.get', projectId)
     expect(project).toMatchObject({ title: proposal.jobTitle, billing: 'fixed', fixedPrice: 700 })

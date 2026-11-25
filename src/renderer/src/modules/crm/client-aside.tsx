@@ -366,7 +366,7 @@ export function BillingView({ c }: { c: Client }): ReactElement {
         {suffix}
       </p>
       <p className="text-caption text-muted-foreground">
-        Валюта {c.currency}. Нові проєкти клієнта отримають цей тип оплати й суму.
+        Валюта {c.currency}. Підставляється в нові проєкти клієнта, у проєкті можна змінити.
       </p>
     </div>
   )
