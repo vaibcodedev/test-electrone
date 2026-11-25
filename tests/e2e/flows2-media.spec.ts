@@ -590,3 +590,55 @@ test.describe('ряд добірок', () => {
     await expect.poll(left).toBeGreaterThan(before)
   })
 })
+
+test.describe('відео в дизайні', () => {
+  test('свій плеєр: клік по шкалі перемотує, гучність рухається — і в режимі перегляду', async ({
+    vault
+  }) => {
+    const { win, go } = vault
+    const id: string = await win.evaluate(async () => {
+      const c = document.createElement('canvas')
+      c.width = 320
+      c.height = 180
+      const x = c.getContext('2d')!
+      const rec = new MediaRecorder(c.captureStream(30), { mimeType: 'video/webm' })
+      const chunks: Blob[] = []
+      rec.ondataavailable = (e) => chunks.push(e.data)
+      rec.start()
+      for (let i = 0; i < 60; i++) {
+        x.fillStyle = `hsl(${i * 6},70%,50%)`
+        x.fillRect(0, 0, 320, 180)
+        await new Promise((r) => setTimeout(r, 33))
+      }
+      rec.stop()
+      await new Promise((r) => (rec.onstop = r))
+      const data = new Uint8Array(await new Blob(chunks, { type: 'video/webm' }).arrayBuffer())
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await (window as any).vault.rpc('designs.importImage', {
+        source: { kind: 'bytes', name: 'clip.webm', mime: 'video/webm', data }
+      })
+      return res.data.id as string
+    })
+    await go(`/designs?open=${id}`)
+    const dialog = win.getByRole('dialog')
+    await expect(dialog.locator('[data-detail-mode="view"]').first()).toBeVisible()
+    const video = dialog.locator('video')
+    await expect
+      .poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState))
+      .toBeGreaterThan(0)
+
+    const position = dialog.getByRole('slider', { name: 'Позиція у відео' })
+    await expect(position).toBeEnabled()
+    const track = position.locator('xpath=ancestor::*[@data-slot="slider"][1]')
+    const box = (await track.boundingBox())!
+    await win.mouse.click(box.x + box.width * 0.75, box.y + box.height / 2)
+    await expect
+      .poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime))
+      .toBeGreaterThan(0.2)
+
+    const volume = dialog.getByRole('slider', { name: 'Гучність' })
+    await volume.focus()
+    await win.keyboard.press('ArrowLeft')
+    await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.volume)).toBeLessThan(1)
+  })
+})

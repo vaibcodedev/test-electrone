@@ -9,6 +9,7 @@ import {
   type DesignPatch
 } from '@shared/domain/designs'
 import { limitsOf } from '@/lib/limits'
+import { cn } from '@/lib/utils'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { toFileSources } from '@/lib/files'
@@ -280,7 +281,8 @@ function Editor({
           {design.imagePath && (
             <IconAction
               label={video ? 'Відкрити відео' : 'Відкрити картинку'}
-              className="absolute top-3 right-3 bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
+              // top/right 5: inside the picture, clear of the card's 28px corner curve.
+              className="absolute top-5 right-5 bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
               onClick={openImage}
             >
               <Maximize2 />
@@ -302,7 +304,11 @@ function Editor({
             data-edit-only
             variant="soft"
             size="sm"
-            className="absolute right-3 bottom-3 bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
+            // Clear of the corner curve; on a video it goes to the top-left, off the player's bar.
+            className={cn(
+              'absolute bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100',
+              video ? 'top-5 left-5' : 'right-5 bottom-5'
+            )}
             onClick={() => fileInput.current?.click()}
           >
             <Replace /> Замінити

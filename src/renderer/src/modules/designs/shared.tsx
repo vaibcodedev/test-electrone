@@ -8,6 +8,7 @@ import { fileUrl, toFileSources } from '@/lib/files'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { VideoPlayer } from '@/components/common/video-player'
 import { Card } from '@/components/ui/card'
 import {
   Command,
@@ -86,6 +87,20 @@ function DesignVideo({
   className?: string
   play: 'hover' | 'controls' | 'none' | 'auto'
 }): ReactElement {
+  if (play === 'controls') return <VideoPlayer src={src} className={className} />
+  return <MutedVideo src={src} className={className} play={play} />
+}
+
+/** Tiles and pickers: muted, looping, no controls; «hover» plays while the card is pointed at or focused. */
+function MutedVideo({
+  src,
+  className,
+  play
+}: {
+  src: string | undefined
+  className?: string
+  play: 'hover' | 'none' | 'auto'
+}): ReactElement {
   const ref = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     const video = ref.current
@@ -112,12 +127,11 @@ function DesignVideo({
     <video
       ref={ref}
       // #t=0.1: the first frame shows at rest instead of a black box.
-      src={play === 'controls' || play === 'auto' ? src : src && `${src}#t=0.1`}
+      src={play === 'auto' ? src : src && `${src}#t=0.1`}
       className={className}
-      muted={play !== 'controls'}
-      loop={play !== 'controls'}
+      muted
+      loop
       autoPlay={play === 'auto'}
-      controls={play === 'controls'}
       preload="metadata"
       playsInline
     />

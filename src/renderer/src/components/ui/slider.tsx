@@ -31,7 +31,8 @@ function Slider({
       max={max}
       disabled={disabled || viewMode}
       className={cn(
-        'relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
+        // A pointer over the track (a click there jumps), a grab hand on the thumb; none while disabled.
+        'relative flex w-full cursor-pointer touch-none items-center select-none data-disabled:cursor-default data-disabled:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
         className
       )}
       {...props}
@@ -61,7 +62,7 @@ function Slider({
           }
           aria-labelledby={ariaLabelledBy}
           aria-valuetext={ariaValueText}
-          className="block size-4 shrink-0 rounded-full border-2 border-primary bg-card shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 disabled:pointer-events-none disabled:opacity-50"
+          className="block size-4 shrink-0 cursor-grab rounded-full border-2 border-primary bg-card shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 active:cursor-grabbing disabled:pointer-events-none disabled:opacity-50"
         />
       ))}
     </SliderPrimitive.Root>
