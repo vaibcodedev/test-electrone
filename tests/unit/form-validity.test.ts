@@ -10,7 +10,7 @@ import { FIX_ERRORS } from '@/lib/edit-session'
 import { boardInputSchema } from '@shared/domain/boards'
 import { eventInputSchema } from '@shared/domain/calendar'
 import { checklistInputSchema } from '@shared/domain/checklists'
-import { clientInputSchema, credentialInputSchema, projectInputSchema } from '@shared/domain/crm'
+import { clientInputSchema, credentialSchemas, projectInputSchema } from '@shared/domain/crm'
 import { expenseInputSchema, subscriptionInputSchema } from '@shared/domain/finance'
 import { goalInputSchema, platformInputSchema } from '@shared/domain/freelance'
 import { resumeInputSchema } from '@shared/domain/jobs'
@@ -38,7 +38,7 @@ describe('requiredOf', () => {
     expect(requiredOf(checklistInputSchema).title).toBe(true)
     expect(requiredOf(clientInputSchema).name).toBe(true)
     expect(requiredOf(projectInputSchema).title).toBe(true)
-    expect(requiredOf(credentialInputSchema).label).toBe(true)
+    expect(requiredOf(credentialSchemas.server).label).toBe(true)
     expect(requiredOf(platformInputSchema).name).toBe(true)
     expect(requiredOf(resumeInputSchema).title).toBe(true)
     expect(requiredOf(expenseInputSchema).title).toBe(true)
