@@ -118,13 +118,25 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
       ]
     },
     {
-      // The «[[» menu of every Markdown field (components/common/markdown-textarea.tsx).
-      title: 'Посилання в тексті',
+      // Every Markdown field (components/common/markdown-editor.tsx, keys in lib/md-editor/setup.ts).
+      title: 'Текст у Markdown',
       items: [
-        { keys: ['[['], label: 'Список записів для посилання (у будь-якому полі Markdown)' },
-        { keys: ['↑', '↓'], label: 'Вибрати запис' },
-        { keys: ['Enter'], label: 'Вставити посилання (або Tab)' },
-        { keys: ['Esc'], label: 'Закрити список' }
+        {
+          keys: ['/'],
+          label: 'Меню блоків: заголовок, список, чек-лист, таблиця… (на початку рядка)'
+        },
+        { keys: ['[['], label: 'Список записів для посилання' },
+        { keys: ['↑', '↓'], label: 'Вибрати в меню' },
+        { keys: ['Enter'], label: 'Вставити вибране (або Tab)' },
+        { keys: ['Esc'], label: 'Закрити меню' },
+        {
+          keys: ['Enter'],
+          label: 'У списку — наступний пункт; на порожньому пункті — кінець списку'
+        },
+        { keys: ['Tab'], label: 'Вкласти пункт списку (Shift+Tab — винести)' },
+        { keys: ['Ctrl', 'B'], label: 'Жирний (у полі Markdown замість бічної панелі)' },
+        { keys: ['Ctrl', 'I'], label: 'Курсив' },
+        { keys: ['Ctrl', 'K'], label: 'Посилання з виділеного тексту (без виділення — пошук)' }
       ]
     }
   ]
