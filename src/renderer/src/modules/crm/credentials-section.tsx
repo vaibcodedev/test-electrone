@@ -13,6 +13,8 @@ import { IconAction } from '@/components/common/icon-action'
 import { Field } from '@/components/common/page'
 import { useDetailMode } from '@/components/common/detail-mode-context'
 import { EditHintText } from '@/components/common/detail-mode'
+import { DisabledHint } from '@/components/common/disabled-hint'
+import { NO_CHANGES } from '@/lib/edit-session'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -53,6 +55,14 @@ function CredentialForm({
   const urlBad = !isLikelyUrl(form.url)
   const noLabel = !form.label.trim()
   const pending = create.isPending || update.isPending
+  // Editing: «Зберегти» waits for a change (an empty password keeps the stored one).
+  const unchanged =
+    !!initial &&
+    !form.secret &&
+    form.label === initial.label &&
+    form.url === initial.url &&
+    form.login === initial.login &&
+    form.notes === initial.notes
   return (
     <Card className="p-4">
       <form
@@ -60,7 +70,7 @@ function CredentialForm({
         onKeyDown={escapeCloses(onDone)}
         onSubmit={(e) => {
           e.preventDefault()
-          if (noLabel || urlBad || pending) return
+          if (noLabel || urlBad || pending || unchanged) return
           // Saved with a scheme: hostOf() and «Відкрити» need a full URL.
           const values = { ...form, url: form.url.trim() ? normalizeUrl(form.url) : '' }
           if (initial) {
@@ -136,9 +146,15 @@ function CredentialForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="subtle" disabled={noLabel || urlBad || pending}>
-            {initial ? 'Зберегти' : 'Додати доступ'}
-          </Button>
+          <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
+            <Button
+              type="submit"
+              variant="subtle"
+              disabled={noLabel || urlBad || pending || unchanged}
+            >
+              {initial ? 'Зберегти' : 'Додати доступ'}
+            </Button>
+          </DisabledHint>
         </div>
       </form>
     </Card>

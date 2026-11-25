@@ -77,7 +77,8 @@ export function AutoMarkdown({
   placeholder,
   minHeight,
   label,
-  maxLength
+  maxLength,
+  fold = true
 }: {
   value: string
   onSave: (value: string) => void
@@ -86,6 +87,8 @@ export function AutoMarkdown({
   label?: string
   /** From the schema (limitsOf): typing past it is impossible, so autosave never gets rejected. */
   maxLength?: number
+  /** Long text folds under «Показати повністю» while reading (MarkdownField); off where the text is the record. */
+  fold?: boolean
 }): ReactElement {
   const [draft, setDraft] = useAutosave(value, onSave, 800)
   return (
@@ -97,8 +100,7 @@ export function AutoMarkdown({
       minHeight={minHeight}
       label={label}
       maxLength={maxLength}
-      // The prompt is the record itself: it is never folded.
-      fold={false}
+      fold={fold}
     />
   )
 }

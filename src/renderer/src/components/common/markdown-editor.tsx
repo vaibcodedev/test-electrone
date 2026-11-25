@@ -66,6 +66,7 @@ export function MarkdownEditor({
   minHeight,
   labelledBy,
   label,
+  invalid,
   ref
 }: {
   id: string
@@ -78,6 +79,8 @@ export function MarkdownEditor({
   labelledBy?: string
   /** The field's name when there is no visible label. */
   label?: string
+  /** The text is wrong by itself (longer than `maxLength`): marked like a field with an error. */
+  invalid?: boolean
   ref?: Ref<MarkdownEditorHandle>
 }): ReactElement {
   const host = useRef<HTMLDivElement>(null)
@@ -186,14 +189,14 @@ export function MarkdownEditor({
     if (labelledBy) attrs['aria-labelledby'] = labelledBy
     else attrs['aria-label'] = label || placeholder || 'Текст'
     attrs['aria-describedby'] = describedByAll
-    if (field.invalid) attrs['aria-invalid'] = 'true'
+    if (field.invalid || invalid) attrs['aria-invalid'] = 'true'
     if (placeholder) attrs['aria-placeholder'] = placeholder
     if (list) attrs['aria-controls'] = list
     if (option) attrs['aria-activedescendant'] = option
     viewRef.current?.dispatch({
       effects: config.attrs.reconfigure(EditorView.contentAttributes.of(attrs))
     })
-  }, [config, id, labelledBy, label, placeholder, describedByAll, field.invalid, list, option])
+  }, [config, id, labelledBy, label, placeholder, describedByAll, field.invalid, invalid, list, option])
 
   // Current titles of the linked records for the chips: one request per text, like rendered Markdown.
   const targets = useWikiLinkTargets(value)

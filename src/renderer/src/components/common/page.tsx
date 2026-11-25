@@ -488,10 +488,10 @@ export function SegmentBar({
 
 /**
  * Character counter of a long field (docs/design-system.md → Формы): appears after 80% of the limit and
- * turns warn from 90%. Field and MarkdownField share it, so both behave the same. It is announced only from
- * 90%: a live counter from 80% made a screen reader read a number after every key. A text already longer than
- * the limit (written before the limit was lowered) turns it destructive; the field explains it under itself
- * (overLimitText).
+ * turns warn from 90%, destructive past the limit (a stored text longer than today's limit: it can't be saved
+ * until shortened, the field counts as an error and explains it under itself — overLimitText). Field and
+ * MarkdownField share it, so both behave the same. It is announced only from 90%: a live counter from 80% made a
+ * screen reader read a number after every key.
  */
 export function CharCount({
   length,
@@ -505,11 +505,12 @@ export function CharCount({
   if (!max) return null
   const near = length >= max * 0.8
   const warn = length >= max * 0.9
+  const over = length > max
   return (
     <span
       className={cn(
         'shrink-0 text-meta tabular-nums',
-        length > max ? 'text-destructive' : warn ? 'text-warn' : 'text-muted-foreground',
+        over ? 'text-destructive' : warn ? 'text-warn' : 'text-muted-foreground',
         // The limit is visible while you type in the field, and always once it gets close.
         !near && 'invisible group-focus-within/field:visible',
         className

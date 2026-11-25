@@ -67,8 +67,9 @@ test('the section is off by default; a preset brings its price, key field and li
   await expect(ai.getByText(/нічого не йде в інтернет/)).toBeVisible()
   await expect(ai.getByLabel(/^Ключ/)).toHaveCount(0)
   await expect(ai.getByRole('button', { name: 'Перевірити, чи запущено' })).toBeVisible()
-  await expect(ai.getByText('Якщо лишити порожнім — qwen3.5:9b. Інша: gemma4:12b')).toBeVisible()
-  await expect(ai.getByText('Використано сьогодні: 0 з 100 запитів')).toBeVisible()
+  await expect(ai.getByText('Рекомендована — qwen3.5:9b. У списку — усі моделі, які бачить Ollama, можна вписати свою')).toBeVisible()
+  // The worker's app is shared with ai-chat.spec, whose requests count too: only the format and the limit.
+  await expect(ai.getByText(/^Використано сьогодні: \d+ з 100 запитів/)).toBeVisible()
 })
 
 test('the connection check explains a failure in plain words, without the network', async ({

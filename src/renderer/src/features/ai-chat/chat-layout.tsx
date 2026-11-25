@@ -15,7 +15,6 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { usePanelRef } from 'react-resizable-panels'
 import { AI_CHAT_MAX, AI_CHAT_MIN, useUi } from '@/stores/ui-store'
 
 // The panel's chunk (messages, Markdown, actions) loads on the first Ctrl+J, not on every start.
@@ -82,7 +81,6 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
   const setWidth = useUi((s) => s.setAiChatWidth)
   const setOpen = useUi((s) => s.setAiChatOpen)
   const full = useUi((s) => s.aiChatFull) && open
-  const page = usePanelRef()
   const size = useRef(width)
   const before = useRef<HTMLElement | null>(null)
   const wasOpen = useRef(open)
@@ -106,64 +104,59 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
 
   const close = useCallback(() => setOpen(false), [setOpen])
 
-  // «На всю сторінку»: the page panel collapses to 0 but stays mounted (drafts, scroll), and comes back at its
-  // width when the chat goes back to a panel or closes.
-  useEffect(() => {
-    const p = page.current
-    if (!p) return
-    if (full) p.collapse()
-    else if (p.isCollapsed()) p.expand()
-  }, [full, page])
+  const panel = (
+    <Suspense fallback={<PanelSkeleton />}>
+      <AiChatPanel onClose={close} />
+    </Suspense>
+  )
 
+  // «На всю сторінку»: the chat lies over the page's area and the page stays mounted under it (drafts, scroll),
+  // inert. The chat's draft and thread live outside React (session.ts), so moving it out of the panel group
+  // loses nothing; leaving the mode puts it back at its width.
   return (
-    <ResizablePanelGroup
-      orientation="horizontal"
-      style={FILL}
-      className="min-h-0 min-w-0 flex-1"
-      onLayoutChanged={() => {
-        if (open && !full) setWidth(size.current)
-      }}
-    >
-      <ResizablePanel
-        id="page"
-        panelRef={page}
-        minSize="560px"
-        collapsible
-        collapsedSize="0px"
+    <div className="relative flex min-h-0 min-w-0 flex-1">
+      <ResizablePanelGroup
+        orientation="horizontal"
+        style={FILL}
+        className="min-h-0 min-w-0 flex-1"
         inert={full}
-        className="flex min-h-0 min-w-0 flex-col"
+        onLayoutChanged={() => {
+          if (open && !full) setWidth(size.current)
+        }}
       >
-        {children}
-      </ResizablePanel>
-      {open && (
-        <>
-          {/* The 10px gap of the frame is the handle: a thin line shows on hover and focus. */}
-          <ResizableHandle
-            disabled={full}
-            aria-label="Ширина чату ШІ"
-            className={cn(
-              'w-2.5 bg-transparent after:inset-y-6 after:rounded-full hover:after:bg-foreground/15 focus-visible:after:bg-ring',
-              // Full page: the collapsed page leaves no gap to keep; the sidebar's own gap is the frame.
-              full && 'w-0'
-            )}
-          />
-          <ResizablePanel
-            id="ai-chat"
-            defaultSize={`${width}px`}
-            minSize={`${AI_CHAT_MIN}px`}
-            maxSize={full ? '100%' : `${AI_CHAT_MAX}px`}
-            groupResizeBehavior="preserve-pixel-size"
-            onResize={(s) => {
-              size.current = s.inPixels
-            }}
-            className="flex min-h-0 min-w-0 flex-col"
-          >
-            <Suspense fallback={<PanelSkeleton />}>
-              <AiChatPanel onClose={close} />
-            </Suspense>
-          </ResizablePanel>
-        </>
+        <ResizablePanel id="page" minSize="360px" className="flex min-h-0 min-w-0 flex-col">
+          {children}
+        </ResizablePanel>
+        {open && !full && (
+          <>
+            {/* The 10px gap of the frame is the handle: a thin line shows on hover and focus. */}
+            <ResizableHandle
+              aria-label="Ширина чату ШІ"
+              className="w-2.5 bg-transparent after:inset-y-6 after:rounded-full hover:after:bg-foreground/15 focus-visible:after:bg-ring"
+            />
+            <ResizablePanel
+              id="ai-chat"
+              defaultSize={`${width}px`}
+              minSize={`${AI_CHAT_MIN}px`}
+              maxSize={`${AI_CHAT_MAX}px`}
+              groupResizeBehavior="preserve-pixel-size"
+              onResize={(s) => {
+                size.current = s.inPixels
+              }}
+              className="flex min-h-0 min-w-0 flex-col"
+            >
+              {panel}
+            </ResizablePanel>
+          </>
+        )}
+      </ResizablePanelGroup>
+      {full && (
+        // The paper covers the page's area; the chat itself is a centered column — answers and questions
+        // spread to both edges of a wide window and its lines ran ~1 500px long.
+        <div className="panel absolute inset-0 flex min-h-0 min-w-0 justify-center">
+          <div className="flex h-full min-h-0 w-full max-w-4xl min-w-0 flex-col">{panel}</div>
+        </div>
       )}
-    </ResizablePanelGroup>
+    </div>
   )
 }

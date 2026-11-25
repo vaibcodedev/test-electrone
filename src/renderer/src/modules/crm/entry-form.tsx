@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { DisabledHint } from '@/components/common/disabled-hint'
+import { NO_CHANGES } from '@/lib/edit-session'
 import { Field as UiField, FieldLabel } from '@/components/ui/field'
 import { draftToNumber, numberToDraft } from './money'
 import { escapeCloses } from './inline-form'
@@ -17,11 +19,14 @@ export function EntryForm({
   submitLabel,
   showBillable,
   pending,
+  edit = false,
   onSubmit,
   onCancel
 }: {
   initial: EntryDraft
   submitLabel: string
+  /** Changes an existing entry: the submit waits until something differs from `initial`. */
+  edit?: boolean
   showBillable: boolean
   /** The save is in flight: a second Enter / click must not add a duplicate. */
   pending: boolean
@@ -33,6 +38,7 @@ export function EntryForm({
   const set = (patch: Partial<EntryDraft>): void => setD((x) => ({ ...x, ...patch }))
   const range = toRange(d)
   const overnight = !!range && !!d.from && !!d.to && d.to < d.from
+  const unchanged = edit && JSON.stringify(d) === JSON.stringify(initial)
   return (
     <Card className="p-4">
       <form
@@ -40,7 +46,7 @@ export function EntryForm({
         onKeyDown={escapeCloses(onCancel)}
         onSubmit={(e) => {
           e.preventDefault()
-          if (range && !pending) onSubmit(d)
+          if (range && !pending && !unchanged) onSubmit(d)
         }}
       >
         <Field label="Дата" className="w-44">
@@ -116,9 +122,11 @@ export function EntryForm({
           <Button type="button" variant="ghost" onClick={onCancel}>
             Скасувати
           </Button>
-          <Button type="submit" variant="subtle" disabled={!range || pending}>
-            {submitLabel}
-          </Button>
+          <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
+            <Button type="submit" variant="subtle" disabled={!range || pending || unchanged}>
+              {submitLabel}
+            </Button>
+          </DisabledHint>
         </div>
       </form>
     </Card>

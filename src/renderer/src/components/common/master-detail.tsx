@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -25,6 +26,7 @@ import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
 import { CurrentRecordContext } from '@/hooks/use-current-record'
 import { reportError } from '@/lib/error-reporting'
+import { useHoldWhileInvalid } from '@/hooks/use-hold-while-invalid'
 import {
   DetailModeContext,
   EditHintText,
@@ -300,6 +302,9 @@ export function DetailPane({
   const mode = useRecordMode(entity.id, entity.type)
   const { editing } = mode
   usePublishMode(modeRef, mode)
+  // A field with an error anywhere in the pane holds «Зберегти» (and the autosaves) until it is fixed.
+  const [root, setRoot] = useState<HTMLDivElement | null>(null)
+  useHoldWhileInvalid(root, editing ? mode.holdInvalid : undefined)
   const current = useMemo(() => ({ type: entity.type, id: entity.id }), [entity.type, entity.id])
 
   // Set by «У кошик»: the pane's unmount hands focus to the next row instead of dropping it on <body>.
@@ -333,6 +338,7 @@ export function DetailPane({
     // Visible edge + soft shadow + enter motion: the pane reads as a layer above the list, not part of it.
     // The shadow fits the panel's 4px of room (MasterDetail): a 40px blur was cut square at the rounded corners.
     <Card
+      ref={setRoot}
       data-detail-mode={editing ? 'edit' : 'view'}
       className={cn(
         'min-h-0 flex-1 animate-pane gap-0 overflow-hidden bg-card py-0 shadow-[0_1px_3px_-1px_rgb(0_0_0/0.22)] border border-foreground/12',
@@ -368,21 +374,22 @@ export function DetailPane({
                   aside ? '@2xl:flex-1 @2xl:overflow-y-auto' : 'flex-1 overflow-y-auto'
                 )}
               >
-                {children}
+                {/* Remounted when changes are thrown away: no typed-but-unsaved text in a field's own state survives. */}
+                <Fragment key={mode.epoch}>{children}</Fragment>
                 {/* Shown by CSS only in view mode when the body holds no filled field (globals.css → «only a title»). */}
                 {emptyHint !== false && (
                   <p data-empty-hint className="mt-4 text-body text-muted-foreground">
                     {emptyHint}
                   </p>
                 )}
-                {footer}
+                <Fragment key={mode.epoch}>{footer}</Fragment>
               </div>
               {aside && (
                 <>
                   <Separator orientation="vertical" className="hidden @2xl:block" />
                   {/* Under the body (narrow pane) it lines up with the body's px-6; beside it, a column of its own. */}
                   <aside className="w-full shrink-0 border-t px-6 py-5 @2xl:w-64 @2xl:overflow-y-auto @2xl:border-t-0 @2xl:px-4">
-                    {aside}
+                    <Fragment key={mode.epoch}>{aside}</Fragment>
                   </aside>
                 </>
               )}

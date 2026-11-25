@@ -15,7 +15,8 @@ import type { ApiNamespace } from '@shared/api'
 import { call, type ArgOf, type MethodOf, type ResultOf } from './api'
 import { useUi } from '@/stores/ui-store'
 import { reportError } from './error-reporting'
-import { flushAllAutosaves, isAutosaving } from '@/hooks/use-autosave'
+import { flushAllAutosaves, isAutosaving, noteAutosaveSent } from '@/hooks/use-autosave'
+import { editSignal } from './edit-session'
 
 /**
  * A failed read used to look like an empty list («Нічого немає»). Now every failed query says so once,
@@ -48,13 +49,31 @@ const queryCache = new QueryCache({
 /**
  * Mutations started by an autosave field. Only their failures stop «Зберегти»: a failed tag or link created
  * a second earlier is not an unsaved edit. The cache's onMutate runs synchronously inside mutate().
+ * Every settled mutation tells the record being edited to check whether it now differs from its snapshot
+ * (edit-session.ts): that is how a status Select or a tag enables «Зберегти» without code in the module.
  */
 const autosaves = new WeakSet<object>()
 const mutationCache = new MutationCache({
   onMutate: (_variables, mutation) => {
-    if (isAutosaving()) autosaves.add(mutation)
-  }
+    if (!isAutosaving()) return
+    autosaves.add(mutation)
+    noteAutosaveSent()
+  },
+  onSettled: () => editSignal.saved()
 })
+
+/** Resolves once no mutation is running (a just-started one counts: mutate() registers it synchronously). */
+export function mutationsSettled(): Promise<void> {
+  if (queryClient.isMutating() === 0) return Promise.resolve()
+  const cache = queryClient.getMutationCache()
+  return new Promise<void>((resolve) => {
+    const unsubscribe = cache.subscribe(() => {
+      if (queryClient.isMutating() > 0) return
+      unsubscribe()
+      resolve()
+    })
+  })
+}
 
 export const queryClient = new QueryClient({
   queryCache,
@@ -77,15 +96,7 @@ export async function flushAndSettle(): Promise<{ failed: number }> {
   const started = Date.now()
   flushAllAutosaves()
   const cache = queryClient.getMutationCache()
-  if (queryClient.isMutating() > 0) {
-    await new Promise<void>((resolve) => {
-      const unsubscribe = cache.subscribe(() => {
-        if (queryClient.isMutating() > 0) return
-        unsubscribe()
-        resolve()
-      })
-    })
-  }
+  await mutationsSettled()
   // Saves the server rejected since the flush (too long, out of range…): the caller must not report success.
   const failed = cache
     .getAll()

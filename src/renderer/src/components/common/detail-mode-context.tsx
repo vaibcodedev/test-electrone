@@ -27,6 +27,21 @@ export interface DetailMode {
    * Call while the form is open; the returned function releases it.
    */
   holdOpen?: (what?: string) => () => void
+  /**
+   * Why «Зберегти» can't be pressed right now — «Змін немає», «Виправте поля з помилками», «Спершу додайте або
+   * скасуйте етап»; undefined while editing with something to save (docs/design-system.md → Просмотр и редактирование).
+   */
+  saveBlock?: string
+  /**
+   * A field of the record shows an error: «Зберегти» is off and autosaves keep their values until it's fixed.
+   * Taken by the record's container while an `aria-invalid` / `data-invalid` field is inside (useHoldWhileInvalid).
+   */
+  holdInvalid?: () => () => void
+  /**
+   * Bumped when changes are thrown away («Скасувати», «Не зберігати»): the record body remounts, so text typed into
+   * a field's own state (a number out of range, a half-typed value) doesn't come back on the next «Редагувати».
+   */
+  epoch?: number
   /** The record this mode belongs to (useRecordMode with a type): RecordMode tells the «[[» menu to skip it. */
   record?: { id: string; type: EntityType }
 }
