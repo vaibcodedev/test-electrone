@@ -7,11 +7,16 @@ import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return (
+    <OverlayOpenContext.Provider value={props.open}>
+      <DialogPrimitive.Root data-slot="dialog" {...props} />
+    </OverlayOpenContext.Provider>
+  )
 }
 
 function DialogTrigger({
@@ -56,6 +61,8 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // The body of the last open render stays while the dialog fades out (overlay-hold).
+  const body = useHeldWhileClosing(children)
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -67,7 +74,7 @@ function DialogContent({
         )}
         {...props}
       >
-        <EditableScope>{children}</EditableScope>
+        <EditableScope>{body}</EditableScope>
         {showCloseButton && (
           // A real 24×24 button with focus-visible (a bare 16px icon lit its ring on a mouse open, since Radix
           // focuses ✕ in a dialog without fields). No Tooltip on purpose: it would pop up on open for the same reason.

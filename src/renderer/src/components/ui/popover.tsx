@@ -2,11 +2,16 @@ import * as React from "react"
 import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
 import { Popover as PopoverPrimitive } from "radix-ui"
+import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
 
 function Popover({
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
-  return <PopoverPrimitive.Root data-slot="popover" {...props} />
+  return (
+    <OverlayOpenContext.Provider value={props.open}>
+      <PopoverPrimitive.Root data-slot="popover" {...props} />
+    </OverlayOpenContext.Provider>
+  )
 }
 
 function PopoverTrigger({
@@ -24,6 +29,8 @@ function PopoverContent({
   children,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  // A search cleared on close doesn't refill the list while the popover fades out (overlay-hold).
+  const body = useHeldWhileClosing(children)
   return (
     // EditableScope inside the content, not around it: the portal's Radix Presence needs a DOM node to wait for
     // the exit animation, and a context provider in its place made every popover vanish at once on close.
@@ -39,7 +46,7 @@ function PopoverContent({
         )}
         {...props}
       >
-        <EditableScope>{children}</EditableScope>
+        <EditableScope>{body}</EditableScope>
       </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   )

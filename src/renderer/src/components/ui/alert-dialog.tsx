@@ -4,11 +4,16 @@ import { cn } from "@/lib/utils"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
 
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+  return (
+    <OverlayOpenContext.Provider value={props.open}>
+      <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+    </OverlayOpenContext.Provider>
+  )
 }
 
 function AlertDialogTrigger({
@@ -51,6 +56,8 @@ function AlertDialogContent({
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
 }) {
+  // The question stays as it was while the dialog fades out, even after its state is cleared (overlay-hold).
+  const body = useHeldWhileClosing(children)
   return (
     // The portal wraps each child in Radix Presence, which waits for that child's DOM node to finish its exit
     // animation. EditableScope has no node: as the portal's child it made the dialog vanish at once on close.
@@ -65,7 +72,7 @@ function AlertDialogContent({
         )}
         {...props}
       >
-        <EditableScope>{children}</EditableScope>
+        <EditableScope>{body}</EditableScope>
       </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )

@@ -27,44 +27,44 @@ export function AllMoodboardsDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }): ReactElement {
-  const [search, setSearch] = useState('')
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o)
-        if (!o) setSearch('')
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle className="font-display text-heading">Усі добірки</DialogTitle>
           <DialogDescription>Спершу обрані, далі — нещодавно змінені.</DialogDescription>
         </DialogHeader>
-        {/* Not SearchInput: its data-page-search would make «/» jump here instead of the gallery search. */}
-        <InputGroup className="h-9">
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-          <InputGroupInput
-            role="searchbox"
-            autoFocus
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Пошук добірок"
-            aria-label="Пошук добірок"
-          />
-        </InputGroup>
-        {/* Mounted only while open: the grid's query doesn't run behind a closed dialog. */}
-        {open && (
-          <MoodboardGrid
-            search={search}
-            onReset={() => setSearch('')}
-            onOpen={() => onOpenChange(false)}
-          />
-        )}
+        <MoodboardSearch onOpen={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
+  )
+}
+
+/**
+ * The search and the grid live as long as the dialog's content: mounted on opening, so the search starts empty
+ * and the grid's query doesn't run behind a closed dialog. Nothing is reset on close — the grid used to unmount
+ * and the search to clear the moment Esc was pressed, and the dialog shrank to its header while it faded out.
+ */
+function MoodboardSearch({ onOpen }: { onOpen: () => void }): ReactElement {
+  const [search, setSearch] = useState('')
+  return (
+    <>
+      {/* Not SearchInput: its data-page-search would make «/» jump here instead of the gallery search. */}
+      <InputGroup className="h-9">
+        <InputGroupAddon>
+          <Search />
+        </InputGroupAddon>
+        <InputGroupInput
+          role="searchbox"
+          autoFocus
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Пошук добірок"
+          aria-label="Пошук добірок"
+        />
+      </InputGroup>
+      <MoodboardGrid search={search} onReset={() => setSearch('')} onOpen={onOpen} />
+    </>
   )
 }
 

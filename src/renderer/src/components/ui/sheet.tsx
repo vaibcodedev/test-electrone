@@ -5,9 +5,14 @@ import { XIcon } from "lucide-react"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { OverlayOpenContext, useHeldWhileClosing } from "@/components/ui/overlay-hold"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+  return (
+    <OverlayOpenContext.Provider value={props.open}>
+      <SheetPrimitive.Root data-slot="sheet" {...props} />
+    </OverlayOpenContext.Provider>
+  )
 }
 
 function SheetTrigger({
@@ -58,6 +63,8 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  // A record editor keyed by `open={!!id}` stays in the sheet while it slides out (overlay-hold).
+  const body = useHeldWhileClosing(children)
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -87,7 +94,7 @@ function SheetContent({
         )}
         {...props}
       >
-        <EditableScope>{children}</EditableScope>
+        <EditableScope>{body}</EditableScope>
         {showCloseButton && (
           // A real 24×24 button with focus-visible (a bare 16px icon lit its ring on a mouse open, since Radix
           // focuses ✕ in a dialog without fields). No Tooltip on purpose: it would pop up on open for the same reason.
