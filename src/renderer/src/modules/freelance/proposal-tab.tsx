@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactElement } from 'react'
+import { useResetOnOpen } from '@/hooks/use-open-session'
 import { useNavigate } from 'react-router'
 import { Award, BellRing, Kanban, List, Plus } from 'lucide-react'
 import { proposalInputSchema, type Platform, type Proposal } from '@shared/domain/freelance'
@@ -50,10 +51,11 @@ export function NewProposalButton({
   onCreated: (p: Proposal) => void
 }): ReactElement {
   const [title, setTitle] = useState('')
+  // Every opening starts empty, also after Esc or a click outside (reset on opening, not on closing).
+  useResetOnOpen(open, () => setTitle(''))
   const create = useApiMutation('proposals', 'create', {
     onSuccess: (p) => {
       onOpenChange(false)
-      setTitle('')
       onCreated(p)
     }
   })

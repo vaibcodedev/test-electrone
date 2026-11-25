@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
+import { useResetOnOpen } from '@/hooks/use-open-session'
 import { describeZodError } from '@shared/zod-locale'
 import { toast } from 'sonner'
 import { Braces, Copy, FileJson, FileUp } from 'lucide-react'
@@ -88,16 +89,14 @@ export function ImportDialog({
   const parsed = useMemo(() => parse(kind, raw), [kind, raw])
   const exampleJson = useMemo(() => JSON.stringify(def.example, null, 2), [def])
 
-  const reset = (): void => {
+  // Every opening starts clean, whatever way it was left («Скасувати», Esc, ✕, after import). Reset on opening,
+  // not on closing: the closing dialog keeps its text through the exit motion.
+  useResetOnOpen(open, () => {
     setRaw('')
     setFileName(null)
     setTab('text')
-  }
-  // Every way out («Скасувати», Esc, ✕, after import) leaves a clean dialog for the next time.
-  const close = (): void => {
-    onOpenChange(false)
-    reset()
-  }
+  })
+  const close = (): void => onOpenChange(false)
 
   const readFile = async (file: File | undefined): Promise<void> => {
     if (!file) return
