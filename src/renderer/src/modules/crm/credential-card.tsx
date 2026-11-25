@@ -284,7 +284,7 @@ function cellsOf(item: Credential): ReactElement[] {
       plain('Папка', f.path)
       break
     case 'apiKey':
-      plain('Сервіс', f.service)
+      // The service is the main line already (with its own «Скопіювати»).
       password('Ключ')
       plain('Права', f.scopes)
       break
