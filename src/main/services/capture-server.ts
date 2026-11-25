@@ -26,7 +26,8 @@ const MAX_BODY = 30 * 1024 * 1024
 /** captureSchema.screenshot.max: checked before parsing, so the popup learns that the picture is the problem. */
 const SCREENSHOT_MAX = fieldMax(captureSchema.shape.screenshot)
 const TOO_LARGE = 'Скриншот завеликий — виділіть меншу область або збережіть без скриншота.'
-const BAD_KEY = 'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».'
+const BAD_KEY =
+  'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».'
 
 /** A request refused by size (413), not by content. */
 class TooLargeError extends UserError {}
@@ -52,7 +53,10 @@ export function captureIssue(e: ZodError): string {
 /** Host without «www.»; never throws (adds https://, otherwise a board address saved without a scheme won't parse). */
 function hostOf(url: string): string {
   try {
-    return new URL(/^[a-z][\w+.-]*:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(/^www\./, '')
+    return new URL(/^[a-z][\w+.-]*:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(
+      /^www\./,
+      ''
+    )
   } catch {
     return ''
   }
@@ -110,30 +114,52 @@ export function parseLibraryPage(url: string, title: string): LibraryPage {
   const host = u.hostname.replace(/^www\./, '')
   if (host === 'npmjs.com' || host.endsWith('.npmjs.com')) {
     const m = u.pathname.match(/^\/package\/((?:@[^/]+\/)?[^/]+)/)
-    if (m) return { ...none, npmName: decodeURIComponent(m[1]), npmUrl: `https://www.npmjs.com/package/${m[1]}` }
+    if (m)
+      return {
+        ...none,
+        npmName: decodeURIComponent(m[1]),
+        npmUrl: `https://www.npmjs.com/package/${m[1]}`
+      }
   } else if (host === 'github.com') {
     const m = u.pathname.match(/^\/([^/]+)\/([^/]+)/)
-    if (m && !GITHUB_SERVICE.has(m[1])) return { ...none, repo: { owner: m[1], name: m[2] }, githubUrl: `https://github.com/${m[1]}/${m[2]}` }
+    if (m && !GITHUB_SERVICE.has(m[1]))
+      return {
+        ...none,
+        repo: { owner: m[1], name: m[2] },
+        githubUrl: `https://github.com/${m[1]}/${m[2]}`
+      }
   }
   return none
 }
 
 /** «owner/repo» (lower case) from any package.json `repository` form: git+https, git@, github:, shorthand. */
 function repoSlug(repository: unknown): string | null {
-  const raw = typeof repository === 'string' ? repository : (repository as { url?: unknown } | null)?.url
+  const raw =
+    typeof repository === 'string' ? repository : (repository as { url?: unknown } | null)?.url
   if (typeof raw !== 'string') return null
   const m = raw.match(/(?:github\.com[/:]|github:|^)([\w.-]+)\/([\w.-]+?)(?:\.git)?(?:[/#?]|$)/i)
   return m ? `${m[1]}/${m[2]}`.toLowerCase() : null
 }
 
-type LibraryFields = { name: string; npmUrl: string; githubUrl: string; docsUrl: string; installCmd: string; purpose: string }
+type LibraryFields = {
+  name: string
+  npmUrl: string
+  githubUrl: string
+  docsUrl: string
+  installCmd: string
+  purpose: string
+}
 
 /**
  * npm / GitHub page → library fields, with the description from the npm registry.
  * A GitHub repo only takes an npm package whose `repository` points back to it: «shadcn-ui/ui» is not the «ui» package.
  * Other sites are documentation pages: their address becomes `docsUrl` and npm is not asked.
  */
-export async function libraryFrom(url: string, title: string, fetchFn: (url: string, init: RequestInit) => Promise<Response> = net.fetch): Promise<LibraryFields> {
+export async function libraryFrom(
+  url: string,
+  title: string,
+  fetchFn: (url: string, init: RequestInit) => Promise<Response> = net.fetch
+): Promise<LibraryFields> {
   const page = parseLibraryPage(url, title)
   const lookup = page.npmName ?? page.repo?.name ?? null
   const result: LibraryFields = {
@@ -147,13 +173,19 @@ export async function libraryFrom(url: string, title: string, fetchFn: (url: str
   if (!lookup) return result
   try {
     // /latest is the newest package.json; the abbreviated document has no description.
-    const r = await fetchFn(`https://registry.npmjs.org/${encodeURIComponent(lookup).replace(/^%40/, '@')}/latest`, { signal: AbortSignal.timeout(4000) })
+    const r = await fetchFn(
+      `https://registry.npmjs.org/${encodeURIComponent(lookup).replace(/^%40/, '@')}/latest`,
+      { signal: AbortSignal.timeout(4000) }
+    )
     if (!r.ok) return result
     const j = (await r.json()) as { description?: unknown; repository?: unknown }
     const slug = repoSlug(j.repository)
     if (page.repo && slug !== `${page.repo.owner}/${page.repo.name}`.toLowerCase()) return result
     // npm descriptions have no length limit; the library field does.
-    result.purpose = clip(typeof j.description === 'string' ? j.description.trim() : '', PURPOSE_MAX)
+    result.purpose = clip(
+      typeof j.description === 'string' ? j.description.trim() : '',
+      PURPOSE_MAX
+    )
     result.npmUrl ||= `https://www.npmjs.com/package/${lookup}`
     result.installCmd ||= `npm i ${lookup}`
     if (!result.githubUrl && slug) result.githubUrl = `https://github.com/${slug}`
@@ -199,12 +231,20 @@ export class CaptureServer {
   }
 
   get extensionDir(): string {
-    return app.isPackaged ? join(process.resourcesPath, 'extension') : join(app.getAppPath(), 'extension')
+    return app.isPackaged
+      ? join(process.resourcesPath, 'extension')
+      : join(app.getAppPath(), 'extension')
   }
 
   info(): CaptureInfo {
     const s = this.config.settings
-    return { enabled: s.captureEnabled, port: s.capturePort, token: this.token(), extensionDir: this.extensionDir, running: this.listening }
+    return {
+      enabled: s.captureEnabled,
+      port: s.capturePort,
+      token: this.token(),
+      extensionDir: this.extensionDir,
+      running: this.listening
+    }
   }
 
   start(): void {
@@ -266,7 +306,11 @@ export class CaptureServer {
         size += c.length
         if (size <= MAX_BODY) chunks.push(c)
       })
-      req.on('end', () => (size > MAX_BODY ? reject(new TooLargeError(TOO_LARGE)) : resolve(Buffer.concat(chunks).toString('utf8'))))
+      req.on('end', () =>
+        size > MAX_BODY
+          ? reject(new TooLargeError(TOO_LARGE))
+          : resolve(Buffer.concat(chunks).toString('utf8'))
+      )
       req.on('error', reject)
     })
   }
@@ -280,23 +324,37 @@ export class CaptureServer {
     }
     if (!this.authorized(req)) return this.json(res, 401, { ok: false, error: BAD_KEY })
     try {
-      if (req.method === 'GET' && req.url === '/ping') return this.json(res, 200, { ok: true, app: 'vault', version: app.getVersion() })
+      if (req.method === 'GET' && req.url === '/ping')
+        return this.json(res, 200, { ok: true, app: 'vault', version: app.getVersion() })
       if (req.method === 'POST' && req.url === '/capture') {
         if (Number(req.headers['content-length']) > MAX_BODY) throw new TooLargeError(TOO_LARGE)
         const body = JSON.parse(await this.readBody(req)) as { screenshot?: unknown } | null
-        if (typeof body?.screenshot === 'string' && body.screenshot.length > SCREENSHOT_MAX) throw new TooLargeError(TOO_LARGE)
+        if (typeof body?.screenshot === 'string' && body.screenshot.length > SCREENSHOT_MAX)
+          throw new TooLargeError(TOO_LARGE)
         const input = captureSchema.safeParse(body)
-        if (!input.success) return this.json(res, 400, { ok: false, error: captureIssue(input.error) })
+        if (!input.success)
+          return this.json(res, 400, { ok: false, error: captureIssue(input.error) })
         const saved = await this.capture(input.data)
         this.bus.dataChanged('all')
         const meta = ENTITY_META[saved.type]
-        showNotification({ title: 'Збережено у Vault', body: `${meta.label}: ${saved.title}`, icon: this.icon }, () => this.openRoute(meta.route(saved.id)))
+        showNotification(
+          { title: 'Збережено у Vault', body: `${meta.label}: ${saved.title}`, icon: this.icon },
+          () => this.openRoute(meta.route(saved.id))
+        )
         // `section` tells the popup where to look («Збережено в розділі «Дизайни»»); old popups ignore it.
         return this.json(res, 200, { ok: true, ...saved, section: meta.plural })
       }
       if (req.method === 'POST' && req.url === '/open') {
-        const { type, id } = (JSON.parse(await this.readBody(req)) ?? {}) as { type?: unknown; id?: unknown }
-        if (typeof type !== 'string' || !Object.hasOwn(ENTITY_META, type) || typeof id !== 'string' || !id) {
+        const { type, id } = (JSON.parse(await this.readBody(req)) ?? {}) as {
+          type?: unknown
+          id?: unknown
+        }
+        if (
+          typeof type !== 'string' ||
+          !Object.hasOwn(ENTITY_META, type) ||
+          typeof id !== 'string' ||
+          !id
+        ) {
           return this.json(res, 400, { ok: false, error: 'Невідомий запис' })
         }
         this.openRoute(ENTITY_META[type as EntityType].route(id))
@@ -306,10 +364,16 @@ export class CaptureServer {
     } catch (e) {
       if (e instanceof TooLargeError) return this.json(res, 413, { ok: false, error: e.message })
       // Same wording as the app (zod issues → «Назва: занадто довго…»), never a raw JSON dump in the popup.
-      if (e instanceof ZodError || e instanceof UserError) return this.json(res, 400, { ok: false, error: formatError(e).error })
-      if (e instanceof SyntaxError) return this.json(res, 400, { ok: false, error: 'Некоректний запит від розширення' })
+      if (e instanceof ZodError || e instanceof UserError)
+        return this.json(res, 400, { ok: false, error: formatError(e).error })
+      if (e instanceof SyntaxError)
+        return this.json(res, 400, { ok: false, error: 'Некоректний запит від розширення' })
       log.error('[capture]', e)
-      return this.json(res, 500, { ok: false, error: 'Не вдалося зберегти у Vault — подробиці в журналі (Налаштування → «Відкрити журнал»).' })
+      return this.json(res, 500, {
+        ok: false,
+        error:
+          'Не вдалося зберегти у Vault — подробиці в журналі (Налаштування → «Відкрити журнал»).'
+      })
     }
   }
 
@@ -318,7 +382,12 @@ export class CaptureServer {
     const m = dataUrl.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/)
     if (!m) return null
     const ext = m[1] === 'image/jpeg' ? 'jpg' : m[1].split('/')[1]
-    return { kind: 'bytes', name: `${name}.${ext}`, mime: m[1], data: new Uint8Array(Buffer.from(m[2], 'base64')) }
+    return {
+      kind: 'bytes',
+      name: `${name}.${ext}`,
+      mime: m[1],
+      data: new Uint8Array(Buffer.from(m[2], 'base64'))
+    }
   }
 
   private async tagIds(names: string[]): Promise<string[]> {
@@ -327,7 +396,9 @@ export class CaptureServer {
     return ids
   }
 
-  private async capture(input: z.output<typeof captureSchema>): Promise<{ type: EntityType; id: string; title: string; warning?: string }> {
+  private async capture(
+    input: z.output<typeof captureSchema>
+  ): Promise<{ type: EntityType; id: string; title: string; warning?: string }> {
     const api = this.api()
     const tagIds = await this.tagIds(input.tags)
     const shot = this.screenshotSource(input.screenshot, 'screenshot')
@@ -345,16 +416,29 @@ export class CaptureServer {
         warning = 'Запис збережено, але скриншот додати не вдалося.'
       }
     }
-    const attach = (type: EntityType, id: string): Promise<void> => withShot((source) => api.files.add({ ref: { type, id }, source }))
+    const attach = (type: EntityType, id: string): Promise<void> =>
+      withShot((source) => api.files.add({ ref: { type, id }, source }))
     switch (input.target) {
       case 'design': {
         if (!shot) throw new UserError('Для дизайну потрібен скриншот')
-        const d = await api.designs.importImage({ source: shot, input: { title, sourceUrl: input.url, notes: input.note, tagIds } })
+        const d = await api.designs.importImage({
+          source: shot,
+          input: { title, sourceUrl: input.url, notes: input.note, tagIds }
+        })
         return { type: 'design', id: d.id, title: d.title || title }
       }
       case 'bookmark': {
-        const notes = clip([input.note, input.selection].filter(Boolean).join('\n\n'), BOOKMARK_NOTES_MAX)
-        const b = await api.bookmarks.create({ title, url: input.url, kind: input.kind ?? guessBookmarkKind(input.url), notes, tagIds })
+        const notes = clip(
+          [input.note, input.selection].filter(Boolean).join('\n\n'),
+          BOOKMARK_NOTES_MAX
+        )
+        const b = await api.bookmarks.create({
+          title,
+          url: input.url,
+          kind: input.kind ?? guessBookmarkKind(input.url),
+          notes,
+          tagIds
+        })
         await attach('bookmark', b.id)
         return { type: 'bookmark', id: b.id, title: b.title, warning }
       }
@@ -365,14 +449,30 @@ export class CaptureServer {
         return { type: 'library', id: l.id, title: l.name, warning }
       }
       case 'component': {
-        const c = await api.components.create({ title, sourceUrl: input.url, description: clip(input.note, COMPONENT_DESC_MAX), code: input.selection, language: input.selection.trim().startsWith('<') ? 'html' : 'tsx', tagIds })
+        const c = await api.components.create({
+          title,
+          sourceUrl: input.url,
+          description: clip(input.note, COMPONENT_DESC_MAX),
+          code: input.selection,
+          language: input.selection.trim().startsWith('<') ? 'html' : 'tsx',
+          tagIds
+        })
         await withShot((source) => api.components.setCover({ id: c.id, source }))
         return { type: 'component', id: c.id, title: c.title, warning }
       }
       case 'application': {
         const host = hostOf(input.url)
         const board = (await api.jobs.boards()).find((b) => b.url && hostOf(b.url) === host)
-        const a = await api.jobs.create({ title, url: input.url, companyName: input.company, description: clip(input.selection, JOB_DESC_MAX), notes: input.note, boardId: board?.id ?? null, status: 'saved', tagIds })
+        const a = await api.jobs.create({
+          title,
+          url: input.url,
+          companyName: input.company,
+          description: clip(input.selection, JOB_DESC_MAX),
+          notes: input.note,
+          boardId: board?.id ?? null,
+          status: 'saved',
+          tagIds
+        })
         await attach('application', a.id)
         return { type: 'application', id: a.id, title: a.title, warning }
       }
