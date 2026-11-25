@@ -21,11 +21,13 @@ function PopoverContent({
   sideOffset = 4,
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
   collisionPadding = 12,
+  children,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
   return (
+    // EditableScope inside the content, not around it: the portal's Radix Presence needs a DOM node to wait for
+    // the exit animation, and a context provider in its place made every popover vanish at once on close.
     <PopoverPrimitive.Portal>
-      <EditableScope>
       <PopoverPrimitive.Content
         data-slot="popover-content"
         align={align}
@@ -36,8 +38,9 @@ function PopoverContent({
           className
         )}
         {...props}
-      />
-      </EditableScope>
+      >
+        <EditableScope>{children}</EditableScope>
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   )
 }

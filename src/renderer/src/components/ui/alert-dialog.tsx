@@ -46,13 +46,15 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  children,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
 }) {
   return (
+    // The portal wraps each child in Radix Presence, which waits for that child's DOM node to finish its exit
+    // animation. EditableScope has no node: as the portal's child it made the dialog vanish at once on close.
     <AlertDialogPortal>
-      <EditableScope>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
@@ -62,8 +64,9 @@ function AlertDialogContent({
           className
         )}
         {...props}
-      />
-      </EditableScope>
+      >
+        <EditableScope>{children}</EditableScope>
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   )
 }
