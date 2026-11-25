@@ -1,3 +1,4 @@
+import type { EntityType } from '@shared/entity-types'
 import { createContext, useContext, type ReactNode } from 'react'
 
 /**
@@ -26,6 +27,8 @@ export interface DetailMode {
    * Call while the form is open; the returned function releases it.
    */
   holdOpen?: (what?: string) => () => void
+  /** The record this mode belongs to (useRecordMode with a type): RecordMode tells the «[[» menu to skip it. */
+  record?: { id: string; type: EntityType }
 }
 
 const ALWAYS_EDIT: DetailMode = { editing: true, setEditing: () => undefined }

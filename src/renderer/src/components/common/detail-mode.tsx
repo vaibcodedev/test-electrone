@@ -1,3 +1,4 @@
+import { CurrentRecordContext } from '@/hooks/use-current-record'
 import {
   useEffect,
   useMemo,
@@ -212,17 +213,26 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
       openForms.current.set(key, what)
       return () => void openForms.current.delete(key)
     }
-    return { editing, setEditing, fresh, save, cancel, exit, confirmClose, holdOpen }
+    const record = type ? { id, type } : undefined
+    return { editing, setEditing, fresh, save, cancel, exit, confirmClose, holdOpen, record }
   }, [editing, fresh, id, type])
 }
 
 /** Wrap a custom record editor (sheet, page) so its fields follow the view/edit mode. */
 export function RecordMode({ mode, children }: { mode: DetailMode; children: ReactNode }) {
+  // A record page (checklist, board, moodboard, vacancy…) is the «current record» like a DetailPane: the «[[»
+  // menu leaves it out, so a text can't link to the record it belongs to (a link that opened nothing).
+  const current = useMemo(
+    () => (mode.record ? { type: mode.record.type, id: mode.record.id } : null),
+    [mode.record?.type, mode.record?.id]
+  )
   return (
     <DetailModeContext.Provider value={mode}>
-      <div data-detail-mode={mode.editing ? 'edit' : 'view'} className="contents">
-        {children}
-      </div>
+      <CurrentRecordContext.Provider value={current}>
+        <div data-detail-mode={mode.editing ? 'edit' : 'view'} className="contents">
+          {children}
+        </div>
+      </CurrentRecordContext.Provider>
     </DetailModeContext.Provider>
   )
 }

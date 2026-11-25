@@ -1,3 +1,4 @@
+import { useCurrentRecord } from '@/hooks/use-current-record'
 import { createContext, useContext, type ReactElement, type ReactNode } from 'react'
 import { Link2Off } from 'lucide-react'
 import type { EntityRef } from '@shared/domain/common'
@@ -42,6 +43,12 @@ export function WikiLink({
   const mode = useDetailMode()
   const openEntity = useOpenEntity()
   const meta = ENTITY_META[target.type]
+  const self = useCurrentRecord()
+
+  // A link to the record it sits in (typed before the «[[» menu left it out) would open the page already open:
+  // shown as its title in plain text, not as a link that does nothing.
+  if (self && self.type === target.type && self.id === target.id)
+    return <span data-wikilink="self">{resolved?.title ?? children}</span>
 
   if (resolved?.state === 'trashed' || resolved?.state === 'missing') {
     const trashed = resolved.state === 'trashed'
