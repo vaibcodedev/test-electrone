@@ -10,7 +10,7 @@ const hashPath = (win: Page): Promise<string> =>
   win.evaluate(() => location.hash.slice(1).split('?')[0])
 const mode = (win: Page): Locator => win.locator('[data-detail-mode]').first()
 
-/** Answers every word due today except `keep` («Згадав»), so a session holds only the test's words. */
+/** Answers every word due today except `keep` («Згадали»), so a session holds only the test's words. */
 async function answerDueExcept(rpc: Rpc, keep: string[]): Promise<void> {
   const due: { id: string }[] = await rpc('english.queue', 500)
   for (const w of due) if (!keep.includes(w.id)) await rpc('english.review', { id: w.id, grade: 2 })
@@ -147,7 +147,7 @@ test.describe('чек-лист: шаблон → прогін', () => {
 })
 
 test.describe('англійська: слово → тренування', () => {
-  test('додати слово → «Повторити» → «Легко» → стадія «Вчу», повтор не сьогодні', async ({
+  test('додати слово → «Повторити» → «Легко» → стадія «Вчу», повторення не сьогодні', async ({
     vault
   }) => {
     test.setTimeout(120_000)
@@ -200,7 +200,7 @@ test.describe('англійська: слово → тренування', () =>
     await win.locator('[data-page-search]').fill(term)
     const after = win.getByRole('button').filter({ hasText: term }).first()
     await expect(after).toContainText('Вчу')
-    await expect(after).toContainText('повтор ')
+    await expect(after).toContainText('повторення ')
     await expect(after).not.toContainText('сьогодні')
   })
 

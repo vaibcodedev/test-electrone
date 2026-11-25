@@ -84,7 +84,7 @@ test.describe('view → «Редагувати» → Esc → «Зберегти 
 
   // UX BUG: the global Esc handler ignores keys from inputs/textareas (use-global-shortcuts.ts isEditable),
   // and InlineTitle/Textarea don't handle Esc themselves — so Esc right after typing in a field does nothing;
-  // the user has to click outside first. The tooltip promises «Зберегти й повернутися до перегляду · Esc».
+  // the user has to click outside first. Esc never saves: it asks «Зберегти зміни?» (tooltip: «Зберегти й повернутися до перегляду»).
   test('Esc pressed while the title field still has focus asks «Зберегти зміни?»', async ({
     vault
   }) => {

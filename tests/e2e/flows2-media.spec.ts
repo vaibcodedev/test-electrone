@@ -102,7 +102,7 @@ test.describe('дизайни: галерея, колір, добірка', () =
       .locator('[data-slot="popover-content"]')
       .getByRole('option', { name: new RegExp(board.title) })
       .click()
-    await expect(win.getByText(`Додано в «${board.title}»`).first()).toBeVisible()
+    await expect(win.getByText(`Дизайн додано в «${board.title}»`).first()).toBeVisible()
     await expect
       .poll(async () => (await rpc('moodboards.details', board.id))?.designs?.length ?? 0)
       .toBe(1)

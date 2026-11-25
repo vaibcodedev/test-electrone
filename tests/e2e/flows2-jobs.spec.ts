@@ -79,7 +79,7 @@ test.describe('вакансія: компанія й етапи', () => {
     await expect.poll(() => hashPath(win)).toBe('/calendar')
     await expect.poll(() => openParam(win)).toBe(stage.eventId)
     const eventDialog = win.getByRole('dialog', { name: 'Подія' })
-    await expect(eventDialog.getByLabel('Назва')).toHaveValue(`Скринінг: ${company}`)
+    await expect(eventDialog.getByText(`Скринінг: ${company}`, { exact: true })).toBeVisible()
     await win.keyboard.press('Escape')
     await expect(eventDialog).toBeHidden()
 

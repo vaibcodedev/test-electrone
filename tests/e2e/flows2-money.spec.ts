@@ -53,8 +53,8 @@ test.describe('фінанси: підписка → оплата', () => {
     expect((await paidRow())?.expenseId).toBeNull()
 
     // Tick → the subscription becomes this month's expense (a row in the expenses table too).
-    await row.getByRole('checkbox', { name: 'Позначити оплаченою' }).click()
-    await expect(row.getByRole('checkbox', { name: 'Зняти позначку про оплату' })).toBeChecked()
+    await row.getByRole('checkbox', { name: /^Позначити .* оплаченою$/ }).click()
+    await expect(row.getByRole('checkbox', { name: /^Зняти позначку оплати/ })).toBeChecked()
     await expect.poll(async () => (await paidRow())?.expenseId).toBeTruthy()
     await expect(win.getByRole('row').filter({ hasText: title })).toHaveCount(2)
 
@@ -70,8 +70,8 @@ test.describe('фінанси: підписка → оплата', () => {
     await expect.poll(async () => (await paidRow())?.paidAmount).toBe(15)
 
     // Untick → the expense is gone again.
-    await row.getByRole('checkbox', { name: 'Зняти позначку про оплату' }).click()
-    await expect(row.getByRole('checkbox', { name: 'Позначити оплаченою' })).not.toBeChecked()
+    await row.getByRole('checkbox', { name: /^Зняти позначку оплати/ }).click()
+    await expect(row.getByRole('checkbox', { name: /^Позначити .* оплаченою$/ })).not.toBeChecked()
     await expect.poll(async () => (await paidRow())?.expenseId).toBeNull()
     await expect(win.getByRole('row').filter({ hasText: title })).toHaveCount(1)
 
@@ -123,9 +123,9 @@ test.describe('фінанси: виведення', () => {
     await dialog.getByLabel('Комісія за виведення').blur()
     await expect(dialog.getByText('Комісія більша за суму виведення')).toBeHidden()
 
-    // USD → UAH: rate 1 is suspicious and the hint says so; 41 gives (amount − 2) × 41.
+    // USD → UAH: a new withdrawal never starts from a made-up rate 1 (last real rate or empty); 41 gives (amount − 2) × 41.
     const rate = dialog.getByLabel(/^Курс: 1 /)
-    await expect(dialog.getByText(/Курс 1:1 для .+ — перевірте/)).toBeVisible()
+    await expect(rate).not.toHaveValue('1')
     await rate.fill('41')
     await rate.blur()
     const received = (amount - 2) * 41

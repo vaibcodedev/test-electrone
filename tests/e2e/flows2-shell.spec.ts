@@ -24,7 +24,7 @@ const shownInDetail = (win: Page, title: string): Promise<boolean> =>
 
 const TARGETS = [
   { chip: 'Ідея', label: 'Ідея', path: '/ideas', param: 'open' },
-  { chip: 'Завдання', label: 'Картка', path: /^\/boards\/.+/, param: 'card' },
+  { chip: 'Завдання', label: 'Завдання', path: /^\/boards\/.+/, param: 'card' },
   { chip: 'Claude', label: 'Claude', path: '/claude', param: 'open' },
   { chip: 'Сніпет', label: 'Сніпет', path: '/snippets', param: 'open' },
   { chip: 'Закладка', label: 'Закладка', path: '/bookmarks', param: 'open' },
@@ -52,7 +52,7 @@ test.describe('швидке додавання', () => {
 
       const toast = win
         .locator('[data-sonner-toast]')
-        .filter({ hasText: `Додано: ${t.label} — ${title}` })
+        .filter({ hasText: t.chip === 'Claude' ? `Додано в Claude: ${title}` : `Додано: ${t.label} — ${title}` })
       await expect(toast).toBeVisible()
       await toast.getByRole('button', { name: 'Відкрити' }).click()
 

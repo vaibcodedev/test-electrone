@@ -284,7 +284,7 @@ test.describe('вакансія: повний цикл через інтерфе
 
     // «У кошик» asks first.
     await sheet.getByRole('button', { name: 'У кошик' }).click()
-    const ask = win.getByRole('alertdialog', { name: 'Перемістити вакансію в кошик?' })
+    const ask = win.getByRole('alertdialog', { name: 'Видалити вакансію?' })
     await ask.getByRole('button', { name: 'У кошик' }).click()
     await expect.poll(() => inTrash(vault, id)).toBe(true)
 
@@ -321,7 +321,7 @@ test.describe('клієнт і проєкт: повний цикл через і
     await go('/clients')
     await win.locator('[data-slot="page-header"]').getByRole('button', { name: 'Проєкт' }).click()
     const pd = win.getByRole('dialog', { name: 'Новий проєкт' })
-    await pd.getByPlaceholder('Редизайн магазину').fill(projectTitle)
+    await pd.getByPlaceholder('Напр.: Редизайн магазину').fill(projectTitle)
     await pd.getByRole('combobox').first().click()
     await win.getByRole('option', { name: new RegExp(clientName) }).click()
     await pd.getByRole('button', { name: 'Створити проєкт' }).click()
@@ -361,7 +361,7 @@ test.describe('клієнт і проєкт: повний цикл через і
     await win.getByRole('button', { name: 'У кошик' }).click()
     await win
       .getByRole('alertdialog', { name: 'Видалити проєкт?' })
-      .getByRole('button', { name: 'Видалити' })
+      .getByRole('button', { name: 'У кошик' })
       .click()
     await expect.poll(() => hashPath(win)).toBe('/clients')
     await expect.poll(() => inTrash(vault, projectId)).toBe(true)
@@ -407,7 +407,7 @@ test.describe('регресії флоу', () => {
       await go('/clients')
       await win.locator('[data-slot="page-header"]').getByRole('button', { name: 'Проєкт' }).click()
       const pd = win.getByRole('dialog', { name: 'Новий проєкт' })
-      await pd.getByPlaceholder('Редизайн магазину').fill(`Новий ${uid()}`)
+      await pd.getByPlaceholder('Напр.: Редизайн магазину').fill(`Новий ${uid()}`)
       await pd.getByRole('button', { name: 'Створити проєкт' }).click()
       await expect(pd).toBeHidden()
       const mode = win.locator('[data-detail-mode]').first()

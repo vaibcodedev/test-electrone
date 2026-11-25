@@ -69,7 +69,7 @@ test.describe('облік часу', () => {
     await expect(win.getByRole('button', { name: `Верстка ${token}` })).toBeVisible()
     await expect(win.getByText(`Верстка ${token}`, { exact: true })).toHaveCount(2)
     await expect(win.getByText('1 год 30 хв').first()).toBeVisible()
-    await expect(win.getByText('Відпрацьовано 1,5 год з 10 год · 15%')).toBeVisible()
+    await expect(win.getByText('Відпрацьовано 15% бюджету')).toBeVisible()
 
     // Manual entry (edit mode): 30 minutes more → the day's total is 2 hours.
     await win.locator('[data-edit-detail]').click()
@@ -77,8 +77,8 @@ test.describe('облік часу', () => {
     const form = win
       .locator('form')
       .filter({ has: win.getByRole('button', { name: 'Додати', exact: true }) })
-    await form.getByPlaceholder('90').fill('30')
-    await form.getByPlaceholder('Верстка кошика').fill(`Дзвінок ${token}`)
+    await form.getByPlaceholder('Напр.: 90').fill('30')
+    await form.getByPlaceholder('Напр.: Верстка кошика').fill(`Дзвінок ${token}`)
     await form.getByRole('button', { name: 'Додати', exact: true }).click()
     await expect(win.getByText('Час додано')).toBeVisible()
     await expect(win.getByText(`Дзвінок ${token}`, { exact: true }).first()).toBeVisible()
@@ -86,7 +86,7 @@ test.describe('облік часу', () => {
       .poll(async () => (await rpc('time.list', { projectId: project.id })).length)
       .toBe(2)
     await expect(win.getByText('2 год', { exact: true }).first()).toBeVisible()
-    await expect(win.getByText(/Відпрацьовано 2 год з 10 год · 20%/)).toBeVisible()
+    await expect(win.getByText(/Відпрацьовано 20% бюджету/)).toBeVisible()
     await win.locator('[data-save]').click()
   })
 
@@ -132,7 +132,7 @@ test.describe('календар', () => {
       now.getHours() >= 23,
       'the new event starts at the next hour — after 23:00 that is tomorrow'
     )
-    const chip = (cell: Locator): Locator => cell.locator(`[title="Подія: ${title}"]`)
+    const chip = (cell: Locator): Locator => cell.locator(`[title="${title}"]`)
 
     await go('/calendar')
     await win.getByRole('radio', { name: 'Місяць' }).click()
@@ -182,7 +182,7 @@ test.describe('календар', () => {
     await edit.getByLabel('Назва').fill(`${title} змінена`)
     await edit.getByRole('button', { name: 'Зберегти' }).click()
     await expect(edit).toBeHidden()
-    const renamed = dayCell(win, now).locator(`[title="Подія: ${title} змінена"]`)
+    const renamed = dayCell(win, now).locator(`[title="${title} змінена"]`)
     await expect(renamed).toBeVisible()
     await renamed.click()
     await win
