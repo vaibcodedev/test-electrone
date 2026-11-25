@@ -24,6 +24,11 @@ import {
   sourcesBlock
 } from '@main/services/ai/chat-prompt'
 import { UserError } from '@main/core/util'
+import { FreelanceModule } from '@main/modules/freelance'
+import { z } from 'zod'
+import { aiActionSchema, withEdits } from '@shared/domain/ai-actions'
+import { APP_SECTIONS, appMapPrompt, sectionAt } from '@shared/app-map'
+import { GUIDE, HOME, HUBS, REVIEW } from '@/app/navigation'
 import { recordFromLocation } from '@/features/ai-chat/context'
 import { openVault, type Vault } from './support/vault'
 
@@ -208,20 +213,43 @@ describe('the context chip', () => {
 let v: Vault
 let ideas: IdeasModule
 let knowledge: KnowledgeModule
-let runner: AiActionRunner
+/** The runner as main calls it: with actions that went through the schema (defaults filled in). */
+class ParsingRunner extends AiActionRunner {
+  override prepare(action: AiActionInput, target: EntityRef | null): ReturnType<AiActionRunner['prepare']> {
+    return super.prepare(aiActionSchema.parse(action), target)
+  }
+  override apply(action: AiActionInput, target: EntityRef | null): ReturnType<AiActionRunner['apply']> {
+    return super.apply(aiActionSchema.parse(action), target)
+  }
+}
+type AiActionInput = z.input<typeof aiActionSchema>
+let runner: ParsingRunner
 
 beforeEach(() => {
   v = openVault()
   ideas = new IdeasModule(v.m, v.boards)
   knowledge = new KnowledgeModule(v.m)
   for (const d of [ideas.descriptor, ...knowledge.descriptors]) v.registry.register(d)
-  runner = new AiActionRunner({
+  const freelance = new FreelanceModule(v.m, v.crm)
+  runner = new ParsingRunner({
     api: {
       ideas: ideas.api(),
       notes: knowledge.notesApi(),
       snippets: knowledge.snippetsApi(),
       cards: v.api.cards,
-      events: v.api.events
+      boards: v.api.boards,
+      events: v.api.events,
+      checklists: v.api.checklists,
+      bookmarks: knowledge.bookmarksApi(),
+      english: v.api.english,
+      claude: knowledge.claudeApi(),
+      fixes: knowledge.fixesApi(),
+      libraries: knowledge.librariesApi(),
+      jobs: v.api.jobs,
+      templates: v.api.templates,
+      redflags: freelance.redFlagsApi(),
+      cases: freelance.casesApi(),
+      components: v.api.components
     },
     boards: {
       list: () =>
@@ -459,7 +487,7 @@ describe('the chat', () => {
     const [first, second] = answer.actions
     expect(first).toMatchObject({
       status: 'proposed',
-      preview: { label: 'Створити ідею', title: 'Нова ідея' }
+      preview: { label: 'Створити: ідея', type: 'idea', title: 'Нова ідея' }
     })
     // Nothing is created before «Застосувати».
     expect(await ideas.api().list()).toEqual([])

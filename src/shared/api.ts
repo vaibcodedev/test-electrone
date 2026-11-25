@@ -22,6 +22,7 @@ import type {
 } from './domain/ai'
 import type {
   AiActionRef,
+  AiApplyInput,
   AiApplyResult,
   AiChat,
   AiChatSendInput,
@@ -721,12 +722,17 @@ export interface AiChatApi {
    * with `search`, records found in the base go with it; a cloud provider needs `consent: true` once.
    */
   send(input: AiChatSendInput): Promise<AiChat>
-  /** «Застосувати»: runs the action (checked again), returns the record created or changed. */
-  apply(ref: AiActionRef): Promise<AiApplyResult>
+  /**
+   * «Застосувати»: runs the action (checked again), returns the record created or changed. `edits` — the fields
+   * changed in «Змінити»: main keeps only the ones the action offers and validates them with the module's limits.
+   */
+  apply(input: AiApplyInput): Promise<AiApplyResult>
   /** «Скасувати» in the toast: the new record goes, the changed one is rolled back. */
   undo(ref: AiActionRef): Promise<AiChat>
   /** «Скасувати» on the card: the action stays in the chat, crossed out. */
   dismiss(ref: AiActionRef): Promise<AiChat>
+  /** «Повернути»: a cancelled action is proposed again. */
+  reopen(ref: AiActionRef): Promise<AiChat>
 }
 
 export interface ReviewApi {

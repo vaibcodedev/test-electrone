@@ -1,9 +1,12 @@
 import type { AiChatApi } from '@shared/api'
+import { withEdits } from '@shared/domain/ai-actions'
 import {
   aiActionRefSchema,
+  aiApplySchema,
   aiChatSendSchema,
   type AiActionProposal,
   type AiActionRef,
+  type AiApplyInput,
   type AiApplyResult,
   type AiChat,
   type AiChatMessage,
@@ -98,7 +101,7 @@ export class AiChatService {
   }
 
   async send(input: AiChatSendInput): Promise<AiChat> {
-    const { chatId, text, context, search, consent } = aiChatSendSchema.parse(input)
+    const { chatId, text, context, search, consent, page } = aiChatSendSchema.parse(input)
     const existing = chatId ? this.deps.history.get(chatId) : null
     if (chatId && !existing) throw new UserError('Цього чату вже немає — почніть новий')
     const at = this.now()
@@ -110,7 +113,8 @@ export class AiChatService {
         system: chatSystem({
           now: at,
           boards: this.deps.base.boards().slice(0, 20),
-          contextType: record?.ref.type ?? null
+          contextType: record?.ref.type ?? null,
+          page
         }),
         history: historyTurns(existing?.messages ?? []),
         prompt: chatPrompt({
@@ -208,13 +212,15 @@ export class AiChatService {
     return next
   }
 
-  async apply(input: AiActionRef): Promise<AiApplyResult> {
-    const ref = aiActionRefSchema.parse(input)
+  async apply(input: AiApplyInput): Promise<AiApplyResult> {
+    const { edits, ...ref } = aiApplySchema.parse(input)
     const { chat, proposal, target } = this.locate(ref)
     if (proposal.status === 'applied' || this.applying.has(ref.actionId))
       throw new UserError('Цю дію вже застосовано')
+    // «Змінити»: only the fields the card offers, checked by the action's own schema (the module's limits).
+    const action = withEdits(proposal.action, edits)
     // Checked again: the board or the record may be gone since the answer came.
-    const fresh = this.deps.actions.prepare(proposal.action, target)
+    const fresh = this.deps.actions.prepare(action, target)
     if (fresh.problem) {
       this.update(chat, ref, { problem: fresh.problem, preview: fresh.preview })
       throw new UserError(fresh.problem)
@@ -222,7 +228,7 @@ export class AiChatService {
     this.applying.add(ref.actionId)
     let done: Applied
     try {
-      done = await this.deps.actions.apply(proposal.action, target)
+      done = await this.deps.actions.apply(action, target)
     } finally {
       this.applying.delete(ref.actionId)
     }
@@ -231,7 +237,10 @@ export class AiChatService {
     log.info(
       `[ai] chat ${chat.id}: applied ${proposal.action.type} → ${done.ref.type} ${done.ref.id}`
     )
+    // The chat keeps what was really applied: the edited version.
     const next = this.update(chat, ref, {
+      action,
+      preview: fresh.preview,
       status: 'applied',
       problem: null,
       result: { ref: done.ref, title: done.title.slice(0, 500) }
@@ -259,6 +268,14 @@ export class AiChatService {
     return this.update(chat, ref, { status: 'dismissed' })
   }
 
+  /** «Повернути» after «Скасувати»: the action is proposed again (checked again on «Застосувати»). */
+  async reopen(input: AiActionRef): Promise<AiChat> {
+    const ref = aiActionRefSchema.parse(input)
+    const { chat, proposal } = this.locate(ref)
+    if (proposal.status !== 'dismissed') return chat
+    return this.update(chat, ref, { status: 'proposed' })
+  }
+
   api(): AiChatApi {
     return {
       list: async () => this.deps.history.list(),
@@ -267,7 +284,8 @@ export class AiChatService {
       send: (input) => this.send(input),
       apply: (ref) => this.apply(ref),
       undo: (ref) => this.undo(ref),
-      dismiss: (ref) => this.dismiss(ref)
+      dismiss: (ref) => this.dismiss(ref),
+      reopen: (ref) => this.reopen(ref)
     }
   }
 }
