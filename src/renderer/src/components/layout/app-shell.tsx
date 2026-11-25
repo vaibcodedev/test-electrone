@@ -1,10 +1,19 @@
-import { lazy, Suspense, useCallback, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react'
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useState,
+  type CSSProperties,
+  type ReactElement,
+  type ReactNode
+} from 'react'
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router'
 import { ArrowLeft, ArrowRight, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MainEvents } from '@shared/api'
 import { CloseConfirmHost } from '@/components/common/detail-mode'
 import { PageSkeleton, SKELETON_KINDS, type SkeletonKind } from '@/components/common/page-skeleton'
+import type { RouteHandle } from '@/app/router'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { SidebarProvider } from '@/components/ui/sidebar'
@@ -60,7 +69,7 @@ function HistoryButton({
   )
 }
 
-function TitleBar() {
+function TitleBar(): ReactElement {
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
   const navigate = useNavigate()
   // React Router keeps the position in the history stack in history.state.idx; useLocation re-renders on moves.
@@ -94,12 +103,13 @@ function TitleBar() {
 }
 
 /** Window layout: custom title bar on the sage frame, sidebar, and the main paper panel. */
-export function AppShell() {
+export function AppShell(): ReactElement {
   const { pathname } = useLocation()
-  // The route says what the page looks like (handle.skeleton in app/router.tsx); default — a list.
+  // The route says what the page looks like (handle in app/router.tsx); default — a list.
   const matches = useMatches()
-  const declared = (matches[matches.length - 1]?.handle as { skeleton?: SkeletonKind } | undefined)?.skeleton
-  const skeleton: SkeletonKind = declared && SKELETON_KINDS.includes(declared) ? declared : 'list'
+  const handle = matches[matches.length - 1]?.handle as Partial<RouteHandle> | undefined
+  const skeleton: SkeletonKind =
+    handle?.skeleton && SKELETON_KINDS.includes(handle.skeleton) ? handle.skeleton : 'list'
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
   // The freelance chunk loads on the first «Додати платформу», not on every start; once mounted it stays,
   // so the closing animation is not cut off.
@@ -124,9 +134,10 @@ export function AppShell() {
       <SidebarProvider className="min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5" style={SHELL_VARS}>
         <AppSidebar />
         <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Keyed by path: every page enters with the same short fade-up. */}
-          <div key={pathname} className="flex min-h-0 flex-1 animate-page flex-col">
-            <Suspense fallback={<PageSkeleton kind={skeleton} />}>
+          {/* Keyed by path: every page enters with the same short fade-up. Tabs of one hub share the key, so
+              switching a tab doesn't fade the same header and tab row out and in again. */}
+          <div key={handle?.hub ?? pathname} className="flex min-h-0 flex-1 animate-page flex-col">
+            <Suspense fallback={<PageSkeleton kind={skeleton} filters={handle?.filters} />}>
               <Outlet />
             </Suspense>
           </div>

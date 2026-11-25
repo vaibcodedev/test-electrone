@@ -4,19 +4,21 @@ import type { QuickAddTarget } from '@shared/domain/system'
 
 /**
  * Element to focus when the palette, quick add or the shortcuts help closes. They open from a hotkey, not a
- * Radix trigger, so Radix had nothing to return focus to and it fell to <body>. Opening one from inside
- * another dialog (quick add or the shortcuts help from the palette) keeps the element saved by the first one.
+ * Radix trigger, so Radix had nothing to return focus to and it fell to <body>. Opening one of them from
+ * inside another (quick add or the help from the palette) keeps the element saved by the first one; focus
+ * inside any other dialog (a card sheet) is itself the origin, so closing the help returns into that sheet.
  */
 function focusOrigin(prev: HTMLElement | null): HTMLElement | null {
   const el = document.activeElement
   if (!(el instanceof HTMLElement) || el === document.body) return null
-  return el.closest('[role="dialog"]') ? prev : el
+  return el.closest('[data-hotkey-dialog]') ? prev : el
 }
 
 /**
  * `onCloseAutoFocus` for the palette, quick add and the shortcuts help: focus goes back to where it was
- * before they opened. When another of these dialogs took over (quick add or the help from the palette),
- * that one manages focus itself. A palette pick that navigates clears `returnFocus` first.
+ * before they opened, once — the saved element is dropped right after. When another of these dialogs took
+ * over (quick add or the help from the palette), that one manages focus itself. A palette pick that
+ * navigates drops the element first (`dropReturnFocus`).
  */
 export function restoreFocus(e: Event): void {
   const { returnFocus, paletteOpen, quickAddOpen, shortcutsOpen } = useUi.getState()
@@ -25,6 +27,20 @@ export function restoreFocus(e: Event): void {
     e.preventDefault()
     returnFocus.focus()
   }
+  useUi.setState({ returnFocus: null })
+}
+
+/** Props for the DialogContent of a dialog opened by a hotkey (palette, quick add, shortcuts help). */
+export const HOTKEY_DIALOG_PROPS = { 'data-hotkey-dialog': '', onCloseAutoFocus: restoreFocus }
+
+/**
+ * The question asked when a record in edit mode is closed with changes. `fresh` — a record created a moment
+ * ago and never saved: «Не зберігати» removes it instead of rolling back.
+ */
+export interface CloseAsk {
+  keep: () => void
+  discard: () => void
+  fresh?: boolean
 }
 
 /** Client-only UI state. Server data lives in TanStack Query, not here. */
@@ -41,6 +57,8 @@ interface UiState {
   setQuickAddOpen: (open: boolean, target?: QuickAddTarget, text?: string) => void
   /** Where focus goes back after the palette / quick add / shortcuts help closes (see focusOrigin). */
   returnFocus: HTMLElement | null
+  /** Leaving by a palette pick: focus must not jump back into the field the palette was opened from. */
+  dropReturnFocus: () => void
   /** Per-module view preferences, e.g. { boards: 'kanban' }. */
   views: Record<string, string>
   setView: (module: string, view: string) => void
@@ -56,9 +74,9 @@ interface UiState {
   /** Ids playing the leave animation right before they are removed (list rows, detail pane). */
   leaving: Record<string, true>
   setLeaving: (id: string, on: boolean) => void
-  /** Pending «Залишити зміни?» question (CloseConfirmHost). */
-  closeAsk: { keep: () => void; discard: () => void } | null
-  askClose: (ask: { keep: () => void; discard: () => void } | null) => void
+  /** Pending «Зберегти зміни?» question (CloseConfirmHost). */
+  closeAsk: CloseAsk | null
+  askClose: (ask: CloseAsk | null) => void
   /** Records created a moment ago: their detail pane opens straight in edit mode. */
   justCreated: Record<string, true>
   markCreated: (id: string) => void
@@ -84,6 +102,7 @@ export const useUi = create<UiState>()(
             : { quickAddOpen }
         ),
       returnFocus: null,
+      dropReturnFocus: () => set({ returnFocus: null }),
       views: {},
       setView: (module, view) => set((s) => ({ views: { ...s.views, [module]: view } })),
       platformDialogOpen: false,

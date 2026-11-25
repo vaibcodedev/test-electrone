@@ -44,8 +44,9 @@ export function GuidePage(): ReactElement {
           </Button>
         }
       />
-      <div className="flex min-h-0 flex-1 gap-6 px-8 pb-8">
-        <nav className="w-56 shrink-0 overflow-y-auto" aria-label="Зміст">
+      {/* No bottom padding here: the text scrolls to the panel's edge instead of being cut 32px above it. */}
+      <div className="flex min-h-0 flex-1 gap-6 px-8">
+        <nav className="w-56 shrink-0 overflow-y-auto pb-8" aria-label="Зміст">
           <ItemGroup className="gap-0.5">
             {list.map((s) => (
               <Item key={s.id} asChild size="xs" variant={active === s.id ? 'active' : 'default'} className="rounded-full px-3">

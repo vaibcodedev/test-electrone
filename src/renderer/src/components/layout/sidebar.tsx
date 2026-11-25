@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, type ReactElement, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import { Archive, ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
@@ -48,11 +48,17 @@ function NotchButton({
   keys: string[]
   onClick: () => void
   children: ReactNode
-}) {
+}): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button size="icon" variant="soft" className="bg-card hover:scale-105 hover:bg-card" aria-label={label} onClick={onClick}>
+        <Button
+          size="icon"
+          variant="soft"
+          className="bg-card hover:scale-105 hover:bg-card"
+          aria-label={label}
+          onClick={onClick}
+        >
           {children}
         </Button>
       </TooltipTrigger>
@@ -69,7 +75,7 @@ function NotchButton({
 }
 
 /** Lime identity card with the notch holding quick actions — the app's signature element. */
-function IdentityCard() {
+function IdentityCard(): ReactElement {
   const { data: settings } = useApi('settings', 'get')
   const { data: dash } = useApi('app', 'dashboard')
   const setPaletteOpen = useUi((s) => s.setPaletteOpen)
@@ -84,24 +90,42 @@ function IdentityCard() {
         <NotchButton label="Знайти всюди" keys={['Ctrl', 'K']} onClick={() => setPaletteOpen(true)}>
           <Search />
         </NotchButton>
-        <NotchButton label="Швидко додати" keys={['Ctrl', 'N']} onClick={() => setQuickAddOpen(true)}>
+        <NotchButton
+          label="Швидко додати"
+          keys={['Ctrl', 'N']}
+          onClick={() => setQuickAddOpen(true)}
+        >
           <Plus />
         </NotchButton>
       </div>
       <div className="flex items-center gap-2 pr-20">
         <Avatar className="size-8">
-          <AvatarFallback className="bg-lime-foreground text-body font-semibold text-lime">V</AvatarFallback>
+          <AvatarFallback className="bg-lime-foreground text-body font-semibold text-lime">
+            V
+          </AvatarFallback>
         </Avatar>
         <div className="leading-tight">
           <div className="text-body font-semibold">Vault</div>
           <div className="text-meta opacity-65">{greeting()}</div>
         </div>
       </div>
-      <div className="font-display mt-3 truncate text-stat-sm leading-tight">{name || 'Ваша база'}</div>
+      <div className="font-display mt-3 truncate text-stat-sm leading-tight">
+        {name || 'Ваша база'}
+      </div>
       <div className="mt-3">
-        {/* A bar with nothing to count shows nothing (§7): only the caption, a little lower to keep the height. */}
-        {cards.length > 0 && <SegmentBar value={done} total={cards.length} tone="ink" segments={Math.min(cards.length, 8)} />}
-        <div className={cn('flex justify-between text-meta opacity-70', cards.length > 0 ? 'mt-1.5' : 'mt-3')}>
+        {/* A bar with nothing to count shows nothing (§7). An empty stub of the bar's height keeps the card as tall,
+            so the whole sidebar doesn't shift when the first task appears or the last one goes. */}
+        {cards.length > 0 ? (
+          <SegmentBar
+            value={done}
+            total={cards.length}
+            tone="ink"
+            segments={Math.min(cards.length, 8)}
+          />
+        ) : (
+          <div className="h-1.5" aria-hidden />
+        )}
+        <div className="mt-1.5 flex justify-between text-meta opacity-70">
           <span>
             {cards.length
               ? `Сьогодні ${done} з ${cards.length} ${plural(cards.length, ['завдання', 'завдань', 'завдань'])}`
@@ -114,22 +138,39 @@ function IdentityCard() {
   )
 }
 
-function NavCount({ type }: { type?: EntityType }) {
+function NavCount({ type }: { type?: EntityType }): ReactElement | null {
   const { data: dash } = useApi('app', 'dashboard')
   const n = type ? dash?.counts?.[type] : undefined
   if (!n) return null
-  return <span className="ml-auto text-meta font-normal text-muted-foreground tabular-nums">{n}</span>
+  return (
+    <span className="ml-auto text-meta font-normal text-muted-foreground tabular-nums">{n}</span>
+  )
 }
 
 /** One collapsible hub (shadcn Collapsible + SidebarMenuSub). */
-function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; search: string }) {
+function HubGroup({
+  hub,
+  pathname,
+  search
+}: {
+  hub: NavHub
+  pathname: string
+  search: string
+}): ReactElement {
   const navigate = useNavigate()
   const open = useUi((s) => s.openHubs[hub.id] ?? false)
   const setHubOpen = useUi((s) => s.setHubOpen)
   const setPlatformDialog = useUi((s) => s.setPlatformDialogOpen)
-  const { data: platformList = [] } = useApi('platforms', 'list', undefined, { enabled: !!hub.platforms })
+  const { data: platformList = [] } = useApi('platforms', 'list', undefined, {
+    enabled: !!hub.platforms
+  })
   // Archived platforms are hidden from the menu but must stay reachable (restore lives on /freelance#archived).
-  const { data: allPlatforms = [] } = useApi('platforms', 'list', { includeArchived: true }, { enabled: !!hub.platforms })
+  const { data: allPlatforms = [] } = useApi(
+    'platforms',
+    'list',
+    { includeArchived: true },
+    { enabled: !!hub.platforms }
+  )
   const archivedCount = allPlatforms.length - platformList.length
   const activeHub = hubOf(pathname, search) === hub.id
   // Items light up only in the hub that owns the location: cover-letter templates belong to «Пошук роботи»,
@@ -143,34 +184,64 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
   // Plain Link + explicit aria-current: NavLink marks by pathname alone, so on cover-letter templates both
   // «Фриланс → Шаблони» and «Пошук роботи → Шаблони листів» were the current page for a screen reader.
   const current = (path: string): 'page' | undefined => (isActive(path) ? 'page' : undefined)
+  const atOverview = !!hub.overview && pathname === hub.overview
+  const hubClass = cn('font-medium', activeHub && !open && 'bg-sidebar-accent')
+  const title = (
+    <>
+      {/* On the active (inverted) pill the icon takes the pill's text colour, otherwise it vanished. */}
+      <hub.icon
+        className={
+          atOverview ? 'text-current' : activeHub ? 'text-foreground' : 'text-muted-foreground'
+        }
+      />
+      <span>{hub.title}</span>
+    </>
+  )
 
   return (
     <Collapsible open={open} onOpenChange={(o) => setHubOpen(hub.id, o)} asChild>
       <SidebarMenuItem>
-        <SidebarMenuButton
-          isActive={!!hub.overview && pathname === hub.overview}
-          className={cn('font-medium', activeHub && !open && 'bg-sidebar-accent')}
-          onClick={() => {
-            if (hub.overview) navigate(hub.overview)
-            setHubOpen(hub.id, hub.overview ? true : !open)
-          }}
-        >
-          {/* On the active (inverted) pill the icon takes the pill's text colour, otherwise it vanished. */}
-          <hub.icon
-            className={
-              hub.overview && pathname === hub.overview ? 'text-current' : activeHub ? 'text-foreground' : 'text-muted-foreground'
-            }
-          />
-          <span>{hub.title}</span>
-        </SidebarMenuButton>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuAction
-            className="data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
-            aria-label={`${open ? 'Згорнути' : 'Розгорнути'} «${hub.title}»`}
-          >
-            <ChevronRight />
-          </SidebarMenuAction>
-        </CollapsibleTrigger>
+        {hub.overview ? (
+          <>
+            <SidebarMenuButton
+              isActive={atOverview}
+              aria-current={atOverview ? 'page' : undefined}
+              className={hubClass}
+              onClick={() => {
+                navigate(hub.overview!)
+                setHubOpen(hub.id, true)
+              }}
+            >
+              {title}
+            </SidebarMenuButton>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuAction
+                className="data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
+                aria-label={`${open ? 'Згорнути' : 'Розгорнути'} «${hub.title}»`}
+              >
+                <ChevronRight />
+              </SidebarMenuAction>
+            </CollapsibleTrigger>
+          </>
+        ) : (
+          <>
+            {/* No overview: the title itself folds the hub (aria-expanded from Radix), one Tab stop instead of
+                two doing the same; the chevron only shows the state. */}
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton className={hubClass}>{title}</SidebarMenuButton>
+            </CollapsibleTrigger>
+            <SidebarMenuAction
+              asChild
+              aria-hidden
+              data-state={open ? 'open' : 'closed'}
+              className="pointer-events-none data-[state=open]:[&>svg]:rotate-90 [&>svg]:transition-transform"
+            >
+              <span>
+                <ChevronRight />
+              </span>
+            </SidebarMenuAction>
+          </>
+        )}
         <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
           <SidebarMenuSub className="mr-0 gap-0.5 pr-0">
             {hub.platforms &&
@@ -180,7 +251,10 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
                   <SidebarMenuSubItem key={p.id}>
                     <SidebarMenuSubButton asChild isActive={isActive(path)}>
                       <Link to={path} aria-current={current(path)}>
-                        <span className="size-2 shrink-0 rounded-full" style={{ background: p.color ?? 'var(--muted-foreground)' }} />
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ background: p.color ?? 'var(--muted-foreground)' }}
+                        />
                         <span className="truncate" title={p.name}>
                           {p.name}
                         </span>
@@ -193,7 +267,11 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton asChild>
                   {/* An action, not one more platform: verb label and muted colour over the sub-button's own. */}
-                  <button type="button" className="w-full text-muted-foreground!" onClick={() => setPlatformDialog(true)}>
+                  <button
+                    type="button"
+                    className="w-full text-muted-foreground!"
+                    onClick={() => setPlatformDialog(true)}
+                  >
                     <Plus className="text-muted-foreground!" />
                     <span>Додати платформу</span>
                   </button>
@@ -232,7 +310,7 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
 }
 
 /** App navigation: shadcn Sidebar with collapsible hubs (one nesting level). */
-export function AppSidebar() {
+export function AppSidebar(): ReactElement {
   const { pathname, search } = useLocation()
   const trashBump = useUi((s) => s.trashBump)
   const setHubOpen = useUi((s) => s.setHubOpen)
@@ -288,12 +366,15 @@ export function AppSidebar() {
                   <Button
                     asChild
                     variant={active ? 'soft' : 'ghost'}
-                    className={cn('flex-1 hover:text-foreground', active ? 'text-foreground' : 'text-muted-foreground')}
+                    className={cn(
+                      'flex-1 hover:text-foreground',
+                      active ? 'text-foreground' : 'text-muted-foreground'
+                    )}
                   >
                     <NavLink to={b.to} aria-label={b.label}>
                       {/* Trash icon replays a short "received" motion each time something is deleted. */}
                       {b.to === '/trash' && trashBump > 0 ? (
-                        <b.icon key={trashBump} className="animate-trash-bump text-foreground" />
+                        <b.icon key={trashBump} className="animate-trash-bump" />
                       ) : (
                         <b.icon />
                       )}

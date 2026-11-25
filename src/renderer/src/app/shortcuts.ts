@@ -1,3 +1,5 @@
+import { DEFAULT_QUICK_ADD_SHORTCUT } from '@shared/domain/system'
+
 /**
  * Single source of truth for keyboard shortcuts: the global handler (use-global-shortcuts.ts)
  * and the help dialog (Ctrl+/) both read from here.
@@ -16,8 +18,8 @@ export interface ShortcutGroup {
   items: ShortcutDef[]
 }
 
-/** Default global quick-add accelerator (Electron syntax); the user's own one is in settings.quickAddShortcut. */
-export const DEFAULT_QUICK_ADD = 'CommandOrControl+Shift+Space'
+/** Default global quick-add accelerator (shared with main); the user's own one is in settings.quickAddShortcut. */
+export const DEFAULT_QUICK_ADD = DEFAULT_QUICK_ADD_SHORTCUT
 
 /** Electron accelerator → display keys: 'CommandOrControl+Shift+Space' → ['Ctrl', 'Shift', 'Space']. */
 export function accelToKeys(accel: string): string[] {
@@ -49,7 +51,10 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
       items: [
         { keys: ['Ctrl', 'K'], label: 'Знайти будь-що' },
         { keys: ['Ctrl', 'N'], label: 'Швидко додати' },
-        { keys: accelToKeys(quickAddGlobal), label: 'Швидко додати з будь-якої програми (навіть із трею)' },
+        {
+          keys: accelToKeys(quickAddGlobal),
+          label: 'Швидко додати з будь-якої програми (навіть із трею)'
+        },
         { keys: ['Ctrl', ','], label: 'Налаштування' },
         { keys: ['Ctrl', '/'], label: 'Ця довідка (або ?)' },
         { keys: ['Alt', '1…9'], label: 'Розділи в порядку бічної панелі' },
@@ -63,22 +68,27 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
         { keys: ['/'], label: 'Перейти до пошуку в розділі' },
         { keys: ['E'], label: 'Редагувати відкритий запис' },
         { keys: ['Esc'], label: 'Вийти з редагування / закрити запис' },
-        { keys: ['←', '→'], label: 'Календар: попередній / наступний період' },
-        { keys: ['T'], label: 'Календар: до сьогодні' }
+        { keys: ['←', '→'], label: 'Календар, підсумки тижня: попередній / наступний період' },
+        { keys: ['T'], label: 'Календар, підсумки тижня: до поточного' }
       ]
     },
     {
       title: 'Перейти: G, потім літера',
-      items: Object.entries(GO_TO).map(([k, v]) => ({ keys: ['G', k.toUpperCase()], label: v.label, sequence: true }))
+      items: Object.entries(GO_TO).map(([k, v]) => ({
+        keys: ['G', k.toUpperCase()],
+        label: v.label,
+        sequence: true
+      }))
     },
     {
-      title: 'Повторення (англійська, питання)',
+      // Grades of both trainers: words (english/review-parts.tsx) / interview questions (jobs/practice-page.tsx).
+      title: 'Повторення слів і тренажер питань',
       items: [
         { keys: ['Пробіл'], label: 'Показати відповідь' },
-        { keys: ['1'], label: 'Не згадав' },
+        { keys: ['1'], label: 'Не згадали / Не вдалося' },
         { keys: ['2'], label: 'Насилу' },
-        { keys: ['3'], label: 'Згадав' },
-        { keys: ['4'], label: 'Легко' },
+        { keys: ['3'], label: 'Згадали / Добре' },
+        { keys: ['4'], label: 'Легко / Впевнено' },
         { keys: ['Esc'], label: 'Вийти' }
       ]
     },

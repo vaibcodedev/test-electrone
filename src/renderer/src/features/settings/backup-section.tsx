@@ -8,7 +8,14 @@ import { rangesOf } from '@/lib/limits'
 import { NumberInput } from '@/components/common/number-input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import { SettingsRow, SettingsSection } from './section'
 
 const RANGES = rangesOf(settingsSchema)
@@ -38,7 +45,13 @@ export function BackupSection({
         label="Автобекап раз на день"
         hint={info?.lastBackupAt ? `Останній: ${fmtRelative(info.lastBackupAt)}` : 'Ще не робився'}
       >
-        {(id) => <Switch id={id} checked={settings.autoBackup} onCheckedChange={(autoBackup) => set({ autoBackup })} />}
+        {(id) => (
+          <Switch
+            id={id}
+            checked={settings.autoBackup}
+            onCheckedChange={(autoBackup) => set({ autoBackup })}
+          />
+        )}
       </SettingsRow>
       <SettingsRow label="Скільки копій зберігати">
         {(id) => (
@@ -54,17 +67,28 @@ export function BackupSection({
         )}
       </SettingsRow>
       <div className="flex flex-wrap gap-2 pt-1">
+        {/* subtle, not lime: settings have no main action, and the screen keeps one accent (§1). */}
         <Button
-          variant="lime"
+          variant="subtle"
           disabled={busy}
-          onClick={() => create.mutate({ saveAs: false }, { onSuccess: (r) => r && toast.success('Бекап створено') })}
+          onClick={() =>
+            create.mutate(
+              { saveAs: false },
+              { onSuccess: (r) => r && toast.success('Бекап створено') }
+            )
+          }
         >
           <Archive /> Зробити бекап зараз
         </Button>
         <Button
           variant="outline"
           disabled={busy}
-          onClick={() => create.mutate({ saveAs: true }, { onSuccess: (r) => r && toast.success('Бекап збережено') })}
+          onClick={() =>
+            create.mutate(
+              { saveAs: true },
+              { onSuccess: (r) => r && toast.success('Бекап збережено') }
+            )
+          }
         >
           <Download /> Зберегти у файл
         </Button>
@@ -91,8 +115,12 @@ export function BackupSection({
                     <span className="truncate">{b.fileName}</span>
                   </span>
                 </TableCell>
-                <TableCell className="w-20 text-right text-muted-foreground">{fmtBytes(b.size)}</TableCell>
-                <TableCell className="w-32 text-right text-muted-foreground">{fmtDateTime(b.createdAt)}</TableCell>
+                <TableCell className="w-20 text-right text-muted-foreground">
+                  {fmtBytes(b.size)}
+                </TableCell>
+                <TableCell className="w-32 text-right text-muted-foreground">
+                  {fmtDateTime(b.createdAt)}
+                </TableCell>
                 <TableCell className="w-28 text-right">
                   <Button
                     variant="ghost"

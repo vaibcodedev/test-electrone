@@ -1,12 +1,28 @@
-import { Fragment, lazy, type ComponentType, type ReactNode } from 'react'
-import { createHashRouter, useParams } from 'react-router'
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
+import { createHashRouter } from 'react-router'
 import { AppShell } from '@/components/layout/app-shell'
 import { QuickAddWindow } from '@/features/quick-add'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
 import { NotFoundPage, RouteError } from '@/features/route-error'
+import { KeyedById } from './keyed-by-id'
+import type { SkeletonFilters, SkeletonKind } from '@/components/common/page-skeleton'
+
+/**
+ * What a route tells the shell before its chunk arrives: the skeleton kind, the filter row of a list/grid page
+ * (chip stubs, TagFilter) so the fallback has the page's shape, and `hub` — tabs of one section (FinanceNav)
+ * share it, so switching a tab doesn't replay the page entrance over the same header.
+ */
+export interface RouteHandle {
+  skeleton: SkeletonKind
+  filters?: SkeletonFilters
+  hub?: string
+}
 
 /** Lazy-load a named export so each module is its own chunk. */
-function page<M extends Record<string, unknown>>(loader: () => Promise<M>, name: keyof M) {
+function page<M extends Record<string, unknown>>(
+  loader: () => Promise<M>,
+  name: keyof M
+): LazyExoticComponent<ComponentType> {
   return lazy(async () => ({ default: (await loader())[name] as ComponentType }))
 }
 
@@ -62,15 +78,6 @@ const TrashPage = page(() => import('@/features/trash-page'), 'TrashPage')
 const SettingsPage = page(() => import('@/features/settings-page'), 'SettingsPage')
 const TagsPage = page(() => import('@/features/tags-page'), 'TagsPage')
 
-/**
- * Remounts a record page when only :id changes (/projects/A → /projects/B via a link or Ctrl+K):
- * otherwise edit mode, its snapshot and pending autosaves of A carried over to B.
- */
-function KeyedById({ children }: { children: ReactNode }) {
-  const { id } = useParams()
-  return <Fragment key={id}>{children}</Fragment>
-}
-
 export const router = createHashRouter([
   { path: '/quick-add', element: <QuickAddWindow />, errorElement: <RouteError /> },
   {
@@ -82,51 +89,183 @@ export const router = createHashRouter([
         errorElement: <RouteError />,
         children: [
           { index: true, element: <DashboardPage />, handle: { skeleton: 'dashboard' } },
-          { path: 'ideas', element: <IdeasPage />, handle: { skeleton: 'list' } },
+          {
+            path: 'ideas',
+            element: <IdeasPage />,
+            handle: { skeleton: 'list', filters: { chips: 5, tags: true } }
+          },
           { path: 'boards', element: <BoardsPage />, handle: { skeleton: 'grid' } },
           { path: 'boards/:id', element: <BoardPage />, handle: { skeleton: 'board' } },
           { path: 'cards/:id', element: <CardRedirect />, handle: { skeleton: 'board' } },
-          { path: 'claude', element: <ClaudePage />, handle: { skeleton: 'list' } },
-          { path: 'libraries', element: <LibrariesPage />, handle: { skeleton: 'grid' } },
-          { path: 'components', element: <ComponentsPage />, handle: { skeleton: 'grid' } },
+          {
+            path: 'claude',
+            element: <ClaudePage />,
+            handle: { skeleton: 'list', filters: { chips: 4, tags: true } }
+          },
+          {
+            path: 'libraries',
+            element: <LibrariesPage />,
+            handle: { skeleton: 'grid', filters: { chips: 4, tags: true } }
+          },
+          {
+            path: 'components',
+            element: <ComponentsPage />,
+            handle: { skeleton: 'grid', filters: { chips: 0, tags: true } }
+          },
           { path: 'components/:id', element: <ComponentPage />, handle: { skeleton: 'detail' } },
-          { path: 'designs', element: <DesignsPage />, handle: { skeleton: 'grid' } },
+          {
+            path: 'designs',
+            element: <DesignsPage />,
+            handle: { skeleton: 'grid', filters: { chips: 5, tags: true } }
+          },
           { path: 'designs/boards/:id', element: <MoodboardPage />, handle: { skeleton: 'grid' } },
-          { path: 'snippets', element: <SnippetsPage />, handle: { skeleton: 'grid' } },
-          { path: 'clients', element: <ClientsPage />, handle: { skeleton: 'list' } },
-          { path: 'clients/:id', element: <KeyedById><ClientPage /></KeyedById>, handle: { skeleton: 'detail' } },
-          { path: 'projects/:id', element: <KeyedById><ProjectPage /></KeyedById>, handle: { skeleton: 'detail' } },
-          { path: 'checklists', element: <ChecklistsPage />, handle: { skeleton: 'grid' } },
+          {
+            path: 'snippets',
+            element: <SnippetsPage />,
+            handle: { skeleton: 'grid', filters: { chips: 4, tags: true } }
+          },
+          {
+            path: 'clients',
+            element: <ClientsPage />,
+            handle: { skeleton: 'list', filters: { chips: 4 } }
+          },
+          {
+            path: 'clients/:id',
+            element: (
+              <KeyedById>
+                <ClientPage />
+              </KeyedById>
+            ),
+            handle: { skeleton: 'detail' }
+          },
+          {
+            path: 'projects/:id',
+            element: (
+              <KeyedById>
+                <ProjectPage />
+              </KeyedById>
+            ),
+            handle: { skeleton: 'detail' }
+          },
+          {
+            path: 'checklists',
+            element: <ChecklistsPage />,
+            handle: { skeleton: 'grid', filters: { chips: 2, tags: true } }
+          },
           { path: 'checklists/:id', element: <ChecklistPage />, handle: { skeleton: 'detail' } },
-          { path: 'fixes', element: <FixesPage />, handle: { skeleton: 'list' } },
-          { path: 'bookmarks', element: <BookmarksPage />, handle: { skeleton: 'list' } },
-          { path: 'english', element: <EnglishPage />, handle: { skeleton: 'grid' } },
+          {
+            path: 'fixes',
+            element: <FixesPage />,
+            handle: { skeleton: 'list', filters: { chips: 3, tags: true } }
+          },
+          {
+            path: 'bookmarks',
+            element: <BookmarksPage />,
+            handle: { skeleton: 'list', filters: { chips: 4, tags: true } }
+          },
+          {
+            path: 'english',
+            element: <EnglishPage />,
+            handle: { skeleton: 'grid', filters: { chips: 5, tags: true } }
+          },
           { path: 'english/review', element: <ReviewPage />, handle: { skeleton: 'focus' } },
           { path: 'calendar', element: <CalendarPage />, handle: { skeleton: 'calendar' } },
-          { path: 'freelance', element: <FreelanceOverviewPage />, handle: { skeleton: 'overview' } },
-          { path: 'freelance/p/:platformId', element: <PlatformPage />, handle: { skeleton: 'board' } },
-          { path: 'freelance/proposal/:id', element: <ProposalRedirect />, handle: { skeleton: 'board' } },
-          { path: 'freelance/templates', element: <TemplatesPage />, handle: { skeleton: 'list' } },
-          { path: 'freelance/portfolio', element: <PortfolioPage />, handle: { skeleton: 'grid' } },
-          { path: 'freelance/flags', element: <RedFlagsPage />, handle: { skeleton: 'list' } },
+          {
+            path: 'freelance',
+            element: <FreelanceOverviewPage />,
+            handle: { skeleton: 'overview' }
+          },
+          {
+            path: 'freelance/p/:platformId',
+            element: <PlatformPage />,
+            handle: { skeleton: 'board' }
+          },
+          {
+            path: 'freelance/proposal/:id',
+            element: <ProposalRedirect />,
+            handle: { skeleton: 'board' }
+          },
+          {
+            path: 'freelance/templates',
+            element: <TemplatesPage />,
+            handle: { skeleton: 'list', filters: { chips: 5 } }
+          },
+          {
+            path: 'freelance/portfolio',
+            element: <PortfolioPage />,
+            handle: { skeleton: 'grid', filters: { chips: 3 } }
+          },
+          {
+            path: 'freelance/flags',
+            element: <RedFlagsPage />,
+            handle: { skeleton: 'list', filters: { chips: 0 } }
+          },
           { path: 'freelance/goals', element: <GoalsPage />, handle: { skeleton: 'grid' } },
-          { path: 'freelance/calculator', element: <CalculatorPage />, handle: { skeleton: 'form' } },
-          { path: 'finance', element: <FinanceOverviewPage />, handle: { skeleton: 'overview' } },
-          { path: 'finance/income', element: <IncomePage />, handle: { skeleton: 'list' } },
-          { path: 'finance/expenses', element: <ExpensesPage />, handle: { skeleton: 'list' } },
-          { path: 'finance/withdrawals', element: <WithdrawalsPage />, handle: { skeleton: 'list' } },
-          { path: 'notes', element: <NotesPage />, handle: { skeleton: 'list' } },
-          { path: 'knowledge', element: <KnowledgeOverviewPage />, handle: { skeleton: 'overview' } },
+          {
+            path: 'freelance/calculator',
+            element: <CalculatorPage />,
+            handle: { skeleton: 'form' }
+          },
+          {
+            path: 'finance',
+            element: <FinanceOverviewPage />,
+            handle: { skeleton: 'overview', hub: 'finance' }
+          },
+          {
+            path: 'finance/income',
+            element: <IncomePage />,
+            handle: { skeleton: 'list', filters: { chips: 4 }, hub: 'finance' }
+          },
+          {
+            path: 'finance/expenses',
+            element: <ExpensesPage />,
+            handle: { skeleton: 'list', filters: { chips: 4 }, hub: 'finance' }
+          },
+          {
+            path: 'finance/withdrawals',
+            element: <WithdrawalsPage />,
+            handle: { skeleton: 'list', filters: { chips: 4 }, hub: 'finance' }
+          },
+          {
+            path: 'notes',
+            element: <NotesPage />,
+            handle: { skeleton: 'list', filters: { chips: 4, tags: true } }
+          },
+          {
+            path: 'knowledge',
+            element: <KnowledgeOverviewPage />,
+            handle: { skeleton: 'overview' }
+          },
           { path: 'jobs', element: <JobsOverviewPage />, handle: { skeleton: 'overview' } },
-          { path: 'jobs/applications', element: <ApplicationsPage />, handle: { skeleton: 'board' } },
+          {
+            path: 'jobs/applications',
+            element: <ApplicationsPage />,
+            handle: { skeleton: 'board' }
+          },
           { path: 'jobs/interviews', element: <InterviewsPage />, handle: { skeleton: 'list' } },
-          { path: 'jobs/companies', element: <CompaniesPage />, handle: { skeleton: 'list' } },
+          {
+            path: 'jobs/companies',
+            element: <CompaniesPage />,
+            handle: { skeleton: 'list', filters: { chips: 0 } }
+          },
           { path: 'jobs/resumes', element: <ResumesPage />, handle: { skeleton: 'grid' } },
-          { path: 'jobs/questions', element: <QuestionsPage />, handle: { skeleton: 'list' } },
-          { path: 'jobs/questions/practice', element: <PracticePage />, handle: { skeleton: 'focus' } },
+          {
+            path: 'jobs/questions',
+            element: <QuestionsPage />,
+            handle: { skeleton: 'list', filters: { chips: 3, tags: true } }
+          },
+          {
+            path: 'jobs/questions/practice',
+            element: <PracticePage />,
+            handle: { skeleton: 'focus' }
+          },
           { path: 'jobs/boards', element: <JobBoardsPage />, handle: { skeleton: 'list' } },
           { path: 'jobs/stats', element: <JobStatsPage />, handle: { skeleton: 'overview' } },
-          { path: 'dev', element: <DevProjectsPage />, handle: { skeleton: 'grid' } },
+          {
+            path: 'dev',
+            element: <DevProjectsPage />,
+            handle: { skeleton: 'grid', filters: { chips: 3 } }
+          },
           { path: 'dev/github', element: <GithubPage />, handle: { skeleton: 'list' } },
           { path: 'review', element: <WeeklyReviewPage />, handle: { skeleton: 'overview' } },
           { path: 'guide', element: <GuidePage />, handle: { skeleton: 'form' } },

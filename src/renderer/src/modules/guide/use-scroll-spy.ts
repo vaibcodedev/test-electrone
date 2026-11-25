@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useLocation } from 'react-router'
+import { scrollBehavior } from '@/lib/dom'
 
 /**
  * Table-of-contents state for a long scrolling page: the section in view is `active` (IntersectionObserver
@@ -44,15 +45,15 @@ export function useScrollSpy({
       if (!faqIds.has(id)) return
       openFaq(id)
       // After the collapsible opens, bring the answer into view.
-      requestAnimationFrame(() => scroller.current?.querySelector(`#${CSS.escape(target)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+      requestAnimationFrame(() => scroller.current?.querySelector(`#${CSS.escape(target)}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }))
     } else if (sectionIds.includes(target)) {
-      scroller.current?.querySelector(`#${CSS.escape(target)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      scroller.current?.querySelector(`#${CSS.escape(target)}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
     }
     // `active` follows by itself: the observer above sees the section scroll into view.
   }, [hash, faqIds, openFaq, sectionIds])
 
   const jump = (id: string): void => {
-    scroller.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    scroller.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
     setActive(id)
   }
 

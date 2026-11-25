@@ -12,7 +12,15 @@ import { PageSkeleton } from '@/components/common/page-skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from '@/components/ui/item'
 import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/settings-cards'
 import { SettingsRow, SettingsSection } from './settings/section'
 import { ThemePicker } from './settings/theme-picker'
@@ -25,7 +33,13 @@ const LIMITS = limitsOf(settingsSchema)
 /** Time the evening reminder starts with when it is switched on. */
 const DEFAULT_REMINDER = '20:00'
 
-const EXPORTS: { format: ExportFormat; title: string; hint: string; icon: typeof FileText; done: string }[] = [
+const EXPORTS: {
+  format: ExportFormat
+  title: string
+  hint: string
+  icon: typeof FileText
+  done: string
+}[] = [
   {
     format: 'markdown',
     title: 'Markdown',
@@ -33,7 +47,13 @@ const EXPORTS: { format: ExportFormat; title: string; hint: string; icon: typeof
     icon: FileText,
     done: 'Експортовано в Markdown'
   },
-  { format: 'json', title: 'JSON', hint: 'Один файл з усіма таблицями', icon: FileJson, done: 'Експортовано в JSON' }
+  {
+    format: 'json',
+    title: 'JSON',
+    hint: 'Один файл з усіма таблицями',
+    icon: FileJson,
+    done: 'Експортовано в JSON'
+  }
 ]
 
 export function SettingsPage(): ReactElement {
@@ -49,7 +69,8 @@ export function SettingsPage(): ReactElement {
     if (loaded && hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' })
   }, [hash, loaded])
 
-  if (!settings && isError) return <LoadError title="Не вдалося завантажити налаштування" onRetry={() => void refetch()} />
+  if (!settings && isError)
+    return <LoadError title="Не вдалося завантажити налаштування" onRetry={() => void refetch()} />
   if (!settings) return <PageSkeleton kind="form" />
   const set = (patch: Partial<Settings>): void => save.mutate(patch)
 
@@ -58,16 +79,18 @@ export function SettingsPage(): ReactElement {
       <PageHeader title="Налаштування" subtitle={info ? `Vault ${info.version}` : undefined} />
       <PageBody>
         <div className="flex max-w-4xl flex-col gap-3">
-          <SettingsSection id="you" title="Ви" hint="Імʼя показується в привітанні.">
+          <SettingsSection id="you" title="Ви" hint="Ім’я показується в привітанні.">
             <SettingsRow label="Як до вас звертатися">
               {(id) => (
                 <Input
                   id={id}
                   key={settings.userName}
                   defaultValue={settings.userName}
-                  placeholder="Наприклад, Олена"
+                  placeholder="Напр.: Олена"
                   maxLength={LIMITS.userName}
-                  onBlur={(e) => e.target.value !== settings.userName && set({ userName: e.target.value })}
+                  onBlur={(e) =>
+                    e.target.value !== settings.userName && set({ userName: e.target.value })
+                  }
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                   className="w-56"
                 />
@@ -79,8 +102,15 @@ export function SettingsPage(): ReactElement {
             <ThemePicker value={settings.theme} onChange={(theme) => set({ theme })} />
           </SettingsSection>
 
-          <SettingsSection id="system" title="Система" hint="Vault живе в треї й ловить швидкі думки з будь-якого вікна.">
-            <SettingsRow label="Швидке додавання" hint="Глобальна комбінація, працює навіть коли вікно згорнуте">
+          <SettingsSection
+            id="system"
+            title="Система"
+            hint="Vault живе в треї й ловить швидкі думки з будь-якого вікна."
+          >
+            <SettingsRow
+              label="Швидке додавання"
+              hint="Глобальна комбінація клавіш, працює навіть коли вікно згорнуте"
+            >
               <ShortcutInput
                 label="Швидке додавання"
                 value={settings.quickAddShortcut}
@@ -88,15 +118,42 @@ export function SettingsPage(): ReactElement {
               />
             </SettingsRow>
             <SettingsRow label="Запускати разом із Windows" hint="Працює у встановленій версії">
-              {(id) => <Switch id={id} checked={settings.launchAtLogin} onCheckedChange={(launchAtLogin) => set({ launchAtLogin })} />}
+              {(id) => (
+                <Switch
+                  id={id}
+                  checked={settings.launchAtLogin}
+                  onCheckedChange={(launchAtLogin) => set({ launchAtLogin })}
+                />
+              )}
             </SettingsRow>
-            <SettingsRow label="Стартувати згорнутим у трей" hint="Під час автозапуску вікно не відкривається">
-              {(id) => <Switch id={id} checked={settings.startHidden} onCheckedChange={(startHidden) => set({ startHidden })} />}
+            <SettingsRow
+              label="Запускати згорнутим у трей"
+              hint="Під час автозапуску вікно не відкривається"
+            >
+              {(id) => (
+                <Switch
+                  id={id}
+                  checked={settings.startHidden}
+                  onCheckedChange={(startHidden) => set({ startHidden })}
+                />
+              )}
             </SettingsRow>
-            <SettingsRow label="Закриття вікна згортає в трей" hint="Вийти повністю — через меню іконки в треї">
-              {(id) => <Switch id={id} checked={settings.closeToTray} onCheckedChange={(closeToTray) => set({ closeToTray })} />}
+            <SettingsRow
+              label="Закриття вікна згортає в трей"
+              hint="Вийти повністю — через меню іконки в треї"
+            >
+              {(id) => (
+                <Switch
+                  id={id}
+                  checked={settings.closeToTray}
+                  onCheckedChange={(closeToTray) => set({ closeToTray })}
+                />
+              )}
             </SettingsRow>
-            <SettingsRow label="Вечірнє нагадування про майданчики" hint="Якщо сьогодні не відмічено майданчики">
+            <SettingsRow
+              label="Вечірнє нагадування про майданчики вакансій"
+              hint="Якщо сьогодні не позначено майданчики"
+            >
               {(id) => (
                 <Switch
                   id={id}
@@ -113,7 +170,10 @@ export function SettingsPage(): ReactElement {
                     key={settings.jobReminderTime}
                     type="time"
                     defaultValue={settings.jobReminderTime}
-                    onBlur={(e) => e.target.value !== settings.jobReminderTime && set({ jobReminderTime: e.target.value })}
+                    onBlur={(e) =>
+                      e.target.value !== settings.jobReminderTime &&
+                      set({ jobReminderTime: e.target.value })
+                    }
                     className="w-28"
                   />
                 )}
@@ -121,9 +181,16 @@ export function SettingsPage(): ReactElement {
             )}
           </SettingsSection>
 
-          <SettingsSection id="data" title="Дані" hint="База й файли лежать в одній папці. У базі зберігаються лише шляхи до картинок.">
+          <SettingsSection
+            id="data"
+            title="Дані"
+            hint="База й файли лежать в одній папці. У базі зберігаються лише шляхи до картинок."
+          >
             {info && (
-              <SettingsRow label="Папка з даними" hint={`${info.dataDir} · база ${fmtBytes(info.dbSizeBytes)}`}>
+              <SettingsRow
+                label="Папка з даними"
+                hint={`${info.dataDir} · база ${fmtBytes(info.dbSizeBytes)}`}
+              >
                 <Button variant="soft" size="sm" onClick={() => api.settings.openDataDir()}>
                   <FolderOpen /> Відкрити папку
                 </Button>
@@ -140,7 +207,11 @@ export function SettingsPage(): ReactElement {
 
           <BackupSection settings={settings} info={info} set={set} />
 
-          <SettingsSection id="export" title="Експорт" hint="Дані ніколи не замкнені в застосунку: усе вивантажується у відкриті формати.">
+          <SettingsSection
+            id="export"
+            title="Експорт"
+            hint="Дані ніколи не замкнені в застосунку: усе вивантажується у відкриті формати."
+          >
             <ItemGroup className="gap-2">
               {EXPORTS.map((x) => (
                 <Item key={x.format} size="sm" className="bg-card">
@@ -155,8 +226,13 @@ export function SettingsPage(): ReactElement {
                     <Button
                       variant="soft"
                       size="sm"
+                      aria-label={`Експортувати в ${x.title}`}
                       disabled={exportData.isPending}
-                      onClick={() => exportData.mutate(x.format, { onSuccess: (path) => path && toast.success(x.done) })}
+                      onClick={() =>
+                        exportData.mutate(x.format, {
+                          onSuccess: (path) => path && toast.success(x.done)
+                        })
+                      }
                     >
                       Експортувати
                     </Button>
@@ -165,8 +241,8 @@ export function SettingsPage(): ReactElement {
               ))}
             </ItemGroup>
             <p className="text-caption text-muted-foreground">
-              Паролі з «Доступів» до експорту не потрапляють — вони зашифровані ключем Windows і розшифровуються лише на цьому
-              компʼютері.
+              Паролі з «Доступів» до експорту не потрапляють — вони зашифровані ключем Windows і
+              розшифровуються лише на цьому комп’ютері.
             </p>
           </SettingsSection>
 

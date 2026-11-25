@@ -7,12 +7,18 @@ import { QUICK_ADD_TARGETS, quickAddSchema, type QuickAddTarget } from '@shared/
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
+import { shortTitle } from '@/features/short-title'
 import { ENTITY_ICON } from '@/app/navigation'
-import { restoreFocus, useUi } from '@/stores/ui-store'
+import { HOTKEY_DIALOG_PROPS, useUi } from '@/stores/ui-store'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from '@/components/ui/input-group'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea
+} from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
@@ -28,6 +34,12 @@ const TARGET_LABEL: Record<QuickAddTarget, string> = {
   word: 'Слово',
   event: 'Подія'
 }
+
+/**
+ * The record type is a value, not a screen filter: a neutral selected chip, so the dialog keeps one accent
+ * (the send button is lime in the dark theme). Same tint as FilterChips tone="neutral".
+ */
+const TYPE_CHIP = 'on:bg-foreground/12 on:text-foreground on:font-medium on:focus-visible:ring-ring'
 
 const PLACEHOLDER: Record<QuickAddTarget, string> = {
   idea: 'Що спало на думку?',
@@ -72,8 +84,12 @@ export function QuickAddForm({
       {
         onSuccess: (created) => {
           const route = ENTITY_META[created.type].route(created.id)
+          const title = shortTitle(created.title)
+          // Same word as the chip it went with («Завдання», not «Картка»); «Claude» is a place, not a record.
           toast.success(
-            `Додано: ${ENTITY_META[created.type].label} — ${created.title}`,
+            target === 'claude'
+              ? `Додано в Claude: ${title}`
+              : `Додано: ${TARGET_LABEL[target]} — ${title}`,
             onOpen ? { action: { label: 'Відкрити', onClick: () => onOpen(route) } } : undefined
           )
           setText('')
@@ -101,7 +117,7 @@ export function QuickAddForm({
         {QUICK_ADD_TARGETS.map((t) => {
           const Icon = ENTITY_ICON[t]
           return (
-            <ToggleGroupItem key={t} value={t}>
+            <ToggleGroupItem key={t} value={t} className={TYPE_CHIP}>
               <Icon />
               {TARGET_LABEL[t]}
             </ToggleGroupItem>
@@ -179,10 +195,12 @@ export function QuickAddDialog(): ReactElement {
           e.preventDefault()
           ;(e.currentTarget as HTMLElement).querySelector('textarea')?.focus()
         }}
-        onCloseAutoFocus={restoreFocus}
+        {...HOTKEY_DIALOG_PROPS}
       >
         <DialogTitle className="font-display text-heading">Швидко додати</DialogTitle>
-        <DialogDescription className="sr-only">Enter зберігає, Tab змінює тип запису</DialogDescription>
+        <DialogDescription className="sr-only">
+          Enter зберігає, Tab змінює тип запису
+        </DialogDescription>
         <QuickAddForm
           key={`${target ?? 'default'}:${initialText ?? ''}`}
           initialTarget={target}
@@ -213,12 +231,18 @@ export function QuickAddWindow(): ReactElement {
       <div className="drag flex h-full flex-col rounded-[26px] bg-card p-5 shadow-2xl ring-1 ring-border">
         <div className="mb-3 flex items-center gap-2">
           <Avatar className="size-7">
-            <AvatarFallback className="bg-lime text-caption font-semibold text-lime-foreground">V</AvatarFallback>
+            <AvatarFallback className="bg-lime text-caption font-semibold text-lime-foreground">
+              V
+            </AvatarFallback>
           </Avatar>
           <span className="font-display text-heading">Швидко додати</span>
         </div>
         <div className="no-drag">
-          <QuickAddForm key={key} initialTarget={target} onDone={() => void api.app.closeQuickAdd()} />
+          <QuickAddForm
+            key={key}
+            initialTarget={target}
+            onDone={() => void api.app.closeQuickAdd()}
+          />
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { ArrowDownToLine, RefreshCw, Sparkles } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
 import { Button } from '@/components/ui/button'
@@ -10,16 +11,20 @@ import { Progress } from '@/components/ui/progress'
  * downloading → progress; downloaded → «Перезапустити й оновити»; found, auto-download off → «Завантажити».
  * Nothing for the other states, so it never takes room for nothing.
  */
-export function UpdateBanner() {
+export function UpdateBanner(): ReactElement | null {
   const { data: s } = useApi('updates', 'status')
   const install = useApiMutation('updates', 'install')
-  if (!s || (s.state !== 'downloading' && s.state !== 'ready' && s.state !== 'available')) return null
+  if (!s || (s.state !== 'downloading' && s.state !== 'ready' && s.state !== 'available'))
+    return null
 
   const downloading = s.state === 'downloading'
   const ready = s.state === 'ready'
   const Icon = downloading ? ArrowDownToLine : ready ? Sparkles : ArrowDownToLine
   return (
-    <Card className="mx-2 mb-2 animate-enter gap-3 rounded-[22px] bg-ink p-3 text-ink-foreground" role="status">
+    <Card
+      className="mx-2 mb-2 animate-enter gap-3 rounded-[22px] bg-ink p-3 text-ink-foreground"
+      role="status"
+    >
       <div className="flex items-center gap-2.5">
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-ink-foreground/10 text-ink-accent">
           <Icon className="size-4" />
@@ -40,7 +45,13 @@ export function UpdateBanner() {
           className="h-1.5 bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-lime"
         />
       ) : (
-        <Button variant="lime" size="sm" className="w-full" disabled={install.isPending} onClick={() => install.mutate(undefined)}>
+        <Button
+          variant="lime"
+          size="sm"
+          className="w-full"
+          disabled={install.isPending}
+          onClick={() => install.mutate(undefined)}
+        >
           {ready ? <RefreshCw /> : <ArrowDownToLine />}
           {ready ? 'Перезапустити й оновити' : 'Завантажити'}
         </Button>
