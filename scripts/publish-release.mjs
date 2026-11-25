@@ -5,7 +5,7 @@
  * Usage: GH_TOKEN=… node scripts/publish-release.mjs
  */
 import { readFileSync, existsSync, statSync } from 'fs'
-import { execSync } from 'child_process'
+import { execFileSync, execSync } from 'child_process'
 import { join } from 'path'
 
 const token = process.env.GH_TOKEN
@@ -36,7 +36,16 @@ const api = async (method, url, body, headers = {}) => {
 
 // The tag must point at the code that was built: the exact local commit, and it has to be on GitHub.
 // ('main' tagged whatever the remote branch was, often dozens of commits behind.)
-const sha = execSync('git rev-parse HEAD').toString().trim()
+// The release commit is the one its tag points to (the installer was built from it), not whatever HEAD is now:
+// commits made after `npm version` must not move the release or block it.
+const sha = (() => {
+  try {
+    // execFileSync, no shell: cmd.exe treats ^ as its escape character and mangled `tag^{commit}`.
+    return execFileSync('git', ['rev-parse', `${tag}^{commit}`], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return execSync('git rev-parse HEAD').toString().trim()
+  }
+})()
 if (!(await api('GET', `/commits/${sha}`))) {
   throw new Error(`Commit ${sha.slice(0, 7)} is not on GitHub yet: run \`git push\` first, then publish again.`)
 }
@@ -55,19 +64,34 @@ if (!release) {
   console.log(`created draft ${tag} at ${sha.slice(0, 7)}`)
 }
 
+// A 130 MB upload over a shaky line can stall («Upload body timed out», ECONNRESET): up to 4 tries per file, a
+// growing pause between them, and a half-uploaded asset of that name removed before each try.
+const removeAsset = async (name) => {
+  const fresh = (await api('GET', `/releases/${release.id}`)) ?? release
+  const old = fresh.assets.find((a) => a.name === name)
+  if (old) await api('DELETE', `/releases/assets/${old.id}`)
+}
 for (const file of files) {
   const name = file.split(/[\\/]/).pop()
-  const old = release.assets.find((a) => a.name === name)
-  if (old) await api('DELETE', `/releases/assets/${old.id}`)
   const size = statSync(file).size
-  process.stdout.write(`uploading ${name} (${(size / 1e6).toFixed(1)} MB)… `)
-  await api(
-    'POST',
-    `https://uploads.github.com/repos/${owner}/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(name)}`,
-    readFileSync(file),
-    { 'Content-Type': name.endsWith('.yml') ? 'text/yaml' : 'application/octet-stream', 'Content-Length': String(size) }
-  )
-  console.log('ok')
+  for (let attempt = 1; ; attempt++) {
+    await removeAsset(name)
+    process.stdout.write(`uploading ${name} (${(size / 1e6).toFixed(1)} MB)${attempt > 1 ? `, try ${attempt}` : ''}… `)
+    try {
+      await api(
+        'POST',
+        `https://uploads.github.com/repos/${owner}/${repo}/releases/${release.id}/assets?name=${encodeURIComponent(name)}`,
+        readFileSync(file),
+        { 'Content-Type': name.endsWith('.yml') ? 'text/yaml' : 'application/octet-stream', 'Content-Length': String(size) }
+      )
+      console.log('ok')
+      break
+    } catch (e) {
+      console.log(`failed: ${e.message.slice(0, 120)}`)
+      if (attempt >= 4) throw e
+      await new Promise((r) => setTimeout(r, attempt * 15_000))
+    }
+  }
 }
 if (release.draft) release = await api('PATCH', `/releases/${release.id}`, JSON.stringify({ draft: false }), { 'Content-Type': 'application/json' })
 console.log(`published ${release.html_url}`)
