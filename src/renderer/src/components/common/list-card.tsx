@@ -6,13 +6,15 @@ export function ListCard({
   title,
   action,
   children,
-  className
+  className,
+  contentClassName
 }: {
   title: string
   /** Usually a `subtle size="xs"` transition to the section. */
   action?: ReactNode
   children: ReactNode
   className?: string
+  contentClassName?: string
 }): ReactElement {
   return (
     <Card className={className}>
@@ -20,7 +22,7 @@ export function ListCard({
         <CardTitle>{title}</CardTitle>
         {action && <CardAction>{action}</CardAction>}
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent className={contentClassName}>{children}</CardContent>
     </Card>
   )
 }
