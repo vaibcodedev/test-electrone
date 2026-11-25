@@ -18,6 +18,7 @@ import { InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { CodeEditor, detectLanguage, LANGUAGE_LABEL, type CodeLanguage } from '@/components/common/code'
 import { Button } from '@/components/ui/button'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { cn } from '@/lib/utils'
 import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
 
@@ -42,32 +43,13 @@ export function AutoTitle({
   return <InlineTitle value={draft} onChange={setDraft} placeholder={placeholder} maxLength={maxLength} />
 }
 
-export function AutoInput({
+function AutoInput({
   value,
   onSave,
   ...props
 }: { value: string; onSave: (value: string) => void } & Omit<ComponentProps<typeof Input>, 'value' | 'onChange'>) {
   const [draft, setDraft] = useAutosave(value, onSave)
   return <Input value={draft} onChange={(e) => setDraft(e.target.value)} {...props} />
-}
-
-/** Auto-growing textarea (no resize handle — field-sizing: content). */
-export function AutoTextarea({
-  value,
-  onSave,
-  className,
-  ...props
-}: { value: string; onSave: (value: string) => void } & Omit<ComponentProps<typeof Textarea>, 'value' | 'onChange'>) {
-  const [draft, setDraft] = useAutosave(value, onSave)
-  return (
-    <Textarea
-      rows={1}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      className={cn('min-h-9 px-3 py-2', className)}
-      {...props}
-    />
-  )
 }
 
 /** Markdown with its own label row (Текст / Перегляд switch sits next to the label, never over text). */
@@ -92,6 +74,7 @@ export function AutoMarkdown({
     <MarkdownField
       value={draft}
       onChange={setDraft}
+      defaultMode="edit"
       placeholder={placeholder}
       minHeight={minHeight}
       label={label}
@@ -118,7 +101,11 @@ export function AutoCode({
   placeholder?: string
   maxLength?: number
 }) {
+  const readOnly = useReadOnly()
   const [draft, setDraft] = useAutosave(value, onSave, 800)
+  // Reading an empty field: no dark box with a placeholder that reads as content — the Field hides itself
+  // (globals.css → empty fields) and the pane's «only a title» hint can show.
+  if (readOnly && !draft.trim()) return <div data-empty hidden />
   return (
     <CodeEditor
       value={draft}
@@ -184,6 +171,7 @@ export function TextareaBlock({
   onSave,
   maxLength,
   hint,
+  className,
   ...props
 }: { label: string; value: string; onSave: (value: string) => void; maxLength?: number; hint?: ReactNode } & Omit<
   ComponentProps<typeof Textarea>,
@@ -199,8 +187,8 @@ export function TextareaBlock({
         value={draft}
         maxLength={maxLength}
         onChange={(e) => setDraft(e.target.value)}
-        className={cn('min-h-9 px-3 py-2', props.className)}
         {...props}
+        className={cn('min-h-9 px-3 py-2', className)}
       />
     </Block>
   )
@@ -228,12 +216,13 @@ export function UrlBlock({
   hint?: ReactNode
 }) {
   const id = useId()
+  const readOnly = useReadOnly()
   const [draft, setDraft] = useAutosave(value, (v) => {
     if (isLikelyUrl(v)) onSave(normalizeUrl(v))
   })
   const invalid = !isLikelyUrl(draft)
   return (
-    <Block label={label} htmlFor={id} hint={hint} error={invalid ? URL_ERROR : undefined}>
+    <Block label={label} htmlFor={id} hint={hint} error={invalid && !readOnly ? URL_ERROR : undefined}>
       <div className="flex gap-2">
         <Input
           id={id}
@@ -317,10 +306,7 @@ export function EnumSelect<T extends string>({
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as T)}>
-      <SelectTrigger
-        aria-label={ariaLabel}
-        className={cn('w-full', className)}
-      >
+      <SelectTrigger aria-label={ariaLabel} className={cn('w-full', className)}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -334,7 +320,6 @@ export function EnumSelect<T extends string>({
   )
 }
 
-
 /** Counts items per key, for chip counters. */
 export function countBy<T, K extends string>(items: T[], key: (item: T) => K): Partial<Record<K, number>> {
   const out: Partial<Record<K, number>> = {}
@@ -346,8 +331,18 @@ export function countBy<T, K extends string>(items: T[], key: (item: T) => K): P
 }
 
 /**
- * «Схоже на JSON — Перемкнути» under a code editor: shown when the code looks like another of the
- * allowed languages than the selected one. Never switches silently; ✕ hides it for this record.
+ * Selected language → detections it already covers. TSX is a superset of JSX: a TSX component without type
+ * annotations is detected as JSX, but it renders fine, so «Схоже на JSX» would be a false alarm.
+ */
+const COMPATIBLE: Partial<Record<string, string[]>> = {
+  tsx: ['jsx', 'typescript', 'javascript'],
+  typescript: ['javascript'],
+  jsx: ['javascript']
+}
+
+/**
+ * «Схоже на JSON — Перемкнути» under a code editor: shown while editing when the code looks like another of
+ * the allowed languages than the selected one. Never switches silently; ✕ hides it for this record.
  */
 export function LanguageSuggestion<L extends string>({
   code,
@@ -360,10 +355,13 @@ export function LanguageSuggestion<L extends string>({
   languages: readonly L[]
   onSwitch: (language: L) => void
 }) {
+  // Switching changes the record, so it is offered only after «Редагувати».
+  const readOnly = useReadOnly()
   const [dismissed, setDismissed] = useState<string | null>(null)
   const detected = useMemo(() => detectLanguage(code), [code])
   const suggestion = detected && (languages as readonly string[]).includes(detected) ? (detected as L) : null
-  if (!suggestion || suggestion === language || dismissed === suggestion) return null
+  if (readOnly || !suggestion || suggestion === language || dismissed === suggestion) return null
+  if (COMPATIBLE[language]?.includes(suggestion)) return null
   return (
     <div className="flex animate-enter items-center gap-2 rounded-xl bg-foreground/5 py-1.5 pr-1.5 pl-3 text-caption">
       <span className="flex-1 text-muted-foreground">

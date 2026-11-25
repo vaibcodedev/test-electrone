@@ -13,8 +13,6 @@ import { VirtualGrid } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { STARTER } from './starter'
 
 /** Virtual size the live preview renders at; the tile scales it down to fit (same 16:10 aspect). */
@@ -52,7 +50,7 @@ function ScaledPreview({ item, onStatus }: { item: UiComponent; onStatus: (s: { 
 /**
  * Gallery tile, equal height for every component: fixed 16:10 preview, one-line description and a
  * tags row that are always reserved. Live preview when there is code; the user's screenshot only
- * when there's nothing to render. Render status is a tiny dot with a tooltip, not a loud pill.
+ * when there's nothing to render. Only a failed render is marked — a scaled-down error is unreadable.
  */
 function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void }) {
   const [status, setStatus] = useState<{ ok: boolean; error?: string } | null>(null)
@@ -77,23 +75,13 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
             </div>
           )}
         </div>
-        {hasCode && status && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                tabIndex={-1}
-                className={cn(
-                  'absolute top-2.5 left-2.5 size-2.5 rounded-full ring-2 ring-card',
-                  status.ok ? 'bg-success' : 'bg-warn'
-                )}
-                aria-label={status.ok ? 'Живе превʼю працює' : `Помилка рендеру: ${status.error ?? ''}`}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </TooltipTrigger>
-            <TooltipContent className="max-w-72">
-              {status.ok ? 'Живе превʼю працює' : `Помилка рендеру: ${status.error ?? 'невідома'}`}
-            </TooltipContent>
-          </Tooltip>
+        {hasCode && status && !status.ok && (
+          // A card under the tinted badge: it stays readable over a white, dark or grid preview.
+          <span className="absolute top-2.5 left-2.5 rounded-full bg-card">
+            <Badge variant="destructive" title={status.error}>
+              Помилка в коді
+            </Badge>
+          </span>
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 px-2.5 pt-3 pb-1.5">
@@ -139,9 +127,12 @@ export function ComponentsPage() {
           </Button>
         }
       >
-        <div className="flex items-center gap-2">
-          <SearchInput value={search} onChange={setSearch} placeholder="Пошук за назвою й кодом" className="w-80" />
-          <TagFilter value={tagId} onChange={setTagId} />
+        {/* Same place as on the other lists: «Мітка» and search on the right. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
+            <TagFilter value={tagId} onChange={setTagId} />
+            <SearchInput value={search} onChange={setSearch} placeholder="Пошук за назвою й кодом" className="w-64" />
+          </div>
         </div>
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
@@ -165,8 +156,8 @@ export function ComponentsPage() {
                 action={
                   !search &&
                   !tagId && (
-                    <Button variant="lime" onClick={() => void createNew()}>
-                      <Plus /> Створити перший
+                    <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
+                      <Plus /> Створити компонент
                     </Button>
                   )
                 }

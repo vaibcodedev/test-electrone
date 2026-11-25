@@ -13,7 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton, copyText } from '@/components/common/copy-button'
-import { CodeBlock } from '@/components/common/code'
+import { CodeBlock, LANGUAGE_LABEL } from '@/components/common/code'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
   AutoCode,
@@ -25,33 +25,22 @@ import {
   TextareaBlock,
   countBy
 } from '../claude/editor-kit'
+import { presentChips } from '../claude/chips'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 
-const LANGUAGE_LABEL: Record<SnippetLanguage, string> = {
-  typescript: 'TypeScript',
-  javascript: 'JavaScript',
-  tsx: 'TSX',
-  graphql: 'GraphQL',
-  liquid: 'Liquid',
-  css: 'CSS',
-  html: 'HTML',
-  json: 'JSON',
-  bash: 'Shell',
-  sql: 'SQL',
-  markdown: 'Markdown',
-  text: 'Текст'
-}
-
-/** Language dot colour (tokens only; docs/design-system.md → Цвета). */
+/**
+ * Language dot colour: chart tokens only — status colours (destructive, warn…) would read as a state
+ * (docs/design-system.md → Цвета).
+ */
 const LANGUAGE_COLOR: Record<SnippetLanguage, string> = {
-  typescript: 'var(--info)',
-  javascript: 'var(--warn)',
-  tsx: 'var(--info)',
-  graphql: 'var(--destructive)',
-  liquid: 'var(--success)',
-  css: 'var(--chart-2)',
+  typescript: 'var(--chart-2)',
+  javascript: 'var(--chart-3)',
+  tsx: 'var(--chart-2)',
+  graphql: 'var(--chart-1)',
+  liquid: 'var(--chart-4)',
+  css: 'var(--chart-4)',
   html: 'var(--chart-3)',
-  json: 'var(--chart-1)',
+  json: 'var(--chart-5)',
   bash: 'var(--muted-foreground)',
   sql: 'var(--chart-4)',
   markdown: 'var(--muted-foreground)',
@@ -77,7 +66,9 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
       }}
       headerExtra={
         <div className="flex items-center gap-2">
-          <CopyButton text={item.code} label="Скопіювати код" variant="lime" onCopied={() => markCopied.mutate(item.id)} />
+          {item.code.trim() && (
+            <CopyButton text={item.code} label="Скопіювати код" variant="lime" onCopied={() => markCopied.mutate(item.id)} />
+          )}
           {item.copyCount > 0 && (
             <Badge variant="soft" className="font-normal text-muted-foreground">
               скопійовано {item.copyCount} {plural(item.copyCount, ['раз', 'рази', 'разів'])}
@@ -224,7 +215,13 @@ export function SnippetsPage() {
   const create = useApiMutation('snippets', 'create')
 
   const counts = useMemo(() => countBy(all, (s) => s.language), [all])
-  const used = SNIPPET_LANGUAGES.filter((l) => counts[l])
+  const languageChips = presentChips(SNIPPET_LANGUAGES, counts, (l) => LANGUAGE_LABEL[l], language)
+  const filtered = !!(search || tagId || language)
+
+  const createNew = async (): Promise<void> => {
+    const created = await create.mutateAsync({ title: 'Новий сніпет', language: language ?? 'typescript' })
+    setOpen(created.id)
+  }
 
   return (
     <Page>
@@ -235,40 +232,33 @@ export function SnippetsPage() {
           <>
             <CopyJsonButton
               what="Сніпети"
-              disabled={!list.items.length}
-              getData={() => list.items.map((s) => ({ title: s.title, language: s.language, description: s.description, code: s.code }))}
+              disabled={!all.length}
+              // The whole filtered list, not just the loaded pages of the grid.
+              getData={() =>
+                all
+                  .filter((s) => !language || s.language === language)
+                  .map((s) => ({ title: s.title, language: s.language, description: s.description, code: s.code }))
+              }
             />
             <ImportButton kind="snippet" onImported={(id) => id && setOpen(id)} />
-            <Button
-              variant="lime"
-              onClick={async () => {
-                const created = await create.mutateAsync({ title: 'Новий сніпет', language: language ?? 'typescript' })
-                setOpen(created.id)
-              }}
-            >
+            <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
               <Plus /> Сніпет
             </Button>
           </>
         }
       >
-        <SearchInput
-          autoFocus
-          value={search}
-          onChange={setSearch}
-          placeholder="Шукайте за назвою, описом і самим кодом"
-          className="h-11 text-lead"
-        />
         <div className="flex flex-wrap items-center gap-2">
-          {used.length > 0 && (
+          {languageChips.length > 0 && (
             <FilterChips
               allLabel="Усі мови"
               value={language}
               onChange={setLanguage}
-              options={used.map((l) => ({ value: l, label: LANGUAGE_LABEL[l], count: counts[l] }))}
+              options={languageChips}
             />
           )}
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
+            <SearchInput value={search} onChange={setSearch} placeholder="Назва, опис або код" className="w-64" />
           </div>
         </div>
       </PageHeader>
@@ -293,11 +283,18 @@ export function SnippetsPage() {
                 !list.isLoading && (
                   <EmptyState
                     icon={CodeXml}
-                    title={search || tagId || language ? 'Нічого не знайшлося' : 'Сніпетів поки немає'}
+                    title={filtered ? 'Нічого не знайшлося' : 'Сніпетів поки немає'}
                     hint={
-                      search || tagId || language
+                      filtered
                         ? 'Пошук іде й по коду — спробуйте ім’я функції чи поле запиту.'
                         : 'Збережіть шматок коду, який пишете вже не вперше.'
+                    }
+                    action={
+                      !filtered && (
+                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
+                          <Plus /> Додати сніпет
+                        </Button>
+                      )
                     }
                   />
                 )

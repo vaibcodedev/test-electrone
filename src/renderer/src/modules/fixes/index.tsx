@@ -45,14 +45,15 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }) {
         onClose()
       }}
       headerExtra={
+        // Neutral like «Працює» in Claude: the record's lime is «Скопіювати» / «Зберегти», not a status.
         <Toggle
           size="sm"
-          variant="chip"
+          variant="outline"
           pressed={fix.resolved}
           onPressedChange={(resolved) => save({ resolved })}
-          aria-label="Вирішено"
+          className="font-normal"
         >
-          {fix.resolved ? <CircleCheck /> : <CircleDot />}
+          {fix.resolved ? <CircleCheck className="text-ink-accent" /> : <CircleDot />}
           {fix.resolved ? 'Вирішено' : 'Ще не вирішено'}
         </Toggle>
       }
@@ -122,6 +123,18 @@ export function FixesPage() {
   const create = useApiMutation('fixes', 'create')
 
   const openCount = all.filter((f) => !f.resolved).length
+  const resolvedCount = all.length - openCount
+  // Chips only for states that have records (plus the selected one): «0» chips over an empty list are noise.
+  const stateChips = [
+    { value: 'open' as const, label: 'Не вирішено', count: openCount },
+    { value: 'resolved' as const, label: 'Вирішено', count: resolvedCount }
+  ].filter((c) => c.count > 0 || c.value === resolved)
+  const filtered = !!(search || tagId || resolved)
+
+  const createNew = async (): Promise<void> => {
+    const created = await create.mutateAsync({ title: 'Нова помилка', resolved: false })
+    setOpen(created.id)
+  }
 
   return (
     <Page>
@@ -129,27 +142,15 @@ export function FixesPage() {
         title="Помилки й рішення"
         subtitle="Що зламалося і як полагодив — щоб удруге не шукати."
         actions={
-          <Button
-            variant="lime"
-            onClick={async () => {
-              const created = await create.mutateAsync({ title: 'Нова помилка', resolved: false })
-              setOpen(created.id)
-            }}
-          >
+          <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
             <Plus /> Помилка
           </Button>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <FilterChips
-            allLabel="Усі"
-            value={resolved}
-            onChange={setResolved}
-            options={[
-              { value: 'open', label: 'Не вирішено', count: openCount },
-              { value: 'resolved', label: 'Вирішено', count: all.length - openCount }
-            ]}
-          />
+          {stateChips.length > 0 && (
+            <FilterChips allLabel="Усі" value={resolved} onChange={setResolved} options={stateChips} />
+          )}
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
             <SearchInput value={search} onChange={setSearch} placeholder="Текст помилки або рішення" className="w-64" />
@@ -168,40 +169,59 @@ export function FixesPage() {
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
-              empty={!list.isLoading && (<EmptyState
-                  icon={Bug}
-                  title={search || tagId || resolved ? 'Нічого не знайшлося' : 'Помилок поки немає'}
-                  hint={
-                    search || tagId || resolved
-                      ? 'Вставте шматок тексту помилки в пошук — він шукає й по рішеннях.'
-                      : 'Запишіть наступну помилку разом із рішенням, і пошук знайде її за пів року.'
-                  }
-                />)}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={Bug}
+                    title={filtered ? 'Нічого не знайшлося' : 'Помилок поки немає'}
+                    hint={
+                      filtered
+                        ? 'Вставте шматок тексту помилки в пошук — він шукає й по рішеннях.'
+                        : 'Запишіть наступну помилку разом із рішенням, і пошук знайде її за пів року.'
+                    }
+                    action={
+                      !filtered && (
+                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
+                          <Plus /> Записати помилку
+                        </Button>
+                      )
+                    }
+                  />
+                )
+              }
               renderItem={(f) => {
                 const active = f.id === openId
                 const line = firstLine(f.errorText)
                 return (
                   <ListItem active={active} onClick={() => setOpen(f.id)}>
-                    {/* Height follows content: title line, optional error line, one meta line (badge · tags … time). */}
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span
-                        className={cn('size-2 shrink-0 rounded-full', f.resolved ? 'bg-success' : 'bg-destructive')}
-                        title={f.resolved ? 'Вирішено' : 'Не вирішено'}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-body font-medium">{f.title}</span>
-                    </div>
+                    {/* Height follows content: title line, optional error line, one meta line (status · place · tags … time).
+                        Only the unresolved state is marked: as a badge, not a coloured dot (docs/design-system.md → Чипы и строки). */}
+                    <div className="truncate text-body font-medium">{f.title}</div>
                     {line && (
-                      <div className={cn('mt-1 truncate pl-[18px] font-mono text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
+                      <div className={cn('mt-1 truncate font-mono text-meta', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {line}
                       </div>
                     )}
-                    <div className="mt-1.5 flex min-w-0 items-center gap-1.5 pl-[18px]">
+                    <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+                      {!f.resolved && (
+                        <Badge
+                          variant={active ? 'soft' : 'destructive'}
+                          className={cn('h-5 shrink-0', active && 'bg-ink-foreground/12 text-ink-foreground')}
+                        >
+                          Не вирішено
+                        </Badge>
+                      )}
                       {f.context && (
                         <Badge
                           variant="outline"
-                          className={cn('h-5 max-w-40 shrink-0 truncate', active && 'border-ink-foreground/20 text-ink-foreground')}
+                          title={f.context}
+                          className={cn(
+                            'h-5 max-w-40 min-w-0 shrink-0 justify-start',
+                            active && 'border-ink-foreground/20 text-ink-foreground'
+                          )}
                         >
-                          {f.context}
+                          {/* Badge centres and clips: the «…» needs its own truncating span. */}
+                          <span className="truncate">{f.context}</span>
                         </Badge>
                       )}
                       {!active && (

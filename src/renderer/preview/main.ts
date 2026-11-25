@@ -41,7 +41,8 @@ function post(status: { ok: boolean; error?: string }): void {
 }
 
 function showError(err: unknown): void {
-  const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+  // Only the message: «Error:» is English noise in a Ukrainian UI.
+  const msg = err instanceof Error ? err.message : String(err)
   errorEl.textContent = msg
   post({ ok: false, error: msg })
 }
@@ -95,6 +96,18 @@ function renderMessage(msg: RenderMessage): void {
   document.body.dataset.bg = msg.bg
   errorEl.textContent = ''
   try {
+    // No code yet is not an error: a quiet hint instead of a red block and a «Помилка» status.
+    if (!msg.code.trim()) {
+      root?.unmount()
+      root = null
+      rootEl.innerHTML = ''
+      const hint = document.createElement('p')
+      hint.className = 'vault-hint'
+      hint.textContent = 'Тут зʼявиться превʼю. Напишіть компонент з export default або виклик render(<X />).'
+      rootEl.append(hint)
+      post({ ok: true })
+      return
+    }
     if (msg.language === 'html') {
       root?.unmount()
       root = null
@@ -103,7 +116,7 @@ function renderMessage(msg: RenderMessage): void {
       return
     }
     const Component = evaluate(msg.code)
-    if (!Component) throw new Error('Нічого показати: додайте `export default function Demo()` або виклик render(<X />)')
+    if (!Component) throw new Error('Нічого показати. Додайте export default function Demo() або виклик render(<X />).')
     if (!root) {
       rootEl.innerHTML = ''
       root = ReactDOMClient.createRoot(rootEl)

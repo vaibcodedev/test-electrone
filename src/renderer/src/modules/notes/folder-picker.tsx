@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Check, ChevronsUpDown, Folder, FolderPlus, X } from 'lucide-react'
+import { noteInputSchema } from '@shared/domain/notes'
 import { useApi } from '@/lib/query'
+import { limitsOf } from '@/lib/limits'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -13,7 +15,10 @@ import {
   CommandItem,
   CommandList
 } from '@/components/ui/command'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+
+const FOLDER_MAX = limitsOf(noteInputSchema).folder
 
 /** Folder combobox: pick an existing folder or create one by typing (shadcn Popover + Command). */
 export function FolderPicker({ value, onChange }: { value: string; onChange: (folder: string) => void }) {
@@ -40,18 +45,23 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
             role="combobox"
             aria-expanded={open}
             disabled={readOnly}
-            className={cn('flex-1 justify-between font-normal', !value && 'text-muted-foreground', readOnly && 'pointer-events-none bg-transparent px-0 shadow-none disabled:opacity-100 [&>svg:last-child]:hidden')}
+            className={cn(
+              'min-w-0 flex-1 justify-between font-normal',
+              !value && 'text-muted-foreground',
+              readOnly &&
+                'pointer-events-none bg-transparent px-0 shadow-none disabled:opacity-100 has-[>svg]:px-0 [&>svg:last-child]:hidden'
+            )}
           >
             <span className="flex min-w-0 items-center gap-2">
               <Folder />
-              <span className="truncate">{value || (readOnly ? '—' : 'Без теки')}</span>
+              <span className="truncate">{value || 'Без теки'}</span>
             </span>
             <ChevronsUpDown className="opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 rounded-2xl p-0" align="start">
           <Command>
-            <CommandInput placeholder="Знайти або створити теку…" value={query} maxLength={100} onValueChange={setQuery} />
+            <CommandInput placeholder="Знайти або створити теку…" value={query} maxLength={FOLDER_MAX} onValueChange={setQuery} />
             <CommandList>
               <CommandEmpty>Тек поки немає</CommandEmpty>
               <CommandGroup>
@@ -73,10 +83,15 @@ export function FolderPicker({ value, onChange }: { value: string; onChange: (fo
           </Command>
         </PopoverContent>
       </Popover>
-      {value && (
-        <Button variant="soft" size="icon" aria-label="Прибрати з теки" onClick={() => onChange('')}>
-          <X />
-        </Button>
+      {value && !readOnly && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="soft" size="icon" aria-label="Прибрати з теки" onClick={() => onChange('')}>
+              <X />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Прибрати з теки</TooltipContent>
+        </Tooltip>
       )}
     </ButtonGroup>
   )

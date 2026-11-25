@@ -3,13 +3,10 @@ import { useState } from 'react'
 import { NotebookPen, Plus } from 'lucide-react'
 import { noteInputSchema, type Note, type NotePatch } from '@shared/domain/notes'
 import { limitsOf } from '@/lib/limits'
-
-const LIMITS = limitsOf(noteInputSchema)
-const NEW_TITLE = 'Нова нотатка'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { fmtRelative } from '@/lib/format'
+import { fmtRelative, mdPreview } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,17 +16,11 @@ import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenP
 import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
 import { FolderPicker } from './folder-picker'
 
+const LIMITS = limitsOf(noteInputSchema)
+const NEW_TITLE = 'Нова нотатка'
+
 /** Filter key for notes without a folder (backend matches folder === ''). */
 const NO_FOLDER = '__none__'
-
-function excerpt(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/[#>*_`~[\]()-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 140)
-}
 
 function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
   const update = useApiMutation('notes', 'update')
@@ -60,13 +51,13 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }) {
         </EntityAside>
       }
     >
-      <EditorStack key={note.id}>
+      <EditorStack>
         <AutoTitle value={note.title} onSave={(title) => save({ title })} placeholder="Назва нотатки" maxLength={LIMITS.title} />
         <AutoMarkdown
           label="Текст"
           value={note.body}
           onSave={(body) => save({ body })}
-          placeholder="Пишіть у Markdown: списки, посилання, ```код```"
+          placeholder="Пишіть у Markdown: заголовки, списки, посилання, блоки коду"
           maxLength={LIMITS.body}
           minHeight="320px"
         />
@@ -94,6 +85,18 @@ export function NotesPage() {
   const countIn = (f: string): number => all.filter((n) => n.folder === f).length
   const unfiled = countIn('')
   const filtered = !!(search || tagId || folder)
+  // The selected folder stays a chip even when it has just been emptied, so the active filter is visible.
+  const folderChips = [
+    ...folders.map((f) => ({ value: f, label: f, count: countIn(f) })),
+    ...(folder && folder !== NO_FOLDER && !folders.includes(folder) ? [{ value: folder, label: folder, count: 0 }] : []),
+    ...((folders.length && unfiled) || folder === NO_FOLDER ? [{ value: NO_FOLDER, label: 'Без теки', count: unfiled }] : [])
+  ]
+
+  // The server reuses an untouched empty draft (SoftRepository.insert), so this never piles up blank notes.
+  const createNew = async (): Promise<void> => {
+    const created = await create.mutateAsync({ title: NEW_TITLE, folder: folder && folder !== NO_FOLDER ? folder : '' })
+    setOpen(created.id)
+  }
 
   return (
     <Page>
@@ -101,33 +104,15 @@ export function NotesPage() {
         title="Нотатки"
         subtitle="Усе, що не про Claude: домовленості, процеси, чернетки думок."
         actions={
-          <Button
-            variant="lime"
-            onClick={async () => {
-              // An untouched blank note already exists → open it instead of piling up empty ones.
-              const blank = list.items.find((n) => n.title === NEW_TITLE && !n.body.trim())
-              if (blank) return setOpen(blank.id)
-              const created = await create.mutateAsync({
-                title: NEW_TITLE,
-                folder: folder && folder !== NO_FOLDER ? folder : ''
-              })
-              setOpen(created.id)
-            }}
-          >
+          <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
             <Plus /> Нотатка
           </Button>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <FilterChips
-            allLabel="Усі"
-            value={folder}
-            onChange={setFolder}
-            options={[
-              ...folders.map((f) => ({ value: f, label: f, count: countIn(f) })),
-              ...(folders.length && unfiled ? [{ value: NO_FOLDER, label: 'Без теки', count: unfiled }] : [])
-            ]}
-          />
+          {folderChips.length > 0 && (
+            <FilterChips allLabel="Усі" value={folder} onChange={setFolder} options={folderChips} />
+          )}
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
             <SearchInput value={search} onChange={setSearch} placeholder="Шукати в нотатках" className="w-64" />
@@ -146,18 +131,29 @@ export function NotesPage() {
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
-              empty={!list.isLoading && (<EmptyState
-                  icon={NotebookPen}
-                  title={filtered ? 'Нічого не знайшлося' : 'Нотаток поки немає'}
-                  hint={
-                    filtered
-                      ? 'Пошук іде за назвою й текстом нотаток.'
-                      : 'Створіть першу нотатку — розкласти по теках можна потім.'
-                  }
-                />)}
+              empty={
+                !list.isLoading && (
+                  <EmptyState
+                    icon={NotebookPen}
+                    title={filtered ? 'Нічого не знайшлося' : 'Нотаток поки немає'}
+                    hint={
+                      filtered
+                        ? 'Пошук іде за назвою й текстом нотаток.'
+                        : 'Створіть першу нотатку — розкласти по теках можна потім.'
+                    }
+                    action={
+                      !filtered && (
+                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
+                          <Plus /> Створити нотатку
+                        </Button>
+                      )
+                    }
+                  />
+                )
+              }
               renderItem={(n) => {
                 const active = n.id === openId
-                const text = excerpt(n.body)
+                const text = mdPreview(n.body)
                 return (
                   <ListItem active={active} onClick={() => setOpen(n.id)}>
                     <div className="truncate text-body font-medium">{n.title}</div>
@@ -171,9 +167,14 @@ export function NotesPage() {
                       {n.folder && (
                         <Badge
                           variant="outline"
-                          className={cn('h-5 max-w-40 shrink-0 truncate', active && 'border-ink-foreground/20 text-ink-foreground')}
+                          title={n.folder}
+                          className={cn(
+                            'h-5 max-w-40 min-w-0 shrink-0 justify-start',
+                            active && 'border-ink-foreground/20 text-ink-foreground'
+                          )}
                         >
-                          {n.folder}
+                          {/* Badge centres and clips: the «…» needs its own truncating span. */}
+                          <span className="truncate">{n.folder}</span>
                         </Badge>
                       )}
                       {!active && (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { BookOpen, GitBranch, Package, Plus } from 'lucide-react'
 import { LIBRARY_STATUSES, libraryInputSchema, type Library, type LibraryPatch, type LibraryStatus } from '@shared/domain/libraries'
@@ -13,6 +13,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { CopyButton } from '@/components/common/copy-button'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import {
   AutoMarkdown,
@@ -25,6 +26,7 @@ import {
   UrlBlock,
   countBy
 } from '../claude/editor-kit'
+import { presentChips } from '../claude/chips'
 import { ImportButton } from '@/components/common/import-dialog'
 
 const LIMITS = limitsOf(libraryInputSchema)
@@ -39,7 +41,8 @@ const STATUS_LABEL: Record<LibraryStatus, string> = {
 
 const STATUS_DOT: Record<LibraryStatus, string> = {
   used: 'bg-success',
-  favorite: 'bg-lime',
+  // Not lime: the accent would repeat in every card of the grid.
+  favorite: 'bg-chart-1',
   want: 'bg-info',
   testing: 'bg-warn',
   dropped: 'bg-muted-foreground'
@@ -60,9 +63,9 @@ function LinkButtons({ lib, onInk }: { lib: Library; onInk?: boolean }) {
       {links.map((l) => (
         <Button
           key={l.label}
-          variant="soft"
+          variant="subtle"
           size="xs"
-          className={cn('h-7 px-2.5 font-normal', onInk ? 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/20' : 'bg-card')}
+          className={cn(onInk && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')}
           onClick={(e) => {
             e.stopPropagation()
             void openUrl(l.url)
@@ -101,6 +104,30 @@ function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }) {
         <CopyButton text={cmd} variant="ghost" size="xs" className="size-6 rounded-full text-inherit" />
       </InputGroupAddon>
     </InputGroup>
+  )
+}
+
+/** Reading: the command with a copy button (the list's own copy row is hidden while a record is open). */
+function InstallField({ lib, save }: { lib: Library; save: (patch: LibraryPatch) => void }): ReactElement | null {
+  const readOnly = useReadOnly()
+  if (readOnly) {
+    if (!lib.installCmd.trim()) return null
+    return (
+      <Block label="Команда встановлення">
+        <InstallCommand cmd={lib.installCmd} />
+      </Block>
+    )
+  }
+  return (
+    <InputField
+      label="Команда встановлення"
+      value={lib.installCmd}
+      onSave={(installCmd) => save({ installCmd })}
+      maxLength={LIMITS.installCmd}
+      spellCheck={false}
+      placeholder={`Напр.: npm i ${lib.name}`}
+      className="font-mono"
+    />
   )
 }
 
@@ -146,16 +173,9 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }) 
             onChange={(status) => save({ status })}
           />
         </Block>
-        <InputField
-          label="Команда встановлення"
-          value={lib.installCmd}
-          onSave={(installCmd) => save({ installCmd })}
-          maxLength={LIMITS.installCmd}
-          spellCheck={false}
-          placeholder={`npm i ${lib.name}`}
-          className="font-mono"
-        />
-        <div className="grid grid-cols-3 gap-3">
+        <InstallField lib={lib} save={save} />
+        {/* Full-width rows: three columns left ~110px per link. Reading: the header's link buttons open them. */}
+        <div data-edit-only className="flex flex-col gap-5">
           <UrlBlock label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} maxLength={LIMITS.npmUrl} placeholder="https://npmjs.com/package/…" />
           <UrlBlock label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} maxLength={LIMITS.githubUrl} placeholder="https://github.com/…" />
           <UrlBlock label="Документація" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} maxLength={LIMITS.docsUrl} />
@@ -212,7 +232,7 @@ function LibraryCard({ lib, active, compact, onOpen }: { lib: Library; active: b
           <span className="font-display min-w-0 flex-1 truncate text-heading leading-tight">{lib.name}</span>
           <StatusLabel status={lib.status} muted={muted} />
         </div>
-        <div className={cn('min-h-5 truncate text-caption', active ? 'text-ink-foreground/85' : 'text-foreground/80')}>
+        <div className={cn('min-h-5 truncate text-caption', muted)}>
           {lib.purpose || ' '}
         </div>
       </CardHeader>
@@ -243,6 +263,13 @@ export function LibrariesPage() {
   const create = useApiMutation('libraries', 'create')
 
   const counts = useMemo(() => countBy(all, (l) => l.status), [all])
+  const statusChips = presentChips(LIBRARY_STATUSES, counts, (s) => STATUS_LABEL[s], status)
+  const filtered = !!(search || tagId || status)
+
+  const createNew = async (): Promise<void> => {
+    const created = await create.mutateAsync({ name: 'new-package', status: status ?? 'want' })
+    setOpen(created.id)
+  }
 
   return (
     <Page>
@@ -252,28 +279,19 @@ export function LibrariesPage() {
         actions={
           <>
             <ImportButton kind="library" onImported={(id) => id && setOpen(id)} />
-            <Button
-              variant="lime"
-              onClick={async () => {
-                const created = await create.mutateAsync({ name: 'new-package', status: status ?? 'want' })
-                setOpen(created.id)
-              }}
-            >
+            <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
               <Plus /> Бібліотека
             </Button>
           </>
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <FilterChips
-            allLabel="Усі"
-            value={status}
-            onChange={setStatus}
-            options={LIBRARY_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s], count: counts[s] ?? 0 }))}
-          />
+          {statusChips.length > 0 && (
+            <FilterChips allLabel="Усі" value={status} onChange={setStatus} options={statusChips} />
+          )}
           <div className="ml-auto flex items-center gap-2">
             <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Назва або задача" className="w-60" />
+            <SearchInput value={search} onChange={setSearch} placeholder="Назва або призначення" className="w-60" />
           </div>
         </div>
       </PageHeader>
@@ -296,11 +314,18 @@ export function LibrariesPage() {
                 !list.isLoading && (
                   <EmptyState
                     icon={Package}
-                    title={search || tagId || status ? 'Нічого не знайшлося' : 'Список порожній'}
+                    title={filtered ? 'Нічого не знайшлося' : 'Бібліотек поки немає'}
                     hint={
-                      search || tagId || status
-                        ? 'Зніміть фільтр або пошукайте за задачею: «форми», «анімації».'
+                      filtered
+                        ? 'Зніміть фільтр або шукайте за призначенням: «форми», «анімації».'
                         : 'Додайте пакет, який сподобався, з командою встановлення й посиланнями.'
+                    }
+                    action={
+                      !filtered && (
+                        <Button variant="soft" onClick={() => void createNew()} disabled={create.isPending}>
+                          <Plus /> Додати бібліотеку
+                        </Button>
+                      )
                     }
                   />
                 )
