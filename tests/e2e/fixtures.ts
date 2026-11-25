@@ -99,11 +99,13 @@ export const test = base.extend<{ vault: Vault; noErrors: void }, { vaultWorker:
     // A record left in «Редагувати» with changes answers Esc with «Зберегти зміни?»: drop the changes, or the
     // question stays over the next test's page and blocks its clicks.
     const ask = win.getByRole('alertdialog', { name: 'Зберегти зміни?' })
+    // A short timeout: a question still fading out after the last test clicked it has no button to press any more,
+    // and waiting the default 30 s for it only slowed the next test down.
     const discard = async (): Promise<void> => {
       if ((await ask.count()) > 0)
         await ask
           .getByRole('button', { name: 'Не зберігати' })
-          .click()
+          .click({ timeout: 2_000 })
           .catch(() => undefined)
     }
     for (let i = 0; i < 4 && (await dialogs.count()) > 0; i++) {
