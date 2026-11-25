@@ -112,6 +112,7 @@ export function UnpaidSubscriptions({
                     {s.title}
                   </ItemTitle>
                   <ItemDescription className="text-caption">
+                    {!s.ownExpense && 'Платить клієнт · '}
                     <MoneyValue amount={s.amount} currency={s.currency} />
                   </ItemDescription>
                   <ItemDescription className="line-clamp-1 text-caption" title={dueText(s.dueAt)}>

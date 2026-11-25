@@ -1,320 +1,62 @@
-import { useId, useState, type ReactNode, type ReactElement } from 'react'
-import { Copy, ExternalLink, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
-import { credentialInputSchema, type Credential, type CredentialInput } from '@shared/domain/crm'
-import { api } from '@/lib/api'
-import { useApiMutation } from '@/lib/query'
-import { isLikelyUrl, limitsOf, requiredOf, URL_ERROR } from '@/lib/limits'
-import { hostOf } from '@/lib/format'
-import { normalizeUrl, openUrl } from '@/lib/open-url'
-import { copyText } from '@/components/common/copy-button'
-import { Confirm } from '@/components/common/confirm'
-import { IconAction } from '@/components/common/icon-action'
-import { Field } from '@/components/common/page'
+import { useMemo, type ReactElement } from 'react'
+import { Link } from 'react-router'
+import { Plus } from 'lucide-react'
+import type { Credential } from '@shared/domain/credentials'
+import { ENTITY_META } from '@shared/entity-types'
 import { useDetailMode } from '@/components/common/detail-mode-context'
-import { EditHintText } from '@/components/common/detail-mode'
-import { SubmitButton } from '@/components/common/submit-button'
-import { useFormGate } from '@/hooks/use-form-gate'
-import { FormAttemptContext } from '@/components/ui/field-control'
-import { NO_CHANGES } from '@/lib/edit-session'
+import { SectionLabel } from '@/components/common/section-label'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Section } from './parts'
-import { escapeCloses, useInlineForm } from './inline-form'
+import { useInlineForm } from './inline-form'
+import { CredentialForm, type CredentialOwner, type OwnerChoice } from './credential-form'
+import { CredentialCard } from './credential-card'
 
-type Owner = { projectId: string } | { clientId: string }
-
-const L = limitsOf(credentialInputSchema)
-const REQUIRED = requiredOf(credentialInputSchema)
-
-function CredentialForm({
-  initial,
-  owner,
-  onDone
-}: {
-  initial?: Credential
-  owner: Owner
-  onDone: () => void
-}): ReactElement {
-  const [form, setForm] = useState({
-    label: initial?.label ?? '',
-    url: initial?.url ?? '',
-    login: initial?.login ?? '',
-    secret: '',
-    notes: initial?.notes ?? ''
-  })
-  const uid = useId()
-  const create = useApiMutation('credentials', 'create', {
-    successMessage: 'Доступ додано',
-    onSuccess: onDone
-  })
-  const update = useApiMutation('credentials', 'update', {
-    successMessage: 'Доступ збережено',
-    onSuccess: onDone
-  })
-  const set = (patch: Partial<typeof form>): void => setForm((f) => ({ ...f, ...patch }))
-  const urlBad = !isLikelyUrl(form.url)
-  const pending = create.isPending || update.isPending
-  // Editing: «Зберегти» waits for a change (an empty password keeps the stored one).
-  const unchanged =
-    !!initial &&
-    !form.secret &&
-    form.label === initial.label &&
-    form.url === initial.url &&
-    form.login === initial.login &&
-    form.notes === initial.notes
-  // An empty name (required) or a bad link: the button is off and Enter adds nothing.
-  const { attach, reason: gateReason, attempted, submit } = useFormGate()
-  return (
-    <Card className="p-4">
-      <form
-        ref={attach}
-        className="grid grid-cols-2 gap-3"
-        onKeyDown={escapeCloses(onDone)}
-        onSubmit={(e) =>
-          submit(e, () => {
-            if (urlBad || pending || unchanged) return
-            // Saved with a scheme: hostOf() and «Відкрити» need a full URL.
-            const values = { ...form, url: form.url.trim() ? normalizeUrl(form.url) : '' }
-            if (initial) {
-              const { secret, ...rest } = values
-              update.mutate({ id: initial.id, patch: secret ? values : rest })
-            } else {
-              create.mutate({ ...values, ...owner } as CredentialInput)
-            }
-          })
-        }
-      >
-        <FormAttemptContext.Provider value={attempted}>
-          <Field label="Назва" htmlFor={`${uid}-label`} required={REQUIRED.label}>
-            <Input
-              id={`${uid}-label`}
-              autoFocus
-              value={form.label}
-              maxLength={L.label}
-              onChange={(e) => set({ label: e.target.value })}
-              placeholder="Напр.: Адмінка Shopify"
-            />
-          </Field>
-          <Field label="Посилання" htmlFor={`${uid}-url`} error={urlBad ? URL_ERROR : undefined}>
-            <Input
-              id={`${uid}-url`}
-              type="url"
-              maxLength={L.url}
-              aria-invalid={urlBad || undefined}
-              value={form.url}
-              onChange={(e) => set({ url: e.target.value })}
-              placeholder="https://"
-            />
-          </Field>
-          <Field label="Логін" htmlFor={`${uid}-login`}>
-            <Input
-              id={`${uid}-login`}
-              value={form.login}
-              maxLength={L.login}
-              onChange={(e) => set({ login: e.target.value })}
-            />
-          </Field>
-          <Field
-            label={initial?.hasSecret ? 'Новий пароль' : 'Пароль / токен'}
-            htmlFor={`${uid}-secret`}
-            hint={initial?.hasSecret ? 'Залиште порожнім, щоб не змінювати' : undefined}
-          >
-            <Input
-              id={`${uid}-secret`}
-              type="password"
-              autoComplete="new-password"
-              value={form.secret}
-              maxLength={L.secret}
-              onChange={(e) => set({ secret: e.target.value })}
-            />
-          </Field>
-          <Field
-            label="Нотатка"
-            htmlFor={`${uid}-notes`}
-            className="col-span-2"
-            count={{ length: form.notes.length, max: L.notes }}
-          >
-            <Textarea
-              id={`${uid}-notes`}
-              className="min-h-12"
-              maxLength={L.notes}
-              value={form.notes}
-              onChange={(e) => set({ notes: e.target.value })}
-            />
-          </Field>
-          <div className="col-span-2 flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={onDone}>
-              Скасувати
-            </Button>
-            <SubmitButton
-              variant="subtle"
-              reason={gateReason ?? (unchanged ? NO_CHANGES : undefined)}
-              disabled={urlBad}
-              pending={pending}
-            >
-              {initial ? 'Зберегти' : 'Додати доступ'}
-            </SubmitButton>
-          </div>
-        </FormAttemptContext.Provider>
-      </form>
-    </Card>
-  )
+interface Group {
+  key: string
+  /** null — the client's own («Загальні»). */
+  project: { id: string; title: string } | null
+  items: Credential[]
 }
 
-/**
- * One value cell (Логін / Пароль): label on top, monospace value, its actions on the right. `full` — the whole
- * value for the tooltip of a cut one (the login; never the password).
- */
-function SecretCell({
-  label,
-  value,
-  full,
-  children
-}: {
-  label: string
-  value: ReactNode
-  full?: string
-  children: ReactNode
-}): ReactElement {
-  return (
-    <div className="flex min-w-0 items-center gap-2 rounded-xl bg-card px-3 py-2">
-      <div className="min-w-0 flex-1">
-        <div className="text-meta text-muted-foreground">{label}</div>
-        <div className="selectable truncate font-mono text-body" title={full}>
-          {value}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center">{children}</div>
-    </div>
-  )
-}
-
-/**
- * Credential card, password-manager style: key chip + name + host on top, then Логін / Пароль cells
- * with copy and show/hide right next to the value. Empty cells aren't drawn («—» looked like data).
- */
-function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): ReactElement {
-  const [secret, setSecret] = useState<string | null>(null)
-  const mode = useDetailMode()
-  const [editing, setEditing] = useInlineForm('доступ')
-  const remove = useApiMutation('credentials', 'remove', { successMessage: 'Доступ видалено' })
-
-  const reveal = async (): Promise<string | null> => {
-    try {
-      return await api.credentials.reveal(item.id)
-    } catch (e) {
-      toast.error((e as Error).message)
-      return null
-    }
+/** «Загальні» first, then a group per project in the order of the client's project list; empty groups dropped. */
+function groupByOwner(items: Credential[], projects: OwnerChoice['projects']): Group[] {
+  const own = items.filter((c) => !c.projectId)
+  const groups: Group[] = own.length ? [{ key: 'client', project: null, items: own }] : []
+  for (const p of projects) {
+    const list = items.filter((c) => c.projectId === p.id)
+    if (list.length) groups.push({ key: p.id, project: p, items: list })
   }
-
-  if (editing)
-    return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
-
-  const host = item.url ? hostOf(item.url) : ''
-  const empty = !item.login && !item.hasSecret
-  return (
-    <Card className="group gap-3 bg-surface p-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground/[0.07] text-muted-foreground">
-          <KeyRound className="size-4" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-body font-semibold" title={item.label}>
-            {item.label}
-          </div>
-          {host && (
-            <div className="truncate text-meta text-muted-foreground" title={host}>
-              {host}
-            </div>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {item.url && (
-            <IconAction label={`Відкрити ${host}`} onClick={() => void openUrl(item.url)}>
-              <ExternalLink />
-            </IconAction>
-          )}
-          <span data-edit-only className="flex items-center gap-0.5">
-            <IconAction label="Змінити доступ" onClick={() => setEditing(true)}>
-              <Pencil />
-            </IconAction>
-            <Confirm
-              title={`Видалити доступ «${item.label}»?`}
-              description="Пароль буде видалено без можливості відновлення."
-              onConfirm={() => remove.mutate(item.id)}
-            >
-              <IconAction label="Видалити доступ" className="hover:text-destructive">
-                <Trash2 />
-              </IconAction>
-            </Confirm>
-          </span>
-        </div>
-      </div>
-      {empty ? (
-        // Editing: the row's pencil is right above, so the hint only says what is missing.
-        <p className="text-caption text-muted-foreground">
-          Логін і пароль ще не додано.
-          {!mode.editing && (
-            <>
-              {' '}
-              <EditHintText />
-            </>
-          )}
-        </p>
-      ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {item.login && (
-            <SecretCell label="Логін" value={item.login} full={item.login}>
-              <IconAction
-                label="Скопіювати логін"
-                onClick={() => void copyText(item.login, 'Логін скопійовано')}
-              >
-                <Copy />
-              </IconAction>
-            </SecretCell>
-          )}
-          {item.hasSecret && (
-            <SecretCell label="Пароль" value={secret ?? '••••••••••'}>
-              <IconAction
-                label={secret ? 'Сховати пароль' : 'Показати пароль'}
-                onClick={async () => setSecret(secret ? null : await reveal())}
-              >
-                {secret ? <EyeOff /> : <Eye />}
-              </IconAction>
-              <IconAction
-                label="Скопіювати пароль"
-                onClick={async () => {
-                  const s = secret ?? (await reveal())
-                  if (s !== null) await copyText(s, 'Пароль скопійовано')
-                }}
-              >
-                <Copy />
-              </IconAction>
-            </SecretCell>
-          )}
-        </div>
-      )}
-      {item.notes && (
-        <p className="line-clamp-2 text-caption text-muted-foreground">{item.notes}</p>
-      )}
-    </Card>
-  )
+  return groups
 }
 
-/** Access credentials of a client or project. Secrets are revealed on demand and never cached. */
+/**
+ * Accesses of a client or project, by kind (сервер, база, API-ключ…). Secrets are revealed on demand and never
+ * cached; «+ Доступ» asks for the kind first, then that kind's fields. On the client page (`projects`) the list also
+ * holds the accesses of its projects — each stored once, with its owner — grouped «Загальні», then per project, and
+ * «Для» picks or changes the owner.
+ */
 export function CredentialsSection({
   items,
-  owner
+  owner,
+  projects
 }: {
   items: Credential[]
-  owner: Owner
+  owner: CredentialOwner
+  /** The client page: the client's live projects. */
+  projects?: { id: string; title: string }[]
 }): ReactElement {
   const mode = useDetailMode()
   const [adding, setAdding] = useInlineForm('доступ')
+  const owners = useMemo<OwnerChoice | undefined>(
+    () => ('clientId' in owner && projects ? { clientId: owner.clientId, projects } : undefined),
+    [owner, projects]
+  )
+  const groups = owners ? groupByOwner(items, owners.projects) : null
+  // One group (only the client's own, or only one project's) needs no heading… unless it is a project's.
+  const headed = !!groups && (groups.length > 1 || groups.some((g) => g.project))
+  const card = (c: Credential): ReactElement => (
+    <CredentialCard key={c.id} item={c} owner={owner} owners={owners} />
+  )
   return (
     <Section
       title="Доступи"
@@ -326,19 +68,39 @@ export function CredentialsSection({
         )
       }
     >
-      {adding && <CredentialForm owner={owner} onDone={() => setAdding(false)} />}
-      {items.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {items.map((c) => (
-            <CredentialRow key={c.id} item={c} owner={owner} />
-          ))}
-        </div>
-      )}
+      {adding && <CredentialForm owner={owner} owners={owners} onDone={() => setAdding(false)} />}
+      {items.length > 0 &&
+        (groups && headed ? (
+          <div className="flex flex-col gap-4">
+            {groups.map((g) => (
+              <section
+                key={g.key}
+                className="flex flex-col gap-2"
+                data-credential-group={g.project?.id ?? 'client'}
+              >
+                <SectionLabel>
+                  {g.project ? (
+                    <Button variant="link" className="text-caption font-semibold" asChild>
+                      <Link to={ENTITY_META.project.route(g.project.id)}>
+                        Проєкт: {g.project.title}
+                      </Link>
+                    </Button>
+                  ) : (
+                    'Загальні'
+                  )}
+                </SectionLabel>
+                {g.items.map(card)}
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">{items.map(card)}</div>
+        ))}
       {!items.length && !adding && (
         <div className="flex flex-col items-start gap-3">
           <p className="text-body leading-relaxed text-muted-foreground">
-            Доступів ще немає. Логіни від адмінок, хостингу й FTP — паролі шифруються ключем
-            Windows.
+            Доступів ще немає. Сервери, бази, API-ключі, адмінки й пошта — паролі й ключі шифруються
+            ключем Windows.
           </p>
           {!mode.editing && (
             <Button

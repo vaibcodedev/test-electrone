@@ -124,7 +124,11 @@ export function ClientPage(): ReactElement {
                 placeholder="Тон, часовий пояс, коли відповідає, що дратує, як краще здавати роботу…"
                 maxLength={CLIENT_L.howToCommunicate}
               />
-              <CredentialsSection items={data.credentials} owner={{ clientId: c.id }} />
+              <CredentialsSection
+                items={data.credentials}
+                owner={{ clientId: c.id }}
+                projects={data.projects}
+              />
               <MarkdownField
                 label="Нотатки"
                 value={notes}

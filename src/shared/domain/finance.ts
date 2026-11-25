@@ -39,7 +39,12 @@ export const subscriptionInputSchema = z.object({
   url: urlSchema.default(''),
   note: z.string().max(5000).default(''),
   active: z.boolean().default(true),
-  startedAt: timestampSchema.nullable().default(null)
+  startedAt: timestampSchema.nullable().default(null),
+  /**
+   * false — a client pays it (their server, hosting): it stays on the list and in the calendar, but no Finance
+   * total, month sum, chart or weekly review counts it.
+   */
+  ownExpense: z.boolean().default(true)
 })
 export const subscriptionPatchSchema = patchOf(subscriptionInputSchema)
 export type SubscriptionInput = z.input<typeof subscriptionInputSchema>
@@ -58,8 +63,41 @@ export interface Subscription {
   note: string
   active: boolean
   startedAt: number | null
+  ownExpense: boolean
   createdAt: number
   updatedAt: number
+  /** The access (Клієнти й контракти › Доступи) this subscription pays for; null — none. */
+  credential: SubscriptionCredential | null
+}
+
+/** Back link from a subscription to its access: the access lives on its client's or project's page. */
+export interface SubscriptionCredential {
+  id: string
+  label: string
+  owner: { type: 'client' | 'project'; id: string } | null
+}
+
+/**
+ * The next billing day on or after `at` (noon, local — as the month list places it): the billing day clamped to
+ * the month's length, yearly ones in their month; not before the month it started in. null — switched off.
+ */
+export function nextBillingAt(
+  s: Pick<Subscription, 'period' | 'billingDay' | 'billingMonth' | 'active' | 'startedAt'>,
+  at = Date.now()
+): number | null {
+  if (!s.active) return null
+  const from = new Date(Math.max(at, s.startedAt ?? 0))
+  const today = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime()
+  const on = (y: number, m: number): number =>
+    new Date(y, m, Math.min(s.billingDay, new Date(y, m + 1, 0).getDate()), 12).getTime()
+  for (let i = 0; i < 25; i++) {
+    const y = from.getFullYear()
+    const m = from.getMonth() + i
+    if (s.period === 'yearly' && ((m % 12) + 12) % 12 !== s.billingMonth) continue
+    const due = on(y, m)
+    if (due >= today) return due
+  }
+  return null
 }
 
 /** A subscription as it appears in a given month: due or not, paid or not. */

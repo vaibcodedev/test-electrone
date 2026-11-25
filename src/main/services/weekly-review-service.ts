@@ -20,7 +20,6 @@ import {
   cards,
   checklistItems,
   checklists,
-  expenses,
   ideas,
   interviewQuestions,
   notes,
@@ -178,12 +177,8 @@ export class WeeklyReviewService {
     const net: MoneyByCurrency = {}
     for (const i of this.mods.finance.income(from, to)) add(net, i.currency, i.net)
     const exp: MoneyByCurrency = {}
-    for (const e of this.db
-      .select()
-      .from(expenses)
-      .where(and(gte(expenses.at, from), lte(expenses.at, to)))
-      .all())
-      add(exp, e.currency as Currency, e.amount)
+    // Finance's own list: a subscription the client pays is never counted as my expense.
+    for (const e of this.mods.finance.expensesIn(from, to)) add(exp, e.currency, e.amount)
     for (const c of this.mods.freelance.creditPurchases(from, to)) add(exp, c.currency, c.cost)
     for (const w of this.db
       .select()

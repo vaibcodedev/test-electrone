@@ -1,5 +1,7 @@
 import { useId, useState, type ReactElement } from 'react'
-import { ExternalLink, HandCoins, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, HandCoins, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { ENTITY_META } from '@shared/entity-types'
 import {
   expenseInputSchema,
   type Subscription,
@@ -27,6 +29,7 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Table,
   TableBody,
@@ -48,6 +51,22 @@ const AMOUNT_RANGE = rangesOf(expenseInputSchema).amount
 /** Removal is permanent (unlike «У кошик»), and the confirm says so. */
 const REMOVE_SUB_TEXT =
   'Підписку буде видалено без можливості відновлення. Минулі витрати за нею залишаться в історії.'
+
+/** A subscription the client pays: on the list and in the calendar, but in none of my sums. */
+export function ClientPaysBadge(): ReactElement {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="info" tabIndex={0}>
+          Платить клієнт
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">
+        Не рахується в моїх витратах і підсумках — лише нагадування в списку й календарі.
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 /** «Paid a different amount» popover behind an icon in the actions column. */
 function PaidAmountAction({
@@ -132,7 +151,9 @@ function SubscriptionRow({
   onRemove: () => void
 }): ReactElement {
   const setPaid = useApiMutation('finance', 'setSubscriptionPaid')
+  const navigate = useNavigate()
   const paid = !!r.expenseId
+  const owner = r.credential?.owner
   return (
     <TableRow data-state={paid ? 'selected' : undefined}>
       <TableCell>
@@ -151,6 +172,7 @@ function SubscriptionRow({
           </span>
           {r.period === 'yearly' && <Badge variant="soft">раз на рік</Badge>}
           {!r.active && <Badge variant="outline">вимкнена</Badge>}
+          {!r.ownExpense && <ClientPaysBadge />}
         </div>
       </TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
@@ -170,6 +192,14 @@ function SubscriptionRow({
           {r.url && (
             <IconAction label="Відкрити сайт" onClick={() => void openUrl(r.url)}>
               <ExternalLink />
+            </IconAction>
+          )}
+          {r.credential && owner && (
+            <IconAction
+              label={`Доступ «${r.credential.label}»`}
+              onClick={() => navigate(ENTITY_META[owner.type].route(owner.id))}
+            >
+              <KeyRound />
             </IconAction>
           )}
           <PaidAmountAction row={r} month={month} />
@@ -204,9 +234,11 @@ export function SubscriptionsSection({ month }: { month: string }): ReactElement
   // A switched-off subscription paid this month is already a row in the table.
   const inactive = all.filter((s) => !s.active && !rows?.some((r) => r.id === s.id))
 
-  const total = sumByCurrency(rows, (r) => [r.currency, r.amount])
+  // What the client pays is listed, but it is not my money: the sums leave it out.
+  const mine = rows?.filter((r) => r.ownExpense)
+  const total = sumByCurrency(mine, (r) => [r.currency, r.amount])
   const paidTotal = sumByCurrency(
-    rows?.filter((r) => r.expenseId),
+    mine?.filter((r) => r.expenseId),
     (r) => [r.currency, r.paidAmount ?? r.amount]
   )
 

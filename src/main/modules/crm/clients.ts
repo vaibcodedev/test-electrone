@@ -66,7 +66,11 @@ export class Clients {
         return {
           client: this.summaries.clients([c])[0],
           projects: projectList,
-          credentials: this.credentials.forOwner({ clientId: c.id })
+          // The client's own accesses and those of its live projects: each stored once, with its owner.
+          credentials: this.credentials.forOwner({
+            clientId: c.id,
+            projectIds: projectList.map((p) => p.id)
+          })
         }
       }
     }

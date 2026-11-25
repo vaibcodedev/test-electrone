@@ -2,7 +2,7 @@
  * Finance hub backend. Income is derived from paid contract payments minus the contract/platform fee
  * (never entered twice). Subscriptions are recurring templates; marking one paid for a month creates an expense.
  */
-import { and, asc, desc, eq, gte, isNull, lte } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import type { FinanceApi } from '@shared/api'
 import type { Currency } from '@shared/domain/crm'
@@ -23,12 +23,14 @@ import {
   type MoneyByCurrency,
   type MonthReport,
   type Subscription,
+  type SubscriptionCredential,
   type SubscriptionMonthRow,
   type SubscriptionPeriod,
   type Withdrawal
 } from '@shared/domain/finance'
 import {
   clients,
+  credentials,
   expenses,
   payments,
   platforms,
@@ -123,13 +125,74 @@ export class FinanceModule {
 
   /* ───────── subscriptions ───────── */
 
-  private toSub(r: typeof subscriptions.$inferSelect): Subscription {
+  private toSub(
+    r: typeof subscriptions.$inferSelect,
+    links: Map<string, SubscriptionCredential> = this.credentialLinks()
+  ): Subscription {
     return {
       ...r,
       currency: r.currency as Currency,
       period: r.period as SubscriptionPeriod,
-      category: r.category as ExpenseCategory
+      category: r.category as ExpenseCategory,
+      credential: links.get(r.id) ?? null
     }
+  }
+
+  /** Accesses that a subscription pays for (credentials.subscriptionId), by subscription id: the back link. */
+  private credentialLinks(): Map<string, SubscriptionCredential> {
+    const out = new Map<string, SubscriptionCredential>()
+    for (const c of this.db
+      .select({
+        id: credentials.id,
+        label: credentials.label,
+        projectId: credentials.projectId,
+        clientId: credentials.clientId,
+        subscriptionId: credentials.subscriptionId
+      })
+      .from(credentials)
+      .where(isNotNull(credentials.subscriptionId))
+      .orderBy(asc(credentials.label))
+      .all()) {
+      if (out.has(c.subscriptionId!)) continue
+      out.set(c.subscriptionId!, {
+        id: c.id,
+        label: c.label,
+        owner: c.projectId
+          ? { type: 'project', id: c.projectId }
+          : c.clientId
+            ? { type: 'client', id: c.clientId }
+            : null
+      })
+    }
+    return out
+  }
+
+  /** Subscriptions a client pays (`ownExpense = false`): their «оплачено» marks are no expenses of mine. */
+  private clientPaid(): Set<string> {
+    return new Set(
+      this.db
+        .select({ id: subscriptions.id })
+        .from(subscriptions)
+        .where(eq(subscriptions.ownExpense, false))
+        .all()
+        .map((r) => r.id)
+    )
+  }
+
+  /**
+   * My expenses in [from, to]: everything but the paid marks of client-paid subscriptions. Every sum of expenses
+   * (month report, chart, weekly review, the «Витрати» list) reads this, so such a subscription is never counted.
+   */
+  expensesIn(from: number, to: number): Expense[] {
+    const notMine = this.clientPaid()
+    return this.db
+      .select()
+      .from(expenses)
+      .where(and(gte(expenses.at, from), lte(expenses.at, to)))
+      .orderBy(desc(expenses.at))
+      .all()
+      .filter((e) => !e.subscriptionId || !notMine.has(e.subscriptionId))
+      .map((e) => this.toExpense(e))
   }
 
   private toExpense(r: typeof expenses.$inferSelect): Expense {
@@ -172,12 +235,13 @@ export class FinanceModule {
     const [from, to] = monthRange(month)
     const [y, mm] = month.split('-').map(Number)
     const daysInMonth = new Date(y, mm, 0).getDate()
+    const links = this.credentialLinks()
     const subs = this.db
       .select()
       .from(subscriptions)
       .orderBy(asc(subscriptions.billingDay))
       .all()
-      .map((r) => this.toSub(r))
+      .map((r) => this.toSub(r, links))
     const paid = this.db
       .select()
       .from(expenses)
@@ -215,12 +279,7 @@ export class FinanceModule {
       add(fees, i.currency, i.fee)
       add(net, i.currency, i.net)
     }
-    const exp = this.db
-      .select()
-      .from(expenses)
-      .where(and(gte(expenses.at, from), lte(expenses.at, to)))
-      .all()
-      .map((e) => this.toExpense(e))
+    const exp = this.expensesIn(from, to)
     const expensesSum: MoneyByCurrency = {}
     const byCat = new Map<
       string,
@@ -326,7 +385,7 @@ export class FinanceModule {
     for (const s of this.db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.active, true))
+      .where(and(eq(subscriptions.active, true), eq(subscriptions.ownExpense, true)))
       .all()) {
       add(
         monthlySubscriptions,
@@ -348,13 +407,15 @@ export class FinanceModule {
         const { from, to } = range.parse(args)
         return this.income(from, to)
       },
-      subscriptions: async () =>
-        this.db
+      subscriptions: async () => {
+        const links = this.credentialLinks()
+        return this.db
           .select()
           .from(subscriptions)
           .orderBy(desc(subscriptions.active), asc(subscriptions.billingDay))
           .all()
-          .map((r) => this.toSub(r)),
+          .map((r) => this.toSub(r, links))
+      },
       subscriptionMonth: async (args) => this.subscriptionMonth(monthQuerySchema.parse(args).month),
       createSubscription: async (input) => {
         const data = subscriptionInputSchema.parse(input)
@@ -379,11 +440,22 @@ export class FinanceModule {
         return this.toSub(row)
       },
       removeSubscription: async (id) => {
-        // Past expenses stay (history); only the template goes.
-        this.db
-          .delete(subscriptions)
-          .where(eq(subscriptions.id, idArg.parse(id)))
-          .run()
+        const subId = idArg.parse(id)
+        const row = this.db.select().from(subscriptions).where(eq(subscriptions.id, subId)).get()
+        if (!row) return
+        this.m.db.tx(() => {
+          // Past expenses stay (history); only the template goes. A client-paid one never had expenses of mine:
+          // its «оплачено» marks go with it, or they would turn into my expenses once the template is gone.
+          if (!row.ownExpense)
+            this.db.delete(expenses).where(eq(expenses.subscriptionId, subId)).run()
+          // An access it paid for keeps living without the payment line.
+          this.db
+            .update(credentials)
+            .set({ subscriptionId: null })
+            .where(eq(credentials.subscriptionId, subId))
+            .run()
+          this.db.delete(subscriptions).where(eq(subscriptions.id, subId)).run()
+        })
       },
       setSubscriptionPaid: async (args) => {
         const { id, month, paid, amount } = z
@@ -425,13 +497,7 @@ export class FinanceModule {
       },
       expenses: async (args) => {
         const { from, to } = range.parse(args)
-        return this.db
-          .select()
-          .from(expenses)
-          .where(and(gte(expenses.at, from), lte(expenses.at, to)))
-          .orderBy(desc(expenses.at))
-          .all()
-          .map((e) => this.toExpense(e))
+        return this.expensesIn(from, to)
       },
       createExpense: async (input) => {
         const data = expenseInputSchema.parse(input)

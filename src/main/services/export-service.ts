@@ -20,7 +20,7 @@ import { markdownLink, refKey, replaceWikiLinks } from '@shared/wikilinks'
 const enc = new TextEncoder()
 
 /** Fields that stay out of the markdown body/frontmatter; each type adds its own `systemFields`. */
-const HIDDEN = new Set(['deletedAt', 'secret'])
+const HIDDEN = new Set(['deletedAt', 'secret', 'secrets'])
 
 function yamlValue(v: unknown): string {
   if (v === null || v === undefined) return 'null'
@@ -85,14 +85,20 @@ export class ExportService {
     return res.filePath
   }
 
-  /** Every table, raw. Credential secrets are excluded (they are OS-encrypted anyway). */
+  /**
+   * Every table, raw. Credential secrets are excluded — the password (`secret`) and the extra ones (`secrets`: 2FA,
+   * SSH key…), though both are OS-encrypted anyway; their non-secret fields (host, port…) stay.
+   */
   json(): Record<string, unknown> {
     const tables: Record<string, unknown[]> = {}
     for (const value of Object.values(schema)) {
       if (!isTable(value)) continue
       const name = getTableName(value)
       const rows = this.ctx.orm.select().from(value).all() as Record<string, unknown>[]
-      tables[name] = name === 'credentials' ? rows.map((r) => ({ ...r, secret: undefined })) : rows
+      tables[name] =
+        name === 'credentials'
+          ? rows.map((r) => ({ ...r, secret: undefined, secrets: undefined }))
+          : rows
     }
     return {
       format: 'vault-export',

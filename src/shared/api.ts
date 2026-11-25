@@ -95,8 +95,10 @@ import type {
   ClientSummary,
   CrmOverview,
   Credential,
+  CredentialCopy,
   CredentialInput,
   CredentialPatch,
+  CredentialSecretRef,
   Payment,
   PaymentInput,
   PaymentPatch,
@@ -412,8 +414,14 @@ export interface CredentialsApi {
   create(input: CredentialInput): Promise<Credential>
   update(args: { id: string; patch: CredentialPatch }): Promise<Credential>
   remove(id: string): Promise<void>
-  /** Decrypts the secret. Never cached in the renderer. */
-  reveal(id: string): Promise<string>
+  /** Decrypts one secret (the main one for a bare id) for «Показати». Never cached in the renderer. */
+  reveal(arg: string | CredentialSecretRef): Promise<string>
+  /** Copies a secret (or the DB string with the password) in main; cleared after 30 s if still on the clipboard. */
+  copy(arg: CredentialCopy): Promise<void>
+  /** The current 2FA code and when it expires — never the key. */
+  totp(id: string): Promise<{ code: string; expiresAt: number; period: number }>
+  /** Links the Finance subscription that pays for it; null unlinks (the subscription stays in Finance). */
+  setPayment(args: { id: string; subscriptionId: string | null }): Promise<Credential>
 }
 
 export interface TimeApi {

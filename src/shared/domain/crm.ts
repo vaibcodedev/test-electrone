@@ -16,6 +16,7 @@ import {
   type WithTags,
   patchOf
 } from './common'
+import type { Credential } from './credentials'
 
 export const CURRENCIES = ['USD', 'EUR', 'UAH', 'PLN', 'GBP'] as const
 export type Currency = (typeof CURRENCIES)[number]
@@ -203,34 +204,9 @@ export interface ProjectSummary extends Project {
   overdueAmount: number
 }
 
-/* ───────────── Credentials (encrypted with OS keychain via safeStorage) ───────────── */
+/* ───────────── Credentials: by kind, encrypted with the OS keychain (shared/domain/credentials) ───────────── */
 
-export const credentialInputSchema = z.object({
-  projectId: idSchema.nullable().default(null),
-  clientId: idSchema.nullable().default(null),
-  label: z.string().trim().min(1).max(MAX.name),
-  url: urlSchema.default(''),
-  login: z.string().max(MAX.line).default(''),
-  /** Plain text on input only; stored encrypted, never returned by list(). */
-  secret: z.string().max(MAX.secret).default(''),
-  notes: z.string().max(MAX.note).default('')
-})
-export const credentialPatchSchema = patchOf(credentialInputSchema)
-export type CredentialInput = z.input<typeof credentialInputSchema>
-export type CredentialPatch = z.input<typeof credentialPatchSchema>
-
-export interface Credential {
-  id: string
-  projectId: string | null
-  clientId: string | null
-  label: string
-  url: string
-  login: string
-  hasSecret: boolean
-  notes: string
-  createdAt: number
-  updatedAt: number
-}
+export * from './credentials'
 
 /* ───────────── Time tracking ───────────── */
 
