@@ -152,7 +152,7 @@ export function SlashMenuList({
   return (
     <Command shouldFilter={false} value={active} onValueChange={setPicked} loop>
       <CommandList ref={list} label="Блоки для вставки">
-        <CommandGroup heading="Вставити">
+        <CommandGroup heading="Блоки">
           {items.map((c) => {
             const Icon = SLASH_ICON[c.id]
             return (

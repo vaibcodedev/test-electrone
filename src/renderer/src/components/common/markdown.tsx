@@ -261,7 +261,7 @@ export function MarkdownField({
           id={`${id}-hint`}
           className="pointer-events-none absolute top-full left-1 mt-1 flex items-center gap-1 text-meta text-muted-foreground opacity-0 transition-opacity group-focus-within/field:opacity-100"
         >
-          <Kbd>[[</Kbd> — посилання на запис · <Kbd>/</Kbd> — меню
+          <Kbd>[[</Kbd> — посилання на запис · <Kbd>/</Kbd> — меню блоків
         </p>
       )}
     </div>

@@ -39,7 +39,7 @@ const External = Annotation.define<boolean>()
 /** The chip icon: the same inline icon as a record link in rendered Markdown (wiki-link.tsx). */
 const CHIP_ICON = 'mr-1 inline size-[0.95em] align-[-0.125em]'
 
-const NO_LIMIT = 'Не вміщається: у полі закінчилося місце'
+const NO_ROOM = 'Блок не вміщається: у полі закінчилося місце'
 
 export interface MarkdownEditorHandle {
   focus: () => void
@@ -269,7 +269,7 @@ export function MarkdownEditor({
       userEvent: 'input.complete'
     })
     if (maxLength && tr.newDoc.length > maxLength && tr.newDoc.length > view.state.doc.length) {
-      toast.error(NO_LIMIT)
+      toast.error(NO_ROOM)
       return
     }
     view.dispatch(tr)
