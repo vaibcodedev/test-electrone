@@ -31,6 +31,8 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { ColorSwatches } from '@/components/common/color-swatches'
+import { DisabledHint } from '@/components/common/disabled-hint'
+import { NO_CHANGES } from '@/lib/edit-session'
 import { PALETTE } from '@shared/colors'
 
 const LIMITS = limitsOf(eventInputSchema)
@@ -138,6 +140,8 @@ export function EventDialog({
     event ? fromEvent(event) : blank(date ?? new Date())
   )
   const [titleError, setTitleError] = useState<string>()
+  // An existing event as it was when the dialog opened: «Зберегти» stays off until the form differs from it.
+  const [baseline, setBaseline] = useState(() => (event ? JSON.stringify(fromEvent(event)) : null))
   const create = useApiMutation('events', 'create', { successMessage: 'Подію додано' })
   const update = useApiMutation('events', 'update', { successMessage: 'Збережено' })
   const remove = useApiMutation('events', 'remove', { successMessage: 'Подію переміщено в кошик' })
@@ -150,6 +154,7 @@ export function EventDialog({
     setLastSession(session)
     if (open) {
       setForm(event ? fromEvent(event) : blank(date ?? new Date()))
+      setBaseline(event ? JSON.stringify(fromEvent(event)) : null)
       setTitleError(undefined)
     }
   }
@@ -161,6 +166,7 @@ export function EventDialog({
   const endBeforeStart = endAt !== null && startAt !== null && endAt < startAt
   // An empty title doesn't disable «Додати»: pressing it says what's missing at the field.
   const invalid = startAt === null || endBeforeStart
+  const unchanged = !!event && baseline === JSON.stringify(form)
   // A colour outside the palette (older data) stays visible and chosen, first in the row.
   const swatches: readonly string[] =
     form.color && !(PALETTE as readonly string[]).includes(form.color)
@@ -169,7 +175,7 @@ export function EventDialog({
 
   const save = (): void => {
     // Enter can't be disabled like the button: a second submit while saving would create a duplicate.
-    if (invalid || startAt === null || create.isPending || update.isPending) return
+    if (invalid || unchanged || startAt === null || create.isPending || update.isPending) return
     if (!form.title.trim()) {
       setTitleError('Введіть назву події')
       document.getElementById('event-title')?.focus()
@@ -403,13 +409,15 @@ export function EventDialog({
               <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
                 Скасувати
               </Button>
-              <Button
-                type="submit"
-                variant="lime"
-                disabled={invalid || create.isPending || update.isPending}
-              >
-                {event ? 'Зберегти' : 'Додати'}
-              </Button>
+              <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
+                <Button
+                  type="submit"
+                  variant="lime"
+                  disabled={invalid || unchanged || create.isPending || update.isPending}
+                >
+                  {event ? 'Зберегти' : 'Додати'}
+                </Button>
+              </DisabledHint>
             </div>
           </DialogFooter>
         </form>

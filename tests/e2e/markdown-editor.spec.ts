@@ -81,6 +81,9 @@ test('a record link is one chip with the current title: Backspace removes it who
   await win.keyboard.press('Control+z')
   await expect(chip).toHaveText(`Нова ${tag}`)
   await expect.poll(async () => (await rpc('notes.get', source.id)).body).toBe(body)
-  await win.locator('[data-save]').click()
+  // Back to the stored text: nothing to save, and Esc leaves without asking.
+  await expect(win.locator('[data-save]')).toBeDisabled()
+  await win.keyboard.press('Escape')
   await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
+  await expect(win.getByRole('alertdialog')).toHaveCount(0)
 })

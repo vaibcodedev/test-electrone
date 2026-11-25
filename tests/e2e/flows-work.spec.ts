@@ -87,7 +87,11 @@ test.describe('облік часу', () => {
       .toBe(2)
     await expect(win.getByText('2 год', { exact: true }).first()).toBeVisible()
     await expect(win.getByText(/Відпрацьовано 20% бюджету/)).toBeVisible()
-    await win.locator('[data-save]').click()
+    // The entry is saved by «Додати» itself; the project's own fields didn't change, so «Зберегти» stays off and
+    // Esc leaves edit mode without asking.
+    await expect(win.locator('[data-save]')).toBeDisabled()
+    await win.keyboard.press('Escape')
+    await expect(win.locator('[data-edit-detail]')).toBeVisible()
   })
 
   test('новий таймер в іншому проєкті зупиняє попередній', async ({ vault }) => {

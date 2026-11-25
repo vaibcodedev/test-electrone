@@ -43,6 +43,7 @@ function EntryRow({
       <EntryForm
         initial={draftOf(entry)}
         submitLabel="Зберегти"
+        edit
         showBillable={showBillable}
         pending={update.isPending}
         onCancel={() => setEditing(false)}

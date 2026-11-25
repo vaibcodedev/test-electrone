@@ -58,6 +58,7 @@ export function ExpenseDialog({
       submitLabel={e ? 'Зберегти' : 'Додати витрату'}
       invalid={!payload.title || !(payload.amount > 0) || fields.invalid}
       pending={create.isPending || update.isPending}
+      values={e ? payload : undefined}
       onSubmit={async () => {
         if (e) await update.mutateAsync({ id: e.id, patch: payload })
         else await create.mutateAsync(payload)

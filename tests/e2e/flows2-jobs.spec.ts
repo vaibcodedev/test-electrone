@@ -128,8 +128,12 @@ test.describe('вакансія: компанія й етапи', () => {
     await expect.poll(async () => (await rpc('jobs.get', app.id)).stages[0].eventId).toBeNull()
     await expect(sheet.getByRole('button', { name: 'у календарі' })).toHaveCount(0)
     expect(await rpc('events.get', stage.eventId)).toBeFalsy()
-    await sheet.locator('[data-save]').click()
+    // The outcome is the stage's own field, saved at once: the vacancy itself didn't change, so «Зберегти» stays
+    // off and Esc leaves edit mode without asking.
+    await expect(sheet.locator('[data-save]')).toBeDisabled()
+    await win.keyboard.press('Escape')
     await expect(modeOf(sheet)).toHaveAttribute('data-detail-mode', 'view')
+    await expect(win.getByRole('alertdialog')).toHaveCount(0)
   })
 })
 

@@ -56,6 +56,8 @@ export interface CloseAsk {
   keep: () => void
   discard: () => void
   fresh?: boolean
+  /** Why «Зберегти» is off in the question (a field with an error, an open inline form): only «Не зберігати» or Esc. */
+  blocked?: string
 }
 
 /** Client-only UI state. Server data lives in TanStack Query, not here. */

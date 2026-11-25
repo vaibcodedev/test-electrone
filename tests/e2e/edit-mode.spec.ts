@@ -172,3 +172,138 @@ test.describe('dialogs opened from a record in view mode', () => {
       .click()
   })
 })
+
+/**
+ * «Зберегти» is off until something changes and while a field shows an error; an invalid value never reaches main,
+ * and leaving without saving brings back the stored values (docs/design-system.md → Просмотр и редактирование).
+ */
+test.describe('«Зберегти» waits for a change and for valid fields', () => {
+  test('idea: off right after «Редагувати», on after typing, off again when the text is back', async ({
+    vault
+  }) => {
+    const { win, rpc } = vault
+    const idea = await openIdeaInEdit(vault)
+    const save = win.locator('[data-save]')
+    await expect(save).toBeDisabled()
+    await titleField(win).fill(`${idea.title} змінено`)
+    await expect(save).toBeEnabled()
+    await expect
+      .poll(async () => (await rpc('ideas.get', idea.id)).title)
+      .toBe(`${idea.title} змінено`)
+    // Typed back: the server says nothing differs from «Редагувати».
+    await titleField(win).fill(idea.title)
+    await expect.poll(async () => (await rpc('ideas.get', idea.id)).title).toBe(idea.title)
+    await expect(save).toBeDisabled()
+    await win.keyboard.press('Escape')
+    await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
+    await expect(win.getByRole('alertdialog')).toHaveCount(0)
+  })
+
+  test('proposal: a number out of range turns «Зберегти» off, nothing is saved, «Не зберігати» restores', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const platforms = await rpc('platforms.list')
+    const title = `Відгук ${uid()}`
+    const proposal = await rpc('proposals.create', {
+      platformId: platforms[0].id,
+      jobTitle: title,
+      bidAmount: 300,
+      feePercent: 10
+    })
+    await go(`/freelance/proposal/${proposal.id}`)
+    const sheet = win.getByRole('dialog').filter({ has: win.locator('[data-detail-mode]') })
+    const mode = sheet.locator('[data-detail-mode]').first()
+    await expect(mode).toHaveAttribute('data-detail-mode', 'view')
+    await sheet.locator('[data-edit-detail]').click()
+    await expect(mode).toHaveAttribute('data-detail-mode', 'edit')
+    // The pointer stays where «Редагувати» was — over «Зберегти» now: its tooltip would take the Esc below.
+    await win.mouse.move(1, 1)
+
+    const save = sheet.locator('[data-save]')
+    await expect(save).toBeDisabled()
+    const name = sheet.getByRole('textbox', { name: 'Назва' })
+    await name.fill(`${title} новий`)
+    await expect(save).toBeEnabled()
+    await expect
+      .poll(async () => (await rpc('proposals.get', proposal.id)).jobTitle)
+      .toBe(`${title} новий`)
+
+    // Out of range: the field says so, «Зберегти» goes off and explains why on focus.
+    const fee = sheet.getByRole('textbox', { name: 'Комісія платформи' })
+    await fee.fill('150')
+    await expect(fee).toHaveAttribute('aria-invalid', 'true')
+    await expect(save).toBeDisabled()
+    await save.locator('xpath=..').focus()
+    await expect(win.getByRole('tooltip')).toContainText('Виправте поля з помилками')
+    // Typed while the error is shown: held back, not autosaved.
+    await name.fill(`${title} поки помилка`)
+    await win.waitForTimeout(1200)
+    const stored = await rpc('proposals.get', proposal.id)
+    expect(stored.feePercent).toBe(10)
+    expect(stored.jobTitle).toBe(`${title} новий`)
+
+    // Esc asks; «Зберегти» there is off for the same reason, «Не зберігати» reverts everything.
+    await fee.focus()
+    await expect(win.getByRole('tooltip')).toHaveCount(0)
+    await win.keyboard.press('Escape')
+    const ask = win.getByRole('alertdialog', { name: 'Зберегти зміни?' })
+    await expect(ask).toBeVisible()
+    await expect(ask).toContainText('Виправте поля з помилками')
+    await expect(ask.getByRole('button', { name: 'Зберегти' })).toBeDisabled()
+    await ask.getByRole('button', { name: 'Не зберігати' }).click()
+    await expect(mode).toHaveAttribute('data-detail-mode', 'view')
+    await expect.poll(async () => (await rpc('proposals.get', proposal.id)).jobTitle).toBe(title)
+    expect((await rpc('proposals.get', proposal.id)).feePercent).toBe(10)
+
+    // The next «Редагувати» shows the stored values, not the abandoned text.
+    await sheet.locator('[data-edit-detail]').click()
+    await expect(mode).toHaveAttribute('data-detail-mode', 'edit')
+    await expect(sheet.getByRole('textbox', { name: 'Назва' })).toHaveValue(title)
+    await expect(sheet.getByRole('textbox', { name: 'Комісія платформи' })).toHaveValue('10')
+    await expect(sheet.getByRole('textbox', { name: 'Комісія платформи' })).not.toHaveAttribute(
+      'aria-invalid',
+      'true'
+    )
+    await expect(save).toBeDisabled()
+  })
+})
+
+test.describe('Markdown «Перегляд»', () => {
+  test('a 20 000-character word: bounded height, no sideways scroll, folded while reading', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const word = 'ж'.repeat(20_000)
+    const note = await rpc('notes.create', { title: `Довге слово ${uid()}`, body: word })
+    await go(`/notes?open=${note.id}`)
+    await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
+    const noSideways = async (el: Locator): Promise<void> => {
+      const { scroll, client } = await el.evaluate((n) => ({
+        scroll: n.scrollWidth,
+        client: n.clientWidth
+      }))
+      expect(scroll).toBeLessThanOrEqual(client + 1)
+    }
+    const body = pane(win).locator('[data-detail-body]')
+    // Reading: folded under «Показати повністю», the word wraps.
+    const prose = pane(win).locator('.prose-vault').first()
+    await expect(pane(win).getByRole('button', { name: 'Показати повністю' })).toBeVisible()
+    expect((await prose.boundingBox())!.width).toBeLessThan(1440)
+    await noSideways(body)
+
+    await win.locator('[data-edit-detail]').click()
+    await pane(win).getByRole('radio', { name: 'Перегляд' }).click()
+    const preview = pane(win).locator('[data-md-preview]')
+    await expect(preview).toBeVisible()
+    const box = (await preview.boundingBox())!
+    // min(50vh, 26rem) of a 900px window = 416px.
+    expect(box.height).toBeLessThanOrEqual(417)
+    const scrolls = await preview.evaluate((n) => n.scrollHeight > n.clientHeight)
+    expect(scrolls).toBe(true)
+    await noSideways(preview)
+    await noSideways(body)
+    await win.keyboard.press('Escape')
+    await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
+  })
+})
