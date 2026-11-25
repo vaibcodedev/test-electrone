@@ -5,7 +5,7 @@ import { entityRefSchema, type EntityRef } from '@shared/domain/common'
 import type { RecordsApi, RecordSnapshot } from '@shared/api'
 import type { DbContext } from '../db/client'
 import type { AnyRow, EntityDescriptor, EntityRegistry } from '../core/registry'
-import { NotFoundError, UserError } from '../core/util'
+import { now, NotFoundError, UserError } from '../core/util'
 import type { TagService } from './tag-service'
 import type { SearchIndex } from './search-index'
 import type { FileStorage } from './file-storage'
@@ -133,8 +133,30 @@ export class RevisionService {
     )
   }
 
+  /**
+   * «Зберегти» on a record created a moment ago: the person chose to keep it, even under the default title and
+   * with nothing in it. An empty draft is «never edited» (createdAt === updatedAt, see isDraft), so bumping
+   * updatedAt ends that: leaving the page (discardDraft) and the next «+ Створити» (draft reuse in
+   * SoftRepository.insert) no longer take the saved record away. Records already edited are left alone.
+   */
+  keep(ref: EntityRef): boolean {
+    const d = this.registry.get(ref.type)
+    const row = this.registry.findRow(ref)
+    if (!row || row.deletedAt || Number(row.updatedAt) !== Number(row.createdAt)) return false
+    this.ctx.orm
+      .update(d.table)
+      .set({ updatedAt: Math.max(now(), Number(row.createdAt) + 1) })
+      .where(eq(d.table.id, ref.id))
+      .run()
+    return true
+  }
+
   api(bus: EventBus): RecordsApi {
     return {
+      keep: async (ref) => {
+        const r = entityRefSchema.parse(ref)
+        if (this.keep(r)) bus.dataChanged([r.type])
+      },
       snapshot: async (ref) => this.snapshot(entityRefSchema.parse(ref)),
       changed: async (args) =>
         this.changed(entityRefSchema.parse(args.ref), snapshotArg.parse(args.snapshot)),

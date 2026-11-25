@@ -4,7 +4,14 @@
  * Every method takes at most ONE argument so that the transport stays trivial: rpc(path, arg).
  */
 import type { EntityType } from './entity-types'
-import type { ChipCountsQuery, EntityRef, EntitySummary, PageQuery, Tag, TagWithUsage } from './domain/common'
+import type {
+  ChipCountsQuery,
+  EntityRef,
+  EntitySummary,
+  PageQuery,
+  Tag,
+  TagWithUsage
+} from './domain/common'
 import type { Idea, IdeaInput, IdeaListQuery, IdeaPatch, IdeaStatus } from './domain/ideas'
 import type {
   Board,
@@ -23,8 +30,20 @@ import type {
   ColumnPatch,
   DueCard
 } from './domain/boards'
-import type { ClaudeInput, ClaudeItem, ClaudeKind, ClaudeListQuery, ClaudePatch } from './domain/claude'
-import type { Library, LibraryInput, LibraryListQuery, LibraryPatch, LibraryStatus } from './domain/libraries'
+import type {
+  ClaudeInput,
+  ClaudeItem,
+  ClaudeKind,
+  ClaudeListQuery,
+  ClaudePatch
+} from './domain/claude'
+import type {
+  Library,
+  LibraryInput,
+  LibraryListQuery,
+  LibraryPatch,
+  LibraryStatus
+} from './domain/libraries'
 import type {
   ComponentInput,
   ComponentListQuery,
@@ -44,7 +63,13 @@ import type {
   MoodboardInput,
   MoodboardPatch
 } from './domain/designs'
-import type { Snippet, SnippetInput, SnippetLanguage, SnippetListQuery, SnippetPatch } from './domain/snippets'
+import type {
+  Snippet,
+  SnippetInput,
+  SnippetLanguage,
+  SnippetListQuery,
+  SnippetPatch
+} from './domain/snippets'
 import type {
   ClientDetails,
   ClientInput,
@@ -96,7 +121,13 @@ import type {
   WordListQuery,
   WordPatch
 } from './domain/english'
-import type { CalendarEvent, CalendarItem, DateRange, EventInput, EventPatch } from './domain/calendar'
+import type {
+  CalendarEvent,
+  CalendarItem,
+  DateRange,
+  EventInput,
+  EventPatch
+} from './domain/calendar'
 import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
 import type {
   CaptureInfo,
@@ -255,12 +286,21 @@ export interface ClaudeApi extends CrudApi<ClaudeItem, ClaudeInput, ClaudePatch,
   counts(query?: ChipCountsQuery): Promise<ChipCounts<ClaudeKind>>
 }
 
-export interface LibrariesApi extends CrudApi<Library, LibraryInput, LibraryPatch, LibraryListQuery> {
+export interface LibrariesApi extends CrudApi<
+  Library,
+  LibraryInput,
+  LibraryPatch,
+  LibraryListQuery
+> {
   counts(query?: ChipCountsQuery): Promise<ChipCounts<LibraryStatus>>
 }
 
-export interface ComponentsApi
-  extends CrudApi<UiComponent, ComponentInput, ComponentPatch, ComponentListQuery> {
+export interface ComponentsApi extends CrudApi<
+  UiComponent,
+  ComponentInput,
+  ComponentPatch,
+  ComponentListQuery
+> {
   setCover(args: { id: string; source: FileSource }): Promise<UiComponent>
   removeCover(id: string): Promise<UiComponent>
 }
@@ -281,15 +321,24 @@ export interface DesignsApi extends CrudApi<Design, DesignInput, DesignPatch, De
 }
 
 /** `designId`: each moodboard also says whether that design is in it (`contains`, the «У добірку» picker). */
-export interface MoodboardsApi
-  extends CrudApi<Moodboard, MoodboardInput, MoodboardPatch, { designId?: string }> {
+export interface MoodboardsApi extends CrudApi<
+  Moodboard,
+  MoodboardInput,
+  MoodboardPatch,
+  { designId?: string }
+> {
   details(id: string): Promise<MoodboardDetails | null>
   addDesigns(args: { moodboardId: string; designIds: string[] }): Promise<void>
   removeDesign(args: { moodboardId: string; designId: string }): Promise<void>
   reorder(args: { moodboardId: string; designIds: string[] }): Promise<void>
 }
 
-export interface SnippetsApi extends CrudApi<Snippet, SnippetInput, SnippetPatch, SnippetListQuery> {
+export interface SnippetsApi extends CrudApi<
+  Snippet,
+  SnippetInput,
+  SnippetPatch,
+  SnippetListQuery
+> {
   markCopied(id: string): Promise<void>
   counts(query?: ChipCountsQuery): Promise<ChipCounts<SnippetLanguage>>
 }
@@ -308,12 +357,21 @@ export interface KnowledgeApi {
   mostCopied(limit?: number): Promise<CopiedItem[]>
 }
 
-export interface ClientsApi extends CrudApi<ClientSummary, ClientInput, ClientPatch, ClientListQuery> {
+export interface ClientsApi extends CrudApi<
+  ClientSummary,
+  ClientInput,
+  ClientPatch,
+  ClientListQuery
+> {
   details(id: string): Promise<ClientDetails | null>
 }
 
-export interface ProjectsApi
-  extends CrudApi<ProjectSummary, ProjectInput, ProjectPatch, ProjectListQuery> {
+export interface ProjectsApi extends CrudApi<
+  ProjectSummary,
+  ProjectInput,
+  ProjectPatch,
+  ProjectListQuery
+> {
   details(id: string): Promise<ProjectDetails | null>
   overview(): Promise<CrmOverview>
 }
@@ -350,7 +408,9 @@ export interface ImporterApi {
 }
 
 export interface ChecklistsApi {
-  list(args?: { kind?: ChecklistKind; search?: string; tagId?: string } & PageQuery): Promise<Checklist[]>
+  list(
+    args?: { kind?: ChecklistKind; search?: string; tagId?: string } & PageQuery
+  ): Promise<Checklist[]>
   /** Number of templates and runs (for the tab chips). */
   counts(): Promise<{ template: number; run: number }>
   get(id: string): Promise<ChecklistDetails | null>
@@ -373,7 +433,12 @@ export interface FixesApi extends CrudApi<Fix, FixInput, FixPatch, FixListQuery>
   counts(query?: ChipCountsQuery): Promise<{ open: number; resolved: number }>
 }
 
-export interface BookmarksApi extends CrudApi<Bookmark, BookmarkInput, BookmarkPatch, BookmarkListQuery> {
+export interface BookmarksApi extends CrudApi<
+  Bookmark,
+  BookmarkInput,
+  BookmarkPatch,
+  BookmarkListQuery
+> {
   /** `byStatus` within the chosen kind (as the status chips show it), `byKind` over all kinds. */
   counts(
     query?: ChipCountsQuery & { kind?: BookmarkKind }
@@ -409,7 +474,12 @@ export interface PlatformsApi {
   reorder(ids: string[]): Promise<void>
 }
 
-export interface ProposalsApi extends CrudApi<Proposal, ProposalInput, ProposalPatch, ProposalListQuery> {
+export interface ProposalsApi extends CrudApi<
+  Proposal,
+  ProposalInput,
+  ProposalPatch,
+  ProposalListQuery
+> {
   /** Distinct niches used so far (for suggestions). */
   niches(): Promise<string[]>
   /** Sent proposals with no answer for N days (default 3) — time to follow up. */
@@ -427,12 +497,21 @@ export interface CreditsApi {
   summary(args: { platformId: string }): Promise<CreditsSummary>
 }
 
-export interface TemplatesApi
-  extends CrudApi<MessageTemplate, TemplateInput, TemplatePatch, { situation?: TemplateSituation; search?: string; tagId?: string }> {
+export interface TemplatesApi extends CrudApi<
+  MessageTemplate,
+  TemplateInput,
+  TemplatePatch,
+  { situation?: TemplateSituation; search?: string; tagId?: string }
+> {
   markCopied(id: string): Promise<void>
 }
 
-export type CasesApi = CrudApi<PortfolioCase, CaseInput, CasePatch, { search?: string; niche?: string; tagId?: string }> & {
+export type CasesApi = CrudApi<
+  PortfolioCase,
+  CaseInput,
+  CasePatch,
+  { search?: string; niche?: string; tagId?: string }
+> & {
   setCover(args: { id: string; source: FileSource }): Promise<PortfolioCase>
 }
 
@@ -461,7 +540,12 @@ export interface FinanceApi {
   updateSubscription(args: { id: string; patch: SubscriptionPatch }): Promise<Subscription>
   removeSubscription(id: string): Promise<void>
   /** Marks a subscription paid for the month (creates an expense) or unpaid (removes it). */
-  setSubscriptionPaid(args: { id: string; month: string; paid: boolean; amount?: number }): Promise<void>
+  setSubscriptionPaid(args: {
+    id: string
+    month: string
+    paid: boolean
+    amount?: number
+  }): Promise<void>
   expenses(args: { from: number; to: number }): Promise<Expense[]>
   createExpense(input: ExpenseInput): Promise<Expense>
   updateExpense(args: { id: string; patch: ExpensePatch }): Promise<Expense>
@@ -523,7 +607,11 @@ export interface JobsApi {
   updateQuestion(args: { id: string; patch: QuestionPatch }): Promise<InterviewQuestion>
   removeQuestion(id: string): Promise<void>
   topics(): Promise<string[]>
-  practiceQueue(args?: { limit?: number; category?: QuestionCategory; group?: 'technical' | 'nontechnical' }): Promise<InterviewQuestion[]>
+  practiceQueue(args?: {
+    limit?: number
+    category?: QuestionCategory
+    group?: 'technical' | 'nontechnical'
+  }): Promise<InterviewQuestion[]>
   reviewQuestion(args: { id: string; grade: number; extra?: boolean }): Promise<InterviewQuestion>
   /** Not-yet-due questions for extra practice: soonest due and weakest (lowest ease) first. */
   practiceExtra(args: {
@@ -547,8 +635,13 @@ export interface DevProjectsApi {
   /** Native folder picker; null if cancelled. */
   pickFolder(): Promise<string | null>
   /** Sub-folders of `root` that look like projects and are not added yet. */
-  scan(root: string): Promise<{ name: string; path: string; hasGit: boolean; hasPackage: boolean }[]>
-  open(args: { projectId: string; target: 'vscode' | 'cursor' | 'terminal' | 'folder' }): Promise<void>
+  scan(
+    root: string
+  ): Promise<{ name: string; path: string; hasGit: boolean; hasPackage: boolean }[]>
+  open(args: {
+    projectId: string
+    target: 'vscode' | 'cursor' | 'terminal' | 'folder'
+  }): Promise<void>
   /** Runs a package.json script (only scripts that exist there). Logs stream via the "dev:log" event. */
   run(args: { projectId: string; script: string }): Promise<RunningScript>
   stop(runId: string): Promise<void>
@@ -621,6 +714,11 @@ export interface RecordsApi {
   snapshot(ref: EntityRef): Promise<RecordSnapshot>
   changed(args: { ref: EntityRef; snapshot: RecordSnapshot }): Promise<boolean>
   revert(args: { ref: EntityRef; snapshot: RecordSnapshot }): Promise<void>
+  /**
+   * «Зберегти» on a record created a moment ago: keep it even under the default title and empty, so neither
+   * leaving the page nor the next «+ Створити» treats it as an empty draft.
+   */
+  keep(ref: EntityRef): Promise<void>
 }
 
 export interface TrashApi {
@@ -743,7 +841,7 @@ export type ApiNamespace = keyof Api
 export interface MainEvents {
   /** Data changed outside the current window (quick add, reminders, restore…). */
   'data:changed': { types: EntityType[] | 'all' }
-  'navigate': { route: string }
+  navigate: { route: string }
   'updates:status': UpdateStatus
   'settings:changed': Settings
   'quick-add:open': { target?: string }
@@ -766,6 +864,7 @@ export const MAIN_EVENTS: MainEventName[] = [
 ]
 
 /** Shape of the RPC envelope; errors are serialised explicitly to keep messages intact. */
-export type RpcResult<T = unknown> = { ok: true; data: T } | { ok: false; error: string; code?: string }
+export type RpcResult<T = unknown> =
+  { ok: true; data: T } | { ok: false; error: string; code?: string }
 
 export const RPC_CHANNEL = 'vault:rpc'

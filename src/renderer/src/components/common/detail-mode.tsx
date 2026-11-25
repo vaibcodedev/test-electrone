@@ -105,9 +105,14 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         toast.warning(`Спершу додайте або скасуйте ${what ?? 'відкриту форму'}`)
         return false
       }
+      if (fresh && ref) {
+        // An explicit «Зберегти» keeps a new record even under the default title and empty: as an «empty draft»
+        // it vanished on leaving the page, and the next «+ Створити» reused it instead of adding a new one.
+        await api.records.keep(ref).catch((e) => reportError(e, 'detail-mode:keep'))
+      }
       setFresh(false)
       setEditing(false)
-      if (changed) toast.success('Збережено')
+      if (changed || fresh) toast.success('Збережено')
       return true
     }
     const cancel = ref

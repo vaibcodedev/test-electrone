@@ -121,6 +121,30 @@ test.describe('дизайни: галерея, колір, добірка', () =
     await expect.poll(() => hashPath(win)).toBe(`/designs/boards/${board.id}`)
     await expect(win.getByText(design.title).first()).toBeVisible()
   })
+
+  // Regression: «Зберегти» on a new board left it an «empty draft» (default title, never edited, nothing in it):
+  // leaving the page discarded it and the next «Нова добірка» reused it, though the toast said «Збережено».
+  test('«Нова добірка» → «Зберегти» без змін → добірка лишається; наступна — нова', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const drafts = async (): Promise<number> =>
+      ((await rpc('moodboards.list', {})) as { title: string }[]).filter(
+        (m) => m.title === 'Нова добірка'
+      ).length
+    const before = await drafts()
+    for (let i = 1; i <= 2; i++) {
+      await go('/designs')
+      await win.getByRole('button', { name: 'Нова добірка', exact: true }).click()
+      await expect.poll(() => hashPath(win)).toMatch(/^\/designs\/boards\//)
+      await win.locator('[data-save]').click()
+      await expect(win.getByText('Збережено').first()).toBeVisible()
+      await go('/designs')
+      // Leaving discards an empty draft after a short delay (hooks/use-discard-draft.ts): wait past it.
+      await win.waitForTimeout(1500)
+      await expect.poll(drafts).toBe(before + i)
+    }
+  })
 })
 
 test.describe('закладка: посилання без схеми', () => {

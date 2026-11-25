@@ -102,7 +102,14 @@ export class Vault {
       this.registry.register(d)
     }
     const { tags, links, search, files } = this
-    this.trash = new TrashService(this.db, this.registry, { tags, links, pins, attachments, search, files })
+    this.trash = new TrashService(this.db, this.registry, {
+      tags,
+      links,
+      pins,
+      attachments,
+      search,
+      files
+    })
     this.revisions = new RevisionService(this.db, this.registry, tags, search, files)
     this.api = {
       boards: this.boards.boardsApi(),
@@ -112,6 +119,7 @@ export class Vault {
       events: this.calendar.api(),
       jobs: this.jobs.api(),
       components: this.media.componentsApi(),
+      moodboards: this.media.moodboardsApi(),
       english: english.api(),
       platforms: freelance.platformsApi(),
       proposals: freelance.proposalsApi(),

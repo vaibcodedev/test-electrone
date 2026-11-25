@@ -94,3 +94,30 @@ describe('«Скасувати» on a checklist rolls its items back', () => {
     expect(await texts(list.id)).toEqual(['Тести'])
   })
 })
+
+describe('«Зберегти» on a new record keeps it, even under the default title and empty', () => {
+  it('a saved empty «Нова добірка» is no longer an empty draft: leaving keeps it, a new one is added', async () => {
+    const first = await v.api.moodboards.create({ title: 'Нова добірка' })
+    const ref = { type: 'moodboard' as const, id: first.id }
+    expect(v.revisions.keep(ref)).toBe(true)
+    // Leaving the page asks main to discard an empty draft: the saved one stays.
+    expect(v.trash.discardDraft(ref)).toBe(false)
+    // «+ Створити» reuses an untouched empty draft; the saved one is not reused.
+    const second = await v.api.moodboards.create({ title: 'Нова добірка' })
+    expect(second.id).not.toBe(first.id)
+    expect((await v.api.moodboards.list({})).map((m) => m.id).sort()).toEqual(
+      [first.id, second.id].sort()
+    )
+  })
+
+  it('without «Зберегти» an untouched draft still goes, and a record edited before is left alone', async () => {
+    const draft = await v.api.moodboards.create({ title: 'Нова добірка' })
+    expect(v.trash.discardDraft({ type: 'moodboard', id: draft.id })).toBe(true)
+
+    const edited = await v.api.moodboards.create({ title: 'Дашборди' })
+    await v.api.moodboards.update({ id: edited.id, patch: { title: 'Темні дашборди' } })
+    const before = (await v.api.moodboards.get(edited.id))?.updatedAt
+    expect(v.revisions.keep({ type: 'moodboard', id: edited.id })).toBe(false)
+    expect((await v.api.moodboards.get(edited.id))?.updatedAt).toBe(before)
+  })
+})
