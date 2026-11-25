@@ -23,6 +23,9 @@ import { useDetailMode, useReadOnly } from './detail-mode-context'
 const LINKS_HINT =
   'Пов’яжіть запис з іншим — ідею з дошкою, помилку зі сніпетом. Зв’язок видно з обох записів.'
 
+/** Rows shown before «Показати ще», as in «Згадки»: a dozen links pushed a board's designs a screen down. */
+const FIRST = 5
+
 /** Links between any objects: idea → project → board → snippets → designs. */
 export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
   const viewMode = useReadOnly()
@@ -30,6 +33,9 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
   const openEntity = useOpenEntity()
   const { data: links = [] } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
+  const [all, setAll] = useState(false)
+  const shown = all ? links : links.slice(0, FIRST)
+  const rest = links.length - shown.length
   return (
     <section className="flex flex-col gap-2">
       <SectionLabel action={<LinkPicker entity={entity} linked={links} />}>Зв’язки</SectionLabel>
@@ -41,7 +47,7 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
         )
       ) : (
         <div className="-mx-2.5 flex flex-col">
-          {links.map((l) => (
+          {shown.map((l) => (
             <EntityRow
               key={l.linkId}
               item={l}
@@ -65,6 +71,11 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
             />
           ))}
         </div>
+      )}
+      {rest > 0 && (
+        <Button variant="link" size="xs" className="self-start" onClick={() => setAll(true)}>
+          Показати ще {rest}
+        </Button>
       )}
     </section>
   )

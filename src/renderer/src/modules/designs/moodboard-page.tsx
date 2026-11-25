@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactElement } from 'react'
+import { useId, useMemo, useRef, useState, type ReactElement } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   DndContext,
@@ -35,6 +35,7 @@ import { InlineTitle, RecordActions } from '@/components/common/master-detail'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { VirtualGrid } from '@/components/common/virtual-list'
+import { useOpenParam } from '@/components/common/master-detail'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { MentionsPanel } from '@/components/common/mentions-panel'
@@ -55,6 +56,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { DesignMedia, DropOverlay, PickImagesButton } from './shared'
 import { designCount, designTitle } from './labels'
+import { DesignDialog } from './design-dialog'
 import { useImportImages } from './use-import-images'
 import { isMediaFile } from './media'
 import { FavoriteMark } from '@/components/common/favorite-mark'
@@ -69,6 +71,7 @@ function SortableDesign({
 }: {
   design: Design
   onRemove: () => void
+  /** A plain click opens the design; a drag (6px and more) reorders and opens nothing. */
   onOpen: () => void
 }): ReactElement {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -82,11 +85,12 @@ function SortableDesign({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         // The surface frame of the gallery tiles: a dark screenshot doesn't melt into the page.
-        'group relative aspect-4/3 cursor-grab gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 active:cursor-grabbing',
+        'group relative aspect-4/3 cursor-pointer gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 active:cursor-grabbing',
         isDragging && 'z-10 opacity-80 shadow-2xl ring-2 ring-ring'
       )}
       {...attributes}
       {...listeners}
+      onClick={onOpen}
     >
       <DesignMedia
         path={design.imagePath}
@@ -113,7 +117,10 @@ function SortableDesign({
                 aria-label="Відкрити"
                 className="bg-card hover:bg-card"
                 onPointerDown={(e) => e.stopPropagation()}
-                onClick={onOpen}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpen()
+                }}
               >
                 <ArrowUpRight />
               </Button>
@@ -128,7 +135,10 @@ function SortableDesign({
                 aria-label="Прибрати з добірки"
                 className="bg-card hover:bg-card hover:text-destructive"
                 onPointerDown={(e) => e.stopPropagation()}
-                onClick={onRemove}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRemove()
+                }}
               >
                 <X />
               </Button>
@@ -303,6 +313,10 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
   const mode = useRecordMode(board.id, 'moodboard')
   const descriptionId = useId()
   const close = (): void => void navigate('/designs')
+  // A design opens over the board (the gallery's dialog), ?open= like everywhere; the board stays underneath.
+  const [openDesign, setOpenDesign] = useOpenParam()
+  // A drag ends with a click on the same tile: it must not open the design it just moved.
+  const dragged = useRef(false)
 
   // Local order for instant feedback while dragging; follows server data otherwise (synced during render).
   const [order, setOrder] = useState(board.designs.map((d) => d.id))
@@ -361,30 +375,46 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
       <div {...props} className="relative flex min-h-0 flex-1 flex-col">
         <DropOverlay show={isOver} label="Відпустіть, щоб додати в добірку" />
         <RecordMode mode={mode}>
-          <header className="flex flex-col gap-3 px-8 pt-6 pb-5">
-            <div className="flex items-center gap-2">
-              {/* The same exit as ✕: asks about unsaved changes, an untouched new board isn't kept. */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => (mode.confirmClose ? mode.confirmClose(close) : close())}
-              >
-                <ArrowLeft /> Дизайни
-              </Button>
-              {/* The record header of every editor: pin, trash (restorable, so no question), edit, ✕ — Esc closes. */}
-              <RecordActions
-                className="flex-1"
-                entity={{ type: 'moodboard', id: board.id }}
-                mode={mode}
-                onDelete={() => {
-                  remove.mutate(board.id)
-                  close()
-                }}
-                onClose={close}
-              />
-            </div>
-            <div className="flex items-end justify-between gap-6">
-              <div className="flex min-w-0 flex-1 flex-col gap-3">
+          {/* Fixed: the way back, the board's actions and adding designs. Everything else scrolls with the grid —
+              a long list of links used to grow this header until the grid had no room and nothing scrolled. */}
+          <div className="flex items-center gap-2 px-8 pt-6 pb-3">
+            {/* The same exit as ✕: asks about unsaved changes, an untouched new board isn't kept. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => (mode.confirmClose ? mode.confirmClose(close) : close())}
+            >
+              <ArrowLeft /> Дизайни
+            </Button>
+            {/* The record header of every editor: pin, trash (restorable, so no question), edit, ✕ — Esc closes. */}
+            <RecordActions
+              className="flex-1"
+              entity={{ type: 'moodboard', id: board.id }}
+              mode={mode}
+              extra={
+                // Quick actions: they fill the board and work in both modes. The slot makes N press «Додати
+                // дизайни»; it sits here, not on the whole header, so N never finds «Зберегти» while editing.
+                <div data-slot="page-header" className="flex shrink-0 gap-2">
+                  <PickImagesButton
+                    onSources={(s) => void importSources(s)}
+                    label="Завантажити"
+                    disabled={busy}
+                  />
+                  <Button variant="lime" onClick={() => setPickerOpen(true)}>
+                    <Plus /> Додати дизайни
+                  </Button>
+                </div>
+              }
+              onDelete={() => {
+                remove.mutate(board.id)
+                close()
+              }}
+              onClose={close}
+            />
+          </div>
+          <PageBody>
+            <header className="flex flex-wrap items-start gap-x-10 gap-y-6 pt-2 pb-6">
+              <div className="flex min-w-72 flex-1 flex-col gap-3">
                 <InlineTitle
                   value={title}
                   onChange={setTitle}
@@ -410,58 +440,67 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                   )
                 )}
                 <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} />
-                {/* A link made from a bookmark or a design shows here too (reading without links: the title and «Зв’язати»). */}
-                {/* w-fit: without links «Зв’язати» stands next to its label, not 400px away at the box's edge. */}
-                <div className="flex w-fit max-w-md flex-col gap-6">
-                  <LinksPanel entity={{ type: 'moodboard', id: board.id }} />
-                  <MentionsPanel entity={{ type: 'moodboard', id: board.id }} />
-                </div>
               </div>
-              {/* Quick actions: they fill the board and work in both modes. The slot makes N press «Додати
-                  дизайни»; it sits here, not on the whole header, so N never finds «Зберегти» while editing. */}
-              <div data-slot="page-header" className="flex shrink-0 gap-2">
-                <PickImagesButton
-                  onSources={(s) => void importSources(s)}
-                  label="Завантажити"
-                  disabled={busy}
-                />
-                <Button variant="lime" onClick={() => setPickerOpen(true)}>
-                  <Plus /> Додати дизайни
-                </Button>
-              </div>
-            </div>
-          </header>
+              {/* The record aside's column (w-72 ≈ DetailPane's): «Зв’язати» stays next to its label, long lists
+                  scroll with the page. A link made from a bookmark or a design shows here too. */}
+              <aside className="flex w-72 shrink-0 flex-col gap-6">
+                <LinksPanel entity={{ type: 'moodboard', id: board.id }} />
+                <MentionsPanel entity={{ type: 'moodboard', id: board.id }} />
+              </aside>
+            </header>
+            {empty ? (
+              <EmptyState
+                icon={LayoutGrid}
+                title="Добірка порожня"
+                hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
+                cta={{ label: 'Додати дизайни', icon: Plus, onClick: () => setPickerOpen(true) }}
+              />
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={() => {
+                  dragged.current = true
+                }}
+                onDragEnd={(e) => {
+                  onDragEnd(e)
+                  setTimeout(() => {
+                    dragged.current = false
+                  })
+                }}
+                onDragCancel={() => {
+                  dragged.current = false
+                }}
+              >
+                <SortableContext items={order} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
+                    {order.map((id) => {
+                      const d = byId.get(id)
+                      if (!d) return null
+                      return (
+                        <SortableDesign
+                          key={id}
+                          design={d}
+                          onOpen={() => {
+                            if (!dragged.current) setOpenDesign(id)
+                          }}
+                          onRemove={() => removeFromBoard(id)}
+                        />
+                      )
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+          </PageBody>
         </RecordMode>
-        <PageBody>
-          {empty ? (
-            <EmptyState
-              icon={LayoutGrid}
-              title="Добірка порожня"
-              hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
-              cta={{ label: 'Додати дизайни', icon: Plus, onClick: () => setPickerOpen(true) }}
-            />
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-              <SortableContext items={order} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
-                  {order.map((id) => {
-                    const d = byId.get(id)
-                    if (!d) return null
-                    return (
-                      <SortableDesign
-                        key={id}
-                        design={d}
-                        onOpen={() => navigate(`/designs?open=${id}`)}
-                        onRemove={() => removeFromBoard(id)}
-                      />
-                    )
-                  })}
-                </div>
-              </SortableContext>
-            </DndContext>
-          )}
-        </PageBody>
       </div>
+      <DesignDialog
+        id={openDesign}
+        ids={order}
+        onOpen={setOpenDesign}
+        onClose={() => setOpenDesign(null)}
+      />
       <AddDesignsDialog open={pickerOpen} onOpenChange={setPickerOpen} board={board} />
     </Page>
   )

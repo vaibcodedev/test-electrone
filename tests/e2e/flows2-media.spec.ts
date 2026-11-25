@@ -409,3 +409,32 @@ test.describe('закладка: посилання без схеми', () => {
     await expect(pane.getByRole('button', { name: 'https://example.com/a' })).toBeVisible()
   })
 })
+
+test.describe('добірка: дизайн відкривається на місці', () => {
+  test('клік по дизайну відкриває вікно поверх добірки; Esc лишає на добірці', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const token = uid()
+    const design = await importSolidImage(win, `onboard-${token}`, '#6f7ff0')
+    const board = await rpc('moodboards.create', { title: `Клік ${token}` })
+    await rpc('moodboards.addDesigns', { moodboardId: board.id, designIds: [design.id] })
+
+    await go(`/designs/boards/${board.id}`)
+    // A plain click, no hold: dnd starts only after 6px of movement.
+    await win
+      .locator('[data-slot="card"]')
+      .filter({ has: win.locator('img') })
+      .first()
+      .click()
+    const dialog = win.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('heading', { name: design.title })).toBeVisible()
+    await expect.poll(() => hashPath(win)).toBe(`/designs/boards/${board.id}`)
+    await expect.poll(() => openParam(win)).toBe(design.id)
+
+    await win.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+    await expect.poll(() => hashPath(win)).toBe(`/designs/boards/${board.id}`)
+  })
+})
