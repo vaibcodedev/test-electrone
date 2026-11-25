@@ -147,6 +147,202 @@ test.describe('дизайни: галерея, колір, добірка', () =
   })
 })
 
+/** Live moodboards to the trash; returns a restore for the end of the test (the worker's base is shared). */
+async function trashAllBoards(rpc: Vault['rpc']): Promise<() => Promise<void>> {
+  const ids = ((await rpc('moodboards.list', {})) as { id: string }[]).map((b) => b.id)
+  for (const id of ids) await rpc('moodboards.remove', id)
+  return async () => {
+    for (const id of ids) await rpc('trash.restore', { type: 'moodboard', id })
+  }
+}
+
+test.describe('дизайни: ряд добірок', () => {
+  // The user's complaint: with no boards «Нова добірка» was a lone dashed pill over the filters, and closing a
+  // new untouched board silently brought the same pill back.
+  test('0 добірок — один рядок із кнопкою; нова добірка без змін → «Запис не створено»', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const restore = await trashAllBoards(rpc)
+    try {
+      await go('/designs')
+      const text = win.getByText('Добірок поки немає', { exact: true })
+      const button = win.getByRole('button', { name: 'Нова добірка', exact: true })
+      await expect(text).toBeVisible()
+      await expect(button).toBeVisible()
+      const b = (await button.boundingBox())!
+      const t = (await text.boundingBox())!
+      expect(b.height).toBeLessThanOrEqual(34)
+      expect(Math.abs(b.y + b.height / 2 - (t.y + t.height / 2))).toBeLessThanOrEqual(4)
+      await expect(win.locator('header [class*="border-dashed"]')).toHaveCount(0)
+
+      await button.click()
+      await expect.poll(() => hashPath(win)).toMatch(/^\/designs\/boards\//)
+      await expect(win.locator('[data-save]')).toBeVisible()
+      await win.getByRole('button', { name: 'Закрити' }).click()
+      await expect(win.getByText('Запис не створено').first()).toBeVisible()
+      await expect.poll(() => hashPath(win)).toBe('/designs')
+      await expect(text).toBeVisible()
+      expect(await rpc('moodboards.count')).toBe(0)
+    } finally {
+      await restore()
+    }
+  })
+
+  // With no boards the «У добірку» popup had a lone separator on top and never said «Добірок поки немає.»
+  // (cmdk shows Empty only when nothing matches, and «Нова добірка» always does); a gallery search hid the row.
+  test('0 добірок: пошук у галереї не ховає «Нова добірка»; «У добірку» каже, що добірок немає, і створює нову', async ({
+    vault
+  }) => {
+    test.setTimeout(60_000)
+    const { win, rpc, go } = vault
+    const design = await importSolidImage(win, `solo-${uid()}`, '#00a0ff')
+    const restore = await trashAllBoards(rpc)
+    let created: string | undefined
+    try {
+      await go('/designs')
+      const newBoard = win.getByRole('button', { name: 'Нова добірка', exact: true })
+      await expect(newBoard).toBeVisible()
+      await win.locator('[data-page-search]').fill('нічого-такого-немає')
+      await expect(newBoard).toBeVisible()
+      await win.locator('[data-page-search]').fill('')
+
+      await go(`/designs?open=${design.id}`)
+      await win.getByRole('button', { name: 'У добірку' }).click()
+      const popup = win.locator('[data-slot="popover-content"]')
+      await expect(popup.getByText('Добірок поки немає.', { exact: true })).toBeVisible()
+      await expect(popup.locator('[data-slot="command-separator"]')).toHaveCount(0)
+      await popup.getByRole('option', { name: 'Нова добірка' }).click()
+      await expect(win.getByText('Дизайн додано в «Нова добірка»').first()).toBeVisible()
+      await expect.poll(() => rpc('moodboards.count')).toBe(1)
+      created = ((await rpc('moodboards.list', {})) as { id: string }[])[0].id
+      expect((await rpc('moodboards.details', created))?.designs?.length).toBe(1)
+    } finally {
+      if (created) await rpc('moodboards.remove', created)
+      await rpc('designs.remove', design.id)
+      await restore()
+    }
+  })
+
+  test('згорнутий ряд лишається згорнутим після переходу й перезапуску', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    const board = await rpc('moodboards.create', { title: `Згортання ${uid()}` })
+    const trigger = win.getByRole('button', { name: /^Добірки \d+$/ })
+    try {
+      await go('/designs')
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+      await expect(win.locator('[data-slot="strip-item"]').first()).toBeVisible()
+      await trigger.click()
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      await expect(win.locator('[data-slot="strip-item"]')).toHaveCount(0)
+      // Collapsed, the way to every board stays.
+      await expect(win.getByRole('button', { name: 'Усі добірки', exact: true })).toBeVisible()
+
+      await go('/ideas')
+      await go('/designs')
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      await win.reload()
+      await win.waitForLoadState('domcontentloaded')
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      await trigger.click()
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    } finally {
+      // localStorage is shared by the worker's tests: leave the row expanded.
+      await win.evaluate(() => {
+        const raw = localStorage.getItem('vault-ui')
+        if (!raw) return
+        const saved = JSON.parse(raw)
+        if (saved.state?.collapsed) saved.state.collapsed['designs.moodboards'] = false
+        localStorage.setItem('vault-ui', JSON.stringify(saved))
+      })
+      await rpc('moodboards.remove', board.id)
+    }
+  })
+
+  test('30 добірок: 12 у ряду + «ще N», стрілки гортають, «Усі добірки» шукає й відкриває', async ({
+    vault
+  }) => {
+    test.setTimeout(90_000)
+    const { win, rpc, go } = vault
+    const token = uid()
+    const ids: string[] = []
+    for (let i = 0; i < 30; i++)
+      ids.push((await rpc('moodboards.create', { title: `Ряд ${token} ${i}` })).id)
+    try {
+      const total: number = await rpc('moodboards.count')
+      await go('/designs')
+      const items = win.locator('[data-slot="strip-item"]')
+      await expect(items).toHaveCount(13)
+      await expect(win.getByRole('button', { name: `Усі добірки: ще ${total - 12}` })).toBeVisible()
+
+      const next = win.getByRole('button', { name: 'Наступні добірки' })
+      await expect(next).toBeEnabled()
+      await expect(items.first()).toBeInViewport()
+      await next.click()
+      await expect(items.first()).not.toBeInViewport()
+      await expect(win.getByRole('button', { name: 'Попередні добірки' })).toBeEnabled()
+
+      await win.getByRole('button', { name: 'Усі добірки', exact: true }).click()
+      const dialog = win.getByRole('dialog', { name: 'Усі добірки' })
+      await expect(dialog).toBeVisible()
+      await dialog.getByRole('searchbox', { name: 'Пошук добірок' }).fill(`Ряд ${token} 7`)
+      const found = dialog.locator('[data-slot="card"]')
+      await expect(found).toHaveCount(1)
+      await found.click()
+      await expect.poll(() => hashPath(win)).toBe(`/designs/boards/${ids[7]}`)
+      await expect(dialog).toBeHidden()
+    } finally {
+      for (const id of ids) await rpc('moodboards.remove', id)
+    }
+  })
+
+  test('обрана добірка — перша в ряду, із зірочкою', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    // Not empty: favourite boards with designs go before empty favourites (the seed has «Лайм и графит»),
+    // and among them the last changed one is first.
+    const design = await importSolidImage(win, `fav-${uid()}`, '#22aa66')
+    const board = await rpc('moodboards.create', { title: `Обрана ${uid()}` })
+    const ref = { type: 'moodboard', id: board.id }
+    try {
+      await rpc('moodboards.addDesigns', { moodboardId: board.id, designIds: [design.id] })
+      await go(`/designs/boards/${board.id}`)
+      await win.getByRole('button', { name: 'В обране' }).click()
+      await expect.poll(async () => (await rpc('pins.state', ref)).favorite).toBe(true)
+      await go('/designs')
+      const first = win.locator('[data-slot="strip-item"]').first()
+      await expect(first).toContainText(board.title)
+      await expect(first).toContainText('В обраному')
+    } finally {
+      if ((await rpc('pins.state', ref)).favorite)
+        await rpc('pins.toggle', { ref, kind: 'favorite' })
+      await rpc('moodboards.remove', board.id)
+      await rpc('designs.remove', design.id)
+    }
+  })
+
+  test('плитка дизайну: смужка палітри замість кружків; знімок без назви підписано датою', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    // «clipboard.png» is what a pasted screenshot is called: main stores it without a title.
+    const shot = await importSolidImage(win, 'clipboard', '#3366ff')
+    expect(shot.title).toBe('')
+    try {
+      await go('/designs')
+      const tile = win
+        .locator('[data-slot="card"]')
+        .filter({ hasText: /Знімок .+ о \d{2}:\d{2}/ })
+        .first()
+      await expect(tile).toBeVisible()
+      await expect(tile.locator('[data-slot="palette-strip"]')).toHaveCount(1)
+      await expect(win.locator('[data-slot="card"] [role="switch"]')).toHaveCount(0)
+      await expect(win.getByText('Без назви')).toHaveCount(0)
+    } finally {
+      await rpc('designs.remove', shot.id)
+    }
+  })
+})
+
 test.describe('закладка: посилання без схеми', () => {
   test('«example.org/…» зберігається й відкривається як https://', async ({ vault }) => {
     const { win, rpc, go } = vault

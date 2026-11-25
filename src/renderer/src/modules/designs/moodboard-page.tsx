@@ -56,6 +56,8 @@ import { DesignMedia, DropOverlay, PickImagesButton } from './shared'
 import { designCount, designTitle } from './labels'
 import { useImportImages } from './use-import-images'
 import { isMediaFile } from './media'
+import { FavoriteMark } from '@/components/common/favorite-mark'
+import { useFavorites } from '@/hooks/use-favorites'
 
 const LIMITS = limitsOf(moodboardInputSchema)
 
@@ -72,13 +74,14 @@ function SortableDesign({
     id: design.id
   })
   const title = designTitle(design)
+  const fav = useFavorites()
   return (
     <Card
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         // The surface frame of the gallery tiles: a dark screenshot doesn't melt into the page.
-        'group relative aspect-4/3 cursor-grab gap-0 overflow-hidden bg-surface p-1.5 active:cursor-grabbing',
+        'group relative aspect-4/3 cursor-grab gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 active:cursor-grabbing',
         isDragging && 'z-10 opacity-80 shadow-2xl ring-2 ring-ring'
       )}
       {...attributes}
@@ -89,6 +92,12 @@ function SortableDesign({
         alt={title}
         className="size-full rounded-xl object-cover"
       />
+      {/* ★ only marks here: the order of a moodboard is yours. */}
+      {fav.has({ type: 'design', id: design.id }) && (
+        <Badge variant="soft" className="absolute top-3 left-3 bg-card p-1 shadow-sm">
+          <FavoriteMark entity={{ type: 'design', id: design.id }} />
+        </Badge>
+      )}
       <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {/* A long title ends with «…» and never pushes the buttons off the tile. */}
         <Badge variant="ink" truncate>
@@ -183,9 +192,10 @@ function DesignPicker({
               <ToggleGroupItem
                 value={d.id}
                 aria-label={title}
-                className="h-auto w-full flex-col items-stretch gap-1.5 rounded-2xl p-1 text-caption font-normal hover:bg-foreground/6 on:bg-transparent on:ring-2 on:ring-ring on:ring-offset-2 on:ring-offset-card"
+                // The gallery's tile (surface frame, title inside, inset outline when picked): the same card in both places.
+                className="tile h-auto w-full flex-col items-stretch gap-1.5 rounded-2xl bg-surface p-1.5 pb-2 text-caption font-normal on:bg-accent on:outline-2 on:-outline-offset-2 on:outline-ring"
               >
-                <span className="relative block aspect-4/3 overflow-hidden rounded-xl bg-surface">
+                <span className="relative block aspect-4/3 overflow-hidden rounded-xl bg-card">
                   <DesignMedia
                     path={d.imagePath}
                     autoPlay={false}
@@ -197,7 +207,7 @@ function DesignPicker({
                     </Badge>
                   )}
                 </span>
-                <span className="truncate px-1 text-left" title={title}>
+                <span className="truncate px-1.5 text-left text-body font-medium" title={title}>
                   {title}
                 </span>
               </ToggleGroupItem>
@@ -352,7 +362,12 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
         <RecordMode mode={mode}>
           <header className="flex flex-col gap-3 px-8 pt-6 pb-5">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={close}>
+              {/* The same exit as ✕: asks about unsaved changes, an untouched new board isn't kept. */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => (mode.confirmClose ? mode.confirmClose(close) : close())}
+              >
                 <ArrowLeft /> Дизайни
               </Button>
               {/* The record header of every editor: pin, trash (restorable, so no question), edit, ✕ — Esc closes. */}
@@ -395,7 +410,8 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                 )}
                 <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} />
                 {/* A link made from a bookmark or a design shows here too (reading without links: the title and «Зв’язати»). */}
-                <div className="max-w-md">
+                {/* w-fit: without links «Зв’язати» stands next to its label, not 400px away at the box's edge. */}
+                <div className="w-fit max-w-md">
                   <LinksPanel entity={{ type: 'moodboard', id: board.id }} />
                 </div>
               </div>

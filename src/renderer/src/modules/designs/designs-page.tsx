@@ -1,8 +1,7 @@
 import { useMemo, useState, type ReactElement } from 'react'
-import { useNavigate } from 'react-router'
-import { Clipboard, Image, Palette, Plus, X } from 'lucide-react'
+import { Clipboard, Image, Palette, X } from 'lucide-react'
 import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
@@ -17,6 +16,8 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { TagFilter } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -27,7 +28,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { clickableProps } from '@/lib/clickable'
 import { DesignDetail } from './design-detail'
-import { DesignMedia, DropOverlay, MoodboardTile, PickImagesButton } from './shared'
+import { DesignMedia, DropOverlay, PaletteStrip, PickImagesButton } from './shared'
+import { MoodboardStrip } from './moodboard-strip'
 import { KIND_LABEL, designTitle } from './labels'
 import { useImportImages } from './use-import-images'
 import { isMediaFile } from './media'
@@ -139,18 +141,21 @@ function ColorFilter({
 }
 
 export function DesignsPage(): ReactElement | null {
-  const navigate = useNavigate()
   const [open, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
   const [kind, setKind] = useState<DesignKind | undefined>()
   const [color, setColor] = useState<string | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
 
   const q = useDebounced(search.trim())
-  const list = useInfiniteApi('designs', 'list', { search: q || undefined, kind, color, tagId }, 60)
+  const list = useInfiniteApi(
+    'designs',
+    'list',
+    { search: q || undefined, kind, color, tagId, favorite: favorite || undefined },
+    60
+  )
   const { data: palette = [] } = useApi('designs', 'palette')
-  const { data: boards = [] } = useApi('moodboards', 'list')
-  const createBoard = useApiMutation('moodboards', 'create')
   const { importSources, busy } = useImportImages((created) => {
     if (created.length === 1) setOpen(created[0].id)
   })
@@ -158,18 +163,14 @@ export function DesignsPage(): ReactElement | null {
   usePasteFiles((s) => void importSources(s))
   usePaletteBackfill(list.items)
 
-  const filtered = !!(search || kind || color || tagId)
+  const filtered = !!(search || kind || color || tagId || favorite)
   const galleryEmpty = !list.isLoading && !list.items.length && !filtered
   const resetFilters = (): void => {
     setSearch('')
     setKind(undefined)
     setColor(undefined)
     setTagId(undefined)
-  }
-  const newBoard = async (): Promise<void> => {
-    if (createBoard.isPending) return
-    const b = await createBoard.mutateAsync({ title: 'Нова добірка' })
-    navigate(`/designs/boards/${b.id}`)
+    setFavorite(false)
   }
 
   /** Uniform 4:3 thumbnails (object-cover) so rows can be virtualized; the full image is in the detail pane. */
@@ -193,7 +194,7 @@ export function DesignsPage(): ReactElement | null {
           className={cn(
             // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
             // Selection is an inset outline — an outer ring would be clipped by the scrolling grid.
-            'group tile relative block w-full gap-0 overflow-hidden bg-surface p-1.5 text-left',
+            'group tile relative block w-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 text-left',
             d.id === open && 'bg-accent outline-2 -outline-offset-2 outline-ring'
           )}
         >
@@ -202,22 +203,16 @@ export function DesignsPage(): ReactElement | null {
             alt={designTitle(d)}
             className="block aspect-4/3 w-full rounded-xl object-cover object-top"
           />
-          <div className="flex min-w-0 items-center gap-2 px-1.5 pt-2 pb-0.5">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-body font-semibold">{designTitle(d)}</div>
-              <div className="truncate text-meta text-muted-foreground">{KIND_LABEL[d.kind]}</div>
-            </div>
-            {d.colors.length > 0 && (
-              <span className="flex shrink-0 -space-x-1" aria-hidden>
-                {d.colors.slice(0, 4).map((c) => (
-                  <span
-                    key={c}
-                    className="size-3 rounded-full ring-2 ring-surface"
-                    style={{ background: c }}
-                  />
-                ))}
+          {/* The palette as one strip of segments (overlapping dots read as a switch); hex values — in the pane. */}
+          <PaletteStrip colors={d.colors} className="mx-1.5 mt-2" />
+          <div className="min-w-0 px-1.5 pt-1.5 pb-0.5">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-body font-semibold" title={designTitle(d)}>
+                {designTitle(d)}
               </span>
-            )}
+              <FavoriteMark entity={{ type: 'design', id: d.id }} />
+            </div>
+            <div className="truncate text-meta text-muted-foreground">{KIND_LABEL[d.kind]}</div>
           </div>
         </Card>
       )}
@@ -249,26 +244,8 @@ export function DesignsPage(): ReactElement | null {
             </>
           }
         >
-          {/* An empty gallery shows no lone «Нова добірка» over its empty state: there is nothing to collect yet. */}
-          {(boards.length > 0 || (!filtered && !galleryEmpty)) && (
-            <div className="-mx-1 flex gap-2.5 overflow-x-auto overflow-y-hidden px-1 pb-1">
-              {boards.map((b) => (
-                <MoodboardTile key={b.id} board={b} />
-              ))}
-              <Button
-                variant="outline"
-                className="h-auto w-32 shrink-0 flex-col gap-1.5 rounded-3xl border-dashed text-caption font-normal text-muted-foreground hover:text-foreground"
-                disabled={createBoard.isPending}
-                // A failure is toasted by the mutation.
-                onClick={() => void newBoard().catch(() => undefined)}
-              >
-                <span className="grid size-7 place-items-center rounded-full bg-surface">
-                  <Plus />
-                </span>
-                Нова добірка
-              </Button>
-            </div>
-          )}
+          {/* Boards don't follow the gallery filters; with neither boards nor designs it hides itself. */}
+          <MoodboardStrip galleryEmpty={galleryEmpty} />
           {/* An empty gallery has nothing to filter: no row of filters over «Галерея порожня». */}
           {!galleryEmpty && (
             <FilterBar
@@ -283,6 +260,7 @@ export function DesignsPage(): ReactElement | null {
               }
               trailing={
                 <>
+                  <FavoriteFilter type="design" value={favorite} onChange={setFavorite} />
                   <TagFilter value={tagId} onChange={setTagId} />
                   <ColorFilter palette={palette} value={color} onChange={setColor} />
                   <SearchInput value={search} onChange={setSearch} />
@@ -296,7 +274,7 @@ export function DesignsPage(): ReactElement | null {
             filtered ? (
               <NoResults
                 icon={Image}
-                hint={noResultsHint(search, !!(kind || color || tagId))}
+                hint={noResultsHint(search, !!(kind || color || tagId || favorite))}
                 onReset={resetFilters}
               />
             ) : (

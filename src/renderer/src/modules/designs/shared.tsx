@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
-import { Check, ImagePlus, LayoutGrid, Plus } from 'lucide-react'
+import { Check, ImagePlus, LayoutGrid, Plus, Star } from 'lucide-react'
 import type { FileSource, Moodboard } from '@shared/domain/designs'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fileUrl, toFileSources } from '@/lib/files'
@@ -11,7 +11,6 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandItem,
   CommandList,
@@ -81,25 +80,75 @@ export function DesignMedia({
       />
     )
   }
+  return <DesignImage src={fileUrl(path)} alt={alt} className={className} />
+}
+
+/**
+ * A picture that is smaller than its box (a 16px favicon, a small icon) is shown at its own size in the middle
+ * instead of being stretched by `object-cover` into a blurry blow-up.
+ */
+function DesignImage({
+  src,
+  alt,
+  className
+}: {
+  src: string | undefined
+  alt: string
+  className?: string
+}): ReactElement {
+  const [small, setSmall] = useState(false)
   return (
-    <img src={fileUrl(path)} alt={alt} loading="lazy" draggable={false} className={className} />
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      draggable={false}
+      data-small={small || undefined}
+      onLoad={(e) => {
+        const img = e.currentTarget
+        setSmall(img.naturalWidth < img.clientWidth && img.naturalHeight < img.clientHeight)
+      }}
+      className={cn(className, 'data-small:object-scale-down data-small:object-center')}
+    />
   )
 }
 
-/** Cover mosaic of up to four images (shadcn Card). */
-export function MoodboardTile({ board }: { board: Moodboard }): ReactElement {
+/**
+ * A moodboard tile: cover mosaic of up to four images (shadcn Card). An empty board is a compact tile with one
+ * quiet cell — four blank cells looked like a broken preview. `layout="grid"` fills a grid cell (the «Усі
+ * добірки» dialog); `onOpen` runs before navigating (closes that dialog).
+ */
+export function MoodboardTile({
+  board,
+  layout = 'strip',
+  onOpen
+}: {
+  board: Moodboard
+  layout?: 'strip' | 'grid'
+  onOpen?: () => void
+}): ReactElement {
   const navigate = useNavigate()
+  const empty = board.itemCount === 0
   const cells = [...board.previewPaths, null, null, null, null].slice(0, 4)
+  const tint = board.color ? { background: `${board.color}33` } : undefined
   return (
     <Card
-      {...clickableProps(() => navigate(`/designs/boards/${board.id}`))}
-      className="tile w-44 shrink-0 gap-1.5 p-1.5 text-left"
+      {...clickableProps(() => {
+        onOpen?.()
+        navigate(`/designs/boards/${board.id}`)
+      })}
+      className={cn(
+        'tile gap-1.5 rounded-2xl p-1.5 text-left',
+        // One width for every tile in the strip: a narrower empty tile cut its own title to «Но…».
+        layout === 'grid' ? 'size-full' : 'w-44 shrink-0'
+      )}
     >
-      {board.itemCount === 0 ? (
-        // Four blank cells looked like a broken preview: one quiet cell says the board is empty.
-        <div className="grid aspect-video place-content-center justify-items-center gap-1 rounded-xl bg-card text-meta text-muted-foreground">
-          <LayoutGrid className="size-4" />
-          Порожня
+      {empty ? (
+        <div
+          className="grid aspect-video place-items-center rounded-xl bg-foreground/5"
+          style={tint}
+        >
+          <LayoutGrid className="size-4 text-muted-foreground" aria-hidden />
         </div>
       ) : (
         <div className="grid aspect-video grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
@@ -107,34 +156,81 @@ export function MoodboardTile({ board }: { board: Moodboard }): ReactElement {
             p ? (
               <DesignMedia key={i} path={p} className="size-full object-cover" />
             ) : (
-              <div
-                key={i}
-                className="size-full bg-card"
-                style={board.color ? { background: `${board.color}33` } : undefined}
-              />
+              <div key={i} className="size-full bg-card" style={tint} />
             )
           )}
         </div>
       )}
-      <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5">
-        <span className="truncate text-body font-semibold" title={board.title}>
-          {board.title}
+      {/* Title on its own line, the count under it: side by side the count took the title's room. */}
+      <div className="flex min-w-0 flex-col px-1.5 pb-0.5">
+        <span className="flex min-w-0 items-center gap-1.5">
+          {board.favorite && (
+            <>
+              <Star className="size-3.5 shrink-0 fill-current text-warn" aria-hidden />
+              <span className="sr-only">В обраному</span>
+            </>
+          )}
+          <span className="min-w-0 truncate text-body font-semibold" title={board.title}>
+            {board.title}
+          </span>
         </span>
-        {/* An empty board already says «Порожня» in the preview: no «0» next to it. */}
-        {board.itemCount > 0 && <TileCount n={board.itemCount} />}
+        <span className="text-meta text-muted-foreground">
+          {empty ? 'Порожня' : designCount(board.itemCount)}
+        </span>
       </div>
     </Card>
   )
 }
 
-/** The bare number of designs on a tile, named in full on hover and for screen readers. */
-function TileCount({ n }: { n: number }): ReactElement {
-  const phrase = designCount(n)
+/** Last tile of the row when there are more boards than fit: «+N», opens «Усі добірки». */
+export function MoreMoodboardsTile({
+  count,
+  onClick
+}: {
+  count: number
+  onClick: () => void
+}): ReactElement {
   return (
-    <span className="shrink-0 text-caption text-muted-foreground tabular-nums" title={phrase}>
-      <span aria-hidden>{n}</span>
-      <span className="sr-only">{phrase}</span>
-    </span>
+    <Card
+      {...clickableProps(onClick)}
+      aria-label={`Усі добірки: ще ${count}`}
+      className="tile w-44 shrink-0 items-center justify-center gap-0.5 self-stretch rounded-2xl p-1.5"
+    >
+      <span className="text-lead font-semibold tabular-nums" aria-hidden>
+        +{count}
+      </span>
+      <span className="text-caption text-muted-foreground" aria-hidden>
+        Усі добірки
+      </span>
+    </Card>
+  )
+}
+
+/**
+ * The palette of a design as one strip of segments under its picture. Separate segments with gaps and an
+ * inset hairline: a row of overlapping dots read as a switch, a filled bar would read as progress. No colours —
+ * an empty slot of the same height, so tiles in a row stay level. Decorative: the tile itself is the button;
+ * hex values with copying are in the design pane.
+ */
+export function PaletteStrip({
+  colors,
+  max = 6,
+  className
+}: {
+  colors: string[]
+  max?: number
+  className?: string
+}): ReactElement {
+  return (
+    <div data-slot="palette-strip" aria-hidden className={cn('flex h-2 gap-0.5', className)}>
+      {colors.slice(0, max).map((c) => (
+        <span
+          key={c}
+          className="flex-1 rounded-[3px] ring-1 ring-foreground/10 ring-inset"
+          style={{ background: c }}
+        />
+      ))}
+    </div>
   )
 }
 
@@ -142,7 +238,12 @@ function TileCount({ n }: { n: number }): ReactElement {
 export function AddToMoodboard({ designId }: { designId: string }): ReactElement {
   const [open, setOpen] = useState(false)
   // `contains` comes from the server: the tick survives reopening the pane, not just this session.
-  const { data: boards = [] } = useApi('moodboards', 'list', { designId }, { enabled: open })
+  const { data: boards = [], isLoading } = useApi(
+    'moodboards',
+    'list',
+    { designId },
+    { enabled: open }
+  )
   const add = useApiMutation('moodboards', 'addDesigns')
   const takeOut = useApiMutation('moodboards', 'removeDesign')
   const create = useApiMutation('moodboards', 'create')
@@ -171,7 +272,16 @@ export function AddToMoodboard({ designId }: { designId: string }): ReactElement
       <PopoverContent align="start" className="w-64 rounded-2xl p-0">
         <Command>
           <CommandList>
-            <CommandEmpty>Добірок поки немає.</CommandEmpty>
+            {/* Not CommandEmpty: cmdk shows it only when nothing matches, and «Нова добірка» below always does —
+                the phrase never appeared. Hidden while loading, so it doesn't flash before the boards arrive. */}
+            {!isLoading && boards.length === 0 && (
+              <p
+                data-slot="no-moodboards"
+                className="px-2 py-1.5 text-caption text-muted-foreground"
+              >
+                Добірок поки немає.
+              </p>
+            )}
             {boards.length > 0 && (
               <CommandGroup heading="Добірки">
                 {boards.map((b) => (
@@ -202,7 +312,8 @@ export function AddToMoodboard({ designId }: { designId: string }): ReactElement
                 ))}
               </CommandGroup>
             )}
-            <CommandSeparator />
+            {/* cmdk shows a separator whenever the search is empty: with no boards it hung alone on top. */}
+            {boards.length > 0 && <CommandSeparator />}
             <CommandGroup>
               <CommandItem
                 value="__new__"

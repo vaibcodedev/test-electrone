@@ -1,6 +1,6 @@
 import type { Design, DesignKind } from '@shared/domain/designs'
-import { hostOf, plural } from '@/lib/format'
-import { normalizeUrl } from '@/lib/open-url'
+import { designTitleOf } from '@shared/design-title'
+import { plural } from '@/lib/format'
 
 export const KIND_LABEL: Record<DesignKind, string> = {
   site: 'Сайт',
@@ -15,7 +15,6 @@ export const KIND_LABEL: Record<DesignKind, string> = {
 export const designCount = (n: number): string =>
   `${n} ${plural(n, ['дизайн', 'дизайни', 'дизайнів'])}`
 
-export function designTitle(d: Pick<Design, 'title' | 'sourceUrl'>): string {
-  // A link saved without a scheme still names the design by its site.
-  return d.title || (d.sourceUrl ? hostOf(normalizeUrl(d.sourceUrl)) : '') || 'Без назви'
-}
+/** Own title, the site (a link without a scheme too) or «Знімок 24 листопада о 19:22» — as main's summary. */
+export const designTitle = (d: Pick<Design, 'title' | 'sourceUrl' | 'createdAt'>): string =>
+  designTitleOf(d)

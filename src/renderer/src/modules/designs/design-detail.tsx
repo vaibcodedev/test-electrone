@@ -111,7 +111,7 @@ function Swatches({
   )
 }
 
-/** Reading, an untitled design is named the way its tile, search and pins name it (site or «Без назви»). */
+/** Reading, an untitled design is named the way its tile, search and pins name it (site or «Знімок …»). */
 function DesignTitle({
   design,
   value,
