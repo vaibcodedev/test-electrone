@@ -17,6 +17,7 @@ import type { Api } from '@shared/api'
 import { captureSchema, type CaptureInfo } from '@shared/domain/dev'
 import type { FileSource } from '@shared/domain/designs'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
+import { hostOf } from '@shared/url'
 import type { ConfigStore } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
 
@@ -50,18 +51,6 @@ export function captureIssue(e: ZodError): string {
   return label ? `${label}: ${issue.message}` : formatError(e).error
 }
 
-/** Host without «www.»; never throws (adds https://, otherwise a board address saved without a scheme won't parse). */
-function hostOf(url: string): string {
-  try {
-    return new URL(/^[a-z][\w+.-]*:\/\//i.test(url) ? url : `https://${url}`).hostname.replace(
-      /^www\./,
-      ''
-    )
-  } catch {
-    return ''
-  }
-}
-
 const clip = (text: string, max: number): string => (text.length > max ? text.slice(0, max) : text)
 const PURPOSE_MAX = fieldMax(libraryInputSchema.shape.purpose)
 const BOOKMARK_NOTES_MAX = fieldMax(bookmarkInputSchema.shape.notes)
@@ -70,7 +59,7 @@ const JOB_DESC_MAX = fieldMax(applicationInputSchema.shape.description)
 
 /** Fallback for old extension versions: the current popup always sends `kind` itself. */
 function guessBookmarkKind(url: string): BookmarkKind {
-  const host = hostOf(url)
+  const host = hostOf(url) ?? ''
   let path = ''
   try {
     path = new URL(url).pathname
@@ -461,8 +450,11 @@ export class CaptureServer {
         return { type: 'component', id: c.id, title: c.title, warning }
       }
       case 'application': {
+        // No host, no board: two unparsable addresses must not «match» each other.
         const host = hostOf(input.url)
-        const board = (await api.jobs.boards()).find((b) => b.url && hostOf(b.url) === host)
+        const board = host
+          ? (await api.jobs.boards()).find((b) => b.url && hostOf(b.url) === host)
+          : undefined
         const a = await api.jobs.create({
           title,
           url: input.url,
