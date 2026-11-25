@@ -1,19 +1,25 @@
-import { useId, useState, type ComponentProps } from 'react'
+import { useId, useState, type ComponentProps, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { Eye, Image as ImageIcon, Pencil } from 'lucide-react'
+import { parseVaultHref } from '@shared/wikilinks'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
-import { Textarea } from '@/components/ui/textarea'
 import { FieldLabel } from '@/components/ui/field'
 import { CharCount, Segmented } from './page'
 import { ShowMore } from './show-more'
 import { CopyButton } from './copy-button'
+import { MarkdownTextarea } from './markdown-textarea'
+import { useWikiLinkTargets } from '@/hooks/use-wiki-link-targets'
+import { WikiLink, WikiLinkTargets } from './wiki-link'
 
-function Pre(props: ComponentProps<'pre'>) {
+/** Record links (`vault:note/<id>`) survive; everything else goes through react-markdown's safe-URL filter. */
+const urlTransform = (url: string): string => (parseVaultHref(url) ? url : defaultUrlTransform(url))
+
+function Pre(props: ComponentProps<'pre'>): ReactElement {
   // Extract raw text of the code block for the copy button.
   const text = extractText(props.children)
   return (
@@ -41,7 +47,7 @@ function extractText(node: unknown): string {
  * Images from the internet don't load by themselves (they would reveal your IP and work as tracking pixels,
  * e.g. in text captured by the Chrome extension): a quiet placeholder loads the image on click.
  */
-function ExternalImage({ src, alt }: { src?: string; alt?: string }) {
+function ExternalImage({ src, alt }: { src?: string; alt?: string }): ReactElement | null {
   const [shown, setShown] = useState(false)
   const external = !!src && /^https?:/i.test(src)
   if (!src) return null
@@ -68,34 +74,51 @@ function ExternalImage({ src, alt }: { src?: string; alt?: string }) {
   )
 }
 
-/** Renders GitHub-flavoured markdown with highlighted code blocks; links open in the system browser. */
-export function Markdown({ source, className }: { source: string; className?: string }) {
+/**
+ * Renders GitHub-flavoured markdown with highlighted code blocks; links open in the system browser, record links
+ * («[[», shared/wikilinks.ts) open the record.
+ */
+export function Markdown({
+  source,
+  className
+}: {
+  source: string
+  className?: string
+}): ReactElement {
+  const targets = useWikiLinkTargets(source)
   return (
-    <div className={cn('prose-vault wrap-anywhere', className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
-        components={{
-          pre: Pre,
-          img: ({ src, alt }) => (
-            <ExternalImage src={typeof src === 'string' ? src : undefined} alt={alt} />
-          ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              onClick={(e) => {
-                e.preventDefault()
-                if (href && /^(https?|mailto):/i.test(href)) void openUrl(href)
-              }}
-            >
-              {children}
-            </a>
-          )
-        }}
-      >
-        {source}
-      </ReactMarkdown>
-    </div>
+    <WikiLinkTargets value={targets}>
+      <div className={cn('prose-vault wrap-anywhere', className)}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
+          urlTransform={urlTransform}
+          components={{
+            pre: Pre,
+            img: ({ src, alt }) => (
+              <ExternalImage src={typeof src === 'string' ? src : undefined} alt={alt} />
+            ),
+            a: ({ href, children }) => {
+              const target = parseVaultHref(href)
+              if (target) return <WikiLink target={target}>{children}</WikiLink>
+              return (
+                <a
+                  href={href}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    if (href && /^(https?|mailto):/i.test(href)) void openUrl(href)
+                  }}
+                >
+                  {children}
+                </a>
+              )
+            }
+          }}
+        >
+          {source}
+        </ReactMarkdown>
+      </div>
+    </WikiLinkTargets>
   )
 }
 
@@ -106,7 +129,7 @@ export function Markdown({ source, className }: { source: string; className?: st
 export function MarkdownField({
   value,
   onChange,
-  placeholder = 'Пишіть у Markdown: **жирний**, списки, ```код```',
+  placeholder = 'Пишіть у Markdown: **жирний**, списки, ```код```; [[ — посилання на запис',
   minHeight = '160px',
   className,
   defaultMode,
@@ -128,7 +151,7 @@ export function MarkdownField({
    * links and dates out of reach). Off for a field that is the record itself (a Claude prompt).
    */
   fold?: boolean
-}) {
+}): ReactElement | null {
   const viewMode = useReadOnly()
   // A record has its own view mode (it has `save`); outside one (week review, «Про дошку») there is none.
   const inRecord = !!useDetailMode().save
@@ -191,10 +214,10 @@ export function MarkdownField({
         />
       </div>
       {mode === 'edit' ? (
-        <Textarea
+        <MarkdownTextarea
           id={id}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={onChange}
           placeholder={placeholder}
           maxLength={maxLength}
           style={{ minHeight }}

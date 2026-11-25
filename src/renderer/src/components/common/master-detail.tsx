@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode
+} from 'react'
 import { MAX } from '@shared/domain/limits'
 import { DRAFT_TITLES } from '@shared/entity-types'
 import { useSearchParams } from 'react-router'
@@ -14,6 +22,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { useUi } from '@/stores/ui-store'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
+import { CurrentRecordContext } from '@/hooks/use-current-record'
 import { reportError } from '@/lib/error-reporting'
 import {
   DetailModeContext,
@@ -27,6 +36,7 @@ import {
 import { PinButtons } from './pin-buttons'
 import { TagsSection } from './tags'
 import { LinksPanel } from './links-panel'
+import { MentionsPanel } from './mentions-panel'
 import { AttachmentsPanel } from './attachments'
 import { SectionLabel } from './section-label'
 import { Confirm } from './confirm'
@@ -285,6 +295,7 @@ export function DetailPane({
   // View first; a record created a moment ago opens straight in edit mode. Snapshot → «Скасувати».
   const mode = useRecordMode(entity.id, entity.type)
   const { editing } = mode
+  const current = useMemo(() => ({ type: entity.type, id: entity.id }), [entity.type, entity.id])
 
   // Set by «У кошик»: the pane's unmount hands focus to the next row instead of dropping it on <body>.
   const refocus = useRef<(() => void) | null>(null)
@@ -325,52 +336,54 @@ export function DetailPane({
       )}
     >
       <DetailModeContext.Provider value={mode}>
-        <RecordActions
-          entity={entity}
-          mode={mode}
-          extra={headerExtra}
-          onDelete={remove}
-          onClose={onClose}
-          className="px-4 py-2.5"
-        />
-        <Separator />
-        {/* A narrow pane (it may shrink to 420px) puts the aside under the body instead of squeezing both. */}
-        <div className="@container min-h-0 flex-1">
-          {/* Wide: body and aside scroll on their own and the row stays overflow:visible — a hidden overflow here
+        <CurrentRecordContext.Provider value={current}>
+          <RecordActions
+            entity={entity}
+            mode={mode}
+            extra={headerExtra}
+            onDelete={remove}
+            onClose={onClose}
+            className="px-4 py-2.5"
+          />
+          <Separator />
+          {/* A narrow pane (it may shrink to 420px) puts the aside under the body instead of squeezing both. */}
+          <div className="@container min-h-0 flex-1">
+            {/* Wide: body and aside scroll on their own and the row stays overflow:visible — a hidden overflow here
               still reserved a second scrollbar lane (globals.css gutter rule) right of the aside. */}
-          <div
-            className={cn(
-              'flex h-full flex-col',
-              aside && '@max-2xl:overflow-y-auto @2xl:flex-row'
-            )}
-          >
             <div
-              data-detail-body
               className={cn(
-                'min-w-0 px-6 py-5',
-                aside ? '@2xl:flex-1 @2xl:overflow-y-auto' : 'flex-1 overflow-y-auto'
+                'flex h-full flex-col',
+                aside && '@max-2xl:overflow-y-auto @2xl:flex-row'
               )}
             >
-              {children}
-              {/* Shown by CSS only in view mode when the body holds no filled field (globals.css → «only a title»). */}
-              {emptyHint !== false && (
-                <p data-empty-hint className="mt-4 text-body text-muted-foreground">
-                  {emptyHint}
-                </p>
+              <div
+                data-detail-body
+                className={cn(
+                  'min-w-0 px-6 py-5',
+                  aside ? '@2xl:flex-1 @2xl:overflow-y-auto' : 'flex-1 overflow-y-auto'
+                )}
+              >
+                {children}
+                {/* Shown by CSS only in view mode when the body holds no filled field (globals.css → «only a title»). */}
+                {emptyHint !== false && (
+                  <p data-empty-hint className="mt-4 text-body text-muted-foreground">
+                    {emptyHint}
+                  </p>
+                )}
+                {footer}
+              </div>
+              {aside && (
+                <>
+                  <Separator orientation="vertical" className="hidden @2xl:block" />
+                  {/* Under the body (narrow pane) it lines up with the body's px-6; beside it, a column of its own. */}
+                  <aside className="w-full shrink-0 border-t px-6 py-5 @2xl:w-64 @2xl:overflow-y-auto @2xl:border-t-0 @2xl:px-4">
+                    {aside}
+                  </aside>
+                </>
               )}
-              {footer}
             </div>
-            {aside && (
-              <>
-                <Separator orientation="vertical" className="hidden @2xl:block" />
-                {/* Under the body (narrow pane) it lines up with the body's px-6; beside it, a column of its own. */}
-                <aside className="w-full shrink-0 border-t px-6 py-5 @2xl:w-64 @2xl:overflow-y-auto @2xl:border-t-0 @2xl:px-4">
-                  {aside}
-                </aside>
-              </>
-            )}
           </div>
-        </div>
+        </CurrentRecordContext.Provider>
       </DetailModeContext.Provider>
     </Card>
   )
@@ -473,6 +486,7 @@ export function EntityAside({
       {children}
       {tags && onTagsChange && <TagsSection value={tags} onChange={onTagsChange} />}
       <LinksPanel entity={entity} />
+      <MentionsPanel entity={entity} />
       {files && <AttachmentsPanel entity={entity} />}
       {(createdAt || edited) && (
         <div className="text-meta leading-relaxed text-muted-foreground">
@@ -517,9 +531,7 @@ export function ListItem({
         aria-current={active || undefined}
       >
         {/* overflow-wrap: one long word (a pasted URL, «аааа…») wraps instead of widening the row. */}
-        <div className={cn('w-full min-w-0 wrap-anywhere', top && 'flex flex-col')}>
-          {children}
-        </div>
+        <div className={cn('w-full min-w-0 wrap-anywhere', top && 'flex flex-col')}>{children}</div>
       </button>
     </Item>
   )

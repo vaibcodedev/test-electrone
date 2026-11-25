@@ -33,6 +33,7 @@ import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
+import { MentionsPanel } from '@/components/common/mentions-panel'
 import { Choice } from '@/components/common/choice'
 import { PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { HireDialog } from './hire-dialog'
@@ -245,6 +246,7 @@ function Editor({
           <div className="mt-6 flex flex-col gap-6">
             <TagsSection value={p.tags} onChange={(tagIds) => patch({ tagIds })} />
             <LinksPanel entity={{ type: 'proposal', id: p.id }} />
+            <MentionsPanel entity={{ type: 'proposal', id: p.id }} />
             <div className="text-meta text-muted-foreground">
               Створено {fmtDateTime(p.createdAt)}
               {p.repliedAt && ` · відповіли ${fmtDateTime(p.repliedAt)}`}

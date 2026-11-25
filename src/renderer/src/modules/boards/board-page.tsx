@@ -15,6 +15,7 @@ import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detai
 import { MarkdownField } from '@/components/common/markdown'
 import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
+import { MentionsPanel } from '@/components/common/mentions-panel'
 import { AttachmentsPanel } from '@/components/common/attachments'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
@@ -68,6 +69,7 @@ function BoardInfoSheet({
           />
           <TagsSection value={board.tags} onChange={(tagIds) => patch({ tagIds })} />
           <LinksPanel entity={{ type: 'board', id: board.id }} />
+          <MentionsPanel entity={{ type: 'board', id: board.id }} />
           <AttachmentsPanel entity={{ type: 'board', id: board.id }} />
         </div>
       </SheetContent>

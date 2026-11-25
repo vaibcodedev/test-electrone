@@ -37,6 +37,7 @@ import { PageSkeleton } from '@/components/common/page-skeleton'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
+import { MentionsPanel } from '@/components/common/mentions-panel'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -395,8 +396,9 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                 )}
                 <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} />
                 {/* A link made from a bookmark or a design shows here too (reading without links: the title and «Зв’язати»). */}
-                <div className="max-w-md">
+                <div className="flex max-w-md flex-col gap-6">
                   <LinksPanel entity={{ type: 'moodboard', id: board.id }} />
+                  <MentionsPanel entity={{ type: 'moodboard', id: board.id }} />
                 </div>
               </div>
               {/* Quick actions: they fill the board and work in both modes. The slot makes N press «Додати
