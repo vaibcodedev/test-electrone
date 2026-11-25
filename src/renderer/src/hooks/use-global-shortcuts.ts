@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router'
 import { ALL_NAV_ITEMS } from '@/app/navigation'
 import { GO_TO } from '@/app/shortcuts'
 import { useUi } from '@/stores/ui-store'
+import { isEditableTarget as isEditable } from '@/lib/dom'
 
-function isEditable(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false
-  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || !!el.closest('.cm-editor')
-}
+/** A menu, popover or confirmation is open: it owns the keyboard, even inside a sheet. */
+const MENU_OPEN =
+  '[role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [data-slot="popover-content"][data-state="open"]'
 
 /** A modal (dialog/sheet/popover/menu) is open → page-level keys must not fire behind it. */
 function overlayOpen(): boolean {
-  return !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [data-slot="popover-content"][data-state="open"]')
+  return !!document.querySelector(`[role="dialog"][data-state="open"], ${MENU_OPEN}`)
 }
 
 function visible(el: Element | null): el is HTMLElement {
@@ -61,7 +61,6 @@ export function useGlobalShortcuts(): void {
       if (
         e.key === 'Escape' &&
         !mod &&
-        !e.defaultPrevented &&
         isEditable(e.target) &&
         !overlayOpen() &&
         (e.target as HTMLElement).closest('[data-detail-mode="edit"]')
@@ -82,6 +81,21 @@ export function useGlobalShortcuts(): void {
         if (visible(close)) {
           e.preventDefault()
           close.click()
+        }
+        return
+      }
+      // E works inside record sheets (vacancy, board card, proposal) — they are dialogs too, so this runs
+      // before the overlay check and looks in the topmost open dialog, or the page when none is open.
+      // G then E is still «go to Англійська» (handled below).
+      const afterG = pendingG.current && Date.now() - pendingG.current < 1000
+      if (e.code === 'KeyE' && !e.shiftKey && !afterG) {
+        if (document.querySelector(MENU_OPEN)) return
+        const layers = document.querySelectorAll('[role="dialog"][data-state="open"]')
+        const scope = layers.length ? layers[layers.length - 1] : document
+        const editBtn = scope.querySelector('[data-edit-detail]')
+        if (visible(editBtn)) {
+          e.preventDefault()
+          editBtn.click()
         }
         return
       }
@@ -115,14 +129,6 @@ export function useGlobalShortcuts(): void {
       if (e.code === 'BracketRight') {
         e.preventDefault()
         navigate(1)
-        return
-      }
-      if (e.code === 'KeyE' && !e.shiftKey) {
-        const editBtn = document.querySelector('[data-edit-detail]')
-        if (visible(editBtn)) {
-          e.preventDefault()
-          editBtn.click()
-        }
         return
       }
       if (e.code === 'Slash') {

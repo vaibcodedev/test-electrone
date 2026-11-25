@@ -11,27 +11,31 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EntityRow } from './entity-link'
+import { IconAction } from './icon-action'
+import { SectionLabel } from './section-label'
+import { useReadOnly } from './detail-mode-context'
 
 const LINKS_HINT = "Пов’яжіть запис з іншим — ідею з дошкою, помилку зі сніпетом. Зв’язок видно з обох боків."
 
 /** Links between any objects: idea → project → board → snippets → designs. */
 export function LinksPanel({ entity }: { entity: EntityRef }) {
   const navigate = useNavigate()
+  const viewMode = useReadOnly()
   const { data: links = [] } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
   return (
     <section className="flex flex-col gap-1">
-      <div className="flex min-h-6 items-center justify-between">
-        <h3 className="text-caption font-semibold text-muted-foreground">Зв’язки</h3>
-        <LinkPicker entity={entity} linked={links} />
-      </div>
+      <SectionLabel action={<LinkPicker entity={entity} linked={links} />}>Зв’язки</SectionLabel>
+      {/* No links: reading needs only the title and «Зв’язати» (the full hint is on its tooltip). */}
       {links.length === 0 ? (
-        <p className="py-1 text-caption text-muted-foreground">
-          {LINKS_HINT}{' '}
-          <Button variant="link" className="text-caption" onClick={() => navigate('/guide#faq-links')}>
-            Докладніше
-          </Button>
-        </p>
+        !viewMode && (
+          <p className="py-1 text-caption text-muted-foreground">
+            Зв’язок видно з обох записів.{' '}
+            <Button variant="link" className="text-caption" onClick={() => navigate('/guide#faq-links')}>
+              Докладніше
+            </Button>
+          </p>
+        )
       ) : (
         <div className="-mx-2.5 flex flex-col">
           {links.map((l) => (
@@ -39,18 +43,16 @@ export function LinksPanel({ entity }: { entity: EntityRef }) {
               key={l.linkId}
               item={l}
               trailing={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label="Прибрати зв’язок"
-                  className="opacity-0 group-hover:opacity-100 hover:text-destructive"
+                <IconAction
+                  label="Прибрати зв’язок"
+                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:text-destructive"
                   onClick={(e) => {
                     e.stopPropagation()
                     remove.mutate(l.linkId)
                   }}
                 >
                   <Unlink />
-                </Button>
+                </IconAction>
               }
             />
           ))}

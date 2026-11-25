@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  MutationCache,
   QueryCache,
   QueryClient,
   useInfiniteQuery,
@@ -13,7 +14,7 @@ import type { ApiNamespace } from '@shared/api'
 import { call, type ArgOf, type MethodOf, type ResultOf } from './api'
 import { useUi } from '@/stores/ui-store'
 import { reportError } from './error-reporting'
-import { flushAllAutosaves } from '@/hooks/use-autosave'
+import { flushAllAutosaves, isAutosaving } from '@/hooks/use-autosave'
 
 /**
  * A failed read used to look like an empty list («Нічого немає»). Now every failed query says so once,
@@ -30,8 +31,20 @@ const queryCache = new QueryCache({
   }
 })
 
+/**
+ * Mutations started by an autosave field. Only their failures stop «Зберегти»: a failed tag or link created
+ * a second earlier is not an unsaved edit. The cache's onMutate runs synchronously inside mutate().
+ */
+const autosaves = new WeakSet<object>()
+const mutationCache = new MutationCache({
+  onMutate: (_variables, mutation) => {
+    if (isAutosaving()) autosaves.add(mutation)
+  }
+})
+
 export const queryClient = new QueryClient({
   queryCache,
+  mutationCache,
   defaultOptions: {
     queries: {
       staleTime: 30_000,
@@ -60,7 +73,9 @@ export async function flushAndSettle(): Promise<{ failed: number }> {
     })
   }
   // Saves the server rejected since the flush (too long, out of range…): the caller must not report success.
-  const failed = cache.getAll().filter((m) => m.state.status === 'error' && m.state.submittedAt >= started - 2000).length
+  const failed = cache
+    .getAll()
+    .filter((m) => autosaves.has(m) && m.state.status === 'error' && m.state.submittedAt >= started - 2000).length
   return { failed }
 }
 

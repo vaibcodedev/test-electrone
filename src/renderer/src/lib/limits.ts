@@ -34,6 +34,28 @@ export function rangesOf<S extends z.ZodObject>(schema: S): Partial<Record<keyof
   return out as Partial<Record<keyof z.infer<S>, { min?: number; max?: number }>>
 }
 
+/** What a number field accepts while typing: an optional minus, digits, one decimal separator. */
+export const NUMBER_TEXT_RE = /^-?\d*[.,]?\d*$/
+/** The same for whole numbers. */
+export const INTEGER_TEXT_RE = /^-?\d*$/
+
+/** «1 234,5» → 1234.5; empty or half-typed text («-», «,») → null. */
+export function parseNumberText(text: string): number | null {
+  const s = text.replace(/\s/g, '').replace(',', '.')
+  if (s === '') return null
+  const n = Number(s)
+  return Number.isNaN(n) ? null : n
+}
+
+/** Typed text for a number field, or null when it must be rejected (letters, «1.2.3», a minus where min ≥ 0). */
+export function acceptNumberText(text: string, opts: { integer?: boolean; min?: number }): string | null {
+  const t = text.replace(/\s/g, '')
+  if (!(opts.integer ? INTEGER_TEXT_RE : NUMBER_TEXT_RE).test(t)) return null
+  if (t.startsWith('-') && opts.min !== undefined && opts.min >= 0) return null
+  // No leading zeros: «024» → «24», «-007» → «-7».
+  return t.replace(/^(-?)0+(?=\d)/, '$1')
+}
+
 /** Loose "is this a link" check for URL fields: scheme or a domain-looking host, no spaces. */
 export function isLikelyUrl(value: string): boolean {
   const v = value.trim()

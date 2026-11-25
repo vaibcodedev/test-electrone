@@ -1,5 +1,9 @@
 import { useEffect, useState, type ComponentProps } from 'react'
 import { Input } from '@/components/ui/input'
+import { useReadOnly } from './detail-mode-context'
+import { acceptNumberText, parseNumberText } from '@/lib/limits'
+import { fmtNumber } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 /**
  * Number field that lets you type freely: the text may be empty or half-typed («», «0,», «-») while
@@ -27,6 +31,7 @@ export function NumberInput({
   /** Empty input commits `null` instead of falling back to `min ?? 0`. */
   allowEmpty?: boolean
 } & Omit<ComponentProps<typeof Input>, 'value' | 'onChange' | 'type' | 'min' | 'max' | 'step'>) {
+  const readOnly = useReadOnly()
   const show = (v: number | null): string => (v === null || Number.isNaN(v) ? '' : String(v))
   const [text, setText] = useState(show(value))
   const [focused, setFocused] = useState(false)
@@ -36,13 +41,8 @@ export function NumberInput({
     if (!focused) setText(show(value))
   }, [value, focused])
 
-  const parse = (t: string): number | null => {
-    const n = Number(t.replace(',', '.').replace(/\s/g, ''))
-    return t.trim() === '' || Number.isNaN(n) ? null : n
-  }
-
   const commit = (): void => {
-    let n = parse(text)
+    let n = parseNumberText(text)
     if (n === null) {
       if (allowEmpty) {
         onChange(null)
@@ -60,8 +60,18 @@ export function NumberInput({
     if (n !== value) onChange(n)
   }
 
-  const typed = parse(text)
+  const typed = parseNumberText(text)
   const outOfRange = typed !== null && ((min !== undefined && typed < min) || (max !== undefined && typed > max))
+
+  // Reading: the number as text, grouped like everywhere else («9 000 000»); none — the field hides itself.
+  if (readOnly)
+    return value === null || Number.isNaN(value) ? (
+      <span data-empty />
+    ) : (
+      <span data-view className={cn('text-body tabular-nums', props.className)}>
+        {fmtNumber(value)}
+      </span>
+    )
 
   return (
     <Input
@@ -75,11 +85,9 @@ export function NumberInput({
         props.onFocus?.(e)
       }}
       onChange={(e) => {
-        const t = e.target.value
-        // Digits, one separator and a leading minus only; leading zeros dropped («024» → «24»).
-        if (!/^-?\d*[.,]?\d*$/.test(t)) return
-        if (integer && /[.,]/.test(t)) return
-        setText(t.replace(/^(-?)0+(?=\d)/, '$1'))
+        // Digits, one separator and a minus (only where min allows it); leading zeros dropped («024» → «24»).
+        const next = acceptNumberText(e.target.value, { integer, min })
+        if (next !== null) setText(next)
       }}
       onBlur={(e) => {
         setFocused(false)

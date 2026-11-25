@@ -4,11 +4,15 @@ import {
   countLabel,
   dayKey,
   fmtBytes,
+  fmtDate,
+  fmtDayFull,
   fmtHours,
   fmtMinutes,
   fmtMoney,
   fmtMoneyCompact,
+  fmtNumber,
   fmtPercent,
+  fmtRelative,
   fmtReplyTime,
   hostOf,
   mdPreview,
@@ -30,7 +34,7 @@ describe('fmtMoney', () => {
     expect(sp(fmtMoney(1.234, 'USD'))).toBe('1,23 USD')
   })
   it('falls back to plain text for an invalid currency code', () => {
-    expect(fmtMoney(12.3, 'not-a-currency')).toBe('12.30 not-a-currency')
+    expect(fmtMoney(12.3, 'not-a-currency')).toBe('12,30 not-a-currency')
   })
 })
 
@@ -125,12 +129,13 @@ describe('fmtMinutes / fmtHours / fmtBytes / hostOf', () => {
   })
   it('fmtHours', () => {
     expect(fmtHours(120)).toBe('2 год')
-    expect(fmtHours(90)).toBe('1.5 год')
+    expect(fmtHours(90)).toBe('1,5 год')
   })
   it('fmtBytes', () => {
     expect(fmtBytes(512)).toBe('512 Б')
     expect(fmtBytes(2048)).toBe('2 КБ')
-    expect(fmtBytes(5 * 1024 ** 2)).toBe('5.0 МБ')
+    expect(fmtBytes(5 * 1024 ** 2)).toBe('5 МБ')
+    expect(fmtBytes(1.5 * 1024 ** 2)).toBe('1,5 МБ')
   })
   it('hostOf strips www and keeps junk as is', () => {
     expect(hostOf('https://www.example.com/a?b')).toBe('example.com')
@@ -166,5 +171,37 @@ describe('dayKey', () => {
     expect(dayKey(at)).toBe('2026-01-05')
     expect(dayKey(new Date(2026, 10, 25))).toBe('2026-11-25')
     expect(new Date(dayKey(at) + 'T00:00').getTime()).toBe(new Date(2026, 0, 5).getTime())
+  })
+})
+
+describe('fmtDayFull / fmtDate', () => {
+  const year = new Date().getFullYear()
+  it('full month name, year only when it is not this year', () => {
+    expect(fmtDayFull(new Date(year, 10, 24, 18, 0).getTime())).toBe('24 листопада')
+    expect(fmtDayFull(new Date(2020, 2, 5).getTime())).toBe('5 березня 2020')
+    expect(fmtDayFull(null)).toBe('')
+  })
+  it('fmtDate without a pattern is fmtDayFull; an explicit pattern is kept', () => {
+    const ts = new Date(2020, 10, 25).getTime()
+    expect(fmtDate(ts)).toBe('25 листопада 2020')
+    expect(fmtDate(ts, 'yyyy')).toBe('2020')
+  })
+})
+
+describe('fmtRelative', () => {
+  it('under a minute is «щойно», not a count of seconds', () => {
+    expect(fmtRelative(Date.now() - 5_000)).toBe('щойно')
+    expect(fmtRelative(Date.now())).toBe('щойно')
+  })
+  it('from a minute on — date-fns wording', () => {
+    expect(fmtRelative(Date.now() - 5 * 60_000)).toBe('5 хвилин тому')
+  })
+})
+
+describe('fmtNumber', () => {
+  it('groups thousands and uses a decimal comma', () => {
+    expect(sp(fmtNumber(9_000_000))).toBe('9 000 000')
+    expect(fmtNumber(4.9)).toBe('4,9')
+    expect(fmtNumber(1.234)).toBe('1,23')
   })
 })

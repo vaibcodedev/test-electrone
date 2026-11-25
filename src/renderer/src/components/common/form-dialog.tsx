@@ -61,7 +61,7 @@ export function FormDialog({
         >
           <FieldGroup className="gap-4">{children}</FieldGroup>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
               {cancelLabel}
             </Button>
             <Button type="submit" variant="lime" disabled={blocked}>

@@ -39,15 +39,17 @@ export function TagChip({
     <Badge
       variant="soft"
       onClick={onClick}
+      title={tag.name}
       className={cn('h-6 gap-1.5 text-foreground', onClick && 'cursor-pointer hover:bg-foreground/[0.1]', onRemove && 'pr-1', className)}
     >
-      <span className="size-1.5 rounded-full" style={{ background: tag.color ?? 'var(--muted-foreground)' }} />
-      {tag.name}
+      <span className="size-1.5 shrink-0 rounded-full" style={{ background: tag.color ?? 'var(--muted-foreground)' }} />
+      {/* A long tag name ends with «…» (full name on hover) instead of leaving the row. */}
+      <span className="min-w-0 truncate">{tag.name}</span>
       {onRemove && (
         <Button
           variant="ghost"
           size="icon-xs"
-          className="size-4 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
+          className="size-4 shrink-0 rounded-full text-muted-foreground hover:bg-transparent hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()
             onRemove()
@@ -64,7 +66,7 @@ export function TagChip({
 export function TagList({ tags, max = 4, className }: { tags: Tag[]; max?: number; className?: string }) {
   if (!tags.length) return null
   return (
-    <div className={cn('flex flex-wrap items-center gap-1', className)}>
+    <div className={cn('flex min-w-0 max-w-full flex-wrap items-center gap-1', className)}>
       {tags.slice(0, max).map((t) => (
         // Rows sit on the same surface as a soft badge, so the chip gets its own tint (and an ink one in active rows).
         <TagChip
@@ -103,13 +105,8 @@ export function TagPicker({
     onChange([...next])
   }
 
-  // Record view mode: tags as read-only chips (or a quiet dash).
-  if (viewMode)
-    return value.length ? (
-      <TagList tags={value} max={20} className={className} />
-    ) : (
-      <span className="text-caption text-muted-foreground">Без міток</span>
-    )
+  // Record view mode: tags as read-only chips; none — nothing (the field hides itself).
+  if (viewMode) return value.length ? <TagList tags={value} max={20} className={className} /> : <span data-empty />
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
       {/* Editable tags are full-size controls (h-8, body text): the picker is a form field, not a meta badge. */}
@@ -144,14 +141,19 @@ export function TagPicker({
                 {query.trim() && !exact && (
                   <CommandItem
                     value={`__create__${query}`}
-                    onSelect={async () => {
-                      const tag = await create.mutateAsync({
-                        name: query.trim(),
-                        color: TAG_COLORS[all.length % TAG_COLORS.length]
-                      })
-                      onChange([...selected, tag.id])
-                      setQuery('')
-                    }}
+                    disabled={create.isPending}
+                    onSelect={() =>
+                      // A failure is toasted by useApiMutation; the typed name stays in the field.
+                      create.mutate(
+                        { name: query.trim(), color: TAG_COLORS[all.length % TAG_COLORS.length] },
+                        {
+                          onSuccess: (tag) => {
+                            onChange([...selected, tag.id])
+                            setQuery('')
+                          }
+                        }
+                      )
+                    }
                   >
                     <Plus className="size-3.5" />
                     Створити «{query.trim()}»
@@ -166,23 +168,36 @@ export function TagPicker({
   )
 }
 
-/** Tag filter dropdown for list pages. */
-export function TagFilter({ value, onChange }: { value: string | undefined; onChange: (id: string | undefined) => void }) {
+/**
+ * Tag filter dropdown for list pages. A chosen tag is neutral by default (it sits next to lime filter
+ * chips: one accent per row); `tone="accent"` makes it lime when it is the screen's only filter.
+ */
+export function TagFilter({
+  value,
+  onChange,
+  tone = 'neutral'
+}: {
+  value: string | undefined
+  onChange: (id: string | undefined) => void
+  tone?: 'accent' | 'neutral'
+}) {
   const { data: all = [] } = useApi('tags', 'list')
   const [open, setOpen] = useState(false)
   const current = all.find((t) => t.id === value)
   if (!all.length) return null
+  const variant = current && tone === 'accent' ? 'lime' : 'soft'
+  const chosen = current && tone === 'neutral' && 'bg-foreground/12 font-medium hover:bg-foreground/16'
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <ButtonGroup>
         <PopoverTrigger asChild>
-          <Button variant={current ? 'default' : 'soft'} size="sm">
+          <Button variant={variant} size="sm" className={cn('max-w-56', chosen)} title={current?.name}>
             <TagIcon />
-            {current ? current.name : 'Мітка'}
+            <span className="truncate">{current ? current.name : 'Мітка'}</span>
           </Button>
         </PopoverTrigger>
         {current && (
-          <Button variant="default" size="icon-sm" aria-label="Скинути мітку" onClick={() => onChange(undefined)}>
+          <Button variant={variant} size="icon-sm" className={chosen || undefined} aria-label="Скинути мітку" onClick={() => onChange(undefined)}>
             <X />
           </Button>
         )}

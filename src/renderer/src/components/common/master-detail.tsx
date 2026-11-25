@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type ReactNode } from 'react'
+import { useCallback, useEffect, type ReactElement, type ReactNode } from 'react'
 import { MAX } from '@shared/domain/limits'
 import { Kbd } from '@/components/ui/kbd'
 import { useSearchParams } from 'react-router'
@@ -16,11 +16,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useUi } from '@/stores/ui-store'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
-import { DetailModeContext, EditToggle, useReadOnly, useRecordMode } from './detail-mode'
+import { reportError } from '@/lib/error-reporting'
+import { DetailModeContext, EditToggle, useReadOnly, useRecordMode, type DetailMode } from './detail-mode'
 import { PinButtons } from './pin-buttons'
 import { TagPicker } from './tags'
 import { LinksPanel } from './links-panel'
 import { AttachmentsPanel } from './attachments'
+import { SectionLabel } from './section-label'
+
+export { SectionLabel }
 
 /** Selected item id lives in the URL (?open=id) so global search / links can deep-link into any module. */
 export function useOpenParam(): [string | null, (id: string | null) => void] {
@@ -57,8 +61,6 @@ export function MasterDetail({
   detail: ReactNode | null
   /** Default width of the list pane when detail is open. */
   listSize?: string
-  /** @deprecated kept for compatibility; use listSize. */
-  listWidth?: string
   className?: string
 }) {
   if (!detail) return <div className={cn('flex min-h-0 flex-1 flex-col', className)}>{list}</div>
@@ -162,7 +164,7 @@ export function DetailPane({
         api.trash
           .discardDraft(ref)
           .then((discarded) => discarded && invalidateAll())
-          .catch(() => undefined)
+          .catch((e) => reportError(e, 'detail-pane:discardDraft'))
       }, 800)
     }
   }, [entity.type, entity.id])
@@ -187,57 +189,80 @@ export function DetailPane({
       )}
     >
       <DetailModeContext.Provider value={mode}>
-      <div className="flex items-center gap-2 px-4 py-2.5">
-        <PinButtons entity={entity} />
-        <div className="flex-1">{headerExtra}</div>
-        {remove && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="У кошик" onClick={remove}>
-                <Trash2 />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>У кошик</TooltipContent>
-          </Tooltip>
-        )}
-        {/* E edits, Esc leaves edit mode first and closes the pane on the second press. */}
-        <EditToggle mode={mode} onClose={onClose} />
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрити" data-close-detail={editing ? undefined : true} onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
-              <X />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Закрити{editing ? '' : ' · Esc'}</TooltipContent>
-        </Tooltip>
-      </div>
+      <RecordActions entity={entity} mode={mode} extra={headerExtra} onDelete={remove} onClose={onClose} className="px-4 py-2.5" />
       <Separator />
-      <div className="flex min-h-0 flex-1">
-        <div data-detail-body className="min-w-0 flex-1 overflow-y-auto px-6 py-5">
-          {children}
-          {/* Shown by CSS only in view mode when the body holds no filled field (globals.css → «only a title»). */}
-          <p data-empty-hint className="mt-4 text-body text-muted-foreground">
-            Тут поки лише назва. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб додати опис і подробиці.
-          </p>
+      {/* A narrow pane (it may shrink to 420px) puts the aside under the body instead of squeezing both. */}
+      <div className="@container min-h-0 flex-1">
+        <div className={cn('flex h-full flex-col', aside && 'overflow-y-auto @2xl:flex-row @2xl:overflow-hidden')}>
+          <div data-detail-body className={cn('min-w-0 px-6 py-5', aside ? '@2xl:flex-1 @2xl:overflow-y-auto' : 'flex-1 overflow-y-auto')}>
+            {children}
+            {/* Shown by CSS only in view mode when the body holds no filled field (globals.css → «only a title»). */}
+            <p data-empty-hint className="mt-4 text-body text-muted-foreground">
+              Опису й подробиць поки немає. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб додати.
+            </p>
+          </div>
+          {aside && (
+            <>
+              <Separator orientation="vertical" className="hidden @2xl:block" />
+              <aside className="w-full shrink-0 border-t px-4 py-5 @2xl:w-64 @2xl:overflow-y-auto @2xl:border-t-0">{aside}</aside>
+            </>
+          )}
         </div>
-        {aside && (
-          <>
-            <Separator orientation="vertical" />
-            <aside className="w-64 shrink-0 overflow-y-auto px-4 py-5">{aside}</aside>
-          </>
-        )}
       </div>
       </DetailModeContext.Provider>
     </Card>
   )
 }
 
-/** Section title used in asides and editors. */
-export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
+/**
+ * Record header actions in one fixed order (DetailPane, record sheets, record pages): pin/favourite →
+ * module extras → (gap) → trash → «Редагувати» / «Скасувати»·«Зберегти» → ✕.
+ */
+export function RecordActions({
+  entity,
+  mode,
+  extra,
+  onDelete,
+  onClose,
+  className
+}: {
+  entity: EntityRef
+  mode: DetailMode
+  extra?: ReactNode
+  onDelete?: () => void
+  onClose: () => void
+  className?: string
+}): ReactElement {
   return (
-    <div className="flex min-h-6 items-center justify-between gap-2">
-      <h3 className="text-caption font-semibold text-muted-foreground">{children}</h3>
-      {action}
+    <div className={cn('flex items-center gap-2', className)}>
+      <PinButtons entity={entity} />
+      <div className="flex-1">{extra}</div>
+      {onDelete && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="У кошик" onClick={onDelete}>
+              <Trash2 />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>У кошик</TooltipContent>
+        </Tooltip>
+      )}
+      {/* E edits, Esc leaves edit mode first and closes the record on the second press. */}
+      <EditToggle mode={mode} onClose={onClose} />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Закрити"
+            data-close-detail={mode.editing ? undefined : true}
+            onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}
+          >
+            <X />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Закрити{mode.editing ? '' : ' · Esc'}</TooltipContent>
+      </Tooltip>
     </div>
   )
 }
@@ -260,10 +285,12 @@ export function EntityAside({
   files?: boolean
   children?: ReactNode
 }) {
+  const viewMode = useReadOnly()
   return (
     <div className="flex flex-col gap-6">
       {children}
-      {tags && onTagsChange && (
+      {/* While reading, a record without tags shows no «Мітки» section at all. */}
+      {tags && onTagsChange && (!viewMode || tags.length > 0) && (
         <section className="flex flex-col gap-2">
           <SectionLabel>Мітки</SectionLabel>
           <TagPicker value={tags} onChange={onTagsChange} />

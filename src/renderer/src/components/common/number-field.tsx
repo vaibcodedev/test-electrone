@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { acceptNumberText, parseNumberText } from '@/lib/limits'
+import { fmtNumber } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode'
 import {
@@ -11,13 +13,15 @@ import {
 const toText = (v: number | null | undefined): string =>
   v === null || v === undefined ? '' : String(v)
 
-/** "від 0 до 100 %", "не більше 5", "від 0". */
+/** "Від 0 до 100 %", "Не більше 5", "Не менше 0" — called only when a bound was crossed. */
 function rangeText(min: number | undefined, max: number | undefined, unit?: string): string {
   const u = unit ? ` ${unit}` : ''
-  if (min !== undefined && max !== undefined) return `Від ${min} до ${max}${u}`
-  if (max !== undefined) return `Не більше ${max}${u}`
-  return `Не менше ${min}${u}`
+  if (min !== undefined && max !== undefined) return `Від ${fmtNumber(min)} до ${fmtNumber(max)}${u}`
+  if (max !== undefined) return `Не більше ${fmtNumber(max)}${u}`
+  return `Не менше ${fmtNumber(min ?? 0)}${u}`
 }
+
+const NOT_A_NUMBER = 'Введіть число, наприклад 4,9'
 
 /**
  * Number field with the schema range (rangesOf): typing is filtered (digits only for integers,
@@ -63,16 +67,16 @@ export function NumberField({
   onValidityChange?: (invalid: boolean) => void
 }) {
   const readOnly = useReadOnly()
+  const autoId = useId()
+  const inputId = id ?? autoId
   const [text, setText] = useState(toText(value))
   useEffect(() => setText(toText(value)), [value])
 
-  const raw = text.trim().replace(',', '.')
-  const parsed = raw === '' ? null : Number(raw)
-  const invalid =
-    parsed !== null &&
-    (Number.isNaN(parsed) ||
-      (min !== undefined && parsed < min) ||
-      (max !== undefined && parsed > max))
+  const parsed = parseNumberText(text)
+  // Half-typed text («-», «,») is not a number yet: it gets its own message, not a misleading range.
+  const notNumber = parsed === null && text.trim() !== ''
+  const outOfRange = parsed !== null && ((min !== undefined && parsed < min) || (max !== undefined && parsed > max))
+  const invalid = notNumber || outOfRange
 
   const report = useRef(onValidityChange)
   useEffect(() => {
@@ -88,22 +92,18 @@ export function NumberField({
     if (parsed !== (value ?? null)) onCommit(parsed)
   }
 
+  // Same rule as NumberInput: text that can't become a number is not accepted at all.
   const onChange = (input: string): void => {
-    if (integer) {
-      // Digits only, no leading zeros: "024242" → "24242".
-      const digits = input.replace(/\D/g, '').replace(/^0+(?=\d)/, '')
-      setText(digits)
-    } else {
-      setText(input.replace(/[^\d.,-]/g, ''))
-    }
+    const next = acceptNumberText(input, { integer, min })
+    if (next !== null) setText(next)
   }
 
   if (readOnly) {
     if (value === null || value === undefined) return null
     return (
       <Field label={label} className={className}>
-        <span className="text-body tabular-nums">
-          {value}
+        <span data-view className="text-body tabular-nums">
+          {fmtNumber(value)}
           {unit ? ` ${unit}` : ''}
         </span>
       </Field>
@@ -113,14 +113,14 @@ export function NumberField({
   return (
     <Field
       label={label}
-      htmlFor={id}
+      htmlFor={inputId}
       className={className}
       hint={hint}
-      error={invalid ? rangeText(min, max, unit) : undefined}
+      error={notNumber ? NOT_A_NUMBER : outOfRange ? rangeText(min, max, unit) : undefined}
     >
       <InputGroup>
         <InputGroupInput
-          id={id}
+          id={inputId}
           inputMode={integer ? 'numeric' : 'decimal'}
           step={step}
           value={text}

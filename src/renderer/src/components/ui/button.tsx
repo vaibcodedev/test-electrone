@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 /** Pill buttons. `default` = ink (lime in dark), `lime` = primary call to action, `soft` = surface. */
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-body font-medium whitespace-nowrap transition-[background-color,color,box-shadow,transform] outline-none select-none active:translate-y-px focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full text-body font-medium whitespace-nowrap transition-[background-color,color,box-shadow,transform] outline-none select-none active:translate-y-px focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -23,13 +23,15 @@ const buttonVariants = cva(
         // Dangerous action: solid red, white text and icon, calm hover; its focus ring is red too (never lime).
         destructive:
           'bg-destructive text-white hover:bg-destructive/88 focus-visible:ring-destructive/40 disabled:opacity-50 [&_svg]:text-white',
+        // On a code block (ink in both themes): «Форматувати», copy code.
+        code: 'bg-(--code-control) text-(--code-fg) hover:bg-(--code-control-hover) disabled:opacity-50',
         link: 'h-auto rounded-none px-0 text-foreground underline decoration-current/30 underline-offset-4 hover:decoration-current disabled:opacity-50'
       },
       size: {
         default: 'h-9 px-4 has-[>svg]:px-3.5',
-        xs: "h-6 gap-1 px-2.5 text-xs [&_svg:not([class*='size-'])]:size-3",
+        xs: "h-6 gap-1 px-2.5 text-caption [&_svg:not([class*='size-'])]:size-3",
         sm: 'h-8 gap-1.5 px-3',
-        lg: 'h-11 px-6 text-sm',
+        lg: 'h-11 px-6 text-body',
         icon: 'size-9',
         'icon-xs': "size-6 [&_svg:not([class*='size-'])]:size-3",
         'icon-sm': 'size-8',

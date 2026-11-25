@@ -1,9 +1,10 @@
-import type { ReactElement } from 'react'
+import { useId, type ReactElement } from 'react'
 import { ExternalLink } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { isLikelyUrl, URL_ERROR } from '@/lib/limits'
 import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Field } from '@/components/common/page'
@@ -30,9 +31,10 @@ export function TextField({
   maxLength?: number
 }): ReactElement {
   const [draft, setDraft] = useAutosave(value, onSave)
+  const id = useId()
   return (
-    <Field label={label} className={className}>
-      <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} maxLength={maxLength} />
+    <Field label={label} className={className} htmlFor={id}>
+      <Input id={id} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder} maxLength={maxLength} />
     </Field>
   )
 }
@@ -68,7 +70,28 @@ export function LinkInput({
   })
   const bad = strict && !isLikelyUrl(draft)
   const canOpen = !bad && /^https?:\/\//i.test(draft.trim())
-  const input = (
+  const id = useId()
+  // Reading: the link itself (one line, «…», full address on hover) — not a clipped input.
+  const view = !draft.trim() ? (
+    <span data-empty />
+  ) : canOpen ? (
+    <Button
+      variant="link"
+      data-view
+      title={draft}
+      className="block max-w-full justify-start truncate text-left font-normal no-underline hover:underline"
+      onClick={() => void openUrl(draft)}
+    >
+      {draft}
+    </Button>
+  ) : (
+    <span data-view title={draft} className="block max-w-full truncate text-body">
+      {draft}
+    </span>
+  )
+  const input = readOnly ? (
+    view
+  ) : (
     <InputGroup>
       <InputGroupInput
         type={strict ? 'url' : 'text'}
@@ -78,7 +101,7 @@ export function LinkInput({
         onChange={(e) => setDraft(e.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
-        aria-label={label}
+        id={label ? id : undefined}
         aria-invalid={bad || undefined}
       />
       {canOpen && (
@@ -92,7 +115,7 @@ export function LinkInput({
   )
   if (label)
     return (
-      <Field label={label} error={bad ? URL_ERROR : undefined}>
+      <Field label={label} htmlFor={id} error={bad ? URL_ERROR : undefined}>
         {input}
       </Field>
     )

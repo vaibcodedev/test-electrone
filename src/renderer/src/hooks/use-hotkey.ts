@@ -1,14 +1,10 @@
 import { useEffect, useRef } from 'react'
+import { isEditableTarget } from '@/lib/dom'
 
 export interface HotkeyOptions {
   /** Fire even when focus is inside an input/textarea/editor. */
   allowInInputs?: boolean
   enabled?: boolean
-}
-
-function isEditable(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false
-  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || !!el.closest('.cm-editor')
 }
 
 /**
@@ -35,7 +31,7 @@ export function useHotkey(combo: string, handler: (e: KeyboardEvent) => void, op
       if (mod !== wantMod || e.altKey !== wantAlt || e.shiftKey !== wantShift) return
       const pressed = e.code.startsWith('Digit') ? e.code.slice(5) : e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() : e.key.toLowerCase()
       if (pressed !== key) return
-      if (!options.allowInInputs && isEditable(e.target)) return
+      if (!options.allowInInputs && isEditableTarget(e.target)) return
       e.preventDefault()
       ref.current(e)
     }

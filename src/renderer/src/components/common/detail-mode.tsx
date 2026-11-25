@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import type { RecordSnapshot } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import { api } from '@/lib/api'
+import { reportError } from '@/lib/error-reporting'
 import { flushAndSettle, invalidateAll } from '@/lib/query'
 import { Check, Pencil, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -63,21 +64,25 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
       lastFailed = (await flushAndSettle()).failed
       const s = await snap.current
       if (!ref || !s) return false
-      return api.records.changed({ ref, snapshot: s }).catch(() => false)
+      return api.records.changed({ ref, snapshot: s }).catch((e) => {
+        reportError(e, 'detail-mode:changed')
+        return false
+      })
     }
-    const save = async (): Promise<void> => {
+    const save = async (): Promise<boolean> => {
       const changed = await hasChanges()
       if (lastFailed > 0) {
         // The field's own error toast already said what; stay in edit mode so the text isn't lost.
         toast.error('Не все збережено — виправте поле з помилкою й натисніть «Зберегти» ще раз')
-        return
+        return false
       }
       fresh.current = false
       setEditing(false)
       if (changed) toast.success('Збережено')
+      return true
     }
     const cancel = ref
-      ? async (close?: () => void): Promise<void> => {
+      ? async (close?: () => void): Promise<boolean> => {
           // Pending saves must land before the revert, or they'd arrive after it and undo it.
           await flushAndSettle()
           const s = await snap.current
@@ -86,23 +91,27 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
               await api.records.revert({ ref, snapshot: s })
             } catch (e) {
               toast.error(`Не вдалося скасувати: ${(e as Error).message}`)
-              return
+              return false
             }
           }
           // A record created a moment ago and then cancelled shouldn't stay as an empty leftover.
           if (fresh.current) {
-            const discarded = await api.trash.discardNew(ref).catch(() => false)
+            const discarded = await api.trash.discardNew(ref).catch((e) => {
+              reportError(e, 'detail-mode:discardNew')
+              return false
+            })
             invalidateAll()
             setEditing(false)
             if (discarded) {
               toast('Запис не створено')
               close?.()
             }
-            return
+            return true
           }
           invalidateAll()
           if (s) toast('Зміни скасовано')
           setEditing(false)
+          return true
         }
       : undefined
     /** Leave editing (Esc): asks only when something actually changed. */
@@ -118,8 +127,9 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         // Untouched: just close (an untouched new record is removed by the pane's draft cleanup).
         if (!changed) return close()
         useUi.getState().askClose({
-          keep: () => void save().then(close),
-          discard: () => void cancel?.().then(close)
+          // A rejected field or a failed revert keeps the record open, so the typed text isn't lost.
+          keep: () => void save().then((ok) => ok && close()),
+          discard: () => void cancel?.().then((ok) => ok && close())
         })
       })
     }
@@ -147,7 +157,7 @@ export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () =
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="subtle" size="sm" data-edit-detail onClick={() => mode.setEditing(true)}>
+          <Button variant="soft" size="sm" data-edit-detail onClick={() => mode.setEditing(true)}>
             <Pencil /> Редагувати
           </Button>
         </TooltipTrigger>
@@ -169,7 +179,7 @@ export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () =
       {mode.cancel && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => void mode.cancel?.(onClose)}>
+            <Button variant="soft" size="sm" onClick={() => void mode.cancel?.(onClose)}>
               <Undo2 /> Скасувати
             </Button>
           </TooltipTrigger>

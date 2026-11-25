@@ -3,12 +3,14 @@ import { format, startOfDay } from 'date-fns'
 import { uk } from 'date-fns/locale'
 import { CalendarDays, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { fmtDateTime, fmtDayFull } from '@/lib/format'
 import { useReadOnly } from './detail-mode'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /**
  * Date (and optional time) picker — shadcn Calendar in a Popover, time via shadcn Input type="time"
@@ -58,9 +60,17 @@ export function DatePicker({
     onChange(base.getTime())
   }
 
-  const label = date ? format(date, withTime ? 'd MMM yyyy, HH:mm' : 'd MMM yyyy', { locale: uk }) : placeholder
-  // Record view mode: just the date as text (nothing to open).
-  if (viewMode) return <span className={cn('text-body', !date && 'text-muted-foreground')}>{date ? label : '—'}</span>
+  // Full month, year only when it isn't this one: «24 листопада о 18:00», not «24 листоп. 2026, 18:00».
+  const label = value ? (withTime ? fmtDateTime(value) : fmtDayFull(value)) : placeholder
+  // Record view mode: just the date as text (nothing to open); without a date the field hides itself.
+  if (viewMode)
+    return value ? (
+      <span data-view className="text-body">
+        {label}
+      </span>
+    ) : (
+      <span data-empty />
+    )
 
   return (
     <ButtonGroup className={cn('w-full', className)}>
@@ -108,9 +118,14 @@ export function DatePicker({
         </PopoverContent>
       </Popover>
       {clearable && date && (
-        <Button variant="soft" size={size === 'sm' ? 'icon-sm' : 'icon'} aria-label="Очистити дату" onClick={() => onChange(null)}>
-          <X />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="soft" size={size === 'sm' ? 'icon-sm' : 'icon'} aria-label="Очистити дату" onClick={() => onChange(null)}>
+              <X />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Очистити дату</TooltipContent>
+        </Tooltip>
       )}
     </ButtonGroup>
   )

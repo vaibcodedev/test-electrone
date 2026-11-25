@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectLanguage } from '@/components/common/code'
+import { detectLanguage } from '@/lib/code-language'
 
 describe('detectLanguage', () => {
   it.each([

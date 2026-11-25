@@ -274,7 +274,7 @@ function SidebarTrigger({
       {...props}
     >
       <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only">Згорнути бічну панель</span>
     </Button>
   )
 }
@@ -286,10 +286,10 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label="Згорнути бічну панель"
       tabIndex={-1}
       onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      title="Згорнути бічну панель"
       className={cn(
         "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
@@ -445,7 +445,7 @@ function SidebarGroupContent({
     <div
       data-slot="sidebar-group-content"
       data-sidebar="group-content"
-      className={cn("w-full text-sm", className)}
+      className={cn("w-full text-body", className)}
       {...props}
     />
   )
@@ -484,8 +484,8 @@ const sidebarMenuButtonVariants = cva(
       },
       size: {
         default: "h-9 text-body",
-        sm: "h-7 text-xs",
-        lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
+        sm: "h-7 text-caption",
+        lg: "h-12 text-body group-data-[collapsible=icon]:p-0!",
       },
     },
     defaultVariants: {
@@ -590,7 +590,7 @@ function SidebarMenuBadge({
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(
-        "pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none",
+        "pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-meta font-medium text-sidebar-foreground tabular-nums select-none",
         "peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground",
         "peer-data-[size=sm]/menu-button:top-1",
         "peer-data-[size=default]/menu-button:top-1.5",
@@ -695,8 +695,8 @@ function SidebarMenuSubButton({
         "relative transition-[background-color,color] duration-200 before:absolute before:top-1/2 before:left-0.5 before:h-0 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-chart-1 before:transition-[height] before:duration-300 before:ease-[var(--ease-soft)]",
         // Active: tinted pill with a soft accent glow, icon in the accent colour, the bar grows in.
         "data-[active=true]:bg-[linear-gradient(90deg,color-mix(in_oklab,var(--chart-1)_16%,transparent),color-mix(in_oklab,var(--foreground)_6%,transparent)_70%)] data-[active=true]:font-semibold data-[active=true]:text-foreground data-[active=true]:before:h-4 data-[active=true]:[&>svg]:text-chart-1",
-        size === "sm" && "text-xs",
-        size === "md" && "text-sm",
+        size === "sm" && "text-caption",
+        size === "md" && "text-body",
         "group-data-[collapsible=icon]:hidden",
         className
       )}

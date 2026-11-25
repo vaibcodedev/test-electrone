@@ -188,10 +188,12 @@
   --muted-foreground: #5d6255;
   --accent: #e4e7de;
   --accent-foreground: #14160f;
-  --destructive: #d9363e;
+  /* Status colours are text colours: ≥4.5:1 to surface (bright hues live in chart-*). */
+  --destructive: #b02a33;
   --border: rgb(20 22 15 / 0.09);
   --input: rgb(20 22 15 / 0.2);
-  --ring: #9bbb12;
+  /* Focus ring: ≥3:1 to surface, card and the lime chip (the old #9bbb12 was 1.9:1). */
+  --ring: #55700a;
 
   --ink: #14160f;
   --ink-foreground: #eef1e6;
@@ -209,9 +211,9 @@
   --lime: #d4f542;
   --lime-foreground: #14160f;
   --lime-soft: #eef8c4;
-  --warn: #e8930c;
-  --info: #6f7ff0;
-  --success: #3d9a4f;
+  --warn: #855505;
+  --info: #4a55b8;
+  --success: #266632;
 }
 
 .dark {
@@ -290,7 +292,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/60;
+    @apply border-border outline-ring;
   }
   html,
   body,
@@ -299,7 +301,7 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-size: 14px;
+    font-size: var(--text-body);
     font-feature-settings: 'ss01', 'cv11';
     overflow: hidden;
     user-select: none;
@@ -373,6 +375,11 @@
   [data-slot='sheet-content'] {
     scrollbar-gutter: stable;
   }
+  /* A page body holding master-detail panels never scrolls itself (the list and the pane do): a reserved
+     lane there pushed the pane's right edge ~16px left of the header. */
+  [class*='overflow-y-auto']:has(> [data-slot='resizable-panel-group']) {
+    scrollbar-gutter: auto;
+  }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
@@ -398,12 +405,6 @@
   /* Main content panel sitting on the sage frame. */
   .panel {
     @apply bg-card text-card-foreground rounded-3xl;
-  }
-  .tile {
-    @apply bg-surface rounded-xl;
-  }
-  .ink-card {
-    @apply bg-ink text-ink-foreground rounded-2xl;
   }
 
   /*
@@ -443,19 +444,19 @@
 
   /* Markdown */
   .prose-vault {
-    @apply text-[14px] leading-relaxed;
+    @apply text-lead leading-relaxed;
   }
   .prose-vault > * + * {
     margin-top: 0.7em;
   }
   .prose-vault h1 {
-    @apply font-display text-2xl;
+    @apply font-display text-headline;
   }
   .prose-vault h2 {
-    @apply font-display mt-6 text-xl;
+    @apply font-display mt-6 text-heading;
   }
   .prose-vault h3 {
-    @apply mt-4 text-base font-semibold;
+    @apply mt-4 text-lead font-semibold;
   }
   .prose-vault a {
     @apply underline decoration-[color-mix(in_oklab,var(--foreground)_30%,transparent)] underline-offset-3 hover:decoration-current;
@@ -476,12 +477,12 @@
     @apply rounded-md bg-surface px-1.5 py-0.5 font-mono text-[0.86em];
   }
   .prose-vault pre {
-    @apply overflow-x-auto rounded-xl p-4 font-mono text-[12.5px] leading-relaxed;
+    @apply overflow-x-auto rounded-xl p-4 font-mono text-caption leading-relaxed;
     background: var(--code-bg);
     color: var(--code-fg);
   }
   .prose-vault table {
-    @apply w-full border-collapse text-sm;
+    @apply w-full border-collapse text-body;
   }
   .prose-vault th,
   .prose-vault td {
@@ -507,8 +508,20 @@
 /* Unlayered on purpose: these must beat Tailwind utilities (display/padding) inside fields. */
 /* ── Record view mode (DetailPane data-detail-mode="view"): read, don't edit ── */
 /* Empty fields disappear instead of showing empty boxes. */
-[data-detail-mode='view'] [data-slot='field']:has(> [data-empty]),
-[data-detail-mode='view'] [data-slot='field']:has(> [data-slot='input-group'] [data-empty]) {
+[data-detail-mode='view']
+  [data-slot='field']:has([data-empty]):not(
+    :has(
+      [data-slot='input']:not([data-empty]),
+      [data-slot='textarea']:not([data-empty]),
+      [data-view]:not([data-empty]),
+      [data-has-content]
+    )
+  ),
+[data-detail-mode='view']
+  [data-slot='field']:has([data-slot='toggle-group']):not(
+    :has([data-slot='toggle-group-item']:is([data-state='on'], [aria-checked='true'], [aria-pressed='true']))
+  ),
+[data-detail-mode='view'] [data-slot='field']:has([data-slot='select-trigger'][data-placeholder]) {
   display: none;
 }
 [data-detail-mode='view'] [data-slot='input-group'] {
@@ -521,12 +534,22 @@
   display: none;
 }
 /* One accent while editing: «Зберегти» stays lime, the record's other lime buttons step back to soft. */
-[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]) {
+[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]),
+.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save]) {
   background: var(--surface);
   color: var(--foreground);
 }
-[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]):hover {
+[data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save]):hover,
+.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save]):hover {
   background: var(--accent);
+}
+/* A chip inside a record is the field's value, not a screen filter: neutral, never lime. */
+[data-detail-mode]
+  [data-slot='toggle-group'][data-variant='chip']
+  [data-slot='toggle-group-item']:is([data-state='on'], [aria-checked='true'], [aria-pressed='true']) {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  color: var(--foreground);
+  font-weight: 500;
 }
 /* Checkbox is not here on purpose: it marks progress (pre-bid checks, subtasks) and works while reading. */
 [data-detail-mode='view'] [data-slot='toggle-group'],

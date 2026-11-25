@@ -1,10 +1,12 @@
-import { useMemo, useRef, useState, type DragEvent } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { describeZodError } from '@shared/zod-locale'
 import { toast } from 'sonner'
 import { Braces, Copy, FileJson, FileUp } from 'lucide-react'
 import { IMPORT_DEFS, IMPORT_MAX_ITEMS, importPrompt, type ImportKind } from '@shared/domain/import'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
+import { reportError } from '@/lib/error-reporting'
+import { useDroppedFiles } from '@/hooks/use-file-drop'
 import { plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -71,7 +73,6 @@ export function ImportDialog({
   const [raw, setRaw] = useState('')
   const [tab, setTab] = useState<'text' | 'file'>('text')
   const [fileName, setFileName] = useState<string | null>(null)
-  const [over, setOver] = useState(false)
   const [busy, setBusy] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const parsed = useMemo(() => parse(kind, raw), [kind, raw])
@@ -81,6 +82,11 @@ export function ImportDialog({
     setRaw('')
     setFileName(null)
   }
+  // Every way out («Скасувати», Esc, ✕, after import) leaves a clean dialog for the next time.
+  const close = (): void => {
+    onOpenChange(false)
+    reset()
+  }
 
   const readFile = async (file: File | undefined): Promise<void> => {
     if (!file) return
@@ -88,13 +94,25 @@ export function ImportDialog({
       toast.error('Файл завеликий — максимум 2 МБ')
       return
     }
-    setFileName(file.name)
-    setRaw(await file.text())
+    try {
+      const text = await file.text()
+      setFileName(file.name)
+      setRaw(text)
+    } catch (e) {
+      toast.error('Не вдалося прочитати файл')
+      reportError(e, 'import:readFile')
+    }
   }
+  const drop = useDroppedFiles((files) => void readFile(files[0]))
 
   const copy = async (text: string, msg: string): Promise<void> => {
-    await api.app.copyText(text)
-    toast.success(msg)
+    try {
+      await api.app.copyText(text)
+      toast.success(msg)
+    } catch (e) {
+      toast.error('Не вдалося скопіювати')
+      reportError(e, 'import:copy')
+    }
   }
 
   const submit = async (): Promise<void> => {
@@ -104,8 +122,7 @@ export function ImportDialog({
       const res = await api.importer.run({ kind, payload: parsed.data })
       invalidateAll()
       toast.success(`Імпортовано ${res.created} ${plural(res.created, def.forms)}`)
-      onOpenChange(false)
-      reset()
+      close()
       onImported?.(res.firstId)
     } catch (e) {
       toast.error((e as Error).message)
@@ -114,20 +131,8 @@ export function ImportDialog({
     }
   }
 
-  const onDrop = (e: DragEvent): void => {
-    e.preventDefault()
-    setOver(false)
-    void readFile(e.dataTransfer.files[0])
-  }
-
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o)
-        if (!o) reset()
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Імпорт з JSON — {def.label}</DialogTitle>
@@ -172,15 +177,10 @@ export function ImportDialog({
           </TabsContent>
           <TabsContent value="file">
             <div
-              onDragOver={(e) => {
-                e.preventDefault()
-                setOver(true)
-              }}
-              onDragLeave={() => setOver(false)}
-              onDrop={onDrop}
+              {...drop.props}
               className={cn(
                 'flex min-h-40 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-foreground/15 p-6 text-center transition-colors',
-                over && 'border-chart-1 bg-foreground/[0.04]'
+                drop.isOver && 'border-chart-1 bg-foreground/[0.04]'
               )}
             >
               <FileJson className="size-6 text-muted-foreground" />
@@ -221,7 +221,7 @@ export function ImportDialog({
         )}
 
         <DialogFooter>
-          <Button variant="soft" onClick={() => onOpenChange(false)}>
+          <Button variant="soft" onClick={close}>
             Скасувати
           </Button>
           <Button variant="lime" disabled={!parsed?.ok || busy} onClick={() => void submit()}>

@@ -2,7 +2,7 @@
  * Page-level building blocks. Everything here is a thin composition of shadcn components
  * (Empty, InputGroup, ToggleGroup, Progress, Field, Kbd) — no hand-made controls.
  */
-import type { ReactNode } from 'react'
+import { useId, type ReactElement, type ReactNode } from 'react'
 import { Search, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -13,6 +13,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Progress } from '@/components/ui/progress'
 import { Field as UiField, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Kbd as UiKbd } from '@/components/ui/kbd'
+import { Button } from '@/components/ui/button'
 
 /** Page title block: big display type, optional subtitle and actions on the right. */
 export function PageHeader({
@@ -51,20 +52,27 @@ export function Page({ children, className }: { children: ReactNode; className?:
   return <div className={cn('flex h-full min-h-0 flex-col', className)}>{children}</div>
 }
 
-/** Empty state (shadcn Empty): says what to do next, with the action right there. */
+/**
+ * Empty state (shadcn Empty): says what to do next, with the action right there. `cta` is the usual
+ * action — a soft button (the lime one stays in the page header: one accent per screen); `action` is
+ * for anything else.
+ */
 export function EmptyState({
   icon: Icon,
   title,
   hint,
   action,
+  cta,
   className
 }: {
   icon?: LucideIcon
   title: string
   hint?: ReactNode
   action?: ReactNode
+  cta?: { label: string; icon?: LucideIcon; onClick: () => void }
   className?: string
 }) {
+  const CtaIcon = cta?.icon
   return (
     <Empty className={cn('py-14', className)}>
       <EmptyHeader>
@@ -76,7 +84,17 @@ export function EmptyState({
         <EmptyTitle className="text-lead font-medium">{title}</EmptyTitle>
         {hint && <EmptyDescription className="text-body">{hint}</EmptyDescription>}
       </EmptyHeader>
-      {action && <EmptyContent>{action}</EmptyContent>}
+      {(action || cta) && (
+        <EmptyContent>
+          {cta && (
+            <Button variant="soft" onClick={cta.onClick}>
+              {CtaIcon && <CtaIcon />}
+              {cta.label}
+            </Button>
+          )}
+          {action}
+        </EmptyContent>
+      )}
     </Empty>
   )
 }
@@ -133,14 +151,21 @@ export interface ChipOption<T extends string> {
 
 const ALL = '__all__'
 
-/** Pill filter chips (shadcn ToggleGroup, variant "chip": selected = lime). `allLabel` adds a "show all" chip. */
+/** Selected chip of a secondary filter group: a neutral tint, so the screen keeps one lime filter group. */
+const NEUTRAL_CHIP = 'on:bg-foreground/12 on:text-foreground on:font-medium on:focus-visible:ring-ring'
+
+/**
+ * Pill filter chips (shadcn ToggleGroup, variant "chip": selected = lime). `allLabel` adds a "show all" chip.
+ * `tone="neutral"` — the second and further groups of a filter row (docs/design-system.md → Переключатели).
+ */
 export function FilterChips<T extends string>({
   options,
   value,
   onChange,
   allLabel,
   className,
-  size = 'sm'
+  size = 'sm',
+  tone = 'accent'
 }: {
   options: ChipOption<T>[]
   value: T | undefined
@@ -148,7 +173,9 @@ export function FilterChips<T extends string>({
   allLabel?: string
   className?: string
   size?: 'sm' | 'xs' | 'default'
+  tone?: 'accent' | 'neutral'
 }) {
+  const itemClass = tone === 'neutral' ? NEUTRAL_CHIP : undefined
   return (
     <ToggleGroup
       type="single"
@@ -156,19 +183,53 @@ export function FilterChips<T extends string>({
       size={size}
       value={value ?? (allLabel ? ALL : '')}
       onValueChange={(v) => {
-        if (!v) return allLabel ? onChange(undefined) : onChange(undefined)
+        if (!v) return onChange(undefined)
         onChange(v === ALL ? undefined : (v as T))
       }}
       className={className}
     >
-      {allLabel && <ToggleGroupItem value={ALL}>{allLabel}</ToggleGroupItem>}
+      {allLabel && (
+        <ToggleGroupItem value={ALL} className={itemClass}>
+          {allLabel}
+        </ToggleGroupItem>
+      )}
       {options.map((o) => (
-        <ToggleGroupItem key={o.value} value={o.value}>
-          {o.label}
-          {o.count !== undefined && <span className="tabular-nums opacity-55">{o.count}</span>}
+        <ToggleGroupItem key={o.value} value={o.value} className={itemClass}>
+          {/* A long label (folder name) ends with «…» instead of pushing the rest of the row down. */}
+          <span className="max-w-[24ch] truncate" title={o.label}>
+            {o.label}
+          </span>
+          {o.count !== undefined && <span className="shrink-0 tabular-nums opacity-55">{o.count}</span>}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
+  )
+}
+
+/**
+ * The filter row of a list page, always in the same order: chips on the left (wrap if needed), then on the
+ * right `trailing` — TagFilter and SearchInput (w-72); `secondary` goes on a second line. «/» finds the
+ * search in the same place on every screen.
+ */
+export function FilterBar({
+  chips,
+  trailing,
+  secondary,
+  className
+}: {
+  chips?: ReactNode
+  trailing?: ReactNode
+  secondary?: ReactNode
+  className?: string
+}): ReactElement {
+  return (
+    <div className={cn('flex flex-col gap-2', className)}>
+      <div className="flex flex-wrap items-center gap-2">
+        {chips && <div className="flex min-w-0 flex-wrap items-center gap-2">{chips}</div>}
+        {trailing && <div className="ml-auto flex shrink-0 items-center gap-2">{trailing}</div>}
+      </div>
+      {secondary}
+    </div>
   )
 }
 
@@ -274,12 +335,21 @@ export function Field({
 }) {
   // View mode shows values, not validation: an error appears only while editing.
   const viewMode = useReadOnly()
+  // A control without an id to point at still gets a name: the group is labelled instead. With htmlFor the
+  // control itself is labelled, and naming the group too would give two elements the same label.
+  const labelId = useId()
   if (viewMode) error = undefined
   const near = count?.max ? count.length >= count.max * 0.8 : false
   return (
-    <UiField className={cn('min-w-0 gap-2', className)} data-invalid={error ? true : undefined}>
+    <UiField
+      className={cn('min-w-0 gap-2', className)}
+      data-invalid={error ? true : undefined}
+      aria-labelledby={htmlFor ? undefined : labelId}
+    >
       <div className="flex items-baseline justify-between gap-3">
-        <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+        <FieldLabel id={labelId} htmlFor={htmlFor}>
+          {label}
+        </FieldLabel>
         {near && count?.max && (
           <span
             className={cn('text-meta tabular-nums', count.length >= count.max ? 'text-warn' : 'text-muted-foreground')}

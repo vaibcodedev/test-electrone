@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import type { Theme } from '@shared/domain/system'
 import { useApi } from '@/lib/query'
 import { api } from '@/lib/api'
+import { reportError } from '@/lib/error-reporting'
 
 const media = window.matchMedia('(prefers-color-scheme: dark)')
 
@@ -24,7 +25,7 @@ export function useApplyTheme(): 'light' | 'dark' {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', resolved === 'dark')
     document.documentElement.style.colorScheme = resolved
-    void api.app.setWindowTheme(resolved).catch(() => undefined)
+    void api.app.setWindowTheme(resolved).catch((e) => reportError(e, 'theme:setWindowTheme'))
   }, [resolved])
   return resolved
 }

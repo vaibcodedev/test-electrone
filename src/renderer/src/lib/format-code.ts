@@ -1,5 +1,5 @@
 import type { Plugin } from 'prettier'
-import type { CodeLanguage } from '@/components/common/code'
+import type { CodeLanguage } from '@/lib/code-language'
 
 type Parser = 'typescript' | 'babel' | 'json' | 'css' | 'html' | 'markdown' | 'graphql'
 

@@ -31,7 +31,7 @@ function ItemSeparator({
 }
 
 const itemVariants = cva(
-  "group/item flex flex-wrap items-center rounded-2xl border border-transparent text-body transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors [a]:hover:bg-accent/50",
+  "group/item flex flex-wrap items-center rounded-2xl [button&]:w-full [button&]:text-left border border-transparent text-body transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring [a]:transition-colors [a]:hover:bg-accent/50",
   {
     variants: {
       variant: {
@@ -125,7 +125,7 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="item-title"
       className={cn(
         // [&.truncate]:block — ellipsis doesn't work on a flex container, so a truncated title becomes a block.
-        "flex w-fit min-w-0 max-w-full items-center gap-2 text-sm leading-snug font-medium [&.truncate]:block",
+        "flex w-fit min-w-0 max-w-full items-center gap-2 text-body leading-snug font-medium [&.truncate]:block",
         className
       )}
       {...props}
@@ -138,7 +138,7 @@ function ItemDescription({ className, ...props }: React.ComponentProps<"p">) {
     <p
       data-slot="item-description"
       className={cn(
-        "line-clamp-2 text-sm leading-normal font-normal text-balance text-muted-foreground",
+        "line-clamp-2 text-body leading-normal font-normal text-balance text-muted-foreground",
         "[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary",
         className
       )}

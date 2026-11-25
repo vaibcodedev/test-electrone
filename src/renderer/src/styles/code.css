@@ -11,6 +11,10 @@
   --code-attr: #e5a3ff;
   --code-line: rgb(255 255 255 / 0.04);
   --code-selection: rgb(212 245 66 / 0.22);
+  --code-invalid: #ff7b7b;
+  /* Buttons that sit on code (Форматувати, copy): a light tint of the code text, not a page colour. */
+  --code-control: rgb(255 255 255 / 0.08);
+  --code-control-hover: rgb(255 255 255 / 0.14);
 }
 .dark {
   --code-bg: #0f110d;
@@ -63,7 +67,7 @@
   color: var(--code-attr);
 }
 .hljs-deletion {
-  color: #ff7b7b;
+  color: var(--code-invalid);
 }
 .hljs-emphasis {
   font-style: italic;

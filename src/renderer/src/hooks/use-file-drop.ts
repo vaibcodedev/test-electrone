@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react'
 import type { FileSource } from '@shared/domain/designs'
 import { toFileSources } from '@/lib/files'
+import { isEditableTarget } from '@/lib/dom'
 
 /**
  * Drag & drop of files onto an element. Returns props to spread and an `isOver` flag.
  * `onFiles` receives API-ready sources (absolute path for disk files, bytes for browser drags).
  */
 export function useFileDrop(onFiles: (sources: FileSource[]) => void, opts: { accept?: (f: File) => boolean } = {}) {
+  return useDroppedFiles(async (files) => onFiles(await toFileSources(files)), opts)
+}
+
+/**
+ * Same as useFileDrop, but hands over the browser File objects (to read them in the renderer, e.g. a
+ * JSON import). The highlight counts enter/leave depth, so it doesn't flicker over nested elements.
+ */
+export function useDroppedFiles(
+  onFiles: (files: File[]) => void,
+  opts: { accept?: (f: File) => boolean } = {}
+): { isOver: boolean; props: Record<'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop', (e: DragEvent) => void> } {
   const [isOver, setOver] = useState(false)
   const depth = useRef(0)
   const props = {
@@ -23,13 +35,13 @@ export function useFileDrop(onFiles: (sources: FileSource[]) => void, opts: { ac
       depth.current = Math.max(0, depth.current - 1)
       if (!depth.current) setOver(false)
     },
-    onDrop: async (e: DragEvent) => {
+    onDrop: (e: DragEvent) => {
       if (!e.dataTransfer.files.length) return
       e.preventDefault()
       depth.current = 0
       setOver(false)
       const files = Array.from(e.dataTransfer.files).filter((f) => !opts.accept || opts.accept(f))
-      if (files.length) onFiles(await toFileSources(files))
+      if (files.length) onFiles(files)
     }
   }
   return { isOver, props }
@@ -47,8 +59,7 @@ export function usePasteFiles(onFiles: (sources: FileSource[]) => void, enabled 
   useEffect(() => {
     if (!enabled) return
     const onPaste = async (e: ClipboardEvent): Promise<void> => {
-      const target = e.target as HTMLElement | null
-      if (target && (target.closest('input, textarea, [contenteditable], .cm-editor'))) return
+      if (isEditableTarget(e.target)) return
       const files = Array.from(e.clipboardData?.files ?? [])
       if (!files.length) return
       e.preventDefault()

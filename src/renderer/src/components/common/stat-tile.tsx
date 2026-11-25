@@ -43,8 +43,8 @@ export function StatTile({
       <CardHeader>
         <CardDescription className={cn('text-body font-medium', MUTED[tone])}>{label}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="font-display text-headline leading-none tabular-nums">{value}</div>
+      <CardContent className="min-w-0">
+        <div className="min-w-0 font-display text-headline leading-none tabular-nums">{value}</div>
         {hint && <div className={cn('mt-1.5 text-caption', MUTED[tone])}>{hint}</div>}
       </CardContent>
     </Card>

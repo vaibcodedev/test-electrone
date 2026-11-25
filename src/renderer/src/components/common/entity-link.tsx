@@ -5,6 +5,7 @@ import { ENTITY_META } from '@shared/entity-types'
 import type { EntitySummary } from '@shared/domain/common'
 import { ENTITY_ICON } from '@/app/navigation'
 import { cn } from '@/lib/utils'
+import { clickableProps } from '@/lib/clickable'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item'
 
 export function useOpenEntity(): (ref: Pick<EntitySummary, 'type' | 'id'>) => void {
@@ -28,7 +29,7 @@ export function EntityRow({
   const Icon = ENTITY_ICON[item.type]
   return (
     <Item size="xs" className={cn('group cursor-pointer hover:bg-surface', className)} asChild>
-      <div role="button" tabIndex={0} onClick={() => (onOpen ? onOpen() : open(item))} onKeyDown={(e) => e.key === 'Enter' && (onOpen ? onOpen() : open(item))}>
+      <div {...clickableProps(() => (onOpen ? onOpen() : open(item)))}>
         <ItemMedia variant="icon" className="group-hover:bg-card">
           <Icon />
         </ItemMedia>

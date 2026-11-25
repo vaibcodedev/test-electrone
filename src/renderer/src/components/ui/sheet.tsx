@@ -47,6 +47,7 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
@@ -57,8 +58,17 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        // Focus the sheet itself, not its first header button: that popped the button's tooltip on open.
+        // A field with autoFocus (new record) already holds focus, so Radix doesn't call this.
+        onOpenAutoFocus={
+          onOpenAutoFocus ??
+          ((e) => {
+            e.preventDefault()
+            ;(e.currentTarget as HTMLElement).focus({ preventScroll: true })
+          })
+        }
         className={cn(
-          "fixed z-50 flex flex-col gap-4 bg-card shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
+          "fixed z-50 flex flex-col gap-4 bg-card shadow-lg outline-none transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500",
           side === "right" &&
             // Below the window buttons (titleBarOverlay, 44px): the sheet header must never sit under them.
             "top-12 bottom-2.5 right-2.5 h-auto w-3/4 overflow-hidden rounded-3xl border data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
@@ -76,7 +86,7 @@ function SheetContent({
         {showCloseButton && (
           <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary">
             <XIcon className="size-4" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Закрити</span>
           </SheetPrimitive.Close>
         )}
       </SheetPrimitive.Content>
@@ -124,7 +134,7 @@ function SheetDescription({
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-body text-muted-foreground", className)}
       {...props}
     />
   )

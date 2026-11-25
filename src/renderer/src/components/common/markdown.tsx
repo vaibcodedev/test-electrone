@@ -1,4 +1,4 @@
-import { useState, type ComponentProps } from 'react'
+import { useId, useState, type ComponentProps } from 'react'
 import { openUrl } from '@/lib/open-url'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -20,8 +20,8 @@ function Pre(props: ComponentProps<'pre'>) {
       <pre {...props} />
       <CopyButton
         text={text}
-        variant="ghost"
-        className="absolute top-2 right-2 text-[var(--code-fg)] opacity-0 transition-opacity group-hover/code:opacity-100 hover:bg-white/10"
+        variant="code"
+        className="absolute top-2 right-2 opacity-0 transition-opacity group-hover/code:opacity-100 group-focus-within/code:opacity-100 focus-visible:opacity-100"
       />
     </div>
   )
@@ -112,10 +112,12 @@ export function MarkdownField({
   /** From the schema (limitsOf); the counter appears in the label row after 80%. */
   maxLength?: number
 }) {
-  // Long fields always show how much room is left once there is text; it turns warn near the limit.
-  const near = maxLength ? value.length > 0 : false
+  // The counter appears after 80% of the limit (docs/design-system.md → Формы) and turns warn near it.
+  const near = maxLength ? value.length >= maxLength * 0.8 : false
   const viewMode = useReadOnly()
-  const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? (value.trim() ? 'preview' : 'edit'))
+  const id = useId()
+  // «Редагувати» means writing: the field opens on «Текст» (reading is what view mode is for).
+  const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? 'edit')
   // Record view mode: rendered text only; an empty field disappears.
   if (viewMode) {
     if (!value.trim()) return null
@@ -131,7 +133,7 @@ export function MarkdownField({
       {/* Label row has the label's height: the compact toggle (h-7, -my-1) must not push the control down,
           so label → control is 8px like every other Field (docs/design-system.md → Формы). */}
       <div className="flex items-center justify-between gap-2">
-        {label ? <FieldLabel>{label}</FieldLabel> : <span />}
+        {label ? <FieldLabel htmlFor={mode === 'edit' ? id : undefined}>{label}</FieldLabel> : <span />}
         {near && (
           <span
             className={cn('ml-auto text-meta tabular-nums', value.length >= maxLength! * 0.9 ? 'text-warn' : 'text-muted-foreground')}
@@ -153,6 +155,7 @@ export function MarkdownField({
       </div>
       {mode === 'edit' ? (
         <Textarea
+          id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}

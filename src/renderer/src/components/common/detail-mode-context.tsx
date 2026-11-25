@@ -7,10 +7,13 @@ import { createContext, useContext, type ReactNode } from 'react'
 export interface DetailMode {
   editing: boolean
   setEditing: (editing: boolean) => void
-  /** «Зберегти»: flush autosaves and return to view mode. */
-  save?: () => Promise<void>
-  /** Revert to the state when editing started; a record created a moment ago is discarded (then `close`). */
-  cancel?: (close?: () => void) => Promise<void>
+  /** «Зберегти»: flush autosaves and return to view mode. false — a field was rejected, still editing. */
+  save?: () => Promise<boolean>
+  /**
+   * Revert to the state when editing started; a record created a moment ago is discarded (then `close`).
+   * false — the revert failed and the record stays as it is.
+   */
+  cancel?: (close?: () => void) => Promise<boolean>
   /** Esc while editing: leave edit mode, asking «Зберегти зміни?» if something changed. */
   exit?: (close?: () => void) => void
   /** Close the record; asks «Зберегти / Не зберігати» if something changed while editing. */

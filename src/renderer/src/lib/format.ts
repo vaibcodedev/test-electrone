@@ -3,9 +3,16 @@ import { uk } from 'date-fns/locale'
 
 export const LOCALE = uk
 
-export function fmtDate(ts: number | null | undefined, pattern = 'd MMM yyyy'): string {
+/** Without a pattern — `fmtDayFull`; an explicit date-fns pattern is applied as is. */
+export function fmtDate(ts: number | null | undefined, pattern?: string): string {
   if (!ts) return ''
-  return format(ts, pattern, { locale: uk })
+  return pattern ? format(ts, pattern, { locale: uk }) : fmtDayFull(ts)
+}
+
+/** «24 листопада» (+ year when it isn't this year): a plain date, without «сьогодні/завтра». */
+export function fmtDayFull(ts: number | null | undefined): string {
+  if (!ts) return ''
+  return format(ts, new Date(ts).getFullYear() === new Date().getFullYear() ? 'd MMMM' : 'd MMMM yyyy', { locale: uk })
 }
 
 /** «24 листопада о 19:22» (+ year when it isn't this year): no «лист.,» dot-comma clash. */
@@ -22,11 +29,13 @@ export function fmtDay(ts: number | null | undefined): string {
   if (isTomorrow(ts)) return 'завтра'
   if (isYesterday(ts)) return 'учора'
   // Short date: full month (Ukrainian abbreviations end with a dot and clash with punctuation).
-  return format(ts, new Date(ts).getFullYear() === new Date().getFullYear() ? 'd MMMM' : 'd MMMM yyyy', { locale: uk })
+  return fmtDayFull(ts)
 }
 
 export function fmtRelative(ts: number | null | undefined): string {
   if (!ts) return ''
+  // Counting seconds is noise, and «0 секунд тому» reads like an error.
+  if (Math.abs(Date.now() - ts) < 60_000) return 'щойно'
   return formatDistanceToNowStrict(ts, { locale: uk, addSuffix: true })
 }
 
@@ -37,15 +46,23 @@ export function fmtMinutes(min: number): string {
   return m ? `${h} год ${m} хв` : `${h} год`
 }
 
+/** A plain number in the uk locale: «9 000 000», «4,9» (up to two decimals). */
+export function fmtNumber(n: number): string {
+  return n.toLocaleString('uk-UA', { maximumFractionDigits: 2 })
+}
+
+/** One decimal at most, with a comma: «1,5». */
+const oneDecimal = (n: number): string => n.toLocaleString('uk-UA', { maximumFractionDigits: 1 })
+
 export function fmtHours(min: number): string {
-  return `${(min / 60).toFixed(min % 60 === 0 ? 0 : 1)} год`
+  return `${oneDecimal(min / 60)} год`
 }
 
 export function fmtMoney(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat('uk-UA', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount)
   } catch {
-    return `${amount.toFixed(2)} ${currency}`
+    return `${amount.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
   }
 }
 
@@ -68,9 +85,9 @@ export function fmtMoneyCompact(amount: number, currency: string): string {
 
 export function fmtBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} Б`
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} КБ`
-  if (bytes < 1024 ** 3) return `${(bytes / 1024 ** 2).toFixed(1)} МБ`
-  return `${(bytes / 1024 ** 3).toFixed(2)} ГБ`
+  if (bytes < 1024 ** 2) return `${oneDecimal(bytes / 1024)} КБ`
+  if (bytes < 1024 ** 3) return `${oneDecimal(bytes / 1024 ** 2)} МБ`
+  return `${oneDecimal(bytes / 1024 ** 3)} ГБ`
 }
 
 /** Ukrainian (and Russian) 3-form plural: plural(5, ['ідея', 'ідеї', 'ідей']). */
@@ -91,18 +108,6 @@ export function dayKey(ts: number | Date): string {
   const d = new Date(ts)
   const pad = (n: number): string => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-/** Value for <input type="datetime-local">. */
-export function toLocalInput(ts: number | null | undefined, withTime = true): string {
-  if (!ts) return ''
-  return format(ts, withTime ? "yyyy-MM-dd'T'HH:mm" : 'yyyy-MM-dd')
-}
-
-export function fromLocalInput(value: string): number | null {
-  if (!value) return null
-  const t = new Date(value).getTime()
-  return Number.isNaN(t) ? null : t
 }
 
 export function hostOf(url: string): string {
