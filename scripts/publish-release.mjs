@@ -74,6 +74,14 @@ const removeAsset = async (name) => {
 for (const file of files) {
   const name = file.split(/[\\/]/).pop()
   const size = statSync(file).size
+  // Already uploaded whole by an earlier run: keep it, a re-run resumes where the last one stopped.
+  const done = ((await api('GET', `/releases/${release.id}`)) ?? release).assets.find(
+    (a) => a.name === name && a.state === 'uploaded' && a.size === size
+  )
+  if (done) {
+    console.log(`${name} already uploaded`)
+    continue
+  }
   for (let attempt = 1; ; attempt++) {
     await removeAsset(name)
     process.stdout.write(`uploading ${name} (${(size / 1e6).toFixed(1)} MB)${attempt > 1 ? `, try ${attempt}` : ''}… `)
