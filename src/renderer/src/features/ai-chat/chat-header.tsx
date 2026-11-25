@@ -22,9 +22,10 @@ import { newChat, openChat, removeChat, useChatSession } from './session'
 /** «Claude · claude-haiku-5-5 · Використано 3 з 100». */
 function usageLine(status: AiStatus): string {
   const preset = aiPreset(status.settings.preset)
+  const who = preset.id === 'custom' ? 'Своя адреса' : preset.short
   const model = status.model || 'модель, завантажена в LM Studio'
   const { requests, limit } = status.usage
-  return `${preset.short} · ${model} · Використано ${fmtNumber(requests)} з ${fmtNumber(limit)}`
+  return `${who} · ${model} · Використано ${fmtNumber(requests)} з ${fmtNumber(limit)}`
 }
 
 function HistoryMenu({ title }: { title: string }): ReactElement {

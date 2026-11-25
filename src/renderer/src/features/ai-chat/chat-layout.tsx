@@ -82,9 +82,12 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
   const setOpen = useUi((s) => s.setAiChatOpen)
   const size = useRef(width)
   const before = useRef<HTMLElement | null>(null)
+  const wasOpen = useRef(open)
 
   // Remember where focus was before the panel took it; give it back when the panel closes from inside.
   useEffect(() => {
+    if (open === wasOpen.current) return
+    wasOpen.current = open
     if (open) {
       const el = document.activeElement
       before.current = el instanceof HTMLElement && el !== document.body ? el : null

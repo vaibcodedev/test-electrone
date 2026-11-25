@@ -1,14 +1,18 @@
 import { CircleCheck, Info, LoaderCircle, OctagonX, TriangleAlert } from 'lucide-react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
 import { useResolvedTheme } from '@/hooks/use-theme'
+import { useUi } from '@/stores/ui-store'
 
 const Toaster = (props: ToasterProps) => {
   const theme = useResolvedTheme()
+  // With the chat ШІ open on the right, toasts stay in the page's corner: over the chat they hid its composer.
+  const chat = useUi((s) => (s.aiChatOpen ? s.aiChatWidth : 0))
   return (
     <Sonner
       theme={theme}
       position="bottom-right"
       containerAriaLabel="Сповіщення"
+      offset={chat ? { right: chat + 44, bottom: 24 } : undefined}
       className="toaster group"
       icons={{
         success: <CircleCheck className="size-4 text-success" />,
