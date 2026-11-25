@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Check, ImagePlus, LayoutGrid, Plus, Star } from 'lucide-react'
 import type { FileSource, Moodboard } from '@shared/domain/designs'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fileUrl, toFileSources } from '@/lib/files'
+import { fileUrl, thumbUrl, toFileSources } from '@/lib/files'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -64,17 +64,20 @@ export function DesignMedia({
   path,
   className,
   alt = '',
-  play = 'hover'
+  play = 'hover',
+  full = false
 }: {
   path: string | null
   className?: string
   alt?: string
   play?: 'hover' | 'controls' | 'none' | 'auto'
+  /** The original picture (the open design); tiles take the thumbnail. */
+  full?: boolean
 }): ReactElement {
   if (!path) return <div className={cn('aspect-video bg-surface', className)} />
   if (isVideoPath(path))
     return <DesignVideo src={fileUrl(path)} className={className} play={play} />
-  return <DesignImage src={fileUrl(path)} alt={alt} className={className} />
+  return <DesignImage src={full ? fileUrl(path) : thumbUrl(path)} alt={alt} className={className} />
 }
 
 /** Hover play listens on the tile (the closest card), not the video: the frame around it counts as «on it». */
@@ -157,6 +160,7 @@ function DesignImage({
       src={src}
       alt={alt}
       loading="lazy"
+      decoding="async"
       draggable={false}
       data-small={small || undefined}
       onLoad={(e) => {

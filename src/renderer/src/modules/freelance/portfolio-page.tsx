@@ -9,7 +9,7 @@ import { VirtualGrid } from '@/components/common/virtual-list'
 import { capitalize, mdPreview } from '@/lib/format'
 import { clickableProps } from '@/lib/clickable'
 import { limitsOf } from '@/lib/limits'
-import { fileUrl, isImageFile, toFileSources } from '@/lib/files'
+import { fileUrl, isImageFile, thumbUrl, toFileSources } from '@/lib/files'
 import { cn } from '@/lib/utils'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
 import { Button } from '@/components/ui/button'
@@ -99,8 +99,17 @@ function CaseCover({ c }: { c: PortfolioCase }): ReactElement | null {
         <>
           {/* Framed like a design preview: the whole screenshot is visible and never melts into the pane. */}
           {/* Concentric: Card 28 − the 10px frame = the screenshot's 18 (it had 24 in an 8px frame). */}
-          <Card className={cn('overflow-hidden bg-surface p-2.5', isOver && 'ring-2 ring-inset ring-ring')}>
-            <img src={fileUrl(c.coverPath)} alt="" className="max-h-80 w-full rounded-xl object-contain ring-1 ring-foreground/8" />
+          <Card
+            className={cn(
+              'overflow-hidden bg-surface p-2.5',
+              isOver && 'ring-2 ring-inset ring-ring'
+            )}
+          >
+            <img
+              src={fileUrl(c.coverPath)}
+              alt=""
+              className="max-h-80 w-full rounded-xl object-contain ring-1 ring-foreground/8"
+            />
           </Card>
           <Button
             variant="ghost"
@@ -432,7 +441,12 @@ export function PortfolioPage() {
                 >
                   <div className="aspect-16/10 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 ring-inset">
                     {c.coverPath ? (
-                      <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover object-top" />
+                      <img
+                        src={thumbUrl(c.coverPath)}
+                        alt=""
+                        decoding="async"
+                        className="size-full object-cover object-top"
+                      />
                     ) : (
                       // No screenshot: the case's own words instead of an empty frame on every tile.
                       <CoverlessPreview c={c} />
@@ -450,7 +464,11 @@ export function PortfolioPage() {
                           {c.niche}
                         </Badge>
                       )}
-                      {c.stack && <span className="min-w-0 truncate text-meta text-muted-foreground">{c.stack}</span>}
+                      {c.stack && (
+                        <span className="min-w-0 truncate text-meta text-muted-foreground">
+                          {c.stack}
+                        </span>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

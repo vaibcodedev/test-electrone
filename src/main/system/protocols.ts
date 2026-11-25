@@ -2,10 +2,12 @@ import { net, protocol } from 'electron'
 import { join, normalize, relative } from 'path'
 import { pathToFileURL } from 'url'
 import type { FileStorage } from '../services/file-storage'
+import { thumbnailOf } from './thumbnails'
 
 /**
  * Custom schemes:
  *  - vault-file://f/<relative path>  → serves user files from the data folder (never arbitrary disk paths)
+ *  - vault-file://t/<relative path>  → the same file's tile-sized thumbnail (system/thumbnails.ts), else the file
  *  - app://renderer/<path>           → serves the built renderer in production (instead of file://),
  *    which lets the sandboxed component-preview iframe load its scripts via CORS.
  */
@@ -17,11 +19,23 @@ export function registerSchemes(): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: FILE_SCHEME,
-      privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true }
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        stream: true,
+        corsEnabled: true
+      }
     },
     {
       scheme: APP_SCHEME,
-      privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, codeCache: true }
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true,
+        corsEnabled: true,
+        codeCache: true
+      }
     }
   ])
 }
@@ -34,14 +48,19 @@ async function withHeaders(res: Response, extra: Record<string, string>): Promis
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
 }
 
-export function handleFileProtocol(storage: FileStorage): void {
+export function handleFileProtocol(storage: FileStorage, thumbsDir: string): void {
   protocol.handle(FILE_SCHEME, async (request) => {
     try {
-      const { pathname } = new URL(request.url)
-      const abs = storage.resolve(decodeURIComponent(pathname.replace(/^\/+/, '')))
+      const { host, pathname } = new URL(request.url)
+      const stored = storage.resolve(decodeURIComponent(pathname.replace(/^\/+/, '')))
+      const thumb = host === 't' ? await thumbnailOf(stored, thumbsDir).catch(() => null) : null
+      const abs = thumb ?? stored
       // Range is passed on so long videos (designs, up to 300 MB) can seek instead of loading from the start.
       const range = request.headers.get('range')
-      const res = await net.fetch(pathToFileURL(abs).toString(), range ? { headers: { Range: range } } : undefined)
+      const res = await net.fetch(
+        pathToFileURL(abs).toString(),
+        range ? { headers: { Range: range } } : undefined
+      )
       // User files are data, never code: anything except PDF (Chromium's viewer needs scripts) gets a CSP
       // sandbox, so an imported .html/.svg can't run scripts in the vault-file:// origin.
       const isPdf = /\.pdf$/i.test(abs)
@@ -49,7 +68,12 @@ export function handleFileProtocol(storage: FileStorage): void {
         ...CORS,
         'Cache-Control': 'max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff',
-        ...(isPdf ? {} : { 'Content-Security-Policy': "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self'" })
+        ...(isPdf
+          ? {}
+          : {
+              'Content-Security-Policy':
+                "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; media-src 'self'"
+            })
       })
     } catch {
       return new Response('Not found', { status: 404 })
@@ -62,7 +86,8 @@ export function handleAppProtocol(rendererDir: string): void {
     const { host, pathname } = new URL(request.url)
     if (host !== 'renderer') return new Response('Not found', { status: 404 })
     const target = normalize(join(rendererDir, decodeURIComponent(pathname)))
-    if (relative(rendererDir, target).startsWith('..')) return new Response('Forbidden', { status: 403 })
+    if (relative(rendererDir, target).startsWith('..'))
+      return new Response('Forbidden', { status: 403 })
     try {
       const res = await net.fetch(pathToFileURL(target).toString())
       return withHeaders(res, CORS)

@@ -32,8 +32,12 @@ export const CACHE_DIR_NAMES = [
   'Cache',
   'Code Cache',
   'GPUCache',
-  'Service Worker/CacheStorage'
+  'Service Worker/CacheStorage',
+  // Tile thumbnails (system/thumbnails.ts): Vault's own, removed by «Очистити кеш».
+  'Vault Thumbs'
 ] as const
+/** The tile thumbnails' folder inside sessionData (one of CACHE_DIR_NAMES). */
+export const THUMBS_DIR_NAME = 'Vault Thumbs'
 
 const SKIPPED = new Set(['ENOENT', 'EPERM', 'EBUSY', 'EACCES', 'ENOTDIR'])
 const STAT_BATCH = 64

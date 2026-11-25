@@ -7,6 +7,7 @@ import { Container } from './container'
 import { log, logFilePath, setupLogging } from './core/logger'
 import { registerRpc } from './ipc/rpc'
 import { handleAppProtocol, handleFileProtocol, registerSchemes } from './system/protocols'
+import { THUMBS_DIR_NAME } from './system/thumbnails'
 import { applyAutostart, HIDDEN_ARG, launchedHidden } from './system/autostart'
 import { setNotificationPrefix } from './core/notify'
 import {
@@ -149,7 +150,7 @@ if (!gotLock) {
       nativeTheme.themeSource = s.theme
     })
 
-    handleFileProtocol(c.files)
+    handleFileProtocol(c.files, join(app.getPath('sessionData'), THUMBS_DIR_NAME))
     handleAppProtocol(c.paths.rendererDir)
     registerRpc(c.api, c.bus)
 

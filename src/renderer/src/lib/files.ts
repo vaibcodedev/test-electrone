@@ -9,6 +9,15 @@ export function fileUrl(relPath: string | null | undefined): string | undefined 
   return `vault-file://f/${relPath.split('/').map(encodeURIComponent).join('/')}`
 }
 
+/**
+ * A tile-sized copy of a stored picture (main/system/thumbnails.ts): tiles decoded full-size screenshots on every
+ * scroll of a virtual grid. A file that can't have one (small, SVG, video) comes back as is.
+ */
+export function thumbUrl(relPath: string | null | undefined): string | undefined {
+  if (!relPath) return undefined
+  return `vault-file://t/${relPath.split('/').map(encodeURIComponent).join('/')}`
+}
+
 /** Converts dropped/pasted File objects to API file sources (path when available, bytes otherwise). */
 export async function toFileSources(files: FileList | File[]): Promise<FileSource[]> {
   const out: FileSource[] = []

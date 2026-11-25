@@ -1,5 +1,5 @@
 import { statSync } from 'fs'
-import { statfs } from 'fs/promises'
+import { rm, statfs } from 'fs/promises'
 import type { StorageApi } from '@shared/api'
 import { storageFolderSchema, type StorageFreed, type StorageUsage } from '@shared/domain/system'
 import { log } from '../core/logger'
@@ -7,6 +7,7 @@ import { openPathOrThrow } from '../core/open-path'
 import { UserError } from '../core/util'
 import { removeFiles } from '../core/remove-files'
 import {
+  THUMBS_DIR_NAME,
   dirSize,
   listFiles,
   logsDirIsOwn,
@@ -109,6 +110,12 @@ export class StorageService {
       await s.clearCache()
       await s.clearCodeCaches({})
       await s.clearStorageData({ storages: ['shadercache', 'cachestorage'] })
+      // Vault's own tile thumbnails: nothing holds them open, so the folder simply goes (they come back on use).
+      const thumbs = this.deps.layout.cacheDirs.find((d) => d.endsWith(THUMBS_DIR_NAME))
+      if (thumbs)
+        await rm(thumbs, { recursive: true, force: true }).catch((e: unknown) =>
+          log.warn('[storage] thumbnails not removed', e instanceof Error ? e.message : e)
+        )
       const after = (await this.walk(this.deps.layout)).cache
       const freed: StorageFreed = {
         freedBytes: Math.max(0, before.bytes - after.bytes),

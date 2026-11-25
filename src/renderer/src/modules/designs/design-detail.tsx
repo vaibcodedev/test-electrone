@@ -268,6 +268,7 @@ function Editor({
             // A video plays here by its own ▶ (the player's controls); a click on it must not open the system viewer.
             <DesignMedia
               path={design.imagePath}
+              full
               play="controls"
               className="max-h-[56vh] w-full rounded-xl object-contain"
             />
@@ -275,6 +276,7 @@ function Editor({
             <div className="cursor-zoom-in" onClick={openImage}>
               <DesignMedia
                 path={design.imagePath}
+                full
                 alt={designTitle(design)}
                 className="max-h-[56vh] w-full rounded-xl object-contain"
               />
