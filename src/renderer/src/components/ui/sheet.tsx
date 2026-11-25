@@ -83,9 +83,11 @@ function SheetContent({
           "fixed z-50 flex flex-col gap-4 bg-card shadow-lg outline-none ease-soft data-[state=closed]:animate-out data-[state=closed]:duration-200 data-[state=open]:animate-in data-[state=open]:duration-300",
           side === "right" &&
             // Below the window buttons (titleBarOverlay, 44px): the sheet header must never sit under them.
-            "top-12 bottom-2.5 right-2.5 h-auto w-3/4 overflow-hidden rounded-3xl border data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+            // It slides its own width + the 10px gap + its shadow: by 100% a 10px strip stayed on screen at the
+            // end of the exit (and the start of the entry), crept along and then vanished.
+            "top-12 bottom-2.5 right-2.5 h-auto w-3/4 overflow-hidden rounded-3xl border data-[state=closed]:slide-out-to-right-[calc(100%+1.5rem)] data-[state=open]:slide-in-from-right-[calc(100%+1.5rem)] sm:max-w-sm",
           side === "left" &&
-            "top-12 bottom-2.5 left-2.5 h-auto w-3/4 overflow-hidden rounded-3xl border data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
+            "top-12 bottom-2.5 left-2.5 h-auto w-3/4 overflow-hidden rounded-3xl border data-[state=closed]:slide-out-to-left-[calc(100%+1.5rem)] data-[state=open]:slide-in-from-left-[calc(100%+1.5rem)] sm:max-w-sm",
           side === "top" &&
             "inset-x-0 top-0 h-auto border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
           side === "bottom" &&
