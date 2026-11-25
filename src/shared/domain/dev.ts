@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { MAX } from './limits'
 import { idSchema, patchOf, urlSchema } from './common'
 import { BOOKMARK_KINDS } from './bookmarks'
+import { SNIPPET_LANGUAGES } from './snippets'
 
 /* ───────────── Local projects ───────────── */
 
@@ -140,7 +141,17 @@ export const githubTokenSchema = z.object({ token: z.string().trim().max(500) })
 
 /* ───────────── Browser capture (Chrome extension bridge) ───────────── */
 
-export const CAPTURE_TARGETS = ['design', 'bookmark', 'library', 'component', 'application'] as const
+/** Only append: old popups send the first five, extension 0.2+ adds snippet / note / fix. */
+export const CAPTURE_TARGETS = [
+  'design',
+  'bookmark',
+  'library',
+  'component',
+  'application',
+  'snippet',
+  'note',
+  'fix'
+] as const
 export type CaptureTarget = (typeof CAPTURE_TARGETS)[number]
 
 export const captureSchema = z.object({
@@ -156,7 +167,11 @@ export const captureSchema = z.object({
   /** Vacancy: company name. */
   company: z.string().trim().max(200).default(''),
   /** Bookmark: type chosen in the popup (guessed from the site otherwise). */
-  kind: z.enum(BOOKMARK_KINDS).optional()
+  kind: z.enum(BOOKMARK_KINDS).optional(),
+  /** Snippet: language guessed in the popup and maybe corrected there; a plain «text» snippet without it. */
+  language: z.enum(SNIPPET_LANGUAGES).optional(),
+  /** Fix: how it was solved (optional: an error without it is saved as unresolved). */
+  solution: z.string().max(200_000).default('')
 })
 export type CaptureInput = z.input<typeof captureSchema>
 

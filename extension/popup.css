@@ -386,13 +386,19 @@ textarea {
   }
 }
 
-/* Five targets in one row even with the scrollbar taking 10px of the 420. */
+/* Eight targets: two rows of four (code and errors, then pages), every choice in sight and one click away.
+   Two rows make the pill a rounded plate: 18px outside, pills inside (radius hierarchy of the app). */
 #targets {
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-radius: 18px;
 }
 
 #targets button {
-  padding: 6px;
+  min-width: 0;
+  padding: 6px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #kinds button {
@@ -615,6 +621,47 @@ body.options {
   overflow-wrap: anywhere;
 }
 
+/* Snippet language: a compact picker on the right of «Код», like the field it belongs to. */
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lang[hidden] {
+  display: none;
+}
+
+select {
+  border: 1px solid var(--input);
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+select:hover {
+  border-color: color-mix(in oklab, var(--fg) 32%, transparent);
+}
+
+select:focus-visible {
+  outline: none;
+  border-color: color-mix(in oklab, var(--ring) 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 25%, transparent);
+}
+
+#solution {
+  field-sizing: content;
+  min-height: 56px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
 #body {
   field-sizing: content;
   min-height: 56px;
@@ -630,6 +677,13 @@ body.options {
   white-space: pre;
   overflow-x: auto;
   overflow-wrap: normal;
+}
+
+/* The empty field's hint is prose in the body font: it wraps instead of running off to the right. */
+#body.code:placeholder-shown {
+  font-family: inherit;
+  white-space: pre-wrap;
+  overflow-x: hidden;
 }
 
 .tag-row {

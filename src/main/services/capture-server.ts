@@ -5,6 +5,9 @@ import { libraryInputSchema } from '@shared/domain/libraries'
 import { bookmarkInputSchema, type BookmarkKind } from '@shared/domain/bookmarks'
 import { componentInputSchema } from '@shared/domain/components'
 import { applicationInputSchema } from '@shared/domain/jobs'
+import { snippetInputSchema, type SnippetInput } from '@shared/domain/snippets'
+import { noteInputSchema, type NoteInput } from '@shared/domain/notes'
+import { fixInputSchema, type FixInput } from '@shared/domain/fixes'
 import { UserError } from '../core/util'
 import { showNotification } from '../core/notify'
 import { formatError } from '../ipc/rpc-utils'
@@ -14,7 +17,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { randomBytes, timingSafeEqual } from 'crypto'
 import { join } from 'path'
 import type { Api } from '@shared/api'
-import { captureSchema, type CaptureInfo } from '@shared/domain/dev'
+import { CAPTURE_TARGETS, captureSchema, type CaptureInfo } from '@shared/domain/dev'
 import type { FileSource } from '@shared/domain/designs'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { hostOf } from '@shared/url'
@@ -42,7 +45,9 @@ const CAPTURE_LABEL: Record<string, string> = {
   company: 'Компанія',
   url: 'Посилання',
   screenshot: 'Скриншот',
-  kind: 'Вид закладки'
+  kind: 'Вид закладки',
+  language: 'Мова',
+  solution: 'Рішення'
 }
 
 export function captureIssue(e: ZodError): string {
@@ -56,6 +61,92 @@ const PURPOSE_MAX = fieldMax(libraryInputSchema.shape.purpose)
 const BOOKMARK_NOTES_MAX = fieldMax(bookmarkInputSchema.shape.notes)
 const COMPONENT_DESC_MAX = fieldMax(componentInputSchema.shape.description)
 const JOB_DESC_MAX = fieldMax(applicationInputSchema.shape.description)
+const SNIPPET_CODE_MAX = fieldMax(snippetInputSchema.shape.code)
+const SNIPPET_DESC_MAX = fieldMax(snippetInputSchema.shape.description)
+const NOTE_BODY_MAX = fieldMax(noteInputSchema.shape.body)
+const FIX_ERROR_MAX = fieldMax(fixInputSchema.shape.errorText)
+const FIX_CAUSE_MAX = fieldMax(fixInputSchema.shape.cause)
+const FIX_SOLUTION_MAX = fieldMax(fixInputSchema.shape.solution)
+
+type Capture = z.output<typeof captureSchema>
+
+/** The record title: a title of spaces is empty (it would fail every section's min(1)), a long one is clipped. */
+const captureTitle = (input: Capture): string =>
+  clip(input.title.trim() || hostOf(input.url) || 'Без назви', MAX.title)
+
+/** Characters that would end a markdown link destination early. */
+const LINK_UNSAFE: Record<string, string> = {
+  '(': '%28',
+  ')': '%29',
+  '<': '%3C',
+  '>': '%3E',
+  ' ': '%20'
+}
+
+/**
+ * «Джерело: [stackoverflow.com](https://…)» — snippets, notes and fixes have no link field, so the page goes
+ * into their markdown. Only http(s) becomes a link; anything else stays plain text. '' without an address.
+ */
+export function sourceLine(url: string): string {
+  const raw = url.trim()
+  if (!raw) return ''
+  const host = /^https?:\/\//i.test(raw) ? hostOf(raw) : null
+  if (!host) return `Джерело: ${raw}`
+  return `Джерело: [${host}](${raw.replace(/[()<> ]/g, (c) => LINK_UNSAFE[c])})`
+}
+
+/** Text + blank line + source line within `max`: the text is clipped, never the link. */
+function withSource(text: string, url: string, max: number): string {
+  const line = sourceLine(url)
+  if (!line) return clip(text, max)
+  if (!text) return line
+  return `${clip(text, Math.max(0, max - line.length - 2))}\n\n${line}`
+}
+
+/** Selected code: blank lines around it go, the first line's indentation stays. */
+const trimCode = (code: string): string => code.replace(/^(?:[ \t]*\r?\n)+/, '').trimEnd()
+
+/** «Сніпет»: the selection is the code, «Опис» + the page link the description. */
+export function snippetFrom(input: Capture, tagIds: string[]): SnippetInput {
+  const code = clip(trimCode(input.selection), SNIPPET_CODE_MAX)
+  // «Код: …» lands under the code field in the popup.
+  if (!code) throw new UserError('Код: виділіть код на сторінці або вставте його сюди')
+  return {
+    title: captureTitle(input),
+    code,
+    // Old servers' popups never send «snippet»; a current one always sends the language it showed.
+    language: input.language ?? 'text',
+    description: withSource(input.note.trim(), input.url, SNIPPET_DESC_MAX),
+    tagIds
+  }
+}
+
+/** «Нотатка»: the selected text (and an extra comment, if any) with the page link at the end. */
+export function noteFrom(input: Capture, tagIds: string[]): NoteInput {
+  const text = [input.selection.trim(), input.note.trim()].filter(Boolean).join('\n\n')
+  return {
+    title: captureTitle(input),
+    body: withSource(text, input.url, NOTE_BODY_MAX),
+    tagIds
+  }
+}
+
+/**
+ * «Помилка»: the selection is the error text, «Рішення» is optional — without it the fix stays open.
+ * The page link goes where the answer is: under the solution, or under the cause while there is none.
+ */
+export function fixFrom(input: Capture, tagIds: string[]): FixInput {
+  const solution = input.solution.trim()
+  const cause = input.note.trim()
+  return {
+    title: captureTitle(input),
+    errorText: clip(trimCode(input.selection), FIX_ERROR_MAX),
+    cause: solution ? clip(cause, FIX_CAUSE_MAX) : withSource(cause, input.url, FIX_CAUSE_MAX),
+    solution: solution ? withSource(solution, input.url, FIX_SOLUTION_MAX) : '',
+    resolved: !!solution,
+    tagIds
+  }
+}
 
 /** Fallback for old extension versions: the current popup always sends `kind` itself. */
 function guessBookmarkKind(url: string): BookmarkKind {
@@ -314,7 +405,13 @@ export class CaptureServer {
     if (!this.authorized(req)) return this.json(res, 401, { ok: false, error: BAD_KEY })
     try {
       if (req.method === 'GET' && req.url === '/ping')
-        return this.json(res, 200, { ok: true, app: 'vault', version: app.getVersion() })
+        // `targets`: what this Vault saves — a newer popup asks for an update instead of a refusal; old ones ignore it.
+        return this.json(res, 200, {
+          ok: true,
+          app: 'vault',
+          version: app.getVersion(),
+          targets: CAPTURE_TARGETS
+        })
       if (req.method === 'POST' && req.url === '/capture') {
         if (Number(req.headers['content-length']) > MAX_BODY) throw new TooLargeError(TOO_LARGE)
         const body = JSON.parse(await this.readBody(req)) as { screenshot?: unknown } | null
@@ -386,14 +483,16 @@ export class CaptureServer {
   }
 
   private async capture(
-    input: z.output<typeof captureSchema>
+    input: Capture
   ): Promise<{ type: EntityType; id: string; title: string; warning?: string }> {
     const api = this.api()
-    const tagIds = await this.tagIds(input.tags)
     const shot = this.screenshotSource(input.screenshot, 'screenshot')
+    // Refusals come before the tags are created: a rejected capture leaves no orphan tags.
+    if (input.target === 'design' && !shot) throw new UserError('Для дизайну потрібен скриншот')
+    if (input.target === 'snippet') snippetFrom(input, [])
+    const tagIds = await this.tagIds(input.tags)
     // Clip to the target section's limits: a long page title or a Ctrl+A selection must not fail the save.
-    // Trim first: a title of spaces is empty (it would fail every section's min(1)).
-    const title = clip(input.title.trim() || hostOf(input.url) || 'Без назви', MAX.title)
+    const title = captureTitle(input)
     // The record exists by now: a failed picture is a warning, not an error, or «Зберегти» again makes a duplicate.
     let warning: string | undefined
     const withShot = async (add: (source: FileSource) => Promise<unknown>): Promise<void> => {
@@ -409,7 +508,7 @@ export class CaptureServer {
       withShot((source) => api.files.add({ ref: { type, id }, source }))
     switch (input.target) {
       case 'design': {
-        if (!shot) throw new UserError('Для дизайну потрібен скриншот')
+        if (!shot) throw new UserError('Для дизайну потрібен скриншот') // narrows `shot`
         const d = await api.designs.importImage({
           source: shot,
           input: { title, sourceUrl: input.url, notes: input.note, tagIds }
@@ -467,6 +566,22 @@ export class CaptureServer {
         })
         await attach('application', a.id)
         return { type: 'application', id: a.id, title: a.title, warning }
+      }
+      // The popup sends no picture for these three; one from another client is kept as an attachment.
+      case 'snippet': {
+        const sn = await api.snippets.create(snippetFrom(input, tagIds))
+        await attach('snippet', sn.id)
+        return { type: 'snippet', id: sn.id, title: sn.title, warning }
+      }
+      case 'note': {
+        const n = await api.notes.create(noteFrom(input, tagIds))
+        await attach('note', n.id)
+        return { type: 'note', id: n.id, title: n.title, warning }
+      }
+      case 'fix': {
+        const f = await api.fixes.create(fixFrom(input, tagIds))
+        await attach('fix', f.id)
+        return { type: 'fix', id: f.id, title: f.title, warning }
       }
     }
   }

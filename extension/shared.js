@@ -1,14 +1,25 @@
 // Shared helpers for popup, options and the service worker. No external code.
+import { looksLikeCode } from './code-language.js'
 
 export const DEFAULT_PORT = 47219
 
+/**
+ * Two rows of four in the popup: code and errors first, pages and inspiration under them.
+ * Bridges older than extension 0.2 know only LEGACY_TARGETS.
+ */
 export const TARGETS = [
-  { id: 'design', label: 'Дизайн' },
-  { id: 'bookmark', label: 'Закладка' },
-  { id: 'library', label: 'Бібліотека' },
+  { id: 'snippet', label: 'Сніпет' },
   { id: 'component', label: 'Компонент' },
+  { id: 'library', label: 'Бібліотека' },
+  { id: 'fix', label: 'Помилка' },
+  { id: 'bookmark', label: 'Закладка' },
+  { id: 'note', label: 'Нотатка' },
+  { id: 'design', label: 'Дизайн' },
   { id: 'application', label: 'Вакансія' }
 ]
+
+/** What a bridge without the `targets` list in /ping accepts. */
+export const LEGACY_TARGETS = ['design', 'bookmark', 'library', 'component', 'application']
 
 /** Reads { port, key } from storage; port is always a valid number. */
 export async function getConnection() {
@@ -145,11 +156,28 @@ export function urlParts(rawUrl) {
   }
 }
 
-/** Suggests a target from the page URL. */
-export function suggestTarget(rawUrl) {
+/** Q&A sites of the Stack Exchange network: their titles carry a tag prefix and the site name. */
+export function isQaSite(host) {
+  return /(^|\.)(stackoverflow\.com|stackexchange\.com|superuser\.com|serverfault\.com|askubuntu\.com)$/.test(
+    host
+  )
+}
+
+/** Pages where a selection is most likely code: gists, files on GitHub, Stack Overflow answers. */
+function isCodeSite({ host, path }) {
+  return (
+    host === 'gist.github.com' ||
+    (host === 'github.com' && /^\/[^/]+\/[^/]+\/(blob|blame)\//.test(path)) ||
+    isQaSite(host)
+  )
+}
+
+/** Suggests a target from the page URL and, on code sites, from what is selected. */
+export function suggestTarget(rawUrl, selection = '') {
   const parts = urlParts(rawUrl)
   if (!parts) return 'bookmark'
   const { host, path } = parts
+  if (selection && isCodeSite(parts) && looksLikeCode(selection)) return 'snippet'
   if (host === 'npmjs.com' || host.endsWith('.npmjs.com')) return 'library'
   if (host === 'github.com' && /^\/[^/]+\/[^/]+\/?$/.test(path)) return 'library'
   if (/(^|\.)djinni\.co$|(^|\.)dou\.ua$|(^|\.)work\.ua$|(^|\.)robota\.ua$/.test(host))

@@ -36,13 +36,26 @@
         <span class="label" id="kinds-label">Вид закладки</span>
         <div class="segment" id="kinds" aria-labelledby="kinds-label"></div>
       </div>
-      <div class="field" data-for="component application bookmark">
-        <label class="label" for="body" id="body-label">Код</label>
-        <textarea id="body" rows="2" maxlength="200000"></textarea>
+      <div class="field" data-for="component application bookmark snippet note fix">
+        <div class="label-row">
+          <label class="label" for="body" id="body-label">Код</label>
+          <!-- Snippet: the guessed language, one click to correct it. -->
+          <span class="lang" id="language-row" hidden>
+            <span class="count" id="language-hint"></span>
+            <select id="language" aria-label="Мова коду" aria-describedby="language-hint"></select>
+          </span>
+        </div>
+        <textarea id="body" rows="2" maxlength="200000" aria-describedby="body-error"></textarea>
+        <div class="field-error" id="body-error"></div>
       </div>
-      <div>
+      <div id="note-row">
         <label class="label" for="note" id="note-label">Нотатка</label>
         <textarea id="note" rows="1" maxlength="10000" placeholder="Чим сподобалося, де знадобиться"></textarea>
+      </div>
+      <div class="field" data-for="fix">
+        <label class="label" for="solution">Рішення <span class="hint">якщо вже знайшли</span></label>
+        <textarea id="solution" rows="1" maxlength="200000" aria-describedby="solution-error" placeholder="Що допомогло: кроки, команда, код"></textarea>
+        <div class="field-error" id="solution-error"></div>
       </div>
       <div>
         <label class="label" for="tags">Мітки <span class="hint">через кому</span></label>
@@ -51,7 +64,7 @@
         <div class="chips tag-row" id="recent-tags"></div>
       </div>
 
-      <div>
+      <div id="shot-row">
         <span class="label" id="shot-label">Скриншот</span>
         <div class="segment" id="shot-mode" aria-labelledby="shot-label"></div>
         <div class="hint shot-hint" id="shot-hint" hidden>Chrome не дає зробити скриншот цієї сторінки.</div>

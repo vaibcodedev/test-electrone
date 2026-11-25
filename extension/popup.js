@@ -1,14 +1,17 @@
 import {
   AREA_TTL,
   CONNECTION_PROBLEMS,
+  LEGACY_TARGETS,
   TARGETS,
   hostOf,
+  isQaSite,
   isRestricted,
   setFieldError,
   suggestTarget,
   urlParts,
   vaultFetch
 } from './shared.js'
+import { LANGUAGES, guessLanguage } from './code-language.js'
 
 const $ = (id) => document.getElementById(id)
 
@@ -19,7 +22,11 @@ const NAME_MAX = 200
 const TAG_MAX = 60
 const TAGS_MAX = 20
 
-/** What each target asks for: labels, the text field, tag examples, the default screenshot mode. */
+/**
+ * What each target asks for: labels, the text field, tag examples, the default screenshot mode.
+ * `note: null` hides «Нотатка» (the text field is the note itself); `shot: null` hides the screenshot (code and
+ * text need none); `bodyRequired` — the message when the text field is empty; `language` — the language picker.
+ */
 const FIELDS = {
   design: {
     title: 'Назва',
@@ -64,8 +71,41 @@ const FIELDS = {
     body: 'Опис вакансії',
     bodyPh: 'Виділіть опис на сторінці до відкриття або вставте сюди',
     shot: 'none'
+  },
+  snippet: {
+    title: 'Назва',
+    note: 'Опис',
+    notePh: 'Що робить, де знадобиться',
+    tagsPh: 'react, хуки',
+    body: 'Код',
+    bodyPh: 'Виділіть код на сторінці до відкриття або вставте сюди',
+    bodyRequired: 'Виділіть код на сторінці або вставте його сюди',
+    code: true,
+    language: true,
+    shot: null
+  },
+  note: {
+    title: 'Назва',
+    note: null,
+    tagsPh: 'ідеї, почитати',
+    body: 'Текст',
+    bodyPh: 'Виділіть текст на сторінці до відкриття або напишіть сюди',
+    shot: null
+  },
+  fix: {
+    title: 'Що зламалося',
+    note: 'Причина',
+    notePh: 'Чому так сталося — можна дописати пізніше',
+    tagsPh: 'vite, electron',
+    body: 'Текст помилки',
+    bodyPh: 'Виділіть повідомлення або стек помилки до відкриття або вставте сюди',
+    code: true,
+    shot: null
   }
 }
+
+/** Targets whose title is a code page's title: a GitHub file name, a question without its tag and site. */
+const CODE_TITLES = new Set(['snippet', 'note', 'fix'])
 
 const KINDS = [
   ['article', 'Стаття'],
@@ -133,6 +173,35 @@ function cleanTitle(title, url) {
     : title
 }
 
+/**
+ * A code page's title, short enough to tell snippets apart:
+ * GitHub file → «use-debounce.ts · owner/repo» (not «repo/src/…/use-debounce.ts at main · owner/repo · GitHub»);
+ * Stack Overflow «javascript - How to debounce? - Stack Overflow» → «How to debounce?» (also other Stack Exchange sites);
+ * GitHub issue → its title without «· Issue #N · owner/repo».
+ */
+function codeTitle(title, url) {
+  const parts = urlParts(url)
+  const file =
+    parts?.host === 'github.com' &&
+    parts.path.match(/^\/([^/]+)\/([^/]+)\/(?:blob|blame)\/.+\/([^/]+)$/)
+  if (file) {
+    try {
+      return `${decodeURIComponent(file[3])} · ${file[1]}/${file[2]}`
+    } catch {
+      /* a broken %-escape: the page title below */
+    }
+  }
+  const clean = cleanTitle(title, url)
+  // «Error: X · Issue #12 · owner/repo» → «Error: X»: the issue number and the repo are in the saved link.
+  if (
+    parts?.host === 'github.com' &&
+    /^\/[^/]+\/[^/]+\/(issues|pull|discussions)\/\d+/.test(parts.path)
+  )
+    return clean.replace(/\s+·\s+(Issue|Pull Request|Discussion)\s+#\d+\s+·\s+[^·]+$/, '') || clean
+  if (!parts || !isQaSite(parts.host)) return clean
+  return clean.replace(/\s+-\s+[^-]*Stack Exchange$/, '').replace(/^[\w.#+-]+\s+-\s+(?=\S)/, '')
+}
+
 /** «Middle Frontend Developer at Acme» → position and company; null without « at ». */
 function vacancyParts(title) {
   const m = title.match(/^(.+?)\s+at\s+(.+)$/i)
@@ -143,6 +212,13 @@ const state = {
   tab: null,
   target: 'bookmark',
   kind: 'article',
+  /** Snippet language: guessed from the code until the user picks one. */
+  language: 'text',
+  languageTouched: false,
+  /** A type picked by hand (kept in the draft) is not replaced by the selection's hint. */
+  targetTouched: false,
+  /** Targets the running Vault accepts (/ping); null until it answers. */
+  serverTargets: null,
   mode: 'visible',
   modeTouched: false,
   /** «Видима область» and «Виділити область» are different pictures: switching the mode must not swap them. */
@@ -172,11 +248,15 @@ async function saveDraft() {
     [draftKey()]: {
       url: state.tab.url,
       target: state.target,
+      targetTouched: state.targetTouched,
       title: $('title').value,
       note: $('note').value,
       tags: $('tags').value,
       selection: $('body').value,
       company: $('company').value,
+      solution: $('solution').value,
+      language: state.language,
+      languageTouched: state.languageTouched,
       kind: state.kind,
       mode: state.mode,
       modeTouched: state.modeTouched
@@ -217,8 +297,12 @@ async function ping() {
   const retry = document.activeElement === $('status-action')
   setStatus('pending', 'Перевіряю…')
   const res = await vaultFetch('/ping')
+  // A bridge from before extension 0.2 does not list its targets: it knows the first five only.
+  if (res.ok) state.serverTargets = Array.isArray(res.targets) ? res.targets : LEGACY_TARGETS
   if (res.ok) setStatus('ok', 'Vault підключено')
   else setStatus('bad', res.error, res.status)
+  // «Оновіть Vault» for a new type appears (or goes) once the bridge has said what it knows.
+  if (res.ok && state.tab?.url) renderFields()
   // After a successful check the button is gone: keep the keyboard in the form, not on <body>.
   if (retry) {
     if (!$('status-action').hidden) $('status-action').focus()
@@ -236,10 +320,18 @@ function setError(text, shotError = '') {
  * Server messages start with the field label («Назва: …», older servers «Запис 4 → Мітки: …»): show them
  * under that field without repeating the label it already has.
  */
+const ERROR_FIELDS = {
+  Назва: 'title',
+  Мітки: 'tags',
+  Мітка: 'tags',
+  Код: 'body',
+  Рішення: 'solution'
+}
+
 function showSaveError(text) {
-  const m = text.match(/^(?:Запис \d+ → )?(Назва|Мітк[аи])\s*:\s*(.+)$/s)
+  const m = text.match(/^(?:Запис \d+ → )?(Назва|Мітк[аи]|Код|Рішення)\s*:\s*(.+)$/s)
   if (!m) return setError(text)
-  const id = m[1] === 'Назва' ? 'title' : 'tags'
+  const id = ERROR_FIELDS[m[1]]
   setFieldError(id, m[2][0].toUpperCase() + m[2].slice(1))
   $(id).focus()
 }
@@ -249,9 +341,10 @@ function showSaveError(text) {
 /**
  * A row of buttons with one value (role=radiogroup): one Tab stop, arrows/Home/End move and select.
  * `manual` values are only focused by arrows and act on Enter/Space/click («Виділити область» closes the popup).
+ * `columns` — a grid of that many columns: Up/Down move by a row, Left/Right by one.
  * Returns `sync(value)` that marks the chosen button.
  */
-function radioGroup(box, items, onChange, manual = []) {
+function radioGroup(box, items, onChange, manual = [], columns = 1) {
   box.setAttribute('role', 'radiogroup')
   const buttons = items.map(([value, label]) => {
     const b = document.createElement('button')
@@ -270,7 +363,7 @@ function radioGroup(box, items, onChange, manual = []) {
         !b.hidden && (b === document.activeElement || b.getAttribute('aria-disabled') !== 'true')
     )
     const i = shown.indexOf(document.activeElement)
-    const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]
+    const step = { ArrowRight: 1, ArrowDown: columns, ArrowLeft: -1, ArrowUp: -columns }[e.key]
     const next = step
       ? shown[(i + step + shown.length) % shown.length]
       : e.key === 'Home'
@@ -292,19 +385,28 @@ function radioGroup(box, items, onChange, manual = []) {
   }
 }
 
+function selectTarget(id) {
+  // The title follows the type while it is untouched (library → package name).
+  if ($('title').value === defaultTitle(state.target)) $('title').value = defaultTitle(id)
+  state.target = id
+  // A length error belongs to the type it was shown for; «Код» is required only by «Сніпет».
+  if ($('title').value.trim().length <= titleMax()) setFieldError('title', '')
+  setFieldError('body', '')
+  updateCount()
+  renderFields()
+  scheduleDraft()
+}
+
+/** Eight targets: a grid of two rows by four (see TARGETS). */
 const syncTarget = radioGroup(
   $('targets'),
   TARGETS.map((t) => [t.id, t.label]),
   (id) => {
-    // The title follows the type while it is untouched (library → package name).
-    if ($('title').value === defaultTitle(state.target)) $('title').value = defaultTitle(id)
-    state.target = id
-    // A length error belongs to the type it was shown for.
-    if ($('title').value.trim().length <= titleMax()) setFieldError('title', '')
-    updateCount()
-    renderFields()
-    scheduleDraft()
-  }
+    state.targetTouched = true
+    selectTarget(id)
+  },
+  [],
+  4
 )
 const syncKind = radioGroup($('kinds'), KINDS, (id) => {
   state.kind = id
@@ -322,6 +424,7 @@ function defaultTitle(target) {
   if (target === 'library')
     return (packageNameFrom(state.tab.url) || pageTitle()).slice(0, NAME_MAX).trimEnd()
   if (target === 'application') return vacancyParts(pageTitle())?.position ?? pageTitle()
+  if (CODE_TITLES.has(target)) return codeTitle(state.tab.title || '', state.tab.url)
   return pageTitle()
 }
 
@@ -368,7 +471,7 @@ const restrictedText = () => (FIELDS[state.target].shotRequired ? DESIGN_RESTRIC
 function renderMode() {
   syncMode(state.mode)
   const preview = $('preview')
-  const shot = currentShot()
+  const shot = FIELDS[state.target].shot === null ? null : currentShot()
   if (shot) {
     $('preview-img').src = shot
     preview.style.display = 'block'
@@ -387,8 +490,11 @@ function renderFields() {
     el.classList.toggle('on', el.dataset.for.split(' ').includes(state.target))
   $('title-label').textContent = f.title
   $('title').maxLength = titleMax()
-  $('note-label').textContent = f.note
-  $('note').placeholder = f.notePh
+  $('note-row').hidden = f.note === null
+  if (f.note) {
+    $('note-label').textContent = f.note
+    $('note').placeholder = f.notePh
+  }
   $('tags').placeholder = f.tagsPh
   if (f.body) {
     $('body-label').textContent = f.body
@@ -396,6 +502,14 @@ function renderFields() {
     $('body').placeholder = restricted ? 'Вставте текст сюди' : f.bodyPh
     $('body').classList.toggle('code', !!f.code)
   }
+  $('language-row').hidden = !f.language
+  if (f.language) renderLanguage()
+  const unsupported = unsupportedText()
+  if (unsupported) setError(unsupported, 'target')
+  syncKind(state.kind)
+  // Code and text go without a picture: the mode is kept for the type switched back to.
+  $('shot-row').hidden = f.shot === null
+  if (f.shot === null) return renderMode()
   const shotMode = $('shot-mode')
   // Design needs a picture: no «Без скриншота» there.
   shotMode.querySelector('[data-value="none"]').hidden = !!f.shotRequired
@@ -418,8 +532,32 @@ function renderFields() {
     if (state.captureFailed) setError(CAPTURE_FAILED, 'capture')
     else void ensureScreenshot()
   }
-  syncKind(state.kind)
   renderMode()
+}
+
+/** «Оновіть Vault» for a type the running bridge does not know yet; '' when it does (or has not answered). */
+function unsupportedText() {
+  if (!state.serverTargets || state.serverTargets.includes(state.target)) return ''
+  const label = TARGETS.find((t) => t.id === state.target)?.label ?? state.target
+  return `Ця версія Vault ще не зберігає «${label}». Оновіть Vault (Налаштування → Оновлення) або виберіть інший тип.`
+}
+
+/** The language picker: the chosen value and whether it was guessed. */
+function renderLanguage() {
+  $('language').value = state.language
+  const guessed = !state.languageTouched && $('body').value.trim()
+  $('language-hint').textContent = guessed
+    ? state.language === 'text'
+      ? 'Мову не визначено'
+      : 'Визначено автоматично'
+    : ''
+}
+
+/** Re-guesses the language from «Код» until the user picks one. */
+function guessFromBody() {
+  if (state.languageTouched) return
+  state.language = guessLanguage($('body').value) ?? 'text'
+  if (FIELDS[state.target].language) renderLanguage()
 }
 
 function selectMode(mode) {
@@ -484,7 +622,13 @@ async function readSelection() {
   try {
     const [res] = await chrome.scripting.executeScript({
       target: { tabId: state.tab.id },
-      func: () => String(window.getSelection?.() ?? '')
+      // GitHub's file view selects inside a hidden <textarea>: getSelection() does not see that text.
+      func: () => {
+        const el = document.activeElement
+        if (el instanceof HTMLTextAreaElement && el.selectionEnd > el.selectionStart)
+          return el.value.slice(el.selectionStart, el.selectionEnd)
+        return String(window.getSelection?.() ?? '')
+      }
     })
     return typeof res?.result === 'string' ? res.result.slice(0, 200_000) : ''
   } catch {
@@ -514,6 +658,14 @@ async function save() {
   if (tagProblem) {
     setFieldError('tags', tagProblem)
     $('tags').focus()
+    return
+  }
+  const unsupported = unsupportedText()
+  if (unsupported) return setError(unsupported, 'target')
+  const required = FIELDS[state.target].bodyRequired
+  if (required && !$('body').value.trim()) {
+    setFieldError('body', required)
+    $('body').focus()
     return
   }
   // maxLength stops typing only: a title typed under another type may already be longer than this one allows.
@@ -547,8 +699,9 @@ async function save() {
 }
 
 async function send(tags) {
-  if (state.mode === 'visible') await ensureScreenshot()
-  const screenshot = currentShot()
+  const f = FIELDS[state.target]
+  if (f.shot !== null && state.mode === 'visible') await ensureScreenshot()
+  const screenshot = f.shot === null ? null : currentShot()
   if (FIELDS[state.target].shotRequired && !screenshot) {
     const error = isRestricted(state.tab.url)
       ? DESIGN_RESTRICTED
@@ -560,12 +713,16 @@ async function send(tags) {
     target: state.target,
     url: state.tab.url,
     title: $('title').value.trim(),
-    note: $('note').value.trim(),
     tags,
     screenshot,
-    selection: FIELDS[state.target].body ? $('body').value : '',
+    // «Нотатка» has no comment field: whatever a draft of another type left there stays out.
+    note: f.note === null ? '' : $('note').value.trim(),
+    selection: f.body ? $('body').value : '',
     company: state.target === 'application' ? $('company').value.trim() : '',
-    kind: state.target === 'bookmark' ? state.kind : undefined
+    kind: state.target === 'bookmark' ? state.kind : undefined,
+    // Fields an older Vault does not know are dropped by it: they go only with the types that use them.
+    language: f.language ? state.language : undefined,
+    solution: state.target === 'fix' ? $('solution').value.trim() : undefined
   }
   try {
     // The service worker sends it and clears the draft: the popup may close before the answer.
@@ -618,11 +775,18 @@ async function init() {
       : null
   const { targets = {} } = await chrome.storage.local.get('targets')
 
-  state.target = draft?.target || targets[hostOf(tab.url)] || suggestTarget(tab.url)
+  // The site's last type and an untouched draft only preset the type: code still turns it into «Сніпет».
+  const remembered = draft?.target || targets[hostOf(tab.url)]
+  state.target = remembered || suggestTarget(tab.url)
+  state.targetTouched = !!draft?.targetTouched
   $('title').value = draft?.title ?? defaultTitle(state.target)
   $('note').value = draft?.note ?? ''
   $('tags').value = draft?.tags ?? ''
   $('body').value = draft?.selection || ''
+  $('solution').value = draft?.solution ?? ''
+  state.languageTouched = !!draft?.languageTouched
+  if (state.languageTouched) state.language = draft.language
+  else guessFromBody()
   // Guessed only without a draft: a company the user cleared stays cleared.
   $('company').value = draft ? (draft.company ?? '') : (vacancyParts(pageTitle())?.company ?? '')
   state.kind = draft?.kind ?? guessKind(tab.url)
@@ -645,8 +809,19 @@ async function init() {
   void renderRecentTags()
 
   const [selection] = await Promise.all([draft?.selection ? '' : readSelection(), ping()])
-  if (selection && !$('body').value && document.activeElement !== $('body'))
-    $('body').value = selection
+  if (!selection || $('body').value || document.activeElement === $('body')) return
+  $('body').value = selection
+  guessFromBody()
+  // Code selected on GitHub or Stack Overflow → «Сніпет», unless the type was picked by hand.
+  // Without code the site's remembered type stays; an older Vault that cannot save the hint keeps the form usable.
+  const hint = suggestTarget(tab.url, selection)
+  if (
+    !state.targetTouched &&
+    hint !== state.target &&
+    (hint === 'snippet' || !remembered) &&
+    (!state.serverTargets || state.serverTargets.includes(hint))
+  )
+    selectTarget(hint)
 }
 
 $('form').addEventListener('input', (e) => {
@@ -655,7 +830,22 @@ $('form').addEventListener('input', (e) => {
   if (id === 'title' && /[\r\n]/.test(e.target.value))
     e.target.value = e.target.value.replace(/\r?\n/g, ' ')
   if (id === 'title') updateCount()
-  if (id === 'title' || id === 'tags') setFieldError(id, '')
+  if (id === 'title' || id === 'tags' || id === 'body' || id === 'solution') setFieldError(id, '')
+  if (id === 'body') guessFromBody()
+  scheduleDraft()
+})
+$('language').replaceChildren(
+  ...LANGUAGES.map(([value, label]) => {
+    const option = document.createElement('option')
+    option.value = value
+    option.textContent = label
+    return option
+  })
+)
+$('language').addEventListener('change', () => {
+  state.language = $('language').value
+  state.languageTouched = true
+  renderLanguage()
   scheduleDraft()
 })
 window.addEventListener('pagehide', () => void saveDraft())
@@ -684,8 +874,13 @@ $('back').addEventListener('click', () => {
   $('form').style.display = ''
   $('note').value = ''
   $('body').value = ''
+  $('solution').value = ''
+  state.languageTouched = false
+  guessFromBody()
   setFieldError('title', '')
   setFieldError('tags', '')
+  setFieldError('body', '')
+  setFieldError('solution', '')
   focusTitle()
 })
 document.addEventListener('keydown', (e) => {

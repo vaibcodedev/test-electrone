@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Vault — зберегти",
   "short_name": "Vault",
-  "version": "0.1.7",
-  "description": "Зберігає сайт, дизайн, бібліотеку, компонент або вакансію в застосунок Vault зі скриншотом і посиланням.",
+  "version": "0.2.0",
+  "description": "Зберігає код, нотатку, помилку, сайт, дизайн, бібліотеку, компонент або вакансію в застосунок Vault з посиланням на сторінку.",
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["http://127.0.0.1/*"],
   "background": {

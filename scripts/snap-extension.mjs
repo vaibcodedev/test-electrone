@@ -9,6 +9,12 @@
  *   <out>/<theme>/popup-area | area-error .png      back after «Виділити область», a failed selection
  *   <out>/<theme>/popup-saved | saved-warning | back .png   after «Зберегти» (also without the picture), «Зберегти ще»
  *   <out>/<theme>/popup-error | tags-error .png     the server refused the title / the tags
+ *   <out>/<theme>/popup-snippet | snippet-so | snippet-prose | snippet-long | snippet-other | snippet-empty
+ *     | snippet-code-error | snippet-saved | note | note-saved | fix | fix-solution | fix-saved .png
+ *                                                  code, text and error targets
+ *   <out>/<theme>/popup-snippet-remembered | remembered-prose | snippet-old-auto .png
+ *                                                  the site's remembered type vs the code hint, an older Vault
+ *   <out>/<theme>/popup-old-vault .png              a Vault from before extension 0.2 (no snippet / note / fix)
  *   <out>/<theme>/options | options-nokey | options-offline | options-badport .png
  * Usage: node scripts/snap-extension.mjs <out> [--themes=dark,light]
  */
@@ -27,7 +33,8 @@ cpSync(resolve('extension'), ext, { recursive: true })
 
 /**
  * chrome.* + fetch stub; the state comes from the page URL:
- * key=0 · ping=offline|401|timeout · url · title · sel · recent=a,b · area=1 · areaError=1 · capture=error|tags|warning
+ * key=0 · ping=offline|401|timeout|old · url · title · sel · recent=a,b · site=host:target · area=1 · areaError=1
+ * · capture=error|tags|warning|code
  */
 writeFileSync(
   join(ext, 'stub.js'),
@@ -36,6 +43,8 @@ const q = new URLSearchParams(location.search)
 const tabUrl = q.get('url') || 'https://dribbble.com/shots/123-dashboard'
 const store = q.get('key') === '0' ? {} : { key: 'test-key', port: 47219 }
 if (q.get('recent')) store.recentTags = q.get('recent').split(',')
+// site=github.com:library — the type last saved on that site.
+if (q.get('site')) { const [h, t] = q.get('site').split(':'); store.targets = { [h]: t } }
 const session = {}
 const area = (s) => ({
   get: async (k) => { const o = {}; for (const x of k == null ? Object.keys(s) : [].concat(k)) if (x in s) o[x] = s[x]; return o },
@@ -73,11 +82,15 @@ window.fetch = async (url, init) => {
   if (q.get('ping') === 'timeout') throw new DOMException('t', 'TimeoutError')
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
   if (q.get('ping') === '401') return json(401, { ok: false, error: 'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».' })
-  if (String(url).endsWith('/ping')) return json(200, { ok: true, app: 'vault', version: '0.1.0' })
+  // A bridge from before extension 0.2 does not list its targets.
+  const targets = ['design', 'bookmark', 'library', 'component', 'application', 'snippet', 'note', 'fix']
+  if (String(url).endsWith('/ping'))
+    return json(200, { ok: true, app: 'vault', version: '0.1.0', ...(q.get('ping') === 'old' ? {} : { targets }) })
   if (q.get('capture') === 'error') return json(400, { ok: false, error: 'Назва: занадто довго — максимум 500 символів' })
   if (q.get('capture') === 'tags') return json(400, { ok: false, error: 'Мітки: занадто довго — максимум 60 символів' })
+  if (q.get('capture') === 'code') return json(400, { ok: false, error: 'Код: виділіть код на сторінці або вставте його сюди' })
   const body = JSON.parse(init?.body || '{}')
-  const section = { design: 'Дизайни', bookmark: 'Закладки', library: 'JS-бібліотеки', component: 'Компоненти', application: 'Вакансії' }[body.target]
+  const section = { design: 'Дизайни', bookmark: 'Закладки', library: 'JS-бібліотеки', component: 'Компоненти', application: 'Вакансії', snippet: 'Сніпети', note: 'Нотатки', fix: 'Помилки й рішення' }[body.target]
   const warning = q.get('capture') === 'warning' ? 'Запис збережено, але скриншот додати не вдалося.' : undefined
   return json(200, { ok: true, type: body.target, id: 'x', title: body.title || 'Без назви', section, warning })
 }
@@ -105,6 +118,45 @@ app.whenReady().then(() => {
 )
 
 const CODE = 'export function Button() {\n  return <button className="btn">Hi</button>\n}'
+const TS_CODE = [
+  'export function useDebounce<T>(value: T, delay = 300): T {',
+  '  const [debounced, setDebounced] = useState(value)',
+  '  useEffect(() => {',
+  '    const id = setTimeout(() => setDebounced(value), delay)',
+  '    return () => clearTimeout(id)',
+  '  }, [value, delay])',
+  '  return debounced',
+  '}'
+].join('\n')
+const JS_CODE =
+  'function debounce(fn, ms) {\n  let t\n  return (...args) => {\n    clearTimeout(t)\n    t = setTimeout(() => fn(...args), ms)\n  }\n}'
+/** 200 lines and one very long line: the field must scroll, not push the footer out of the popup. */
+const LONG_CODE = Array.from({ length: 200 }, (_, i) =>
+  i === 3
+    ? `const veryLongLine = '${'x'.repeat(400)}'`
+    : `const value${i} = compute(${i}, { retries: 3, timeout: ${i * 10} })`
+).join('\n')
+const PY_CODE =
+  'def debounce(fn, wait):\n    timer = None\n    def wrapped(*args):\n        nonlocal timer\n        return fn(*args)\n    return wrapped'
+const STACK = [
+  "TypeError: Cannot read properties of undefined (reading 'map')",
+  '    at TodoList (webpack-internal:///./src/TodoList.tsx:12:23)',
+  '    at renderWithHooks (react-dom.development.js:16305:18)',
+  '    at mountIndeterminateComponent (react-dom.development.js:20074:13)'
+].join('\n')
+const GH_FILE = {
+  url: 'https://github.com/vercel/swr/blob/main/src/hooks/use-debounce.ts',
+  title: 'swr/src/hooks/use-debounce.ts at main · vercel/swr · GitHub'
+}
+const SO_PAGE = {
+  url: 'https://stackoverflow.com/questions/24004791/what-is-the-debounce-function',
+  title: 'javascript - What is the "debounce" function in JavaScript? - Stack Overflow'
+}
+const GH_ISSUE = {
+  url: 'https://github.com/facebook/react/issues/1',
+  title: "Cannot read properties of undefined (reading 'map') · Issue #1 · facebook/react · GitHub"
+}
+const POST = { url: 'https://example.com/post', title: 'Post' }
 /** [file, page, query, action]: action = save | back (save → «Зберегти ще») | focus | submit | badport. */
 const STATES = [
   ['popup-bookmark', 'popup', ''],
@@ -157,6 +209,132 @@ const STATES = [
   ['popup-back', 'popup', '', 'back'],
   ['popup-error', 'popup', 'capture=error', 'save'],
   ['popup-tags-error', 'popup', 'capture=tags', 'save'],
+  // Code on a GitHub file / Stack Overflow: «Сніпет» is suggested by itself (target=auto: no click), the title
+  // is cut to «file · owner/repo» / the question, the language is guessed.
+  [
+    'popup-snippet',
+    'popup',
+    new URLSearchParams({ ...GH_FILE, sel: TS_CODE, target: 'auto', expect: 'snippet' })
+  ],
+  [
+    'popup-snippet-so',
+    'popup',
+    new URLSearchParams({ ...SO_PAGE, sel: JS_CODE, target: 'auto', expect: 'snippet' })
+  ],
+  // Prose selected on Stack Overflow is not code: no «Сніпет».
+  [
+    'popup-snippet-prose',
+    'popup',
+    new URLSearchParams({
+      ...SO_PAGE,
+      sel: 'Debounce delays a call until the user stops typing.',
+      target: 'auto',
+      expect: 'bookmark'
+    })
+  ],
+  [
+    'popup-snippet-long',
+    'popup',
+    new URLSearchParams({
+      url: 'https://gist.github.com/a/1',
+      title: 'utils.ts',
+      sel: LONG_CODE,
+      target: 'auto',
+      expect: 'snippet'
+    })
+  ],
+  // A repo once saved as «Бібліотека» from github.com: code in a file still turns into «Сніпет»,
+  // prose keeps the site's remembered type.
+  [
+    'popup-snippet-remembered',
+    'popup',
+    new URLSearchParams({
+      ...GH_FILE,
+      sel: TS_CODE,
+      site: 'github.com:library',
+      target: 'auto',
+      expect: 'snippet'
+    })
+  ],
+  [
+    'popup-remembered-prose',
+    'popup',
+    new URLSearchParams({
+      ...GH_FILE,
+      sel: 'A hook that delays a value.',
+      site: 'github.com:library',
+      target: 'auto',
+      expect: 'library'
+    })
+  ],
+  // An older Vault cannot save snippets: code on GitHub keeps the usual type, no error up front.
+  [
+    'popup-snippet-old-auto',
+    'popup',
+    new URLSearchParams({
+      ...GH_FILE,
+      sel: TS_CODE,
+      ping: 'old',
+      target: 'auto',
+      expect: 'bookmark'
+    })
+  ],
+  // Python has no id in the app: «Мову не визначено», saved as «Текст».
+  [
+    'popup-snippet-other',
+    'popup',
+    new URLSearchParams({ ...POST, sel: PY_CODE, target: 'snippet' })
+  ],
+  // Nothing selected: «Зберегти» asks for the code under the field instead of sending.
+  ['popup-snippet-empty', 'popup', new URLSearchParams({ ...POST, target: 'snippet' }), 'save'],
+  [
+    'popup-snippet-code-error',
+    'popup',
+    new URLSearchParams({ ...GH_FILE, sel: TS_CODE, target: 'snippet', capture: 'code' }),
+    'save'
+  ],
+  [
+    'popup-snippet-saved',
+    'popup',
+    new URLSearchParams({ ...GH_FILE, sel: TS_CODE, target: 'snippet' }),
+    'save'
+  ],
+  [
+    'popup-note',
+    'popup',
+    new URLSearchParams({
+      url: 'https://example.com/post',
+      title: 'How we ship — Blog',
+      sel: 'Виділений абзац статті, який хочеться зберегти. '.repeat(6),
+      target: 'note'
+    })
+  ],
+  [
+    'popup-note-saved',
+    'popup',
+    new URLSearchParams({ ...POST, sel: 'Абзац', target: 'note' }),
+    'save'
+  ],
+  ['popup-fix', 'popup', new URLSearchParams({ ...GH_ISSUE, sel: STACK, target: 'fix' })],
+  [
+    'popup-fix-solution',
+    'popup',
+    new URLSearchParams({ ...GH_ISSUE, sel: STACK, target: 'fix' }),
+    'solution'
+  ],
+  [
+    'popup-fix-saved',
+    'popup',
+    new URLSearchParams({ ...GH_ISSUE, sel: STACK, target: 'fix' }),
+    'save'
+  ],
+  // A Vault without the new targets: the form asks to update it instead of failing on «Зберегти».
+  [
+    'popup-old-vault',
+    'popup',
+    new URLSearchParams({ ...GH_FILE, sel: TS_CODE, ping: 'old', target: 'snippet' }),
+    'save'
+  ],
   ['options', 'options', ''],
   ['options-nokey', 'options', 'key=0'],
   ['options-offline', 'options', 'ping=offline', 'submit'],
@@ -167,7 +345,12 @@ const TYPES = [
   'popup-design',
   'popup-library',
   'popup-component',
-  'popup-application'
+  'popup-application',
+  'popup-snippet',
+  'popup-snippet-long',
+  'popup-note',
+  'popup-fix',
+  'popup-fix-solution'
 ]
 // Targets are picked from the URL by the popup (suggestTarget); «target=» clicks the chip to be sure.
 const TARGET_LABEL = {
@@ -175,7 +358,10 @@ const TARGET_LABEL = {
   bookmark: 'Закладка',
   library: 'Бібліотека',
   component: 'Компонент',
-  application: 'Вакансія'
+  application: 'Вакансія',
+  snippet: 'Сніпет',
+  note: 'Нотатка',
+  fix: 'Помилка'
 }
 
 for (const theme of THEMES) {
@@ -203,6 +389,22 @@ for (const theme of THEMES) {
         .catch(() => {})
       await win.waitForTimeout(200)
     }
+    const expect = params.get('expect')
+    if (expect) {
+      const chosen = await win.evaluate(
+        () => document.querySelector('#targets [aria-checked="true"]')?.dataset.value
+      )
+      if (chosen !== expect)
+        console.warn(
+          `[snap-extension] ${theme}/${file}: suggested «${chosen}», expected «${expect}»`
+        )
+    }
+    if (action === 'solution')
+      await win
+        .locator('#solution')
+        .fill(
+          'Дані приходять асинхронно: початкове значення — порожній масив.\nuseState<Todo[]>([])'
+        )
     if (action === 'save' || action === 'back') {
       await win
         .locator('#save')
