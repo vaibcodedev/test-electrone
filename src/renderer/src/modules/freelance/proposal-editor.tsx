@@ -41,7 +41,7 @@ import { PreChecklist } from './pre-checklist'
 import { TemplatePicker } from './template-picker'
 import { ProposalBidSection } from './proposal-bid-section'
 import { ProposalClientSection } from './proposal-client-section'
-import { DisabledHint } from './disabled-hint'
+import { DisabledHint } from '@/components/common/disabled-hint'
 
 const PROPOSAL_L = limitsOf(proposalInputSchema)
 

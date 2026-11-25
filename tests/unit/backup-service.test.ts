@@ -4,7 +4,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs, { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'fs'
 import { syncBuiltinESMExports } from 'module'
-import { join } from 'path'
+import { basename, join } from 'path'
 import { AppPaths } from '@main/core/paths'
 import { ConfigStore } from '@main/core/config-store'
 import { EventBus } from '@main/core/event-bus'
@@ -155,5 +155,72 @@ describe('auto backup', () => {
     const first = backups.restore(file)
     await expect(backups.restore(file)).rejects.toThrow('Відновлення вже виконується')
     await expect(first).resolves.toBe(true)
+  })
+})
+
+describe('«Видалити старі» (Сховище)', () => {
+  /** Files with mtimes one minute apart: index 0 is the newest. */
+  function seed(): void {
+    const t0 = Date.now() - 10 * 60_000
+    const put = (name: string, minutesAgo: number): void => {
+      const abs = join(paths.backupsDir, name)
+      writeFileSync(abs, Buffer.alloc(10))
+      const t = new Date(t0 - minutesAgo * 60_000)
+      utimesSync(abs, t, t)
+    }
+    for (let i = 0; i < 5; i++) put(`vault-2026-01-0${i + 1}_00-00-00.vaultbak`, i)
+    for (let i = 0; i < 3; i++) put(`vault-pre-restore-2026-01-0${i + 1}_00-00-00.vaultbak`, i)
+    for (let i = 0; i < 3; i++) put(`pre-update-0.1.0-beta.${i}-123.db`, i)
+    put('vault-fresh.vaultbak.part', -9) // written right now
+    put('vault-old.vaultbak.part', 120) // left by a quit two hours ago
+    put('notes.txt', 1000)
+  }
+  const names = (plan: { path: string }[]): string[] => plan.map((p) => basename(p.path)).sort()
+
+  beforeEach(() => {
+    config.updateSettings({ backupKeep: 2 })
+    seed()
+  })
+
+  it('plans the backups beyond backupKeep, older safety copies and stale «.part» only', () => {
+    expect(names(backups.prunePlan())).toEqual(
+      [
+        'vault-2026-01-03_00-00-00.vaultbak',
+        'vault-2026-01-04_00-00-00.vaultbak',
+        'vault-2026-01-05_00-00-00.vaultbak',
+        'vault-pre-restore-2026-01-02_00-00-00.vaultbak',
+        'vault-pre-restore-2026-01-03_00-00-00.vaultbak',
+        'vault-old.vaultbak.part'
+      ].sort()
+    )
+  })
+
+  it('removes exactly the plan: pre-update copies and unknown files stay', async () => {
+    const plan = backups.prunePlan()
+    const freed = await backups.pruneOld()
+    expect(freed).toEqual({ freedBytes: plan.length * 10, removed: plan.length })
+    expect(readdirSync(paths.backupsDir).sort()).toEqual(
+      [
+        'notes.txt',
+        'pre-update-0.1.0-beta.0-123.db',
+        'pre-update-0.1.0-beta.1-123.db',
+        'pre-update-0.1.0-beta.2-123.db',
+        'vault-2026-01-01_00-00-00.vaultbak',
+        'vault-2026-01-02_00-00-00.vaultbak',
+        'vault-fresh.vaultbak.part',
+        'vault-pre-restore-2026-01-01_00-00-00.vaultbak'
+      ].sort()
+    )
+  })
+
+  it('is refused while a backup runs, and a backup waits for it', async () => {
+    const creating = backups.create({ saveAs: false })
+    await expect(backups.pruneOld()).rejects.toThrow(
+      'Зачекайте, поки завершиться бекап, і спробуйте ще раз'
+    )
+    await creating
+    const pruning = backups.pruneOld()
+    await expect(backups.create({ saveAs: false })).rejects.toThrow('Бекап уже виконується')
+    await pruning
   })
 })

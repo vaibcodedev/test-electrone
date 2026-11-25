@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '@/components/common/choice'
-import { DisabledHint } from './disabled-hint'
+import { DisabledHint } from '@/components/common/disabled-hint'
 
 /** «Шаблон відгуку»: pick a proposal template and paste its text into the cover letter. */
 export function TemplatePicker({

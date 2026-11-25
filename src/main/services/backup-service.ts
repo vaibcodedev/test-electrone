@@ -16,7 +16,7 @@ import type { AsyncZippable, Unzipped } from 'fflate'
 import { unzipAsync, zipAsync } from '../core/zip'
 import { z } from 'zod'
 import type { BackupApi } from '@shared/api'
-import { EXPORT_FORMATS, type BackupEntry } from '@shared/domain/system'
+import { EXPORT_FORMATS, type BackupEntry, type StorageFreed } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import type { AppPaths } from '../core/paths'
 import type { ConfigStore } from '../core/config-store'
@@ -24,12 +24,15 @@ import type { EventBus } from '../core/event-bus'
 import type { SearchIndex } from './search-index'
 import type { ExportService } from './export-service'
 import { showNotification } from '../core/notify'
+import { removeFiles } from '../core/remove-files'
 import { DAY_MS, dayKey, now, retryBusy, UserError } from '../core/util'
 
 const BACKUP_EXT = 'vaultbak'
 const MANIFEST = 'manifest.json'
 /** Safety copies made right before a restore («vault-pre-restore-…»): the newest few are enough. */
 const PRE_RESTORE_KEEP = 3
+/** «Сховище → Видалити старі» keeps only the newest safety copy: they are the largest files (with all files). */
+const MANUAL_PRE_RESTORE_KEEP = 1
 /** A «.part» older than this was left by a quit mid-write: no backup is written for so long. */
 const STALE_PART_MS = 60 * 60_000
 /** Where to find the error log, in the words of the settings page. */
@@ -180,6 +183,49 @@ export class BackupService {
       if (!f.endsWith(`.${BACKUP_EXT}.part`)) continue
       const part = join(this.paths.backupsDir, f)
       if (now() - statSync(part).mtimeMs > STALE_PART_MS) rmSync(part, { force: true })
+    }
+  }
+
+  /** A backup or a restore is running: files in the backups folder must not be removed meanwhile. */
+  isBusy(): boolean {
+    return this.running || this.restoring
+  }
+
+  /**
+   * What «Видалити старі» (Налаштування → Сховище) removes: regular backups beyond `backupKeep`, safety
+   * copies before a restore beyond the newest one, and stale «.part» files. Never the pre-update copies of
+   * the database (insurance before migrations) and never files Vault did not write.
+   */
+  prunePlan(): { path: string; size: number }[] {
+    const all = this.list()
+    const pre = all.filter((b) => b.fileName.startsWith('vault-pre-restore-'))
+    const regular = all.filter(
+      (b) => b.fileName.startsWith('vault-') && !b.fileName.includes('-pre-restore-')
+    )
+    const plan = [
+      ...regular.slice(this.config.settings.backupKeep),
+      ...pre.slice(MANUAL_PRE_RESTORE_KEEP)
+    ].map((b) => ({ path: b.path, size: b.size }))
+    if (!existsSync(this.paths.backupsDir)) return plan
+    for (const f of readdirSync(this.paths.backupsDir)) {
+      if (!f.endsWith(`.${BACKUP_EXT}.part`)) continue
+      const part = join(this.paths.backupsDir, f)
+      const st = statSync(part, { throwIfNoEntry: false })
+      if (st && now() - st.mtimeMs > STALE_PART_MS) plan.push({ path: part, size: st.size })
+    }
+    return plan
+  }
+
+  /** Removes `prunePlan()`; no backup or restore can start meanwhile (they share the `running` flag). */
+  async pruneOld(): Promise<StorageFreed> {
+    if (this.isBusy()) throw new UserError('Зачекайте, поки завершиться бекап, і спробуйте ще раз')
+    this.running = true
+    try {
+      const freed = await removeFiles(this.prunePlan(), 'backup')
+      log.info('[backup] removed old backups', freed)
+      return freed
+    } finally {
+      this.running = false
     }
   }
 
