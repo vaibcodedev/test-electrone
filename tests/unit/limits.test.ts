@@ -17,7 +17,8 @@ describe('limitsOf', () => {
     expect(l.jobDescription).toBe(MAX.jobPost)
     expect(l.notes).toBe(MAX.note)
     expect(l.clientName).toBe(200)
-    expect(l.proposalsOnJob).toBe(40)
+    // a choice of Upwork's buckets, not free text
+    expect(l.proposalsOnJob).toBeUndefined()
     // numbers / enums have no string limit
     expect(l.bidAmount).toBeUndefined()
     expect(l.status).toBeUndefined()

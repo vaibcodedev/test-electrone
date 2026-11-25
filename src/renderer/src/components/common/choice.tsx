@@ -12,6 +12,8 @@ import { useReadOnly } from './detail-mode-context'
 export interface ChoiceOption<T extends string> {
   value: T
   label: string
+  /** Shown (and shown as the current value) but can't be picked: an old value kept as it was written. */
+  disabled?: boolean
 }
 
 const NONE = '__none__'
@@ -61,7 +63,7 @@ export function Choice<T extends string>({
       <SelectContent className="rounded-xl">
         {none && <SelectItem value={NONE}>{none}</SelectItem>}
         {options.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
+          <SelectItem key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}
           </SelectItem>
         ))}

@@ -1,15 +1,20 @@
 import type { ReactElement } from 'react'
 import { BadgeCheck } from 'lucide-react'
 import {
+  PROPOSAL_COUNT_LABEL,
+  PROPOSAL_COUNTS,
+  proposalCountOf,
   proposalInputSchema,
   type Platform,
   type Proposal,
+  type ProposalCount,
   type ProposalPatch
 } from '@shared/domain/freelance'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { NumberField } from '@/components/common/number-field'
 import { TextField } from '@/components/common/text-field'
 import { Field } from '@/components/common/page'
+import { Choice, type ChoiceOption } from '@/components/common/choice'
 import { SectionLabel } from '@/components/common/master-detail'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Switch } from '@/components/ui/switch'
@@ -20,6 +25,49 @@ import { CountryCombobox } from '../crm/country-combobox'
 
 const PROPOSAL_L = limitsOf(proposalInputSchema)
 const R = rangesOf(proposalInputSchema)
+
+/**
+ * «Відгуків на вакансію»: one of Upwork's buckets. A free text typed before the choice existed stays the value — an
+ * option of its own that can't be picked again — until another bucket replaces it, so nothing is lost.
+ */
+function ProposalCountField({
+  id,
+  value,
+  onChange
+}: {
+  id: string
+  value: string
+  onChange: (value: ProposalCount | '') => void
+}): ReactElement {
+  const readOnly = useReadOnly()
+  const bucket = proposalCountOf(value)
+  const legacy = value && !bucket ? value : null
+  const options: ChoiceOption<string>[] = PROPOSAL_COUNTS.map((c) => ({
+    value: c,
+    label: PROPOSAL_COUNT_LABEL[c]
+  }))
+  if (legacy) options.push({ value: legacy, label: legacy, disabled: true })
+  return (
+    <Field
+      label="Відгуків на вакансію"
+      htmlFor={id}
+      hint={
+        legacy && !readOnly
+          ? 'Записано вручну до появи списку — виберіть варіант, щоб замінити'
+          : undefined
+      }
+    >
+      <Choice
+        id={id}
+        value={bucket ?? legacy}
+        options={options}
+        none="Не вказано"
+        placeholder="Як на сторінці вакансії"
+        onChange={(v) => onChange((v ?? '') as ProposalCount | '')}
+      />
+    </Field>
+  )
+}
 
 /** «Клієнт»: who posted the job and the signals the platform shows about them. */
 
@@ -75,12 +123,10 @@ export function ProposalClientSection({
           placeholder="Напр.: 70"
           unit="%"
         />
-        <TextField
-          label="Відгуків на вакансію"
-          maxLength={PROPOSAL_L.proposalsOnJob}
+        <ProposalCountField
+          id={`proposals-on-job-${p.id}`}
           value={p.proposalsOnJob}
-          onSave={(proposalsOnJob) => patch({ proposalsOnJob })}
-          placeholder="Напр.: 20–50"
+          onChange={(proposalsOnJob) => patch({ proposalsOnJob })}
         />
       </div>
       {/* While reading only the positive fact is shown: a locked «off» switch read as a warning. */}

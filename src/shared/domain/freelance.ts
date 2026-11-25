@@ -104,6 +104,33 @@ export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
 export const BID_TYPES = ['fixed', 'hourly'] as const
 export type BidType = (typeof BID_TYPES)[number]
 
+/** Upwork's own «Proposals» buckets on a job post, stored as these short strings. */
+export const PROPOSAL_COUNTS = ['<5', '5–10', '10–15', '15–20', '20–50', '50+'] as const
+export type ProposalCount = (typeof PROPOSAL_COUNTS)[number]
+
+export const PROPOSAL_COUNT_LABEL: Record<ProposalCount, string> = {
+  '<5': 'Менше 5',
+  '5–10': '5–10',
+  '10–15': '10–15',
+  '15–20': '15–20',
+  '20–50': '20–50',
+  '50+': '50+'
+}
+
+/**
+ * The bucket an old free-text value means — «20 to 50», «20-50», «Less than 5», «менше 5», «50+» — or null when it
+ * matches none (it is then kept and shown as it was written).
+ */
+export function proposalCountOf(text: string): ProposalCount | null {
+  const t = text.trim().toLowerCase().replace(/\s+/g, ' ')
+  if (!t) return null
+  if (/^(<\s*5|less than 5|менше 5|меньше 5|до 5)$/.test(t)) return '<5'
+  if (/^50\s*\+$|^50 (or more|і більше|и более)$/.test(t)) return '50+'
+  const m = /^(\d+)\s*(?:[-–—]|to|до)\s*(\d+)$/.exec(t)
+  const pair = m ? `${m[1]}–${m[2]}` : ''
+  return (PROPOSAL_COUNTS as readonly string[]).includes(pair) ? (pair as ProposalCount) : null
+}
+
 export const proposalInputSchema = z.object({
   platformId: idSchema,
   jobTitle: z.string().trim().min(1).max(MAX.title),
@@ -129,8 +156,11 @@ export const proposalInputSchema = z.object({
   clientSpent: clientSpentSchema.nullable().default(null),
   clientHireRate: hireRateSchema.nullable().default(null),
   paymentVerified: z.boolean().nullable().default(null),
-  /** Competition shown on the job, e.g. "20 to 50". */
-  proposalsOnJob: z.string().max(40).default(''),
+  /**
+   * Competition shown on the job: one of Upwork's buckets, or '' — not set. A free text written before the choice
+   * («20 to 50») stays in the record and is shown as it was; only a bucket can be saved now.
+   */
+  proposalsOnJob: z.union([z.enum(PROPOSAL_COUNTS), z.literal('')]).default(''),
   /** Ids of pre-checklist items that were ticked. */
   checks: z.array(z.string().max(40)).max(30).default([]),
   /** Marks a strong proposal worth reusing. */
