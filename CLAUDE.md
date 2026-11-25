@@ -67,15 +67,15 @@ electron-vite (React + TS) · Tailwind v4 + shadcn (перестилизован
 ## Структура
 
 ```
-src/shared/            контракт main↔renderer: api.ts, entity-types.ts, domain/*.ts (zod-схемы + типы)
+src/shared/            контракт main↔renderer: api.ts, entity-types.ts, domain/*.ts (zod-схемы + типы), colors.ts (палитра), dates.ts
 src/main/
   container.ts         composition root (DI)
-  core/                paths, config-store (JSON вне БД), registry, soft-repository, ordering, event-bus, logger, util, zip
+  core/                paths, config-store (JSON вне БД), registry, soft-repository, ordering, srs, event-bus, logger, util, zip
   db/                  schema (drizzle), client (DbContext), migrations (drizzle-kit + custom FTS5)
   modules/             бэкенд модулей: boards, ideas, knowledge, media, checklists, english, calendar, finance, dev-projects;
                        большие — папками: crm/, freelance/, jobs/ (index.ts + части)
-  services/            сквозные: search-index, tags, links, pins, trash, files, attachments, backup, export, dashboard, reminders, quick-add, secret-box
-  system/              окна, трей, глобальный хоткей, автозапуск, протоколы, апдейтер
+  services/            сквозные: search-index, tags, links, pins, trash, revisions, files, attachments, backup, export, import, dashboard, reminders, quick-add, weekly-review, github, secret-box
+  system/              app-api (namespaces уровня приложения: настройки, обновления, shell), окна, трей, глобальный хоткей, автозапуск, протоколы, апдейтер
   ipc/rpc.ts           один канал rpc("ns.method", arg) + проверка отправителя
 src/preload/           contextBridge: rpc, on(whitelist), pathForFile
 src/renderer/
@@ -96,7 +96,7 @@ src/renderer/
 - **Данные пользователя неприкосновенны.** Перед новыми миграциями `DbContext` сам кладёт копию базы в `backups/pre-update-<версия>-<время>.db` (последние 5). `npm run dev` работает с отдельной папкой `%APPDATA%/vault-dev`, рабочая база установленного Vault не трогается. Тесты (`scripts/snap.mjs`) всегда идут во временную папку.
 - **Миграции проверять глазами.** Если drizzle-kit сгенерировал пересоздание таблицы (`__new_…` + `DROP TABLE`) для таблицы, на которую ссылаются FK с `ON DELETE CASCADE`, — НЕЛЬЗЯ: в транзакции `PRAGMA foreign_keys=OFF` не работает и дочерние строки удалятся. Меняй схему только аддитивно (`ADD COLUMN`), дефолты задавай в приложении.
 - **Длинные списки — только виртуализированные:** `VirtualList` / `VirtualGrid` (`components/common/virtual-list.tsx`, TanStack Virtual) + `useInfiniteApi(ns, method, filters)` (страницы по 100 через `{ limit, offset }`). Фильтры и поиск — на сервере (параметры list-метода), не фильтровать большие массивы в рендере. Новый list-метод в main обязан принимать `pageSchema`.
-- **Горячие клавиши** — единый реестр `app/shortcuts.ts` + обработчик `hooks/use-global-shortcuts.ts` + справка `Ctrl+/`. Страничные клавиши работают через атрибуты общих компонентов: `N` нажимает лаймовую кнопку в `PageHeader`, `/` фокусирует `SearchInput` (`data-page-search`), `Esc` закрывает `DetailPane` (`data-close-detail`). Где лаймовой кнопки в шапке нет, страница вешает `useHotkey('n', …)` (`hooks/use-hotkey.ts`): фокус в поле быстрого ввода (ідеї) или быстрая форма (канбан). Если на странице есть и лаймовая кнопка, и поле быстрого ввода (компанії, майданчики), кнопка при пустом поле ставит в него курсор — так `N` работает без своего хоткея. Новую клавишу — сначала в реестр.
+- **Горячие клавиши** — единый реестр `app/shortcuts.ts` + обработчик `hooks/use-global-shortcuts.ts` + справка `Ctrl+/`. Страничные клавиши работают через атрибуты общих компонентов: `N` нажимает лаймовую кнопку в `PageHeader`, `/` фокусирует `SearchInput` (`data-page-search`), `Esc` закрывает `DetailPane` (`data-close-detail`). Если первая лаймовая кнопка шапки делает не «создать» или её нет, цель помечается `data-page-new` (поле получит фокус, кнопка — клик). Где нужна своя логика, страница вешает `useHotkey('n', …)` (`hooks/use-hotkey.ts`): фокус в поле быстрого ввода (ідеї) или быстрая форма (канбан). Если на странице есть и лаймовая кнопка, и поле быстрого ввода (компанії, майданчики), кнопка при пустом поле ставит в него курсор — так `N` работает без своего хоткея. Новую клавишу — сначала в реестр.
 - **Журнал ошибок** — electron-log (`main/core/logger.ts`): `%APPDATA%/<app>/logs/main.log`. В main логировать через `log`, в renderer ошибки уходят через `reportError` → `api.app.logError`. Не глотать ошибки молча.
 - Каждая новая сущность: таблица в `db/schema`, `npm run db:generate`, дескриптор в модуле, регистрация в `container.ts`, маршрут в `ENTITY_META`.
 - Зависимые сущности (карточки доски) при удалении родителя остаются с `deletedAt = null` (иначе каждая всплыла бы в корзине отдельно). Поэтому у дескриптора есть `aliveWhere`, а сквозной код фильтрует через `registry.live(d)`, не через голый `isNull(deletedAt)`.
@@ -105,7 +105,8 @@ src/renderer/
 - Календарь: модуль отдаёт `calendarFeed(from, to)`, провайдер регистрируется в `container.registerCalendarFeeds()`; `CalendarModule` от других модулей не зависит.
 - Большой модуль main — папка: `index.ts` владеет дескрипторами и собирает API из частей; часть — класс со своим `api()` и узким интерфейсом (`CreditsApi`, `ApplicationsApi`, или `Pick<JobsApi, …>`, когда несколько частей делят один namespace).
 - Ожидаемые ошибки в main — только `UserError` / `NotFoundError` (`core/util.ts`) с украинским текстом для человека, без id записей. Технические детали (английские сообщения shell, net, electron-updater) — в журнал через `log.warn` / `log.error`.
-- Даты: ключ дня — `dayKey(ts)` (локальный), шаг по дням/неделям — `addDays()` (`core/util.ts`). `toISOString().slice(0,10)` и `+ n * DAY_MS` для календаря запрещены: UTC-сдвиг и переход на летнее время.
+- Пользовательские цвета (метки, события, майданчики вакансий, лента календаря) — только палитра `PALETTE` / `COLOR_NAME` из `shared/colors.ts`, свои массивы hex не заводить (старые копии в renderer перечислены в `docs/design-system.md` §2 и §14).
+- Даты: ключ дня — `dayKey(ts)` (локальный), шаг по дням/неделям — `addDays()` (`core/util.ts`); даты в тексте, который строит main, — `shared/dates.ts`. `toISOString().slice(0,10)` и `+ n * DAY_MS` для календаря запрещены: UTC-сдвиг и переход на летнее время.
 - Регистронезависимый поиск в SQL — `ulower()` (функция из `db/client`), не `lower()`.
 - Файлы — только в `<data>/files`, в БД относительный путь; в renderer — `fileUrl(path)` (`vault-file://`).
 - Безопасность: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, строгий CSP, внешние ссылки только через `api.app.openExternal`, пароли через `safeStorage`.
@@ -121,7 +122,7 @@ src/renderer/
 - Кнопки: `lime` — главное действие; `subtle` — переход из карточки; `ghost` — иконки; `link` — ссылка в тексте (без отступов). Серый текст без фона кнопкой не бывает.
 - Запись открывается для просмотра, «Редагувати»/`E` — правка, «Зберегти»/«Скасувати» — подтвердить или откатить (`detail-mode`); пустые черновики не плодятся и удаляются при закрытии (`DRAFT_TITLES` + `draft` в дескрипторе).
 - Лимиты полей — из zod-схем: `limitsOf` (строки), `rangesOf` (числа); ссылки — `isLikelyUrl`.
-- Прогресс — с подписью «Готово X из Y»; метки — `TagList`; сегодня в календаре — лаймовый круг.
+- Прогресс — с подписью «Готово X з Y»; метки — `TagList`; сегодня в календаре — лаймовый круг.
 
 ## Команды
 
