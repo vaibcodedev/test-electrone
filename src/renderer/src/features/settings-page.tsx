@@ -65,7 +65,7 @@ export function SettingsPage(): ReactElement {
                   id={id}
                   key={settings.userName}
                   defaultValue={settings.userName}
-                  placeholder="Олена"
+                  placeholder="Наприклад, Олена"
                   maxLength={LIMITS.userName}
                   onBlur={(e) => e.target.value !== settings.userName && set({ userName: e.target.value })}
                   onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -158,7 +158,7 @@ export function SettingsPage(): ReactElement {
                       disabled={exportData.isPending}
                       onClick={() => exportData.mutate(x.format, { onSuccess: (path) => path && toast.success(x.done) })}
                     >
-                      Експорт
+                      Експортувати
                     </Button>
                   </ItemActions>
                 </Item>

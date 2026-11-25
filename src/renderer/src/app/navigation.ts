@@ -187,15 +187,18 @@ export const HUBS: NavHub[] = [
   }
 ]
 
-/** Flat list for the command palette and Alt+N shortcuts (overviews first, then sections). */
+/**
+ * Flat list for the command palette and Alt+1…9, in sidebar order: Головна, Підсумки, each hub (overview,
+ * then sections), and the guide last — in the sidebar it is a footer icon, so Alt+3 must not open it.
+ */
 export const ALL_NAV_ITEMS: NavItem[] = [
   HOME,
   REVIEW,
-  GUIDE,
   ...HUBS.flatMap((h) => [
     ...(h.overview ? [{ path: h.overview, label: `${h.title}: огляд`, icon: h.icon }] : []),
     ...h.items
-  ])
+  ]),
+  GUIDE
 ]
 
 /**

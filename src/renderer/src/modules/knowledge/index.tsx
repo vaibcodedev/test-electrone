@@ -5,6 +5,7 @@ import { ArrowUpRight, Bug, Package } from 'lucide-react'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtRelative, plural } from '@/lib/format'
+import { clickableProps } from '@/lib/clickable'
 import { ENTITY_ICON } from '@/app/navigation'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { EntityRow } from '@/components/common/entity-link'
@@ -36,17 +37,14 @@ function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> 
         return (
           <Card
             key={s.type}
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(s.path)}
-            onKeyDown={(e) => e.key === 'Enter' && navigate(s.path)}
+            {...clickableProps(() => navigate(s.path))}
             className="group tile h-[124px] justify-between gap-0 rounded-3xl p-4"
           >
             <span className="flex items-center justify-between">
               <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
                 <Icon className="size-4 text-muted-foreground" />
               </span>
-              <ArrowUpRight className="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+              <ArrowUpRight className="size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
             </span>
             <span>
               {counts ? (
@@ -204,7 +202,11 @@ export function KnowledgeOverviewPage() {
                   ))}
                 </div>
               ) : (
-                <Empty>Усе вирішено. Позначайте «Ще не вирішено», щоб повернутися до проблеми пізніше.</Empty>
+                <Empty>
+                  {counts?.fix
+                    ? 'Усе вирішено. Позначайте «Ще не вирішено», щоб повернутися до проблеми пізніше.'
+                    : 'Тут з’являться помилки, які ще не вирішено.'}
+                </Empty>
               )}
             </ListCard>
             <ListCard
@@ -224,6 +226,7 @@ export function KnowledgeOverviewPage() {
                       variant="soft"
                       size="sm"
                       className="max-w-full bg-card font-normal hover:ring-1 hover:ring-border"
+                      title={l.name}
                       onClick={() => navigate(ENTITY_META.library.route(l.id))}
                     >
                       <Package />

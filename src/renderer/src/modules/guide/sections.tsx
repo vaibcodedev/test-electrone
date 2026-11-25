@@ -52,7 +52,7 @@ export function sections(faq: ReactNode): GuideSection[] {
       id: 'start',
       title: 'Як почати',
       icon: Rocket,
-      route: '/settings',
+      route: '/settings#you',
       body: (
         <>
           <P>
@@ -469,7 +469,7 @@ export function sections(faq: ReactNode): GuideSection[] {
       id: 'data',
       title: 'Дані й безпека',
       icon: Database,
-      route: '/settings',
+      route: '/settings#data',
       body: (
         <>
           <P>
@@ -503,7 +503,7 @@ export function sections(faq: ReactNode): GuideSection[] {
       id: 'updates',
       title: 'Оновлення',
       icon: RefreshCw,
-      route: '/settings',
+      route: '/settings#updates',
       body: (
         <P>
           Vault зараз у беті (версії 0.1.0-beta.N). Оновлення завантажуються самі з GitHub Releases і встановлюються під час

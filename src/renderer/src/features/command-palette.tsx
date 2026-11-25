@@ -23,11 +23,25 @@ import { fmtRelative, mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 
 const SEARCH_LIMITS = limitsOf(searchQuerySchema)
+const NO_HITS: SearchHit[] = []
+
+type Ref = { type: EntityType; id: string }
+/** cmdk item values: one place for the format the items and the selection fallback both use. */
+const VALUE = {
+  hit: (h: Ref) => `${h.type}:${h.id}`,
+  recent: (r: Ref) => `recent:${r.type}:${r.id}`,
+  nav: (path: string) => `nav:${path}`,
+  action: (id: string) => `action:${id}`
+}
 const QUICK_LIMITS = limitsOf(quickAddSchema)
 
-/** FTS snippet → plain text: no raw `**`, `#` or list dashes glued into one line (design-system §10). */
+/**
+ * FTS snippet → plain text: no raw `**`, `#` or list dashes glued into one line (design-system §10).
+ * mdPreview drops markers at line starts; a marker left after a sentence end («текст. - кеш») goes too,
+ * while «a - b» and «2 * 3» stay as typed.
+ */
 function cleanSnippet(text: string): string {
-  return mdPreview(text).replace(/(^|\s)[-*+]\s+/g, '$1')
+  return mdPreview(text).replace(/(^|[.:;!?…])\s*[-*+]\s+/g, (_: string, end: string) => (end ? `${end} ` : ''))
 }
 
 /** Renders FTS snippet with \u0001…\u0002 match markers as <mark>. Markdown is stripped before splitting. */
@@ -73,12 +87,14 @@ export function CommandPalette(): ReactElement {
   const updateSettings = useApiMutation('settings', 'update')
 
   const query = text.trim()
-  const { data: hits = [], isFetching } = useApi(
+  const { data: rawHits = [], isFetching } = useApi(
     'search',
     'query',
     { text: query, limit: 60 },
-    { enabled: open && query.length > 0, placeholderData: (prev) => prev }
+    { enabled: open && query.length > 0, placeholderData: (prev) => (query ? prev : undefined) }
   )
+  // A disabled query with the empty key still hands back the previous results: without a query there are none.
+  const hits = query ? rawHits : NO_HITS
   const { data: recent = [] } = useApi('search', 'recent', 8, { enabled: open && !query })
 
   const grouped = useMemo(() => {
@@ -90,7 +106,7 @@ export function CommandPalette(): ReactElement {
   // Enter right after Ctrl+K opens the latest record, not the first section (adjusted during render, once per opening).
   if (open && !query && recent.length > 0 && !pickedRecent) {
     setPickedRecent(true)
-    if (!selected || selected.startsWith('nav:')) setSelected(`recent:${recent[0].type}:${recent[0].id}`)
+    if (!selected || selected.startsWith('nav:')) setSelected(VALUE.recent(recent[0]))
   }
 
   const close = (): void => {
@@ -100,6 +116,8 @@ export function CommandPalette(): ReactElement {
     setPickedRecent(false)
   }
   const go = (route: string): void => {
+    // Leaving by a pick: focus must not jump back into the field the palette was opened from (search, editor).
+    useUi.setState({ returnFocus: null })
     close()
     navigate(route)
   }
@@ -154,6 +172,15 @@ export function CommandPalette(): ReactElement {
     : actions
   // Nothing found: the typed text is most likely a thought worth keeping.
   const offerAdd = !!query && !isFetching && hits.length === 0 && navMatches.length === 0 && actionMatches.length === 0
+  // Values in display order. An empty or stale selection falls back to the first visible item: with
+  // shouldFilter=false cmdk doesn't select async results itself, and Enter did nothing.
+  const values = [
+    ...grouped.flatMap(([, list]) => list.map(VALUE.hit)),
+    ...(offerAdd ? [VALUE.action('add-idea')] : []),
+    ...(!query ? recent.map(VALUE.recent) : []),
+    ...navMatches.map((n) => VALUE.nav(n.path)),
+    ...actionMatches.map((a) => VALUE.action(a.id))
+  ]
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
@@ -169,7 +196,7 @@ export function CommandPalette(): ReactElement {
         <Command
           shouldFilter={false}
           loop
-          value={selected}
+          value={values.includes(selected) ? selected : (values[0] ?? '')}
           onValueChange={setSelected}
           className="**:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5"
         >
@@ -197,7 +224,7 @@ export function CommandPalette(): ReactElement {
                     // New results fade in one after another; results that stay between keystrokes don't re-animate.
                     <CommandItem
                       key={`${h.type}:${h.id}`}
-                      value={`${h.type}:${h.id}`}
+                      value={VALUE.hit(h)}
                       onSelect={() => go(ENTITY_META[h.type].route(h.id))}
                       className="animate-enter"
                       style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
@@ -218,9 +245,9 @@ export function CommandPalette(): ReactElement {
             })}
 
             {offerAdd && (
-              <CommandGroup heading="Записати">
+              <CommandGroup heading="Нічого не знайдено">
                 <CommandItem
-                  value="action:add-idea"
+                  value={VALUE.action('add-idea')}
                   onSelect={() => {
                     close()
                     setQuickAddOpen(true, 'idea', query.slice(0, QUICK_LIMITS.text))
@@ -237,7 +264,7 @@ export function CommandPalette(): ReactElement {
                 {recent.map((r) => {
                   const Icon = ENTITY_ICON[r.type]
                   return (
-                    <CommandItem key={`${r.type}:${r.id}`} value={`recent:${r.type}:${r.id}`} onSelect={() => go(ENTITY_META[r.type].route(r.id))}>
+                    <CommandItem key={`${r.type}:${r.id}`} value={VALUE.recent(r)} onSelect={() => go(ENTITY_META[r.type].route(r.id))}>
                       <Icon />
                       <span className="flex-1 truncate">{r.title}</span>
                       <CommandShortcut className="tracking-normal">{fmtRelative(r.updatedAt)}</CommandShortcut>
@@ -250,7 +277,7 @@ export function CommandPalette(): ReactElement {
             {navMatches.length > 0 && (
               <CommandGroup heading="Розділи">
                 {navMatches.map((n, i) => (
-                  <CommandItem key={n.path} value={`nav:${n.path}`} onSelect={() => go(n.path)}>
+                  <CommandItem key={n.path} value={VALUE.nav(n.path)} onSelect={() => go(n.path)}>
                     <n.icon />
                     {n.label}
                     {i < 9 && !query && <CommandShortcut>Alt {i + 1}</CommandShortcut>}
@@ -262,7 +289,7 @@ export function CommandPalette(): ReactElement {
             {actionMatches.length > 0 && (
               <CommandGroup heading="Дії">
                 {actionMatches.map((a) => (
-                  <CommandItem key={a.id} value={`action:${a.id}`} onSelect={a.run}>
+                  <CommandItem key={a.id} value={VALUE.action(a.id)} onSelect={a.run}>
                     {a.icon}
                     {a.label}
                     {a.shortcut && <CommandShortcut>{a.shortcut}</CommandShortcut>}

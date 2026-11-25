@@ -1,14 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { format, parseISO } from 'date-fns'
-import { ArrowRight, BookOpen, Pause, Pin, Star, Timer, X } from 'lucide-react'
+import { differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { ArrowRight, BookOpen, CircleAlert, Pause, Pin, Star, Timer, X } from 'lucide-react'
 import { Bar, BarChart, XAxis } from 'recharts'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DueCard } from '@shared/domain/boards'
 import type { CalendarItem } from '@shared/domain/calendar'
 import type { QuickAddTarget } from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
-import { LOCALE, fmtDay, fmtMinutes, fmtRelative, plural, capitalize } from '@/lib/format'
+import { LOCALE, fmtDay, fmtDayFull, fmtMinutes, fmtRelative, plural, capitalize } from '@/lib/format'
+import { clickableProps } from '@/lib/clickable'
 import { useUi } from '@/stores/ui-store'
 import { EntityRow } from '@/components/common/entity-link'
 import { SegmentBar } from '@/components/common/page'
@@ -25,6 +26,7 @@ import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 
 const TODAY_LIMIT = 6
+const AGENDA_LIMIT = 5
 
 /** Clickable Item row that navigates inside the app. */
 function RowLink({
@@ -81,24 +83,29 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
               <ItemContent className="min-w-0">
                 <ItemTitle className="w-full truncate text-lead font-normal">{c.title}</ItemTitle>
               </ItemContent>
-              {/* The board name gives way to the title: it truncates instead of wrapping out of the card. */}
-              <span
-                className={cn('max-w-[40%] min-w-0 truncate text-caption', late ? 'text-destructive' : 'text-ink-muted')}
-                title={late ? undefined : c.boardTitle}
-              >
-                {late ? 'прострочено' : c.boardTitle}
-              </span>
+              {/* No status colours on ink (§6): «прострочено» is ink-foreground with an icon, only the dot stays red. */}
+              {late ? (
+                <span className="flex shrink-0 items-center gap-1 text-caption text-ink-foreground">
+                  <CircleAlert className="size-3.5" /> прострочено
+                </span>
+              ) : (
+                // The board name gives way to the title: it truncates instead of wrapping out of the card.
+                <span className="max-w-[40%] min-w-0 truncate text-caption text-ink-muted" title={c.boardTitle}>
+                  {c.boardTitle}
+                </span>
+              )}
             </RowLink>
           )
         })}
       </ItemGroup>
       {open.length > TODAY_LIMIT && (
         <Button
-          variant="link"
-          className="mt-2 self-start text-caption text-ink-muted no-underline hover:underline"
+          variant="subtle"
+          size="xs"
+          className="mt-2 self-start bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15"
           onClick={() => navigate('/calendar')}
         >
-          Ще {open.length - TODAY_LIMIT}
+          Ще {open.length - TODAY_LIMIT} <ArrowRight />
         </Button>
       )}
       {!all.length && (
@@ -108,6 +115,12 @@ function TodayCard({ cards, overdue }: { cards: DueCard[]; overdue: DueCard[] })
       )}
     </Card>
   )
+}
+
+/** «сьогодні»/«завтра» first; later days this week by weekday («пʼятниця» fits 64px, «27 листопада» wraps). */
+function agendaDay(ts: number): string {
+  const days = differenceInCalendarDays(ts, new Date())
+  return days >= 2 && days <= 6 ? format(ts, 'EEEE', { locale: LOCALE }) : fmtDay(ts)
 }
 
 function Agenda({ items }: { items: CalendarItem[] }) {
@@ -126,13 +139,18 @@ function Agenda({ items }: { items: CalendarItem[] }) {
         {items.length === 0 ? (
           <p className="text-body text-muted-foreground">Подій немає. Додайте зустріч або нагадування в календарі.</p>
         ) : (
-          <ItemGroup className="gap-2">
-            {items.slice(0, 7).map((i) => (
+          <ItemGroup className="gap-1.5">
+            {items.slice(0, AGENDA_LIMIT).map((i) => (
               <RowLink key={i.key} to={ENTITY_META[i.ref.type].route(i.ref.id)} className="bg-card hover:ring-1 hover:ring-border">
                 {/* Date block (design-system §10): the feed spans 3 days, a bare «15:00» hid which day it is. */}
-                <div className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-surface px-1 py-1">
-                  <span className="w-full truncate text-center text-meta text-muted-foreground">{fmtDay(i.startAt)}</span>
-                  {!i.allDay && <span className="text-lead font-semibold tabular-nums">{format(i.startAt, 'HH:mm')}</span>}
+                <div
+                  className="flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 self-stretch rounded-xl bg-surface py-1.5 text-center"
+                  title={fmtDayFull(i.startAt)}
+                >
+                  <span className="text-meta leading-tight text-muted-foreground">{agendaDay(i.startAt)}</span>
+                  {!i.allDay && (
+                    <span className="text-lead leading-tight font-semibold tabular-nums">{format(i.startAt, 'HH:mm')}</span>
+                  )}
                 </div>
                 <span className="h-6 w-1 shrink-0 rounded-full" style={{ background: i.color ?? 'var(--chart-bar)' }} />
                 <ItemContent className="min-w-0">
@@ -143,6 +161,11 @@ function Agenda({ items }: { items: CalendarItem[] }) {
               </RowLink>
             ))}
           </ItemGroup>
+        )}
+        {items.length > AGENDA_LIMIT && (
+          <Button variant="subtle" size="xs" className="mt-2" onClick={() => navigate('/calendar')}>
+            Ще {items.length - AGENDA_LIMIT} <ArrowRight />
+          </Button>
         )}
       </CardContent>
     </Card>
@@ -162,14 +185,10 @@ function QuickTiles() {
     <div className="col-span-6 grid grid-cols-2 gap-3">
       {QUICK.map((q) => {
         const Icon = ENTITY_ICON[q.type]
-        const open = (): void => setQuickAddOpen(true, q.target)
         return (
           <Card
             key={q.target}
-            role="button"
-            tabIndex={0}
-            onClick={open}
-            onKeyDown={(e) => e.key === 'Enter' && open()}
+            {...clickableProps(() => setQuickAddOpen(true, q.target))}
             className="tile h-[118px] justify-between gap-0 rounded-3xl p-4"
           >
             <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
@@ -228,6 +247,16 @@ function TimerTile({
               <Pause /> Зупинити
             </Button>
           </>
+        ) : weekMinutes === 0 ? (
+          // A stat tile without data says so in words (§8), not with a big «0 хв».
+          <>
+            <p className="text-body leading-relaxed text-muted-foreground">
+              Цього тижня час ще не засікали — таймер запускається в контракті.
+            </p>
+            <Button variant="subtle" size="xs" className="self-start" onClick={() => navigate('/clients')}>
+              До контрактів <ArrowRight />
+            </Button>
+          </>
         ) : (
           <div>
             <div className="font-display text-stat leading-none">{fmtMinutes(weekMinutes)}</div>
@@ -276,7 +305,7 @@ const activityConfig = { count: { label: 'Зроблено', color: 'var(--chart
 /** Single series → one validated hue, no legend; exact values on hover (dataviz skill). */
 function Activity({ data }: { data: { day: string; count: number }[] }) {
   const total = data.reduce((s, d) => s + d.count, 0)
-  const rows = data.map((d) => ({ ...d, label: format(parseISO(d.day), 'd MMM', { locale: LOCALE }) }))
+  const rows = data.map((d) => ({ ...d, label: fmtDayFull(parseISO(d.day).getTime()) }))
   return (
     <Card className="col-span-4">
       <CardHeader>
@@ -439,6 +468,7 @@ export function DashboardPage() {
                   variant="soft"
                   size="sm"
                   className="max-w-full bg-card font-normal hover:ring-1 hover:ring-border"
+                  title={i.title}
                   onClick={() => navigate(ENTITY_META.idea.route(i.id))}
                 >
                   <span className="truncate">{i.title}</span>

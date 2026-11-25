@@ -47,7 +47,7 @@ export function SettingsRow({
       <ItemContent className="min-w-0">
         <ItemTitle className="w-full truncate text-body font-normal">
           {labelled ? (
-            <Label htmlFor={id} className="cursor-pointer text-body font-normal">
+            <Label htmlFor={id} className="block cursor-pointer truncate text-body leading-snug font-normal text-foreground">
               {label}
             </Label>
           ) : (

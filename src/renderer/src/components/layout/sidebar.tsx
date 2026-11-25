@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router'
 import { Archive, ChevronRight, Plus, Search, Settings, Tags, Trash2 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
 import { GUIDE, HOME, HUBS, REVIEW, hubOf, isAt, type NavHub } from '@/app/navigation'
@@ -99,8 +99,9 @@ function IdentityCard() {
       </div>
       <div className="font-display mt-3 truncate text-stat-sm leading-tight">{name || 'Ваша база'}</div>
       <div className="mt-3">
-        <SegmentBar value={done} total={Math.max(cards.length, 1)} tone="ink" segments={Math.min(Math.max(cards.length, 1), 8)} />
-        <div className="mt-1.5 flex justify-between text-meta opacity-70">
+        {/* A bar with nothing to count shows nothing (§7): only the caption, a little lower to keep the height. */}
+        {cards.length > 0 && <SegmentBar value={done} total={cards.length} tone="ink" segments={Math.min(cards.length, 8)} />}
+        <div className={cn('flex justify-between text-meta opacity-70', cards.length > 0 ? 'mt-1.5' : 'mt-3')}>
           <span>
             {cards.length
               ? `Сьогодні ${done} з ${cards.length} ${plural(cards.length, ['завдання', 'завдань', 'завдань'])}`
@@ -139,6 +140,9 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
     .filter(matches)
     .sort((a, b) => b.length - a.length)[0]
   const isActive = (path: string): boolean => (path === best ? true : !best && matches(path))
+  // Plain Link + explicit aria-current: NavLink marks by pathname alone, so on cover-letter templates both
+  // «Фриланс → Шаблони» and «Пошук роботи → Шаблони листів» were the current page for a screen reader.
+  const current = (path: string): 'page' | undefined => (isActive(path) ? 'page' : undefined)
 
   return (
     <Collapsible open={open} onOpenChange={(o) => setHubOpen(hub.id, o)} asChild>
@@ -175,12 +179,12 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
                 return (
                   <SidebarMenuSubItem key={p.id}>
                     <SidebarMenuSubButton asChild isActive={isActive(path)}>
-                      <NavLink to={path}>
+                      <Link to={path} aria-current={current(path)}>
                         <span className="size-2 shrink-0 rounded-full" style={{ background: p.color ?? 'var(--muted-foreground)' }} />
                         <span className="truncate" title={p.name}>
                           {p.name}
                         </span>
-                      </NavLink>
+                      </Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 )
@@ -199,11 +203,12 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
             {hub.platforms && archivedCount > 0 && (
               <SidebarMenuSubItem>
                 <SidebarMenuSubButton asChild>
-                  <NavLink to="/freelance#archived" className="text-muted-foreground">
+                  {/* A hash on /freelance, not a page of its own: never aria-current. */}
+                  <Link to="/freelance#archived" className="text-muted-foreground">
                     <Archive />
                     <span className="truncate">Архів</span>
                     <span className="ml-auto text-meta tabular-nums">{archivedCount}</span>
-                  </NavLink>
+                  </Link>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             )}
@@ -211,11 +216,11 @@ function HubGroup({ hub, pathname, search }: { hub: NavHub; pathname: string; se
             {hub.items.map((item) => (
               <SidebarMenuSubItem key={item.path}>
                 <SidebarMenuSubButton asChild isActive={isActive(item.path)}>
-                  <NavLink to={item.path}>
+                  <Link to={item.path} aria-current={current(item.path)}>
                     <item.icon />
                     <span className="truncate">{item.label}</span>
                     <NavCount type={item.countOf} />
-                  </NavLink>
+                  </Link>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
             ))}

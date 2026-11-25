@@ -36,7 +36,7 @@ export function GuidePage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Гайд по Vault"
+        title="Гайд Vault"
         subtitle="Усе про розділи, гарячі клавіші, де лежать ваші дані, і відповіді на часті питання."
         actions={
           <Button variant="soft" onClick={() => navigate('/settings')}>
@@ -73,7 +73,7 @@ export function GuidePage(): ReactElement {
                     </h2>
                     {s.route && (
                       <Button variant="subtle" size="xs" onClick={() => navigate(s.route!)}>
-                        Відкрити розділ <ArrowRight />
+                        {s.route.startsWith('/settings') ? 'Відкрити налаштування' : 'Відкрити розділ'} <ArrowRight />
                       </Button>
                     )}
                   </div>

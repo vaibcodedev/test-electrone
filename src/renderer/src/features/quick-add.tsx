@@ -36,7 +36,7 @@ const PLACEHOLDER: Record<QuickAddTarget, string> = {
   snippet: 'Назва сніпета, код — з другого рядка',
   bookmark: 'Посилання або назва статті',
   word: 'deploy — розгорнути',
-  event: 'Подія на завтра 10:00'
+  event: 'Назва події — стане на завтра о 10:00'
 }
 
 /**

@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { DEFAULT_QUICK_ADD, shortcutGroups } from '@/app/shortcuts'
 import { useApi } from '@/lib/query'
-import { useUi } from '@/stores/ui-store'
+import { restoreFocus, useUi } from '@/stores/ui-store'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item'
@@ -17,9 +17,12 @@ export function ShortcutsDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {/* Header stays put; only the groups scroll. */}
-      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl sm:max-w-[720px]">
+      <DialogContent
+        className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl sm:max-w-[720px]"
+        onCloseAutoFocus={restoreFocus}
+      >
         <DialogHeader>
-          <DialogTitle className="font-display text-stat-sm">Гарячі клавіші</DialogTitle>
+          <DialogTitle className="font-display text-heading">Гарячі клавіші</DialogTitle>
           <DialogDescription>Працюють, коли курсор не в полі введення. Глобальну клавішу можна змінити в налаштуваннях.</DialogDescription>
         </DialogHeader>
         <div className="-mr-2 grid min-h-0 gap-6 overflow-y-auto pr-2 sm:grid-cols-2">

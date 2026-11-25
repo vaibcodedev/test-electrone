@@ -62,7 +62,9 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
         { keys: ['N'], label: 'Створити (головна кнопка сторінки)' },
         { keys: ['/'], label: 'Перейти до пошуку в розділі' },
         { keys: ['E'], label: 'Редагувати відкритий запис' },
-        { keys: ['Esc'], label: 'Вийти з редагування / закрити запис' }
+        { keys: ['Esc'], label: 'Вийти з редагування / закрити запис' },
+        { keys: ['←', '→'], label: 'Календар: попередній / наступний період' },
+        { keys: ['T'], label: 'Календар: до сьогодні' }
       ]
     },
     {

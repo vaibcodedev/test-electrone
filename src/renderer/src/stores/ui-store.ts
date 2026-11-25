@@ -3,9 +3,9 @@ import { persist } from 'zustand/middleware'
 import type { QuickAddTarget } from '@shared/domain/system'
 
 /**
- * Element to focus when the palette or quick add closes. They open from a hotkey, not a Radix trigger, so
- * Radix had nothing to return focus to and it fell to <body>. Opening one from inside another dialog
- * (quick add from the palette) keeps the element saved by the first one.
+ * Element to focus when the palette, quick add or the shortcuts help closes. They open from a hotkey, not a
+ * Radix trigger, so Radix had nothing to return focus to and it fell to <body>. Opening one from inside
+ * another dialog (quick add or the shortcuts help from the palette) keeps the element saved by the first one.
  */
 function focusOrigin(prev: HTMLElement | null): HTMLElement | null {
   const el = document.activeElement
@@ -14,8 +14,9 @@ function focusOrigin(prev: HTMLElement | null): HTMLElement | null {
 }
 
 /**
- * `onCloseAutoFocus` for the palette and quick add: focus goes back to where it was before they opened.
- * When another of these dialogs took over (quick add from the palette), that one manages focus itself.
+ * `onCloseAutoFocus` for the palette, quick add and the shortcuts help: focus goes back to where it was
+ * before they opened. When another of these dialogs took over (quick add or the help from the palette),
+ * that one manages focus itself. A palette pick that navigates clears `returnFocus` first.
  */
 export function restoreFocus(e: Event): void {
   const { returnFocus, paletteOpen, quickAddOpen, shortcutsOpen } = useUi.getState()
@@ -38,7 +39,7 @@ interface UiState {
   /** Text prefilled in quick add (e.g. the palette query that found nothing). */
   quickAddText: string | undefined
   setQuickAddOpen: (open: boolean, target?: QuickAddTarget, text?: string) => void
-  /** Where focus goes back after the palette / quick add closes (see focusOrigin). */
+  /** Where focus goes back after the palette / quick add / shortcuts help closes (see focusOrigin). */
   returnFocus: HTMLElement | null
   /** Per-module view preferences, e.g. { boards: 'kanban' }. */
   views: Record<string, string>
@@ -72,7 +73,8 @@ export const useUi = create<UiState>()(
         set((s) => (paletteOpen ? { paletteOpen, returnFocus: focusOrigin(s.returnFocus) } : { paletteOpen })),
       quickAddOpen: false,
       shortcutsOpen: false,
-      setShortcutsOpen: (shortcutsOpen) => set({ shortcutsOpen }),
+      setShortcutsOpen: (shortcutsOpen) =>
+        set((s) => (shortcutsOpen ? { shortcutsOpen, returnFocus: focusOrigin(s.returnFocus) } : { shortcutsOpen })),
       quickAddTarget: undefined,
       quickAddText: undefined,
       setQuickAddOpen: (quickAddOpen, quickAddTarget, quickAddText) =>
