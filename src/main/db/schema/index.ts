@@ -341,7 +341,15 @@ export const credentials = sqliteTable('credentials', {
   secret: text().notNull().default(''),
   notes: text().notNull().default(''),
   createdAt: integer().notNull(),
-  updatedAt: integer().notNull()
+  updatedAt: integer().notNull(),
+  /** CredentialKind; rows from before the kinds read as 'account' (url / login / secret as they were). */
+  kind: text().notNull().default('account'),
+  /** JSON of the kind's non-secret fields (host, port, engine…): shared/domain/credentials. */
+  fields: text().notNull().default('{}'),
+  /** SecretBox-encrypted JSON of the extra secrets (2FA, SSH key, passphrase, backup codes, secret pairs). */
+  secrets: text().notNull().default(''),
+  /** Finance subscription that pays for this access (no FK: the column is added in place, see migrations). */
+  subscriptionId: text()
 })
 
 export const timeEntries = sqliteTable(
@@ -615,7 +623,9 @@ export const subscriptions = sqliteTable('subscriptions', {
   active: integer({ mode: 'boolean' }).notNull().default(true),
   startedAt: integer(),
   createdAt: integer().notNull(),
-  updatedAt: integer().notNull()
+  updatedAt: integer().notNull(),
+  /** false = a client pays it (their server, hosting): out of every expense total, still on the list and calendar. */
+  ownExpense: integer({ mode: 'boolean' }).notNull().default(true)
 })
 
 export const expenses = sqliteTable(

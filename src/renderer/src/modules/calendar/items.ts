@@ -12,7 +12,8 @@ const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
   project: 'var(--chart-4)',
   interview: 'var(--chart-5)',
   subscription: 'var(--chart-3)',
-  followup: 'var(--muted-foreground)'
+  followup: 'var(--muted-foreground)',
+  credential: 'var(--chart-2)'
 }
 
 export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
@@ -22,7 +23,8 @@ export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
   project: 'Дедлайн проєкту',
   interview: 'Співбесіда',
   subscription: 'Підписка',
-  followup: 'Нагадати про себе'
+  followup: 'Нагадати про себе',
+  credential: 'Термін доступу'
 }
 
 export function itemColor(item: CalendarItem): string {

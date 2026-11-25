@@ -24,6 +24,7 @@ import { AttachmentService } from './services/attachment-service'
 import { RevisionService } from './services/revision-service'
 import { TrashService } from './services/trash-service'
 import { SecretBox } from './services/secret-box'
+import { SecretClipboard } from './services/secret-clipboard'
 import { BackupService } from './services/backup-service'
 import { StorageService } from './services/storage-service'
 import { storageLayout } from './services/storage-usage'
@@ -120,7 +121,7 @@ export class Container {
   readonly ideas = new IdeasModule(this.moduleCtx, this.boards)
   readonly knowledge = new KnowledgeModule(this.moduleCtx)
   readonly media = new MediaModule(this.moduleCtx)
-  readonly crm = new CrmModule(this.moduleCtx)
+  readonly crm = new CrmModule(this.moduleCtx, new SecretClipboard(clipboard))
   readonly checklists = new ChecklistsModule(this.moduleCtx)
   readonly english = new EnglishModule(this.moduleCtx)
   readonly calendar = new CalendarModule(this.moduleCtx)

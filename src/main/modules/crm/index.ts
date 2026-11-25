@@ -19,6 +19,7 @@ import type { Orm } from '../../db/client'
 import { SoftRepository } from '../../core/soft-repository'
 import type { EntityDescriptor } from '../../core/registry'
 import type { ModuleContext } from '../context'
+import type { SecretClipboard } from '../../services/secret-clipboard'
 import { Clients } from './clients'
 import { Credentials } from './credentials'
 import { Payments } from './payments'
@@ -38,13 +39,19 @@ export class CrmModule {
   private readonly clients: Clients
   private readonly projects: Projects
 
-  constructor(private readonly m: ModuleContext) {
+  /** `clipboard` — where «Скопіювати» puts a secret (cleared after 30 s); tests may leave it out. */
+  constructor(
+    private readonly m: ModuleContext,
+    clipboard?: SecretClipboard
+  ) {
+    this.credentials = new Credentials(m, clipboard)
+    // Accesses are found through their owner: names, hosts and services join its text, secrets never do.
     const client: EntityDescriptor = {
       type: 'client',
       table: clients,
       searchDoc: (r) => ({
         title: r.name,
-        body: `${r.company}\n${r.email}\n${r.phone}\n${r.messenger}\n${r.website}\n${r.notes}`
+        body: `${r.company}\n${r.email}\n${r.phone}\n${r.messenger}\n${r.website}\n${r.notes}\n${this.credentials.searchText({ clientId: r.id })}`
       }),
       summary: (r) => ({ title: r.name, subtitle: r.company || undefined })
     }
@@ -53,7 +60,7 @@ export class CrmModule {
       table: projects,
       searchDoc: (r) => ({
         title: r.title,
-        body: `${r.description}\n${r.repoUrl}\n${r.stagingUrl}\n${r.prodUrl}`
+        body: `${r.description}\n${r.repoUrl}\n${r.stagingUrl}\n${r.prodUrl}\n${this.credentials.searchText({ projectId: r.id })}`
       }),
       summary: (r) => ({
         title: r.title,
@@ -76,7 +83,6 @@ export class CrmModule {
       tags
     }))
     this.summaries = new CrmSummaries(m, this.projectRepo)
-    this.credentials = new Credentials(m)
     this.time = new TimeTracker(m, this.projectRepo)
     this.payments = new Payments(m, this.projectRepo)
     this.clients = new Clients(this.clientRepo, this.projectRepo, this.summaries, this.credentials)
@@ -108,7 +114,7 @@ export class CrmModule {
     return this.time.minutesInRange(from, to)
   }
 
-  /** Calendar feed: payments due and project deadlines. */
+  /** Calendar feed: payments due, project deadlines and the terms of accesses (API keys, domains). */
   calendarFeed(from: number, to: number): CalendarItem[] {
     const items: CalendarItem[] = this.payments.due(from, to).map((p) => ({
       key: `payment:${p.id}`,
@@ -144,6 +150,7 @@ export class CrmModule {
         done: p.status === 'done' || p.status === 'cancelled'
       })
     }
+    items.push(...this.credentials.calendarFeed(from, to))
     return items
   }
 
