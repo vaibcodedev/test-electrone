@@ -119,6 +119,23 @@ export class EntityRegistry {
     return this.ctx.orm.select().from(table).where(where).get() as AnyRow | undefined
   }
 
+  /** Which of the ids of a type are alive (`live(d)`): ids only, no row bodies. Unknown type → empty. */
+  liveIds(type: EntityType, ids: string[]): Set<string> {
+    const d = this.map.get(type)
+    const alive = new Set<string>()
+    if (!d) return alive
+    // Chunks of 500: SQLite caps the number of bound variables in one statement.
+    for (let i = 0; i < ids.length; i += 500) {
+      const rows = this.ctx.orm
+        .select({ id: d.table.id })
+        .from(d.table)
+        .where(and(inArray(d.table.id, ids.slice(i, i + 500)), this.live(d)))
+        .all() as { id: string }[]
+      for (const r of rows) alive.add(r.id)
+    }
+    return alive
+  }
+
   /** Resolves many refs to summaries in one query per type; missing/deleted ones are dropped. */
   summarize(refs: EntityRef[], opts: { withDeleted?: boolean } = {}): EntitySummary[] {
     const byType = new Map<EntityType, string[]>()

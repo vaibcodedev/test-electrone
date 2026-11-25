@@ -27,7 +27,7 @@ export class Clients {
       list: async (query) => {
         const q = clientListQuerySchema.extend(pageSchema.shape).parse(query ?? {})
         return this.summaries.clients(
-          repo.listWhere(
+          repo.listFavoritesFirst(
             [
               repo.matches(q.search, [clients.name, clients.company, clients.email, clients.country]),
               q.platformId === 'direct' ? isNull(clients.platformId) : q.platformId ? eq(clients.platformId, q.platformId) : undefined

@@ -46,8 +46,9 @@ import {
 import { AutoTitle, Block, EditorStack, EnumSelect, TextareaBlock } from '../claude/editor-kit'
 import { fillTemplate, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
-import { DisabledHint } from './disabled-hint'
+import { DisabledHint } from '@/components/common/disabled-hint'
 import { NicheCombobox } from './niche-combobox'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const TPL_L = limitsOf(templateInputSchema)
 const SITUATION_OPTIONS = TEMPLATE_SITUATIONS.map((s) => ({ value: s, label: SITUATION_LABEL[s] }))
@@ -416,7 +417,10 @@ export function TemplatesPage() {
                 <ListItem active={t.id === open} onClick={() => setOpen(t.id)}>
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-body font-medium">{t.title}</div>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-body font-medium">{t.title}</span>
+                        <FavoriteMark entity={{ type: 'template', id: t.id }} onInk={t.id === open} />
+                      </div>
                       {t.situation === 'small_talk' ? (
                         <ItemDescription className="mt-1 line-clamp-2 text-caption">
                           {t.trigger || '—'}{' '}

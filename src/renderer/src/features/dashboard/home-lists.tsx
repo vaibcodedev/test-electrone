@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { Pin, Star } from 'lucide-react'
+import { Pin } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DashboardData } from '@shared/domain/system'
 import { fmtRelative } from '@/lib/format'
@@ -13,16 +13,10 @@ import { RowLink } from './row-link'
 
 const LIST_LIMIT = 7
 
-/** Pins first, then favourites; past seven the rest unfolds in place — there is no separate pins page. */
-export function PinnedCard({
-  pinned,
-  favorites
-}: Pick<DashboardData, 'pinned' | 'favorites'>): ReactElement {
+/** Records pinned to the home page (★ is the section's own order, not here); past seven the rest unfolds in place. */
+export function PinnedCard({ pinned }: Pick<DashboardData, 'pinned'>): ReactElement {
   const [expanded, setExpanded] = useState(false)
-  const all = [
-    ...pinned,
-    ...favorites.filter((f) => !pinned.some((p) => p.type === f.type && p.id === f.id))
-  ]
+  const all = pinned
   const shown = expanded ? all : all.slice(0, LIST_LIMIT)
   return (
     <ListCard title="Закріплено" className="col-span-4">
@@ -33,13 +27,7 @@ export function PinnedCard({
               <EntityRow
                 key={`${p.kind}:${p.type}:${p.id}`}
                 item={p}
-                trailing={
-                  p.kind === 'pin' ? (
-                    <Pin className="size-3.5 text-muted-foreground" />
-                  ) : (
-                    <Star className="size-3.5 text-muted-foreground" />
-                  )
-                }
+                trailing={<Pin className="size-3.5 text-muted-foreground" />}
               />
             ))}
           </div>
@@ -83,12 +71,19 @@ export function RecentCard({ recent }: Pick<DashboardData, 'recent'>): ReactElem
   )
 }
 
-export function InboxIdeasCard({ ideas }: { ideas: DashboardData['inboxIdeas'] }): ReactElement {
+export function InboxIdeasCard({
+  ideas,
+  className
+}: {
+  ideas: DashboardData['inboxIdeas']
+  /** Column span from the home grid (layout.ts). */
+  className?: string
+}): ReactElement {
   const navigate = useNavigate()
   return (
     <ListCard
       title="Ідеї у вхідних"
-      className="col-span-6"
+      className={className}
       action={
         <Button variant="subtle" size="xs" onClick={() => navigate('/ideas')}>
           Усі ідеї
@@ -119,9 +114,12 @@ export function InboxIdeasCard({ ideas }: { ideas: DashboardData['inboxIdeas'] }
   )
 }
 
-export function ReadingCard({ reading }: Pick<DashboardData, 'reading'>): ReactElement {
+export function ReadingCard({
+  reading,
+  className
+}: Pick<DashboardData, 'reading'> & { className?: string }): ReactElement {
   return (
-    <ListCard title="Читаю зараз" className="col-span-6">
+    <ListCard title="Читаю зараз" className={className}>
       {reading.length ? (
         <ItemGroup className="gap-2">
           {reading.map((b) => (

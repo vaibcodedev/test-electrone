@@ -5,6 +5,7 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import {
+  favoriteFilter,
   hexColorSchema,
   idSchema,
   patchOf,
@@ -205,7 +206,8 @@ export const applicationListQuerySchema = z.object({
   companyId: idSchema.optional(),
   resumeId: idSchema.optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type ApplicationListQuery = z.infer<typeof applicationListQuerySchema>
 
@@ -331,7 +333,8 @@ export const questionListQuerySchema = z.object({
   companyId: idSchema.optional(),
   applicationId: idSchema.optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type QuestionListQuery = z.infer<typeof questionListQuerySchema>
 

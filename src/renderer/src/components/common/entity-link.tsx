@@ -14,6 +14,7 @@ import {
   ItemMedia,
   ItemTitle
 } from '@/components/ui/item'
+import { FavoriteMark } from './favorite-mark'
 
 export function useOpenEntity(): (ref: Pick<EntitySummary, 'type' | 'id'>) => void {
   const navigate = useNavigate()
@@ -48,8 +49,9 @@ export function EntityRow({
           <Icon />
         </ItemMedia>
         <ItemContent className="min-w-0 gap-0.5">
-          <ItemTitle className="w-full truncate text-body" title={item.title}>
-            {item.title}
+          <ItemTitle className="w-full gap-1.5 text-body" title={item.title}>
+            <span className="truncate">{item.title}</span>
+            <FavoriteMark entity={item} />
           </ItemTitle>
           {/* line-clamp-1, not truncate: ItemDescription's own line-clamp-2 wins over truncate and wrapped the meta.
               «Тип · деталь», the same separator as the link picker above it. break-all: a long word with no

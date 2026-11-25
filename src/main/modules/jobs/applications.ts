@@ -194,13 +194,14 @@ export class Applications {
         const q = applicationListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
         return this.enrich(
-          apps.listWhere(
+          apps.listFavoritesFirst(
             [
               q.status ? eq(applications.status, q.status) : undefined,
               q.boardId ? eq(applications.boardId, q.boardId) : undefined,
               q.companyId ? eq(applications.companyId, q.companyId) : undefined,
               q.resumeId ? eq(applications.resumeId, q.resumeId) : undefined,
               apps.hasTag(q.tagId),
+              apps.onlyFavorites(q.favorite),
               apps.matches(q.search, [
                 applications.title,
                 applications.companyName,

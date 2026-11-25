@@ -1,6 +1,6 @@
 import { pageSchema } from '@shared/domain/common'
 /** Visual modules: UI components (code + live preview + cover) and design references with moodboards. */
-import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import type { ComponentsApi, DesignsApi, MoodboardsApi } from '@shared/api'
 import {
@@ -22,15 +22,17 @@ import {
   designPatchSchema,
   fileSourceSchema,
   moodboardInputSchema,
+  moodboardListQuerySchema,
   moodboardPatchSchema,
   type Design,
   type DesignCountsQuery,
   type DesignKind,
   type Moodboard,
   type MoodboardInput,
+  type MoodboardListQuery,
   type MoodboardPatch
 } from '@shared/domain/designs'
-import { designs, moodboardItems, moodboards, uiComponents } from '../db/schema'
+import { designs, moodboardItems, moodboards, pins, uiComponents } from '../db/schema'
 import type { Orm } from '../db/client'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
@@ -39,6 +41,7 @@ import { nextPosition, reorder } from '../core/ordering'
 import { idArg, orderedIds, splitTags, updateArgs, type ModuleContext } from './context'
 import { createCrudApi } from './crud'
 import { hostOf } from '@shared/url'
+import { designTitleOf } from '@shared/design-title'
 
 type ComponentRow = typeof uiComponents.$inferSelect
 type DesignRow = typeof designs.$inferSelect
@@ -74,7 +77,7 @@ export class MediaModule {
   readonly designRepo: SoftRepository<DesignRow, Design>
   readonly moodboardRepo: SoftRepository<
     MoodboardRow,
-    Omit<Moodboard, 'itemCount' | 'previewPaths'>
+    Omit<Moodboard, 'itemCount' | 'previewPaths' | 'favorite'>
   >
 
   constructor(private readonly m: ModuleContext) {
@@ -97,8 +100,9 @@ export class MediaModule {
         title: r.title || hostOf(r.sourceUrl) || 'Дизайн',
         body: `${r.notes}\n${r.sourceUrl}\n${DESIGN_KIND_LABEL[r.kind as DesignKind]}`
       }),
+      // The same name as the gallery tile: own title, the site, or «Знімок 24 листопада о 19:22».
       summary: (r) => ({
-        title: r.title || hostOf(r.sourceUrl) || 'Без назви',
+        title: designTitleOf(r as DesignRow),
         subtitle: DESIGN_KIND_LABEL[r.kind as DesignKind]
       }),
       onPurge: (r) => m.files.remove(r.imagePath),
@@ -151,6 +155,7 @@ export class MediaModule {
         query: componentListQuerySchema,
         where: (q) => [
           repo.hasTag(q.tagId),
+          repo.onlyFavorites(q.favorite),
           repo.matches(q.search, [uiComponents.title, uiComponents.description, uiComponents.code])
         ]
       }),
@@ -212,6 +217,7 @@ export class MediaModule {
     return [
       inBoard,
       repo.hasTag(q.tagId),
+      repo.onlyFavorites(q.favorite),
       repo.matches(q.search, [designs.title, designs.notes, designs.sourceUrl]),
       q.color ? sql`vault_color_near(${designs.colors}, ${q.color}) = 1` : undefined
     ]
@@ -223,7 +229,7 @@ export class MediaModule {
       list: async (query) => {
         const q = designListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        return repo.listWhere(
+        return repo.listFavoritesFirst(
           [q.kind ? eq(designs.kind, q.kind) : undefined, ...this.designFilters(q)],
           undefined,
           page.limit,
@@ -304,29 +310,45 @@ export class MediaModule {
 
   /* ───────── moodboards ───────── */
 
-  private moodboardSummaries(
-    opts: { ids?: string[]; limit?: number; offset?: number; designId?: string } = {}
-  ): Moodboard[] {
+  /** Search over the moodboard title and description (case-insensitive, Cyrillic too: ulower). */
+  private moodboardWhere(search?: string): SQL | undefined {
+    return this.moodboardRepo.matches(search, [moodboards.title, moodboards.description])
+  }
+
+  /**
+   * Moodboards with their cover and counts. Order: favourites first, then boards holding live designs, then
+   * empty ones; each group by last change. «Filled» follows the same rule as `itemCount` (designs in the trash
+   * don't count), so a board whose designs all went to the trash sorts with the empty ones.
+   */
+  private moodboardSummaries(opts: MoodboardListQuery & { ids?: string[] } = {}): Moodboard[] {
+    const filled = sql`exists (select 1 from ${moodboardItems} inner join ${designs} on ${designs.id} = ${moodboardItems.designId} where ${moodboardItems.moodboardId} = ${moodboards.id} and ${designs.deletedAt} is null)`
     const list = this.moodboardRepo.listWhere(
-      [opts.ids ? inArray(moodboards.id, opts.ids) : undefined],
-      undefined,
+      [opts.ids ? inArray(moodboards.id, opts.ids) : undefined, this.moodboardWhere(opts.search)],
+      [this.moodboardRepo.favoritesFirst(), desc(filled), desc(moodboards.updatedAt)],
       opts.limit,
       opts.offset
     )
     if (!list.length) return []
+    const ids = list.map((b) => b.id)
+    const favorites = new Set(
+      this.db
+        .select({ id: pins.entityId })
+        .from(pins)
+        .where(
+          and(
+            eq(pins.entityType, 'moodboard'),
+            eq(pins.kind, 'favorite'),
+            inArray(pins.entityId, ids)
+          )
+        )
+        .all()
+        .map((r) => r.id)
+    )
     const items = this.db
       .select({ moodboardId: moodboardItems.moodboardId, path: designs.imagePath })
       .from(moodboardItems)
       .innerJoin(designs, eq(designs.id, moodboardItems.designId))
-      .where(
-        and(
-          isNull(designs.deletedAt),
-          inArray(
-            moodboardItems.moodboardId,
-            list.map((b) => b.id)
-          )
-        )
-      )
+      .where(and(isNull(designs.deletedAt), inArray(moodboardItems.moodboardId, ids)))
       .orderBy(asc(moodboardItems.position))
       .all()
     const holding = opts.designId
@@ -344,6 +366,7 @@ export class MediaModule {
       return {
         ...b,
         ...(holding ? { contains: holding.has(b.id) } : {}),
+        favorite: favorites.has(b.id),
         itemCount: mine.length,
         previewPaths: mine
           .map((i) => i.path)
@@ -361,10 +384,10 @@ export class MediaModule {
       return found
     }
     return {
-      list: async (query) =>
-        this.moodboardSummaries(
-          pageSchema.extend({ designId: idArg.optional() }).parse(query ?? {})
-        ),
+      list: async (query) => this.moodboardSummaries(moodboardListQuerySchema.parse(query ?? {})),
+      count: async () =>
+        this.db.select({ n: count() }).from(moodboards).where(isNull(moodboards.deletedAt)).get()
+          ?.n ?? 0,
       get: async (id) => this.moodboardSummaries({ ids: [idArg.parse(id)] })[0] ?? null,
       create: async (input: MoodboardInput) => {
         const [data, tagIds] = splitTags(moodboardInputSchema.parse(input))

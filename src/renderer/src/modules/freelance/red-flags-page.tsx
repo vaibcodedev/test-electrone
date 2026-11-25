@@ -38,6 +38,7 @@ import {
 import { AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-kit'
 import { SEVERITY_LABEL } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const FLAG_L = limitsOf(redFlagInputSchema)
 const TITLE_MAX = FLAG_L.title
@@ -256,7 +257,10 @@ export function RedFlagsPage() {
                 <ListItem active={f.id === open} onClick={() => setOpen(f.id)}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="line-clamp-2 text-body font-medium">{f.title}</div>
+                      <div className="flex min-w-0 items-start gap-1.5">
+                        <div className="line-clamp-2 min-w-0 text-body font-medium">{f.title}</div>
+                        <FavoriteMark entity={{ type: 'redflag', id: f.id }} onInk={f.id === open} className="mt-0.5" />
+                      </div>
                       {f.signs && (
                         <ItemDescription className="mt-1 line-clamp-2 text-caption">
                           {mdPreview(f.signs)}

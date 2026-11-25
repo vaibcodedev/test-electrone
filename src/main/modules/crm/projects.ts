@@ -42,7 +42,7 @@ export class Projects {
       list: async (query) => {
         const q = projectListQuerySchema.extend(pageSchema.shape).parse(query ?? {})
         return this.summaries.projects(
-          repo.listWhere(
+          repo.listFavoritesFirst(
             [
               q.clientId ? eq(projects.clientId, q.clientId) : undefined,
               q.status ? eq(projects.status, q.status) : undefined,

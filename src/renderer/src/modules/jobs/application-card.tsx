@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { agoLabel, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './labels'
 import { BoardLabel } from './board-label'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 /** Compact vacancy tile for the kanban (shadcn Card + Badge). */
 export const ApplicationCard = forwardRef<
@@ -35,7 +36,10 @@ export const ApplicationCard = forwardRef<
       {...rest}
     >
       <div className="flex flex-col gap-0.5">
-        <span className="line-clamp-2 text-body leading-snug font-medium">{a.title}</span>
+        <span className="flex min-w-0 items-start gap-1.5">
+          <span className="line-clamp-2 min-w-0 text-body leading-snug font-medium">{a.title}</span>
+          <FavoriteMark entity={{ type: 'application', id: a.id }} className="mt-0.5" />
+        </span>
         {a.company && <span className="truncate text-caption text-muted-foreground">{a.company}</span>}
       </div>
       {unscheduled && (

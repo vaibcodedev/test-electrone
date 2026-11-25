@@ -55,7 +55,7 @@ export class Proposals {
       list: async (query) => {
         const q = proposalListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        return repo.listWhere(
+        return repo.listFavoritesFirst(
           [
             q.platformId ? eq(proposals.platformId, q.platformId) : undefined,
             q.status ? eq(proposals.status, q.status) : undefined,

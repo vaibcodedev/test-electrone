@@ -31,6 +31,7 @@ import { LinkInput, TextField } from '@/components/common/text-field'
 import { StarRating } from '@/components/common/star-rating'
 import { APP_STATUS_LABEL, appStatusVariant, salaryLabel } from './labels'
 import { AskedQuestions } from './application-questions'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const LIMITS = limitsOf(companyInputSchema)
 
@@ -264,7 +265,10 @@ export function CompaniesPage(): ReactElement {
           return (
             <ListItem active={active} onClick={() => setOpenId(c.id)}>
               <div className="flex min-w-0 items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-body font-medium">{c.name}</span>
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className="truncate text-body font-medium">{c.name}</span>
+                  <FavoriteMark entity={{ type: 'company', id: c.id }} onInk={active} />
+                </span>
                 {c.rating > 0 && (
                   <span className={cn('flex shrink-0 items-center gap-0.5 text-caption', metaTone)}>
                     <Star className="size-3" />

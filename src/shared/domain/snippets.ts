@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const SNIPPET_LANGUAGES = [
   'typescript',
@@ -32,7 +32,8 @@ export type SnippetPatch = z.input<typeof snippetPatchSchema>
 export const snippetListQuerySchema = z.object({
   language: z.enum(SNIPPET_LANGUAGES).optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type SnippetListQuery = z.infer<typeof snippetListQuerySchema>
 

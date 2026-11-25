@@ -21,6 +21,8 @@ import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenP
 import { Combobox } from '@/components/common/combobox'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagFilter } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { VirtualList } from '@/components/common/virtual-list'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
 import { StatCell } from '@/components/common/stat-tile'
@@ -267,9 +269,10 @@ export function QuestionsPage(): ReactElement {
   const [topic, setTopic] = useState<string | undefined>()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const term = useDebounced(search.trim())
   const [now] = useState(() => Date.now())
-  const base = { search: term || undefined, tagId }
+  const base = { search: term || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server (GROUP BY), not from loading the whole bank.
   const { data: rawCounts, isLoading } = useApi('jobs', 'questionCounts', base)
   // A category with no questions is missing from the server's GROUP BY: 0, so its chip hides.
@@ -288,18 +291,20 @@ export function QuestionsPage(): ReactElement {
     search.trim() && `за запитом «${search.trim()}»`,
     topic && `у темі «${topic}»`,
     category ? `у категорії «${QUESTION_CATEGORY_LABEL[category]}»` : group && `у групі «${QUESTION_GROUP_LABEL[group]}»`,
-    tagId && 'з вибраною міткою'
+    tagId && 'з вибраною міткою',
+    favorite && 'серед обраних'
   ].filter((f): f is string => !!f)
   const resetFilters = (): void => {
     setGroup(undefined)
     setCategory(undefined)
     setTopic(undefined)
     setTagId(undefined)
+    setFavorite(false)
     setSearch('')
   }
 
   // An empty bank has one action — add a question; with a search that matched nothing the header stays put.
-  const emptyBank = !isLoading && !total && !term && !tagId
+  const emptyBank = !isLoading && !total && !term && !tagId && !favorite
 
   const add = (): void => {
     create.mutate(
@@ -354,7 +359,7 @@ export function QuestionsPage(): ReactElement {
         <FilterBar
           chips={
             // An empty bank has nothing to filter by: no «Усі» chip over the empty state.
-            (total > 0 || term || tagId) && (
+            (total > 0 || term || tagId || favorite) && (
               <QuestionCategoryFilter
                 group={group}
                 category={category}
@@ -368,6 +373,7 @@ export function QuestionsPage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="question" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Питання або відповідь" />
             </>
@@ -428,7 +434,10 @@ export function QuestionsPage(): ReactElement {
                 return (
                   <ListItem active={active} onClick={() => setOpen(active ? null : q.id)}>
                     <div className="flex items-start gap-2">
-                      <div className="line-clamp-2 min-w-0 flex-1 text-body font-medium">{q.question}</div>
+                      <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                        <div className="line-clamp-2 min-w-0 text-body font-medium">{q.question}</div>
+                        <FavoriteMark entity={{ type: 'question', id: q.id }} onInk={active} className="mt-0.5" />
+                      </div>
                       {(!q.answer.trim() || isDue) && (
                         <div className="flex shrink-0 gap-1">
                           {/* On the ink row the badges take the TagList tint (docs/design-system.md → Метки). */}

@@ -10,6 +10,8 @@ import { fmtRelative } from '@/lib/format'
 import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageHeader, SearchInput } from '@/components/common/page'
 import { ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { cn } from '@/lib/utils'
 import { ImportButton } from '@/components/common/import-dialog'
 import { Badge } from '@/components/ui/badge'
@@ -65,7 +67,10 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
   return (
     <ListItem active={active} onClick={onClick}>
       <div className="flex items-start gap-2">
-        <span className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium">{idea.title}</span>
+        <span className="flex min-w-0 flex-1 items-start gap-1.5">
+          <span className="line-clamp-2 min-w-0 text-body leading-snug font-medium">{idea.title}</span>
+          <FavoriteMark entity={{ type: 'idea', id: idea.id }} onInk={active} className="mt-0.5" />
+        </span>
         {idea.impact > 0 && (
           <Badge variant="soft" className={cn('shrink-0', ON_INK)}>
             <Flame />
@@ -99,16 +104,17 @@ export function IdeasPage() {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const [status, setStatus] = useState<IdeaStatus | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const { data: settings } = useApi('settings', 'get')
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the list itself is paged + virtualized.
   const { data: counts } = useApi('ideas', 'counts', base)
   const list = useInfiniteApi('ideas', 'list', { ...base, status })
 
   const statusChips = presentChips(IDEA_STATUSES, counts ?? {}, (s) => IDEA_STATUS_LABEL[s], status)
   // The debounced query, not the raw text: otherwise «Нічого не знайдено» flashed before the server answered.
-  const filtered = !!(q || status || tagId)
+  const filtered = !!(q || status || tagId || favorite)
   // No ideas at all: nothing to search or filter, so no filter row above the empty state. Shown while the
   // counts load, so an ordinary page doesn't jump.
   const none = !!counts && !filtered && Object.values(counts).every((n) => !n)
@@ -116,6 +122,7 @@ export function IdeasPage() {
     setSearch('')
     setStatus(undefined)
     setTagId(undefined)
+    setFavorite(false)
   }
 
   return (
@@ -134,6 +141,7 @@ export function IdeasPage() {
             }
             trailing={
               <>
+                <FavoriteFilter type="idea" value={favorite} onChange={setFavorite} />
                 <TagFilter value={tagId} onChange={setTagId} />
                 <SearchInput value={search} onChange={setSearch} placeholder="Пошук ідей" />
               </>
@@ -158,7 +166,7 @@ export function IdeasPage() {
                 empty={
                   !list.isLoading && (
                     filtered ? (
-                      <NoResults hint={noResultsHint(q, !!(status || tagId))} onReset={resetFilters} />
+                      <NoResults hint={noResultsHint(q, !!(status || tagId || favorite))} onReset={resetFilters} />
                     ) : (
                       <EmptyState
                         icon={Lightbulb}

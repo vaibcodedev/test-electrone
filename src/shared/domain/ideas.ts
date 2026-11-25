@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const IDEA_STATUSES = [
   'inbox',
@@ -36,7 +36,8 @@ export type IdeaPatch = z.input<typeof ideaPatchSchema>
 export const ideaListQuerySchema = z.object({
   search: z.string().max(200).optional(),
   status: z.enum(IDEA_STATUSES).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type IdeaListQuery = z.infer<typeof ideaListQuerySchema>
 

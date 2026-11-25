@@ -80,6 +80,7 @@ export class Questions {
     // Search and tag shared by the list and its chip counters: the chips count what the list shows.
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       qs.hasTag(q.tagId),
+      qs.onlyFavorites(q.favorite),
       qs.matches(q.search, [
         interviewQuestions.question,
         interviewQuestions.answer,
@@ -90,7 +91,7 @@ export class Questions {
       questions: async (query) => {
         const q = questionListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        return qs.listWhere(
+        return qs.listFavoritesFirst(
           [
             ...questionCategoryWhere(q),
             q.topic ? eq(interviewQuestions.topic, q.topic) : undefined,

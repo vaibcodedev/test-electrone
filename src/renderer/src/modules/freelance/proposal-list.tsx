@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL, sentLabel } from './proposal-labels'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 /** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
 const COL = {
@@ -98,6 +99,7 @@ export function ProposalList({
                       <Award className="size-3.5 shrink-0 text-warn" aria-label="Сильний відгук" />
                     )}
                     <span className="truncate font-medium">{p.jobTitle}</span>
+                    <FavoriteMark entity={{ type: 'proposal', id: p.id }} />
                   </div>
                 </TableCell>
                 <TableCell className={COL.status}>

@@ -70,7 +70,7 @@ export class Companies {
       companies: async (query) => {
         const q = z.object({ search: z.string().max(200).optional() }).extend(pageSchema.shape).parse(query ?? {})
         return this.withCounts(
-          cos.listWhere(
+          cos.listFavoritesFirst(
             [cos.matches(q.search, [companies.name, companies.stack, companies.notes])],
             [asc(companies.name)],
             q.limit,

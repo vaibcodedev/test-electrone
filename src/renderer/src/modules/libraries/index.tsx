@@ -22,6 +22,8 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/in
 import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { CopyButton } from '@/components/common/copy-button'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { EditHintText } from '@/components/common/detail-mode'
@@ -239,7 +241,10 @@ function LibraryCard({
     return (
       <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-0 px-4 py-3')}>
         <div className="flex min-w-0 items-center gap-3">
-          <span className="min-w-0 flex-1 truncate text-body font-semibold">{lib.name}</span>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="truncate text-body font-semibold">{lib.name}</span>
+            <FavoriteMark entity={{ type: 'library', id: lib.id }} onInk={active} />
+          </span>
           <StatusBadge status={lib.status} onInk={active} />
         </div>
       </Card>
@@ -249,7 +254,10 @@ function LibraryCard({
     <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-3 py-4')}>
       <CardHeader className="gap-1 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="min-w-0 flex-1 truncate text-body font-semibold">{lib.name}</span>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="truncate text-body font-semibold">{lib.name}</span>
+            <FavoriteMark entity={{ type: 'library', id: lib.id }} onInk={active} />
+          </span>
           <StatusBadge status={lib.status} onInk={active} />
         </div>
         <div className={cn('min-h-5 truncate text-caption', muted)}>
@@ -275,9 +283,10 @@ export function LibrariesPage(): ReactElement {
   const [status, setStatus] = useState<LibraryStatus | undefined>()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the rendered grid is paged + virtualized.
   const { data: counts = {} } = useApi('libraries', 'counts', base)
   const list = useInfiniteApi('libraries', 'list', { ...base, status })
@@ -286,10 +295,11 @@ export function LibrariesPage(): ReactElement {
 
   const statusChips = presentChips(LIBRARY_STATUSES, counts, (s) => LIBRARY_STATUS_LABEL[s], status)
   // By the debounced query the list was fetched with (see the empty state below).
-  const filtered = !!(q || tagId || status)
+  const filtered = !!(q || tagId || status || favorite)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
     setStatus(undefined)
   }
 
@@ -325,6 +335,7 @@ export function LibrariesPage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="library" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Назва або призначення" />
             </>
@@ -351,7 +362,7 @@ export function LibrariesPage(): ReactElement {
                 !list.isLoading &&
                 !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={Package} hint={noResultsHint(q, !!(tagId || status))} onReset={resetFilters} />
+                  <NoResults icon={Package} hint={noResultsHint(q, !!(tagId || status || favorite))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
                     icon={Package}

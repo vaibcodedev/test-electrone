@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { Pin, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EntityRef } from '@shared/domain/common'
@@ -13,21 +14,34 @@ const baseCls =
 const pinCls = `${baseCls} on:bg-ink on:text-ink-foreground on:hover:text-ink-foreground on:focus-visible:ring-ink-accent`
 const starCls = `${baseCls} on:bg-warn/15 on:text-warn on:hover:text-warn`
 
+/** A tooltip saying what the toggle does and, on a second quieter line, where the result shows. */
+function TwoLines({ title, hint }: { title: string; hint: string }): ReactElement {
+  return (
+    <span className="flex flex-col">
+      <span>{title}</span>
+      <span className="text-meta opacity-80">{hint}</span>
+    </span>
+  )
+}
+
 /** "Pin to dashboard" + "favorite" toggles for any entity (shadcn Toggle). */
-export function PinButtons({ entity, className }: { entity: EntityRef; className?: string }) {
+export function PinButtons({
+  entity,
+  className
+}: {
+  entity: EntityRef
+  className?: string
+}): ReactElement {
   const { data } = useApi('pins', 'state', entity)
   // The result is the new state: say what happened, a toggle alone is easy to miss.
+  // ★ moves the record to the top of its list: the toast says why the row jumped.
   const toggle = useApiMutation('pins', 'toggle', {
-    onSuccess: (on, { kind }) =>
-      toast.success(
-        kind === 'pin'
-          ? on
-            ? 'Закріплено на головній'
-            : 'Відкріплено з головної'
-          : on
-            ? 'Додано в обране'
-            : 'Прибрано з обраного'
-      )
+    onSuccess: (on, { kind }) => {
+      if (kind === 'pin') toast.success(on ? 'Закріплено на головній' : 'Відкріплено з головної')
+      else if (on)
+        toast.success('Додано в обране', { description: 'Тепер запис першим у своєму розділі' })
+      else toast.success('Прибрано з обраного')
+    }
   })
   return (
     <div className={cn('flex gap-1', className)}>
@@ -44,7 +58,11 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
           </Toggle>
         </TooltipTrigger>
         <TooltipContent>
-          {data?.pin ? 'Відкріпити з головної' : 'Закріпити на головній'}
+          {data?.pin ? (
+            'Відкріпити з головної'
+          ) : (
+            <TwoLines title="Закріпити на головній" hint="Запис з’явиться в картці «Закріплено»" />
+          )}
         </TooltipContent>
       </Tooltip>
       <Tooltip>
@@ -59,7 +77,13 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
             <Star className={cn(data?.favorite && 'fill-current')} />
           </Toggle>
         </TooltipTrigger>
-        <TooltipContent>{data?.favorite ? 'Прибрати з обраного' : 'В обране'}</TooltipContent>
+        <TooltipContent>
+          {data?.favorite ? (
+            'Прибрати з обраного'
+          ) : (
+            <TwoLines title="В обране" hint="Запис стоятиме першим у своєму розділі" />
+          )}
+        </TooltipContent>
       </Tooltip>
     </div>
   )

@@ -36,6 +36,8 @@ import {
 } from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { CopyButton } from '@/components/common/copy-button'
 import { EditHintText } from '@/components/common/detail-mode'
 import { toastTrashed } from '@/components/common/trash-toast'
@@ -221,9 +223,10 @@ export function ClaudePage(): ReactElement {
   const [kind, setKind] = useState<ClaudeKind | undefined>()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the rendered list is paged + virtualized.
   const { data: counts = {} } = useApi('claude', 'counts', base)
   const list = useInfiniteApi('claude', 'list', { ...base, kind })
@@ -233,10 +236,11 @@ export function ClaudePage(): ReactElement {
   const { data: openItem } = useApi('claude', 'get', openId ?? '', { enabled: !!openId })
   const kindChips = presentChips(CLAUDE_KINDS, counts, (k) => KIND_LABEL[k], kind)
   // By the debounced query the list was fetched with (see the empty state below).
-  const filtered = !!(q || tagId || kind)
+  const filtered = !!(q || tagId || kind || favorite)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
     setKind(undefined)
   }
 
@@ -294,6 +298,7 @@ export function ClaudePage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="claude" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Шукати в Claude" />
             </>
@@ -320,7 +325,7 @@ export function ClaudePage(): ReactElement {
                 (filtered ? (
                   <NoResults
                     icon={Sparkles}
-                    hint={noResultsHint(q, !!(tagId || kind))}
+                    hint={noResultsHint(q, !!(tagId || kind || favorite))}
                     onReset={resetFilters}
                   />
                 ) : (
@@ -341,8 +346,9 @@ export function ClaudePage(): ReactElement {
                     {/* Room for the copy button only beside the title and summary: the meta line keeps the full
                         width, so the time lines up with the rows without a button. */}
                     <ListItem active={active} onClick={() => setOpen(i.id)}>
-                      <div className={cn('truncate text-body font-medium', copyable && 'pr-9')}>
-                        {i.title}
+                      <div className={cn('flex min-w-0 items-center gap-1.5', copyable && 'pr-9')}>
+                        <span className="truncate text-body font-medium">{i.title}</span>
+                        <FavoriteMark entity={{ type: 'claude', id: i.id }} onInk={active} />
                       </div>
                       {i.summary && (
                         <div

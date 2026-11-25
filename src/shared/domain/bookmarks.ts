@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const BOOKMARK_KINDS = ['article', 'video', 'course', 'docs', 'repo', 'other'] as const
 export type BookmarkKind = (typeof BOOKMARK_KINDS)[number]
@@ -25,7 +25,8 @@ export const bookmarkListQuerySchema = z.object({
   kind: z.enum(BOOKMARK_KINDS).optional(),
   status: z.enum(BOOKMARK_STATUSES).optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type BookmarkListQuery = z.infer<typeof bookmarkListQuerySchema>
 

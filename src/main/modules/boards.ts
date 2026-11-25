@@ -125,7 +125,7 @@ export class BoardsModule {
   listBoards(opts: { ids?: string[]; limit?: number; offset?: number } = {}): BoardSummary[] {
     const list = this.boardRepo.listWhere(
       [opts.ids ? inArray(boards.id, opts.ids) : undefined],
-      [sql`${boards.archived} ASC`, sql`${boards.updatedAt} DESC`],
+      [sql`${boards.archived} ASC`, this.boardRepo.favoritesFirst(), sql`${boards.updatedAt} DESC`],
       opts.limit,
       opts.offset
     )

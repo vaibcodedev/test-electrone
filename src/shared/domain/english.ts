@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const WORD_KINDS = ['word', 'phrase', 'idiom', 'term'] as const
 export type WordKind = (typeof WORD_KINDS)[number]
@@ -27,7 +27,8 @@ export const wordListQuerySchema = z.object({
   search: z.string().max(200).optional(),
   kind: z.enum(WORD_KINDS).optional(),
   stage: z.enum(WORD_STAGES).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type WordListQuery = z.infer<typeof wordListQuerySchema>
 

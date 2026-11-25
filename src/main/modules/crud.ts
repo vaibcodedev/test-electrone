@@ -33,7 +33,7 @@ export function createCrudApi<
     list: async (query) => {
       const q = (o.query ? o.query.parse(query ?? {}) : {}) as TQuery
       const page = pageSchema.parse(query ?? {})
-      return o.repo.listWhere(o.where?.(q) ?? [], o.orderBy, page.limit, page.offset)
+      return o.repo.listFavoritesFirst(o.where?.(q) ?? [], o.orderBy, page.limit, page.offset)
     },
     get: async (id) => o.repo.get(idArg.parse(id)),
     create: async (input) => {

@@ -100,6 +100,7 @@ export default function Demo() {
   await call('checklists.instantiate', { templateId: tpl.id, title: 'Bloom Store — запуск', projectId: project.id })
 
   await call('pins.toggle', { ref: { type: 'snippet', id: snip.id }, kind: 'pin' })
+  await call('pins.toggle', { ref: { type: 'moodboard', id: mb.id }, kind: 'favorite' })
   const hits = await call('search.query', { text: 'hydro' })
   if (!hits.length) throw new Error('search returned nothing')
   const ov = await call('projects.overview')
@@ -145,7 +146,8 @@ export default function Demo() {
   await call('finance.createWithdrawal', { platformId: upwork.id, amount: 500, fee: 2, rate: 41.5, at: t })
   const rep = await call('finance.month', { month: monthKey })
   if (rep.net.USD !== 1040) throw new Error('net wrong ' + JSON.stringify(rep.net))
-  await call('notes.create', { title: 'Как оформлять счета', folder: 'Работа', body: 'Счёт до 5 числа.' })
+  const invoices = await call('notes.create', { title: 'Как оформлять счета', folder: 'Работа', body: 'Счёт до 5 числа.' })
+  await call('pins.toggle', { ref: { type: 'note', id: invoices.id }, kind: 'favorite' })
   const fov = await call('finance.overview')
   console.log('freelance ok: goals', gp.length, 'profit', JSON.stringify(rep.profit), 'balances', JSON.stringify(fov.platformBalances))
 

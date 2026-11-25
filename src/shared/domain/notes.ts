@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 /** General notes (everything that is not Claude-specific). `folder` is an optional free-text group. */
 export const noteInputSchema = z.object({
@@ -16,7 +16,8 @@ export type NotePatch = z.input<typeof notePatchSchema>
 export const noteListQuerySchema = z.object({
   folder: z.string().max(100).optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type NoteListQuery = z.infer<typeof noteListQuerySchema>
 

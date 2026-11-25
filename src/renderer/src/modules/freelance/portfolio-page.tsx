@@ -44,8 +44,9 @@ import {
   useOpenParam
 } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, Block, EditorStack, TextareaBlock } from '../claude/editor-kit'
-import { DisabledHint } from './disabled-hint'
+import { DisabledHint } from '@/components/common/disabled-hint'
 import { NicheCombobox } from './niche-combobox'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const CASE_L = limitsOf(caseInputSchema)
 
@@ -436,7 +437,10 @@ export function PortfolioPage() {
                     )}
                   </div>
                   <CardContent className="flex flex-1 flex-col gap-1.5 px-2.5 pt-3 pb-1.5">
-                    <div className="truncate text-body font-semibold">{c.title}</div>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-body font-semibold">{c.title}</span>
+                      <FavoriteMark entity={{ type: 'case', id: c.id }} />
+                    </div>
                     {/* Reserved line: cards stay the same height with or without niche/stack. */}
                     <div className="flex h-6 min-w-0 items-center gap-1.5">
                       {c.niche && (

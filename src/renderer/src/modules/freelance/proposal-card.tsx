@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { sentLabel } from './proposal-labels'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 /** Compact proposal tile used on the kanban (composed of shadcn Card + Badge). */
 export const ProposalCard = forwardRef<
@@ -39,6 +40,7 @@ export const ProposalCard = forwardRef<
         <span className="line-clamp-2 min-w-0 flex-1 text-body leading-snug font-medium">
           {p.jobTitle}
         </span>
+        <FavoriteMark entity={{ type: 'proposal', id: p.id }} className="mt-0.5" />
         {p.starred && (
           <Award className="mt-0.5 size-3.5 shrink-0 text-warn" aria-label="Сильний відгук" />
         )}

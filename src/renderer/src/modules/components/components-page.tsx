@@ -17,6 +17,8 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { LivePreview } from '@/components/common/live-preview'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
@@ -110,7 +112,10 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 px-2.5 pt-3 pb-1.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-body font-semibold">{item.title}</span>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="truncate text-body font-semibold">{item.title}</span>
+            <FavoriteMark entity={{ type: 'component', id: item.id }} />
+          </span>
           <Badge variant="outline" className="shrink-0 font-normal text-muted-foreground uppercase">
             {item.language}
           </Badge>
@@ -130,17 +135,24 @@ export function ComponentsPage(): ReactElement {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const q = useDebounced(search.trim())
   // Paged + virtualized: live-preview iframes are heavy, so only visible tiles are mounted.
-  const list = useInfiniteApi('components', 'list', { search: q || undefined, tagId }, 60)
+  const list = useInfiniteApi(
+    'components',
+    'list',
+    { search: q || undefined, tagId, favorite: favorite || undefined },
+    60
+  )
   const create = useApiMutation('components', 'create')
 
   // By the debounced query the list was fetched with: right after «Скинути фільтри» the old empty result is
   // still on screen, and the raw input would flash the empty-base state over it.
-  const filtered = !!(q || tagId)
+  const filtered = !!(q || tagId || favorite)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
   }
 
   const createNew = async (): Promise<void> => {
@@ -170,6 +182,7 @@ export function ComponentsPage(): ReactElement {
         <FilterBar
           trailing={
             <>
+              <FavoriteFilter type="component" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} tone="accent" />
               <SearchInput
                 value={search}
@@ -198,7 +211,7 @@ export function ComponentsPage(): ReactElement {
             !list.isLoading &&
             !list.isPlaceholderData &&
             (filtered ? (
-              <NoResults icon={Component} hint={noResultsHint(q, !!tagId)} onReset={resetFilters} />
+              <NoResults icon={Component} hint={noResultsHint(q, !!(tagId || favorite))} onReset={resetFilters} />
             ) : (
               <EmptyState
                 icon={Component}

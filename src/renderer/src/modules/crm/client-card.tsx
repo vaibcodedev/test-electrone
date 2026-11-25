@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item'
 import { CLIENT_STATUS_BADGE, CLIENT_STATUS_LABEL } from './labels'
 import { AvoidBadge, PlatformBadge } from './platform-fields'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 /** «1 проєкт у роботі з 3», «2 проєкти», «Ще без проєктів». */
 function projectsLine(c: ClientSummary): string {
@@ -51,6 +52,7 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
             <span className="truncate" title={client.name}>
               {client.name}
             </span>
+            <FavoriteMark entity={{ type: 'client', id: client.id }} />
           </ItemTitle>
           {about && (
             <ItemDescription className="line-clamp-1 text-caption" title={about}>

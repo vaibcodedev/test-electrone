@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const LIBRARY_STATUSES = ['used', 'favorite', 'want', 'testing', 'dropped'] as const
 export type LibraryStatus = (typeof LIBRARY_STATUSES)[number]
@@ -31,7 +31,8 @@ export type LibraryPatch = z.input<typeof libraryPatchSchema>
 export const libraryListQuerySchema = z.object({
   status: z.enum(LIBRARY_STATUSES).optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type LibraryListQuery = z.infer<typeof libraryListQuerySchema>
 

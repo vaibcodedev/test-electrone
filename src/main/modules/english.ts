@@ -123,11 +123,12 @@ export class EnglishModule {
       list: async (query) => {
         const q = wordListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        return repo.listWhere(
+        return repo.listFavoritesFirst(
           [
             q.kind ? eq(words.kind, q.kind) : undefined,
             q.stage ? stageWhere(q.stage) : undefined,
             repo.hasTag(q.tagId),
+            repo.onlyFavorites(q.favorite),
             repo.matches(q.search, [words.term, words.translation, words.example, words.context])
           ],
           undefined,

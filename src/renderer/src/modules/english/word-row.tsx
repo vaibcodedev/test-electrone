@@ -3,6 +3,7 @@ import type { Word } from '@shared/domain/english'
 import { fmtDay } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ListItem } from '@/components/common/master-detail'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { KIND_LABEL, STAGE_COLOR, STAGE_LABEL_ONE } from './labels'
 
 /** A word in the dictionary: term + kind on top, translation, the work sentence it came from, then stage and due. */
@@ -32,6 +33,7 @@ export function WordRow({
     >
       <div className="flex items-baseline gap-2">
         <span className="font-display min-w-0 truncate text-heading leading-tight">{w.term}</span>
+        <FavoriteMark entity={{ type: 'word', id: w.id }} onInk={active} className="self-center" />
         {w.transcription && (
           <span className={cn('truncate text-caption', muted)}>{w.transcription}</span>
         )}

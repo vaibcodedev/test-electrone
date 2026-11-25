@@ -47,6 +47,7 @@ export class IdeasModule {
     // Search and tag shared by the list and its chip counters: the chips count what the list shows.
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       this.repo.hasTag(q.tagId),
+      this.repo.onlyFavorites(q.favorite),
       this.repo.matches(q.search, [ideas.title, ideas.body])
     ]
     return {
@@ -55,7 +56,7 @@ export class IdeasModule {
       list: async (query) => {
         const q = ideaListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        return this.repo.listWhere(
+        return this.repo.listFavoritesFirst(
           [q.status ? eq(ideas.status, q.status) : undefined, ...filters(q)],
           [sql`${ideas.impact} DESC`, sql`${ideas.updatedAt} DESC`],
           page.limit,

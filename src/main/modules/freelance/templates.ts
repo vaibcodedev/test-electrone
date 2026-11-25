@@ -71,7 +71,7 @@ export class Templates {
           })
           .parse(query ?? {})
         return this.withStats(
-          repo.listWhere(
+          repo.listFavoritesFirst(
             [
               q.situation ? eq(messageTemplates.situation, q.situation) : undefined,
               repo.hasTag(q.tagId),

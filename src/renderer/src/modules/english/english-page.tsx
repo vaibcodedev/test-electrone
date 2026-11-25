@@ -25,6 +25,7 @@ import {
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { ProgressLine } from '@/components/common/progress-line'
 import { TagFilter } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -64,17 +65,25 @@ export function EnglishPage(): ReactElement {
   const [stage, setStage] = useState<WordStage | undefined>()
   const [kind, setKind] = useState<WordKind | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
-  const filtered = !!(search || stage || kind || tagId)
+  const [favorite, setFavorite] = useState(false)
+  const filtered = !!(search || stage || kind || tagId || favorite)
   const resetFilters = (): void => {
     setSearch('')
     setStage(undefined)
     setKind(undefined)
     setTagId(undefined)
+    setFavorite(false)
   }
 
   const { data: stats, dataUpdatedAt: statsUpdatedAt } = useApi('english', 'stats')
   const q = useDebounced(search.trim())
-  const list = useInfiniteApi('english', 'list', { search: q || undefined, stage, kind, tagId })
+  const list = useInfiniteApi('english', 'list', {
+    search: q || undefined,
+    stage,
+    kind,
+    tagId,
+    favorite: favorite || undefined
+  })
   const { data: openWord } = useApi('english', 'get', open ?? '', { enabled: !!open })
 
   // The clock is the time of the last fetch: render stays pure, every row of a list reads «due» against the
@@ -172,6 +181,7 @@ export function EnglishPage(): ReactElement {
                     ))}
                   </SelectContent>
                 </Select>
+                <FavoriteFilter type="word" value={favorite} onChange={setFavorite} />
                 <TagFilter value={tagId} onChange={setTagId} />
                 <SearchInput
                   value={search}
@@ -204,7 +214,7 @@ export function EnglishPage(): ReactElement {
                 (hasWords && filtered ? (
                   <NoResults
                     icon={Languages}
-                    hint={noResultsHint(search, !!(stage || kind || tagId))}
+                    hint={noResultsHint(search, !!(stage || kind || tagId || favorite))}
                     onReset={resetFilters}
                   />
                 ) : (

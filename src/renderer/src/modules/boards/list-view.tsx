@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { DueChip } from './card-tile'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 /** Cards as table rows (shadcn Table), grouped by column. */
 export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpenCard: (id: string) => void }) {
@@ -42,9 +43,12 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
                             />
                           </TableCell>
                           <TableCell
-                            className={cn('w-full max-w-0 truncate text-body', col.isDone && 'text-muted-foreground line-through')}
+                            className={cn('w-full max-w-0 text-body', col.isDone && 'text-muted-foreground line-through')}
                           >
-                            {c.title}
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className="truncate">{c.title}</span>
+                              <FavoriteMark entity={{ type: 'card', id: c.id }} />
+                            </span>
                           </TableCell>
                           <TableCell>
                             <TagList tags={c.tags} max={2} className="flex-nowrap" />

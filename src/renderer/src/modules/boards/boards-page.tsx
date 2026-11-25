@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useUi } from '@/stores/ui-store'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const LIMITS = limitsOf(boardInputSchema)
 
@@ -90,12 +91,15 @@ function BoardTile({ board }: { board: BoardSummary }) {
         aria-label={board.title}
       />
       {/* The title is always first, so titles of one row line up whatever badges a board has. */}
-      <CardTitle
-        title={board.title}
-        className="font-display line-clamp-2 text-stat-sm leading-tight font-normal text-foreground"
-      >
-        {board.title}
-      </CardTitle>
+      <div className="flex min-w-0 items-start gap-1.5">
+        <CardTitle
+          title={board.title}
+          className="font-display line-clamp-2 min-w-0 text-stat-sm leading-tight font-normal text-foreground"
+        >
+          {board.title}
+        </CardTitle>
+        <FavoriteMark entity={{ type: 'board', id: board.id }} className="mt-1.5" />
+      </div>
       {board.description && (
         <CardDescription className="mt-1 line-clamp-2 text-caption">
           {mdPreview(board.description)}

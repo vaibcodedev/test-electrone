@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card as UiCard } from '@/components/ui/card'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { hasTime, isOverdue } from './use-card-param'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 export function DueChip({
   dueAt,
@@ -72,6 +73,7 @@ export const CardTile = forwardRef<
         >
           {card.title}
         </span>
+        <FavoriteMark entity={{ type: 'card', id: card.id }} className="mt-0.5" />
       </div>
       {card.description.trim() && (
         <p

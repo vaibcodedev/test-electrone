@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const COMPONENT_LANGUAGES = ['tsx', 'jsx', 'html'] as const
 export type ComponentLanguage = (typeof COMPONENT_LANGUAGES)[number]
@@ -22,7 +22,8 @@ export type ComponentPatch = z.input<typeof componentPatchSchema>
 
 export const componentListQuerySchema = z.object({
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type ComponentListQuery = z.infer<typeof componentListQuerySchema>
 

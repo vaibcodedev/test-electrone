@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const fixInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
@@ -20,7 +20,8 @@ export type FixPatch = z.input<typeof fixPatchSchema>
 export const fixListQuerySchema = z.object({
   search: z.string().max(200).optional(),
   tagId: idSchema.optional(),
-  resolved: z.boolean().optional()
+  resolved: z.boolean().optional(),
+  ...favoriteFilter
 })
 export type FixListQuery = z.infer<typeof fixListQuerySchema>
 

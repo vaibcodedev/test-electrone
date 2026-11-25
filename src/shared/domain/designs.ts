@@ -2,11 +2,12 @@ import { z } from 'zod'
 import { MAX } from './limits'
 import {
   hexColorSchema,
-  idSchema,
+  favoriteFilter, idSchema,
   urlSchema,
   withTagIds,
   type EntityBase,
   type WithTags,
+  pageSchema,
   patchOf
 } from './common'
 
@@ -34,7 +35,8 @@ export const designListQuerySchema = z.object({
   search: z.string().max(200).optional(),
   tagId: idSchema.optional(),
   color: hex.optional(),
-  moodboardId: idSchema.optional()
+  moodboardId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type DesignListQuery = z.infer<typeof designListQuerySchema>
 /** `designs.counts`: the list filters except the kind itself — counts for the kind chips. */
@@ -75,6 +77,15 @@ export const moodboardInputSchema = z.object({
 export const moodboardPatchSchema = patchOf(moodboardInputSchema)
 export type MoodboardInput = z.input<typeof moodboardInputSchema>
 export type MoodboardPatch = z.input<typeof moodboardPatchSchema>
+/**
+ * `moodboards.list`: favourites first, then boards with designs, then empty ones (each by last change).
+ * `designId` adds `contains`; `search` looks in the title and description.
+ */
+export const moodboardListQuerySchema = pageSchema.extend({
+  designId: idSchema.optional(),
+  search: z.string().max(200).optional()
+})
+export type MoodboardListQuery = z.infer<typeof moodboardListQuerySchema>
 
 export interface Moodboard extends EntityBase, WithTags {
   title: string
@@ -83,6 +94,8 @@ export interface Moodboard extends EntityBase, WithTags {
   itemCount: number
   /** First few image paths for the cover mosaic. */
   previewPaths: string[]
+  /** In «Обране» (pins kind 'favorite'): the star on the tile and first place in the row. */
+  favorite: boolean
   /** Only when listed for a design (`moodboards.list({ designId })`): that design is in this moodboard. */
   contains?: boolean
 }

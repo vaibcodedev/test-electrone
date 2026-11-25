@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import { favoriteFilter, idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
 
 export const CLAUDE_KINDS = ['note', 'branch', 'skill', 'plugin', 'guide', 'prompt'] as const
 export type ClaudeKind = (typeof CLAUDE_KINDS)[number]
@@ -32,7 +32,8 @@ export type ClaudePatch = z.input<typeof claudePatchSchema>
 export const claudeListQuerySchema = z.object({
   kind: z.enum(CLAUDE_KINDS).optional(),
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type ClaudeListQuery = z.infer<typeof claudeListQuerySchema>
 

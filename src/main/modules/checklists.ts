@@ -1,6 +1,6 @@
 import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { pageSchema } from '@shared/domain/common'
+import { favoriteFilter, pageSchema } from '@shared/domain/common'
 import type { ChecklistsApi } from '@shared/api'
 import {
   CHECKLIST_KINDS,
@@ -237,15 +237,17 @@ export class ChecklistsModule {
           .object({
             kind: z.enum(CHECKLIST_KINDS).optional(),
             search: z.string().max(200).optional(),
-            tagId: idArg.optional()
+            tagId: idArg.optional(),
+            ...favoriteFilter
           })
           .extend(pageSchema.shape)
           .parse(args ?? {})
         return this.withCounts(
-          repo.listWhere(
+          repo.listFavoritesFirst(
             [
               q.kind ? eq(checklists.kind, q.kind) : undefined,
               repo.hasTag(q.tagId),
+              repo.onlyFavorites(q.favorite),
               repo.matches(q.search, [checklists.title, checklists.description])
             ],
             undefined,

@@ -30,6 +30,7 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { TagFilter } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { ImportButton } from '@/components/common/import-dialog'
 import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
@@ -44,9 +45,10 @@ export function BookmarksPage(): ReactElement | null {
   const [kind, setKind] = useState<BookmarkKind | undefined>()
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // The chip counters are counted by the server: statuses within the chosen kind, kinds over all of them.
   const { data: counts, isPending: countsPending } = useApi('bookmarks', 'counts', {
     ...base,
@@ -61,12 +63,13 @@ export function BookmarksPage(): ReactElement | null {
   const kindCounts = counts?.byKind ?? {}
   const usedKinds = BOOKMARK_KINDS.filter((k) => kindCounts[k])
 
-  const filtered = !!(search.trim() || tagId || status || kind)
+  const filtered = !!(search.trim() || tagId || status || kind || favorite)
   // No row of filters over an empty base (it stays while the counts load: nothing jumps).
   const showFilters = countsPending || usedKinds.length > 0 || filtered
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
     setStatus(undefined)
     setKind(undefined)
   }
@@ -137,6 +140,7 @@ export function BookmarksPage(): ReactElement | null {
                     </SelectContent>
                   </Select>
                 )}
+                <FavoriteFilter type="bookmark" value={favorite} onChange={setFavorite} />
                 <TagFilter value={tagId} onChange={setTagId} />
                 <SearchInput
                   value={search}
@@ -165,7 +169,7 @@ export function BookmarksPage(): ReactElement | null {
                 (filtered ? (
                   <NoResults
                     icon={BookmarkIcon}
-                    hint={noResultsHint(search, !!(tagId || status || kind))}
+                    hint={noResultsHint(search, !!(tagId || status || kind || favorite))}
                     onReset={resetFilters}
                   />
                 ) : (

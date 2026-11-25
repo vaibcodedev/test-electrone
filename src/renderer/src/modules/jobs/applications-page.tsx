@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { TagFilter } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { Choice } from '@/components/common/choice'
 import { CompanyCombobox, type CompanyValue } from './j1-fields'
 import { agoLabel } from './labels'
@@ -148,12 +149,13 @@ export function ApplicationsPage(): ReactElement {
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [resumeId, setResumeId] = useState<string | null>(null)
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [openId, setOpenId] = useOpenParam()
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
   const { data: companies = [] } = useApi('jobs', 'companies')
   const { data: resumes = [] } = useApi('jobs', 'resumes')
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, companyId: companyId ?? undefined, resumeId: resumeId ?? undefined, tagId, boardId }
+  const base = { search: q || undefined, companyId: companyId ?? undefined, resumeId: resumeId ?? undefined, tagId, boardId, favorite: favorite || undefined }
   // Kanban needs every card of the filter; the list view pages through the server. Both filter on the server.
   const kanban = useApi('jobs', 'list', base, { enabled: view === 'kanban' })
   const paged = useInfiniteApi('jobs', 'list', base)
@@ -171,14 +173,15 @@ export function ApplicationsPage(): ReactElement {
   const list = kanban.data ?? []
   const isLoading = view === 'kanban' ? kanban.isLoading : paged.isLoading
   const total = view === 'kanban' ? list.length : paged.items.length
-  const filtered = !!(search || boardId || companyId || resumeId || tagId)
+  const filtered = !!(search || boardId || companyId || resumeId || tagId || favorite)
   // What is really narrowing the list, for the «Нічого не знайдено» hint.
   const conditions = [
     search.trim() && `за запитом «${search.trim()}»`,
     boardId && `на майданчику «${boards.find((b) => b.id === boardId)?.name ?? ''}»`,
     companyId && `у компанії «${companies.find((c) => c.id === companyId)?.name ?? ''}»`,
     resumeId && `із резюме «${resumes.find((r) => r.id === resumeId)?.title ?? ''}»`,
-    tagId && 'з вибраною міткою'
+    tagId && 'з вибраною міткою',
+    favorite && 'серед обраних'
   ].filter((c): c is string => !!c)
   const resetFilters = (): void => {
     setSearch('')
@@ -186,6 +189,7 @@ export function ApplicationsPage(): ReactElement {
     setCompanyId(null)
     setResumeId(null)
     setTagId(undefined)
+    setFavorite(false)
   }
 
   return (
@@ -221,6 +225,7 @@ export function ApplicationsPage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="application" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" />
             </>

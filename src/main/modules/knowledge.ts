@@ -178,6 +178,7 @@ export class KnowledgeModule {
     const repo = this.claudeRepo
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       repo.hasTag(q.tagId),
+      repo.onlyFavorites(q.favorite),
       repo.matches(q.search, [claudeItems.title, claudeItems.summary, claudeItems.content])
     ]
     return {
@@ -211,6 +212,7 @@ export class KnowledgeModule {
     const repo = this.libraryRepo
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       repo.hasTag(q.tagId),
+      repo.onlyFavorites(q.favorite),
       repo.matches(q.search, [libraries.name, libraries.purpose, libraries.notes])
     ]
     return {
@@ -237,6 +239,7 @@ export class KnowledgeModule {
     const repo = this.snippetRepo
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       repo.hasTag(q.tagId),
+      repo.onlyFavorites(q.favorite),
       repo.matches(q.search, [snippets.title, snippets.description, snippets.code])
     ]
     return {
@@ -269,6 +272,7 @@ export class KnowledgeModule {
     const repo = this.fixRepo
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       repo.hasTag(q.tagId),
+      repo.onlyFavorites(q.favorite),
       repo.matches(q.search, [fixes.title, fixes.errorText, fixes.solution, fixes.context])
     ]
     return {
@@ -300,6 +304,7 @@ export class KnowledgeModule {
         where: (q) => [
           q.folder !== undefined ? eq(notes.folder, q.folder) : undefined,
           repo.hasTag(q.tagId),
+          repo.onlyFavorites(q.favorite),
           repo.matches(q.search, [notes.title, notes.body])
         ]
       }),
@@ -313,7 +318,11 @@ export class KnowledgeModule {
           .sort((a, b) => a.localeCompare(b, 'uk')),
       folderCounts: async (query) => {
         const q = chipCountsQuerySchema.parse(query ?? {})
-        const where = [repo.hasTag(q.tagId), repo.matches(q.search, [notes.title, notes.body])]
+        const where = [
+          repo.hasTag(q.tagId),
+          repo.onlyFavorites(q.favorite),
+          repo.matches(q.search, [notes.title, notes.body])
+        ]
         return Object.entries(repo.countBy(notes.folder, where))
           .map(([folder, count]) => ({ folder, count }))
           .sort((a, b) => a.folder.localeCompare(b.folder, 'uk'))
@@ -325,6 +334,7 @@ export class KnowledgeModule {
     const repo = this.bookmarkRepo
     const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
       repo.hasTag(q.tagId),
+      repo.onlyFavorites(q.favorite),
       repo.matches(q.search, [bookmarks.title, bookmarks.url, bookmarks.notes])
     ]
     return {

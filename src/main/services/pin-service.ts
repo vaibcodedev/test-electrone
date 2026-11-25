@@ -33,6 +33,27 @@ export class PinService {
     })
   }
 
+  /** Live records with the mark, ids only (★ marks and the «Обране» chip in lists): no summaries, no trash. */
+  refs(kind: PinKind): EntityRef[] {
+    const rows = this.ctx.orm
+      .select({ type: pins.entityType, id: pins.entityId })
+      .from(pins)
+      .where(eq(pins.kind, kind))
+      .orderBy(asc(pins.position), asc(pins.createdAt))
+      .all()
+    const byType = new Map<EntityType, string[]>()
+    for (const r of rows) {
+      const type = r.type as EntityType
+      const ids = byType.get(type) ?? []
+      ids.push(r.id)
+      byType.set(type, ids)
+    }
+    const alive = new Map([...byType].map(([type, ids]) => [type, this.registry.liveIds(type, ids)]))
+    return rows
+      .filter((r) => alive.get(r.type as EntityType)?.has(r.id))
+      .map((r) => ({ type: r.type as EntityType, id: r.id }))
+  }
+
   private where(ref: EntityRef, kind: PinKind): SQL | undefined {
     return and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id), eq(pins.kind, kind))
   }
@@ -92,6 +113,7 @@ export class PinService {
     const kindArg = z.enum(PIN_KINDS)
     return {
       list: async (kind) => this.list(kindArg.optional().parse(kind)),
+      refs: async (kind) => this.refs(kindArg.parse(kind)),
       toggle: async (args) => {
         const { ref, kind } = z.object({ ref: entityRefSchema, kind: kindArg }).parse(args)
         if (!this.registry.findRow(ref))

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { APP_STATUS_LABEL, appStatusVariant, CLOSED_APP_STATUSES, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './labels'
 import { BoardLabel } from './board-label'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 /** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
 const COL = {
@@ -81,7 +82,12 @@ export function ApplicationList({
                   onKeyDown={(e) => e.key === 'Enter' && onOpen(a.id)}
                   className={cn('cursor-pointer border-b!', closed && 'text-muted-foreground')}
                 >
-                  <TableCell className="truncate font-medium">{a.title}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate">{a.title}</span>
+                      <FavoriteMark entity={{ type: 'application', id: a.id }} />
+                    </span>
+                  </TableCell>
                   <TableCell className={cn(COL.company, 'truncate')}>{a.company || '—'}</TableCell>
                   <TableCell className={COL.status}>
                     <Badge variant={appStatusVariant(a.status)}>

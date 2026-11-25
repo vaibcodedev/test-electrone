@@ -17,6 +17,8 @@ import {
 } from '@/components/common/page'
 import { ProgressLine } from '@/components/common/progress-line'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { ImportButton } from '@/components/common/import-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,12 +51,15 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
       className="group tile h-full min-h-47.5 gap-0 p-5"
     >
       <div className="min-w-0">
-        <CardTitle
-          title={item.title}
-          className="font-display line-clamp-2 text-stat-sm leading-tight font-normal"
-        >
-          {item.title}
-        </CardTitle>
+        <div className="flex min-w-0 items-start gap-1.5">
+          <CardTitle
+            title={item.title}
+            className="font-display line-clamp-2 min-w-0 text-stat-sm leading-tight font-normal"
+          >
+            {item.title}
+          </CardTitle>
+          <FavoriteMark entity={{ type: 'checklist', id: item.id }} className="mt-1.5" />
+        </div>
         {item.description && (
           <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
             {mdPreview(item.description)}
@@ -101,12 +106,15 @@ function RunCard({ item }: { item: Checklist }) {
   const complete = item.total > 0 && item.done === item.total
   return (
     <Card {...clickableProps(open)} className="tile h-full min-h-37.5 gap-0 p-5">
-      <CardTitle
-        title={item.title}
-        className="font-display line-clamp-2 text-stat-sm leading-tight font-normal"
-      >
-        {item.title}
-      </CardTitle>
+      <div className="flex min-w-0 items-start gap-1.5">
+        <CardTitle
+          title={item.title}
+          className="font-display line-clamp-2 min-w-0 text-stat-sm leading-tight font-normal"
+        >
+          {item.title}
+        </CardTitle>
+        <FavoriteMark entity={{ type: 'checklist', id: item.id }} className="mt-1.5" />
+      </div>
       <div className="mt-auto flex flex-col gap-2 pt-4">
         <div className="flex items-center justify-between gap-2">
           <Badge variant={complete ? 'success' : 'info'}>{complete ? 'Готово' : 'У процесі'}</Badge>
@@ -129,11 +137,17 @@ export function ChecklistsPage() {
   const tab: Tab = params.get('tab') === 'runs' ? 'run' : 'template'
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [launch, setLaunch] = useState<{ id: string; title: string } | null>(null)
   const navigate = useNavigate()
   const q = useDebounced(search.trim())
-  const filtered = !!(q || tagId)
-  const page = useInfiniteApi('checklists', 'list', { kind: tab, search: q || undefined, tagId })
+  const filtered = !!(q || tagId || favorite)
+  const page = useInfiniteApi('checklists', 'list', {
+    kind: tab,
+    search: q || undefined,
+    tagId,
+    favorite: favorite || undefined
+  })
   const { data: counts } = useApi('checklists', 'counts')
   const create = useApiMutation('checklists', 'create', {
     onSuccess: (c) => navigate(`/checklists/${c.id}`)
@@ -173,6 +187,7 @@ export function ChecklistsPage() {
           }
           trailing={
             <>
+              <FavoriteFilter type="checklist" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" />
             </>
@@ -200,10 +215,11 @@ export function ChecklistsPage() {
             !page.isLoading &&
             (filtered ? (
               <NoResults
-                hint={noResultsHint(q, !!tagId)}
+                hint={noResultsHint(q, !!(tagId || favorite))}
                 onReset={() => {
                   setSearch('')
                   setTagId(undefined)
+                  setFavorite(false)
                 }}
               />
             ) : tab === 'template' ? (

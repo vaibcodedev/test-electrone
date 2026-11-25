@@ -21,6 +21,7 @@ import {
 } from './labels'
 import { Meter } from './parts'
 import { PlatformName } from './platform-fields'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const muted = (text: string): ReactNode => <span className="text-muted-foreground">{text}</span>
 
@@ -172,6 +173,7 @@ export function ProjectRow({
             <span className="truncate text-body font-semibold" title={project.title}>
               {project.title}
             </span>
+            <FavoriteMark entity={{ type: 'project', id: project.id }} />
             <Badge variant={PROJECT_STATUS_BADGE[project.status]} className="shrink-0">
               {PROJECT_STATUS_LABEL[project.status]}
             </Badge>

@@ -16,6 +16,8 @@ import { EditHintText } from '@/components/common/detail-mode'
 import { toastTrashed } from '@/components/common/trash-toast'
 import { noResultsHint } from '@/components/common/filter-helpers'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
 
@@ -101,11 +103,12 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }): Rea
 export function NotesPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [folder, setFolder] = useState<string | undefined>()
   const [openId, setOpen] = useOpenParam()
   const { data: folders = [] } = useApi('notes', 'folders')
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   const list = useInfiniteApi('notes', 'list', {
     ...base,
     folder: folder === undefined ? undefined : folder === NO_FOLDER ? '' : folder
@@ -119,7 +122,7 @@ export function NotesPage(): ReactElement {
   const countIn = (f: string): number => all.filter((n) => n.folder === f).length
   const unfiled = countIn('')
   // By the debounced query the list was fetched with (see the empty state below).
-  const filtered = !!(q || tagId || folder)
+  const filtered = !!(q || tagId || folder || favorite)
   // The selected folder stays a chip even when it has just been emptied, so the active filter is visible.
   const folderChips = [
     ...folders.map((f) => ({ value: f, label: f, count: countIn(f) })),
@@ -130,6 +133,7 @@ export function NotesPage(): ReactElement {
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
     setFolder(undefined)
   }
 
@@ -163,6 +167,7 @@ export function NotesPage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="note" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Шукати в нотатках" />
             </>
@@ -186,7 +191,7 @@ export function NotesPage(): ReactElement {
                 !list.isLoading &&
                 !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={NotebookPen} hint={noResultsHint(q, !!(tagId || folder))} onReset={resetFilters} />
+                  <NoResults icon={NotebookPen} hint={noResultsHint(q, !!(tagId || folder || favorite))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
                     icon={NotebookPen}
@@ -201,7 +206,10 @@ export function NotesPage(): ReactElement {
                 const text = mdPreview(n.body)
                 return (
                   <ListItem active={active} onClick={() => setOpen(n.id)}>
-                    <div className="truncate text-body font-medium">{n.title}</div>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-body font-medium">{n.title}</span>
+                      <FavoriteMark entity={{ type: 'note', id: n.id }} onInk={active} />
+                    </div>
                     {text && (
                       <div className={cn('mt-1 line-clamp-2 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
                         {text}

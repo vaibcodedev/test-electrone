@@ -108,7 +108,6 @@ export class DashboardService {
           .filter((i) => i.source !== 'card')
       },
       pinned: this.pins.list('pin'),
-      favorites: this.pins.list('favorite'),
       recent: this.recent(10),
       inboxIdeas: this.mods.ideas.repo.listWhere([eq(ideas.status, 'inbox')], undefined, 6),
       reading: this.mods.knowledge.bookmarkRepo.listWhere(

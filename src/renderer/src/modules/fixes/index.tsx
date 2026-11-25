@@ -27,6 +27,8 @@ import { ShowMore } from '@/components/common/show-more'
 import { toastTrashed } from '@/components/common/trash-toast'
 import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import {
   DetailPane,
   EntityAside,
@@ -167,10 +169,11 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }): ReactEl
 export function FixesPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [resolved, setResolved] = useState<ResolvedFilter | undefined>()
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the rendered list is paged + virtualized.
   const { data: stateCounts } = useApi('fixes', 'counts', base)
   const list = useInfiniteApi('fixes', 'list', {
@@ -187,10 +190,11 @@ export function FixesPage(): ReactElement {
     resolved
   )
   // By the debounced query the list was fetched with (see the empty state below).
-  const filtered = !!(q || tagId || resolved)
+  const filtered = !!(q || tagId || resolved || favorite)
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
     setResolved(undefined)
   }
 
@@ -228,6 +232,7 @@ export function FixesPage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="fix" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput
                 value={search}
@@ -257,7 +262,7 @@ export function FixesPage(): ReactElement {
                 (filtered ? (
                   <NoResults
                     icon={Bug}
-                    hint={noResultsHint(q, !!(tagId || resolved))}
+                    hint={noResultsHint(q, !!(tagId || resolved || favorite))}
                     onReset={resetFilters}
                   />
                 ) : (
@@ -276,7 +281,10 @@ export function FixesPage(): ReactElement {
                   <ListItem active={active} onClick={() => setOpen(f.id)}>
                     {/* Height follows content: title line, optional error line, one meta line (status · place · tags … time).
                         Only the unresolved state is marked: as a badge, not a coloured dot (docs/design-system.md → Чипы и строки). */}
-                    <div className="truncate text-body font-medium">{f.title}</div>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-body font-medium">{f.title}</span>
+                      <FavoriteMark entity={{ type: 'fix', id: f.id }} onInk={active} />
+                    </div>
                     {line && (
                       <div
                         className={cn(

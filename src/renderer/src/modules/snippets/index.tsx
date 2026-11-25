@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { EmptyState, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { FavoriteFilter } from '@/components/common/favorite-filter'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { CopyButton } from '@/components/common/copy-button'
 import { EditHintText } from '@/components/common/detail-mode'
 import { toastTrashed } from '@/components/common/trash-toast'
@@ -177,7 +179,10 @@ function SnippetCard({
     >
       <CardHeader className="gap-1 px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="min-w-0 flex-1 truncate text-body font-semibold">{item.title}</span>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="truncate text-body font-semibold">{item.title}</span>
+            <FavoriteMark entity={{ type: 'snippet', id: item.id }} onInk={active} />
+          </span>
           <span className={cn('flex shrink-0 items-center gap-1.5 text-meta', muted)}>
             <span className="size-2 rounded-full" style={{ background: LANGUAGE_COLOR[item.language] }} />
             {LANGUAGE_LABEL[item.language]}
@@ -232,9 +237,10 @@ export function SnippetsPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [language, setLanguage] = useState<SnippetLanguage | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
+  const [favorite, setFavorite] = useState(false)
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, tagId }
+  const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the rendered grid is paged + virtualized.
   const { data: counts = {} } = useApi('snippets', 'counts', base)
   const list = useInfiniteApi('snippets', 'list', { ...base, language })
@@ -243,7 +249,7 @@ export function SnippetsPage(): ReactElement {
 
   const languageChips = presentChips(SNIPPET_LANGUAGES, counts, (l) => LANGUAGE_LABEL[l], language)
   // By the debounced query the list was fetched with (see the empty state below).
-  const filtered = !!(q || tagId || language)
+  const filtered = !!(q || tagId || language || favorite)
   // What «Скопіювати як JSON» would copy: a selected empty language has nothing, so no button (not «[]»).
   const exportCount = language
     ? (counts[language] ?? 0)
@@ -251,6 +257,7 @@ export function SnippetsPage(): ReactElement {
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
+    setFavorite(false)
     setLanguage(undefined)
   }
 
@@ -300,6 +307,7 @@ export function SnippetsPage(): ReactElement {
           }
           trailing={
             <>
+              <FavoriteFilter type="snippet" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
               <SearchInput value={search} onChange={setSearch} placeholder="Назва, опис або код" />
             </>
@@ -329,7 +337,7 @@ export function SnippetsPage(): ReactElement {
                 !list.isLoading &&
                 !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={CodeXml} hint={noResultsHint(q, !!(tagId || language))} onReset={resetFilters} />
+                  <NoResults icon={CodeXml} hint={noResultsHint(q, !!(tagId || language || favorite))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
                     icon={CodeXml}

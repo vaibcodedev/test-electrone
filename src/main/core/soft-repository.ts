@@ -7,6 +7,7 @@ import { entityTags } from '../db/schema'
 import type { TagService } from '../services/tag-service'
 import type { SearchIndex } from '../services/search-index'
 import { hasTraces } from './traces'
+import { favoriteExists } from './favorites'
 import { isDraft, type AnyRow, type EntityDescriptor, type SoftTable } from './registry'
 import { defined, likePattern, newId, now, NotFoundError } from './util'
 
@@ -77,10 +78,15 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
     return rows.map((r) => this.mapRow(r, tagMap.get(r.id) ?? []))
   }
 
+  /** Sort used when a list passes none: last edited first. */
+  protected get defaultOrder(): SQL[] {
+    return [desc(this.table.updatedAt)]
+  }
+
   /** Lists non-deleted rows matching all conditions. */
   listWhere(
     conditions: (SQL | undefined)[],
-    orderBy: SQL[] = [desc(this.table.updatedAt)],
+    orderBy: SQL[] = this.defaultOrder,
     limit?: number,
     offset?: number
   ): TEntity[] {
@@ -97,6 +103,34 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
     else if (offset) q = q.limit(-1)
     if (offset) q = q.offset(offset)
     return this.hydrate(q.all() as TRow[])
+  }
+
+  /**
+   * A section's own list: rows in Обране (★) first, then the usual order. Manual orders (cards, items),
+   * chronology and queues keep `listWhere` — there ★ only marks the row.
+   */
+  listFavoritesFirst(
+    conditions: (SQL | undefined)[],
+    orderBy: SQL[] = this.defaultOrder,
+    limit?: number,
+    offset?: number
+  ): TEntity[] {
+    return this.listWhere(conditions, [this.favoritesFirst(), ...orderBy], limit, offset)
+  }
+
+  /** The row is in Обране. */
+  isFavorite(): SQL {
+    return favoriteExists(this.db, this.type, this.table.id)
+  }
+
+  /** Condition for the «Обране» chip: only favourites when it's on, nothing otherwise. */
+  onlyFavorites(on: boolean | undefined): SQL | undefined {
+    return on ? this.isFavorite() : undefined
+  }
+
+  /** Sort key: favourites first. */
+  favoritesFirst(): SQL {
+    return desc(this.isFavorite())
   }
 
   /**

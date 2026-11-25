@@ -51,10 +51,14 @@ export const pageSchema = z.object({
 })
 export type PageQuery = z.infer<typeof pageSchema>
 
+/** The «Обране» chip of a list: only records with ★ (spread into a section's list and counts schemas). */
+export const favoriteFilter = { favorite: z.boolean().optional() }
+
 /** Filters a list page shares with its chip counters (`counts` methods): the chips count what the search shows. */
 export const chipCountsQuerySchema = z.object({
   search: z.string().max(200).optional(),
-  tagId: idSchema.optional()
+  tagId: idSchema.optional(),
+  ...favoriteFilter
 })
 export type ChipCountsQuery = z.infer<typeof chipCountsQuerySchema>
 

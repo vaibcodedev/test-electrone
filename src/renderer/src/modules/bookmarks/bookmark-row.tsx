@@ -8,6 +8,7 @@ import { ItemMedia } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress'
 import { ListItem } from '@/components/common/master-detail'
 import { TagList } from '@/components/common/tags'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 import { KIND_ICON, KIND_LABEL, STATUS_BADGE, STATUS_LABEL } from './labels'
 
 /** One bookmark in the list: kind icon, title, site, rating, reading progress and status. */
@@ -25,8 +26,11 @@ export function BookmarkRow({ bookmark: b, active, onOpen }: { bookmark: Bookmar
           <Icon />
         </ItemMedia>
         <div className="min-w-0 flex-1">
-          <div className={cn('truncate text-body font-semibold', b.status === 'done' && !active && 'text-muted-foreground')}>
-            {b.title}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className={cn('truncate text-body font-semibold', b.status === 'done' && !active && 'text-muted-foreground')}>
+              {b.title}
+            </span>
+            <FavoriteMark entity={{ type: 'bookmark', id: b.id }} onInk={active} />
           </div>
           <div className={cn('mt-0.5 flex min-w-0 items-center gap-1.5 text-caption', active ? 'text-ink-muted' : 'text-muted-foreground')}>
             <span className="shrink-0">{b.url ? hostOf(b.url) : KIND_LABEL[b.kind]}</span>
