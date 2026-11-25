@@ -1,4 +1,7 @@
+import { toast } from 'sonner'
 import type { FileSource } from '@shared/domain/designs'
+import { api } from './api'
+import { reportError } from './error-reporting'
 
 /** URL for a stored file (served by the vault-file:// protocol from the data folder). */
 export function fileUrl(relPath: string | null | undefined): string | undefined {
@@ -69,4 +72,17 @@ export async function extractPalette(src: string, count = 6): Promise<string[]> 
   return picked.map(
     ([r, g, b]) => '#' + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')
   )
+}
+
+/**
+ * «Показати в папці» for a stored file (a design's picture): Explorer with it selected. Errors go to a toast and the
+ * log — a file deleted outside Vault says so instead of nothing happening.
+ */
+export async function revealStoredFile(relPath: string): Promise<void> {
+  try {
+    await api.files.revealPath(relPath)
+  } catch (e) {
+    reportError(e, 'files:reveal')
+    toast.error(e instanceof Error ? e.message : 'Не вдалося показати файл')
+  }
 }

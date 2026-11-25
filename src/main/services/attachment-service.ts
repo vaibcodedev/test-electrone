@@ -1,3 +1,4 @@
+import { existsSync } from 'fs'
 import { shell } from 'electron'
 import { and, asc, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -8,7 +9,7 @@ import { fileSourceSchema, type FileSource } from '@shared/domain/designs'
 import type { Attachment } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { attachments } from '../db/schema'
-import { newId, now, NotFoundError } from '../core/util'
+import { newId, now, NotFoundError, UserError } from '../core/util'
 import { openPathOrThrow } from '../core/open-path'
 import type { EntityRegistry } from '../core/registry'
 import type { FileStorage } from './file-storage'
@@ -99,6 +100,14 @@ export class AttachmentService {
           this.storage.resolve(z.string().min(1).max(1000).parse(path)),
           FILE_OPEN_ERROR
         ),
+      // «Показати в папці» (a gallery tile): Explorer with the file selected. showItemInFolder says nothing when
+      // the file is gone, so that is checked first.
+      revealPath: async (path) => {
+        const abs = this.storage.resolve(z.string().min(1).max(1000).parse(path))
+        if (!existsSync(abs))
+          throw new UserError('Файлу вже немає — можливо, його видалено або перейменовано')
+        shell.showItemInFolder(abs)
+      },
       clipboardHasImage: async () => this.storage.clipboardHasImage(),
       clipboardImage: async () => this.storage.clipboardImage()
     }

@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement, type RefObject } from 'react'
 import { toast } from 'sonner'
-import { ChevronLeft, ChevronRight, Maximize2, RefreshCw, Replace } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FolderOpen, Maximize2, RefreshCw, Replace } from 'lucide-react'
 import {
   DESIGN_KINDS,
   designInputSchema,
@@ -8,6 +8,7 @@ import {
   type DesignKind,
   type DesignPatch
 } from '@shared/domain/designs'
+import { revealStoredFile } from '@/lib/files'
 import { limitsOf } from '@/lib/limits'
 import { cn } from '@/lib/utils'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -279,14 +280,23 @@ function Editor({
             </div>
           )}
           {design.imagePath && (
-            <IconAction
-              label={video ? 'Відкрити відео' : 'Відкрити картинку'}
-              // top/right 5: inside the picture, clear of the card's 28px corner curve.
-              className="absolute top-5 right-5 bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
-              onClick={openImage}
-            >
-              <Maximize2 />
-            </IconAction>
+            // top/right 5: inside the picture, clear of the card's 28px corner curve.
+            <div className="absolute top-5 right-5 flex gap-1.5 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 has-focus-visible:opacity-100">
+              <IconAction
+                label="Показати в папці"
+                className="bg-card shadow-sm hover:bg-card"
+                onClick={() => void revealStoredFile(design.imagePath!)}
+              >
+                <FolderOpen />
+              </IconAction>
+              <IconAction
+                label={video ? 'Відкрити відео' : 'Відкрити картинку'}
+                className="bg-card shadow-sm hover:bg-card"
+                onClick={openImage}
+              >
+                <Maximize2 />
+              </IconAction>
+            </div>
           )}
           <input
             ref={fileInput}

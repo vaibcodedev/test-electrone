@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactElement } from 'react'
-import { Clipboard, Image, Palette, X } from 'lucide-react'
+import { Clipboard, FolderOpen, Image, Palette, X } from 'lucide-react'
 import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
 import { useApi, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -26,6 +26,8 @@ import { Card } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { clickableProps } from '@/lib/clickable'
+import { revealStoredFile } from '@/lib/files'
+import { IconAction } from '@/components/common/icon-action'
 import { DesignDialog } from './design-dialog'
 import { DesignMedia, DropOverlay, PaletteStrip, PickImagesButton } from './shared'
 import { MoodboardStrip } from './moodboard-strip'
@@ -190,31 +192,45 @@ export function DesignsPage(): ReactElement | null {
       loadingMore={list.loadingMore}
       onLoadMore={list.loadMore}
       renderItem={(d) => (
-        <Card
-          {...clickableProps(() => setOpen(d.id))}
-          // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
-          className="group tile relative block w-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 text-left"
-        >
-          <DesignMedia
-            path={d.imagePath}
-            alt={designTitle(d)}
-            className="block aspect-4/3 w-full rounded-xl object-cover object-top"
-          />
-          {/* The palette as one strip of segments (overlapping dots read as a switch); hex values — in the pane. */}
-          <PaletteStrip colors={d.colors} className="mx-1.5 mt-2" />
-          <div className="min-w-0 px-1.5 pt-1.5 pb-0.5">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate text-body font-semibold" title={designTitle(d)}>
-                {designTitle(d)}
-              </span>
-              <FavoriteMark entity={{ type: 'design', id: d.id }} />
+        <div className="group/design relative">
+          <Card
+            {...clickableProps(() => setOpen(d.id))}
+            // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
+            className="group tile relative block w-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 text-left"
+          >
+            <DesignMedia
+              path={d.imagePath}
+              alt={designTitle(d)}
+              className="block aspect-4/3 w-full rounded-xl object-cover object-top"
+            />
+            {/* The palette as one strip of segments (overlapping dots read as a switch); hex values — in the pane. */}
+            <PaletteStrip colors={d.colors} className="mx-1.5 mt-2" />
+            <div className="min-w-0 px-1.5 pt-1.5 pb-0.5">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-body font-semibold" title={designTitle(d)}>
+                  {designTitle(d)}
+                </span>
+                <FavoriteMark entity={{ type: 'design', id: d.id }} />
+              </div>
+              {/* «Сайт · PNG · 1440 × 900»: the kind, then the file's format and size. */}
+              <div className="truncate text-meta text-muted-foreground tabular-nums">
+                {[KIND_LABEL[d.kind], designFileMeta(d)].filter(Boolean).join(' · ')}
+              </div>
             </div>
-            {/* «Сайт · PNG · 1440 × 900»: the kind, then the file's format and size. */}
-            <div className="truncate text-meta text-muted-foreground tabular-nums">
-              {[KIND_LABEL[d.kind], designFileMeta(d)].filter(Boolean).join(' · ')}
-            </div>
-          </div>
-        </Card>
+          </Card>
+          {/* Next to the card, not in it: a button inside the role=button tile would be nested controls. Over the
+            picture's corner (tile 24 − 6 frame = picture 18; 12px in clears its curve), shown on hover and focus. */}
+          {d.imagePath && (
+            <IconAction
+              label="Показати в папці"
+              size="icon-sm"
+              className="absolute top-3 right-3 bg-card opacity-0 shadow-sm group-focus-within/design:opacity-100 group-hover/design:opacity-100 hover:bg-card focus-visible:opacity-100"
+              onClick={() => void revealStoredFile(d.imagePath!)}
+            >
+              <FolderOpen />
+            </IconAction>
+          )}
+        </div>
       )}
     />
   )

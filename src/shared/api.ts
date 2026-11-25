@@ -836,6 +836,8 @@ export interface FilesApi {
   reveal(id: string): Promise<void>
   /** Opens a stored file (relative path under <data>/files) in its default app. */
   openPath(path: string): Promise<void>
+  /** Shows a stored file selected in Explorer (Finder); a plain error when the file is gone. */
+  revealPath(path: string): Promise<void>
   /** True if the system clipboard currently holds an image. */
   clipboardHasImage(): Promise<boolean>
   /** The clipboard's image for a preview («З буфера» asks before adding); null when there is none. */
