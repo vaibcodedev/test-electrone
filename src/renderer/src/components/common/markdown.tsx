@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
 import { FieldLabel } from '@/components/ui/field'
 import { CharCount, Segmented } from './page'
+import { Kbd } from '@/components/ui/kbd'
 import { ShowMore } from './show-more'
 import { CopyButton } from './copy-button'
 import { MarkdownTextarea } from './markdown-textarea'
@@ -175,7 +176,7 @@ export function MarkdownField({
   }
   return (
     // group/field: the «N / max» counter (CharCount) shows while the text is being written.
-    <div className={cn('group/field flex flex-col gap-2', className)}>
+    <div className={cn('group/field relative flex flex-col gap-2', className)}>
       {/* Label row has the label's height: the compact toggle (h-7, -my-1.5 → 16px in flow, below the
           label's ≈17px) must not push the control down, so label → control is 8px like every other Field
           (docs/design-system.md → Формы). */}
@@ -240,6 +241,13 @@ export function MarkdownField({
             </span>
           )}
         </div>
+      )}
+      {/* «[[» links a record from any text, but nothing said so: a quiet line under the field while writing in it,
+          set in the gap below (absolute), so nothing moves when it shows. */}
+      {mode === 'edit' && (
+        <p className="pointer-events-none absolute top-full left-1 mt-1 flex items-center gap-1 text-meta text-muted-foreground opacity-0 transition-opacity group-focus-within/field:opacity-100">
+          <Kbd>[[</Kbd> — посилання на запис
+        </p>
       )}
     </div>
   )
