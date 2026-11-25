@@ -37,8 +37,21 @@
   Pop $0
 !macroend
 
+; A Vault started as administrator can't be closed by a normal setup: then the setup asks for UAC once and closes
+; it with an elevated command, instead of «закрийте вручну» right away. Declined UAC — the usual «Повторити».
+!macro vaultKillAppElevated
+  ${if} $IsPowerShellAvailable == 0
+    ExecShellWait "runas" "$PowerShellPath" `-NoProfile -NonInteractive -WindowStyle Hidden -C "Get-CimInstance -ClassName Win32_Process | ? {$$_.Path -and $$_.Path -ieq '$INSTDIR\${APP_EXECUTABLE_FILENAME}'} | % { Stop-Process -Id $$_.ProcessId -Force }"` SW_HIDE
+  ${else}
+    ExecShellWait "runas" "$CmdPath" `/C taskkill /F /IM "${APP_EXECUTABLE_FILENAME}"` SW_HIDE
+  ${endIf}
+  Sleep 1000
+!macroend
+
 !macro customCheckAppRunning
   !insertmacro IS_POWERSHELL_AVAILABLE
+  Push $R2
+  StrCpy $R2 0 ; 1 once the elevated close was tried
 
   ${if} ${isUpdated}
     ; an update: the app is quitting on its own, give it a moment
@@ -77,7 +90,16 @@
         Goto vaultNotRunning
       ${endIf}
 
-      ; Still there: most likely started as administrator — only the person can close it.
+      ; Still there: most likely started as administrator. A visible setup asks for UAC once and tries again;
+      ; a silent one (an update) never pops UAC on its own.
+      ${if} $R1 > 1
+      ${andIf} $R2 == 0
+      ${andIfNot} ${Silent}
+        StrCpy $R2 1
+        DetailPrint `Closing "${PRODUCT_NAME}" with administrator rights.`
+        !insertmacro vaultKillAppElevated
+        Goto vaultLoop
+      ${endIf}
       ${if} $R1 > 1
         MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(appCannotBeClosed)" /SD IDCANCEL IDRETRY vaultLoop
         Quit
@@ -86,4 +108,5 @@
       ${endIf}
     vaultNotRunning:
   ${endIf}
+  Pop $R2
 !macroend
