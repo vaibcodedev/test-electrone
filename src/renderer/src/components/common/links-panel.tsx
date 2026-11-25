@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { Plus, Unlink } from 'lucide-react'
 import type { EntityRef, EntitySummary } from '@shared/domain/common'
 import type { LinkedEntity } from '@shared/domain/system'
@@ -19,14 +19,13 @@ import { EntityRow, useOpenEntity } from './entity-link'
 import { EntityOption } from './entity-options'
 import { IconAction } from './icon-action'
 import { SectionLabel } from './section-label'
-import { withViewTransition } from '@/lib/view-transition'
+import { useFold } from '@/hooks/use-fold'
+import { FoldButton } from './fold-button'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
 
 const LINKS_HINT =
   'Пов’яжіть запис з іншим — ідею з дошкою, помилку зі сніпетом. Зв’язок видно з обох записів.'
 
-/** Rows shown before «Показати ще», as in «Згадки»: a dozen links pushed a board's designs a screen down. */
-const FIRST = 5
 /** One empty list for every render while loading: usePresenceList compares the array itself. */
 const NO_LINKS: LinkedEntity[] = []
 
@@ -37,9 +36,8 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
   const openEntity = useOpenEntity()
   const { data: links = NO_LINKS } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
-  const [all, setAll] = useState(false)
-  const shown = useMemo(() => (all ? links : links.slice(0, FIRST)), [all, links])
-  const rest = links.length - shown.length
+  // Folded to five, as «Згадки» and «Файли»: a dozen links pushed a board's designs a screen down.
+  const fold = useFold(links)
   return (
     <section className="flex flex-col gap-2">
       <SectionLabel action={<LinkPicker entity={entity} linked={links} />}>Зв’язки</SectionLabel>
@@ -51,7 +49,7 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
         )
       ) : (
         <div className="-mx-2.5 flex flex-col">
-          {shown.map((l) => (
+          {fold.shown.map((l) => (
             <div key={l.linkId}>
               <EntityRow
                 item={l}
@@ -77,20 +75,7 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
           ))}
         </div>
       )}
-      {/* Opened — it folds back too: «Показати ще» was a one-way door. */}
-      {(rest > 0 || (all && links.length > FIRST)) && (
-        <Button
-          variant="link"
-          size="xs"
-          className="self-start"
-          aria-expanded={all}
-          // One view transition: the rows and whatever reflows around them (a board's designs) move once,
-          // smoothly — a per-row height animation made a wrapping grid jump at every row.
-          onClick={() => withViewTransition(() => setAll(!all))}
-        >
-          {all ? 'Згорнути' : `Показати ще ${rest}`}
-        </Button>
-      )}
+      <FoldButton fold={fold} />
     </section>
   )
 }

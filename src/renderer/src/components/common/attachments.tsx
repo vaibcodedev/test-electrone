@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { ExternalLink, FolderOpen, Paperclip, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EntityRef } from '@shared/domain/common'
+import type { Attachment } from '@shared/domain/system'
 import type { FileSource } from '@shared/domain/designs'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
@@ -23,6 +24,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Confirm } from './confirm'
 import { IconAction } from './icon-action'
 import { SectionLabel } from './section-label'
+import { useFold } from '@/hooks/use-fold'
+import { FoldButton } from './fold-button'
 
 /** open / reveal fail when the file was moved or deleted outside the app: say so instead of an unhandled error. */
 function openFile(action: Promise<unknown>, source: string): void {
@@ -32,9 +35,14 @@ function openFile(action: Promise<unknown>, source: string): void {
   })
 }
 
+/** One empty list for every render while loading: useFold memoises on the array itself. */
+const NO_FILES: Attachment[] = []
+
 /** Files attached to an entity. Stored in the data folder; the DB keeps only relative paths. */
 export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
-  const { data: files = [] } = useApi('files', 'list', entity)
+  const { data: files = NO_FILES } = useApi('files', 'list', entity)
+  // Folded to five, as «Зв’язки» and «Згадки»: a record with a dozen screenshots filled the aside.
+  const fold = useFold(files)
   const add = useApiMutation('files', 'add')
   const remove = useApiMutation('files', 'remove')
   const picker = useRef<HTMLInputElement>(null)
@@ -67,7 +75,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
       </SectionLabel>
       {/* empty:hidden — no files, no extra gap under the title. */}
       <div className="flex flex-col gap-1 empty:hidden">
-        {files.map((f) => (
+        {fold.shown.map((f) => (
           <Item key={f.id} size="xs" className="group hover:bg-(--tile-hover)">
             <ItemMedia variant="image" className="size-8">
               {f.mime.startsWith('image/') ? (
@@ -113,6 +121,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
           </Item>
         ))}
       </div>
+      <FoldButton fold={fold} />
       <input
         ref={picker}
         type="file"
