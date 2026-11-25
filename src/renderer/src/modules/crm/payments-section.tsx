@@ -29,7 +29,9 @@ import { DatePicker } from '@/components/common/date-picker'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { NumberField } from '@/components/common/number-field'
-import { DisabledHint } from '@/components/common/disabled-hint'
+import { SubmitButton } from '@/components/common/submit-button'
+import { useFormGate } from '@/hooks/use-form-gate'
+import { FormAttemptContext } from '@/components/ui/field-control'
 import { NO_CHANGES } from '@/lib/edit-session'
 import { EditableScope, useDetailMode } from '@/components/common/detail-mode-context'
 import { cn } from '@/lib/utils'
@@ -73,8 +75,6 @@ function PaymentForm({
   // here, the state would still hold the old one.
   const amountRef = useRef(amount)
   const [amountBad, setAmountBad] = useState(false)
-  // «Додати» with an empty sum: the error appears at the field, not before the first try.
-  const [tried, setTried] = useState(false)
   const [cur, setCur] = useState<Currency>(initial?.currency ?? currency)
   const [status, setStatus] = useState<PaymentStatus>(initial?.status ?? 'expected')
   const [due, setDue] = useState<number | null>(initial?.dueAt ?? null)
@@ -110,90 +110,84 @@ function PaymentForm({
     status === initial.status &&
     due === initial.dueAt &&
     note === initial.note
+  // An empty sum (required) or a field showing an error: the button is off and Enter adds nothing.
+  const { attach, reason: gateReason, attempted, submit } = useFormGate()
   return (
     <Card className="p-4">
       <form
+        ref={attach}
         className="grid grid-cols-[minmax(180px,220px)_100px_170px_1fr] items-start gap-3"
         onKeyDown={escapeCloses(onDone)}
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (amountBad || pending || blocked || unchanged) return
-          const value = amountRef.current
-          if (!value) {
-            setTried(true)
-            e.currentTarget.querySelector('input')?.focus()
-            return
-          }
-          const values = { amount: value, currency: cur, status, dueAt: due, note }
-          if (initial) update.mutate({ id: initial.id, patch: values })
-          else create.mutate({ projectId, ...values })
-        }}
+        onSubmit={(e) =>
+          submit(e, () => {
+            const value = amountRef.current
+            if (amountBad || pending || blocked || unchanged || !value) return
+            const values = { amount: value, currency: cur, status, dueAt: due, note }
+            if (initial) update.mutate({ id: initial.id, patch: values })
+            else create.mutate({ projectId, ...values })
+          })
+        }
       >
-        <NumberField
-          id={`${uid}-amount`}
-          autoFocus
-          label="Сума"
-          value={amount}
-          min={0}
-          max={limited && !full ? left : AMOUNT_MAX}
-          unit={CURRENCY_SIGN[cur]}
-          placeholder="Напр.: 500"
-          // The form's own state: typing clears «Вкажіть суму» at once, so the button doesn't jump under the click.
-          live
-          hint={
-            limited && !full ? `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}` : undefined
-          }
-          error={
-            blocked
-              ? 'Усю вартість уже розподілено — збільште вартість проєкту'
-              : tried && !amount
-                ? 'Вкажіть суму'
-                : undefined
-          }
-          onCommit={(v) => {
-            amountRef.current = v
-            setAmount(v)
-            if (v) setTried(false)
-          }}
-          onValidityChange={setAmountBad}
-        />
-        <Field label="Валюта" htmlFor={`${uid}-currency`}>
-          <CurrencySelect id={`${uid}-currency`} value={cur} onChange={setCur} />
-        </Field>
-        <Field label="Статус" htmlFor={`${uid}-status`}>
-          <Choice
-            id={`${uid}-status`}
-            value={status}
-            onChange={(v) => v && setStatus(v)}
-            options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
+        <FormAttemptContext.Provider value={attempted}>
+          <NumberField
+            id={`${uid}-amount`}
+            autoFocus
+            label="Сума"
+            value={amount}
+            min={0}
+            max={limited && !full ? left : AMOUNT_MAX}
+            unit={CURRENCY_SIGN[cur]}
+            placeholder="Напр.: 500"
+            // The form's own state: the button turns on with the first digit, not only after leaving the field.
+            live
+            required
+            hint={
+              limited && !full ? `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}` : undefined
+            }
+            error={blocked ? 'Усю вартість уже розподілено — збільште вартість проєкту' : undefined}
+            onCommit={(v) => {
+              amountRef.current = v
+              setAmount(v)
+            }}
+            onValidityChange={setAmountBad}
           />
-        </Field>
-        <Field label="Термін">
-          <DatePicker value={due} onChange={setDue} placeholder="Без терміну" />
-        </Field>
-        <Field label={stage ? 'Етап' : 'Коментар'} htmlFor={`${uid}-note`} className="col-span-4">
-          <Input
-            id={`${uid}-note`}
-            value={note}
-            maxLength={NOTE_MAX}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder={stage ? 'Напр.: Передоплата 50%' : 'Напр.: за листопад'}
-          />
-        </Field>
-        <div className="col-span-4 flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onDone}>
-            Скасувати
-          </Button>
-          <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
-            <Button
-              type="submit"
+          <Field label="Валюта" htmlFor={`${uid}-currency`}>
+            <CurrencySelect id={`${uid}-currency`} value={cur} onChange={setCur} />
+          </Field>
+          <Field label="Статус" htmlFor={`${uid}-status`}>
+            <Choice
+              id={`${uid}-status`}
+              value={status}
+              onChange={(v) => v && setStatus(v)}
+              options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
+            />
+          </Field>
+          <Field label="Термін">
+            <DatePicker value={due} onChange={setDue} placeholder="Без терміну" />
+          </Field>
+          <Field label={stage ? 'Етап' : 'Коментар'} htmlFor={`${uid}-note`} className="col-span-4">
+            <Input
+              id={`${uid}-note`}
+              value={note}
+              maxLength={NOTE_MAX}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={stage ? 'Напр.: Передоплата 50%' : 'Напр.: за листопад'}
+            />
+          </Field>
+          <div className="col-span-4 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onDone}>
+              Скасувати
+            </Button>
+            <SubmitButton
               variant="subtle"
-              disabled={amountBad || pending || blocked || unchanged}
+              reason={gateReason ?? (unchanged ? NO_CHANGES : undefined)}
+              disabled={amountBad || blocked}
+              pending={pending}
             >
               {initial ? 'Зберегти' : 'Додати'}
-            </Button>
-          </DisabledHint>
-        </div>
+            </SubmitButton>
+          </div>
+        </FormAttemptContext.Provider>
       </form>
     </Card>
   )

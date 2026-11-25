@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { DisabledHint } from '@/components/common/disabled-hint'
+import { SubmitButton } from '@/components/common/submit-button'
+import { useFormGate } from '@/hooks/use-form-gate'
 import { NO_CHANGES } from '@/lib/edit-session'
 import { Field as UiField, FieldLabel } from '@/components/ui/field'
 import { draftToNumber, numberToDraft } from './money'
@@ -39,15 +40,22 @@ export function EntryForm({
   const range = toRange(d)
   const overnight = !!range && !!d.from && !!d.to && d.to < d.from
   const unchanged = edit && JSON.stringify(d) === JSON.stringify(initial)
+  // A field showing an error (minutes out of range): the button is off and Enter adds nothing.
+  const { attach, reason: gateReason, submit } = useFormGate()
+  const reason =
+    gateReason ??
+    (!range ? 'Вкажіть час З–До або кількість хвилин' : unchanged ? NO_CHANGES : undefined)
   return (
     <Card className="p-4">
       <form
+        ref={attach}
         className="flex flex-wrap items-end gap-3"
         onKeyDown={escapeCloses(onCancel)}
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (range && !pending && !unchanged) onSubmit(d)
-        }}
+        onSubmit={(e) =>
+          submit(e, () => {
+            if (range && !pending && !unchanged) onSubmit(d)
+          })
+        }
       >
         <Field label="Дата" className="w-44">
           <DatePicker
@@ -122,11 +130,9 @@ export function EntryForm({
           <Button type="button" variant="ghost" onClick={onCancel}>
             Скасувати
           </Button>
-          <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
-            <Button type="submit" variant="subtle" disabled={!range || pending || unchanged}>
-              {submitLabel}
-            </Button>
-          </DisabledHint>
+          <SubmitButton variant="subtle" reason={reason} pending={pending}>
+            {submitLabel}
+          </SubmitButton>
         </div>
       </form>
     </Card>

@@ -1,6 +1,18 @@
 import { useRef, useState, type ReactElement } from 'react'
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Plus, Trash2 } from 'lucide-react'
 import { jobBoardInputSchema, type JobBoard, type JobFunnelRow } from '@shared/domain/jobs'
@@ -16,6 +28,8 @@ import { LinkInput } from '@/components/common/text-field'
 import { ColorSwatches } from '@/components/common/color-swatches'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
+import { SubmitButton } from '@/components/common/submit-button'
+import { useFormGate } from '@/hooks/use-form-gate'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -35,7 +49,9 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
   const update = useApiMutation('jobs', 'updateBoard')
   // A board with applications is refused by main with a toast: it is switched off instead.
   const remove = useApiMutation('jobs', 'removeBoard', { successMessage: 'Майданчик видалено' })
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: board.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: board.id
+  })
   const save = (patch: Partial<JobBoard>): void => update.mutate({ id: board.id, patch })
   // Seeded or older boards may carry a colour outside the palette: show it first and selected.
   const custom = !!board.color && !COLORS.includes(board.color)
@@ -49,7 +65,14 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
     >
       <CardContent className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon-sm" className="cursor-grab text-muted-foreground" aria-label="Перетягнути" {...attributes} {...listeners}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="cursor-grab text-muted-foreground"
+            aria-label="Перетягнути"
+            {...attributes}
+            {...listeners}
+          >
             <GripVertical />
           </Button>
           {/* A switched-off board says so in words: fading the whole card dropped labels below 4.5:1. */}
@@ -60,14 +83,19 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
             aria-label="Назва майданчика"
             maxLength={LIMITS.name}
             className="font-display h-10 max-w-xs bg-transparent text-heading"
-            onBlur={(e) => e.target.value.trim() && e.target.value !== board.name && save({ name: e.target.value.trim() })}
+            onBlur={(e) =>
+              e.target.value.trim() &&
+              e.target.value !== board.name &&
+              save({ name: e.target.value.trim() })
+            }
           />
           <div className="ml-auto flex items-center gap-2">
             {/* A mark, not a counter: outline, unlike the stats badge next to it. */}
             {!board.active && <Badge variant="outline">Вимкнено</Badge>}
             {stats && (
               <Badge variant="soft" className="bg-card font-normal">
-                {stats.applied} {plural(stats.applied, ['відгук', 'відгуки', 'відгуків'])}, {fmtPercent(stats.replyRate)} відповідей
+                {stats.applied} {plural(stats.applied, ['відгук', 'відгуки', 'відгуків'])},{' '}
+                {fmtPercent(stats.replyRate)} відповідей
               </Badge>
             )}
             <label className="flex items-center gap-2 text-caption text-muted-foreground">
@@ -146,12 +174,19 @@ export function JobBoardsPage(): ReactElement {
   const { data: stats } = useApi('jobs', 'stats', { from: 0 })
   const [name, setName] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
-  const create = useApiMutation('jobs', 'createBoard', { successMessage: 'Майданчик додано', onSuccess: () => setName('') })
+  // The name is required: «Додати майданчик» is off while it is empty, Enter adds nothing (useFormGate).
+  const { attach, reason, submit: gate } = useFormGate()
+  const create = useApiMutation('jobs', 'createBoard', {
+    successMessage: 'Майданчик додано',
+    onSuccess: () => setName('')
+  })
   const reorder = useApiMutation('jobs', 'reorderBoards')
   const [order, setOrder] = useState<string[] | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  const sorted = order ? order.map((id) => boards.find((b) => b.id === id)).filter((b): b is JobBoard => !!b) : boards
+  const sorted = order
+    ? order.map((id) => boards.find((b) => b.id === id)).filter((b): b is JobBoard => !!b)
+    : boards
   const byBoard = new Map((stats?.byBoard ?? []).map((r) => [r.key, r]))
 
   const onDragEnd = (e: DragEndEvent): void => {
@@ -169,17 +204,20 @@ export function JobBoardsPage(): ReactElement {
         subtitle="Де шукати щодня. Норма зараховується за відгуками з майданчика; якщо вакансій немає — закрийте день позначкою на огляді."
         actions={
           <form
+            ref={attach}
             className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (create.isPending) return
-              // Empty name (e.g. the N key pressed the button): put the cursor where the name goes.
-              if (!name.trim()) return nameRef.current?.focus()
-              create.mutate({ name: name.trim(), color: COLORS[boards.length % COLORS.length] })
-            }}
+            onSubmit={(e) =>
+              gate(e, () => {
+                if (create.isPending) return
+                create.mutate({ name: name.trim(), color: COLORS[boards.length % COLORS.length] })
+              })
+            }
           >
             <Input
               ref={nameRef}
+              // N puts the cursor here: «Додати майданчик» is off while the name is empty.
+              data-page-new
+              required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Новий майданчик, напр. Djinni"
@@ -187,15 +225,21 @@ export function JobBoardsPage(): ReactElement {
               className="w-64"
               maxLength={LIMITS.name}
             />
-            {/* Lime = the N key, so it stays enabled while the name is empty: then it focuses the field. */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button type="submit" variant="lime" disabled={create.isPending}>
-                  <Plus /> Додати майданчик
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Посилання, норму й дні можна задати після додавання</TooltipContent>
-            </Tooltip>
+            {/* Off with the reason while the name is empty; on, it says what comes after adding. */}
+            {reason ? (
+              <SubmitButton variant="lime" reason={reason}>
+                <Plus /> Додати майданчик
+              </SubmitButton>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button type="submit" variant="lime" disabled={create.isPending}>
+                    <Plus /> Додати майданчик
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Посилання, норму й дні можна задати після додавання</TooltipContent>
+              </Tooltip>
+            )}
           </form>
         }
       />
@@ -210,10 +254,16 @@ export function JobBoardsPage(): ReactElement {
               </div>
             </Delayed>
           ) : boards.length === 0 ? (
-            <EmptyState title="Майданчиків поки немає" hint="Впишіть назву вгорі — Djinni, DOU, LinkedIn — і задайте норму відгуків на день." />
+            <EmptyState
+              title="Майданчиків поки немає"
+              hint="Впишіть назву вгорі — Djinni, DOU, LinkedIn — і задайте норму відгуків на день."
+            />
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-              <SortableContext items={sorted.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext
+                items={sorted.map((b) => b.id)}
+                strategy={verticalListSortingStrategy}
+              >
                 <div className="flex flex-col gap-3">
                   {sorted.map((b) => (
                     <BoardCard key={b.id} board={b} stats={byBoard.get(b.id)} />
@@ -223,8 +273,9 @@ export function JobBoardsPage(): ReactElement {
             </DndContext>
           )}
           <p className="text-caption text-muted-foreground">
-            Норма 0 — просто зайти й перевірити. Вимкнений майданчик зникає з огляду, але його історія й статистика
-            зберігаються. Майданчик із відгуками не видаляється — вимкніть його.
+            Норма 0 — просто зайти й перевірити. Вимкнений майданчик зникає з огляду, але його
+            історія й статистика зберігаються. Майданчик із відгуками не видаляється — вимкніть
+            його.
           </p>
         </div>
       </PageBody>
