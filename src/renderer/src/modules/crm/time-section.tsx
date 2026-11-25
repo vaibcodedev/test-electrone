@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react'
 import { Plus } from 'lucide-react'
-import { EditableScope } from '@/components/common/detail-mode-context'
+import { EditableScope, useDetailMode } from '@/components/common/detail-mode-context'
 import { useApiMutation } from '@/lib/query'
+import { fmtHours } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Section } from './parts'
 import { EntryForm } from './entry-form'
@@ -21,7 +22,8 @@ export function TimeSection({
   currency,
   hourly,
   secondary,
-  unpaid
+  unpaid,
+  totalMinutes
 }: {
   projectId: string
   rate: number
@@ -30,8 +32,11 @@ export function TimeSection({
   secondary?: boolean
   /** «Без оплати»: there is no rate to talk about, only where the time goes. */
   unpaid?: boolean
+  /** All tracked time: «Без оплати» has no money header, so the total is said here. */
+  totalMinutes: number
 }): ReactElement {
-  const [adding, setAdding] = useInlineForm()
+  const mode = useDetailMode()
+  const [adding, setAdding] = useInlineForm('запис часу')
   const { days, recent, running, mine, weeksBack, showEarlier, isPending } =
     useTimeHistory(projectId)
   const create = useApiMutation('time', 'create', {
@@ -41,13 +46,13 @@ export function TimeSection({
 
   return (
     <Section
-      title={secondary ? 'Облік часу' : 'Час'}
+      title="Облік часу"
       hint={
         unpaid
-          ? 'Для себе: скільки насправді йде на проєкт.'
+          ? `Для себе: скільки насправді йде на проєкт.${totalMinutes > 0 ? ` Усього ${fmtHours(totalMinutes)}.` : ''}`
           : secondary
             ? 'Для себе: скільки насправді йде на проєкт. На оплату не впливає.'
-            : undefined
+            : 'Години потрапляють у розрахунок оплати.'
       }
       action={
         !adding && (
@@ -80,13 +85,28 @@ export function TimeSection({
         />
       )}
       {days.length === 0 && !adding && !mine && weeksBack === 0 && !isPending && (
-        <p className="text-body text-muted-foreground">
-          {hourly
-            ? 'Запустіть таймер або додайте час вручну — години потраплять у розрахунок оплати.'
-            : unpaid
-              ? 'Запустіть таймер або додайте час вручну — побачите, скільки йде на проєкт.'
-              : 'Запустіть таймер, щоб бачити фактичну ставку проєкту.'}
-        </p>
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-body text-muted-foreground">
+            {hourly
+              ? 'Годин ще немає. Запустіть таймер або додайте час вручну.'
+              : unpaid
+                ? 'Запустіть таймер або додайте час вручну — побачите, скільки йде на проєкт.'
+                : 'Запустіть таймер, щоб бачити фактичну ставку проєкту.'}
+          </p>
+          {/* «Вручну» in the header is edit-only: while reading, this turns editing on and opens the form. */}
+          {!mode.editing && (
+            <Button
+              variant="soft"
+              size="sm"
+              onClick={() => {
+                mode.setEditing(true)
+                setAdding(true)
+              }}
+            >
+              <Plus /> Додати час вручну
+            </Button>
+          )}
+        </div>
       )}
       <div className="flex flex-col gap-4">
         {days.map(([day, list]) => (

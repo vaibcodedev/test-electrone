@@ -1,6 +1,5 @@
 import { useId, type ReactElement } from 'react'
 import {
-  CURRENCIES,
   projectInputSchema,
   type BillingType,
   type ProjectPatch,
@@ -13,10 +12,12 @@ import { SectionLabel } from '@/components/common/master-detail'
 import { NumberField } from '@/components/common/number-field'
 import { LinkInput } from '@/components/common/text-field'
 import { Field } from '@/components/common/page'
+import { CurrencySelect } from '@/components/common/currency-select'
+import { InfoList, InfoRow } from '@/components/common/info-list'
 import { DatePicker } from '@/components/common/date-picker'
 import { Separator } from '@/components/ui/separator'
 import { BILLING_AMOUNT_LABEL, BILLING_LABEL, CURRENCY_SIGN, DUE_BEFORE_START } from './labels'
-import { BillingPicker, Choice, InfoList, InfoRow } from './parts'
+import { BillingPicker } from './parts'
 import { amountPatch } from './money'
 import { FeeField, PlatformSelect } from './platform-fields'
 import { usePlatforms } from './use-platforms'
@@ -24,13 +25,16 @@ import { usePlatforms } from './use-platforms'
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
 
+/** Amount field in the terms: «Вказати вартість» in the header turns editing on and focuses it. */
+export const PROJECT_AMOUNT_ID = 'project-amount'
+
 const LINK_FIELDS: {
   key: 'repoUrl' | 'stagingUrl' | 'prodUrl' | 'adminUrl'
   label: string
   placeholder: string
 }[] = [
-  { key: 'prodUrl', label: 'Прод', placeholder: 'https://store.com' },
-  { key: 'stagingUrl', label: 'Стейджинг', placeholder: 'https://staging…' },
+  { key: 'prodUrl', label: 'Прод', placeholder: 'https://…' },
+  { key: 'stagingUrl', label: 'Стейджинг', placeholder: 'https://staging.…' },
   { key: 'adminUrl', label: 'Адмінка', placeholder: 'https://admin.shopify.com/…' },
   { key: 'repoUrl', label: 'Репозиторій', placeholder: 'https://github.com/…' }
 ]
@@ -84,7 +88,9 @@ function ProjectTermsView({ project: p }: { project: ProjectSummary }): ReactEle
         </InfoRow>
       )}
       {p.dueAt && (
-        <InfoRow label={p.billing === 'retainer' ? 'До' : 'Дедлайн'}>{fmtDay(p.dueAt)}</InfoRow>
+        <InfoRow label={p.billing === 'retainer' ? 'Ретейнер до' : 'Дедлайн'}>
+          {fmtDay(p.dueAt)}
+        </InfoRow>
       )}
     </InfoList>
   )
@@ -124,7 +130,11 @@ function TermsEditor({
   return (
     <section className="flex flex-col gap-3">
       <SectionLabel>Платформа</SectionLabel>
-      <PlatformSelect value={project.platformId} onChange={(platformId) => patch({ platformId })} />
+      <PlatformSelect
+        aria-label="Платформа"
+        value={project.platformId}
+        onChange={(platformId) => patch({ platformId })}
+      />
       {project.platformId && project.billing !== 'none' && (
         <FeeField
           key={`fee-${project.platformId}`}
@@ -143,7 +153,7 @@ function TermsEditor({
         {amountLabel && (
           <NumberField
             key={`amount-${project.billing}`}
-            id={`${uid}-amount`}
+            id={PROJECT_AMOUNT_ID}
             label={amountLabel}
             value={amount || null}
             min={0}
@@ -156,11 +166,10 @@ function TermsEditor({
         )}
         {project.billing !== 'none' && (
           <Field label="Валюта" htmlFor={`${uid}-currency`}>
-            <Choice
+            <CurrencySelect
               id={`${uid}-currency`}
               value={project.currency}
-              onChange={(v) => v && patch({ currency: v })}
-              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              onChange={(currency) => patch({ currency })}
             />
           </Field>
         )}
@@ -185,7 +194,7 @@ function TermsEditor({
         />
       </Field>
       <Field
-        label={project.billing === 'retainer' ? 'До' : 'Дедлайн'}
+        label={project.billing === 'retainer' ? 'Ретейнер до' : 'Дедлайн'}
         error={dueBeforeStart ? DUE_BEFORE_START : undefined}
       >
         <DatePicker

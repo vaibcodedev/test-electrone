@@ -62,8 +62,8 @@ export function RunningBar({ running }: { running: RunningTimer }): ReactElement
         value={description}
         maxLength={DESC_MAX}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Що робите? Можна дописати на ходу"
-        aria-label="Опис поточної роботи"
+        placeholder="Над чим працюєте? Можна дописати на ходу"
+        aria-label="Над чим працюєте"
         className="min-w-0 flex-1"
       />
       {/* A double click must not stop twice («Час записано» + «Менше хвилини…»). */}

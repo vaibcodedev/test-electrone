@@ -1,9 +1,11 @@
+import { fmtPercent, plural } from '@/lib/format'
 import type {
   BillingType,
   ClientStatus,
   Currency,
   PaymentStatus,
-  ProjectStatus
+  ProjectStatus,
+  ProjectSummary
 } from '@shared/domain/crm'
 
 export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
@@ -14,13 +16,8 @@ export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
   avoid: 'Не працювати'
 }
 
-export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
-  lead: 'Лід',
-  active: 'У роботі',
-  paused: 'На паузі',
-  done: 'Завершено',
-  cancelled: 'Скасовано'
-}
+/** One map for main (search, pins, trash) and the screens: a local copy drifted from it before. */
+export { PROJECT_STATUS_LABEL } from '@shared/domain/crm'
 
 type StatusBadge = 'soft' | 'info' | 'warn' | 'success'
 
@@ -82,4 +79,26 @@ export const CURRENCY_SIGN: Record<Currency, string> = {
 export const NO_PLATFORM = 'Без платформи'
 
 /** A deadline / end date before the start date (project, stage). */
-export const DUE_BEFORE_START = 'Кінцева дата раніша за початок'
+export const DUE_BEFORE_START = 'Кінець раніше за початок — виправте дату'
+
+/** Empty money and time in the project header and in project rows: the same words in both places. */
+export const PRICE_MISSING = 'вартість не вказана'
+export const RETAINER_MISSING = 'суму не вказано'
+export const NOT_TRACKED = 'ще не відстежено'
+
+/** Share of a total for a bar caption, capped at 100%: the excess is said in words next to it. */
+const share = (value: number, total: number): string =>
+  fmtPercent(Math.min(100, Math.round((value / total) * 100)))
+
+/** «Оплачено 50%» — the bar of a fixed price (fixedPrice > 0). */
+export const paidShareLabel = (p: ProjectSummary): string =>
+  `Оплачено ${share(p.paidAmount, p.fixedPrice)}`
+
+/** «Відпрацьовано 15% бюджету» — the bar of an hourly budget (budgetHours > 0). */
+export const budgetShareLabel = (p: ProjectSummary): string =>
+  `Відпрацьовано ${share(p.trackedMinutes, p.budgetHours * 60)} бюджету`
+
+/** «нараховано за 3 місяці» — retainer months billed so far. */
+export function retainerMonthsLabel(n: number): string {
+  return `нараховано за ${n} ${plural(n, ['місяць', 'місяці', 'місяців'])}`
+}

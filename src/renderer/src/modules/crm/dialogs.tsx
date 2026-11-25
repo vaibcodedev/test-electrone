@@ -2,7 +2,6 @@ import { useId, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import {
   clientInputSchema,
-  CURRENCIES,
   projectInputSchema,
   type BillingType,
   type ClientInput,
@@ -16,10 +15,11 @@ import { limitsOf, rangesOf } from '@/lib/limits'
 import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
+import { CurrencySelect } from '@/components/common/currency-select'
 import { DatePicker } from '@/components/common/date-picker'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
 import { BILLING_AMOUNT_LABEL, CURRENCY_SIGN, DUE_BEFORE_START } from './labels'
-import { BillingPicker, Choice } from './parts'
+import { BillingPicker } from './parts'
 import { amountPatch } from './money'
 import { ClientCombobox } from './client-combobox'
 import { ClientPlatformFields, FeeField, PlatformSelect } from './platform-fields'
@@ -29,16 +29,15 @@ const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
-const REQUIRED = 'Обов’язкове поле'
 
 const AMOUNT_PLACEHOLDER: Record<BillingType, string> = {
-  fixed: 'напр. 1 500',
-  hourly: 'напр. 25',
-  retainer: 'напр. 800',
+  fixed: 'Напр.: 1 500',
+  hourly: 'Напр.: 25',
+  retainer: 'Напр.: 800',
   none: ''
 }
 
-/** Amount whose label follows the billing type; renders nothing for "none". */
+/** Amount whose label follows the billing type; renders nothing for "none". `live`: dialog state, not an autosave. */
 function AmountField({
   id,
   billing,
@@ -65,12 +64,13 @@ function AmountField({
     <NumberField
       key={billing}
       id={id}
-      label={forClient && billing === 'fixed' ? 'Типовий бюджет проєкту' : label}
+      label={forClient && billing === 'fixed' ? 'Типовий бюджет' : label}
       value={value || null}
       min={0}
       max={max}
       unit={CURRENCY_SIGN[currency]}
       placeholder={AMOUNT_PLACEHOLDER[billing]}
+      live
       onCommit={(v) => onChange(v ?? 0)}
       onValidityChange={onValidityChange}
     />
@@ -131,21 +131,18 @@ export function ClientDialog({
       submitLabel="Додати клієнта"
       className="sm:max-w-[560px]"
       invalid={!form.name.trim() || !emailOk || numbers.invalid}
+      invalidReason={!form.name.trim() ? 'Вкажіть ім’я клієнта' : undefined}
       pending={create.isPending}
       onSubmit={() => create.mutate({ ...form, email: (form.email ?? '').trim() })}
     >
-      <Field
-        label="Ім’я або назва"
-        htmlFor={`${uid}-name`}
-        hint={!form.name.trim() ? REQUIRED : undefined}
-      >
+      <Field label="Ім’я або назва" htmlFor={`${uid}-name`}>
         <Input
           id={`${uid}-name`}
           autoFocus
           value={form.name}
           maxLength={CLIENT_L.name}
           onChange={(e) => set({ name: e.target.value })}
-          placeholder="Анна Петренко"
+          placeholder="Напр.: Олена Коваль"
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
@@ -155,7 +152,7 @@ export function ClientDialog({
             value={form.company}
             maxLength={CLIENT_L.company}
             onChange={(e) => set({ company: e.target.value })}
-            placeholder="Bloom Store"
+            placeholder="Напр.: Acme Studio"
           />
         </Field>
         <Field
@@ -201,11 +198,10 @@ export function ClientDialog({
       </Field>
       <div className="grid grid-cols-2 items-start gap-3">
         <Field label="Валюта" htmlFor={`${uid}-currency`}>
-          <Choice
+          <CurrencySelect
             id={`${uid}-currency`}
             value={form.currency as Currency}
-            onChange={(v) => v && set({ currency: v })}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            onChange={(currency) => set({ currency })}
           />
         </Field>
         <AmountField
@@ -326,6 +322,7 @@ export function ProjectDialog({
       submitLabel="Створити проєкт"
       className="sm:max-w-[560px]"
       invalid={!form.title.trim() || dueBeforeStart || numbers.invalid}
+      invalidReason={!form.title.trim() ? 'Вкажіть назву проєкту' : undefined}
       pending={create.isPending}
       onSubmit={() =>
         create.mutate({
@@ -337,18 +334,14 @@ export function ProjectDialog({
         })
       }
     >
-      <Field
-        label="Назва"
-        htmlFor={`${uid}-title`}
-        hint={!form.title.trim() ? REQUIRED : undefined}
-      >
+      <Field label="Назва" htmlFor={`${uid}-title`}>
         <Input
           id={`${uid}-title`}
           autoFocus
           value={form.title}
           maxLength={PROJECT_L.title}
           onChange={(e) => set({ title: e.target.value })}
-          placeholder="Редизайн магазину"
+          placeholder="Напр.: Редизайн магазину"
         />
       </Field>
       <Field label="Клієнт" htmlFor={`${uid}-client`}>
@@ -387,11 +380,10 @@ export function ProjectDialog({
       <div className="grid grid-cols-2 items-start gap-3">
         {billing !== 'none' && (
           <Field label="Валюта" htmlFor={`${uid}-currency`}>
-            <Choice
+            <CurrencySelect
               id={`${uid}-currency`}
               value={currency}
-              onChange={(v) => v && set({ currency: v })}
-              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              onChange={(next) => set({ currency: next })}
             />
           </Field>
         )}
@@ -413,6 +405,7 @@ export function ProjectDialog({
             {...PROJECT_R.budgetHours}
             step={0.5}
             placeholder="без ліміту"
+            live
             onCommit={(v) => set({ budgetHours: v ?? 0 })}
             onValidityChange={numbers.report('budgetHours')}
           />
@@ -427,7 +420,7 @@ export function ProjectDialog({
           </Field>
         )}
         <Field
-          label={billing === 'retainer' ? 'До (необов’язково)' : 'Дедлайн'}
+          label={billing === 'retainer' ? 'Ретейнер до' : 'Дедлайн'}
           error={dueBeforeStart ? DUE_BEFORE_START : undefined}
         >
           <DatePicker

@@ -1,11 +1,21 @@
 import type { ReactNode, ReactElement } from 'react'
 import type { ProjectSummary } from '@shared/domain/crm'
 import { MoneyValue } from '@/components/common/money-value'
+import { ProgressLine } from '@/components/common/progress-line'
 import { useDetailMode } from '@/components/common/detail-mode-context'
-import { fmtHours, fmtMoney, fmtPercent, plural } from '@/lib/format'
+import { fmtHours, fmtMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { EmptyValue, Meter } from './parts'
+import {
+  budgetShareLabel,
+  NOT_TRACKED,
+  paidShareLabel,
+  PRICE_MISSING,
+  RETAINER_MISSING,
+  retainerMonthsLabel
+} from './labels'
+import { EmptyValue } from '@/components/common/empty-value'
+import { PROJECT_AMOUNT_ID } from './project-terms'
 
 /** Stat cell: muted caption label → value (text-stat-sm, tabular, foreground) → optional caption. */
 function Money({
@@ -46,46 +56,35 @@ const PerUnit = ({
   </span>
 )
 
-function ProgressLine({
-  label,
-  warn,
-  children
-}: {
-  label: string
-  warn?: string
-  children: ReactNode
-}): ReactElement {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="flex justify-between gap-3 text-caption tabular-nums">
-        <span className="text-muted-foreground">{label}</span>
-        {warn && <span className="text-warn">{warn}</span>}
-      </span>
-      {children}
-    </div>
-  )
-}
-
 /**
  * Money header in the language of the billing type: four equal stat cells with one type scale, no
  * highlighted values, and one full-width progress bar under the whole row (docs/design-system.md →
- * Списки и плитки). Empty values are phrases («ще немає оплат»), not zeros.
+ * Списки и плитки). Empty values are phrases («ще немає оплат»), not zeros. «Без оплати» has no header:
+ * its hours are in «Облік часу».
  */
 export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolean }): ReactElement {
   const mode = useDetailMode()
   const m = (n: number): string => fmtMoney(n, p.currency)
   // A missing amount is a step to take, not grey instructions: «Вказати…» switches the record to editing
-  // (the field is in the right column). The card is surface → subtle.
+  // and focuses the field in the right column (it mounts with editing). The card is surface → subtle.
   const fill = (label: string): ReactNode =>
     !mode.editing && (
-      <Button variant="subtle" size="xs" onClick={() => mode.setEditing(true)}>
+      <Button
+        variant="subtle"
+        size="xs"
+        onClick={() => {
+          mode.setEditing(true)
+          requestAnimationFrame(() => document.getElementById(PROJECT_AMOUNT_ID)?.focus())
+        }}
+      >
         {label}
       </Button>
     )
   const budget = fmtHours(p.budgetHours * 60)
   const hours =
-    p.trackedMinutes > 0 ? fmtHours(p.trackedMinutes) : <EmptyValue>ще не відстежено</EmptyValue>
-  // summaries.ts gives no rate under 30 minutes or without an amount: each reason gets its own phrase.
+    p.trackedMinutes > 0 ? fmtHours(p.trackedMinutes) : <EmptyValue>{NOT_TRACKED}</EmptyValue>
+  // summaries.ts gives no rate under 30 minutes or without earned money: each reason gets its own phrase.
+  // A retainer that hasn't started has its amount, just nothing billed yet — not «суму не вказано».
   const rateCell = (
     <Money
       label="Фактична ставка"
@@ -94,10 +93,12 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
           <EmptyValue>ще немає годин</EmptyValue>
         ) : p.effectiveRate ? (
           <PerUnit amount={p.effectiveRate} currency={p.currency} unit="/год" />
-        ) : p.earnedAmount === 0 ? (
+        ) : p.fixedPrice === 0 ? (
           <EmptyValue>
-            {p.billing === 'retainer' ? 'суму не вказано' : 'вартість не вказана'}
+            {p.billing === 'retainer' ? 'рахується від суми' : 'рахується від вартості'}
           </EmptyValue>
+        ) : p.earnedAmount === 0 ? (
+          <EmptyValue>ще не нараховано</EmptyValue>
         ) : (
           <EmptyValue>замало часу</EmptyValue>
         )
@@ -125,16 +126,18 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
           <MoneyValue amount={p.outstandingAmount} currency={p.currency} />
         ) : (
           <EmptyValue>
-            {p.billing === 'fixed' && p.fixedPrice > 0 && p.paidAmount >= p.fixedPrice
-              ? 'усе отримано'
-              : 'нічого не чекаємо'}
+            {p.billing === 'fixed' && p.fixedPrice === 0
+              ? 'залежить від вартості'
+              : p.billing === 'fixed' && p.paidAmount >= p.fixedPrice
+                ? 'усе отримано'
+                : 'нічого не чекаємо'}
           </EmptyValue>
         )
       }
       hint={overdue ? <span className="text-warn">є прострочені оплати</span> : undefined}
     />
   )
-  let cells: ReactNode
+  let cells: ReactNode = null
   let bar: ReactNode = null
   switch (p.billing) {
     case 'hourly': {
@@ -163,15 +166,16 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
         </>
       )
       if (p.budgetHours > 0) {
-        const pct = Math.min(100, Math.round((p.trackedMinutes / 60 / p.budgetHours) * 100))
+        // The hours and the budget are in the cell above: the caption adds only the share.
         const over = p.trackedMinutes - p.budgetHours * 60
         bar = (
           <ProgressLine
-            label={`Відпрацьовано ${fmtHours(p.trackedMinutes)} з ${budget} · ${fmtPercent(pct)}`}
+            continuous
+            value={p.trackedMinutes}
+            total={p.budgetHours * 60}
+            label={budgetShareLabel(p)}
             warn={over > 0 ? `понад бюджет на ${fmtHours(over)}` : undefined}
-          >
-            <Meter value={p.trackedMinutes / 60} max={p.budgetHours} />
-          </ProgressLine>
+          />
         )
       }
       break
@@ -185,7 +189,7 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
               p.fixedPrice > 0 ? (
                 <MoneyValue amount={p.fixedPrice} currency={p.currency} />
               ) : (
-                <EmptyValue>вартість не вказана</EmptyValue>
+                <EmptyValue>{PRICE_MISSING}</EmptyValue>
               )
             }
             hint={p.fixedPrice > 0 ? undefined : fill('Вказати вартість')}
@@ -196,16 +200,17 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
         </>
       )
       if (p.fixedPrice > 0) {
-        // Old data can be overpaid: the bar and percent stop at 100%, the excess is said in words.
-        const pct = Math.min(100, Math.round((p.paidAmount / p.fixedPrice) * 100))
+        // Both sums are in the cells above: the caption adds only the percent. Old data can be overpaid:
+        // the bar and percent stop at 100%, the excess is said in words.
         const over = p.paidAmount - p.fixedPrice
         bar = (
           <ProgressLine
-            label={`Оплачено ${m(p.paidAmount)} з ${m(p.fixedPrice)} · ${fmtPercent(pct)}`}
+            continuous
+            value={Math.min(p.paidAmount, p.fixedPrice)}
+            total={p.fixedPrice}
+            label={paidShareLabel(p)}
             warn={over > 0 ? `переплата ${m(over)}` : undefined}
-          >
-            <Meter value={Math.min(p.paidAmount, p.fixedPrice)} max={p.fixedPrice} />
-          </ProgressLine>
+          />
         )
       }
       break
@@ -218,12 +223,14 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
               p.fixedPrice > 0 ? (
                 <PerUnit amount={p.fixedPrice} currency={p.currency} unit="/міс" />
               ) : (
-                <EmptyValue>суму не вказано</EmptyValue>
+                <EmptyValue>{RETAINER_MISSING}</EmptyValue>
               )
             }
             hint={
               p.fixedPrice > 0
-                ? `${p.retainerMonths} ${plural(p.retainerMonths, ['місяць', 'місяці', 'місяців'])}`
+                ? p.retainerMonths > 0
+                  ? retainerMonthsLabel(p.retainerMonths)
+                  : 'ще не почався'
                 : fill('Вказати суму')
             }
           />
@@ -233,15 +240,6 @@ export function MoneyHeader({ p, overdue }: { p: ProjectSummary; overdue: boolea
         </>
       )
       break
-    default:
-      cells = (
-        <>
-          <Money label="Години" value={hours} />
-          <div className="col-span-3 self-center text-body text-muted-foreground">
-            Проєкт без оплати — ведеться лише облік часу.
-          </div>
-        </>
-      )
   }
   return (
     <Card className="mt-6 gap-5 p-6">

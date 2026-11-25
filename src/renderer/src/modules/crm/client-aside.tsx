@@ -6,13 +6,13 @@ import { useId, useState, type ReactNode, type ReactElement } from 'react'
 import { Copy, ExternalLink, Mail, Plus } from 'lucide-react'
 import {
   clientInputSchema,
-  CURRENCIES,
   type BillingType,
   type Client,
   type ClientPatch
 } from '@shared/domain/crm'
 import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { openUrl } from '@/lib/open-url'
+import { useApi } from '@/lib/query'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { fmtMoney, fmtNumber, fmtPercent } from '@/lib/format'
 import { copyText } from '@/components/common/copy-button'
@@ -22,14 +22,20 @@ import { NumberField } from '@/components/common/number-field'
 import { useDetailMode } from '@/components/common/detail-mode-context'
 import { LinkInput } from '@/components/common/text-field'
 import { Field } from '@/components/common/page'
+import { CurrencySelect } from '@/components/common/currency-select'
+import { InfoList, InfoRow } from '@/components/common/info-list'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BILLING_AMOUNT_LABEL, BILLING_LABEL, CURRENCY_SIGN, NO_PLATFORM } from './labels'
-import { BillingPicker, Choice, InfoList, InfoRow } from './parts'
+import { BillingPicker } from './parts'
 import { ClientPlatformFields, PlatformName, PlatformSelect } from './platform-fields'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
+
+/** First contact field: «Додати контакти» turns editing on and puts the cursor here. */
+const COMPANY_ID = 'client-company'
 
 /** Aside group: title + content. View/edit comes from the record mode (one «Редагувати» per record). */
 export function AsideGroup({
@@ -58,7 +64,14 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
     return (
       <div className="flex flex-col items-start gap-2">
         <p className="text-caption text-muted-foreground">Контактів ще немає.</p>
-        <Button variant="soft" size="xs" onClick={() => mode.setEditing(true)}>
+        <Button
+          variant="soft"
+          size="xs"
+          onClick={() => {
+            mode.setEditing(true)
+            requestAnimationFrame(() => document.getElementById(COMPANY_ID)?.focus())
+          }}
+        >
           <Plus /> Додати контакти
         </Button>
       </div>
@@ -81,8 +94,8 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
               </IconAction>
               <IconAction
                 className="text-muted-foreground"
-                label="Скопіювати пошту"
-                onClick={copy(c.email, 'Пошту скопійовано')}
+                label="Скопіювати email"
+                onClick={copy(c.email, 'Email скопійовано')}
               >
                 <Copy />
               </IconAction>
@@ -114,8 +127,8 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
           actions={
             <IconAction
               className="text-muted-foreground"
-              label="Скопіювати"
-              onClick={copy(c.messenger, 'Скопійовано')}
+              label="Скопіювати месенджер"
+              onClick={copy(c.messenger, 'Месенджер скопійовано')}
             >
               <Copy />
             </IconAction>
@@ -158,7 +171,7 @@ const CONTACT_FIELDS: {
   label: string
   placeholder: string
 }[] = [
-  { key: 'company', label: 'Компанія', placeholder: 'Bloom Store' },
+  { key: 'company', label: 'Компанія', placeholder: 'Напр.: Acme Studio' },
   { key: 'phone', label: 'Телефон', placeholder: '+380…' },
   { key: 'messenger', label: 'Месенджер', placeholder: 'Telegram @username' }
 ]
@@ -203,17 +216,20 @@ export function ContactsEdit({
 }): ReactElement {
   const uid = useId()
   const [company, ...rest] = CONTACT_FIELDS
-  const text = (f: (typeof CONTACT_FIELDS)[number]): ReactElement => (
-    <Field key={f.key} label={f.label} htmlFor={`${uid}-${f.key}`}>
-      <Input
-        id={`${uid}-${f.key}`}
-        defaultValue={c[f.key]}
-        placeholder={f.placeholder}
-        maxLength={CLIENT_L[f.key]}
-        onBlur={(e) => e.target.value !== c[f.key] && patch({ [f.key]: e.target.value.trim() })}
-      />
-    </Field>
-  )
+  const text = (f: (typeof CONTACT_FIELDS)[number]): ReactElement => {
+    const id = f.key === 'company' ? COMPANY_ID : `${uid}-${f.key}`
+    return (
+      <Field key={f.key} label={f.label} htmlFor={id}>
+        <Input
+          id={id}
+          defaultValue={c[f.key]}
+          placeholder={f.placeholder}
+          maxLength={CLIENT_L[f.key]}
+          onBlur={(e) => e.target.value !== c[f.key] && patch({ [f.key]: e.target.value.trim() })}
+        />
+      </Field>
+    )
+  }
   return (
     <>
       {text(company)}
@@ -232,6 +248,7 @@ export function ContactsEdit({
 }
 
 export function SourceView({ c }: { c: Client }): ReactElement {
+  const { data: platforms, isLoading } = useApi('platforms', 'list')
   if (!c.platformId) return <p className="text-body">{NO_PLATFORM}</p>
   // The group is already called «Платформа»: its name goes first on its own, not as a «Платформа» row.
   const details =
@@ -242,11 +259,19 @@ export function SourceView({ c }: { c: Client }): ReactElement {
     c.paymentVerified !== null
   return (
     <>
-      <PlatformName platformId={c.platformId} className="text-body font-medium" />
+      {/* A client keeps no platform name of its own: while the list loads, or once the platform is deleted,
+          the group still says where the client came from. */}
+      {isLoading ? (
+        <Skeleton className="h-5 w-24" />
+      ) : platforms?.some((p) => p.id === c.platformId) ? (
+        <PlatformName platformId={c.platformId} className="text-body font-medium" />
+      ) : (
+        <p className="text-body text-muted-foreground">Платформу видалено</p>
+      )}
       {details && (
         <InfoList>
           {c.country && <InfoRow label="Країна">{c.country}</InfoRow>}
-          {c.rating !== null && <InfoRow label="Рейтинг">★ {fmtNumber(c.rating)}</InfoRow>}
+          {c.rating !== null && <InfoRow label="Рейтинг">{`★ ${fmtNumber(c.rating)}`}</InfoRow>}
           {c.totalSpent !== null && (
             <InfoRow label="Витрачено">{fmtMoney(c.totalSpent, c.currency)}</InfoRow>
           )}
@@ -271,7 +296,11 @@ export function SourceEdit({
 }): ReactElement {
   return (
     <>
-      <PlatformSelect value={c.platformId} onChange={(platformId) => patch({ platformId })} />
+      <PlatformSelect
+        aria-label="Платформа"
+        value={c.platformId}
+        onChange={(platformId) => patch({ platformId })}
+      />
       {c.platformId && (
         <ClientPlatformFields
           key={`pf-${c.platformId}`}
@@ -302,7 +331,7 @@ export function BillingView({ c }: { c: Client }): ReactElement {
         {suffix}
       </p>
       <p className="text-caption text-muted-foreground">
-        Валюта {c.currency}. Нові проєкти клієнта отримають ці умови.
+        Валюта {c.currency}. Нові проєкти клієнта отримають цей тип оплати й суму.
       </p>
     </div>
   )
@@ -325,11 +354,10 @@ export function BillingEdit({
       />
       <div className="grid grid-cols-2 items-start gap-2">
         <Field label="Валюта" htmlFor={`${uid}-currency`}>
-          <Choice
+          <CurrencySelect
             id={`${uid}-currency`}
             value={c.currency}
-            onChange={(v) => v && patch({ currency: v })}
-            options={CURRENCIES.map((x) => ({ value: x, label: x }))}
+            onChange={(currency) => patch({ currency })}
           />
         </Field>
         {amountLabel && (
@@ -344,7 +372,9 @@ export function BillingEdit({
           />
         )}
       </div>
-      <p className="text-meta text-muted-foreground">Нові проєкти клієнта отримають ці умови.</p>
+      <p className="text-caption text-muted-foreground">
+        Нові проєкти клієнта отримають цей тип оплати й суму.
+      </p>
     </>
   )
 }

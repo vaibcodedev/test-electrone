@@ -12,6 +12,7 @@ import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { Field } from '@/components/common/page'
 import { useDetailMode } from '@/components/common/detail-mode-context'
+import { EditHintText } from '@/components/common/detail-mode'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,7 +46,7 @@ function CredentialForm({
     onSuccess: onDone
   })
   const update = useApiMutation('credentials', 'update', {
-    successMessage: 'Доступ оновлено',
+    successMessage: 'Доступ збережено',
     onSuccess: onDone
   })
   const set = (patch: Partial<typeof form>): void => setForm((f) => ({ ...f, ...patch }))
@@ -81,7 +82,7 @@ function CredentialForm({
             value={form.label}
             maxLength={L.label}
             onChange={(e) => set({ label: e.target.value })}
-            placeholder="Shopify admin"
+            placeholder="Напр.: Адмінка Shopify"
           />
         </Field>
         <Field label="Посилання" htmlFor={`${uid}-url`} error={urlBad ? URL_ERROR : undefined}>
@@ -135,9 +136,8 @@ function CredentialForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          {/* subtle, not lime: the form only exists while editing, and then CSS paints lime as the surface card. */}
           <Button type="submit" variant="subtle" disabled={noLabel || urlBad || pending}>
-            {initial ? 'Оновити доступ' : 'Додати доступ'}
+            {initial ? 'Зберегти' : 'Додати доступ'}
           </Button>
         </div>
       </form>
@@ -145,21 +145,28 @@ function CredentialForm({
   )
 }
 
-/** One value cell (Логін / Пароль): label on top, monospace value, its actions on the right. */
+/**
+ * One value cell (Логін / Пароль): label on top, monospace value, its actions on the right. `full` — the whole
+ * value for the tooltip of a cut one (the login; never the password).
+ */
 function SecretCell({
   label,
   value,
+  full,
   children
 }: {
   label: string
   value: ReactNode
+  full?: string
   children: ReactNode
 }): ReactElement {
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-xl bg-card px-3 py-2">
       <div className="min-w-0 flex-1">
         <div className="text-meta text-muted-foreground">{label}</div>
-        <div className="selectable truncate font-mono text-body">{value}</div>
+        <div className="selectable truncate font-mono text-body" title={full}>
+          {value}
+        </div>
       </div>
       <div className="flex shrink-0 items-center">{children}</div>
     </div>
@@ -172,7 +179,8 @@ function SecretCell({
  */
 function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): ReactElement {
   const [secret, setSecret] = useState<string | null>(null)
-  const [editing, setEditing] = useInlineForm()
+  const mode = useDetailMode()
+  const [editing, setEditing] = useInlineForm('доступ')
   const remove = useApiMutation('credentials', 'remove', { successMessage: 'Доступ видалено' })
 
   const reveal = async (): Promise<string | null> => {
@@ -196,8 +204,14 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): Rea
           <KeyRound className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-body font-semibold">{item.label}</div>
-          {host && <div className="truncate text-meta text-muted-foreground">{host}</div>}
+          <div className="truncate text-body font-semibold" title={item.label}>
+            {item.label}
+          </div>
+          {host && (
+            <div className="truncate text-meta text-muted-foreground" title={host}>
+              {host}
+            </div>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           {item.url && (
@@ -206,7 +220,7 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): Rea
             </IconAction>
           )}
           <span data-edit-only className="flex items-center gap-0.5">
-            <IconAction label="Змінити" onClick={() => setEditing(true)}>
+            <IconAction label="Змінити доступ" onClick={() => setEditing(true)}>
               <Pencil />
             </IconAction>
             <Confirm
@@ -222,13 +236,20 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): Rea
         </div>
       </div>
       {empty ? (
+        // Editing: the row's pencil is right above, so the hint only says what is missing.
         <p className="text-caption text-muted-foreground">
-          Логін і пароль ще не додано. Додайте їх у режимі правки.
+          Логін і пароль ще не додано.
+          {!mode.editing && (
+            <>
+              {' '}
+              <EditHintText />
+            </>
+          )}
         </p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {item.login && (
-            <SecretCell label="Логін" value={item.login}>
+            <SecretCell label="Логін" value={item.login} full={item.login}>
               <IconAction
                 label="Скопіювати логін"
                 onClick={() => void copyText(item.login, 'Логін скопійовано')}
@@ -274,7 +295,7 @@ export function CredentialsSection({
   owner: Owner
 }): ReactElement {
   const mode = useDetailMode()
-  const [adding, setAdding] = useInlineForm()
+  const [adding, setAdding] = useInlineForm('доступ')
   return (
     <Section
       title="Доступи"

@@ -33,7 +33,7 @@ function EntryRow({
   currency: string
   showBillable: boolean
 }): ReactElement {
-  const [editing, setEditing] = useInlineForm()
+  const [editing, setEditing] = useInlineForm('запис часу')
   const update = useApiMutation('time', 'update', { onSuccess: () => setEditing(false) })
   const remove = useApiMutation('time', 'remove')
   if (editing) {

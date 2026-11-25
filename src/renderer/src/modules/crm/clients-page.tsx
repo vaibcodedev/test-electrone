@@ -1,15 +1,16 @@
 import { useState, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router'
-import { Briefcase, Plus, UserRound } from 'lucide-react'
+import { Briefcase, Plus, UserPlus, UserRound, type LucideIcon } from 'lucide-react'
 import { PROJECT_STATUSES, type ProjectStatus } from '@shared/domain/crm'
 import { useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid, VirtualList } from '@/components/common/virtual-list'
-import { capitalize, countLabel } from '@/lib/format'
+import { countLabel } from '@/lib/format'
 import {
   EmptyState,
   FilterBar,
   FilterChips,
+  NoResults,
   Page,
   PageHeader,
   SearchInput,
@@ -22,24 +23,12 @@ import { ClientCard } from './client-card'
 import { CrmOverview } from './crm-overview'
 import { ProjectRow } from './project-row'
 import { usePlatforms } from './use-platforms'
+import { noResultsHint } from '../claude/chips'
 
 type Tab = 'clients' | 'projects'
 
 /** Filter value for clients/projects without a platform. */
 const DIRECT = '__direct__'
-
-// muted, not opacity: on an unselected segment a half-transparent count fell under 4.5:1.
-const TabLabel = ({ label, count }: { label: string; count?: number }): ReactElement => (
-  <>
-    {label}
-    {count !== undefined && <span className="tabular-nums text-muted-foreground">{count}</span>}
-  </>
-)
-
-/** «Спробуйте інший запит або оберіть усі платформи.» — only the conditions that are on. */
-function noResultsHint(parts: (string | false)[]): string {
-  return `${capitalize(parts.filter(Boolean).join(' або '))}.`
-}
 
 export function ClientsPage(): ReactElement {
   const [params, setParams] = useSearchParams()
@@ -70,36 +59,45 @@ export function ClientsPage(): ReactElement {
     setPlatformId(undefined)
     setStatus(undefined)
   }
-  const noResults = {
-    title: 'Нічого не знайдено',
-    hint: noResultsHint([
-      !!search && 'спробуйте інший запит',
-      !!platformId && 'оберіть усі платформи',
-      tab === 'projects' && !!status && 'оберіть усі статуси'
-    ]),
-    cta: { label: 'Скинути фільтри', onClick: resetFilters }
-  }
-  // Platform chips filter something only when there is something: none over an empty base.
-  const list = tab === 'clients' ? clientList : projectList
+  const noResults = (icon: LucideIcon): ReactElement => (
+    <NoResults
+      icon={icon}
+      hint={noResultsHint(search, !!platformId || (tab === 'projects' && !!status))}
+      onReset={resetFilters}
+    />
+  )
+  // A new base: only the empty state and its one action — no zero tiles, counts or chips above it.
+  const blank =
+    !filtered &&
+    !clientList.isLoading &&
+    !projectList.isLoading &&
+    !clients.length &&
+    !projects.length
+  // Platform chips filter something only when there is something. They don't depend on the open tab:
+  // switching tabs must not make the row blink.
   const showPlatforms =
-    platforms.length > 0 && (filtered || list.isLoading || list.items.length > 0)
+    platforms.length > 0 && (filtered || clients.length > 0 || projects.length > 0)
 
-  const count =
-    tab === 'clients'
-      ? clients.length &&
-        countLabel(clients.length, clientList.hasMore, ['клієнт', 'клієнти', 'клієнтів'])
-      : projects.length &&
-        countLabel(projects.length, projectList.hasMore, ['проєкт', 'проєкти', 'проєктів'])
+  const list = tab === 'clients' ? clientList : projectList
+  const n = list.items.length
+  const subtitle =
+    (filtered && !list.isLoading) || n
+      ? countLabel(
+          n,
+          list.hasMore,
+          tab === 'clients' ? ['клієнт', 'клієнти', 'клієнтів'] : ['проєкт', 'проєкти', 'проєктів']
+        )
+      : 'Контакти, доступи й оплати клієнтів'
 
   return (
     <Page>
       <PageHeader
         title="Клієнти й контракти"
-        subtitle={count || 'Контакти, доступи й оплати клієнтів'}
+        subtitle={subtitle}
         actions={
           <>
             <Button variant="soft" onClick={() => setClientOpen(true)}>
-              <UserRound /> Клієнт
+              <UserPlus /> Клієнт
             </Button>
             <Button variant="lime" onClick={() => setProjectOpen(true)}>
               <Plus /> Проєкт
@@ -107,7 +105,7 @@ export function ClientsPage(): ReactElement {
           </>
         }
       >
-        <CrmOverview />
+        {!blank && <CrmOverview />}
         <FilterBar
           chips={
             <>
@@ -116,21 +114,17 @@ export function ClientsPage(): ReactElement {
                 options={[
                   {
                     value: 'clients',
-                    label: (
-                      <TabLabel
-                        label="Клієнти"
-                        count={clientList.hasMore ? undefined : clients.length}
-                      />
-                    )
+                    label: 'Клієнти',
+                    count: blank || clientList.hasMore ? undefined : clients.length
                   },
                   {
                     value: 'projects',
-                    label: (
-                      <TabLabel
-                        label="Проєкти"
-                        count={projectList.hasMore ? undefined : projects.length}
-                      />
-                    )
+                    label: 'Проєкти',
+                    // The status filter is hidden on «Клієнти»: a count it narrowed would mislead.
+                    count:
+                      blank || projectList.hasMore || (tab === 'clients' && status)
+                        ? undefined
+                        : projects.length
                   }
                 ]}
                 value={tab}
@@ -140,6 +134,7 @@ export function ClientsPage(): ReactElement {
               />
               {showPlatforms && (
                 <FilterChips<string>
+                  label="Платформа"
                   allLabel="Усі платформи"
                   options={[
                     ...platforms.map((p) => ({ value: p.id, label: p.name })),
@@ -156,12 +151,14 @@ export function ClientsPage(): ReactElement {
               value={search}
               onChange={setSearch}
               placeholder={tab === 'clients' ? 'Знайти клієнта' : 'Знайти проєкт'}
-              className="w-72"
             />
           }
           secondary={
-            tab === 'projects' && (
+            // No row of status chips over the empty state of a base without projects.
+            tab === 'projects' &&
+            (filtered || projectList.isLoading || projects.length > 0) && (
               <FilterChips<ProjectStatus>
+                label="Статус проєкту"
                 tone="neutral"
                 allLabel="Усі статуси"
                 options={PROJECT_STATUSES.map((s) => ({
@@ -190,7 +187,7 @@ export function ClientsPage(): ReactElement {
             empty={
               !clientList.isLoading &&
               (filtered ? (
-                <EmptyState icon={UserRound} {...noResults} />
+                noResults(UserRound)
               ) : (
                 <EmptyState
                   icon={UserRound}
@@ -215,7 +212,7 @@ export function ClientsPage(): ReactElement {
             empty={
               !projectList.isLoading &&
               (filtered ? (
-                <EmptyState icon={Briefcase} {...noResults} />
+                noResults(Briefcase)
               ) : (
                 <EmptyState
                   icon={Briefcase}

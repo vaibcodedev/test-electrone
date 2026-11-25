@@ -77,16 +77,16 @@ export function EntryForm({
             value={draftToNumber(d.minutes)}
             disabled={!!d.to}
             onChange={(v) => set({ minutes: numberToDraft(v) })}
-            placeholder="90"
+            placeholder="Напр.: 90"
           />
         </Field>
-        <Field label="Що робив" htmlFor={`${uid}-desc`} className="min-w-48 flex-1">
+        <Field label="Що зроблено" htmlFor={`${uid}-desc`} className="min-w-48 flex-1">
           <Input
             id={`${uid}-desc`}
             value={d.description}
             maxLength={DESC_MAX}
             onChange={(e) => set({ description: e.target.value })}
-            placeholder="Верстка кошика"
+            placeholder="Напр.: Верстка кошика"
           />
         </Field>
         {showBillable && (
@@ -101,15 +101,7 @@ export function EntryForm({
             </FieldLabel>
           </UiField>
         )}
-        <div className="flex gap-1">
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Скасувати
-          </Button>
-          {/* subtle, not lime: the form only exists while editing, and then CSS paints lime as the surface card. */}
-          <Button type="submit" variant="subtle" disabled={!range || pending}>
-            {submitLabel}
-          </Button>
-        </div>
+        {/* The reason the button is off comes before it; buttons on the right, as in the stage and access forms. */}
         {!range && (
           <p className="w-full text-caption text-muted-foreground">
             Вкажіть час З–До або кількість хвилин.
@@ -120,6 +112,14 @@ export function EntryForm({
             Кінець раніше за початок — рахуємо до {d.to} наступного дня.
           </p>
         )}
+        <div className="flex w-full justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Скасувати
+          </Button>
+          <Button type="submit" variant="subtle" disabled={!range || pending}>
+            {submitLabel}
+          </Button>
+        </div>
       </form>
     </Card>
   )

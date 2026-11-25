@@ -7,11 +7,17 @@ import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
-import { EntityAside } from '@/components/common/master-detail'
+import { EntityAside, RecordActions } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList
+} from '@/components/ui/breadcrumb'
 import { Section } from './parts'
 import { ProjectRow } from './project-row'
 import { ProjectDialog } from './dialogs'
@@ -63,20 +69,31 @@ export function ClientPage(): ReactElement {
     <RecordMode mode={mode}>
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10" key={c.id}>
-          <Link
-            to="/clients"
-            className="mb-4 flex w-fit items-center gap-1 text-caption text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" /> Клієнти
-          </Link>
-          <ClientHeader
-            c={c}
-            name={name}
-            onNameChange={setName}
-            mode={mode}
-            patch={patch}
-            onRemove={() => remove.mutate(id)}
-          />
+          {/* Actions get their own row in the DS §8 order (RecordActions); the page has no ✕ — the breadcrumb leads back. */}
+          <div className="mb-4 flex items-center gap-4">
+            <Breadcrumb className="shrink-0">
+              <BreadcrumbList className="text-caption">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link to="/clients" className="flex items-center gap-1">
+                      <ArrowLeft className="size-3.5" /> Клієнти
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <RecordActions
+              className="flex-1"
+              entity={{ type: 'client', id: c.id }}
+              mode={mode}
+              onDelete={() => remove.mutate(id)}
+              deleteConfirm={{
+                title: 'Видалити клієнта?',
+                description: 'Клієнт піде в кошик на 30 днів. Проєкти залишаться без клієнта.'
+              }}
+            />
+          </div>
+          <ClientHeader c={c} name={name} onNameChange={setName} patch={patch} />
           <ClientStats c={c} editing={mode.editing} />
 
           <div className="mt-8 flex flex-col gap-10">

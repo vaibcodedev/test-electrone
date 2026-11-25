@@ -1,7 +1,6 @@
 import { useId, useRef, useState, type ReactElement } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
-  CURRENCIES,
   PAYMENT_STATUSES,
   paymentInputSchema,
   type BillingType,
@@ -24,14 +23,16 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Field } from '@/components/common/page'
+import { Choice } from '@/components/common/choice'
+import { CurrencySelect } from '@/components/common/currency-select'
 import { DatePicker } from '@/components/common/date-picker'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { NumberField } from '@/components/common/number-field'
-import { useDetailMode } from '@/components/common/detail-mode-context'
+import { EditableScope, useDetailMode } from '@/components/common/detail-mode-context'
 import { cn } from '@/lib/utils'
 import { CURRENCY_SIGN, PAYMENT_STATUS_LABEL } from './labels'
-import { Choice, Section } from './parts'
+import { Section } from './parts'
 import { escapeCloses, useInlineForm } from './inline-form'
 
 const NOTE_MAX = limitsOf(paymentInputSchema).note
@@ -70,6 +71,8 @@ function PaymentForm({
   // here, the state would still hold the old one.
   const amountRef = useRef(amount)
   const [amountBad, setAmountBad] = useState(false)
+  // «Додати» with an empty sum: the error appears at the field, not before the first try.
+  const [tried, setTried] = useState(false)
   const [cur, setCur] = useState<Currency>(initial?.currency ?? currency)
   const [status, setStatus] = useState<PaymentStatus>(initial?.status ?? 'expected')
   const [due, setDue] = useState<number | null>(initial?.dueAt ?? null)
@@ -93,8 +96,10 @@ function PaymentForm({
           ? initial.amount
           : 0)
   const limited = stage && left !== undefined && cur === currency
-  // Nothing left to allocate: a range «Від 0 до 0» would reject any amount, so the hint says why instead.
+  // Nothing left to allocate: a range «Від 0 до 0» would reject any amount, and main refuses a new stage —
+  // the button is off and the field says how to fix it.
   const full = limited && left === 0
+  const blocked = full && !initial
   return (
     <Card className="p-4">
       <form
@@ -102,10 +107,10 @@ function PaymentForm({
         onKeyDown={escapeCloses(onDone)}
         onSubmit={(e) => {
           e.preventDefault()
-          if (amountBad || pending) return
+          if (amountBad || pending || blocked) return
           const value = amountRef.current
-          // An empty sum: the button stays enabled (no reason to show), the cursor goes to the field.
           if (!value) {
+            setTried(true)
             e.currentTarget.querySelector('input')?.focus()
             return
           }
@@ -122,27 +127,28 @@ function PaymentForm({
           min={0}
           max={limited && !full ? left : AMOUNT_MAX}
           unit={CURRENCY_SIGN[cur]}
-          placeholder="напр. 500"
+          placeholder="Напр.: 500"
+          // The form's own state: typing clears «Вкажіть суму» at once, so the button doesn't jump under the click.
+          live
           hint={
-            limited
-              ? full
-                ? 'Усю вартість уже розподілено — збільште вартість проєкту'
-                : `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}`
-              : undefined
+            limited && !full ? `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}` : undefined
+          }
+          error={
+            blocked
+              ? 'Усю вартість уже розподілено — збільште вартість проєкту'
+              : tried && !amount
+                ? 'Вкажіть суму'
+                : undefined
           }
           onCommit={(v) => {
             amountRef.current = v
             setAmount(v)
+            if (v) setTried(false)
           }}
           onValidityChange={setAmountBad}
         />
         <Field label="Валюта" htmlFor={`${uid}-currency`}>
-          <Choice
-            id={`${uid}-currency`}
-            value={cur}
-            onChange={(v) => v && setCur(v)}
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-          />
+          <CurrencySelect id={`${uid}-currency`} value={cur} onChange={setCur} />
         </Field>
         <Field label="Статус" htmlFor={`${uid}-status`}>
           <Choice
@@ -161,15 +167,14 @@ function PaymentForm({
             value={note}
             maxLength={NOTE_MAX}
             onChange={(e) => setNote(e.target.value)}
-            placeholder={stage ? 'Передоплата 50% / Дизайн / Запуск' : 'За листопад'}
+            placeholder={stage ? 'Напр.: Передоплата 50%' : 'Напр.: за листопад'}
           />
         </Field>
         <div className="col-span-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          {/* subtle, not lime: the form only exists while editing, and then CSS paints lime as the surface card. */}
-          <Button type="submit" variant="subtle" disabled={amountBad || pending}>
+          <Button type="submit" variant="subtle" disabled={amountBad || pending || blocked}>
             {initial ? 'Зберегти' : 'Додати'}
           </Button>
         </div>
@@ -192,7 +197,7 @@ function PaymentRow({
   /** Some row has a note; otherwise the column isn't drawn (an empty column under «Етап»). */
   showNote: boolean
 }): ReactElement {
-  const [editing, setEditing] = useInlineForm()
+  const [editing, setEditing] = useInlineForm(stage ? 'етап' : 'оплату')
   const update = useApiMutation('payments', 'update')
   const remove = useApiMutation('payments', 'remove')
   if (editing)
@@ -234,18 +239,22 @@ function PaymentRow({
             : 'без терміну'}
       </TableCell>
       <TableCell className="w-[170px]">
-        <Choice
-          size="sm"
-          className={cn(
-            'border-transparent bg-transparent shadow-none hover:bg-card dark:bg-transparent',
-            STATUS_TONE[payment.status]
-          )}
-          value={payment.status}
-          onChange={(s) =>
-            s && s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })
-          }
-          options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
-        />
+        {/* Marking a stage paid is a quick action (docs/design-system.md §8): it works in view mode too. */}
+        <EditableScope>
+          <Choice
+            size="sm"
+            aria-label={stage ? 'Статус етапу' : 'Статус оплати'}
+            className={cn(
+              'border-transparent bg-transparent shadow-none hover:bg-card dark:bg-transparent',
+              STATUS_TONE[payment.status]
+            )}
+            value={payment.status}
+            onChange={(s) =>
+              s && s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })
+            }
+            options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
+          />
+        </EditableScope>
       </TableCell>
       <TableCell className="w-16">
         <span
@@ -288,8 +297,8 @@ export function PaymentsSection({
   price: number
 }): ReactElement {
   const mode = useDetailMode()
-  const [adding, setAdding] = useInlineForm()
   const stages = billing === 'fixed'
+  const [adding, setAdding] = useInlineForm(stages ? 'етап' : 'оплату')
   const planned = payments
     .filter((p) => p.status !== 'cancelled')
     .reduce((s, p) => s + (p.currency === currency ? p.amount : 0), 0)

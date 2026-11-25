@@ -11,15 +11,15 @@ import {
 } from '@shared/domain/crm'
 import { rangesOf } from '@/lib/limits'
 import { NumberField } from '@/components/common/number-field'
-import { CountryCombobox } from './country-combobox'
-import { fmtMoney, fmtNumber, fmtPercent } from '@/lib/format'
+import { CountryCombobox } from '@/components/common/country-combobox'
+import { fmtMoney, fmtPercent } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { Choice } from './parts'
+import { Choice } from '@/components/common/choice'
 import { CURRENCY_SIGN, NO_PLATFORM } from './labels'
 import { usePlatforms } from './use-platforms'
 
@@ -29,10 +29,13 @@ const FEE_RANGE = rangesOf(projectInputSchema).feePercent
 /** Platform of a client or contract, or «Без платформи». */
 export function PlatformSelect({
   id,
+  'aria-label': ariaLabel,
   value,
   onChange
 }: {
   id?: string
+  /** Where the visible label is a SectionLabel, not a Field tied by `id`. */
+  'aria-label'?: string
   value: string | null | undefined
   onChange: (platformId: string | null) => void
 }): ReactElement {
@@ -40,6 +43,7 @@ export function PlatformSelect({
   return (
     <Choice
       id={id}
+      aria-label={ariaLabel}
       value={value ?? null}
       none={NO_PLATFORM}
       onChange={onChange}
@@ -104,18 +108,23 @@ export function PlatformBadge({
   )
 }
 
-/** Destructive badge for clients marked «Не работать», pointing to the red flags list. */
+/**
+ * Destructive badge for clients marked «Не працювати», pointing to the red flags list. The record header
+ * passes another `label`: its status select already says «Не працювати».
+ */
 export function AvoidBadge({
   className,
-  link = true
+  link = true,
+  label = 'Не працювати'
 }: {
   className?: string
   link?: boolean
+  label?: string
 }): ReactElement {
   if (!link) {
     return (
       <Badge variant="destructive" className={cn('gap-1', className)}>
-        <Flag /> Не працювати
+        <Flag /> {label}
       </Badge>
     )
   }
@@ -124,7 +133,7 @@ export function AvoidBadge({
       <TooltipTrigger asChild>
         <Badge variant="destructive" className={cn('gap-1', className)} asChild>
           <Link to="/freelance/flags">
-            <Flag /> Не працювати
+            <Flag /> {label}
           </Link>
         </Badge>
       </TooltipTrigger>
@@ -175,7 +184,7 @@ export function ClientPlatformFields({
           value={value.rating}
           {...CLIENT_R.rating}
           step={0.1}
-          placeholder="напр. 4,9"
+          placeholder="Напр.: 4,9"
           unit="★"
           onCommit={(rating) => onChange({ rating })}
           onValidityChange={onInvalidChange?.('rating')}
@@ -184,7 +193,7 @@ export function ClientPlatformFields({
           label="Витрачено"
           value={value.totalSpent}
           {...CLIENT_R.totalSpent}
-          placeholder="напр. 25 000"
+          placeholder="Напр.: 25 000"
           unit={(CURRENCY_SIGN as Record<string, string>)[currency] ?? currency}
           onCommit={(totalSpent) => onChange({ totalSpent })}
           onValidityChange={onInvalidChange?.('totalSpent')}
@@ -193,7 +202,7 @@ export function ClientPlatformFields({
           label="Найм"
           value={value.hireRate}
           {...CLIENT_R.hireRate}
-          placeholder="напр. 70"
+          placeholder="Напр.: 70"
           unit="%"
           onCommit={(hireRate) => onChange({ hireRate })}
           onValidityChange={onInvalidChange?.('hireRate')}
@@ -236,9 +245,6 @@ export function FeeField({
       {...FEE_RANGE}
       step={0.5}
       unit="%"
-      placeholder={
-        platformDefault !== undefined ? `типово ${fmtNumber(platformDefault)}` : undefined
-      }
       hint={
         typical
           ? `Порожньо — типова комісія ${platformName ?? 'платформи'}: ${fmtPercent(platformDefault)}`
@@ -252,7 +258,8 @@ export function FeeField({
 
 /** "на руки 540 $ (−10%)" — paid amount after the platform fee. */
 export function NetPaid({ project: p }: { project: ProjectSummary }): ReactElement | null {
-  if (!p.platformId || p.billing === 'none') return null
+  // Nothing paid yet: «на руки 0,00 USD» would pass a zero off as data; the fee is in «Умови».
+  if (!p.platformId || p.billing === 'none' || p.netPaidAmount === 0) return null
   return (
     <span className="text-caption text-muted-foreground">
       на руки <span className="text-foreground">{fmtMoney(p.netPaidAmount, p.currency)}</span>

@@ -7,35 +7,30 @@ import {
 } from '@shared/domain/crm'
 import { limitsOf } from '@/lib/limits'
 import { fmtHours, fmtMoney } from '@/lib/format'
-import type { DetailMode } from '@/components/common/detail-mode-context'
-import { EditToggle } from '@/components/common/detail-mode'
+import { EditableScope } from '@/components/common/detail-mode-context'
 import { InlineTitle } from '@/components/common/master-detail'
-import { PinButtons } from '@/components/common/pin-buttons'
+import { Choice } from '@/components/common/choice'
+import { EmptyValue } from '@/components/common/empty-value'
 import { MoneyValue } from '@/components/common/money-value'
 import { StatTile } from '@/components/common/stat-tile'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { CLIENT_STATUS_LABEL } from './labels'
-import { Choice, EmptyValue, TrashButton } from './parts'
 import { AvoidBadge, PlatformBadge } from './platform-fields'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 
-/** Avatar, name, status and badges; record actions on the right. Contacts live in the aside. */
+/** Avatar, name, status and badges. Record actions are a row above (client-page); contacts live in the aside. */
 export function ClientHeader({
   c,
   name,
   onNameChange,
-  mode,
-  patch,
-  onRemove
+  patch
 }: {
   c: ClientSummary
   name: string
   onNameChange: (name: string) => void
-  mode: DetailMode
   patch: (p: ClientPatch) => void
-  onRemove: () => void
 }): ReactElement {
   return (
     <div className="flex items-start gap-4">
@@ -47,29 +42,23 @@ export function ClientHeader({
       <div className="min-w-0 flex-1">
         <InlineTitle value={name} onChange={onNameChange} maxLength={CLIENT_L.name} />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {/* In view mode the select is plain text: no fixed width, no gap before the badges. */}
-          <Choice
-            className={mode.editing ? 'w-44' : 'w-fit'}
-            value={c.status}
-            onChange={(v) => v && patch({ status: v })}
-            options={CLIENT_STATUSES.map((s) => ({ value: s, label: CLIENT_STATUS_LABEL[s] }))}
-          />
-          {c.status === 'avoid' && <AvoidBadge className="h-9 px-3" />}
+          {/* Status is a quick action (docs/design-system.md §8): it changes in view mode too. */}
+          <EditableScope>
+            <Choice
+              aria-label="Статус клієнта"
+              className="w-44"
+              value={c.status}
+              onChange={(v) => v && patch({ status: v })}
+              options={CLIENT_STATUSES.map((s) => ({ value: s, label: CLIENT_STATUS_LABEL[s] }))}
+            />
+          </EditableScope>
+          {/* The select already says «Не працювати»: the badge only points to the stop list. */}
+          {c.status === 'avoid' && <AvoidBadge className="h-9 px-3" label="Червоні прапорці" />}
           <PlatformBadge platformId={c.platformId} />
           {c.platformId && c.paymentVerified === false && (
             <Badge variant="warn">Оплату не верифіковано</Badge>
           )}
         </div>
-      </div>
-      {/* docs/design-system.md → Шапка записи: pin → trash → «Редагувати». */}
-      <div className="flex shrink-0 items-center gap-2 pt-2">
-        <PinButtons entity={{ type: 'client', id: c.id }} />
-        <TrashButton
-          title="Видалити клієнта?"
-          description="Клієнт піде в кошик на 30 днів. Проєкти залишаться без клієнта."
-          onConfirm={onRemove}
-        />
-        <EditToggle mode={mode} />
       </div>
     </div>
   )
@@ -77,17 +66,29 @@ export function ClientHeader({
 
 /**
  * Projects, paid, owed, hours: one bright tile at most — «Очікується» when something is owed, and none
- * while editing («Зберегти» is the only lime then). Sums use the smaller stat role: a quarter-width tile
- * cut «600,00 U…» in text-headline.
+ * while editing («Зберегти» is the only lime then). The whole row uses the smaller stat role: a
+ * quarter-width tile cut «600,00 U…» in text-headline, and counts next to sums must not look bigger.
  */
 export function ClientStats({ c, editing }: { c: ClientSummary; editing: boolean }): ReactElement {
   const hours =
-    c.trackedMinutes > 0 ? fmtHours(c.trackedMinutes) : <EmptyValue>ще не відстежено</EmptyValue>
+    c.trackedMinutes > 0 ? (
+      <span className="text-stat-sm">{fmtHours(c.trackedMinutes)}</span>
+    ) : (
+      <EmptyValue>ще не відстежено</EmptyValue>
+    )
   return (
     <div className="stagger mt-6 grid grid-cols-4 gap-3">
       <StatTile
         label="Проєкти в роботі"
-        value={c.projectCount ? c.activeProjectCount : <EmptyValue>ще немає</EmptyValue>}
+        value={
+          !c.projectCount ? (
+            <EmptyValue>ще немає проєктів</EmptyValue>
+          ) : c.activeProjectCount ? (
+            <span className="text-stat-sm">{c.activeProjectCount}</span>
+          ) : (
+            <EmptyValue>немає активних</EmptyValue>
+          )
+        }
         hint={c.projectCount ? `з ${c.projectCount} усього` : undefined}
       />
       <StatTile

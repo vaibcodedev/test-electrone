@@ -41,7 +41,10 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
               {client.name.slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          <ArrowUpRight
+            aria-hidden
+            className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          />
         </div>
         <ItemContent className="w-full min-w-0 gap-1">
           <ItemTitle className="w-full text-lead">
@@ -74,12 +77,16 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
                 </span>
               </span>
             )}
+            {/* Waiting for money is the usual state: warn is kept for real problems. */}
             {client.outstandingTotal > 0 && (
-              <span
-                className="text-warn tabular-nums"
-                title={fmtMoney(client.outstandingTotal, client.currency)}
-              >
-                чекаємо {fmtMoneyCompact(client.outstandingTotal, client.currency)}
+              <span>
+                чекаємо{' '}
+                <span
+                  className="text-foreground tabular-nums"
+                  title={fmtMoney(client.outstandingTotal, client.currency)}
+                >
+                  {fmtMoneyCompact(client.outstandingTotal, client.currency)}
+                </span>
               </span>
             )}
             {client.defaultBilling === 'hourly' && client.trackedMinutes > 0 && (
