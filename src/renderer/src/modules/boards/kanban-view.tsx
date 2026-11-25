@@ -28,6 +28,8 @@ import { DropZone } from '@/components/common/drop-zone'
 import { Button } from '@/components/ui/button'
 import { Card as UiCard } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import {
   ContextMenu,
   ContextMenuContent,
@@ -151,35 +153,64 @@ function QuickAddCard({
       </Button>
     )
   }
+  const submit = (): void => {
+    if (!title.trim() || create.isPending) return
+    // Cleared only after the server accepted it; the field stays open for the next card.
+    create.mutate({ boardId, columnId, title: title.trim() }, { onSuccess: () => setTitle('') })
+  }
+  const cancel = (): void => {
+    setTitle('')
+    onOpenChange(false)
+  }
+  // The form is a card in the stack (CardTile's surface), not a bare field: a calm ring on focus instead of the
+  // field's border + glow, and the actions under the text, so the next step is visible without knowing Enter.
   return (
-    <Textarea
-      autoFocus
-      rows={2}
-      value={title}
-      maxLength={MAX.title}
-      placeholder="Назва картки, Enter — зберегти"
-      onChange={(e) => setTitle(e.target.value)}
-      onBlur={() => {
-        if (!title.trim()) onOpenChange(false)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault()
-          if (!title.trim() || create.isPending) return
-          // Cleared only after the server accepted it; the field stays open for the next card.
-          create.mutate(
-            { boardId, columnId, title: title.trim() },
-            { onSuccess: () => setTitle('') }
-          )
-        }
-        if (e.key === 'Escape') {
-          setTitle('')
-          onOpenChange(false)
-        }
-      }}
-      aria-label="Назва нової картки"
-      className="min-h-16 rounded-2xl bg-card p-3 text-body ring-1 ring-ring/40"
-    />
+    <UiCard className="gap-2 rounded-2xl bg-card p-3 shadow-[0_1px_0_rgb(0_0_0/0.04)] ring-1 ring-border transition-shadow has-[textarea:focus-visible]:ring-ring/60">
+      <Textarea
+        autoFocus
+        rows={2}
+        value={title}
+        maxLength={MAX.title}
+        placeholder="Назва картки"
+        onChange={(e) => setTitle(e.target.value)}
+        onBlur={(e) => {
+          // A click on «Додати» / «Скасувати» moves focus inside the form: only leaving it closes an empty one.
+          if (
+            !title.trim() &&
+            !e.currentTarget.closest('[data-slot=card]')?.contains(e.relatedTarget)
+          ) {
+            onOpenChange(false)
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            submit()
+          }
+          if (e.key === 'Escape') cancel()
+        }}
+        aria-label="Назва нової картки"
+        className="min-h-10 rounded-none border-0 bg-transparent p-0 text-body leading-snug hover:border-0 focus-visible:bg-transparent focus-visible:ring-0"
+      />
+      <div className="flex items-center gap-1.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="xs"
+              variant="lime"
+              disabled={!title.trim() || create.isPending}
+              onClick={submit}
+            >
+              Додати
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Додати картку · Enter</TooltipContent>
+        </Tooltip>
+        <Button size="xs" variant="ghost" onClick={cancel}>
+          Скасувати
+        </Button>
+      </div>
+    </UiCard>
   )
 }
 
@@ -209,7 +240,14 @@ function Column({
   return (
     <UiCard className="max-h-full w-[288px] shrink-0 gap-0 rounded-3xl p-2">
       <ColumnHeader column={column} count={cardIds.length} columns={columns} />
-      <DropZone id={column.id} className="min-h-12 overflow-y-auto px-0.5 py-1">
+      {/* An empty column with the add form open: no blank drop area above the form, it sits under the header. */}
+      <DropZone
+        id={column.id}
+        className={cn(
+          'overflow-y-auto px-0.5',
+          cardIds.length || !adding ? 'min-h-12 py-1' : 'min-h-1 py-0'
+        )}
+      >
         <SortableContext items={shownIds} strategy={verticalListSortingStrategy}>
           {shownIds.map((id) => {
             const card = cardsById.get(id)
