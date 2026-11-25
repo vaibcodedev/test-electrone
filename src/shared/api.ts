@@ -14,6 +14,13 @@ import type {
 } from './domain/common'
 import type { Idea, IdeaInput, IdeaListQuery, IdeaPatch, IdeaStatus } from './domain/ideas'
 import type {
+  AiConfigPatch,
+  AiStatus,
+  AiSuggestTagsInput,
+  AiTagSuggestion,
+  AiTestResult
+} from './domain/ai'
+import type {
   Board,
   BoardColumn,
   BoardDetails,
@@ -659,6 +666,25 @@ export interface GithubApi {
   commits(args?: { repo?: string; force?: boolean }): Promise<GithubCommit[]>
 }
 
+/** «Штучний інтелект» on the person's own key: requests go only from main, the key never comes back. */
+export interface AiApi {
+  status(): Promise<AiStatus>
+  /** Switch, provider, address, model, daily limit; a new provider starts from its recommended model. */
+  setConfig(patch: AiConfigPatch): Promise<AiStatus>
+  /** Key of the chosen provider, stored encrypted (OS keychain). */
+  setKey(args: { key: string }): Promise<AiStatus>
+  clearKey(): Promise<AiStatus>
+  /** A tiny request without any record text; a plain Ukrainian error when it fails. */
+  test(): Promise<AiTestResult>
+  /**
+   * Up to five tags for a record (existing ones preferred). A cloud provider needs `consent: true` once —
+   * after the warning that the record text goes to it.
+   */
+  suggestTags(input: AiSuggestTagsInput): Promise<AiTagSuggestion[]>
+  /** Aborts the requests in flight (the record was closed). */
+  cancel(): Promise<void>
+}
+
 export interface ReviewApi {
   /** Week by its Monday (yyyy-mm-dd); current week when omitted. */
   get(args?: { weekStart?: string }): Promise<WeeklyReview>
@@ -818,6 +844,7 @@ export interface Api {
   jobs: JobsApi
   devProjects: DevProjectsApi
   github: GithubApi
+  ai: AiApi
   review: ReviewApi
   capture: CaptureApi
   tags: TagsApi
