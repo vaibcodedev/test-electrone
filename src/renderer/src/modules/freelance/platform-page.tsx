@@ -65,7 +65,7 @@ function ContractsTab({ platform }: { platform: Platform }) {
               onClick={() => navigate(`/projects/${p.id}`)}
               onKeyDown={(e) => e.key === 'Enter' && navigate(`/projects/${p.id}`)}
             >
-              <TableCell className="max-w-[300px] truncate pl-4 font-medium">{p.title}</TableCell>
+              <TableCell className="max-w-75 truncate pl-4 font-medium">{p.title}</TableCell>
               <TableCell className="text-muted-foreground">{p.clientName ?? '—'}</TableCell>
               <TableCell>
                 <Badge variant={PROJECT_STATUS_BADGE[p.status]}>

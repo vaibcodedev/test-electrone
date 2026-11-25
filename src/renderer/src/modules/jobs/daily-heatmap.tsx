@@ -101,7 +101,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }): ReactElement
                 <span className="truncate">{b.name}</span>
               </span>
               {chunk(b.history, 7).map((w) => (
-                <div key={w[0].day} className="grid grid-cols-7 gap-[3px]">
+                <div key={w[0].day} className="grid grid-cols-7 gap-0.75">
                   {w.map((d) => (
                     <Cell key={d.day} board={b} day={d} />
                   ))}

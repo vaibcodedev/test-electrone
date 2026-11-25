@@ -304,7 +304,7 @@ export function ExpensesByCategory({
                       aria-label={`${r.label}: ${percent(r.share)}`}
                       className={cn(
                         'h-1.5',
-                        r.rest && '[&>[data-slot=progress-indicator]]:bg-muted-foreground'
+                        r.rest && '*:data-[slot=progress-indicator]:bg-muted-foreground'
                       )}
                     />
                   </div>

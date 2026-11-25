@@ -54,7 +54,7 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
           <Plus /> Вакансія
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[420px] rounded-2xl p-4">
+      <PopoverContent align="end" className="w-105 rounded-2xl p-4">
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
@@ -126,7 +126,7 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }): ReactElem
       </CardHeader>
       <div className="flex flex-wrap gap-1.5 px-5">
         {list.slice(0, 8).map((a) => (
-          <Button key={a.id} variant="subtle" size="sm" className="max-w-[300px] font-normal" onClick={() => onOpen(a.id)}>
+          <Button key={a.id} variant="subtle" size="sm" className="max-w-75 font-normal" onClick={() => onOpen(a.id)}>
             <span className="truncate">
               {a.title}
               {a.company ? ` — ${a.company}` : ''}

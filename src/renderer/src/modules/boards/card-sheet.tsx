@@ -76,7 +76,7 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
         <Label
           htmlFor={cbId}
           className={cn(
-            'min-w-0 flex-1 cursor-pointer px-1 py-1.5 text-body leading-snug font-normal text-foreground [overflow-wrap:anywhere]',
+            'min-w-0 flex-1 cursor-pointer px-1 py-1.5 text-body leading-snug font-normal text-foreground wrap-anywhere',
             entry.done && 'text-muted-foreground'
           )}
         >
@@ -124,7 +124,7 @@ function Checklist({ card }: { card: CardDetails }) {
       <form
         data-edit-only
         // Under the item texts: checkbox width (1rem) + the row gap (gap-2.5).
-        className="flex items-center gap-2 pl-[calc(1rem+0.625rem)]"
+        className="flex items-center gap-2 pl-6.5"
         onSubmit={(e) => {
           e.preventDefault()
           if (!text.trim() || add.isPending) return
@@ -321,7 +321,7 @@ export function CardSheet({
         onEscapeKeyDown={guard.onEscapeKeyDown}
         side="right"
         showCloseButton={false}
-        className="w-full gap-0 p-0 sm:max-w-[560px]"
+        className="w-full gap-0 p-0 sm:max-w-140"
       >
         {card && card.id === cardId ? (
           <CardEditor

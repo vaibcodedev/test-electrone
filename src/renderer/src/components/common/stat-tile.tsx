@@ -37,7 +37,7 @@ export function StatTile({
   return (
     <Card
       className={cn(
-        'min-h-[118px] gap-2',
+        'min-h-29.5 gap-2',
         tone === 'ink' && 'bg-ink text-ink-foreground',
         tone === 'lime' && 'bg-lime text-lime-foreground',
         className

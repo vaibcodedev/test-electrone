@@ -14,7 +14,7 @@ import { MAX } from '@shared/domain/limits'
 
 /**
  * View mode value of a linked record: a link (docs/design-system.md → Кнопки) that opens it. The wrapper takes
- * the Field's `[&>*]:w-full`, so the button stays as wide as its text (no focus ring or click area across the
+ * the Field's `*:w-full`, so the button stays as wide as its text (no focus ring or click area across the
  * row); a long name ends with «…» inside its own span — truncate on the inline-flex button cut it mid-word.
  */
 function RecordLink({ label, onClick }: { label: string; onClick: () => void }): ReactElement {

@@ -278,7 +278,7 @@ export function ProposalEditorSheet({
         onEscapeKeyDown={guard.onEscapeKeyDown}
         side="right"
         showCloseButton={false}
-        className="w-full gap-0 p-0 sm:max-w-[640px]"
+        className="w-full gap-0 p-0 sm:max-w-160"
       >
         {proposal && proposal.id === proposalId ? (
           <Editor key={proposal.id} proposal={proposal} platform={platform} onClose={onClose} modeRef={modeRef} />

@@ -46,7 +46,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
       {...clickableProps(open)}
       // The title is always first and the button pinned to the bottom: titles line up across a row whether a
       // card has a description or not.
-      className="group tile h-full min-h-[190px] gap-0 p-5"
+      className="group tile h-full min-h-47.5 gap-0 p-5"
     >
       <div className="min-w-0">
         <CardTitle
@@ -100,7 +100,7 @@ function RunCard({ item }: { item: Checklist }) {
   }
   const complete = item.total > 0 && item.done === item.total
   return (
-    <Card {...clickableProps(open)} className="tile h-full min-h-[150px] gap-0 p-5">
+    <Card {...clickableProps(open)} className="tile h-full min-h-37.5 gap-0 p-5">
       <CardTitle
         title={item.title}
         className="font-display line-clamp-2 text-stat-sm leading-tight font-normal"

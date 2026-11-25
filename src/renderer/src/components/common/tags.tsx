@@ -48,14 +48,14 @@ export function TagChip({
       // min-w-0 shrink: Badge itself never shrinks — a long tag in a row that doesn't wrap ends with «…» instead.
       className={cn(
         'h-6 min-w-0 shrink justify-start gap-1.5 text-foreground',
-        onClick && 'cursor-pointer hover:bg-foreground/[0.1]',
+        onClick && 'cursor-pointer hover:bg-foreground/10',
         onRemove && 'pr-1',
         className
       )}
     >
       {/* An outline like the legend dots (DS §11): a lime dot on a light chip was all but invisible. */}
       <span
-        className="size-1.5 shrink-0 rounded-full ring-1 ring-foreground/20 [[data-active]_&]:ring-ink-foreground/25"
+        className="size-1.5 shrink-0 rounded-full ring-1 ring-foreground/20 in-data-active:ring-ink-foreground/25"
         style={{ background: tag.color ?? 'var(--muted-foreground)' }}
       />
       {/* A long tag name ends with «…» (full name on hover) instead of leaving the row. */}
@@ -110,12 +110,12 @@ export function TagList({
         <TagChip
           key={t.id}
           tag={t}
-          className="h-5 px-2 bg-foreground/[0.07] [[data-active]_&]:bg-ink-foreground/12 [[data-active]_&]:text-ink-foreground"
+          className="h-5 px-2 bg-foreground/[0.07] in-data-active:bg-ink-foreground/12 in-data-active:text-ink-foreground"
         />
       ))}
       {/* In an active (ink) row the count takes the ink muted colour, like the chips: muted-foreground was ≈2:1 there. */}
       {tags.length > max && (
-        <span className="text-meta text-muted-foreground [[data-active]_&]:text-ink-muted">
+        <span className="text-meta text-muted-foreground in-data-active:text-ink-muted">
           +{tags.length - max}
         </span>
       )}

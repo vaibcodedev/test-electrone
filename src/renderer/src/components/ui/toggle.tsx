@@ -22,11 +22,11 @@ const toggleVariants = cva(
         default:
           'bg-transparent text-muted-foreground hover:bg-surface hover:text-foreground on:bg-surface on:text-foreground',
         // Tinted, not bg-surface: an unselected chip on a surface card used to look like plain text.
-        chip: 'bg-foreground/[0.06] font-normal text-foreground hover:bg-foreground/[0.1] on:bg-lime on:font-medium on:text-lime-foreground on:focus-visible:ring-lime-foreground',
+        chip: 'bg-foreground/6 font-normal text-foreground hover:bg-foreground/10 on:bg-lime on:font-medium on:text-lime-foreground on:focus-visible:ring-lime-foreground',
         // A chip that picks a value (record type in quick add, FilterChips tone="neutral"), not a screen filter:
         // the dialog's lime belongs to its submit button.
         'chip-neutral':
-          'bg-foreground/[0.06] font-normal text-foreground hover:bg-foreground/[0.1] on:bg-foreground/12 on:font-medium on:text-foreground on:focus-visible:ring-ring',
+          'bg-foreground/6 font-normal text-foreground hover:bg-foreground/10 on:bg-foreground/12 on:font-medium on:text-foreground on:focus-visible:ring-ring',
         segment:
           'font-normal text-muted-foreground hover:text-foreground on:bg-card on:font-medium on:text-foreground on:shadow-sm dark:on:bg-foreground/12',
         outline:

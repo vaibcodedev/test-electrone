@@ -68,7 +68,7 @@ export function LaunchDialog({
         if (template)
           instantiate.mutate({ templateId: template.id, title: title.trim(), projectId })
       }}
-      className="sm:max-w-[480px]"
+      className="sm:max-w-120"
     >
       <Field label="Назва прогону">
         <Input

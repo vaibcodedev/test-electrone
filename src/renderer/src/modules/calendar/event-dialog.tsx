@@ -199,7 +199,7 @@ export function EventDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Never taller than the window: the fields scroll, the footer with «Зберегти» stays in view. */}
-      <DialogContent className="max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)] rounded-3xl p-6 sm:max-w-[540px]">
+      <DialogContent className="max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)] rounded-3xl p-6 sm:max-w-135">
         <DialogHeader>
           <DialogTitle className="font-display text-heading">
             {event ? 'Подія' : 'Нова подія'}
@@ -214,11 +214,11 @@ export function EventDialog({
         >
           {/* Only the fields scroll; the footer sits below them, outside the scroll area.
               gutter auto: the global stable gutter made the right margin 40px against 30px on the left. */}
-          <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1 [scrollbar-gutter:auto]">
+          <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1 scrollbar-gutter-auto">
             {linked ? (
               // The owning module controls the title: plain text, not a field that takes the cursor but no typing.
               <Field label="Назва">
-                <p className="text-lead font-medium [overflow-wrap:anywhere]">{form.title}</p>
+                <p className="text-lead font-medium wrap-anywhere">{form.title}</p>
               </Field>
             ) : (
               <Field

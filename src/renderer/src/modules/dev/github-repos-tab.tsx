@@ -45,7 +45,7 @@ export function ReposTab(): ReactElement | null {
           <TableBody>
             {list.map((r) => (
               <TableRow key={r.fullName}>
-                <TableCell className="max-w-[360px]">
+                <TableCell className="max-w-90">
                   <div className="flex items-center gap-1.5">
                     <Button
                       variant="link"

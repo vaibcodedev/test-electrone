@@ -66,7 +66,7 @@ function ErrorTextField({
     <Block label="Текст помилки">
       <ShowMore
         enabled={readOnly && long}
-        collapsedClass="max-h-56 overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]"
+        collapsedClass="max-h-56 overflow-hidden mask-[linear-gradient(to_bottom,black_75%,transparent)]"
         moreLabel="Показати весь текст"
       >
         <AutoCode

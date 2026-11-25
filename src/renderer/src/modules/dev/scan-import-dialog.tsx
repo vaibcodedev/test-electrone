@@ -68,7 +68,7 @@ export function ScanImportDialog({ scan, onClose }: { scan: ScanResult | null; o
       invalid={!picked.size}
       invalidReason={items.length ? 'Позначте проєкти, які додати' : undefined}
       pending={busy}
-      className="sm:max-w-[560px]"
+      className="sm:max-w-140"
     >
       {items.length === 0 ? (
         <EmptyState title="Нових проєктів не знайдено" hint="Шукаємо папки з package.json або .git — сама папка й один рівень вкладеності." className="py-8" />

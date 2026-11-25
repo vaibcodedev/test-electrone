@@ -230,8 +230,8 @@ function Sidebar({
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
-            ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-            : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
+            ? "left-0 group-data-[collapsible=offcanvas]:-left-(--sidebar-width)"
+            : "right-0 group-data-[collapsible=offcanvas]:-right-(--sidebar-width)",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
@@ -294,7 +294,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
       onClick={toggleSidebar}
       title={toggleLabel(state)}
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex",
+        "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 hover:after:bg-sidebar-border sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
         "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full hover:group-data-[collapsible=offcanvas]:bg-sidebar",
@@ -695,7 +695,7 @@ function SidebarMenuSubButton({
       className={cn(
         "flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground",
         // Current page must be obvious: stronger tint, semibold, and a short accent bar on the left.
-        "relative transition-[background-color,color] duration-200 before:absolute before:top-1/2 before:left-0.5 before:h-0 before:w-[3px] before:-translate-y-1/2 before:rounded-full before:bg-chart-1 before:transition-[height] before:duration-300 before:ease-[var(--ease-soft)]",
+        "relative transition-[background-color,color] duration-200 before:absolute before:top-1/2 before:left-0.5 before:h-0 before:w-0.75 before:-translate-y-1/2 before:rounded-full before:bg-chart-1 before:transition-[height] before:duration-300 before:ease-soft",
         // Active: tinted pill with a soft accent glow, icon in the accent colour, the bar grows in.
         "data-[active=true]:bg-[linear-gradient(90deg,color-mix(in_oklab,var(--chart-1)_16%,transparent),color-mix(in_oklab,var(--foreground)_6%,transparent)_70%)] data-[active=true]:font-semibold data-[active=true]:text-foreground data-[active=true]:before:h-4 data-[active=true]:[&>svg]:text-chart-1",
         size === "sm" && "text-caption",

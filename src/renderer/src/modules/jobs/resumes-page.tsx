@@ -283,7 +283,7 @@ export function ResumesPage(): ReactElement {
       </PageBody>
       <NewVersionDialog key={dialogKey} open={dialogOpen} onOpenChange={setDialogOpen} source={pending} suggestedTitle={suggested} />
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="flex h-[85vh] flex-col gap-3 rounded-3xl sm:max-w-[860px]">
+        <DialogContent className="flex h-[85vh] flex-col gap-3 rounded-3xl sm:max-w-215">
           <DialogHeader>
             <DialogTitle>{preview?.title}</DialogTitle>
           </DialogHeader>

@@ -50,8 +50,8 @@ export function BookmarkRow({ bookmark: b, active, onOpen }: { bookmark: Bookmar
                   // chart-1 is contrast-checked against surfaces; on an ink row the bar uses ink colours.
                   'h-1.5 w-20',
                   active
-                    ? 'bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-ink-foreground'
-                    : 'bg-card [&>[data-slot=progress-indicator]]:bg-chart-1'
+                    ? 'bg-ink-foreground/15 *:data-[slot=progress-indicator]:bg-ink-foreground'
+                    : 'bg-card *:data-[slot=progress-indicator]:bg-chart-1'
                 )}
               />
               <span className={cn('w-9 text-right text-caption tabular-nums', active ? 'text-ink-muted' : 'text-muted-foreground')}>
@@ -66,7 +66,7 @@ export function BookmarkRow({ bookmark: b, active, onOpen }: { bookmark: Bookmar
         </div>
       </div>
       {/* Shown in the active row too (TagList has ink colours): hiding them made the row jump on click. */}
-      {b.tags.length > 0 && <TagList tags={b.tags} className="mt-2 pl-[3.375rem]" />}
+      {b.tags.length > 0 && <TagList tags={b.tags} className="mt-2 pl-13.5" />}
     </ListItem>
   )
 }

@@ -232,7 +232,7 @@ export function CodeEditor({
   return (
     <div
       className={cn(
-        'relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-[var(--code-bg)]',
+        'relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-(--code-bg)',
         className
       )}
     >
@@ -328,8 +328,8 @@ export function CodeBlock({
       <pre
         aria-hidden
         className={cn(
-          'pointer-events-none overflow-hidden rounded-2xl bg-[var(--code-bg)] p-4 font-mono text-caption leading-relaxed whitespace-pre-wrap text-[var(--code-fg)] select-none [overflow-wrap:anywhere]',
-          clipped && '[mask-image:linear-gradient(to_bottom,black_60%,transparent)]',
+          'pointer-events-none overflow-hidden rounded-2xl bg-(--code-bg) p-4 font-mono text-caption leading-relaxed whitespace-pre-wrap text-(--code-fg) select-none wrap-anywhere',
+          clipped && 'mask-[linear-gradient(to_bottom,black_60%,transparent)]',
           className
         )}
       >
@@ -340,7 +340,7 @@ export function CodeBlock({
   return (
     <pre
       className={cn(
-        'selectable overflow-x-auto overflow-y-hidden rounded-2xl bg-[var(--code-bg)] p-4 font-mono text-caption leading-relaxed text-[var(--code-fg)]',
+        'selectable overflow-x-auto overflow-y-hidden rounded-2xl bg-(--code-bg) p-4 font-mono text-caption leading-relaxed text-(--code-fg)',
         className
       )}
     >

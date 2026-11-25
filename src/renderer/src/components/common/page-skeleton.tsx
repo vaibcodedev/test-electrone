@@ -68,7 +68,7 @@ function HeaderStub({
           </div>
         )}
       </div>
-      <Skeleton className="-mt-2 h-4 w-[26rem] max-w-full rounded-full" />
+      <Skeleton className="-mt-2 h-4 w-104 max-w-full rounded-full" />
       {chips !== undefined && (
         <div className="flex items-center gap-2">
           {Array.from({ length: chips }, (_, i) => (
@@ -168,7 +168,7 @@ function CalendarLayout({ header = true }: LayoutProps) {
       {header && <HeaderStub actions={3} />}
       <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: 35 }, (_, i) => (
-          <Skeleton key={i} className="h-[92px] rounded-2xl" />
+          <Skeleton key={i} className="h-23 rounded-2xl" />
         ))}
       </div>
     </div>
@@ -186,8 +186,8 @@ function DashboardLayout() {
           <Skeleton key={i} className="h-28 rounded-3xl" />
         ))}
       </div>
-      <Skeleton className="col-span-3 h-[236px] rounded-3xl" />
-      <Skeleton className="col-span-3 h-[236px] rounded-3xl" />
+      <Skeleton className="col-span-3 h-59 rounded-3xl" />
+      <Skeleton className="col-span-3 h-59 rounded-3xl" />
     </div>
   )
 }
@@ -273,7 +273,7 @@ function FocusLayout() {
       </div>
       <div className="flex flex-1 items-center justify-center">
         <div className="flex w-full max-w-2xl flex-col gap-4">
-          <Skeleton className="h-[340px] rounded-[28px]" />
+          <Skeleton className="h-85 rounded-3xl" />
           <Skeleton className="h-16 rounded-2xl" />
         </div>
       </div>

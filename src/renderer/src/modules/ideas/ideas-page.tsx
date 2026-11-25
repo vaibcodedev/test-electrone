@@ -59,7 +59,7 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
 }
 
 /** Badges in the active (ink) row take an ink tint, like TagList chips. */
-const ON_INK = '[[data-active]_&]:bg-ink-foreground/12 [[data-active]_&]:text-ink-foreground'
+const ON_INK = 'in-data-active:bg-ink-foreground/12 in-data-active:text-ink-foreground'
 
 function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onClick: () => void }) {
   return (

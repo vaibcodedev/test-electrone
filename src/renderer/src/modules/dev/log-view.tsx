@@ -102,7 +102,7 @@ export function LogView({ runId, className }: { runId: string; className?: strin
               <div
                 key={v.key}
                 className={cn(
-                  'absolute top-0 left-0 w-full px-3 leading-[18px] whitespace-pre',
+                  'absolute top-0 left-0 w-full px-3 leading-4.5 whitespace-pre',
                   row.stream === 'err' && 'text-(--code-invalid)',
                   row.stream === 'sys' && 'text-(--code-keyword)'
                 )}

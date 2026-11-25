@@ -31,7 +31,7 @@ export function QuickTiles(): ReactElement {
           <Card
             key={q.target}
             {...clickableProps(() => setQuickAddOpen(true, q.target))}
-            className="tile h-[118px] justify-between gap-0 rounded-3xl p-4"
+            className="tile h-29.5 justify-between gap-0 rounded-3xl p-4"
           >
             <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
               <Icon className="size-4 text-muted-foreground" />

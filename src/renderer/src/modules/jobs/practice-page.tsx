@@ -127,7 +127,7 @@ function PracticeCard({
         onClick={onReveal}
         className={cn(
           // Long questions and answers wrap inside the card instead of running off it.
-          'min-h-[320px] items-center justify-center gap-3 rounded-3xl px-10 py-10 text-center ring-1 ring-foreground/8 [overflow-wrap:anywhere]',
+          'min-h-80 items-center justify-center gap-3 rounded-3xl px-10 py-10 text-center ring-1 ring-foreground/8 wrap-anywhere',
           !revealed && 'cursor-pointer'
         )}
       >

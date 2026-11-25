@@ -165,7 +165,7 @@ export function ProjectRow({
       <button
         type="button"
         onClick={() => navigate(`/projects/${project.id}`)}
-        className="grid min-h-[76px] w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_150px] items-center gap-6 px-5 py-4 text-left"
+        className="grid min-h-19 w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_150px] items-center gap-6 px-5 py-4 text-left"
       >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-3">

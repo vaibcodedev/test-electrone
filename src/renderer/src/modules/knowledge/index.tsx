@@ -47,7 +47,7 @@ function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> 
           <Card
             key={s.type}
             {...clickableProps(() => navigate(s.path))}
-            className="group tile h-[124px] justify-between gap-0 rounded-3xl p-4"
+            className="group tile h-31 justify-between gap-0 rounded-3xl p-4"
           >
             <span className="flex items-center justify-between">
               <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">

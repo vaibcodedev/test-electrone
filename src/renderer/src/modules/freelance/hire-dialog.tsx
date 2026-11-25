@@ -61,7 +61,7 @@ export function HireDialog({
         </>
       }
       submitLabel="Створити контракт"
-      className="sm:max-w-[460px]"
+      className="sm:max-w-115"
       invalid={!title.trim() || numbers.invalid}
       pending={hire.isPending}
       onSubmit={() =>

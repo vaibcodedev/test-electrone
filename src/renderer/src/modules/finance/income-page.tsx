@@ -112,7 +112,7 @@ export function IncomePage(): ReactElement {
                           {sourceOf(r)}
                         </span>
                       </TableCell>
-                      <TableCell className={cn('max-w-[180px]', CLIENT_COL)}>
+                      <TableCell className={cn('max-w-45', CLIENT_COL)}>
                         <span className="block truncate" title={r.clientName ?? undefined}>
                           {r.clientName ?? '—'}
                         </span>

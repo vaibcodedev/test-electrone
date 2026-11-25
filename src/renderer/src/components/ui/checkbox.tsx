@@ -20,7 +20,7 @@ const checkboxVariants = cva(
       variant: {
         default: '',
         round:
-          'size-[22px] rounded-full bg-card data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground dark:data-[state=checked]:bg-lime'
+          'size-5.5 rounded-full bg-card data-[state=checked]:border-lime data-[state=checked]:bg-lime data-[state=checked]:text-lime-foreground dark:data-[state=checked]:bg-lime'
       }
     },
     defaultVariants: { variant: 'default' }

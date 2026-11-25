@@ -31,7 +31,7 @@ function Money({
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-caption text-muted-foreground">{label}</span>
       {/* Wraps at spaces instead of «100 млн U…»: four columns get narrow on a small window. */}
-      <span className="font-display text-stat-sm leading-tight tabular-nums [overflow-wrap:anywhere]">
+      <span className="font-display text-stat-sm leading-tight tabular-nums wrap-anywhere">
         {value}
       </span>
       {/* div, not span: the hint can be a «Вказати…» button. */}

@@ -427,7 +427,7 @@ export function PortfolioPage() {
                     c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
                   )}
                 >
-                  <div className="aspect-[16/10] overflow-hidden rounded-[18px] bg-card ring-1 ring-foreground/8 ring-inset">
+                  <div className="aspect-16/10 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 ring-inset">
                     {c.coverPath ? (
                       <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover object-top" />
                     ) : (

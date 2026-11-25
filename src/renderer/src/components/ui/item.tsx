@@ -39,7 +39,7 @@ const itemVariants = cva(
         outline: "border-border",
         muted: "bg-surface [a]:hover:bg-(--tile-hover) [button]:hover:bg-(--tile-hover)",
         // Selected row in master lists (reference: black "Item return" row).
-        active: "bg-ink text-ink-foreground [&_[data-slot=item-description]]:text-ink-muted",
+        active: "bg-ink text-ink-foreground **:data-[slot=item-description]:text-ink-muted",
       },
       size: {
         default: "gap-4 p-4",
@@ -75,7 +75,7 @@ function Item({
 }
 
 const itemMediaVariants = cva(
-  "flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:translate-y-0.5 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none",
+  "flex shrink-0 items-center justify-center gap-2 group-has-data-[slot=item-description]/item:translate-y-0.5 group-has-data-[slot=item-description]/item:self-start [&_svg]:pointer-events-none",
   {
     variants: {
       variant: {

@@ -42,7 +42,7 @@ export function UpdateBanner(): ReactElement | null {
         <Progress
           value={s.percent}
           aria-label="Завантаження оновлення"
-          className="h-1.5 bg-ink-foreground/15 [&>[data-slot=progress-indicator]]:bg-lime"
+          className="h-1.5 bg-ink-foreground/15 *:data-[slot=progress-indicator]:bg-lime"
         />
       ) : (
         <Button

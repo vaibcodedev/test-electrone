@@ -200,7 +200,7 @@ export function DesignsPage(): ReactElement | null {
           <DesignMedia
             path={d.imagePath}
             alt={designTitle(d)}
-            className="block aspect-[4/3] w-full rounded-[18px] object-cover object-top"
+            className="block aspect-4/3 w-full rounded-xl object-cover object-top"
           />
           <div className="flex min-w-0 items-center gap-2 px-1.5 pt-2 pb-0.5">
             <div className="min-w-0 flex-1">

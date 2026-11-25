@@ -97,12 +97,12 @@ export function MoodboardTile({ board }: { board: Moodboard }): ReactElement {
     >
       {board.itemCount === 0 ? (
         // Four blank cells looked like a broken preview: one quiet cell says the board is empty.
-        <div className="grid aspect-[16/9] place-content-center justify-items-center gap-1 rounded-xl bg-card text-meta text-muted-foreground">
+        <div className="grid aspect-video place-content-center justify-items-center gap-1 rounded-xl bg-card text-meta text-muted-foreground">
           <LayoutGrid className="size-4" />
           Порожня
         </div>
       ) : (
-        <div className="grid aspect-[16/9] grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
+        <div className="grid aspect-video grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
           {cells.map((p, i) =>
             p ? (
               <DesignMedia key={i} path={p} className="size-full object-cover" />

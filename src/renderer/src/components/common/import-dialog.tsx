@@ -188,7 +188,7 @@ export function ImportDialog({
               {...drop.props}
               className={cn(
                 'flex min-h-40 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-foreground/15 p-6 text-center transition-colors',
-                drop.isOver && 'border-chart-1 bg-foreground/[0.04]'
+                drop.isOver && 'border-chart-1 bg-foreground/4'
               )}
             >
               <FileJson className="size-6 text-muted-foreground" />

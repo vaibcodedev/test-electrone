@@ -97,7 +97,7 @@ function CopyTemplateButton({
       >
         {/* The name goes in the body, not the title: a long one without spaces ran under ✕. */}
         <p
-          className="line-clamp-2 text-body font-medium [overflow-wrap:anywhere]"
+          className="line-clamp-2 text-body font-medium wrap-anywhere"
           title={template.title}
         >
           {template.title}

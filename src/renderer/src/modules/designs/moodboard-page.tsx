@@ -78,7 +78,7 @@ function SortableDesign({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         // The surface frame of the gallery tiles: a dark screenshot doesn't melt into the page.
-        'group relative aspect-[4/3] cursor-grab gap-0 overflow-hidden bg-surface p-1.5 active:cursor-grabbing',
+        'group relative aspect-4/3 cursor-grab gap-0 overflow-hidden bg-surface p-1.5 active:cursor-grabbing',
         isDragging && 'z-10 opacity-80 shadow-2xl ring-2 ring-ring'
       )}
       {...attributes}
@@ -87,7 +87,7 @@ function SortableDesign({
       <DesignMedia
         path={design.imagePath}
         alt={title}
-        className="size-full rounded-[18px] object-cover"
+        className="size-full rounded-xl object-cover"
       />
       <div className="absolute inset-x-3 bottom-3 flex items-center justify-between gap-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
         {/* A long title ends with «…» and never pushes the buttons off the tile. */}
@@ -185,7 +185,7 @@ function DesignPicker({
                 aria-label={title}
                 className="h-auto w-full flex-col items-stretch gap-1.5 rounded-2xl p-1 text-caption font-normal hover:bg-foreground/6 on:bg-transparent on:ring-2 on:ring-ring on:ring-offset-2 on:ring-offset-card"
               >
-                <span className="relative block aspect-[4/3] overflow-hidden rounded-xl bg-surface">
+                <span className="relative block aspect-4/3 overflow-hidden rounded-xl bg-surface">
                   <DesignMedia
                     path={d.imagePath}
                     autoPlay={false}
@@ -231,7 +231,7 @@ function AddDesignsDialog({
         if (!o) setSelected(new Set())
       }}
     >
-      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-[880px]">
+      <DialogContent className="flex max-h-[85vh] flex-col gap-4 sm:max-w-220">
         <DialogHeader>
           <DialogTitle className="font-display text-heading">Додати в «{board.title}»</DialogTitle>
           <DialogDescription>
@@ -388,7 +388,7 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                   </Field>
                 ) : (
                   description && (
-                    <p className="text-body whitespace-pre-line text-muted-foreground [overflow-wrap:anywhere]">
+                    <p className="text-body whitespace-pre-line text-muted-foreground wrap-anywhere">
                       {description}
                     </p>
                   )

@@ -143,7 +143,7 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
               key={p.id}
               variant="subtle"
               size="sm"
-              className="max-w-[280px] font-normal"
+              className="max-w-70 font-normal"
               onClick={() => onOpen(p.id)}
             >
               <span className="truncate">{p.jobTitle}</span>

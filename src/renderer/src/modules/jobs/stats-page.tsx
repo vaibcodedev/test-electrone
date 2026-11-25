@@ -125,7 +125,7 @@ export function JobStatsPage(): ReactElement {
                         <Progress
                           value={s.total ? (s.passed / s.total) * 100 : 0}
                           aria-label={STAGE_KIND_LABEL[s.kind]}
-                          className="h-2.5 bg-card [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
+                          className="h-2.5 bg-card *:data-[slot=progress-indicator]:rounded-full *:data-[slot=progress-indicator]:bg-chart-1"
                         />
                         <span className="text-right text-caption text-muted-foreground tabular-nums">
                           пройдено {s.passed} з {s.total}

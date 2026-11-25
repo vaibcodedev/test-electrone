@@ -32,7 +32,7 @@ export function Funnel({ steps }: { steps: FunnelStep[] }): ReactElement {
           <Progress
             value={(s.value / max) * 100}
             aria-label={s.label}
-            className="h-3 bg-card [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
+            className="h-3 bg-card *:data-[slot=progress-indicator]:rounded-full *:data-[slot=progress-indicator]:bg-chart-1"
           />
           {/* The same «12 · 33,3%» as the FunnelTable cells. */}
           <span className="text-right text-body tabular-nums">

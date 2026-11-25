@@ -398,9 +398,9 @@ export function Segmented<T extends string>({
 export const SEGMENTS_MAX = 12
 
 const SEGMENT_FILL = {
-  lime: '[&>[data-slot=progress-indicator]]:bg-chart-1',
-  ink: '[&>[data-slot=progress-indicator]]:bg-lime-foreground',
-  'on-ink': '[&>[data-slot=progress-indicator]]:bg-ink-accent'
+  lime: '*:data-[slot=progress-indicator]:bg-chart-1',
+  ink: '*:data-[slot=progress-indicator]:bg-lime-foreground',
+  'on-ink': '*:data-[slot=progress-indicator]:bg-ink-accent'
 } as const
 
 /** Segmented progress (reference "Active order" bar) built from shadcn Progress segments. */
@@ -468,7 +468,7 @@ export function SegmentBar({
               'h-1.5 flex-1 bg-current/15',
               fill,
               // An empty segment hides its indicator: anti-aliasing showed a hairline of colour at the edge.
-              !on && '[&>[data-slot=progress-indicator]]:opacity-0'
+              !on && '*:data-[slot=progress-indicator]:opacity-0'
             )}
           />
         )

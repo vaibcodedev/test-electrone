@@ -55,8 +55,8 @@ export function Meter({
       className={cn(
         'h-1.5 bg-foreground/10',
         ratio > 1
-          ? '[&>[data-slot=progress-indicator]]:bg-warn-fill'
-          : '[&>[data-slot=progress-indicator]]:bg-chart-1',
+          ? '*:data-[slot=progress-indicator]:bg-warn-fill'
+          : '*:data-[slot=progress-indicator]:bg-chart-1',
         className
       )}
     />

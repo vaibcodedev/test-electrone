@@ -61,12 +61,12 @@ export const CardTile = forwardRef<
         {card.priority !== 'none' && (
           <span
             title={PRIORITY_LABEL[card.priority]}
-            className={cn('mt-[5px] size-2 shrink-0 rounded-full', PRIORITY_DOT[card.priority])}
+            className={cn('mt-1.25 size-2 shrink-0 rounded-full', PRIORITY_DOT[card.priority])}
           />
         )}
         <span
           className={cn(
-            'line-clamp-4 min-w-0 flex-1 text-body leading-snug [overflow-wrap:anywhere]',
+            'line-clamp-4 min-w-0 flex-1 text-body leading-snug wrap-anywhere',
             done && 'text-muted-foreground line-through'
           )}
         >

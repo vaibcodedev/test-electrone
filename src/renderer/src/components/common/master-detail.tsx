@@ -183,7 +183,7 @@ export function InlineTitle({
         // my-1 pr-7: the same text box as the textarea below (py-1), so E doesn't re-wrap or shift the title.
         // Margin, not padding: line-clamp clips at the padding box, a bottom padding showed the 5th line's tops.
         className={cn(
-          'font-display min-w-0 flex-1 my-1 pr-7 text-headline line-clamp-4 leading-[1.1] [overflow-wrap:anywhere]',
+          'font-display min-w-0 flex-1 my-1 pr-7 text-headline line-clamp-4 leading-[1.1] wrap-anywhere',
           !value && 'text-muted-foreground/60',
           className
         )}
@@ -211,7 +211,7 @@ export function InlineTitle({
         // padding only: with the bottom one as well, the tops of the 7th line showed under the 6th.
         // Focus like every field (DS §2): a thin inner ring (the title has no border) + the soft outer one, not lime.
         className={cn(
-          'font-display min-h-0 max-h-[calc(6lh+0.25rem)] cursor-text overflow-hidden rounded-xl border-0 bg-transparent py-1 pr-9 pl-2 text-headline leading-[1.1] shadow-none transition-colors [scrollbar-gutter:auto] placeholder:text-muted-foreground/50 hover:bg-foreground/5 focus-visible:overflow-y-auto focus-visible:bg-foreground/5 focus-visible:inset-ring focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 aria-invalid:inset-ring aria-invalid:inset-ring-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
+          'font-display min-h-0 max-h-[calc(6lh+0.25rem)] cursor-text overflow-hidden rounded-xl border-0 bg-transparent py-1 pr-9 pl-2 text-headline leading-[1.1] shadow-none transition-colors scrollbar-gutter-auto placeholder:text-muted-foreground/50 hover:bg-foreground/5 focus-visible:overflow-y-auto focus-visible:bg-foreground/5 focus-visible:inset-ring focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 aria-invalid:inset-ring aria-invalid:inset-ring-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
           className
         )}
       />
@@ -517,7 +517,7 @@ export function ListItem({
         aria-current={active || undefined}
       >
         {/* overflow-wrap: one long word (a pasted URL, «аааа…») wraps instead of widening the row. */}
-        <div className={cn('w-full min-w-0 [overflow-wrap:anywhere]', top && 'flex flex-col')}>
+        <div className={cn('w-full min-w-0 wrap-anywhere', top && 'flex flex-col')}>
           {children}
         </div>
       </button>

@@ -75,7 +75,7 @@ export function RouteError(): ReactElement {
             <TriangleAlert className="size-6" />
           </EmptyMedia>
           <EmptyTitle className="text-lead font-medium">{stale ? 'Потрібне перезавантаження' : 'Екран не відкрився'}</EmptyTitle>
-          <EmptyDescription className="text-body break-words">
+          <EmptyDescription className="text-body wrap-break-word">
             {stale ? `${message} — дані не постраждали.` : `${message}. Помилку записано в журнал — дані не постраждали.`}
           </EmptyDescription>
         </EmptyHeader>

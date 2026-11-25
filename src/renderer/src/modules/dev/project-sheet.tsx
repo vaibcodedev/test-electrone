@@ -257,7 +257,7 @@ export function ProjectSheet({
 }): ReactElement {
   return (
     <Sheet open={!!project} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-[520px] overflow-y-auto sm:max-w-[520px]">
+      <SheetContent className="w-130 overflow-y-auto sm:max-w-130">
         <SheetHeader className="px-6 pb-0">
           <SheetTitle className="sr-only">Проєкт</SheetTitle>
           <SheetDescription className="sr-only">Налаштування локального проєкту</SheetDescription>

@@ -80,7 +80,7 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
       {...clickableProps(onOpen)}
       className="group tile h-full min-w-0 gap-0 overflow-hidden p-1.5 text-left"
     >
-      <div className="relative aspect-[16/10] overflow-hidden rounded-[18px] bg-card bg-[conic-gradient(var(--surface)_25%,transparent_0_50%,var(--surface)_0_75%,transparent_0)] bg-[length:16px_16px]">
+      <div className="relative aspect-16/10 overflow-hidden rounded-xl bg-card bg-[conic-gradient(var(--surface)_25%,transparent_0_50%,var(--surface)_0_75%,transparent_0)] bg-size-[16px_16px]">
         <div className="absolute inset-0 transition-transform duration-300 group-hover:scale-[1.02]">
           {hasCode ? (
             <ScaledPreview item={item} onStatus={setStatus} />

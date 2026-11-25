@@ -185,7 +185,7 @@ export function VirtualList<T>({
   if (loading && !items.length)
     return (
       <div
-        className={cn('min-h-0 flex-1 overflow-hidden [scrollbar-gutter:stable]', className)}
+        className={cn('min-h-0 flex-1 overflow-hidden scrollbar-gutter-stable', className)}
         aria-busy="true"
       >
         <Delayed delay={150}>
@@ -329,7 +329,7 @@ export function VirtualGrid<T>({
   if (loading && !items.length)
     return (
       <div
-        className={cn('min-h-0 flex-1 overflow-hidden [scrollbar-gutter:stable]', className)}
+        className={cn('min-h-0 flex-1 overflow-hidden scrollbar-gutter-stable', className)}
         aria-busy="true"
       >
         <Delayed delay={150}>
@@ -388,7 +388,7 @@ export function VirtualGrid<T>({
                     <div
                       key={key}
                       data-row-key={key}
-                      className={cn('flex min-w-0 flex-col [&>*]:flex-1', e.className)}
+                      className={cn('flex min-w-0 flex-col *:flex-1', e.className)}
                       style={e.style}
                     >
                       {renderItem(item, start + i)}

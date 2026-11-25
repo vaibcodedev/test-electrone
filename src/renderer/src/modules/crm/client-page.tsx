@@ -134,7 +134,7 @@ export function ClientPage(): ReactElement {
         </div>
 
         <aside
-          className="w-[300px] shrink-0 overflow-y-auto border-l border-border px-5 py-6"
+          className="w-75 shrink-0 overflow-y-auto border-l border-border px-5 py-6"
           key={`aside-${c.id}`}
         >
           <div className="flex flex-col gap-6">

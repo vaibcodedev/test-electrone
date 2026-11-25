@@ -261,7 +261,7 @@ export function CommandPalette(): ReactElement {
       title="Пошук усюди"
       description="Ідеї, сніпети, помилки, клієнти й розділи"
       showCloseButton={false}
-      className="top-[14%] translate-y-0 rounded-3xl sm:max-w-[640px]"
+      className="top-[14%] translate-y-0 rounded-3xl sm:max-w-160"
       contentProps={HOTKEY_DIALOG_PROPS}
       commandProps={{
         shouldFilter: false,

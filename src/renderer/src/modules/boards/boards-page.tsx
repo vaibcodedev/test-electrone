@@ -80,7 +80,7 @@ function BoardTile({ board }: { board: BoardSummary }) {
     <Card
       className={cn(
         // The overlay link takes the focus, so the tile draws the same inner ring that `tile` gives on focus-visible.
-        'tile group relative h-full min-h-[188px] gap-0 p-5 has-[a:focus-visible]:shadow-[inset_0_0_0_2px_var(--ring)]',
+        'tile group relative h-full min-h-47 gap-0 p-5 has-[a:focus-visible]:shadow-[inset_0_0_0_2px_var(--ring)]',
         board.archived && 'opacity-55'
       )}
     >

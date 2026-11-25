@@ -80,8 +80,8 @@ export function GoalCard({
           className={cn(
             'h-2',
             done
-              ? '[&>[data-slot=progress-indicator]]:bg-success-fill'
-              : '[&>[data-slot=progress-indicator]]:bg-chart-1'
+              ? '*:data-[slot=progress-indicator]:bg-success-fill'
+              : '*:data-[slot=progress-indicator]:bg-chart-1'
           )}
         />
         {/* Done: the number and the badge already say it; only an overshoot is worth a line. */}

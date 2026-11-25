@@ -252,7 +252,7 @@ function AddColumn({ boardId }: { boardId: string }) {
   const add = useApiMutation('boards', 'addColumn')
   return (
     <form
-      className="w-[260px] shrink-0"
+      className="w-65 shrink-0"
       onSubmit={(e) => {
         e.preventDefault()
         if (!title.trim() || add.isPending) return
@@ -261,7 +261,7 @@ function AddColumn({ boardId }: { boardId: string }) {
       }}
     >
       {/* Dashed = an empty slot; once you type it becomes a normal field (no dashed border under the focus ring). */}
-      <InputGroup className="h-12 rounded-3xl border-dashed bg-transparent has-[input:focus]:border-solid has-[input:focus]:bg-foreground/[0.04]">
+      <InputGroup className="h-12 rounded-3xl border-dashed bg-transparent has-[input:focus]:border-solid has-[input:focus]:bg-foreground/4">
         <InputGroupAddon>
           <Plus />
         </InputGroupAddon>
@@ -413,7 +413,7 @@ export function KanbanView({
             card={active}
             done={doneColumns.has(containerOf(active.id) ?? '')}
             overlay
-            className="w-[272px]"
+            className="w-68"
           />
         ) : null}
       </DragOverlay>

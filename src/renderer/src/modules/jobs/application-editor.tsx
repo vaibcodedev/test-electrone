@@ -454,7 +454,7 @@ export function ApplicationEditorSheet({ applicationId, onClose }: { application
   const guard = guardSheet(modeRef, onClose)
   return (
     <Sheet open={!!applicationId} onOpenChange={guard.onOpenChange}>
-      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[660px]">
+      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-165">
         {application && application.id === applicationId ? (
           <Editor key={application.id} application={application} onClose={onClose} modeRef={modeRef} />
         ) : (

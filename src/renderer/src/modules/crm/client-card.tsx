@@ -28,7 +28,7 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
     <Item
       asChild
       variant="muted"
-      className="tile group h-full min-h-[168px] w-full min-w-0 flex-col items-stretch justify-between rounded-3xl p-5"
+      className="tile group h-full min-h-42 w-full min-w-0 flex-col items-stretch justify-between rounded-3xl p-5"
     >
       <button
         type="button"

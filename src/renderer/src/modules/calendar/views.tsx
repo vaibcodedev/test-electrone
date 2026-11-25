@@ -155,7 +155,7 @@ export function MonthView({
               onClick={onDayClick && (() => onDayClick(day))}
               className={cn(
                 // overflow-clip (not hidden): never becomes a scroll container, so no flash of a scrollbar on click.
-                'group min-h-[92px] gap-0.5 overflow-clip rounded-2xl p-2 transition-colors',
+                'group min-h-23 gap-0.5 overflow-clip rounded-2xl p-2 transition-colors',
                 onDayClick && 'cursor-pointer',
                 // Neighbouring month: no fill and a muted number instead of opacity, so titles keep their contrast.
                 inMonth ? 'bg-surface/60' : 'bg-transparent',
@@ -262,7 +262,7 @@ export function WeekView({
                 {format(day, 'd')}
               </span>
             </div>
-            <div className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto [scrollbar-gutter:auto]">
+            <div className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-gutter-auto">
               {items.map((item) => (
                 <Button
                   key={item.key}
@@ -271,7 +271,7 @@ export function WeekView({
                   onClick={() => onItemClick(item)}
                   className={cn(
                     // Full column width, a calm radius, bar + time + title: reads like an agenda row.
-                    'relative h-auto w-full flex-col items-start gap-0.5 rounded-xl bg-card py-2 pr-3 pl-5 text-left font-normal text-foreground whitespace-normal [overflow-wrap:anywhere] hover:bg-(--tile-hover) hover:text-foreground',
+                    'relative h-auto w-full flex-col items-start gap-0.5 rounded-xl bg-card py-2 pr-3 pl-5 text-left font-normal text-foreground whitespace-normal wrap-anywhere hover:bg-(--tile-hover) hover:text-foreground',
                     item.done && 'opacity-60'
                   )}
                 >

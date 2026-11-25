@@ -24,7 +24,7 @@ export function ThemePicker({ value, onChange }: { value: Theme; onChange: (them
             className={cn(
               // Neutral cards with a preview; the chosen one gets a clear ring + check (no inversion).
               // Keyboard focus sits on the hidden radio: outline (not ring) so it doesn't fight the chosen ring.
-              'relative flex cursor-pointer flex-col items-stretch gap-2.5 rounded-2xl border bg-card p-2.5 text-body font-normal transition-[border-color,box-shadow] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring',
+              'relative flex cursor-pointer flex-col items-stretch gap-2.5 rounded-2xl border bg-card p-2.5 text-body font-normal transition-[border-color,box-shadow] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
               active ? 'border-transparent ring-2 ring-chart-1' : 'border-border hover:border-foreground/40'
             )}
           >

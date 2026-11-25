@@ -189,7 +189,7 @@ export function QuickAddDialog(): ReactElement {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
-        className="rounded-3xl p-5 sm:max-w-[600px]"
+        className="rounded-3xl p-5 sm:max-w-150"
         showCloseButton={false}
         onOpenAutoFocus={(e) => {
           e.preventDefault()

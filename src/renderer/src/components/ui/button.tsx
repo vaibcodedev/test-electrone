@@ -31,7 +31,7 @@ const buttonVariants = cva(
         // Trigger that looks like a field (DatePicker, Combobox): the input's border and tint; focus stays the
         // global outline.
         field:
-          'justify-start rounded-xl border border-input bg-foreground/[0.04] font-normal text-foreground hover:border-foreground/40 hover:bg-foreground/[0.04] aria-invalid:border-destructive disabled:opacity-50',
+          'justify-start rounded-xl border border-input bg-foreground/4 font-normal text-foreground hover:border-foreground/40 hover:bg-foreground/4 aria-invalid:border-destructive disabled:opacity-50',
         // On a code block (ink in both themes): «Форматувати», copy code.
         code: 'bg-(--code-control) text-(--code-fg) hover:bg-(--code-control-hover) disabled:opacity-50',
         link: 'h-auto rounded-none px-0 text-foreground underline decoration-current/30 underline-offset-4 hover:decoration-current disabled:opacity-50'

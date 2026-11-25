@@ -285,7 +285,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
           </form>
         </div>
 
-        <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-border px-5 py-6">
+        <aside className="w-75 shrink-0 overflow-y-auto border-l border-border px-5 py-6">
           <EntityAside
             entity={{ type: 'checklist', id: data.id }}
             tags={data.tags}

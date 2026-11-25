@@ -238,7 +238,7 @@ function PaymentRow({
             ? `${payment.overdue ? 'прострочено, термін ' : 'до '}${fmtDay(payment.dueAt)}`
             : 'без терміну'}
       </TableCell>
-      <TableCell className="w-[170px]">
+      <TableCell className="w-42.5">
         {/* Marking a stage paid is a quick action (docs/design-system.md §8): it works in view mode too. */}
         <EditableScope>
           <Choice

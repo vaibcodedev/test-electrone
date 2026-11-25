@@ -112,7 +112,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
               type="multiple"
               variant="segment"
               size="sm"
-              className="data-[variant=segment]:bg-foreground/[0.06]"
+              className="data-[variant=segment]:bg-foreground/6"
               value={board.weekdays.map(String)}
               onValueChange={(v) => save({ weekdays: v.map(Number) })}
             >

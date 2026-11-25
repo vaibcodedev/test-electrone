@@ -68,9 +68,9 @@ export function Confirm({
       >
         <AlertDialogHeader>
           {/* A file name or title without spaces wraps instead of leaving the dialog. */}
-          <AlertDialogTitle className="[overflow-wrap:anywhere]">{title}</AlertDialogTitle>
+          <AlertDialogTitle className="wrap-anywhere">{title}</AlertDialogTitle>
           {description && (
-            <AlertDialogDescription className="[overflow-wrap:anywhere]">
+            <AlertDialogDescription className="wrap-anywhere">
               {description}
             </AlertDialogDescription>
           )}

@@ -129,7 +129,7 @@ export function ClientDialog({
       onOpenChange={onOpenChange}
       title="Новий клієнт"
       submitLabel="Додати клієнта"
-      className="sm:max-w-[560px]"
+      className="sm:max-w-140"
       invalid={!form.name.trim() || !emailOk || numbers.invalid}
       invalidReason={!form.name.trim() ? 'Вкажіть ім’я клієнта' : undefined}
       pending={create.isPending}
@@ -320,7 +320,7 @@ export function ProjectDialog({
       onOpenChange={onOpenChange}
       title="Новий проєкт"
       submitLabel="Створити проєкт"
-      className="sm:max-w-[560px]"
+      className="sm:max-w-140"
       invalid={!form.title.trim() || dueBeforeStart || numbers.invalid}
       invalidReason={!form.title.trim() ? 'Вкажіть назву проєкту' : undefined}
       pending={create.isPending}

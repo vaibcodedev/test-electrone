@@ -112,7 +112,7 @@ function QuestionText({ value, onChange }: { value: string; onChange: (value: st
   }, [fresh, readOnly, value])
   const empty = !value.trim()
   if (readOnly)
-    return <h2 className="font-display py-1 text-headline leading-[1.1] whitespace-pre-line [overflow-wrap:anywhere]">{value || 'Питання'}</h2>
+    return <h2 className="font-display py-1 text-headline leading-[1.1] whitespace-pre-line wrap-anywhere">{value || 'Питання'}</h2>
   return (
     <Field
       label="Питання"

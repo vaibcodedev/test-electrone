@@ -48,14 +48,14 @@ export function FormDialog({
    * «Заповніть обов’язкові поля», and only while no field shows its own error.
    */
   invalidReason?: string
-  /** Width of the dialog, e.g. `sm:max-w-[560px]`. */
+  /** Width of the dialog, e.g. `sm:max-w-140`. */
   className?: string
 }): ReactElement {
   const blocked = invalid || pending
   const reasonId = useId()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn('sm:max-w-[520px]', className)}>
+      <DialogContent className={cn('sm:max-w-130', className)}>
         <DialogHeader>
           <DialogTitle className="font-display text-heading">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
@@ -77,7 +77,7 @@ export function FormDialog({
                 'mr-auto self-center text-caption text-muted-foreground',
                 // The generic phrase steps aside once a field says what is wrong.
                 !invalidReason &&
-                  'group-has-[[aria-invalid=true]]/form:hidden group-has-[[data-invalid=true]]/form:hidden'
+                  'group-has-aria-invalid/form:hidden group-has-data-[invalid=true]/form:hidden'
               )}
             >
               {invalid ? (invalidReason ?? 'Заповніть обов’язкові поля') : null}

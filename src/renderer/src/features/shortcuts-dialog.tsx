@@ -25,7 +25,7 @@ export function ShortcutsDialog(): ReactElement {
     <Dialog open={open} onOpenChange={setOpen}>
       {/* Header stays put; only the groups scroll. */}
       <DialogContent
-        className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl sm:max-w-[720px]"
+        className="flex max-h-[85vh] flex-col overflow-hidden rounded-3xl sm:max-w-180"
         {...HOTKEY_DIALOG_PROPS}
       >
         <DialogHeader>

@@ -12,7 +12,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<'div'>) {
       data-slot="input-group"
       role="group"
       className={cn(
-        'group/input-group relative flex w-full items-center rounded-full border border-input bg-foreground/[0.04] hover:border-foreground/40 transition-[color,box-shadow,background-color] outline-none has-[>textarea]:rounded-2xl',
+        'group/input-group relative flex w-full items-center rounded-full border border-input bg-foreground/4 hover:border-foreground/40 transition-[color,box-shadow,background-color] outline-none has-[>textarea]:rounded-2xl',
         'h-9 min-w-0 has-[>textarea]:h-auto',
 
         // Variants based on alignment.

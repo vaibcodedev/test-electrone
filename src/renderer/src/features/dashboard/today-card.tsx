@@ -30,7 +30,7 @@ export function TodayCard({
   const [todayStart] = useState(() => new Date().setHours(0, 0, 0, 0))
   const navigate = useNavigate()
   return (
-    <Card className="col-span-7 min-h-[300px] gap-0 bg-ink p-6 text-ink-foreground">
+    <Card className="col-span-7 min-h-75 gap-0 bg-ink p-6 text-ink-foreground">
       <div className="flex items-center justify-between text-caption text-ink-muted">
         <span>{capitalize(format(new Date(), 'EEEE, d MMMM', { locale: LOCALE }))}</span>
         {all.length > 0 && (

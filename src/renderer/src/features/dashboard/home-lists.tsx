@@ -133,7 +133,7 @@ export function ReadingCard({ reading }: Pick<DashboardData, 'reading'>): ReactE
               <Progress
                 value={b.progress}
                 aria-label={`Прочитано ${b.progress}%`}
-                className="h-1.5 w-20 bg-surface [&>[data-slot=progress-indicator]]:bg-chart-1"
+                className="h-1.5 w-20 bg-surface *:data-[slot=progress-indicator]:bg-chart-1"
               />
               <span className="w-9 text-right text-meta tabular-nums text-muted-foreground">
                 {b.progress}%

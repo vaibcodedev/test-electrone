@@ -96,7 +96,7 @@ export function Combobox({
     if (renderView) return <>{renderView({ value, label })}</>
     // A long word without spaces (a niche, a folder) wraps instead of pushing the aside sideways.
     return (
-      <span data-view className={cn('block min-w-0 text-body [overflow-wrap:anywhere]', className)}>
+      <span data-view className={cn('block min-w-0 text-body wrap-anywhere', className)}>
         {label}
       </span>
     )

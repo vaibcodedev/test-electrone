@@ -55,8 +55,8 @@ export function ProgressLine({
           className={cn(
             'h-1.5 bg-current/15',
             tone === 'lime'
-              ? '[&>[data-slot=progress-indicator]]:bg-chart-1'
-              : '[&>[data-slot=progress-indicator]]:bg-ink-accent'
+              ? '*:data-[slot=progress-indicator]:bg-chart-1'
+              : '*:data-[slot=progress-indicator]:bg-ink-accent'
           )}
         />
       )}

@@ -72,7 +72,7 @@ export function ReviewCard({
       onClick={onReveal}
       className={cn(
         // Long words and sentences wrap inside the card instead of running off it.
-        'min-h-[340px] items-center justify-center gap-3 rounded-[28px] px-10 py-12 text-center ring-1 ring-foreground/8 [overflow-wrap:anywhere]',
+        'min-h-85 items-center justify-center gap-3 rounded-3xl px-10 py-12 text-center ring-1 ring-foreground/8 wrap-anywhere',
         !revealed && 'cursor-pointer'
       )}
     >

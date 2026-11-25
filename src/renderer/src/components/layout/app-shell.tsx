@@ -76,7 +76,7 @@ function TitleBar(): ReactElement {
   useLocation()
   const atStart = ((window.history.state as { idx?: number } | null)?.idx ?? 0) === 0
   return (
-    <div className="drag flex h-11 shrink-0 items-center gap-2 pr-[150px] pl-[calc(var(--sidebar-width)+14px)]">
+    <div className="drag flex h-11 shrink-0 items-center gap-2 pr-37.5 pl-[calc(var(--sidebar-width)+14px)]">
       <div className="no-drag flex gap-1">
         <HistoryButton label="Назад" keyHint="[" disabled={atStart} onClick={() => navigate(-1)}>
           <ArrowLeft />

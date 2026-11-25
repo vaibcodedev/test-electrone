@@ -195,7 +195,7 @@ export function ComponentSidePanel({
     save({ description })
   )
   return (
-    <Card className="w-[280px] shrink-0 gap-6 overflow-y-auto px-4 py-4">
+    <Card className="w-70 shrink-0 gap-6 overflow-y-auto px-4 py-4">
       {/* Reading: plain text — a read-only textarea kept its own scrollbar inside the scrolling column.
           A long one folds, so «Джерело», tags and links stay within reach. */}
       {readOnly ? (
@@ -204,9 +204,9 @@ export function ComponentSidePanel({
             <SectionLabel>Опис</SectionLabel>
             <ShowMore
               enabled={description.length > 600 || description.split('\n').length > 8}
-              collapsedClass="line-clamp-[8]"
+              collapsedClass="line-clamp-8"
             >
-              <p className="text-body leading-relaxed whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">
+              <p className="text-body leading-relaxed whitespace-pre-wrap text-muted-foreground wrap-anywhere">
                 {description}
               </p>
             </ShowMore>
