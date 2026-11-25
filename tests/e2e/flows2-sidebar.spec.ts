@@ -83,6 +83,9 @@ test.describe('бічна панель: згортання', () => {
     await freelance.click()
     await win.getByRole('menuitem', { name: 'Огляд' }).click()
     await expect.poll(() => hashPath(win)).toBe('/freelance')
+    // The menu fades out for ~150 ms after «Огляд»; reopening it inside that window is a timing race in Radix
+    // (the leaving layer may still catch the click), not what this test is about — wait until it is gone.
+    await expect(win.getByRole('menu')).toHaveCount(0)
     await freelance.click()
     await win.getByRole('menuitem', { name: 'Додати платформу' }).click()
     await expect(win.getByRole('dialog')).toBeVisible()

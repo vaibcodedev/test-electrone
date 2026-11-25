@@ -27,12 +27,26 @@ function DropdownMenuContent({
   sideOffset = 4,
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
   collisionPadding = OVERLAY_COLLISION,
+  onPointerDownOutside,
+  ref,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  const own = React.useRef<HTMLDivElement | null>(null)
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
+        ref={(node) => {
+          own.current = node
+          if (typeof ref === 'function') ref(node)
+          else if (ref) ref.current = node
+        }}
+        // A menu still fading out (data-state=closed, kept for the exit animation) took a click on its own trigger
+        // for a click outside and closed the menu that click had just reopened. Only an open menu dismisses.
+        onPointerDownOutside={(e) => {
+          if (own.current?.dataset.state === 'closed') e.preventDefault()
+          onPointerDownOutside?.(e)
+        }}
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
