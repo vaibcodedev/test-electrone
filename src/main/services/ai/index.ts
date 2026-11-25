@@ -258,19 +258,39 @@ export class AiService {
     return { model: reply.model, ms: this.now() - started }
   }
 
-  async suggestTags(input: AiSuggestTagsInput): Promise<AiTagSuggestion[]> {
-    const { ref, consent } = aiSuggestTagsSchema.parse(input)
+  /**
+   * Checks before a feature's request: AI is switched on and set up; a cloud provider gets record texts only
+   * after the person agreed once — `consent` says they just did in the warning, and it is remembered.
+   */
+  private ready(opts: { recordText: boolean; consent?: boolean }): AiConnection {
     const s = this.settings
     if (!s.enabled)
       throw new UserError(`Штучний інтелект вимкнено — увімкніть його в ${SETTINGS_HINT}`)
     const conn = this.connection()
-    if (!conn.local && !s.consented.includes(s.preset)) {
-      if (!consent)
+    if (opts.recordText && !conn.local && !s.consented.includes(s.preset)) {
+      if (!opts.consent)
         throw new UserError(
           `Спершу підтвердьте, що текст запису можна надіслати ${conn.preset.short}`
         )
       this.deps.store.updateAiSettings({ ...s, consented: [...s.consented, s.preset] })
     }
+    return conn
+  }
+
+  /**
+   * One request of a feature (the chat): the same checks, daily limit and usage counter as every other one.
+   * `recordText` — the request carries texts of the person's records (asks for consent before the cloud).
+   */
+  async request(
+    req: Omit<AiRequest, 'timeoutMs' | 'signal'>,
+    opts: { recordText: boolean; consent?: boolean }
+  ): Promise<AiReply> {
+    return this.send(this.ready(opts), req)
+  }
+
+  async suggestTags(input: AiSuggestTagsInput): Promise<AiTagSuggestion[]> {
+    const { ref, consent } = aiSuggestTagsSchema.parse(input)
+    const conn = this.ready({ recordText: true, consent })
     const text = this.deps.records.text(ref)
     if (!text) throw new NotFoundError(ref.type, ref.id)
     if (!text.title.trim() && !text.body.trim())

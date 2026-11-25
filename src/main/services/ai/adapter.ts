@@ -15,9 +15,17 @@ export interface AiConnection {
   local: boolean
 }
 
+/** An earlier turn of a chat, sent before the new prompt. */
+export interface AiTurn {
+  role: 'user' | 'assistant'
+  text: string
+}
+
 export interface AiRequest {
   system: string
   prompt: string
+  /** Earlier turns of a chat, oldest first; the prompt is the newest user turn. */
+  history?: AiTurn[]
   /** Cap on the reply, thinking included (reasoning models count it here too). */
   maxTokens: number
   /** Anthropic `output_config.effort` for models that take it; short utility tasks pass 'low'. */

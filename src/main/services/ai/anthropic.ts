@@ -46,7 +46,10 @@ export class AnthropicAdapter implements AiAdapter {
       model: conn.model,
       max_tokens: req.maxTokens,
       system: req.system,
-      messages: [{ role: 'user', content: req.prompt }],
+      messages: [
+        ...(req.history ?? []).map((t) => ({ role: t.role, content: t.text })),
+        { role: 'user', content: req.prompt }
+      ],
       ...(req.effort && supportsEffort(conn.model) ? { output_config: { effort: req.effort } } : {})
     }
     const data = await this.http.json<MessagesResponse>(

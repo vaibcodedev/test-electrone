@@ -21,8 +21,16 @@ function focusOrigin(prev: HTMLElement | null): HTMLElement | null {
  * navigates drops the element first (`dropReturnFocus`).
  */
 export function restoreFocus(e: Event): void {
-  const { returnFocus, paletteOpen, quickAddOpen, shortcutsOpen } = useUi.getState()
+  const { returnFocus, paletteOpen, quickAddOpen, shortcutsOpen, aiAskFocus } = useUi.getState()
   if (paletteOpen || quickAddOpen || shortcutsOpen) return e.preventDefault()
+  // «Спитати ШІ» from the palette: the answer comes in the chat — focus goes to its composer (the panel focuses
+  // it itself when it is still loading), not back into the page.
+  if (aiAskFocus) {
+    e.preventDefault()
+    useUi.setState({ aiAskFocus: false, returnFocus: null })
+    document.querySelector<HTMLElement>('[data-ai-chat-input]')?.focus()
+    return
+  }
   if (returnFocus?.isConnected) {
     e.preventDefault()
     returnFocus.focus()
@@ -84,6 +92,19 @@ interface UiState {
   /** Pending «Зберегти зміни?» question (CloseConfirmHost). */
   closeAsk: CloseAsk | null
   askClose: (ask: CloseAsk | null) => void
+  /** «Чат ШІ» on the right (Ctrl+J, «ШІ» in the title bar). */
+  aiChatOpen: boolean
+  setAiChatOpen: (open: boolean) => void
+  toggleAiChat: () => void
+  /** Width of the chat panel in px, remembered between runs. */
+  aiChatWidth: number
+  setAiChatWidth: (width: number) => void
+  /** A question to send as soon as the chat opens (Ctrl+K «Спитати ШІ: …»); the panel takes it once. */
+  aiAsk: { text: string; id: number } | null
+  /** The palette closing after «Спитати ШІ» hands the focus to the chat (restoreFocus). */
+  aiAskFocus: boolean
+  askAi: (text: string) => void
+  takeAiAsk: () => { text: string; id: number } | null
   /** Records created a moment ago: their detail pane opens straight in edit mode. */
   justCreated: Record<string, true>
   markCreated: (id: string) => void
@@ -95,17 +116,28 @@ export const useUi = create<UiState>()(
     (set, get) => ({
       paletteOpen: false,
       setPaletteOpen: (paletteOpen) =>
-        set((s) => (paletteOpen ? { paletteOpen, returnFocus: focusOrigin(s.returnFocus) } : { paletteOpen })),
+        set((s) =>
+          paletteOpen ? { paletteOpen, returnFocus: focusOrigin(s.returnFocus) } : { paletteOpen }
+        ),
       quickAddOpen: false,
       shortcutsOpen: false,
       setShortcutsOpen: (shortcutsOpen) =>
-        set((s) => (shortcutsOpen ? { shortcutsOpen, returnFocus: focusOrigin(s.returnFocus) } : { shortcutsOpen })),
+        set((s) =>
+          shortcutsOpen
+            ? { shortcutsOpen, returnFocus: focusOrigin(s.returnFocus) }
+            : { shortcutsOpen }
+        ),
       quickAddTarget: undefined,
       quickAddText: undefined,
       setQuickAddOpen: (quickAddOpen, quickAddTarget, quickAddText) =>
         set((s) =>
           quickAddOpen
-            ? { quickAddOpen, quickAddTarget, quickAddText, returnFocus: focusOrigin(s.returnFocus) }
+            ? {
+                quickAddOpen,
+                quickAddTarget,
+                quickAddText,
+                returnFocus: focusOrigin(s.returnFocus)
+              }
             : { quickAddOpen }
         ),
       returnFocus: null,
@@ -126,6 +158,20 @@ export const useUi = create<UiState>()(
       bumpTrash: () => set((s) => ({ trashBump: s.trashBump + 1 })),
       closeAsk: null,
       askClose: (closeAsk) => set({ closeAsk }),
+      aiChatOpen: false,
+      setAiChatOpen: (aiChatOpen) => set({ aiChatOpen }),
+      toggleAiChat: () => set((s) => ({ aiChatOpen: !s.aiChatOpen })),
+      aiChatWidth: 380,
+      setAiChatWidth: (width) =>
+        set({ aiChatWidth: Math.round(Math.min(Math.max(width, 300), 900)) }),
+      aiAsk: null,
+      aiAskFocus: false,
+      askAi: (text) => set({ aiChatOpen: true, aiAsk: { text, id: Date.now() }, aiAskFocus: true }),
+      takeAiAsk: () => {
+        const ask = get().aiAsk
+        if (ask) set({ aiAsk: null })
+        return ask
+      },
       justCreated: {},
       markCreated: (id) => set((s) => ({ justCreated: { ...s.justCreated, [id]: true } })),
       takeCreated: (id) => {
@@ -153,7 +199,8 @@ export const useUi = create<UiState>()(
         views: s.views,
         openHubs: s.openHubs,
         collapsed: s.collapsed,
-        sidebarOpen: s.sidebarOpen
+        sidebarOpen: s.sidebarOpen,
+        aiChatWidth: s.aiChatWidth
       }),
       // persist doesn't validate what it reads: a hand-edited or foreign `sidebarOpen` must not leave the
       // panel in a state no button shows. The version stays — without a migrate a bump would drop views too.
@@ -162,7 +209,11 @@ export const useUi = create<UiState>()(
         return {
           ...current,
           ...p,
-          sidebarOpen: typeof p.sidebarOpen === 'boolean' ? p.sidebarOpen : current.sidebarOpen
+          sidebarOpen: typeof p.sidebarOpen === 'boolean' ? p.sidebarOpen : current.sidebarOpen,
+          aiChatWidth:
+            typeof p.aiChatWidth === 'number' && p.aiChatWidth >= 300 && p.aiChatWidth <= 900
+              ? p.aiChatWidth
+              : current.aiChatWidth
         }
       }
     }

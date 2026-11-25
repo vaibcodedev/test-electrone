@@ -51,6 +51,7 @@ export class OpenAiAdapter implements AiAdapter {
       model: conn.model,
       messages: [
         { role: 'system', content: req.system },
+        ...(req.history ?? []).map((t) => ({ role: t.role, content: t.text })),
         { role: 'user', content: req.prompt }
       ],
       [conn.preset.maxTokensField ?? 'max_tokens']: req.maxTokens

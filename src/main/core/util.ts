@@ -75,8 +75,11 @@ export class UserError extends Error {
   readonly code = 'USER'
 }
 
-/** Builds a safe FTS5 MATCH expression from free text: every token becomes a quoted prefix term. */
-export function toFtsQuery(text: string): string | null {
+/**
+ * Builds a safe FTS5 MATCH expression from free text: every token becomes a quoted prefix term. All of them must
+ * match; `any` — one is enough (a question in plain words: the chat's «Шукати в моїй базі»).
+ */
+export function toFtsQuery(text: string, any = false): string | null {
   const tokens = text
     .normalize('NFKC')
     .split(/[\s\p{P}\p{S}]+/u)
@@ -84,7 +87,7 @@ export function toFtsQuery(text: string): string | null {
     .filter(Boolean)
     .slice(0, 12)
   if (!tokens.length) return null
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' ')
+  return tokens.map((t) => `"${t.replace(/"/g, '""')}"*`).join(any ? ' OR ' : ' ')
 }
 
 /** Escapes LIKE wildcards. Use with `ESCAPE '\\'`. */

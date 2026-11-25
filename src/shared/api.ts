@@ -21,6 +21,13 @@ import type {
   AiTestResult
 } from './domain/ai'
 import type {
+  AiActionRef,
+  AiApplyResult,
+  AiChat,
+  AiChatSendInput,
+  AiChatSummary
+} from './domain/ai-chat'
+import type {
   Board,
   BoardColumn,
   BoardDetails,
@@ -700,6 +707,28 @@ export interface AiApi {
   cancel(): Promise<void>
 }
 
+/**
+ * «Чат ШІ» (the panel on the right, Ctrl+J). History lives on this computer only; an action proposed by the model
+ * changes the base only through `apply` — the renderer names the action, main re-checks and runs it.
+ */
+export interface AiChatApi {
+  /** Chats, most recent first. */
+  list(): Promise<AiChatSummary[]>
+  get(id: string): Promise<AiChat | null>
+  remove(id: string): Promise<void>
+  /**
+   * The question → the chat with it and the answer (a new chat when `chatId` is null). The open record and,
+   * with `search`, records found in the base go with it; a cloud provider needs `consent: true` once.
+   */
+  send(input: AiChatSendInput): Promise<AiChat>
+  /** «Застосувати»: runs the action (checked again), returns the record created or changed. */
+  apply(ref: AiActionRef): Promise<AiApplyResult>
+  /** «Скасувати» in the toast: the new record goes, the changed one is rolled back. */
+  undo(ref: AiActionRef): Promise<AiChat>
+  /** «Скасувати» on the card: the action stays in the chat, crossed out. */
+  dismiss(ref: AiActionRef): Promise<AiChat>
+}
+
 export interface ReviewApi {
   /** Week by its Monday (yyyy-mm-dd); current week when omitted. */
   get(args?: { weekStart?: string }): Promise<WeeklyReview>
@@ -910,6 +939,7 @@ export interface Api {
   devProjects: DevProjectsApi
   github: GithubApi
   ai: AiApi
+  aiChat: AiChatApi
   review: ReviewApi
   capture: CaptureApi
   tags: TagsApi
