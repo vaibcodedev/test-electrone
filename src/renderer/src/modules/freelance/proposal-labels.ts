@@ -46,7 +46,7 @@ export const PROPOSAL_STATUS_BADGE: Record<ProposalStatus, BadgeVariant> = {
 }
 
 export const BID_TYPE_LABEL: Record<BidType, string> = {
-  fixed: 'Фікс',
+  fixed: 'Фіксована',
   hourly: 'Погодинно'
 }
 
@@ -67,7 +67,3 @@ export const PLATFORM_COLORS = [
   '#14160f',
   '#9a9f93'
 ]
-
-export const DAY_MS = 86_400_000
-
-export { daysSince } from '@/lib/format'

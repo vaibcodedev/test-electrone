@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { Flag, Plus } from 'lucide-react'
 import { redFlagInputSchema, type RedFlag, type RedFlagPatch } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { countLabel } from '@/lib/format'
+import { countLabel, mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ItemDescription } from '@/components/ui/item'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
   EmptyState,
   Page,
@@ -37,19 +39,59 @@ const SEVERITY_VARIANT: Record<number, 'soft' | 'warn' | 'destructive'> = {
   3: 'destructive'
 }
 
-/** Severity reads as a scale: обережно (neutral + muted dot) → серйозно (warn) → критично (destructive). */
-export function SeverityBadge({ severity }: { severity: number }) {
+const SEVERITY_DOT: Record<'soft' | 'warn' | 'destructive', string> = {
+  soft: 'bg-muted-foreground',
+  warn: 'bg-warn',
+  destructive: 'bg-destructive'
+}
+
+/**
+ * Severity reads as a scale: обережно (neutral + muted dot) → серйозно (warn) → критично (destructive).
+ * On the active (ink) row the tinted badge loses contrast, so it turns into an ink chip and only the
+ * dot keeps the colour (like tags on an active row).
+ */
+function SeverityBadge({ severity, active }: { severity: number; active?: boolean }): ReactElement {
   const variant = SEVERITY_VARIANT[severity] ?? 'soft'
   return (
-    <Badge variant={variant}>
+    <Badge
+      variant={active ? 'soft' : variant}
+      className={cn('shrink-0', active && 'bg-ink-foreground/12 text-ink-foreground')}
+    >
       <span
         className={cn(
           'size-1.5 rounded-full',
-          variant === 'soft' ? 'bg-muted-foreground' : 'bg-current'
+          active && variant === 'soft' ? 'bg-ink-muted' : SEVERITY_DOT[variant]
         )}
       />
       {SEVERITY_LABEL[severity] ?? severity}
     </Badge>
+  )
+}
+
+const SEVERITY_OPTIONS = [1, 2, 3].map((n) => ({
+  value: String(n) as '1' | '2' | '3',
+  label: SEVERITY_LABEL[n]
+}))
+
+/** Coloured badge while reading (the record's main signal); a full-width segmented choice while editing. */
+function SeverityField({ severity, onChange }: { severity: number; onChange: (v: number) => void }): ReactElement {
+  const readOnly = useReadOnly()
+  return (
+    <Block label="Наскільки серйозно">
+      {readOnly ? (
+        <div data-view>
+          <SeverityBadge severity={severity} />
+        </div>
+      ) : (
+        <Segmented
+          className="w-full [&>[data-slot=toggle-group-item]]:flex-1"
+          size="xs"
+          value={String(severity) as '1' | '2' | '3'}
+          onChange={(v) => onChange(Number(v))}
+          options={SEVERITY_OPTIONS}
+        />
+      )}
+    </Block>
   )
 }
 
@@ -76,18 +118,7 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
           updatedAt={flag.updatedAt}
           files={false}
         >
-          <Block label="Наскільки серйозно">
-            <Segmented
-              className="w-fit"
-              size="xs"
-              value={String(flag.severity) as '1' | '2' | '3'}
-              onChange={(v) => save({ severity: Number(v) })}
-              options={[1, 2, 3].map((n) => ({
-                value: String(n) as '1' | '2' | '3',
-                label: SEVERITY_LABEL[n]
-              }))}
-            />
-          </Block>
+          <SeverityField severity={flag.severity} onChange={(severity) => save({ severity })} />
         </EntityAside>
       }
     >
@@ -177,10 +208,14 @@ export function RedFlagsPage() {
                 <ListItem active={f.id === open} onClick={() => setOpen(f.id)}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="truncate text-body font-medium">{f.title}</div>
-                      {f.signs && <div className="mt-1 line-clamp-2 text-caption opacity-70">{f.signs}</div>}
+                      <div className="line-clamp-2 text-body font-medium">{f.title}</div>
+                      {f.signs && (
+                        <ItemDescription className="mt-1 line-clamp-2 text-caption">
+                          {mdPreview(f.signs)}
+                        </ItemDescription>
+                      )}
                     </div>
-                    <SeverityBadge severity={f.severity} />
+                    <SeverityBadge severity={f.severity} active={f.id === open} />
                   </div>
                 </ListItem>
               )}

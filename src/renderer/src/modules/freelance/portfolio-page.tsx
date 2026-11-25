@@ -1,14 +1,13 @@
-import { useState } from 'react'
-import { openUrl } from '@/lib/open-url'
-import { BriefcaseBusiness, ClipboardCopy, ExternalLink, ImagePlus, Plus } from 'lucide-react'
+import { useRef, useState, type ReactElement } from 'react'
+import { BriefcaseBusiness, ClipboardCopy, ImagePlus, Plus } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { caseInputSchema, type CasePatch, type PortfolioCase } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { countLabel } from '@/lib/format'
+import { countLabel, mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
-import { fileUrl, isImageFile } from '@/lib/files'
+import { fileUrl, isImageFile, toFileSources } from '@/lib/files'
 import { cn } from '@/lib/utils'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
 import { Button } from '@/components/ui/button'
@@ -31,6 +30,8 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { copyText } from '@/components/common/copy-button'
+import { LinkInput } from '@/components/common/text-field'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
   DetailPane,
   EntityAside,
@@ -43,14 +44,14 @@ import {
   Block,
   EditorStack,
   InputField,
-  TextareaBlock,
-  UrlBlock
+  TextareaBlock
 } from '../claude/editor-kit'
+import { DisabledHint } from './disabled-hint'
 
 const CASE_L = limitsOf(caseInputSchema)
 
-/** English block ready to paste into the platform portfolio / a proposal. */
-function upworkText(c: PortfolioCase): string {
+/** English block ready to paste into a platform portfolio or a proposal. */
+function englishText(c: PortfolioCase): string {
   const body =
     c.textEn.trim() ||
     [
@@ -60,26 +61,93 @@ function upworkText(c: PortfolioCase): string {
     ]
       .filter(Boolean)
       .join('\n\n')
-  return [c.title, '', body, c.stack && `\nStack: ${c.stack}`, c.url && `Link: ${c.url}`]
-    .filter((x) => x !== '' && x !== undefined)
-    .join('\n')
+  return [c.title, body, c.stack && `Stack: ${c.stack}`, c.url && `Link: ${c.url}`]
+    .filter(Boolean)
+    .join('\n\n')
 }
 
 const NO_PROJECT = '__none__'
 
-function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
-  const update = useApiMutation('cases', 'update')
-  const remove = useApiMutation('cases', 'remove', { successMessage: 'Переміщено в кошик' })
+/**
+ * Cover screenshot. Rendered inside DetailPane, so it sees the record mode: drop, Ctrl+V and
+ * «Вибрати файл» work only while editing; in view mode only the image itself is shown.
+ */
+function CaseCover({ c }: { c: PortfolioCase }): ReactElement {
+  const readOnly = useReadOnly()
+  const fileRef = useRef<HTMLInputElement>(null)
   const setCover = useApiMutation('cases', 'setCover', { successMessage: 'Обкладинку оновлено' })
-  const { data: projectList = [] } = useApi('projects', 'list')
-  const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
-  const entity = { type: 'case' as const, id: c.id }
-
   const onFiles = (sources: FileSource[]): void => {
     if (sources[0]) setCover.mutate({ id: c.id, source: sources[0] })
   }
   const { isOver, props } = useFileDrop(onFiles, { accept: isImageFile })
-  usePasteFiles(onFiles)
+  usePasteFiles(onFiles, !readOnly)
+  return (
+    <div {...(readOnly ? {} : props)}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={async (e) => {
+          if (e.target.files?.length) onFiles(await toFileSources(e.target.files))
+          e.target.value = ''
+        }}
+      />
+      {c.coverPath ? (
+        <>
+          {/* Framed like a design preview: the whole screenshot is visible and never melts into the pane. */}
+          <Card className={cn('overflow-hidden bg-surface p-2', isOver && 'ring-2 ring-inset ring-ring')}>
+            <img src={fileUrl(c.coverPath)} alt="" className="max-h-80 w-full rounded-2xl object-contain ring-1 ring-foreground/8" />
+          </Card>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-edit-only
+            className="mt-1 -ml-3"
+            onClick={() => fileRef.current?.click()}
+          >
+            <ImagePlus /> Замінити обкладинку
+          </Button>
+        </>
+      ) : (
+        <Empty
+          data-edit-only
+          className={cn(
+            'gap-3 border border-dashed border-input p-6 md:p-6',
+            isOver && 'border-ring bg-lime-soft'
+          )}
+        >
+          <ImagePlus className="size-5 text-muted-foreground" />
+          <EmptyDescription className="text-caption">
+            Перетягніть скриншот, вставте Ctrl+V або виберіть файл
+          </EmptyDescription>
+          <Button variant="soft" size="sm" onClick={() => fileRef.current?.click()}>
+            Вибрати файл
+          </Button>
+        </Empty>
+      )}
+    </div>
+  )
+}
+
+function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
+  const update = useApiMutation('cases', 'update')
+  const remove = useApiMutation('cases', 'remove', { successMessage: 'Переміщено в кошик' })
+  const { data: projectList = [] } = useApi('projects', 'list')
+  const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
+  const entity = { type: 'case' as const, id: c.id }
+  // Without any text the copy would be just the title: the button waits for content.
+  const nothingToCopy = ![c.textEn, c.problem, c.whatDone, c.result].some((t) => t.trim())
+  const copyButton = (
+    <Button
+      variant="lime"
+      size="sm"
+      disabled={nothingToCopy}
+      onClick={() => void copyText(englishText(c), 'Текст кейсу скопійовано')}
+    >
+      <ClipboardCopy /> Копіювати англійською
+    </Button>
+  )
 
   return (
     <DetailPane
@@ -90,13 +158,9 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         onClose()
       }}
       headerExtra={
-        <Button
-          variant="lime"
-          size="sm"
-          onClick={() => void copyText(upworkText(c), 'Текст для Upwork скопійовано')}
-        >
-          <ClipboardCopy /> Скопіювати для Upwork
-        </Button>
+        <DisabledHint reason={nothingToCopy ? 'Додайте опис кейсу, щоб копіювати' : undefined}>
+          {copyButton}
+        </DisabledHint>
       }
       aside={
         <EntityAside
@@ -127,24 +191,12 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
             onSave={(stack) => save({ stack })}
             placeholder="Next.js, Tailwind, Stripe"
           />
-          <UrlBlock
+          <LinkInput
             label="Посилання"
             value={c.url}
             maxLength={CASE_L.url}
             onSave={(url) => save({ url })}
-            trailing={() =>
-              c.url && (
-                <Button
-                  variant="soft"
-                  size="icon"
-                  className="shrink-0"
-                  aria-label="Відкрити"
-                  onClick={() => void openUrl(c.url)}
-                >
-                  <ExternalLink />
-                </Button>
-              )
-            }
+            openLabel="Відкрити кейс"
           />
           <Block label="Проєкт">
             <Select
@@ -168,26 +220,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
       }
     >
       <EditorStack>
-        <div {...props}>
-          {c.coverPath ? (
-            // Framed like a design preview: the whole screenshot is visible and never melts into the pane.
-            <Card className={cn('overflow-hidden bg-surface p-2', isOver && 'ring-2 ring-inset ring-ring')}>
-              <img src={fileUrl(c.coverPath)} alt="" className="max-h-80 w-full rounded-2xl object-contain ring-1 ring-foreground/8" />
-            </Card>
-          ) : (
-            <Empty
-              className={cn(
-                'gap-2 border border-dashed border-input p-6 md:p-6',
-                isOver && 'border-ring bg-lime-soft'
-              )}
-            >
-              <ImagePlus className="size-5 text-muted-foreground" />
-              <EmptyDescription className="text-caption">
-                Перетягніть скриншот сюди або натисніть Ctrl+V
-              </EmptyDescription>
-            </Empty>
-          )}
-        </div>
+        <CaseCover c={c} />
         <AutoTitle
           value={c.title}
           onSave={(title) => save({ title })}
@@ -200,6 +233,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           onSave={(problem) => save({ problem })}
           maxLength={CASE_L.problem}
           minHeight="100px"
+          placeholder="Що хотів клієнт і яка була проблема"
         />
         <AutoMarkdown
           label="Що зробив"
@@ -207,6 +241,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           onSave={(whatDone) => save({ whatDone })}
           maxLength={CASE_L.whatDone}
           minHeight="140px"
+          placeholder="Ключові рішення: що й як ви зробили"
         />
         <AutoMarkdown
           label="Результат"
@@ -218,7 +253,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         />
         <TextareaBlock
           label="Текст англійською"
-          hint="Його копіює кнопка «Скопіювати для Upwork». Порожньо — збереться із завдання, роботи й результату."
+          hint="Його копіює кнопка «Копіювати англійською». Порожньо — збереться із завдання, роботи й результату."
           value={c.textEn}
           maxLength={CASE_L.textEn}
           onSave={(textEn) => save({ textEn })}
@@ -227,6 +262,23 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         />
       </EditorStack>
     </DetailPane>
+  )
+}
+
+function CoverlessPreview({ c }: { c: PortfolioCase }): ReactElement {
+  const text = mdPreview(c.result || c.problem || c.whatDone)
+  return (
+    <div
+      className={cn(
+        'flex size-full flex-col gap-2 p-3',
+        text ? 'items-start' : 'items-center justify-center'
+      )}
+    >
+      <div className="rounded-xl bg-foreground/[0.07] p-2 text-muted-foreground">
+        <BriefcaseBusiness className="size-4" />
+      </div>
+      {text && <p className="line-clamp-4 text-caption text-muted-foreground">{text}</p>}
+    </div>
   )
 }
 
@@ -294,6 +346,13 @@ export function PortfolioPage() {
                     icon={BriefcaseBusiness}
                     title={search || niche ? 'Нічого не знайдено' : 'Кейсів поки немає'}
                     hint={search || niche ? undefined : 'Додайте завершений проєкт — знадобиться для відгуків і профілю.'}
+                    action={
+                      !search && !niche && (
+                        <Button variant="soft" onClick={() => create.mutate({ title: 'Новий кейс' })}>
+                          <Plus /> Додати кейс
+                        </Button>
+                      )
+                    }
                   />
                 )
               }
@@ -302,30 +361,35 @@ export function PortfolioPage() {
                   role="button"
                   tabIndex={0}
                   onClick={() => setOpen(c.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && setOpen(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setOpen(c.id)
+                    }
+                  }}
                   className={cn(
                     // Same tile language as Дизайни: a surface frame, so a dark cover never melts into the page.
                     'tile h-full gap-0 overflow-hidden bg-surface p-1.5',
-                    c.id === open && 'bg-accent outline-2 -outline-offset-2 outline-chart-1'
+                    c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
                   )}
                 >
                   <div className="aspect-[16/10] overflow-hidden rounded-[18px] bg-card ring-1 ring-foreground/8 ring-inset">
                     {c.coverPath ? (
                       <img src={fileUrl(c.coverPath)} alt="" className="size-full object-cover object-top" />
                     ) : (
-                      <div className="m-2 grid h-[calc(100%-1rem)] place-items-center rounded-xl border border-dashed border-foreground/12 text-muted-foreground">
-                        <div className="flex flex-col items-center gap-1.5 text-caption">
-                          <BriefcaseBusiness className="size-5" />
-                          Без обкладинки
-                        </div>
-                      </div>
+                      // No screenshot: the case's own words instead of an empty frame on every tile.
+                      <CoverlessPreview c={c} />
                     )}
                   </div>
                   <CardContent className="flex flex-1 flex-col gap-1.5 px-2.5 pt-3 pb-1.5">
                     <div className="truncate text-body font-semibold">{c.title}</div>
                     {/* Reserved line: cards stay the same height with or without niche/stack. */}
                     <div className="flex h-6 min-w-0 items-center gap-1.5">
-                      {c.niche && <Badge variant="soft">{c.niche}</Badge>}
+                      {c.niche && (
+                        <Badge variant="soft" className="shrink" title={c.niche}>
+                          <span className="truncate">{c.niche}</span>
+                        </Badge>
+                      )}
                       {c.stack && <span className="min-w-0 truncate text-meta text-muted-foreground">{c.stack}</span>}
                     </div>
                   </CardContent>

@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { FunnelRow, Platform } from '@shared/domain/freelance'
 import { useApi } from '@/lib/query'
 import { LOCALE, fmtReplyTime, fmtPercent } from '@/lib/format'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ChartContainer,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/chart'
 import { EmptyState, Segmented } from '@/components/common/page'
 import { Funnel, FunnelTable, WithRate, type FunnelColumn } from '@/components/common/funnel'
+import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 
 const RANGES = [
   { value: '30', label: '30 днів' },
@@ -23,10 +25,10 @@ const RANGES = [
 ] as const
 type Range = (typeof RANGES)[number]['value']
 
-/** Two series → validated pair (dataviz validator: light #6b8c00/#5b6be0 on surface; dark pair passes contrast & CVD). */
+/** Chart tokens only (design-system → Графики): chart-1/chart-2 are the validated pair in both themes. */
 const weeklyConfig = {
-  sent: { label: 'Надіслано', theme: { light: '#6b8c00', dark: '#d8f74a' } },
-  replied: { label: 'Відповіли', theme: { light: '#5b6be0', dark: '#8b98ff' } }
+  sent: { label: 'Надіслано', color: 'var(--chart-1)' },
+  replied: { label: 'Відповіли', color: 'var(--chart-2)' }
 } satisfies ChartConfig
 
 /** Group table columns; the credits column only for platforms that have credits (Connects). */
@@ -47,7 +49,18 @@ export function StatsTab({ platform }: { platform: Platform }) {
   const from = startOfDay(subDays(new Date(), Number(range))).getTime()
   const { data: stats } = useApi('freelance', 'stats', { platformId: platform.id, from })
 
-  if (!stats) return null
+  if (!stats)
+    return (
+      <Delayed delay={150}>
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-8 w-64 rounded-full" />
+          <div className="grid grid-cols-12 gap-3">
+            <CardSkeleton height={280} className="col-span-5" />
+            <CardSkeleton height={280} className="col-span-7" />
+          </div>
+        </div>
+      </Delayed>
+    )
   const t = stats.totals
   const cols = columns(platform.creditsName)
   const weekly = stats.weekly.map((w) => ({
@@ -131,14 +144,14 @@ export function StatsTab({ platform }: { platform: Platform }) {
             <FunnelTable
               title="За типами завдань"
               description="Де вас частіше обирають"
-              groupHeader="Група"
+              groupHeader="Тип завдання"
               rows={stats.byNiche}
               columns={cols}
             />
             <FunnelTable
               title="За шаблонами"
               description="Які тексти відгуків працюють краще"
-              groupHeader="Група"
+              groupHeader="Шаблон"
               rows={stats.byTemplate}
               columns={cols}
             />

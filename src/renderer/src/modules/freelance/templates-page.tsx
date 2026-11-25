@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { ArrowRight, Copy, MessageSquareQuote, Plus } from 'lucide-react'
 import {
   TEMPLATE_SITUATIONS,
@@ -11,10 +11,10 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { api } from '@/lib/api'
-import { cn } from '@/lib/utils'
+import { fmtPercent } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ItemDescription } from '@/components/ui/item'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -36,6 +36,7 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { copyText } from '@/components/common/copy-button'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
   DetailPane,
   EntityAside,
@@ -51,14 +52,15 @@ import {
   InputField,
   TextareaBlock
 } from '../claude/editor-kit'
-import { fillTemplate, pct, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
+import { fillTemplate, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
+import { DisabledHint } from './disabled-hint'
 
 const TPL_L = limitsOf(templateInputSchema)
 const SITUATION_OPTIONS = TEMPLATE_SITUATIONS.map((s) => ({ value: s, label: SITUATION_LABEL[s] }))
 
 /** Asks for {variables}, shows the filled text and copies it. */
-export function CopyTemplateDialog({
+function CopyTemplateDialog({
   template,
   trigger
 }: {
@@ -68,11 +70,12 @@ export function CopyTemplateDialog({
   const vars = useMemo(() => templateVariables(template.body), [template.body])
   const [values, setValues] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
+  const markCopied = useApiMutation('templates', 'markCopied')
   const filled = fillTemplate(template.body, values)
 
   const doCopy = async (): Promise<void> => {
     await copyText(filled, 'Шаблон скопійовано')
-    await api.templates.markCopied(template.id)
+    markCopied.mutate(template.id)
     setOpen(false)
   }
 
@@ -127,7 +130,7 @@ export function CopyTemplateDialog({
             Скасувати
           </Button>
           <Button variant="lime" onClick={() => void doCopy()}>
-            <Copy /> Скопіювати
+            <Copy /> Копіювати текст
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -142,15 +145,32 @@ function StatBadges({ t }: { t: MessageTemplate }) {
       {t.usedIn > 0 && <Badge variant="soft">у відгуках: {t.usedIn}</Badge>}
       {t.usedIn > 0 && (
         <Badge variant="info">
-          відповіді {t.replied} · {pct((t.replied / t.usedIn) * 100)}
+          відповіді {t.replied} · {fmtPercent((t.replied / t.usedIn) * 100)}
         </Badge>
       )}
       {t.usedIn > 0 && (
         <Badge variant="success">
-          контракти {t.hired} · {pct((t.hired / t.usedIn) * 100)}
+          контракти {t.hired} · {fmtPercent((t.hired / t.usedIn) * 100)}
         </Badge>
       )}
       {t.copyCount > 0 && <Badge variant="outline">скопійовано {t.copyCount}×</Badge>}
+    </div>
+  )
+}
+
+/** The template's own {variables} while reading: what the copy dialog will ask for. */
+function TemplateVariables({ body }: { body: string }): ReactElement | null {
+  const readOnly = useReadOnly()
+  const vars = templateVariables(body)
+  if (!readOnly || !vars.length) return null
+  return (
+    <div className="-mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-caption text-muted-foreground">Змінні:</span>
+      {vars.map((v) => (
+        <Badge key={v} variant="soft">
+          {variableLabel(v)}
+        </Badge>
+      ))}
     </div>
   )
 }
@@ -171,14 +191,22 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
         onClose()
       }}
       headerExtra={
-        <CopyTemplateDialog
-          template={t}
-          trigger={
-            <Button variant="lime" size="sm">
+        t.body.trim() ? (
+          <CopyTemplateDialog
+            template={t}
+            trigger={
+              <Button variant="lime" size="sm">
+                <Copy /> Копіювати
+              </Button>
+            }
+          />
+        ) : (
+          <DisabledHint reason="Додайте текст, щоб копіювати">
+            <Button variant="lime" size="sm" disabled>
               <Copy /> Копіювати
             </Button>
-          }
-        />
+          </DisabledHint>
+        )
       }
       aside={
         <EntityAside
@@ -224,13 +252,19 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
         />
         <TextareaBlock
           label={isTalk ? 'Моя відповідь' : 'Текст'}
-          hint="Змінні у фігурних дужках — {client}, {deadline} — заповнюються під час копіювання."
+          hint={
+            <span data-edit-only>
+              Змінні у фігурних дужках — {'{client}'}, {'{deadline}'} — заповнюються під час
+              копіювання.
+            </span>
+          }
           value={t.body}
           maxLength={TPL_L.body}
           onSave={(body) => save({ body })}
           placeholder="Hi {client}, …"
           className="min-h-48 text-lead leading-relaxed"
         />
+        <TemplateVariables body={t.body} />
         <TextareaBlock
           label="Нотатка для себе"
           value={t.note}
@@ -279,17 +313,20 @@ export function TemplatesPage() {
         }
       >
         <div className="flex flex-wrap items-center gap-2">
-          <FilterChips
-            allLabel="Усі"
-            value={situation}
-            onChange={setSituation}
-            options={SITUATION_OPTIONS.map((o) => ({ ...o, count: counts[o.value] ?? 0 }))}
-          />
           <SearchInput
             value={search}
             onChange={setSearch}
             placeholder="Шукати в шаблонах"
-            className="ml-auto w-64"
+            className="w-64"
+          />
+          {/* Only situations that have templates: a zero chip always leads to an empty list. */}
+          <FilterChips
+            allLabel="Усі"
+            value={situation}
+            onChange={setSituation}
+            options={SITUATION_OPTIONS.filter(
+              (o) => (counts[o.value] ?? 0) > 0 || o.value === situation
+            ).map((o) => ({ ...o, count: counts[o.value] ?? 0 }))}
           />
         </div>
       </PageHeader>
@@ -319,21 +356,30 @@ export function TemplatesPage() {
                 <ListItem active={t.id === open} onClick={() => setOpen(t.id)}>
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="text-meta opacity-60">{SITUATION_LABEL[t.situation]}</div>
                       <div className="truncate text-body font-medium">{t.title}</div>
                       {t.situation === 'small_talk' ? (
-                        <div className="mt-1 flex items-center gap-1.5 text-caption opacity-70">
-                          <span className="truncate">{t.trigger || '—'}</span>
-                          <ArrowRight className="size-3 shrink-0" />
-                          <span className="truncate">{t.body || '—'}</span>
-                        </div>
+                        <ItemDescription className="mt-1 line-clamp-2 text-caption">
+                          {t.trigger || '—'}{' '}
+                          <ArrowRight className="inline size-3 align-[-2px]" aria-label="відповідь" />{' '}
+                          {t.body || '—'}
+                        </ItemDescription>
                       ) : (
-                        <div className="mt-1 line-clamp-2 text-caption opacity-70">{t.body}</div>
+                        t.body && (
+                          <ItemDescription className="mt-1 line-clamp-2 text-caption">
+                            {t.body}
+                          </ItemDescription>
+                        )
+                      )}
+                      {/* With a situation filter on, the label would only repeat the chip. */}
+                      {!situation && (
+                        <ItemDescription className="mt-1 text-meta">
+                          {SITUATION_LABEL[t.situation]}
+                        </ItemDescription>
                       )}
                     </div>
                     {t.usedIn > 0 && (
-                      <Badge variant={t.id === open ? 'lime' : 'soft'} className={cn('shrink-0')}>
-                        {pct((t.hired / t.usedIn) * 100)}
+                      <Badge variant={t.id === open ? 'lime' : 'soft'} className="shrink-0">
+                        {fmtPercent((t.hired / t.usedIn) * 100)}
                       </Badge>
                     )}
                   </div>

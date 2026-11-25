@@ -20,10 +20,7 @@ import { BILLING_LABEL, PROJECT_STATUS_BADGE, PROJECT_STATUS_LABEL } from '../cr
 import { ProposalsTab } from './proposal-tab'
 import { CreditsTab } from './credits-tab'
 import { StatsTab } from './stats-tab'
-import { PlatformSettingsTab } from './platform-dialog'
-
-const TAB_TRIGGER =
-  'rounded-full px-4 text-body data-[state=active]:bg-ink data-[state=active]:text-ink-foreground data-[state=active]:shadow-none dark:data-[state=active]:border-transparent dark:data-[state=active]:bg-ink dark:data-[state=active]:text-ink-foreground'
+import { PlatformSettingsTab } from './platform-settings-tab'
 
 type Tab = 'proposals' | 'contracts' | 'credits' | 'stats' | 'settings'
 
@@ -162,9 +159,9 @@ export function PlatformPage() {
               : `Комісія за замовчуванням ${platform.defaultFeePercent}%${platform.creditsName ? ` · ${platform.creditsName} по ${fmtMoney(platform.creditPrice, platform.currency)}` : ''}`
           }
         >
-          <TabsList className="h-10 rounded-full bg-surface p-1">
+          <TabsList className="w-fit">
             {tabs.map((t) => (
-              <TabsTrigger key={t.value} value={t.value} className={TAB_TRIGGER}>
+              <TabsTrigger key={t.value} value={t.value}>
                 {t.label}
               </TabsTrigger>
             ))}

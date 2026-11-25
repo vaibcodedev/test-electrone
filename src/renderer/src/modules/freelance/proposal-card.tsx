@@ -1,12 +1,12 @@
 import { forwardRef, type ComponentProps } from 'react'
-import { BadgeCheck, Coins, Star } from 'lucide-react'
+import { Award, BadgeCheck, Coins, Star } from 'lucide-react'
 import type { Proposal } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { fmtMoney, plural } from '@/lib/format'
+import { daysSince, fmtMoney, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { daysSince } from './proposal-labels'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /** Compact proposal tile used on the kanban (composed of shadcn Card + Badge). */
 export const ProposalCard = forwardRef<
@@ -41,14 +41,15 @@ export const ProposalCard = forwardRef<
           {p.jobTitle}
         </span>
         {p.starred && (
-          <Star
-            className="mt-0.5 size-3.5 shrink-0 fill-warn text-warn"
-            aria-label="Сильний відгук"
-          />
+          <Award className="mt-0.5 size-3.5 shrink-0 text-warn" aria-label="Сильний відгук" />
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-1">
-        {p.niche && <Badge variant="soft">{p.niche}</Badge>}
+      <div className="flex min-w-0 flex-wrap items-center gap-1">
+        {p.niche && (
+          <Badge variant="soft" title={p.niche}>
+            <span className="truncate">{p.niche}</span>
+          </Badge>
+        )}
         {p.bidAmount > 0 && (
           <Badge variant="outline">
             {fmtMoney(p.bidAmount, currency)}
@@ -56,11 +57,16 @@ export const ProposalCard = forwardRef<
           </Badge>
         )}
         {credits > 0 && (
-          <Badge variant="outline" title={creditsName}>
-            <Coins />
-            {p.credits}
-            {p.boostCredits > 0 && `+${p.boostCredits}`}
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="outline">
+                <Coins />
+                {p.credits}
+                {p.boostCredits > 0 && `+${p.boostCredits}`}
+              </Badge>
+            </TooltipTrigger>
+            {creditsName && <TooltipContent>{creditsName}</TooltipContent>}
+          </Tooltip>
         )}
       </div>
       <div className="flex items-center gap-2 text-meta text-muted-foreground">
@@ -73,10 +79,15 @@ export const ProposalCard = forwardRef<
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {p.clientRating !== null && (
-            <span className="flex items-center gap-0.5" title="Рейтинг клієнта">
-              <Star className="size-3" />
-              {p.clientRating.toFixed(1)}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="flex items-center gap-0.5">
+                  <Star className="size-3" />
+                  {p.clientRating.toLocaleString('uk-UA', { maximumFractionDigits: 1 })}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Рейтинг клієнта</TooltipContent>
+            </Tooltip>
           )}
           {p.paymentVerified && (
             <BadgeCheck className="size-3.5 text-success" aria-label="Оплату верифіковано" />

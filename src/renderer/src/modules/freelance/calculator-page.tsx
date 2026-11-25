@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NumberField } from '@/components/common/number-field'
 import { calculateRate, type RateCalcInput } from '@shared/domain/finance'
 import { useApi } from '@/lib/query'
-import { fmtMoney } from '@/lib/format'
+import { fmtMoney, plural } from '@/lib/format'
 import { Slider } from '@/components/ui/slider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
@@ -58,6 +58,8 @@ export function CalculatorPage() {
 
   const r = calculateRate(input)
   const usd = (n: number): string => fmtMoney(n, 'USD')
+  const billableHours = Math.round(r.billableHoursPerMonth)
+  const fixedBase = r.hourlyRate * fixedHours
 
   return (
     <Page>
@@ -76,7 +78,7 @@ export function CalculatorPage() {
               <NumberField
                 id="rc-target"
                 label="Хочу на руки за місяць"
-                unit="$"
+                unit="USD"
                 value={shown(input.targetNet)}
                 onCommit={(n) => set('targetNet', n ?? 0)}
                 min={0}
@@ -86,6 +88,7 @@ export function CalculatorPage() {
                 <NumberField
                   id="rc-hours"
                   label="Годин на тиждень"
+                  unit="год"
                   value={shown(input.hoursPerWeek)}
                   onCommit={(n) => set('hoursPerWeek', n ?? 1)}
                   min={1}
@@ -95,6 +98,7 @@ export function CalculatorPage() {
                 <NumberField
                   id="rc-vac"
                   label="Тижнів відпочинку на рік"
+                  unit="тиж."
                   value={shown(input.vacationWeeks)}
                   onCommit={(n) => set('vacationWeeks', n ?? 0)}
                   min={0}
@@ -148,7 +152,7 @@ export function CalculatorPage() {
               <NumberField
                 id="rc-exp"
                 label="Витрати на місяць"
-                unit="$"
+                unit="USD"
                 hint={
                   subsUsd !== undefined
                     ? `Підписки в розділі «Фінанси»: ${usd(subsUsd)} на місяць`
@@ -172,8 +176,12 @@ export function CalculatorPage() {
                   {usd(r.hourlyRate)}
                 </div>
                 <div className="text-body text-ink-muted">
-                  {usd(r.grossNeeded)} на місяць до всіх відрахувань ·{' '}
-                  {Math.round(r.billableHoursPerMonth)} оплачуваних годин
+                  {usd(r.grossNeeded)} на місяць до всіх відрахувань · {billableHours}{' '}
+                  {plural(billableHours, [
+                    'оплачувана година',
+                    'оплачувані години',
+                    'оплачуваних годин'
+                  ])}
                 </div>
               </CardContent>
             </Card>
@@ -212,7 +220,8 @@ export function CalculatorPage() {
                 <div className="w-32">
                   <NumberField
                     id="rc-fixed"
-                    label="Оцінка, годин"
+                    label="Оцінка"
+                    unit="год"
                     value={shown(fixedHours)}
                     onCommit={(n) => setFixedHours(n ?? 1)}
                     min={1}
@@ -222,10 +231,10 @@ export function CalculatorPage() {
                 </div>
                 <div className="pb-1">
                   <div className="font-display text-headline leading-none tabular-nums">
-                    {usd(r.hourlyRate * fixedHours)}
+                    {usd(fixedBase)}
                   </div>
                   <div className="mt-1 text-caption text-muted-foreground">
-                    + запас на правки 15–20% → {usd(r.hourlyRate * fixedHours * 1.2)}
+                    Із запасом 15–20% на правки: {usd(fixedBase * 1.15)} – {usd(fixedBase * 1.2)}
                   </div>
                 </div>
               </CardContent>

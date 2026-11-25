@@ -7,7 +7,7 @@ export const SITUATION_LABEL: Record<TemplateSituation, string> = {
   tz_questions: 'Питання щодо ТЗ',
   revisions: 'Правки',
   follow_up: 'Нагадування',
-  small_talk: 'Small talk',
+  small_talk: 'Світська бесіда',
   closing: 'Завершення',
   cover_letter: 'Супровідний лист',
   recruiter: 'Відповідь рекрутеру',
@@ -35,7 +35,6 @@ export const SEVERITY_LABEL: Record<number, string> = {
   3: 'Критично'
 }
 
-/** {variable} names in a template body, in order of first appearance. */
 /** Human labels for template variables; the {token} itself stays visible as a hint next to the label. */
 const VARIABLE_LABEL: Record<string, string> = {
   name: 'Ім’я клієнта',
@@ -58,17 +57,26 @@ const VARIABLE_LABEL: Record<string, string> = {
   included: 'Що входить',
   company: 'Компанія',
   position: 'Посада',
-  link: 'Посилання'
+  link: 'Посилання',
+  part: 'Частина',
+  step: 'Крок'
 }
 
-/** «name» → «Ім’я клієнта»; unknown «budget_range» → «Budget range» (never a raw lowercase key). */
+/**
+ * «name» → «Ім’я клієнта»; numbered «question_1» → «Питання 1»; unknown «budget_range» → «Budget range»
+ * (never a raw lowercase key).
+ */
 export function variableLabel(v: string): string {
-  const known = VARIABLE_LABEL[v.toLowerCase()]
+  const key = v.toLowerCase()
+  const known = VARIABLE_LABEL[key]
   if (known) return known
+  const numbered = key.match(/^(.*?)[_-]?(\d+)$/)
+  if (numbered && VARIABLE_LABEL[numbered[1]]) return `${VARIABLE_LABEL[numbered[1]]} ${numbered[2]}`
   const words = v.replace(/[_-]+/g, ' ').trim()
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
+/** {variable} names in a template body, in order of first appearance. */
 export function templateVariables(body: string): string[] {
   const out: string[] = []
   for (const m of body.matchAll(/\{([\p{L}\w-]+)\}/gu)) if (!out.includes(m[1])) out.push(m[1])
@@ -78,5 +86,3 @@ export function templateVariables(body: string): string[] {
 export function fillTemplate(body: string, values: Record<string, string>): string {
   return body.replace(/\{([\p{L}\w-]+)\}/gu, (whole, name: string) => values[name]?.trim() || whole)
 }
-
-export const pct = (n: number): string => `${Math.round(n)}%`

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { BellRing, Kanban, List, Plus, Star } from 'lucide-react'
+import { Award, BellRing, Kanban, List, Plus } from 'lucide-react'
 import { proposalInputSchema, type Platform, type Proposal } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useUi } from '@/stores/ui-store'
-import { plural } from '@/lib/format'
+import { daysSince, plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,32 +20,36 @@ import {
 import { EmptyState, FilterChips, SearchInput, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { ProposalBoard } from './proposal-board'
+import { useNewParam } from './use-new-param'
 import { ProposalList } from './proposal-list'
 import { ProposalEditorSheet } from './proposal-editor'
-import { daysSince } from './proposal-labels'
 
 const TITLE_MAX = limitsOf(proposalInputSchema).jobTitle
 
 type View = 'kanban' | 'list'
 
+/** Lime «+ Відгук» with a one-field popover; `open` is controlled so the overview (`?new=1`) and the empty state can open it. */
 function NewProposalButton({
   platform,
+  open,
+  onOpenChange,
   onCreated
 }: {
   platform: Platform
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onCreated: (p: Proposal) => void
 }) {
-  const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const create = useApiMutation('proposals', 'create', {
     onSuccess: (p) => {
-      setOpen(false)
+      onOpenChange(false)
       setTitle('')
       onCreated(p)
     }
   })
   const submit = (): void => {
-    if (!title.trim()) return
+    if (!title.trim() || create.isPending) return
     create.mutate({
       platformId: platform.id,
       jobTitle: title.trim(),
@@ -54,7 +58,7 @@ function NewProposalButton({
     })
   }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button variant="lime">
           <Plus /> Відгук
@@ -101,9 +105,9 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
   const [now] = useState(() => Date.now())
   if (!stale.length) return null
   return (
-    <Card className="gap-3 bg-warn/10 py-4">
+    <Card className="gap-3 py-4">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-foreground">
+        <CardTitle className="flex items-center gap-2">
           <BellRing className="size-4 text-warn" /> Час нагадати
         </CardTitle>
         <CardDescription>
@@ -111,31 +115,29 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
           дні. Одне коротке нагадування часто повертає клієнта.
         </CardDescription>
         <CardAction>
-          <Button
-            variant="soft"
-            size="sm"
-            className="bg-card"
-            onClick={() => navigate('/freelance/templates')}
-          >
+          <Button variant="subtle" size="sm" onClick={() => navigate('/freelance/templates')}>
             Шаблони нагадувань
           </Button>
         </CardAction>
       </CardHeader>
       <div className="flex flex-wrap gap-1.5 px-5">
-        {stale.slice(0, 8).map((p) => (
-          <Button
-            key={p.id}
-            variant="soft"
-            size="sm"
-            className="max-w-[280px] bg-card font-normal"
-            onClick={() => onOpen(p.id)}
-          >
-            <span className="truncate">{p.jobTitle}</span>
-            <span className="text-muted-foreground tabular-nums">
-              {daysSince(p.sentAt, now)} дн.
-            </span>
-          </Button>
-        ))}
+        {stale.slice(0, 8).map((p) => {
+          const days = daysSince(p.sentAt, now) ?? 0
+          return (
+            <Button
+              key={p.id}
+              variant="subtle"
+              size="sm"
+              className="max-w-[280px] font-normal"
+              onClick={() => onOpen(p.id)}
+            >
+              <span className="truncate">{p.jobTitle}</span>
+              <span className="text-muted-foreground tabular-nums">
+                {days} {plural(days, ['день', 'дні', 'днів'])}
+              </span>
+            </Button>
+          )
+        })}
       </div>
     </Card>
   )
@@ -149,6 +151,9 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
   const [niche, setNiche] = useState<string | undefined>()
   const [starred, setStarred] = useState(false)
   const [openId, setOpenId] = useOpenParam()
+  const [newOpen, setNewOpen] = useState(false)
+  // «+ Відгук» on the overview lands here with ?new=1.
+  useNewParam(() => setNewOpen(true))
   const term = useDebounced(search.trim())
   const base = { platformId: platform.id, search: term || undefined }
   // Kanban needs every card (and the niche chips count them); the list view pages through the server.
@@ -185,7 +190,7 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
           onPressedChange={setStarred}
           aria-label="Лише сильні"
         >
-          <Star /> Сильні
+          <Award /> Сильні
         </Toggle>
         <div className="flex-1" />
         <Segmented
@@ -197,7 +202,12 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
             { value: 'list', label: <List />, title: 'Список' }
           ]}
         />
-        <NewProposalButton platform={platform} onCreated={(p) => setOpenId(p.id)} />
+        <NewProposalButton
+          platform={platform}
+          open={newOpen}
+          onOpenChange={setNewOpen}
+          onCreated={(p) => setOpenId(p.id)}
+        />
       </div>
       {niches.length > 0 && (
         <FilterChips options={niches} value={niche} onChange={setNiche} allLabel="Усі типи" />
@@ -209,7 +219,11 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
           <EmptyState
             title="Відгуків поки немає"
             hint="Додавайте кожен відгук — так стане видно, які завдання й тексти приносять контракти."
-            action={<NewProposalButton platform={platform} onCreated={(p) => setOpenId(p.id)} />}
+            action={
+              <Button variant="subtle" onClick={() => setNewOpen(true)}>
+                <Plus /> Додати відгук
+              </Button>
+            }
           />
         ) : view === 'kanban' ? (
           <ProposalBoard
@@ -222,6 +236,7 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
           <ProposalList
             proposals={paged.items}
             currency={platform.currency}
+            creditsName={platform.creditsName}
             activeId={openId}
             onOpen={setOpenId}
             loading={paged.isLoading}

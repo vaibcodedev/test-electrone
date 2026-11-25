@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
 import {
@@ -9,8 +9,11 @@ import {
 } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import { cn } from '@/lib/utils'
 import { NumberInput } from '@/components/common/number-input'
+import { NumberField } from '@/components/common/number-field'
+import { StatTile } from '@/components/common/stat-tile'
+import { MoneyValue } from '@/components/common/money-value'
+import { IconAction } from '@/components/common/icon-action'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -42,47 +45,12 @@ const KIND_LABEL: Record<CreditKind, string> = {
   adjust: 'Коригування'
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-  accent
-}: {
-  label: string
-  /** A number, or a short phrase when there's nothing to count yet («ще немає контрактів»). */
-  value: string
-  hint?: string
-  accent?: boolean
-}) {
-  const phrase = /[^\d\s.,$€₴£zł+−-]/.test(value) && !/^\d/.test(value)
-  return (
-    <Card className={accent ? 'bg-ink text-ink-foreground' : undefined}>
-      <CardHeader>
-        <CardTitle className={accent ? 'text-ink-muted' : undefined}>{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div
-          className={cn(
-            'tabular-nums',
-            phrase ? 'text-body text-muted-foreground' : 'font-display text-stat leading-none'
-          )}
-        >
-          {value}
-        </div>
-        {hint && (
-          <div
-            className={cn(
-              'mt-1.5 text-caption',
-              accent ? 'text-ink-muted' : 'text-muted-foreground'
-            )}
-          >
-            {hint}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+/** A tile with nothing to count yet says so in words instead of a big «0» or «—». */
+const phrase = (text: string): ReactNode => (
+  <span className="text-body font-normal text-muted-foreground">{text}</span>
+)
+
+const AMOUNT_ID = 'credit-amount'
 
 /** Bid credits (Connects): balance, cost per contract, purchase ledger. Spending comes from proposals. */
 export function CreditsTab({ platform }: { platform: Platform }) {
@@ -90,12 +58,13 @@ export function CreditsTab({ platform }: { platform: Platform }) {
   const { data: txs = [] } = useApi('credits', 'list', { platformId: platform.id })
   const add = useApiMutation('credits', 'add')
   const remove = useApiMutation('credits', 'remove')
-  const amountRef = useRef<HTMLInputElement>(null)
   const [kind, setKind] = useState<CreditKind>('purchase')
   const [amount, setAmount] = useState<number | null>(null)
   const [cost, setCost] = useState<number | null>(null)
   const [at, setAt] = useState<number | null>(() => Date.now())
   const [note, setNote] = useState('')
+  // An out-of-range amount is never committed: block «Додати» instead of adding the previous value.
+  const [amountBad, setAmountBad] = useState(false)
   const name = platform.creditsName || 'Конекти'
   const amountNum = amount ?? 0
   const costNum = cost ?? (kind === 'purchase' ? amountNum * platform.creditPrice : 0)
@@ -108,10 +77,9 @@ export function CreditsTab({ platform }: { platform: Platform }) {
         : !at
           ? 'Оберіть дату'
           : null
-  const valid = reason === null
+  const valid = reason === null && !amountBad
 
-  const money = (n: number | null | undefined): string | null =>
-    n === null || n === undefined ? null : fmtMoney(n, platform.currency)
+  const money = (n: number): ReactNode => <MoneyValue amount={n} currency={platform.currency} />
 
   const submit = (): void => {
     if (!valid || !at || add.isPending) return
@@ -138,26 +106,26 @@ export function CreditsTab({ platform }: { platform: Platform }) {
   return (
     <div className="flex flex-col gap-5">
       <div className="stagger grid grid-cols-3 gap-3 xl:grid-cols-6">
-        <Stat accent label="Баланс" value={String(s?.balance ?? 0)} hint={name} />
-        <Stat
+        <StatTile tone="ink" label="Баланс" value={s?.balance ?? 0} hint={name} />
+        <StatTile
           label="Куплено"
-          value={String(s?.purchased ?? 0)}
-          hint={s?.moneySpent ? `за ${money(s.moneySpent)}` : 'купівель ще не було'}
+          value={s?.purchased ?? 0}
+          hint={s?.moneySpent ? <>за {money(s.moneySpent)}</> : 'купівель ще не було'}
         />
-        <Stat label="Витрачено" value={String(s?.spent ?? 0)} hint="на відгуки з бустом" />
-        <Stat
+        <StatTile label="Витрачено" value={s?.spent ?? 0} hint="на відгуки з бустом" />
+        <StatTile
           label="Середня ціна"
-          value={s?.avgCreditPrice ? (money(s.avgCreditPrice) ?? '') : 'ще немає купівель'}
+          value={s?.avgCreditPrice ? money(s.avgCreditPrice) : phrase('ще немає купівель')}
           hint={s?.avgCreditPrice ? 'за одиницю' : undefined}
         />
-        <Stat
+        <StatTile
           label="На контракт"
-          value={s?.creditsPerContract ? String(s.creditsPerContract) : 'ще немає контрактів'}
+          value={s?.creditsPerContract ? s.creditsPerContract : phrase('ще немає контрактів')}
           hint={s?.creditsPerContract ? `${name.toLowerCase()} на 1 контракт` : undefined}
         />
-        <Stat
+        <StatTile
           label="Ціна контракту"
-          value={s?.costPerContract ? (money(s.costPerContract) ?? '') : 'ще немає контрактів'}
+          value={s?.costPerContract ? money(s.costPerContract) : phrase('ще немає контрактів')}
           hint={s?.costPerContract ? `контрактів: ${s.contracts}` : undefined}
         />
       </div>
@@ -187,25 +155,18 @@ export function CreditsTab({ platform }: { platform: Platform }) {
                 options={CREDIT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
               />
             </Field>
-            <Field label="Кількість">
-              <InputGroup className="bg-card">
-                <NumberInput
-                  ref={amountRef}
-                  data-slot="input-group-control"
-                  className={GROUP_CONTROL}
-                  integer
-                  allowEmpty
-                  min={kind === 'adjust' ? CREDIT_R.amount?.min : 1}
-                  max={CREDIT_R.amount?.max}
-                  value={amount}
-                  onChange={setAmount}
-                  placeholder="напр. 80"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupText>шт</InputGroupText>
-                </InputGroupAddon>
-              </InputGroup>
-            </Field>
+            <NumberField
+              id={AMOUNT_ID}
+              label="Кількість"
+              integer
+              min={kind === 'adjust' ? CREDIT_R.amount?.min : 1}
+              max={CREDIT_R.amount?.max}
+              value={amount}
+              onCommit={setAmount}
+              placeholder="напр. 80"
+              unit="шт"
+              onValidityChange={setAmountBad}
+            />
             <Field label="Вартість">
               <InputGroup className="bg-card">
                 <NumberInput
@@ -261,7 +222,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
           title="Поповнень поки немає"
           hint={`Запишіть першу купівлю ${name}, щоб бачити ціну одного контракту.`}
           action={
-            <Button variant="subtle" onClick={() => amountRef.current?.focus()}>
+            <Button variant="subtle" onClick={() => document.getElementById(AMOUNT_ID)?.focus()}>
               <Plus /> Записати купівлю
             </Button>
           }
@@ -296,7 +257,11 @@ export function CreditsTab({ platform }: { platform: Platform }) {
                     {t.amount > 0 ? `+${t.amount}` : t.amount}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {t.cost ? money(t.cost) : <span className="text-muted-foreground">—</span>}
+                    {t.cost ? (
+                      fmtMoney(t.cost, platform.currency)
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-0 truncate text-muted-foreground">
                     {t.note || '—'}
@@ -307,14 +272,12 @@ export function CreditsTab({ platform }: { platform: Platform }) {
                       description="Баланс перерахується."
                       onConfirm={() => remove.mutate(t.id)}
                     >
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Видалити запис"
+                      <IconAction
+                        label="Видалити запис"
                         className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
                       >
                         <Trash2 />
-                      </Button>
+                      </IconAction>
                     </Confirm>
                   </TableCell>
                 </TableRow>

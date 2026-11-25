@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { BadgeCheck, Star } from 'lucide-react'
+import { Award, BadgeCheck } from 'lucide-react'
 import type { Proposal } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { daysSince, fmtDate, fmtMoney, plural } from '@/lib/format'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -14,7 +14,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { daysSince, PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL } from './proposal-labels'
+import { PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL } from './proposal-labels'
 
 /** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
 const COL = {
@@ -33,6 +33,7 @@ const COL = {
 export function ProposalList({
   proposals,
   currency,
+  creditsName,
   activeId,
   onOpen,
   loading,
@@ -42,6 +43,8 @@ export function ProposalList({
 }: {
   proposals: Proposal[]
   currency: Currency
+  /** Paid-proposal currency of the platform («Connects»); no column when the platform has none. */
+  creditsName: string
   activeId: string | null
   onOpen: (id: string) => void
   loading?: boolean
@@ -59,7 +62,9 @@ export function ProposalList({
             <TableHead className={COL.status}>Статус</TableHead>
             <TableHead className={COL.niche}>Тип</TableHead>
             <TableHead className={cn(COL.bid, 'text-right')}>Ставка</TableHead>
-            <TableHead className={cn(COL.credits, 'text-right')}>Конекти</TableHead>
+            {creditsName && (
+              <TableHead className={cn(COL.credits, 'truncate text-right')}>{creditsName}</TableHead>
+            )}
             <TableHead className={COL.client}>Клієнт</TableHead>
             <TableHead className={cn(COL.sent, 'pr-4 text-right')}>Надіслано</TableHead>
           </TableRow>
@@ -95,7 +100,9 @@ export function ProposalList({
                 >
                   <TableCell className="pl-4">
                     <div className="flex items-center gap-1.5">
-                      {p.starred && <Star className="size-3.5 shrink-0 fill-warn text-warn" />}
+                      {p.starred && (
+                        <Award className="size-3.5 shrink-0 text-warn" aria-label="Сильний відгук" />
+                      )}
                       <span className="truncate font-medium">{p.jobTitle}</span>
                     </div>
                   </TableCell>
@@ -112,12 +119,14 @@ export function ProposalList({
                       ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/год' : ''}`
                       : '—'}
                   </TableCell>
-                  <TableCell className={cn(COL.credits, 'text-right tabular-nums')}>
-                    {p.credits}
-                    {p.boostCredits > 0 && (
-                      <span className="text-muted-foreground">+{p.boostCredits}</span>
-                    )}
-                  </TableCell>
+                  {creditsName && (
+                    <TableCell className={cn(COL.credits, 'text-right tabular-nums')}>
+                      {p.credits}
+                      {p.boostCredits > 0 && (
+                        <span className="text-muted-foreground">+{p.boostCredits}</span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className={COL.client}>
                     <span className="flex items-center gap-1.5">
                       <span className="truncate">{p.clientName || '—'}</span>
@@ -134,8 +143,10 @@ export function ProposalList({
                   >
                     {p.sentAt
                       ? days !== null && days < 7
-                        ? `${days} дн. тому`
-                        : fmtDate(p.sentAt, 'd MMM')
+                        ? days === 0
+                          ? 'сьогодні'
+                          : `${days} ${plural(days, ['день', 'дні', 'днів'])} тому`
+                        : fmtDate(p.sentAt, 'd MMMM')
                       : '—'}
                   </TableCell>
                 </TableRow>

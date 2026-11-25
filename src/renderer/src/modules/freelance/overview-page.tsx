@@ -1,13 +1,29 @@
-import { useEffect, useState } from 'react'
-import { MoneyValue } from '@/components/common/money-value'
+import { useEffect, useState, type ReactElement } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { AlertTriangle, ArchiveRestore, ArrowRight, BellRing, Plus, Target } from 'lucide-react'
+import { format, startOfDay, subDays } from 'date-fns'
+import {
+  AlertTriangle,
+  ArchiveRestore,
+  ArrowRight,
+  BellRing,
+  ChevronDown,
+  Plus,
+  Target
+} from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtDay, fmtMoney, fmtPercent, fmtReplyTime, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Card,
   CardAction,
@@ -32,41 +48,88 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { MoneyValue } from '@/components/common/money-value'
+import { StatTile } from '@/components/common/stat-tile'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
-import { GoalCard } from './goals-page'
+import { GoalCard } from './goal-card'
 
-const DAY = 86_400_000
 const LOW_CREDITS = 30
 
-function monthKey(d = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+const newProposalUrl = (platformId: string): string =>
+  `/freelance/p/${platformId}?tab=proposals&new=1`
+
+/**
+ * The one lime action of the overview: «Відгук» on the first platform; with several platforms a
+ * split button whose menu picks the platform. `N` presses the main half (first lime in the header).
+ */
+function NewProposalAction({ platforms }: { platforms: Platform[] }): ReactElement | null {
+  const navigate = useNavigate()
+  const first = platforms[0]
+  if (!first) return null
+  const main = (
+    <Button variant="lime" onClick={() => navigate(newProposalUrl(first.id))}>
+      <Plus /> Відгук
+    </Button>
+  )
+  if (platforms.length === 1) return main
+  return (
+    <ButtonGroup>
+      <Tooltip>
+        <TooltipTrigger asChild>{main}</TooltipTrigger>
+        <TooltipContent>Відгук на {first.name}</TooltipContent>
+      </Tooltip>
+      <ButtonGroupSeparator className="bg-lime-foreground/15" />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="lime" size="icon" aria-label="Обрати платформу">
+            <ChevronDown />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {platforms.map((p) => (
+            <DropdownMenuItem key={p.id} onSelect={() => navigate(newProposalUrl(p.id))}>
+              <span
+                className="size-2 shrink-0 rounded-full"
+                style={{ background: p.color ?? 'var(--muted-foreground)' }}
+              />
+              {p.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ButtonGroup>
+  )
 }
 
 function CreditsRow({ platform }: { platform: Platform }) {
   const navigate = useNavigate()
   const { data: s } = useApi('credits', 'summary', { platformId: platform.id })
   if (!s) return null
-  const low = s.balance < LOW_CREDITS
+  // A platform that never had credits isn't «running low» — it just hasn't started.
+  const started = s.spent > 0 || s.balance > 0
+  const low = started && s.balance < LOW_CREDITS
   return (
     <Item size="sm" variant="muted" className="gap-4 bg-card px-4 py-3">
       <ItemContent className="min-w-0 gap-1">
         <ItemTitle className="w-full truncate">{platform.name}</ItemTitle>
         <ItemDescription className="text-caption">
-          {s.costPerContract !== null
-            ? `один контракт коштував ${fmtMoney(s.costPerContract, platform.currency)}`
-            : 'контрактів поки немає'}
+          {!started
+            ? `${platform.creditsName} ще не купували`
+            : s.costPerContract !== null
+              ? `один контракт коштував ${fmtMoney(s.costPerContract, platform.currency)}`
+              : 'контрактів поки немає'}
         </ItemDescription>
       </ItemContent>
       <ItemActions className="gap-4">
         <div className={cn('flex flex-col items-end gap-0.5', low && 'text-warn')}>
           <span className="flex items-center gap-1 font-display text-stat-sm leading-none tabular-nums">
-            {low && <AlertTriangle className="size-4" />}
+            {low && <AlertTriangle className="size-4" aria-label="Мало на балансі" />}
             {s.balance}
           </span>
           <span className="text-meta text-muted-foreground">{platform.creditsName}</span>
         </div>
         <Button
-          variant={low ? 'lime' : 'soft'}
+          variant="subtle"
           size="xs"
           onClick={() => navigate(`/freelance/p/${platform.id}?tab=credits`)}
         >
@@ -79,7 +142,8 @@ function CreditsRow({ platform }: { platform: Platform }) {
 
 export function FreelanceOverviewPage() {
   const navigate = useNavigate()
-  const [from] = useState(() => new Date().setHours(0, 0, 0, 0) - 29 * DAY)
+  const [from] = useState(() => startOfDay(subDays(new Date(), 29)).getTime())
+  const [monthKey] = useState(() => format(new Date(), 'yyyy-MM'))
   const { data: platformList = [] } = useApi('platforms', 'list')
   const { data: allPlatforms = [] } = useApi('platforms', 'list', { includeArchived: true })
   const archived = allPlatforms.filter((p) => p.archived)
@@ -96,7 +160,7 @@ export function FreelanceOverviewPage() {
   const { data: stats } = useApi('freelance', 'stats', { from })
   const { data: stale = [] } = useApi('proposals', 'stale', { days: 3 })
   const { data: active = [] } = useApi('projects', 'list', { status: 'active' })
-  const { data: month } = useApi('finance', 'month', { month: monthKey() })
+  const { data: month } = useApi('finance', 'month', { month: monthKey })
 
   const contracts = active.filter((p) => p.platformId)
   const platformName = (id: string | null): string | undefined =>
@@ -110,55 +174,41 @@ export function FreelanceOverviewPage() {
       <PageHeader
         title="Фриланс"
         subtitle="Цілі, воронка за 30 днів і те, що потребує уваги."
-        actions={platformList.map((p) => (
-          <Button
-            key={p.id}
-            variant="soft"
-            onClick={() => navigate(`/freelance/p/${p.id}?tab=proposals&new=1`)}
-          >
-            <Plus /> Відгук: {p.name}
-          </Button>
-        ))}
+        actions={<NewProposalAction platforms={platformList} />}
       />
       <PageBody>
         <div className="stagger grid grid-cols-12 gap-3">
           {/* Money and contracts */}
-          <Card className="col-span-4 bg-ink text-ink-foreground">
-            <CardHeader>
-              <CardTitle className="text-ink-muted">На руки цього місяця</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1">
-              {netEntries.length ? (
-                netEntries.map(([cur, v]) => (
-                  <div key={cur} className="font-display text-stat leading-none tabular-nums">
-                    <MoneyValue amount={v} currency={cur} />
-                  </div>
-                ))
+          <StatTile
+            tone="ink"
+            className="col-span-4"
+            label="На руки цього місяця"
+            value={
+              netEntries.length ? (
+                <div className="flex flex-col gap-1">
+                  {netEntries.map(([cur, v]) => (
+                    <MoneyValue key={cur} amount={v} currency={cur} />
+                  ))}
+                </div>
               ) : (
-                <div className="font-display text-stat leading-none">—</div>
-              )}
-              <div className="mt-2 text-caption text-ink-muted">
-                {contracts.length}{' '}
-                {plural(contracts.length, [
-                  'активний контракт',
-                  'активні контракти',
-                  'активних контрактів'
-                ])}
-              </div>
-            </CardContent>
-          </Card>
+                <span className="text-body font-normal text-ink-muted">
+                  Оплат цього місяця ще немає
+                </span>
+              )
+            }
+            hint={`${contracts.length} ${plural(contracts.length, [
+              'активний контракт',
+              'активні контракти',
+              'активних контрактів'
+            ])}`}
+          />
 
           <Card className="col-span-8">
             <CardHeader>
               <CardTitle>Воронка за 30 днів</CardTitle>
-              {totals && totals.sent > 0 && (
+              {stats?.avgReplyHours != null && (
                 <CardDescription>
-                  {totals.sent} {plural(totals.sent, ['відгук', 'відгуки', 'відгуків'])} → {totals.replied}{' '}
-                  {plural(totals.replied, ['відповідь', 'відповіді', 'відповідей'])} ({fmtPercent(totals.replyRate)}) →{' '}
-                  {totals.hired} {plural(totals.hired, ['контракт', 'контракти', 'контрактів'])} ({fmtPercent(totals.hireRate)})
-                  {stats?.avgReplyHours !== null &&
-                    stats?.avgReplyHours !== undefined &&
-                    ` · відповідають у середньому ${fmtReplyTime(stats.avgReplyHours)}`}
+                  Клієнти відповідають у середньому {fmtReplyTime(stats.avgReplyHours)}
                 </CardDescription>
               )}
             </CardHeader>
@@ -176,7 +226,7 @@ export function FreelanceOverviewPage() {
                       <TableHead className="text-right">Відповіді</TableHead>
                       <TableHead className="text-right">Інтерв’ю</TableHead>
                       <TableHead className="text-right">Контракти</TableHead>
-                      <TableHead className="text-right">Конекти</TableHead>
+                      <TableHead className="text-right">Платні відгуки</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -199,6 +249,26 @@ export function FreelanceOverviewPage() {
                         <TableCell className="text-right tabular-nums">{r.credits}</TableCell>
                       </TableRow>
                     ))}
+                    {totals && stats.byPlatform.length > 1 && (
+                      <TableRow className="font-medium hover:bg-transparent">
+                        <TableCell>Усього</TableCell>
+                        <TableCell className="text-right tabular-nums">{totals.sent}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {totals.replied}{' '}
+                          <span className="font-normal text-muted-foreground">
+                            · {fmtPercent(totals.replyRate)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{totals.interview}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {totals.hired}{' '}
+                          <span className="font-normal text-muted-foreground">
+                            · {fmtPercent(totals.hireRate)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{totals.credits}</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -283,14 +353,18 @@ export function FreelanceOverviewPage() {
                 <p className="text-body text-muted-foreground">
                   Поставте ціль — наприклад, 10 відгуків на тиждень.
                 </p>
-                <Button variant="lime" size="sm" onClick={() => navigate('/freelance/goals')}>
-                  <Plus /> Ціль
+                <Button
+                  variant="subtle"
+                  size="sm"
+                  onClick={() => navigate('/freelance/goals?new=1')}
+                >
+                  <Plus /> Поставити ціль
                 </Button>
               </CardContent>
             </Card>
           ) : (
             goals.map((g) => (
-              <div key={g.id} className={cn('col-span-4')}>
+              <div key={g.id} className="col-span-4">
                 <GoalCard g={g} platformName={platformName(g.platformId)} />
               </div>
             ))

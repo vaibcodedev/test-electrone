@@ -2,7 +2,7 @@
 
 export { PlatformPage } from './platform-page'
 export { ProposalRedirect } from './proposal-redirect'
-export { PlatformDialogHost } from './platform-dialog'
+export { PlatformDialogHost } from './platform-create-dialog'
 export { FreelanceOverviewPage } from './overview-page'
 export { TemplatesPage } from './templates-page'
 export { PortfolioPage } from './portfolio-page'
