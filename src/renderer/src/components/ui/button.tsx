@@ -13,12 +13,15 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Disabled filled buttons lose the fill and get a dashed outline: clearly "not now", never mistaken
-        // for a neighbouring soft button (e.g. "Отмена" next to a disabled "Добавить").
+        // Disabled filled buttons lose the fill and get a thin outline: clearly "not now", never mistaken
+        // for a neighbouring soft button (e.g. "Скасувати" next to a disabled "Імпортувати"). An inset ring,
+        // not a border: a border grew the button by 2px, and Chromium's dashes broke unevenly on the pill's
+        // corners, so the button looked cut off.
         default:
-          'bg-primary text-primary-foreground hover:bg-primary/88 disabled:border disabled:border-dashed disabled:border-foreground/20 disabled:bg-transparent disabled:text-muted-foreground',
-        lime: 'bg-lime text-lime-foreground hover:brightness-95 disabled:border disabled:border-dashed disabled:border-foreground/20 disabled:bg-transparent disabled:text-muted-foreground',
-        soft: 'bg-surface text-foreground hover:bg-accent disabled:text-muted-foreground',
+          'bg-primary text-primary-foreground hover:bg-primary/88 disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
+        lime: 'bg-lime text-lime-foreground hover:brightness-95 disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
+        // Disabled the same way as the filled ones: a grey surface with grey text still read as clickable.
+        soft: 'bg-surface text-foreground hover:bg-accent disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
         outline: 'border border-input bg-transparent hover:bg-surface disabled:opacity-50',
         // Tinted hover: ghost buttons mostly sit on bg-surface cards, where hover:bg-surface was invisible.
         ghost: 'text-foreground hover:bg-foreground/[0.07] disabled:opacity-40',
