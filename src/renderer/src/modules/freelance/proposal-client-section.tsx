@@ -14,12 +14,15 @@ import { SectionLabel } from '@/components/common/master-detail'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { VERIFIED_HINT } from './g2-labels'
 import { CountryCombobox } from '../crm/country-combobox'
 
 const PROPOSAL_L = limitsOf(proposalInputSchema)
 const R = rangesOf(proposalInputSchema)
 
 /** «Клієнт»: who posted the job and the signals the platform shows about them. */
+
 export function ProposalClientSection({
   proposal: p,
   platform,
@@ -81,10 +84,15 @@ export function ProposalClientSection({
       {/* While reading only the positive fact is shown: a locked «off» switch read as a warning. */}
       {readOnly ? (
         p.paymentVerified && (
-          <span className="flex items-center gap-1.5 text-body">
-            <BadgeCheck className="size-4 text-success" aria-hidden />
-            Оплату верифіковано
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="flex w-fit cursor-help items-center gap-1.5 text-body">
+                <BadgeCheck className="size-4 text-success" aria-hidden />
+                Оплату верифіковано
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-72">{VERIFIED_HINT}</TooltipContent>
+          </Tooltip>
         )
       ) : (
         <div className="flex items-center gap-2.5">
@@ -93,10 +101,18 @@ export function ProposalClientSection({
             checked={!!p.paymentVerified}
             onCheckedChange={(paymentVerified) => patch({ paymentVerified })}
           />
-          <Label htmlFor={`verified-${p.id}`} className="text-body font-normal text-foreground">
-            Оплату верифіковано
-          </Label>
-          {p.paymentVerified && <BadgeCheck className="size-4 text-success" />}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Label
+                htmlFor={`verified-${p.id}`}
+                className="cursor-help text-body font-normal text-foreground"
+              >
+                Оплату верифіковано
+                {p.paymentVerified && <BadgeCheck className="size-4 text-success" aria-hidden />}
+              </Label>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-72">{VERIFIED_HINT}</TooltipContent>
+          </Tooltip>
         </div>
       )}
     </section>

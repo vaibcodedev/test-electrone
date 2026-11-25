@@ -1,4 +1,5 @@
 /** Freelance platform bits for clients and contracts (Upwork data, fee %, "на руки"). */
+import { VERIFIED_HINT } from '../freelance/g2-labels'
 import { useId, type ReactElement } from 'react'
 import { Link } from 'react-router'
 import { Flag } from 'lucide-react'
@@ -214,9 +215,17 @@ export function ClientPlatformFields({
           checked={!!value.paymentVerified}
           onCheckedChange={(paymentVerified) => onChange({ paymentVerified })}
         />
-        <Label htmlFor={verifiedId} className="text-body font-normal text-foreground">
-          Оплату верифіковано
-        </Label>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Label
+              htmlFor={verifiedId}
+              className="cursor-help text-body font-normal text-foreground"
+            >
+              Оплату верифіковано
+            </Label>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-72">{VERIFIED_HINT}</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

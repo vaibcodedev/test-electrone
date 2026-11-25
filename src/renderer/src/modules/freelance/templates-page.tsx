@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router'
 import { ArrowRight, Copy, MessageSquareQuote, Plus } from 'lucide-react'
 import {
@@ -10,7 +10,6 @@ import {
 } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
-import { MAX } from '@shared/domain/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { capitalize, fmtPercent, plural } from '@/lib/format'
@@ -19,10 +18,6 @@ import { SectionLabel } from '@/components/common/section-label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ItemDescription } from '@/components/ui/item'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { FormDialog } from '@/components/common/form-dialog'
 import {
   EmptyState,
   FilterBar,
@@ -44,7 +39,8 @@ import {
   useOpenParam
 } from '@/components/common/master-detail'
 import { AutoTitle, Block, EditorStack, EnumSelect, TextareaBlock } from '../claude/editor-kit'
-import { fillTemplate, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
+import { SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
+import { TemplateFillDialog } from './template-fill-dialog'
 import { ImportButton } from '@/components/common/import-dialog'
 import { DisabledHint } from '@/components/common/disabled-hint'
 import { NicheCombobox } from './niche-combobox'
@@ -63,84 +59,26 @@ function CopyTemplateButton({
 }: {
   template: Pick<MessageTemplate, 'id' | 'title' | 'body'>
 }): ReactElement {
-  const vars = useMemo(() => templateVariables(template.body), [template.body])
-  const [values, setValues] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
   const markCopied = useApiMutation('templates', 'markCopied')
-  const filled = fillTemplate(template.body, values)
-
-  const onOpenChange = (o: boolean): void => {
-    setOpen(o)
-    if (!o) setValues({})
-  }
-  const doCopy = async (): Promise<void> => {
-    if (!(await copyText(filled, 'Шаблон скопійовано'))) return
-    markCopied.mutate(template.id)
-    onOpenChange(false)
-  }
-
   return (
     <>
       <Button variant="soft" size="sm" onClick={() => setOpen(true)}>
         <Copy /> Скопіювати
       </Button>
-      <FormDialog
+      <TemplateFillDialog
         open={open}
-        onOpenChange={onOpenChange}
-        title="Скопіювати шаблон"
-        description={
-          vars.length
-            ? 'Заповніть змінні — порожні лишаться у фігурних дужках.'
-            : 'Змінних немає, текст скопіюється як є.'
-        }
+        onOpenChange={setOpen}
+        heading="Скопіювати шаблон"
+        title={template.title}
+        body={template.body}
         submitLabel="Скопіювати текст"
-        onSubmit={doCopy}
-        className="sm:max-w-2xl"
-      >
-        {/* The name goes in the body, not the title: a long one without spaces ran under ✕. */}
-        <p
-          className="line-clamp-2 text-body font-medium wrap-anywhere"
-          title={template.title}
-        >
-          {template.title}
-        </p>
-        {vars.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {vars.map((v, i) => (
-              <Field key={v} className="gap-1.5">
-                <FieldLabel
-                  htmlFor={`var-${v}`}
-                  className="flex w-full min-w-0 flex-wrap items-baseline justify-between gap-x-2"
-                >
-                  <span className="min-w-0">{variableLabel(v)}</span>
-                  <span
-                    className="min-w-0 truncate font-mono text-meta font-normal text-muted-foreground"
-                    title={`{${v}}`}
-                  >
-                    {`{${v}}`}
-                  </span>
-                </FieldLabel>
-                <Input
-                  id={`var-${v}`}
-                  autoFocus={i === 0}
-                  value={values[v] ?? ''}
-                  maxLength={MAX.title}
-                  onChange={(e) => setValues((s) => ({ ...s, [v]: e.target.value }))}
-                />
-              </Field>
-            ))}
-          </div>
-        )}
-        <Field className="gap-1.5">
-          <FieldLabel htmlFor="template-filled">Готовий текст</FieldLabel>
-          <Textarea
-            id="template-filled"
-            readOnly
-            value={filled}
-            className="max-h-72 min-h-32 text-body leading-relaxed"
-          />
-        </Field>
-      </FormDialog>
+        onSubmit={async (filled) => {
+          if (!(await copyText(filled, 'Шаблон скопійовано'))) return
+          markCopied.mutate(template.id)
+          setOpen(false)
+        }}
+      />
     </>
   )
 }
@@ -419,7 +357,10 @@ export function TemplatesPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <span className="truncate text-body font-medium">{t.title}</span>
-                        <FavoriteMark entity={{ type: 'template', id: t.id }} onInk={t.id === open} />
+                        <FavoriteMark
+                          entity={{ type: 'template', id: t.id }}
+                          onInk={t.id === open}
+                        />
                       </div>
                       {t.situation === 'small_talk' ? (
                         <ItemDescription className="mt-1 line-clamp-2 text-caption">

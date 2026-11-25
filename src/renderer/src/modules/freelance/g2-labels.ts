@@ -59,7 +59,8 @@ export function variableLabel(v: string): string {
   const known = VARIABLE_LABEL[key]
   if (known) return known
   const numbered = key.match(/^(.*?)[_-]?(\d+)$/)
-  if (numbered && VARIABLE_LABEL[numbered[1]]) return `${VARIABLE_LABEL[numbered[1]]} ${numbered[2]}`
+  if (numbered && VARIABLE_LABEL[numbered[1]])
+    return `${VARIABLE_LABEL[numbered[1]]} ${numbered[2]}`
   const words = v.replace(/[_-]+/g, ' ').trim()
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
@@ -74,3 +75,7 @@ export function templateVariables(body: string): string[] {
 export function fillTemplate(body: string, values: Record<string, string>): string {
   return body.replace(/\{([\p{L}\w-]+)\}/gu, (whole, name: string) => values[name]?.trim() || whole)
 }
+
+/** What «Оплату верифіковано» means (proposal, its card, a client's platform): Upwork's «Payment verified». */
+export const VERIFIED_HINT =
+  'Клієнт підтвердив спосіб оплати на майданчику (на Upwork — позначка «Payment verified»): менший ризик, що робота лишиться неоплаченою.'

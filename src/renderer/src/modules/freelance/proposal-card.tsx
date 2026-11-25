@@ -1,3 +1,5 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { VERIFIED_HINT } from './g2-labels'
 import { forwardRef, type ComponentProps } from 'react'
 import { Award, BadgeCheck, Coins, Star } from 'lucide-react'
 import type { Proposal } from '@shared/domain/freelance'
@@ -85,7 +87,12 @@ export const ProposalCard = forwardRef<
             </span>
           )}
           {p.paymentVerified && (
-            <BadgeCheck className="size-3.5 text-success" aria-label="Оплату верифіковано" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <BadgeCheck className="size-3.5 text-success" aria-label="Оплату верифіковано" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-72">{VERIFIED_HINT}</TooltipContent>
+            </Tooltip>
           )}
         </span>
       </div>

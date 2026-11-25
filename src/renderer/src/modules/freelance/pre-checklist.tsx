@@ -65,8 +65,9 @@ export function PreChecklist({
               />
               <Label
                 htmlFor={id}
+                // block + wrap-anywhere: a long word with no spaces ran off the card instead of wrapping.
                 className={cn(
-                  'text-body leading-snug font-normal text-foreground',
+                  'block min-w-0 text-body leading-snug font-normal text-foreground wrap-anywhere',
                   checked.has(c.id) && 'text-muted-foreground'
                 )}
               >

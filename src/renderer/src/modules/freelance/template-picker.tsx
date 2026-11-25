@@ -9,6 +9,7 @@ import { Field } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '@/components/common/choice'
 import { DisabledHint } from '@/components/common/disabled-hint'
+import { TemplateFillDialog } from './template-fill-dialog'
 
 /** «Шаблон відгуку»: pick a proposal template and paste its text into the cover letter. */
 export function TemplatePicker({
@@ -22,12 +23,19 @@ export function TemplatePicker({
   const { data: templates = [], isLoading } = useApi('templates', 'list', { situation: 'proposal' })
   const markCopied = useApiMutation('templates', 'markCopied')
   const [selected, setSelected] = useState<string | null>(proposal.templateId)
+  const [filling, setFilling] = useState(false)
+  const { data: settings } = useApi('settings', 'get')
   const tpl = templates.find((t) => t.id === selected)
+  /** «Вставити» first asks for the {variables} (the person's name is known already), then writes the text. */
   const insert = (): void => {
+    if (tpl) setFilling(true)
+  }
+  const write = (filled: string): void => {
     if (!tpl) return
-    patch({ coverLetter: tpl.body, templateId: tpl.id })
+    patch({ coverLetter: filled, templateId: tpl.id })
     markCopied.mutate(tpl.id)
-    toast.success('Шаблон вставлено — замініть {змінні}')
+    setFilling(false)
+    toast.success('Шаблон вставлено у відгук')
   }
   // An empty list would only promise a template that is not there.
   if (!isLoading && templates.length === 0)
@@ -41,6 +49,20 @@ export function TemplatePicker({
     )
   return (
     <div className="flex items-end gap-2">
+      {tpl && (
+        <TemplateFillDialog
+          open={filling}
+          onOpenChange={setFilling}
+          heading="Вставити шаблон"
+          title={tpl.title}
+          body={tpl.body}
+          submitLabel="Вставити у відгук"
+          onSubmit={write}
+          initial={
+            settings?.userName ? { my_name: settings.userName, name: settings.userName } : undefined
+          }
+        />
+      )}
       <Field label="Шаблон відгуку" className="flex-1">
         <Choice
           value={selected}
