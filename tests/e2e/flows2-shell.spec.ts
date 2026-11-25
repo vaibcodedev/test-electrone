@@ -50,9 +50,9 @@ test.describe('швидке додавання', () => {
       await field.press('Enter')
       await expect(dialog).toBeHidden()
 
-      const toast = win
-        .locator('[data-sonner-toast]')
-        .filter({ hasText: t.chip === 'Claude' ? `Додано в Claude: ${title}` : `Додано: ${t.label} — ${title}` })
+      const toast = win.locator('[data-sonner-toast]').filter({
+        hasText: t.chip === 'Claude' ? `Додано в Claude: ${title}` : `Додано: ${t.label} — ${title}`
+      })
       await expect(toast).toBeVisible()
       await toast.getByRole('button', { name: 'Відкрити' }).click()
 
@@ -209,4 +209,36 @@ test.describe('перетягування й прокрутка', () => {
       .poll(() => scroller.evaluate((el) => el.hasAttribute('data-scrolling')), { timeout: 3000 })
       .toBe(false)
   })
+})
+
+test('«Меню»: вимкнений розділ згортається в бічній панелі, а не зникає миттєво', async ({
+  vault
+}) => {
+  const { win, go } = vault
+  await go('/settings')
+  const hubButton = win.locator('#app-sidebar [data-nav-hub="work"]')
+  await expect(hubButton).toBeVisible()
+  // The fold lasts 200 ms — too short to poll for, so the page records what it saw.
+  await win.evaluate(() => {
+    const w = window as unknown as { seen: string[] }
+    w.seen = []
+    new MutationObserver(() => {
+      const li = document.querySelector('#app-sidebar li:has([data-nav-hub="work"])')
+      if (li?.hasAttribute('data-leaving'))
+        w.seen.push(
+          `leaving inert=${li.hasAttribute('inert')} h=${li.getBoundingClientRect().height}`
+        )
+    }).observe(document.getElementById('app-sidebar')!, {
+      subtree: true,
+      childList: true,
+      attributes: true
+    })
+  })
+  const toggle = win.getByRole('switch', { name: 'Робота', exact: true })
+  await toggle.click()
+  await expect(hubButton).toHaveCount(0)
+  const seen = await win.evaluate(() => (window as unknown as { seen: string[] }).seen)
+  expect(seen[0]).toMatch(/^leaving inert=true/)
+  await toggle.click()
+  await expect(hubButton).toBeVisible()
 })

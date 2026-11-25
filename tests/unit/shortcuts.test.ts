@@ -61,3 +61,36 @@ describe('ShortcutController', () => {
     expect([...active]).toEqual(['Ctrl+Shift+B'])
   })
 })
+
+describe('Ctrl+B (fold the sidebar)', async () => {
+  const { isSidebarToggle, shortcutGroups } = await import('@/app/shortcuts')
+  const key = (over: Partial<KeyboardEvent>): Parameters<typeof isSidebarToggle>[0] => ({
+    code: 'KeyB',
+    ctrlKey: false,
+    metaKey: false,
+    altKey: false,
+    shiftKey: false,
+    repeat: false,
+    ...over
+  })
+
+  it('matches Ctrl/Cmd+B by the physical key (any layout)', () => {
+    expect(isSidebarToggle(key({ ctrlKey: true }))).toBe(true)
+    expect(isSidebarToggle(key({ metaKey: true }))).toBe(true)
+  })
+
+  it('not with Shift or Alt, not on auto-repeat, not another key, not without a modifier', () => {
+    expect(isSidebarToggle(key({ ctrlKey: true, shiftKey: true }))).toBe(false)
+    expect(isSidebarToggle(key({ ctrlKey: true, altKey: true }))).toBe(false)
+    expect(isSidebarToggle(key({ ctrlKey: true, repeat: true }))).toBe(false)
+    expect(isSidebarToggle(key({ ctrlKey: true, code: 'KeyN' }))).toBe(false)
+    expect(isSidebarToggle(key({}))).toBe(false)
+  })
+
+  it('is listed in the Ctrl+/ help under «Всюди»', () => {
+    const everywhere = shortcutGroups('CommandOrControl+Shift+Space').find(
+      (g) => g.title === 'Всюди'
+    )
+    expect(everywhere?.items.map((i) => i.keys)).toContainEqual(['Ctrl', 'B'])
+  })
+})

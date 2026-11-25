@@ -32,6 +32,7 @@ import {
 import { moneyEntries } from '@/lib/money'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useHotkey } from '@/hooks/use-hotkey'
+import { useNavVisibility } from '@/hooks/use-nav-visibility'
 import { cn } from '@/lib/utils'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { EntityRow } from '@/components/common/entity-link'
@@ -55,6 +56,7 @@ import { StatTile } from '@/components/common/stat-tile'
 import { CardEmptyText, ListCard } from '@/components/common/list-card'
 import { EventDate } from '@/components/common/event-date'
 import { PageSkeleton } from '@/components/common/page-skeleton'
+import { visibleSnapshot } from './visible'
 
 const NOTES_L = limitsOf(reviewNotesSchema)
 const currentWeekKey = (): string => dayKey(startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -333,7 +335,13 @@ export function ReviewPage() {
     if (!isCurrent) shift(7)
   })
   useHotkey('t', () => setWeek(currentWeekKey()))
-  const snapshot = data?.snapshot
+  // Sections switched off in «Налаштування → Меню» drop out of the view; the frozen snapshot stays as it is.
+  const { prefs } = useNavVisibility()
+  const rawSnapshot = data?.snapshot
+  const snapshot = useMemo(
+    () => (rawSnapshot ? visibleSnapshot(rawSnapshot, prefs) : undefined),
+    [rawSnapshot, prefs]
+  )
   const title = useMemo(() => (snapshot ? headline(snapshot) : ''), [snapshot])
   const filled = snapshot?.sections.filter((s) => !isEmpty(s)) ?? []
   const unchanged = snapshot?.sections.filter(isEmpty) ?? []

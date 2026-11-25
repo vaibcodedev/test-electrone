@@ -26,6 +26,22 @@ export function accelToKeys(accel: string): string[] {
   return accel.replace('CommandOrControl', 'Ctrl').split('+')
 }
 
+/** Ctrl+B: folds the sidebar to a strip of icons and back (VS Code's key). */
+export const SIDEBAR_SHORTCUT: ShortcutDef = {
+  keys: ['Ctrl', 'B'],
+  label: 'Згорнути / розгорнути бічну панель'
+}
+
+/**
+ * Ctrl+B by the physical key (`code`), so it works on the Ukrainian layout too (`key` is «и» there).
+ * Not with Shift or Alt, not on auto-repeat: holding the keys must not make the panel flicker.
+ */
+export function isSidebarToggle(
+  e: Pick<KeyboardEvent, 'code' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'repeat'>
+): boolean {
+  return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !e.repeat && e.code === 'KeyB'
+}
+
 /** G-then-letter navigation (Linear-style). Letter → route. */
 export const GO_TO: Record<string, { route: string; label: string }> = {
   h: { route: '/', label: 'Головна' },
@@ -56,6 +72,7 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
           label: 'Швидко додати з будь-якої програми (навіть із трею)'
         },
         { keys: ['Ctrl', ','], label: 'Налаштування' },
+        SIDEBAR_SHORTCUT,
         { keys: ['Ctrl', '/'], label: 'Ця довідка (або ?)' },
         { keys: ['Alt', '1…9'], label: 'Розділи в порядку бічної панелі' },
         { keys: ['[', ']'], label: 'Назад / вперед' }

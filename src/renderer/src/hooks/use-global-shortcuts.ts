@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { ALL_NAV_ITEMS } from '@/app/navigation'
-import { GO_TO } from '@/app/shortcuts'
+import { GO_TO, isSidebarToggle } from '@/app/shortcuts'
+import { useNavVisibility } from '@/hooks/use-nav-visibility'
 import { useUi } from '@/stores/ui-store'
 import {
   MENU_OPEN,
@@ -28,6 +28,7 @@ export function useGlobalShortcuts(): void {
   const navigate = useNavigate()
   const setHelpOpen = useUi((s) => s.setShortcutsOpen)
   const pendingG = useRef<number>(0)
+  const { order } = useNavVisibility()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -36,7 +37,8 @@ export function useGlobalShortcuts(): void {
 
       // Alt+1…9 → nth section
       if (e.altKey && !mod && /^Digit[1-9]$/.test(e.code)) {
-        const item = ALL_NAV_ITEMS[Number(e.code.slice(5)) - 1]
+        // In the order of the menu the user sees: hidden sections are skipped.
+        const item = order[Number(e.code.slice(5)) - 1]
         if (item) {
           e.preventDefault()
           navigate(item.path)
@@ -51,6 +53,12 @@ export function useGlobalShortcuts(): void {
       if (mod && !e.altKey && e.code === 'Slash') {
         e.preventDefault()
         setHelpOpen(true)
+        return
+      }
+      // Works in fields too, like Ctrl+K: it only changes the width, nothing typed is touched.
+      if (isSidebarToggle(e)) {
+        e.preventDefault()
+        useUi.getState().toggleSidebar()
         return
       }
 
@@ -158,5 +166,5 @@ export function useGlobalShortcuts(): void {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [navigate, setHelpOpen])
+  }, [navigate, setHelpOpen, order])
 }

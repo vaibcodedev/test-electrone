@@ -2,36 +2,54 @@ import { useEffect, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Pause } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
-import type { QuickAddTarget } from '@shared/domain/system'
 import { useApiMutation } from '@/lib/query'
 import { fmtMinutes } from '@/lib/format'
 import { clickableProps } from '@/lib/clickable'
 import { cn } from '@/lib/utils'
 import { useUi } from '@/stores/ui-store'
 import { ENTITY_ICON } from '@/app/navigation'
+import type { QuickTile } from './quick-tiles'
 import { CardEmptyText } from '@/components/common/list-card'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const QUICK: { target: QuickAddTarget; label: string; type: keyof typeof ENTITY_META }[] = [
-  { target: 'idea', label: 'Записати ідею', type: 'idea' },
-  { target: 'card', label: 'Нове завдання', type: 'card' },
-  { target: 'snippet', label: 'Зберегти сніпет', type: 'snippet' },
-  { target: 'word', label: 'Нове слово', type: 'word' }
-]
+/** Tailwind sees only whole class names: one per column count of a single-row strip. */
+const ROW_COLS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4'
+}
 
-/** Four quick-add tiles: each opens quick add with its target preselected. */
-export function QuickTiles(): ReactElement {
+/**
+ * Quick-add tiles (the dashboard passes those whose section is in the menu): each opens quick add with its
+ * target preselected. Two per row; `wide` (the strip has the whole row) puts them in one row. An odd last
+ * tile of a two-column grid takes both columns, so no hole is left.
+ */
+export function QuickTiles({
+  tiles,
+  wide,
+  className
+}: {
+  tiles: QuickTile[]
+  wide?: boolean
+  className?: string
+}): ReactElement {
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
+  const cols = wide ? (ROW_COLS[tiles.length] ?? 'grid-cols-4') : 'grid-cols-2'
   return (
-    <div className="col-span-6 grid grid-cols-2 gap-3">
-      {QUICK.map((q) => {
+    <div className={cn('grid gap-3', cols, className)}>
+      {tiles.map((q, i) => {
         const Icon = ENTITY_ICON[q.type]
+        const fill = !wide && tiles.length % 2 === 1 && i === tiles.length - 1
         return (
           <Card
             key={q.target}
             {...clickableProps(() => setQuickAddOpen(true, q.target))}
-            className="tile h-29.5 justify-between gap-0 rounded-3xl p-4"
+            className={cn(
+              'tile h-29.5 justify-between gap-0 rounded-3xl p-4',
+              fill && 'col-span-2'
+            )}
           >
             <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
               <Icon className="size-4 text-muted-foreground" />
@@ -47,10 +65,12 @@ export function QuickTiles(): ReactElement {
 /** «Час»: the running timer (lime, with «Зупинити») or the minutes tracked this week. */
 export function TimerTile({
   timer,
-  weekMinutes
+  weekMinutes,
+  className
 }: {
   timer: { projectTitle: string; startedAt: number; projectId: string } | null
   weekMinutes: number
+  className?: string
 }): ReactElement {
   const stop = useApiMutation('time', 'stop', { successMessage: 'Таймер зупинено' })
   const navigate = useNavigate()
@@ -62,7 +82,7 @@ export function TimerTile({
   }, [timer])
   const elapsed = timer ? Math.max(0, Math.floor((now - timer.startedAt) / 60_000)) : 0
   return (
-    <Card className={cn('col-span-3 justify-between', timer && 'bg-lime text-lime-foreground')}>
+    <Card className={cn('justify-between', timer && 'bg-lime text-lime-foreground', className)}>
       <CardHeader>
         <CardTitle className={cn(timer && 'text-lime-foreground')}>Час</CardTitle>
       </CardHeader>
@@ -118,14 +138,16 @@ export function TimerTile({
 /** «Слово дня» with the review queue as a transition. */
 export function EnglishTile({
   due,
-  word
+  word,
+  className
 }: {
   due: number
   word: { id: string; term: string; translation: string } | null
+  className?: string
 }): ReactElement {
   const navigate = useNavigate()
   return (
-    <Card className="col-span-3 justify-between">
+    <Card className={cn('justify-between', className)}>
       <CardHeader>
         <CardTitle>Слово дня</CardTitle>
         {due > 0 && (

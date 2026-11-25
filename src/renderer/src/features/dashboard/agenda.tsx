@@ -20,12 +20,19 @@ function agendaDay(ts: number): string {
 }
 
 /** «Найближчі 3 дні»: the calendar feed for today and the next two days. */
-export function Agenda({ items }: { items: CalendarItem[] }): ReactElement {
+export function Agenda({
+  items,
+  className
+}: {
+  items: CalendarItem[]
+  /** Column span from the home grid (layout.ts). */
+  className?: string
+}): ReactElement {
   const navigate = useNavigate()
   return (
     <ListCard
       title="Найближчі 3 дні"
-      className="col-span-5"
+      className={className}
       action={
         <Button variant="subtle" size="xs" onClick={() => navigate('/calendar')}>
           Календар
