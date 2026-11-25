@@ -1,4 +1,5 @@
-import { format } from 'date-fns'
+import type { ReactElement } from 'react'
+import { format, startOfDay } from 'date-fns'
 import type { BoardDay, DailyBoard } from '@shared/domain/jobs'
 import { LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -11,22 +12,29 @@ const parseDay = (key: string): Date => {
   return new Date(y, m - 1, d)
 }
 
+/** A day before the board was added: main marks it not expected, but it is not a day off. */
+const beforeBoard = (day: BoardDay, board: DailyBoard): boolean =>
+  parseDay(day.day).getTime() < startOfDay(board.createdAt).getTime()
+
 /**
  * Single-hue sequential scale (dataviz): done = chart-1, partial = chart-1 at low opacity,
- * missed = surface, not expected = transparent outline. Values are always in the tooltip.
+ * missed = surface, day off = transparent outline, before the board existed = empty. Values are always in the tooltip.
  */
-function cellClass(day: BoardDay, target: number): string {
+function cellClass(day: BoardDay, board: DailyBoard): string {
   if (day.done) return 'bg-chart-1'
-  if (day.applied > 0 && target > 0) return 'bg-chart-1/35'
+  if (day.applied > 0 && board.dailyTarget > 0) return 'bg-chart-1/35'
+  if (beforeBoard(day, board)) return 'bg-transparent'
   if (!day.expected) return 'bg-transparent ring-1 ring-inset ring-border'
   // Missed day: visible on the surface card in both themes.
   return 'bg-foreground/10'
 }
 
-function describe(day: BoardDay, target: number): string {
+function describe(day: BoardDay, board: DailyBoard): string {
+  const target = board.dailyTarget
   const parts = [`відгуків: ${day.applied}${target > 0 ? ` з ${target}` : ''}`]
   if (day.checked) parts.push('позначено вручну')
-  if (!day.expected) parts.push('вихідний для майданчика')
+  if (beforeBoard(day, board)) parts.push('майданчик ще не додано')
+  else if (!day.expected) parts.push('вихідний для майданчика')
   else parts.push(day.done ? 'норму виконано' : 'не виконано')
   return parts.join(' · ')
 }
@@ -35,7 +43,7 @@ const chunk = <T,>(arr: T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size))
 
 /** Mini tile; `phrase` = a sentence instead of a number when there is no data yet. */
-function Stat({ label, value, phrase }: { label: string; value: string; phrase?: boolean }) {
+function Stat({ label, value, phrase }: { label: string; value: string; phrase?: boolean }): ReactElement {
   return (
     <div className="flex flex-col gap-1 rounded-2xl bg-card px-4 py-3">
       <span className="text-caption text-muted-foreground">{label}</span>
@@ -45,13 +53,17 @@ function Stat({ label, value, phrase }: { label: string; value: string; phrase?:
 }
 
 /** Board × day grid (like a GitHub contribution graph) for the daily job-board habit, grouped by weeks. */
-export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
+export function DailyHeatmap({ boards }: { boards: DailyBoard[] }): ReactElement | null {
   if (!boards.length) return null
   const days = boards[0].history
   const weeks = chunk(days, 7)
   const applied = boards.reduce((n, b) => n + b.history.reduce((m, d) => m + d.applied, 0), 0)
-  const expected = boards.reduce((n, b) => n + b.history.filter((d) => d.expected).length, 0)
-  const done = boards.reduce((n, b) => n + b.history.filter((d) => d.expected && d.done).length, 0)
+  // Days, not board × day pairs: a day counts when some board expected it, and is done when every such board is.
+  const countedDays = days
+    .map((_, i) => boards.map((b) => b.history[i]).filter((d) => d?.expected))
+    .filter((exp) => exp.length > 0)
+  const expected = countedDays.length
+  const done = countedDays.filter((exp) => exp.every((d) => d.done)).length
   const best = boards.reduce((n, b) => Math.max(n, b.streak), 0)
   const cols = `minmax(84px, 112px) repeat(${weeks.length}, minmax(0, 1fr)) 56px`
 
@@ -61,7 +73,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
         <Stat label="Відгуків" value={String(applied)} />
         <Stat label="Днів із нормою" value={expected ? `${done} з ${expected}` : 'ще немає днів'} phrase={!expected} />
         {/* The longest of the streaks running now (b.streak counts back from today), not an all-time record. */}
-        <Stat label="Найкраща серія зараз" value={daysWord(best)} />
+        <Stat label="Найдовша поточна серія" value={best ? daysWord(best) : 'ще немає серії'} phrase={!best} />
       </div>
 
       <div className="flex flex-col gap-2 overflow-x-auto overflow-y-hidden">
@@ -69,7 +81,7 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
           <span />
           {weeks.map((w) => (
             <span key={w[0].day} className="text-meta text-muted-foreground tabular-nums">
-              {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE }).replace('.', '')}
+              {format(parseDay(w[0].day), 'd MMM', { locale: LOCALE })}
             </span>
           ))}
           <span className="text-right text-meta text-muted-foreground">серія</span>
@@ -121,15 +133,15 @@ export function DailyHeatmap({ boards }: { boards: DailyBoard[] }) {
   )
 }
 
-function Cell({ board, day: d }: { board: DailyBoard; day: BoardDay }) {
+function Cell({ board, day: d }: { board: DailyBoard; day: BoardDay }): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className={cn('h-7 w-full rounded-[5px]', cellClass(d, board.dailyTarget))} />
+        <span className={cn('h-7 w-full rounded-[5px]', cellClass(d, board))} />
       </TooltipTrigger>
       <TooltipContent>
         <div className="font-medium">{format(parseDay(d.day), 'EEEE, d MMMM', { locale: LOCALE })}</div>
-        <div className="opacity-80">{describe(d, board.dailyTarget)}</div>
+        <div className="opacity-80">{describe(d, board)}</div>
       </TooltipContent>
     </Tooltip>
   )

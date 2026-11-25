@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react'
-import { openUrl } from '@/lib/open-url'
+import { useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { Building2, ExternalLink, Plus, Star } from 'lucide-react'
+import { Building2, Plus, Star } from 'lucide-react'
 import { companyInputSchema, type Company, type CompanyPatch } from '@shared/domain/jobs'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { countLabel, plural } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
-import { EmptyState, Field, NoResults, Page, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, Field, FilterBar, NoResults, Page, PageHeader, SearchInput } from '@/components/common/page'
 import {
   DetailPane,
   EntityAside,
@@ -34,7 +34,7 @@ import { AskedQuestions } from './application-questions'
 
 const LIMITS = limitsOf(companyInputSchema)
 
-function CompanyApplications({ companyId }: { companyId: string }) {
+function CompanyApplications({ companyId }: { companyId: string }): ReactElement {
   const navigate = useNavigate()
   // A long history pages from the server, 30 at a time (docs/design-system.md → Длинные колонки и история).
   const list = useInfiniteApi('jobs', 'list', { companyId }, 30)
@@ -42,7 +42,7 @@ function CompanyApplications({ companyId }: { companyId: string }) {
     <section className="flex flex-col gap-3">
       <SectionLabel>Вакансії в компанії</SectionLabel>
       {list.isLoading ? null : list.items.length === 0 ? (
-        <p className="text-body leading-relaxed text-muted-foreground">Відгуків у цю компанію поки не було.</p>
+        <p className="text-body leading-relaxed text-muted-foreground">Вакансій у цій компанії поки немає.</p>
       ) : (
         <ItemGroup className="gap-1.5">
           {list.items.map((a) => {
@@ -74,34 +74,28 @@ function CompanyApplications({ companyId }: { companyId: string }) {
   )
 }
 
-function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () => void }) {
+function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () => void }): ReactElement {
   const update = useApiMutation('jobs', 'updateCompany')
   const remove = useApiMutation('jobs', 'removeCompany', { successMessage: 'Компанію переміщено в кошик', onSuccess: onClose })
-  const { data: questions = [] } = useApi('jobs', 'questions', { companyId: c.id })
+  // Paged like «Вакансії в компанії»: a company can collect hundreds of questions.
+  const questions = useInfiniteApi('jobs', 'questions', { companyId: c.id }, 30)
   const patch = (p: CompanyPatch): void => update.mutate({ id: c.id, patch: p })
   const [name, setName] = useAutosave(c.name, (v) => v.trim() && patch({ name: v.trim() }))
   const [contacts, setContacts] = useAutosave(c.contacts, (contacts) => patch({ contacts }))
   const [notes, setNotes] = useAutosave(c.notes, (notes) => patch({ notes }))
-  const open = (url: string): void => void openUrl(url)
 
   return (
     <DetailPane
       entity={{ type: 'company', id: c.id }}
       onClose={onClose}
       onDelete={() => remove.mutate(c.id)}
-      headerExtra={
-        <div className="flex gap-1.5">
-          {/^https?:\/\//i.test(c.website) && (
-            <Button variant="soft" size="sm" onClick={() => open(c.website)}>
-              Сайт <ExternalLink />
-            </Button>
-          )}
-          {/^https?:\/\//i.test(c.reviewsUrl) && (
-            <Button variant="soft" size="sm" onClick={() => open(c.reviewsUrl)}>
-              Думки працівників <ExternalLink />
-            </Button>
-          )}
-        </div>
+      // Vacancies and questions go below the empty hint: it belongs right under the name.
+      footer={
+        <>
+          <Separator className="my-6" />
+          <CompanyApplications companyId={c.id} />
+          <AskedQuestions questions={questions.items} more={questions} companyId={c.id} title="Питання, які тут ставили" />
+        </>
       }
       aside={
         <EntityAside
@@ -123,7 +117,7 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           <LinkInput value={c.website} onSave={(website) => patch({ website })} />
         </Field>
         <Field label="Думки працівників">
-          <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="https://jobs.dou.ua/companies/… або Glassdoor" />
+          <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="Сторінка на DOU або Glassdoor" />
         </Field>
         <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="Напр.: React, Node.js, AWS" className="col-span-2" maxLength={LIMITS.stack} />
         <TextField label="Розмір" value={c.size} onSave={(size) => patch({ size })} placeholder="Напр.: 50–200 людей" maxLength={LIMITS.size} />
@@ -147,17 +141,12 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
         minHeight="120px"
         maxLength={LIMITS.notes}
       />
-
-      <Separator className="my-6" />
-      <CompanyApplications companyId={c.id} />
-      <Separator className="my-6" />
-      <AskedQuestions questions={questions} companyId={c.id} title="Питання, які тут ставили" />
     </DetailPane>
   )
 }
 
 /** Companies: research notes, contacts and the history of applications/interviews per company. */
-export function CompaniesPage() {
+export function CompaniesPage(): ReactElement {
   const [search, setSearch] = useState('')
   const [name, setName] = useState('')
   const [openId, setOpenId] = useOpenParam()
@@ -253,7 +242,7 @@ export function CompaniesPage() {
               <EmptyState
                 icon={Building2}
                 title="Компаній поки немає"
-                hint="Картка компанії збирає відгуки, контакти й усі співбесіди в одному місці."
+                hint="Картка компанії збирає вакансії, контакти й усі співбесіди в одному місці."
                 cta={{ label: 'Додати компанію', icon: Plus, onClick: focusNew }}
                 className="py-8"
               />
@@ -267,21 +256,24 @@ export function CompaniesPage() {
             c.activeCount > 0
               ? `${c.activeCount} ${plural(c.activeCount, ['активна вакансія', 'активні вакансії', 'активних вакансій'])}`
               : c.applicationCount > 0
-                ? `${c.applicationCount} ${plural(c.applicationCount, ['відгук', 'відгуки', 'відгуків'])}`
+                ? `${c.applicationCount} ${plural(c.applicationCount, ['вакансія', 'вакансії', 'вакансій'])}`
                 : ''
+          const active = c.id === openId
+          // Tokens, not opacity: a faded meta fell below 4.5:1 in the light theme.
+          const metaTone = active ? 'text-ink-muted' : 'text-muted-foreground'
           return (
-            <ListItem active={c.id === openId} onClick={() => setOpenId(c.id)}>
+            <ListItem active={active} onClick={() => setOpenId(c.id)}>
               <div className="flex min-w-0 items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-body font-medium">{c.name}</span>
                 {c.rating > 0 && (
-                  <span className="flex shrink-0 items-center gap-0.5 text-caption opacity-70">
+                  <span className={cn('flex shrink-0 items-center gap-0.5 text-caption', metaTone)}>
                     <Star className="size-3" />
                     {c.rating}
                   </span>
                 )}
               </div>
               {(meta || apps) && (
-                <div className="mt-0.5 flex min-w-0 gap-2 text-caption opacity-65">
+                <div className={cn('mt-0.5 flex min-w-0 gap-2 text-caption', metaTone)}>
                   <span className="min-w-0 truncate">{meta}</span>
                   {apps && <span className="ml-auto shrink-0 tabular-nums">{apps}</span>}
                 </div>
@@ -309,7 +301,7 @@ export function CompaniesPage() {
           </Button>
         }
       >
-        <SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" className="w-72" />
+        <FilterBar trailing={<SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" />} />
       </PageHeader>
       <div className="flex min-h-0 flex-1 px-8 pb-6">
         <MasterDetail

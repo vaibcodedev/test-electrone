@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { CalendarCheck, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { STAGE_STATUSES, stageInputSchema, type Stage, type StagePatch } from '@shared/domain/jobs'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
+import { fmtMinutes } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,11 +17,12 @@ import { Field, Segmented } from '@/components/common/page'
 import { SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { Confirm } from '@/components/common/confirm'
-import { Choice } from '../crm/parts'
+import { Choice } from '@/components/common/choice'
 import { NumberInput } from '@/components/common/number-input'
 import { DUE_BEFORE_START } from '../crm/labels'
 import { LinkInput, TextField } from '@/components/common/text-field'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { EditHint } from '@/components/common/detail-mode'
 import { KIND_OPTIONS, STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, whenLabel } from './labels'
 import { AddStageDialog } from './add-stage-dialog'
 
@@ -28,7 +30,7 @@ const LIMITS = limitsOf(stageInputSchema)
 const RANGES = rangesOf(stageInputSchema)
 
 /** Calendar mirror indicator: the backend creates/updates events for interview time and test deadline. */
-function CalendarBadge({ eventId, label }: { eventId: string | null; label: string }) {
+function CalendarBadge({ eventId, label }: { eventId: string | null; label: string }): ReactElement | null {
   const navigate = useNavigate()
   if (!eventId) return null
   return (
@@ -43,7 +45,7 @@ function CalendarBadge({ eventId, label }: { eventId: string | null; label: stri
   )
 }
 
-function StageEditor({ stage }: { stage: Stage }) {
+function StageEditor({ stage }: { stage: Stage }): ReactElement {
   const update = useApiMutation('jobs', 'updateStage')
   const remove = useApiMutation('jobs', 'removeStage', { successMessage: 'Етап видалено' })
   const patch = (p: StagePatch): void => update.mutate({ id: stage.id, patch: p })
@@ -146,7 +148,7 @@ function stageWhen(stage: Stage): string {
     return [stage.at ? `отримано ${whenLabel(stage.at)}` : '', stage.deadlineAt ? `здати ${whenLabel(stage.deadlineAt)}` : 'без терміну']
       .filter(Boolean)
       .join(' · ')
-  return stage.at ? `${whenLabel(stage.at)} · ${stage.durationMin} хв` : whenLabel(null)
+  return [whenLabel(stage.at), stage.at && stage.durationMin ? fmtMinutes(stage.durationMin) : ''].filter(Boolean).join(' · ')
 }
 
 /**
@@ -154,7 +156,7 @@ function stageWhen(stage: Stage): string {
  * no coloured dot, no faded card for a cancelled one. While reading, a stage without a link, interviewers or
  * notes has nothing to expand, so its header is plain text.
  */
-function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }) {
+function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }): ReactElement {
   const readOnly = useReadOnly()
   const [open, setOpen] = useState(defaultOpen)
   const expandable = !readOnly || !!(stage.location.trim() || stage.interviewers.trim() || stage.notes.trim())
@@ -196,7 +198,7 @@ function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }
 }
 
 /** Interview rounds and test tasks of one vacancy, mirrored to the calendar by the backend. */
-export function StageSection({ applicationId, stages }: { applicationId: string; stages: Stage[] }) {
+export function StageSection({ applicationId, stages }: { applicationId: string; stages: Stage[] }): ReactElement {
   const readOnly = useReadOnly()
   const [adding, setAdding] = useState(false)
   const nextPlanned = stages.find((s) => s.status === 'planned')
@@ -204,7 +206,7 @@ export function StageSection({ applicationId, stages }: { applicationId: string;
     <section className="flex flex-col gap-3">
       <SectionLabel
         action={
-          <Button data-edit-only variant="soft" size="xs" onClick={() => setAdding(true)}>
+          <Button data-edit-only variant="outline" size="xs" onClick={() => setAdding(true)}>
             <Plus /> Етап
           </Button>
         }
@@ -212,11 +214,13 @@ export function StageSection({ applicationId, stages }: { applicationId: string;
         Етапи
       </SectionLabel>
       {stages.length === 0 ? (
-        <p className="text-body leading-relaxed text-muted-foreground">
-          {readOnly
-            ? 'Етапів ще немає — додайте перший у режимі правки (E).'
-            : 'Скринінг, технічна, тестове — додайте етап, і він одразу з’явиться в календарі.'}
-        </p>
+        readOnly ? (
+          <EditHint action="додати перший">Етапів ще немає.</EditHint>
+        ) : (
+          <p className="text-body leading-relaxed text-muted-foreground">
+            Скринінг, технічна, тестове — додайте етап, і він одразу з’явиться в календарі.
+          </p>
+        )
       ) : (
         <div className="flex flex-col gap-2">
           {stages.map((s) => (

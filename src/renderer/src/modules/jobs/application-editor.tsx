@@ -1,20 +1,20 @@
-import { useEffect, useState, type ReactElement, type RefObject } from 'react'
+import { useId, useState, type ReactElement, type RefObject } from 'react'
 import { toast } from 'sonner'
-import { FileText } from 'lucide-react'
-import { CURRENCIES } from '@shared/domain/crm'
+import { FileText, FileUser, X } from 'lucide-react'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
-import { fmtDateTime } from '@/lib/format'
+import { fmtDayFull } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { NumberInput } from '@/components/common/number-input'
-import { Field, Segmented } from '@/components/common/page'
+import { EmptyState, Field, Segmented } from '@/components/common/page'
 import { EntityAside, InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
@@ -30,7 +30,9 @@ import {
 } from '@/components/common/detail-mode'
 import { Confirm } from '@/components/common/confirm'
 import { LinkInput, TextField } from '@/components/common/text-field'
-import { Choice } from '../crm/parts'
+import { IconAction } from '@/components/common/icon-action'
+import { Choice } from '@/components/common/choice'
+import { CurrencySelect } from '@/components/common/currency-select'
 import { promptAfterStatusChange } from './schedule-stage'
 import { CompanyCombobox } from './j1-fields'
 import { APP_STATUS_LABEL, FORMAT_LABEL, salaryLabel } from './labels'
@@ -52,9 +54,14 @@ function SalaryFields({
   min: number | null
   max: number | null
   patch: (p: ApplicationPatch) => void
-}) {
+}): ReactElement {
   const [draft, setDraft] = useState({ min, max })
-  useEffect(() => setDraft({ min, max }), [min, max])
+  // The server value changed («Скасувати», another window): adopt it during render, not in an effect.
+  const [src, setSrc] = useState({ min, max })
+  if (src.min !== min || src.max !== max) {
+    setSrc({ min, max })
+    setDraft({ min, max })
+  }
   const inverted = draft.min !== null && draft.max !== null && draft.min > draft.max
   const commit = (next: { min: number | null; max: number | null }): void => {
     setDraft(next)
@@ -90,7 +97,7 @@ function SalaryFields({
   )
 }
 
-function CoverTemplatePicker({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }) {
+function CoverTemplatePicker({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }): ReactElement {
   const { data: letters = [] } = useApi('templates', 'list', { situation: 'cover_letter' })
   const mark = useApiMutation('templates', 'markCopied', { silent: true, onError: (e) => reportError(e) })
   const [selected, setSelected] = useState<string | null>(a.templateId)
@@ -146,7 +153,7 @@ function ConditionsSection({ application: a, patch }: { application: Application
         <div className="grid grid-cols-3 gap-3">
           <SalaryFields min={a.salaryMin} max={a.salaryMax} patch={patch} />
           <Field label="Валюта">
-            <Choice value={a.currency} onChange={(v) => v && patch({ currency: v })} options={CURRENCIES.map((c) => ({ value: c, label: c }))} />
+            <CurrencySelect value={a.currency} onChange={(currency) => patch({ currency })} />
           </Field>
         </div>
       )}
@@ -177,14 +184,6 @@ function SentSection({ application: a, patch }: { application: ApplicationDetail
   const [cover, setCover] = useAutosave(a.coverLetter, (v) => patch({ coverLetter: v }))
   const [contact, setContact] = useAutosave(a.contact, (v) => patch({ contact: v }))
   const resume = resumes.find((r) => r.id === a.resumeId)
-  if (readOnly && !a.resumeId && !a.coverLetter.trim() && !a.contact.trim()) {
-    return (
-      <section className="flex flex-col gap-4">
-        <SectionLabel>Що надіслано</SectionLabel>
-        <p className="text-body leading-relaxed text-muted-foreground">Резюме й лист не вказано — додайте в режимі правки (E).</p>
-      </section>
-    )
-  }
   return (
     <section className="flex flex-col gap-4">
       <SectionLabel>Що надіслано</SectionLabel>
@@ -247,25 +246,32 @@ function ApplicationEditorHeader({
   onClose: () => void
 }): ReactElement {
   const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
+  const statusId = useId()
   return (
     <RecordActions
       entity={{ type: 'application', id: a.id }}
       mode={mode}
       extra={
-        <Choice
-          size="sm"
-          value={a.status}
-          onChange={(v) => {
-            if (!v) return
-            patch({ status: v })
-            promptAfterStatusChange(a, v)
-          }}
-          options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
-          className="w-44"
-        />
+        <>
+          <Label htmlFor={statusId} className="sr-only">
+            Статус вакансії
+          </Label>
+          <Choice
+            id={statusId}
+            size="sm"
+            value={a.status}
+            onChange={(v) => {
+              if (!v) return
+              patch({ status: v })
+              promptAfterStatusChange(a, v)
+            }}
+            options={APPLICATION_STATUSES.map((s) => ({ value: s, label: APP_STATUS_LABEL[s] }))}
+            className="w-44"
+          />
+        </>
       }
       onDelete={() => remove.mutate(a.id)}
-      deleteConfirm={{ title: 'Перемістити вакансію в кошик?', description: 'Пов’язані події календаря теж потраплять у кошик.' }}
+      deleteConfirm={{ title: 'Видалити вакансію?', description: 'Вакансія й пов’язані події календаря підуть у кошик на 30 днів.' }}
       onClose={onClose}
       className="border-b border-border px-4 py-2.5"
     />
@@ -280,7 +286,7 @@ function Editor({
   application: ApplicationDetails
   onClose: () => void
   modeRef?: RefObject<DetailMode | null>
-}) {
+}): ReactElement {
   const update = useApiMutation('jobs', 'update')
   const { data: boards = [] } = useApi('jobs', 'boards', { includeInactive: true })
   const patch = (p: ApplicationPatch): void => update.mutate({ id: a.id, patch: p })
@@ -291,8 +297,10 @@ function Editor({
   const mode = useRecordMode(a.id, 'application')
   usePublishMode(modeRef, mode)
   const board = boards.find((b) => b.id === a.boardId)
-  // Both long texts empty while reading: their section and its separator would be ~100px of nothing.
+  // While reading, a section with nothing in it is not drawn, its separator included; «Етапи» stays, its
+  // hint is how one learns to add a stage.
   const hasTexts = mode.editing || !!a.description.trim() || !!a.notes.trim()
+  const hasSent = mode.editing || !!a.resumeId || !!a.coverLetter.trim() || !!a.contact.trim()
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ApplicationEditorHeader application={a} mode={mode} patch={patch} onClose={onClose} />
@@ -300,7 +308,7 @@ function Editor({
       <RecordMode mode={mode}>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <SheetTitle className="sr-only">{a.title}</SheetTitle>
-        <SheetDescription className="sr-only">Редагування вакансії</SheetDescription>
+        <SheetDescription className="sr-only">Вакансія</SheetDescription>
         <InlineTitle value={title} onChange={setTitle} placeholder="Посада" className="text-headline" maxLength={LIMITS.title} />
 
         <div className="mt-5 grid grid-cols-2 gap-4">
@@ -334,6 +342,17 @@ function Editor({
           <Field label="Нагадати про себе">
             <DatePicker value={a.followUpAt} onChange={(followUpAt) => patch({ followUpAt })} placeholder="Не нагадувати" />
           </Field>
+          {/* Set by status changes, not typed in: shown next to «Надіслано», where the reply date is looked for. */}
+          {a.repliedAt && (
+            <Field label="Відповіли">
+              <span className="text-body">{fmtDayFull(a.repliedAt)}</span>
+            </Field>
+          )}
+          {a.closedAt && (
+            <Field label="Закрито">
+              <span className="text-body">{fmtDayFull(a.closedAt)}</span>
+            </Field>
+          )}
         </div>
 
         <Separator className="my-6" />
@@ -344,25 +363,27 @@ function Editor({
 
         <StageSection applicationId={a.id} stages={a.stages} />
 
-        <Separator className="my-6" />
+        {hasSent && (
+          <>
+            <Separator className="my-6" />
+            <SentSection application={a} patch={patch} />
+          </>
+        )}
 
-        <SentSection application={a} patch={patch} />
-
-        <Separator className="my-6" />
-
+        {/* Brings its own separator; while reading an empty list it renders nothing. */}
         <AskedQuestions questions={a.questions} applicationId={a.id} companyId={a.companyId} />
 
         {hasTexts && (
           <>
             <Separator className="my-6" />
             <section className="flex flex-col gap-4">
-              <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Скопіюйте опис вакансії" minHeight="120px" maxLength={LIMITS.description} />
+              <MarkdownField label="Текст вакансії" value={description} onChange={setDescription} placeholder="Вставте текст вакансії" minHeight="120px" maxLength={LIMITS.description} />
               <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Враження, домовленості, питання до оферу" minHeight="100px" maxLength={LIMITS.notes} />
             </section>
           </>
         )}
 
-        {/* The standard column (tags hide while empty in view mode), then the vacancy's own milestones. */}
+        {/* The standard column; tags hide while empty in view mode. */}
         <div className="mt-6 flex flex-col gap-2">
           <EntityAside
             entity={{ type: 'application', id: a.id }}
@@ -371,12 +392,6 @@ function Editor({
             createdAt={a.createdAt}
             updatedAt={a.updatedAt}
           />
-          {(a.repliedAt || a.closedAt) && (
-            <div className="text-meta leading-relaxed text-muted-foreground">
-              {a.repliedAt && <div>Відповіли {fmtDateTime(a.repliedAt)}</div>}
-              {a.closedAt && <div>Закрито {fmtDateTime(a.closedAt)}</div>}
-            </div>
-          )}
         </div>
       </div>
       </RecordMode>
@@ -409,23 +424,50 @@ function EditorSkeleton(): ReactElement {
   )
 }
 
+/**
+ * `?open=` points at a vacancy that is gone (trash, deleted; «Назад» after deleting, an old pin): say so and
+ * offer a way out instead of a skeleton that never ends.
+ */
+function MissingApplication({ onClose }: { onClose: () => void }): ReactElement {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex justify-end border-b border-border px-4 py-2.5">
+        <IconAction label="Закрити" size="icon-sm" onClick={onClose}>
+          <X />
+        </IconAction>
+      </div>
+      <EmptyState
+        icon={FileUser}
+        title="Вакансію не знайдено"
+        hint="Можливо, її переміщено в кошик."
+        cta={{ label: 'Закрити', onClick: onClose }}
+        className="flex-1"
+      />
+    </div>
+  )
+}
+
 /** Right-side vacancy editor, opened by ?open=<id>. */
-export function ApplicationEditorSheet({ applicationId, onClose }: { applicationId: string | null; onClose: () => void }) {
-  const { data: application } = useApi('jobs', 'get', applicationId ?? '', { enabled: !!applicationId })
+export function ApplicationEditorSheet({ applicationId, onClose }: { applicationId: string | null; onClose: () => void }): ReactElement {
+  const { data: application, isLoading } = useApi('jobs', 'get', applicationId ?? '', { enabled: !!applicationId })
   const modeRef = useModeRef()
   const guard = guardSheet(modeRef, onClose)
   return (
     <Sheet open={!!applicationId} onOpenChange={guard.onOpenChange}>
-      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 outline-none focus-visible:outline-none sm:max-w-[660px]">
+      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[660px]">
         {application && application.id === applicationId ? (
           <Editor key={application.id} application={application} onClose={onClose} modeRef={modeRef} />
         ) : (
           <>
             <SheetTitle className="sr-only">Вакансія</SheetTitle>
-            <SheetDescription className="sr-only">Завантаження</SheetDescription>
-            <Delayed delay={150}>
-              <EditorSkeleton />
-            </Delayed>
+            <SheetDescription className="sr-only">{isLoading ? 'Завантаження' : 'Вакансію не знайдено'}</SheetDescription>
+            {isLoading ? (
+              <Delayed delay={150}>
+                <EditorSkeleton />
+              </Delayed>
+            ) : (
+              <MissingApplication onClose={onClose} />
+            )}
           </>
         )}
       </SheetContent>

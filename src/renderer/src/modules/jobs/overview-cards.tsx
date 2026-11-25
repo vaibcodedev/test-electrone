@@ -15,49 +15,28 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DailyHeatmap } from './daily-heatmap'
-import { STAGE_KIND_LABEL, stageRowText } from './labels'
+import { STAGE_KIND_LABEL, stageDate, stageRowText } from './labels'
 import { BoardDot } from './board-label'
-import { StageDate } from './stage-row'
+import { EventDate } from '@/components/common/event-date'
 
 function TodayRow({ board }: { board: DailyBoard }): ReactElement {
   const checkin = useApiMutation('jobs', 'checkin')
   const t = board.today
   const target = board.dailyTarget
-  // Met by applications alone: the mark is set and locked — say why instead of a dead checkbox.
+  // Met by applications alone: the mark is set and locked. It looks as done as a manual one (no faded
+  // disabled state); the reason is in the description, readable without a hover or a focus stop.
   const auto = t.done && !t.checked
-  const checkbox = (
-    <Checkbox
-      id={`board-${board.id}`}
-      checked={t.checked || t.done}
-      disabled={auto}
-      onCheckedChange={(v) => checkin.mutate({ boardId: board.id, day: t.day, checked: v === true })}
-      aria-label={`Позначити ${board.name} на сьогодні`}
-      className="size-5 rounded-full"
-    />
-  )
   return (
     <Item variant="muted" size="sm" className={cn(t.done && 'bg-chart-1/12')}>
-      {auto ? (
-        <Tooltip>
-          {/* A disabled checkbox gets no focus: the span takes it, so the reason is reachable from the keyboard. */}
-          <TooltipTrigger asChild>
-            <span
-              tabIndex={0}
-              aria-label={`Зараховано автоматично: ${t.applied} з ${target}`}
-              className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {checkbox}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            Зараховано автоматично: {t.applied} з {target} {plural(target, ['відгуку', 'відгуків', 'відгуків'])}
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        checkbox
-      )}
+      <Checkbox
+        id={`board-${board.id}`}
+        checked={t.checked || t.done}
+        disabled={auto}
+        onCheckedChange={(v) => checkin.mutate({ boardId: board.id, day: t.day, checked: v === true })}
+        aria-label={`Позначити ${board.name} на сьогодні`}
+        className="size-5 rounded-full disabled:cursor-default disabled:opacity-100"
+      />
       <ItemContent className="min-w-0">
         <ItemTitle className="flex items-center gap-2">
           <BoardDot color={board.color} />
@@ -70,6 +49,7 @@ function TodayRow({ board }: { board: DailyBoard }): ReactElement {
               ? `${t.applied} ${plural(t.applied, ['відгук', 'відгуки', 'відгуків'])}`
               : 'просто перевірити'}
           {t.checked && !t.applied ? ' · перевірено, підхожих немає' : ''}
+          {auto ? ' · зараховано автоматично' : ''}
         </ItemDescription>
       </ItemContent>
       <ItemActions>
@@ -185,7 +165,7 @@ export function UpcomingCard({ upcoming }: { upcoming: JobsOverview['upcoming'] 
               return (
                 <Item key={s.id} asChild size="sm" className="cursor-pointer gap-3 bg-card p-2.5 pr-4 hover:ring-1 hover:ring-border">
                   <button type="button" className="w-full text-left" onClick={() => navigate(ENTITY_META.application.route(s.applicationId))}>
-                    <StageDate when={s.at ?? s.deadlineAt} withTime={!!s.at} />
+                    <EventDate when={stageDate(s)} />
                     <ItemContent className="min-w-0 gap-1">
                       <ItemTitle className="w-full truncate">{text.title}</ItemTitle>
                       {text.description && <ItemDescription className="truncate text-caption">{text.description}</ItemDescription>}

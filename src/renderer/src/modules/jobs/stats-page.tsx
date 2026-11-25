@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, ChartColumn } from 'lucide-react'
+import { ChartColumn } from 'lucide-react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { JobFunnelRow } from '@shared/domain/jobs'
@@ -28,21 +28,21 @@ const weeklyConfig = {
 } satisfies ChartConfig
 
 const COLUMNS: FunnelColumn<JobFunnelRow>[] = [
-  { header: 'Відгуків', cell: (r) => r.applied },
+  { header: 'Відгуки', cell: (r) => r.applied },
   { header: 'Відповіді', cell: (r) => <WithRate value={r.replied} rate={r.replyRate} /> },
   { header: 'Співбесіди', cell: (r) => r.interview },
   { header: 'Офери', cell: (r) => <WithRate value={r.offer} rate={r.offerRate} /> }
 ]
 
 /** Job search analytics: funnel, weekly activity, which board / resume / letter works. */
-export function JobStatsPage() {
+export function JobStatsPage(): ReactElement {
   const navigate = useNavigate()
   const [range, setRange] = useState<Range>('90')
   // No `to`: the server counts up to "now" on every refetch, so new records show up without reopening.
   // `from` is a local midnight — the query key stays stable within a day.
   const from = startOfDay(subDays(new Date(), Number(range))).getTime()
   const { data } = useApi('jobs', 'stats', { from })
-  const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }).replace('.', '') }))
+  const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }) }))
 
   return (
     <Page>
@@ -65,7 +65,7 @@ export function JobStatsPage() {
             icon={ChartColumn}
             title="За період відгуків немає"
             hint="Додавайте вакансії зі статусом «Надіслано» — тут з’явиться воронка."
-            cta={{ label: 'До вакансій', icon: ArrowRight, onClick: () => navigate('/jobs/applications') }}
+            cta={{ label: 'До вакансій', onClick: () => navigate('/jobs/applications') }}
           />
         ) : (
           <div className="grid grid-cols-2 gap-3">

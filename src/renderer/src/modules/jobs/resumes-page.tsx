@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode, type ReactElement } from 'react'
 import { CircleCheck, Eye, FileText, FileUp, Trash2, Upload } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { resumeInputSchema, type JobBoard, type Resume } from '@shared/domain/jobs'
@@ -58,7 +58,7 @@ function NewVersionDialog({
   onOpenChange: (open: boolean) => void
   source: FileSource | null
   suggestedTitle: string
-}) {
+}): ReactElement {
   const create = useApiMutation('jobs', 'createResume', { successMessage: 'Версію резюме додано', onSuccess: () => onOpenChange(false) })
   const [title, setTitle] = useState(suggestedTitle)
   const [changes, setChanges] = useState('')
@@ -102,7 +102,7 @@ function NewVersionDialog({
   )
 }
 
-function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: JobBoard[]; onPreview: () => void }) {
+function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: JobBoard[]; onPreview: () => void }): ReactElement {
   const update = useApiMutation('jobs', 'updateResume')
   const replace = useApiMutation('jobs', 'replaceResumeFile', { successMessage: 'Файл замінено' })
   const remove = useApiMutation('jobs', 'removeResume', { successMessage: 'Версію видалено' })
@@ -130,21 +130,16 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
               <CircleCheck />
             </IconAction>
           )}
-          {/* Confirm's trigger needs a DOM child, so the tooltip wraps it instead of IconAction. */}
-          <Tooltip>
-            <Confirm
-              title={`Видалити «${resume.title}»?`}
-              description="Файл буде видалено; у надісланих відгуках залишиться позначка без файлу."
-              onConfirm={() => remove.mutate(resume.id)}
-            >
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-xs" aria-label="Видалити версію">
-                  <Trash2 />
-                </Button>
-              </TooltipTrigger>
-            </Confirm>
-            <TooltipContent>Видалити версію</TooltipContent>
-          </Tooltip>
+          <Confirm
+            title={`Видалити «${resume.title}»?`}
+            description="Файл буде видалено з диска, у надісланих відгуках версію буде знято. Відновити не можна."
+            confirmLabel="Видалити"
+            onConfirm={() => remove.mutate(resume.id)}
+          >
+            <IconAction label="Видалити версію">
+              <Trash2 />
+            </IconAction>
+          </Confirm>
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -163,13 +158,14 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
           )}
           {resume.size > 0 && <span className="text-caption text-muted-foreground">{fmtBytes(resume.size)}</span>}
           {resume.filePath && isPdf && (
-            <Button variant="ghost" size="xs" onClick={onPreview}>
+            <Button variant="soft" size="xs" onClick={onPreview}>
               <Eye /> Відкрити
             </Button>
           )}
+          {/* soft, not subtle: the file row is already bg-card, where subtle reads as bare text. */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="subtle" size="xs" onClick={picker.open}>
+              <Button variant="soft" size="xs" onClick={picker.open}>
                 <FileUp /> {resume.filePath ? 'Замінити файл' : 'Прикріпити файл'}
               </Button>
             </TooltipTrigger>
@@ -214,7 +210,7 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
 }
 
 /** Resume versions: files, what changed, where each version is uploaded, which one gets replies. */
-export function ResumesPage() {
+export function ResumesPage(): ReactElement {
   const { data: resumes = [], isLoading } = useApi('jobs', 'resumes')
   const { data: boards = [] } = useApi('jobs', 'boards')
   const [pending, setPending] = useState<FileSource | null>(null)
@@ -264,7 +260,7 @@ export function ResumesPage() {
           ) : resumes.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title="Резюме ще немає"
+              title="Резюме поки немає"
               hint="Перетягніть PDF або DOCX сюди, вставте через Ctrl+V або натисніть «Завантажити версію»."
               cta={{ label: 'Завантажити версію', icon: Upload, onClick: picker.open }}
             />
@@ -298,12 +294,8 @@ export function ResumesPage() {
             preview?.filePath && (
               <EmptyState
                 title="Перегляд доступний лише для PDF"
-                hint="Інші формати відкриваються в програмі за замовчуванням."
-                action={
-                  <Button variant="subtle" onClick={() => void api.files.openPath(preview.filePath!)}>
-                    Відкрити файл
-                  </Button>
-                }
+                hint="Інші формати відкриваються в типовій програмі."
+                cta={{ label: 'Відкрити файл', onClick: () => void api.files.openPath(preview.filePath!) }}
               />
             )
           )}

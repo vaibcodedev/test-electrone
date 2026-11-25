@@ -1,8 +1,7 @@
-import { useId, useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { Dumbbell, MessageCircleQuestion, Plus } from 'lucide-react'
 import {
-  groupOf,
   QUESTION_CATEGORIES,
   questionInputSchema,
   type InterviewQuestion,
@@ -10,13 +9,16 @@ import {
   type QuestionPatch,
   type QuestionGroup
 } from '@shared/domain/jobs'
+import { DRAFT_TITLES } from '@shared/entity-types'
+import { api } from '@/lib/api'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime, fmtDay, easeLabel } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
-import { DetailPane, EntityAside, InlineTitle, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
+import { DetailPane, EntityAside, ListItem, MasterDetail, SectionLabel, useOpenParam } from '@/components/common/master-detail'
+import { Combobox } from '@/components/common/combobox'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagFilter } from '@/components/common/tags'
 import { VirtualList } from '@/components/common/virtual-list'
@@ -27,14 +29,14 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useDetailMode, useReadOnly } from '@/components/common/detail-mode-context'
+import { EditHintText } from '@/components/common/detail-mode'
 import { daysWord, DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL, QUESTION_GROUP_LABEL } from './labels'
 import { QuestionCategoryFilter, QuestionCategoryPicker } from './question-category'
-import { TopicPicker } from './j2-topic-picker'
 import { ApplicationCombobox, CompanyCombobox } from './j1-fields'
 
 const LIMITS = limitsOf(questionInputSchema)
-/** The draft title (DRAFT_TITLES.question): an untouched new question is discarded on close. */
-const NEW_QUESTION = 'Нове питання'
+/** Draft titles: an untouched new question is discarded on close; the first one is what «Питання» creates. */
+const DRAFTS: readonly string[] = DRAFT_TITLES.question ?? []
 
 type Form = Pick<InterviewQuestion, 'question' | 'answer' | 'category' | 'topic' | 'lang' | 'difficulty' | 'companyId' | 'applicationId'>
 
@@ -49,9 +51,12 @@ const toForm = (q: InterviewQuestion): Form => ({
   applicationId: q.applicationId
 })
 
+/** Never practised = not «due» yet: a new question used to say «Пора повторити» while its body said «Ще не тренували». */
+const isFresh = (q: InterviewQuestion): boolean => q.repetitions === 0 && q.lapses === 0
+
 /** Spaced-repetition state; a question never practised gets one phrase — the tiles mean something after a review. */
 function ReviewStats({ question }: { question: InterviewQuestion }): ReactElement {
-  const fresh = question.repetitions === 0 && question.lapses === 0
+  const fresh = isFresh(question)
   return (
     <section className="flex flex-col gap-2">
       <SectionLabel>Повторення</SectionLabel>
@@ -62,17 +67,17 @@ function ReviewStats({ question }: { question: InterviewQuestion }): ReactElemen
       ) : (
         <div className="grid grid-cols-2 gap-2">
           <StatCell
-            label="Повторити"
+            label="Наступне повторення"
             value={fmtDay(question.dueAt) || '—'}
             hint={`Коли питання знову з’явиться в тренажері: ${fmtDateTime(question.dueAt)}.`}
           />
           <StatCell
             label="Пауза"
             value={question.intervalDays < 1 ? 'менше дня' : daysWord(Math.round(question.intervalDays))}
-            hint="Скільки днів між повторами зараз. Відповіли — пауза росте, не змогли — знову коротка."
+            hint="Скільки днів між повтореннями зараз. Відповіли — пауза росте, не змогли — знову коротка."
           />
           <StatCell label="Поспіль без помилок" value={String(question.repetitions)} hint="Скільки разів поспіль ви відповіли без помилки." />
-          <StatCell label="Не вдалося" value={String(question.lapses)} hint="Скільки разів відповідь не вдалася і питання повернулося на початок." />
+          <StatCell label="Помилок" value={String(question.lapses)} hint="Скільки разів відповідь не вдалася і питання повернулося на початок." />
           <div className="col-span-2 grid">
             <StatCell
               label="Дається"
@@ -87,33 +92,67 @@ function ReviewStats({ question }: { question: InterviewQuestion }): ReactElemen
 }
 
 /**
- * The question itself: a heading while reading, a multi-line field while editing. Not InlineTitle in edit
- * mode — it folds line breaks into spaces and blocks Enter, and questions (with code, from a JSON import) are
- * up to 5000 characters over several lines. Rendered inside DetailPane, so it reads the pane's mode.
+ * The question itself: a heading while reading, a multi-line field while editing — in the same type, so «E»
+ * doesn't make the text jump. Not InlineTitle: it clamps to 4 lines and folds line breaks, and questions
+ * (with code, from a JSON import) are up to 5000 characters over several lines. Rendered inside DetailPane,
+ * so it reads the pane's mode.
  */
 function QuestionText({ value, onChange }: { value: string; onChange: (value: string) => void }): ReactElement {
   const readOnly = useReadOnly()
   const { fresh } = useDetailMode()
   const id = useId()
-  if (readOnly) return <InlineTitle value={value} onChange={onChange} placeholder="Питання" maxLength={LIMITS.question} />
+  const field = useRef<HTMLTextAreaElement>(null)
+  const focused = useRef(false)
+  // A new question opens focused (without scrolling the pane), its draft title selected to be typed over.
+  useEffect(() => {
+    if (!fresh || readOnly || focused.current || !field.current) return
+    focused.current = true
+    field.current.focus({ preventScroll: true })
+    if (DRAFTS.includes(value)) field.current.select()
+  }, [fresh, readOnly, value])
+  const empty = !value.trim()
+  if (readOnly)
+    return <h2 className="font-display py-1 text-headline leading-[1.1] whitespace-pre-line [overflow-wrap:anywhere]">{value || 'Питання'}</h2>
   return (
-    <Field label="Питання" htmlFor={id} count={{ length: value.length, max: LIMITS.question }}>
+    <Field
+      label="Питання"
+      htmlFor={id}
+      count={{ length: value.length, max: LIMITS.question }}
+      error={empty ? 'Впишіть питання — порожнє не збережеться' : undefined}
+    >
       <Textarea
+        ref={field}
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        // A new question opens with «Нове питання» selected, to be typed over at once.
-        onFocus={(e) => fresh && value === NEW_QUESTION && e.currentTarget.select()}
-        autoFocus={fresh}
         maxLength={LIMITS.question}
         placeholder="Яке питання поставили?"
-        className="font-display text-heading"
+        aria-invalid={empty || undefined}
+        className="font-display text-headline leading-[1.1]"
       />
     </Field>
   )
 }
 
-function QuestionDetail({ question, topics, onClose }: { question: InterviewQuestion; topics: string[]; onClose: () => void }) {
+function ReviewBadge({ question: q }: { question: InterviewQuestion }): ReactElement {
+  const [now] = useState(() => Date.now())
+  if (isFresh(q)) return <Badge variant="soft">Нове</Badge>
+  // Due asks for action (info), it isn't a success (docs/design-system.md → Бейджи).
+  if (q.dueAt <= now) return <Badge variant="info">Пора повторити</Badge>
+  return <Badge variant="soft">Повторення {fmtDay(q.dueAt)}</Badge>
+}
+
+/**
+ * «Мова відповіді» / «Складність»: while reading — the same two columns as «Категорія / Тема» above, so the
+ * values line up; while editing three segments don't fit half of a 38%-wide pane, so they wrap.
+ * Inside DetailPane: QuestionDetail itself sits above the mode provider.
+ */
+function LangDifficultyRow({ children }: { children: ReactNode }): ReactElement {
+  const readOnly = useReadOnly()
+  return <div className={readOnly ? 'grid grid-cols-2 gap-4' : 'flex flex-wrap gap-x-6 gap-y-4'}>{children}</div>
+}
+
+function QuestionDetail({ question, topics, onClose }: { question: InterviewQuestion; topics: string[]; onClose: () => void }): ReactElement {
   const update = useApiMutation('jobs', 'updateQuestion')
   const remove = useApiMutation('jobs', 'removeQuestion', { successMessage: 'Питання переміщено в кошик' })
   const initial = useMemo(() => toForm(question), [question])
@@ -123,7 +162,6 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
   })
   const set = <K extends keyof Form>(key: K, value: Form[K]): void => setForm({ ...form, [key]: value })
   const entity = { type: 'question' as const, id: question.id }
-  const due = question.dueAt <= Date.now()
 
   return (
     <DetailPane
@@ -133,8 +171,12 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
         remove.mutate(question.id)
         onClose()
       }}
-      // Due asks for action (info), it isn't a success (docs/design-system.md → Бейджи).
-      headerExtra={<Badge variant={due ? 'info' : 'soft'}>{due ? 'Пора повторити' : `Повтор ${fmtDay(question.dueAt)}`}</Badge>}
+      headerExtra={<ReviewBadge question={question} />}
+      emptyHint={
+        <>
+          Відповіді ще немає. <EditHintText action="дописати" />
+        </>
+      }
       aside={
         <EntityAside
           entity={entity}
@@ -155,11 +197,23 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
             <QuestionCategoryPicker value={form.category} onChange={(c) => set('category', c)} />
           </Field>
           <Field label="Тема">
-            <TopicPicker value={form.topic} options={topics} onChange={(v) => set('topic', v)} maxLength={LIMITS.topic} />
+            <Combobox
+              value={form.topic || null}
+              // The current topic too: a just-created one isn't in `topics` until the refetch.
+              options={[...new Set([...topics, form.topic].filter(Boolean))].map((t) => ({ value: t, label: t }))}
+              onChange={(v) => set('topic', v ?? '')}
+              creatable
+              onCreate={(t) => set('topic', t)}
+              clearable
+              clearLabel="Без теми"
+              placeholder="Виберіть або введіть тему"
+              searchPlaceholder="Знайти або створити…"
+              emptyText="Тем поки немає"
+              maxLength={LIMITS.topic}
+            />
           </Field>
         </div>
-        {/* Own row: three segments don't fit half of a 38%-wide pane. */}
-        <div className="flex flex-wrap gap-x-6 gap-y-4">
+        <LangDifficultyRow>
           <Field label="Мова відповіді" className="w-auto">
             <Segmented
               size="sm"
@@ -178,7 +232,7 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
               options={(['1', '2', '3'] as const).map((d) => ({ value: d, label: DIFFICULTY_LABEL[Number(d)] }))}
             />
           </Field>
-        </div>
+        </LangDifficultyRow>
         <MarkdownField
           label="Моя найкраща відповідь"
           value={form.answer}
@@ -205,7 +259,7 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
 }
 
 /** Interview question bank: technical and soft questions with my best answers + SRS practice. */
-export function QuestionsPage() {
+export function QuestionsPage(): ReactElement {
   const navigate = useNavigate()
   const [open, setOpen] = useOpenParam()
   const [category, setCategory] = useState<QuestionCategory | undefined>()
@@ -214,9 +268,13 @@ export function QuestionsPage() {
   const [search, setSearch] = useState('')
   const [tagId, setTagId] = useState<string | undefined>()
   const term = useDebounced(search.trim())
+  const [now] = useState(() => Date.now())
   const base = { search: term || undefined, tagId }
-  // Full list feeds the category counters and «Копіювати як JSON»; the column pages from the server.
-  const { data: all = [], isLoading } = useApi('jobs', 'questions', base)
+  // Chip counters come from the server (GROUP BY), not from loading the whole bank.
+  const { data: rawCounts, isLoading } = useApi('jobs', 'questionCounts', base)
+  // A category with no questions is missing from the server's GROUP BY: 0, so its chip hides.
+  const counts = Object.fromEntries(QUESTION_CATEGORIES.map((c) => [c, rawCounts?.[c] ?? 0])) as Record<QuestionCategory, number>
+  const total = QUESTION_CATEGORIES.reduce((n, c) => n + counts[c], 0)
   const list = useInfiniteApi('jobs', 'questions', { ...base, group, category, topic })
   const { data: topics = [] } = useApi('jobs', 'topics')
   const { data: due = [] } = useApi('jobs', 'practiceQueue', { limit: 200 })
@@ -240,9 +298,12 @@ export function QuestionsPage() {
     setSearch('')
   }
 
+  // An empty bank has one action — add a question; with a search that matched nothing the header stays put.
+  const emptyBank = !isLoading && !total && !term && !tagId
+
   const add = (): void => {
     create.mutate(
-      { question: NEW_QUESTION, category: category ?? (group === 'nontechnical' ? 'behavioral' : 'technical'), topic: topic ?? '' },
+      { question: DRAFTS[0], category: category ?? (group === 'nontechnical' ? 'behavioral' : 'technical'), topic: topic ?? '' },
       { onSuccess: (q) => setOpen(q.id) }
     )
   }
@@ -254,26 +315,35 @@ export function QuestionsPage() {
         subtitle="Записуйте питання з реальних співбесід і свої найкращі відповіді — тренажер нагадає повторити."
         actions={
           <>
-            {/* The whole filtered bank, not just the pages loaded so far. */}
-            <CopyJsonButton
-              what="Питання"
-              disabled={!all.length}
-              getData={() =>
-                all
-                  .filter((q) => (!group || groupOf(q.category) === group) && (!category || q.category === category) && (!topic || q.topic === topic))
-                  .map((q) => ({ question: q.question, answer: q.answer, category: q.category, topic: q.topic, difficulty: q.difficulty, lang: q.lang }))
-              }
-            />
+            {/* The whole filtered bank, fetched on click — not just the pages loaded so far. */}
+            {!emptyBank && (
+              <CopyJsonButton
+                what="Питання"
+                disabled={!total}
+                getData={async () =>
+                  (await api.jobs.questions({ ...base, group, category, topic })).map((q) => ({
+                    question: q.question,
+                    answer: q.answer,
+                    category: q.category,
+                    topic: q.topic,
+                    difficulty: q.difficulty,
+                    lang: q.lang
+                  }))
+                }
+              />
+            )}
             <ImportButton kind="question" onImported={(id) => id && setOpen(id)} />
             {/* Never a dead end: with nothing due it starts extra practice right away. */}
-            <Button
-              variant="soft"
-              disabled={!all.length}
-              onClick={() => navigate(due.length ? '/jobs/questions/practice' : '/jobs/questions/practice?extra=1')}
-            >
-              <Dumbbell /> Тренування
-              {due.length > 0 && <Badge variant="soft">{due.length}</Badge>}
-            </Button>
+            {!emptyBank && (
+              <Button
+                variant="soft"
+                disabled={!total}
+                onClick={() => navigate(due.length ? '/jobs/questions/practice' : '/jobs/questions/practice?extra=1')}
+              >
+                <Dumbbell /> Тренування
+                {due.length > 0 && <Badge variant="soft">{due.length}</Badge>}
+              </Button>
+            )}
             {/* Lime = the N key: «N» creates a question here. */}
             <Button variant="lime" onClick={add}>
               <Plus /> Питання
@@ -284,7 +354,7 @@ export function QuestionsPage() {
         <FilterBar
           chips={
             // An empty bank has nothing to filter by: no «Усі» chip over the empty state.
-            (all.length > 0 || term || tagId) && (
+            (total > 0 || term || tagId) && (
               <QuestionCategoryFilter
                 group={group}
                 category={category}
@@ -292,14 +362,14 @@ export function QuestionsPage() {
                   setGroup(next.group)
                   setCategory(next.category)
                 }}
-                counts={Object.fromEntries(QUESTION_CATEGORIES.map((c) => [c, all.filter((q) => q.category === c).length]))}
+                counts={counts}
               />
             )
           }
           trailing={
             <>
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Питання або відповідь" className="w-72" />
+              <SearchInput value={search} onChange={setSearch} placeholder="Питання або відповідь" />
             </>
           }
           secondary={
@@ -337,14 +407,15 @@ export function QuestionsPage() {
                 ) : (
                   <EmptyState
                     icon={MessageCircleQuestion}
-                    title="Банк питань порожній"
+                    title="Питань поки немає"
                     hint="Додайте питання, яке поставили на співбесіді, і свою відповідь на нього."
                     cta={{ label: 'Додати питання', icon: Plus, onClick: add }}
                   />
                 ))
               }
               renderItem={(q) => {
-                const isDue = q.dueAt <= Date.now()
+                // A never-practised question isn't «due»: the badge would sit on almost every row.
+                const isDue = q.dueAt <= now && !isFresh(q)
                 const active = q.id === open
                 // Only what the filter doesn't already say: topic, category without a filter, a non-default language.
                 const meta = [

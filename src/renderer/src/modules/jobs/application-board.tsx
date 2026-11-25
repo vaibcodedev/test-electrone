@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode, type ReactElement } from 'react'
 import {
   closestCorners,
   DndContext,
@@ -33,7 +33,7 @@ function DraggableApplication({
   board?: JobBoard
   now: number
   onOpen: () => void
-}) {
+}): ReactElement {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: application.id })
   return (
     <ApplicationCard
@@ -62,7 +62,7 @@ function DraggableApplication({
 }
 
 /** A column renders 30 cards at a time (it scrolls on its own); «Ще N» adds the next 30. */
-function PagedCards<T>({ items, render }: { items: T[]; render: (item: T) => ReactNode }) {
+function PagedCards<T>({ items, render }: { items: T[]; render: (item: T) => ReactNode }): ReactElement {
   const [limit, setLimit] = useState(30)
   const hidden = Math.max(0, items.length - limit)
   return (
@@ -92,7 +92,7 @@ export function ApplicationBoard({
   applications: Application[]
   boards: JobBoard[]
   onOpen: (id: string) => void
-}) {
+}): ReactElement {
   const [overrides, setOverrides] = useState<Record<string, ApplicationStatus>>({})
   const [activeId, setActiveId] = useState<string | null>(null)
   const [closedOpen, setClosedOpen] = useState(false)

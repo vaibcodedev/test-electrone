@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Settings2 } from 'lucide-react'
 import { useApi } from '@/lib/query'
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { FollowUpsCard, HabitCard, TodayCard, UpcomingCard } from './overview-cards'
 
-function Counter({ label, value, hint, onClick, accent }: { label: string; value: number; hint?: string; onClick?: () => void; accent?: boolean }) {
+function Counter({ label, value, hint, onClick, accent }: { label: string; value: number; hint?: string; onClick?: () => void; accent?: boolean }): ReactElement {
   return (
     <Card className={cn('gap-3 py-4', accent && 'bg-ink text-ink-foreground')}>
       <CardContent className="flex flex-col gap-2">
@@ -27,7 +28,7 @@ function Counter({ label, value, hint, onClick, accent }: { label: string; value
 }
 
 /** Job search hub landing: today's board habit, upcoming interviews, follow-ups, counters. */
-export function JobsOverviewPage() {
+export function JobsOverviewPage(): ReactElement {
   const navigate = useNavigate()
   const { data } = useApi('jobs', 'overview')
 
@@ -55,8 +56,15 @@ export function JobsOverviewPage() {
           <HabitCard today={data.today} />
 
           <div className="col-span-12 grid grid-cols-3 gap-3">
-            <Counter label="Активних відгуків" value={data.activeCount} hint="Відкрити вакансії" onClick={() => navigate('/jobs/applications')} />
-            <Counter label="Оферів" value={data.offers} accent={data.offers > 0} hint="Переглянути" onClick={() => navigate('/jobs/applications')} />
+            <Counter label="Активних вакансій" value={data.activeCount} hint="Відкрити вакансії" onClick={() => navigate('/jobs/applications')} />
+            {/* With no offers there is nothing to look at, and the move would repeat «Відкрити вакансії». */}
+            <Counter
+              label="Оферів"
+              value={data.offers}
+              accent={data.offers > 0}
+              hint={data.offers > 0 ? 'Переглянути' : undefined}
+              onClick={data.offers > 0 ? () => navigate('/jobs/applications') : undefined}
+            />
             <Counter
               label="Питань до повторення"
               value={data.questionsDue}

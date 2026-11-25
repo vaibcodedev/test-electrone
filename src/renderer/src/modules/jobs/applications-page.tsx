@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { BellRing, FileUser, Kanban, List, Plus } from 'lucide-react'
 import { applicationInputSchema, type Application } from '@shared/domain/jobs'
@@ -12,10 +12,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { EmptyState, Field, FilterBar, FilterChips, Page, PageHeader, SearchInput, Segmented } from '@/components/common/page'
+import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageHeader, SearchInput, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { TagFilter } from '@/components/common/tags'
-import { Choice } from '../crm/parts'
+import { Choice } from '@/components/common/choice'
 import { CompanyCombobox, type CompanyValue } from './j1-fields'
 import { agoLabel } from './labels'
 import { ApplicationBoard } from './application-board'
@@ -27,7 +27,7 @@ const LIMITS = limitsOf(applicationInputSchema)
 
 type View = 'kanban' | 'list'
 
-function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: Application) => void; variant?: 'lime' | 'soft' }) {
+function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: Application) => void; variant?: 'lime' | 'soft' }): ReactElement {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [company, setCompany] = useState<CompanyValue>({ companyId: null, companyName: '' })
@@ -67,7 +67,7 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Напр., Middle Frontend Developer"
+              placeholder="Напр.: Middle Frontend Developer"
               maxLength={LIMITS.title}
             />
           </Field>
@@ -103,7 +103,7 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
   )
 }
 
-function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }) {
+function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }): ReactElement | null {
   const navigate = useNavigate()
   const { data: list = [] } = useApi('jobs', 'followUps')
   const [now] = useState(() => Date.now())
@@ -140,7 +140,7 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 /** «Вакансии»: kanban/list of job applications with filters, follow-up banner and the editor sheet. */
-export function ApplicationsPage() {
+export function ApplicationsPage(): ReactElement {
   const view = (useUi((s) => s.views.applications) as View | undefined) ?? 'kanban'
   const setView = useUi((s) => s.setView)
   const [search, setSearch] = useState('')
@@ -172,6 +172,21 @@ export function ApplicationsPage() {
   const isLoading = view === 'kanban' ? kanban.isLoading : paged.isLoading
   const total = view === 'kanban' ? list.length : paged.items.length
   const filtered = !!(search || boardId || companyId || resumeId || tagId)
+  // What is really narrowing the list, for the «Нічого не знайдено» hint.
+  const conditions = [
+    search.trim() && `за запитом «${search.trim()}»`,
+    boardId && `на майданчику «${boards.find((b) => b.id === boardId)?.name ?? ''}»`,
+    companyId && `у компанії «${companies.find((c) => c.id === companyId)?.name ?? ''}»`,
+    resumeId && `із резюме «${resumes.find((r) => r.id === resumeId)?.title ?? ''}»`,
+    tagId && 'з вибраною міткою'
+  ].filter((c): c is string => !!c)
+  const resetFilters = (): void => {
+    setSearch('')
+    setBoardId(undefined)
+    setCompanyId(null)
+    setResumeId(null)
+    setTagId(undefined)
+  }
 
   return (
     <Page>
@@ -180,7 +195,7 @@ export function ApplicationsPage() {
         subtitle={
           view === 'kanban'
             ? 'Перетягуйте картки між колонками. Співбесіди й тестові завдання автоматично потрапляють у календар.'
-            : 'Усі відгуки з етапами й зарплатою. Співбесіди й тестові автоматично потрапляють у календар.'
+            : 'Усі вакансії з етапами й зарплатою. Співбесіди й тестові автоматично потрапляють у календар.'
         }
         actions={
           <>
@@ -207,7 +222,7 @@ export function ApplicationsPage() {
           trailing={
             <>
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" className="w-72" />
+              <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" />
             </>
           }
           secondary={
@@ -249,6 +264,9 @@ export function ApplicationsPage() {
               hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які майданчики й версії резюме дають відповіді."
               action={<NewApplicationButton variant="soft" onCreated={(a) => setOpenId(a.id)} />}
             />
+          ) : !isLoading && total === 0 ? (
+            // Not empty columns «0 / Перетягніть сюди картку»: the vacancies exist, the filters hide them.
+            <NoResults icon={FileUser} hint={`Вакансій ${conditions.join(' і ')} немає.`} onReset={resetFilters} />
           ) : view === 'kanban' ? (
             <ApplicationBoard applications={list} boards={boards} onOpen={setOpenId} />
           ) : (

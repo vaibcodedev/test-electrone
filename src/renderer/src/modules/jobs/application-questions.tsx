@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Plus } from 'lucide-react'
 import { QUESTION_CATEGORIES, questionInputSchema, type InterviewQuestion, type QuestionCategory } from '@shared/domain/jobs'
@@ -6,34 +6,41 @@ import { limitsOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { SectionLabel } from '@/components/common/master-detail'
 import { Field, Kbd } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode-context'
-import { Choice } from '../crm/parts'
+import { Choice } from '@/components/common/choice'
 import { QUESTION_CATEGORY_LABEL } from './labels'
 
 const QUESTION_MAX = limitsOf(questionInputSchema).question
 
 /**
  * «Які питання ставили»: questions asked at this vacancy/company, with a quick add (edit mode only)
- * that files them into the shared question bank (with company and vacancy prefilled).
+ * that files them into the shared question bank (with company and vacancy prefilled). Draws its own
+ * separator above, so an empty list in view mode leaves nothing behind (no empty sections while reading).
+ * `more` — the company's questions page from the server, 30 at a time.
  */
 export function AskedQuestions({
   questions,
   applicationId,
   companyId,
-  title = 'Які питання ставили'
+  title = 'Які питання ставили',
+  more
 }: {
   questions: InterviewQuestion[]
   applicationId?: string
   companyId: string | null
   title?: string
-}) {
+  more?: { hasMore: boolean; loadingMore: boolean; loadMore: () => void }
+}): ReactElement | null {
   const navigate = useNavigate()
   const readOnly = useReadOnly()
   const fieldId = useId()
+  const categoryId = useId()
   const [text, setText] = useState('')
   const [category, setCategory] = useState<QuestionCategory>('technical')
   const create = useApiMutation('jobs', 'createQuestion', {
@@ -44,21 +51,21 @@ export function AskedQuestions({
     if (!text.trim() || create.isPending) return
     create.mutate({ question: text.trim(), category, applicationId: applicationId ?? null, companyId })
   }
+  if (readOnly && questions.length === 0) return null
   return (
+    <>
+    <Separator className="my-6" />
     <section className="flex flex-col gap-3">
       <SectionLabel
         action={
-          // soft: the section sits on card (sheet, pane), where subtle has no fill; → is an in-app move.
-          <Button variant="soft" size="xs" onClick={() => navigate('/jobs/questions')}>
+          // → is an in-app move.
+          <Button variant="outline" size="xs" onClick={() => navigate('/jobs/questions')}>
             Банк питань <ArrowRight />
           </Button>
         }
       >
         {title}
       </SectionLabel>
-      {questions.length === 0 && readOnly && (
-        <p className="text-body leading-relaxed text-muted-foreground">Питань ще не записали — додайте їх у режимі правки (E).</p>
-      )}
       {questions.length > 0 && (
         <ItemGroup className="gap-1">
           {questions.map((q) => (
@@ -77,6 +84,11 @@ export function AskedQuestions({
             </Item>
           ))}
         </ItemGroup>
+      )}
+      {more?.hasMore && (
+        <Button variant="soft" size="xs" className="self-start" disabled={more.loadingMore} onClick={more.loadMore}>
+          Показати ще
+        </Button>
       )}
       <div data-edit-only className="flex flex-col gap-2">
         <Field
@@ -104,7 +116,11 @@ export function AskedQuestions({
         />
         </Field>
         <div className="flex items-center gap-2">
+          <Label htmlFor={categoryId} className="sr-only">
+            Категорія питання
+          </Label>
           <Choice
+            id={categoryId}
             size="sm"
             value={category}
             onChange={(v) => v && setCategory(v)}
@@ -118,5 +134,6 @@ export function AskedQuestions({
         </div>
       </div>
     </section>
+    </>
   )
 }

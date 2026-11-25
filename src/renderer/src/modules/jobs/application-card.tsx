@@ -21,6 +21,7 @@ export const ApplicationCard = forwardRef<
   const days = daysSince(a.appliedAt, now)
   const unscheduled = needsSchedule(a, a.status)
   const nextSoon = a.nextStage?.at && a.nextStage.at - now < 2 * 86_400_000 && a.nextStage.at > now - 3 * 3600_000
+  const nextLabel = a.nextStage ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}` : ''
   return (
     <Card
       ref={ref}
@@ -63,11 +64,9 @@ export const ApplicationCard = forwardRef<
       {(salary || (a.nextStage && !unscheduled)) && (
         <div className="flex flex-wrap items-center gap-1">
           {a.nextStage && !unscheduled && (
-            <Badge variant={nextSoon ? 'success' : 'info'} className="max-w-full">
+            <Badge truncate variant={nextSoon ? 'success' : 'info'} className="max-w-full">
               <CalendarClock />
-              <span className="truncate">
-                {STAGE_KIND_SHORT[a.nextStage.kind]}, {whenLabel(a.nextStage.at)}
-              </span>
+              {nextLabel}
             </Badge>
           )}
           {salary &&

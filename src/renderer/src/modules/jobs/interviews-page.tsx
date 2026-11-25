@@ -1,7 +1,7 @@
 import { useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { useNavigate } from 'react-router'
-import { format, isToday, isTomorrow } from 'date-fns'
+import { addDays, format, isToday, isTomorrow, startOfDay } from 'date-fns'
 import { ArrowRight, CalendarDays, CalendarPlus, Video } from 'lucide-react'
 import type { StageWithApplication } from '@shared/domain/jobs'
 import { KEEP_PERIOD, useApi } from '@/lib/query'
@@ -13,9 +13,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
 import { IconAction } from '@/components/common/icon-action'
-import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, stageRowText } from './labels'
+import { EventDate } from '@/components/common/event-date'
+import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, stageDate, stageRowText } from './labels'
 import { askToSchedule, needsSchedule, ScheduleStageHost } from './schedule-stage'
-import { StageDate } from './stage-row'
 import { Delayed, RowSkeleton } from '@/components/common/page-skeleton'
 
 /** History is a range: 30 at a time, «Показати раніші» adds the next 30 (docs/design-system.md → Формы). */
@@ -37,13 +37,12 @@ function CutNote({ where, label, onClick }: { where: string; label: string; onCl
   )
 }
 
-const when = (s: StageWithApplication): number | null => (s.kind === 'test_task' ? (s.deadlineAt ?? s.at) : s.at)
-
 function groupUpcoming(list: StageWithApplication[], now: number): { title: string; items: StageWithApplication[] }[] {
-  const week = now + 7 * 86_400_000
+  // Calendar days, not 7 × 24 h: a DST change would shift the edge by an hour.
+  const week = addDays(startOfDay(now), 7).getTime()
   const groups: Record<string, StageWithApplication[]> = { Сьогодні: [], Завтра: [], 'Цього тижня': [], Пізніше: [] }
   for (const s of list) {
-    const t = when(s)
+    const t = stageDate(s)
     if (!t) groups['Пізніше'].push(s)
     else if (isToday(t) || t < now) groups['Сьогодні'].push(s)
     else if (isTomorrow(t)) groups['Завтра'].push(s)
@@ -55,9 +54,9 @@ function groupUpcoming(list: StageWithApplication[], now: number): { title: stri
     .map(([title, items]) => ({ title, items }))
 }
 
-function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolean }) {
+function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolean }): ReactElement {
   const navigate = useNavigate()
-  const t = when(stage)
+  const t = stageDate(stage)
   const eventId = stage.kind === 'test_task' ? (stage.deadlineEventId ?? stage.eventId) : stage.eventId
   const isLink = /^https?:\/\//i.test(stage.location)
   const text = stageRowText(stage)
@@ -65,7 +64,7 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
   const description = past ? [STAGE_KIND_LABEL[stage.kind], text.description].filter(Boolean).join(' · ') : text.description
   return (
     <Item variant="muted" size="sm" className="gap-3">
-      <StageDate when={t} className="bg-card" />
+      <EventDate when={t} className="bg-card" />
       <ItemContent className="min-w-0">
         <ItemTitle className="w-full truncate">{text.title}</ItemTitle>
         {description && <ItemDescription className="truncate text-caption">{description}</ItemDescription>}
@@ -95,7 +94,7 @@ function StageItem({ stage, past }: { stage: StageWithApplication; past?: boolea
 }
 
 /** All interview rounds and test deadlines across vacancies: upcoming first, then history with outcomes. */
-export function InterviewsPage() {
+export function InterviewsPage(): ReactElement {
   const navigate = useNavigate()
   const [now] = useState(() => Date.now())
   const [pastLimit, setPastLimit] = useState(PAST_STEP)
@@ -141,7 +140,7 @@ export function InterviewsPage() {
             icon={CalendarDays}
             title="Співбесід поки немає"
             hint="Відкрийте вакансію й додайте етап — скринінг, технічну співбесіду чи тестове."
-            cta={{ label: 'До вакансій', icon: ArrowRight, onClick: () => navigate('/jobs/applications') }}
+            cta={{ label: 'До вакансій', onClick: () => navigate('/jobs/applications') }}
           />
         ) : (
           <>

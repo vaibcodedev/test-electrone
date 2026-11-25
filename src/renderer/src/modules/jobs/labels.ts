@@ -1,4 +1,3 @@
-import { format } from 'date-fns'
 import {
   STAGE_KINDS,
   type ApplicationStatus,
@@ -8,20 +7,10 @@ import {
   type StageWithApplication,
   type WorkFormat
 } from '@shared/domain/jobs'
-import { COMPACT_FROM, fmtDay, fmtMoney, fmtMoneyCompact, LOCALE, plural } from '@/lib/format'
+import { COMPACT_FROM, fmtDayTime, fmtMoney, fmtMoneyCompact, plural } from '@/lib/format'
 
-export const APP_STATUS_LABEL: Record<ApplicationStatus, string> = {
-  saved: 'Збережено',
-  applied: 'Надіслано',
-  replied: 'Відповіли',
-  test: 'Тестове',
-  interview: 'Співбесіда',
-  offer: 'Офер',
-  accepted: 'Прийнято',
-  rejected: 'Відмова',
-  no_reply: 'Немає відповіді',
-  withdrawn: 'Відкликано'
-}
+/** One wording with main (search, pins, trash): the map lives in shared. */
+export { APPLICATION_STATUS_LABEL as APP_STATUS_LABEL } from '@shared/domain/jobs'
 
 /** Kanban columns in pipeline order. */
 export const ACTIVE_APP_STATUSES: ApplicationStatus[] = ['saved', 'applied', 'replied', 'test', 'interview', 'offer']
@@ -113,11 +102,17 @@ export function agoLabel(days: number | null): string {
   return `${daysWord(days)} тому`
 }
 
-/** «завтра 15:00», «12 грудня 10:30». */
+/** «завтра о 15:00», «12 грудня о 10:30». */
 export function whenLabel(ts: number | null): string {
-  if (!ts) return 'без дати'
-  return `${fmtDay(ts)} ${format(ts, 'HH:mm', { locale: LOCALE })}`
+  return ts ? fmtDayTime(ts) : 'без дати'
 }
+
+/**
+ * The date a stage is listed by: a test task by its deadline (its `at` is when it was received, usually
+ * «now»), an interview by its time.
+ */
+export const stageDate = (s: Pick<StageWithApplication, 'kind' | 'at' | 'deadlineAt'>): number | null =>
+  s.kind === 'test_task' ? (s.deadlineAt ?? s.at) : s.at
 
 /**
  * «80 000–100 000 USD», «від 3 000 USD». `compact` shortens large amounts for badges and table cells
@@ -152,8 +147,7 @@ export function stageRowText(s: StageWithApplication): { title: string; descript
     description: [
       s.company ? s.applicationTitle : '',
       s.title && s.title !== STAGE_KIND_LABEL[s.kind] ? s.title : '',
-      s.interviewers,
-      s.kind === 'test_task' && s.deadlineAt ? 'здати до терміну' : ''
+      s.interviewers
     ]
       .filter(Boolean)
       .join(' · ')

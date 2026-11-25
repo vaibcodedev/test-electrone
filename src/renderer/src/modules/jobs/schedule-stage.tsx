@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { create } from 'zustand'
 import type { Application, ApplicationStatus, StageKind } from '@shared/domain/jobs'
 import { AddStageDialog } from './add-stage-dialog'
@@ -48,7 +49,7 @@ export function promptAfterStatusChange(a: Scheduling, status: ApplicationStatus
 }
 
 /** Mount once per page that can change vacancy statuses. */
-export function ScheduleStageHost() {
+export function ScheduleStageHost(): ReactElement {
   const request = useScheduleStore((s) => s.request)
   const close = useScheduleStore((s) => s.close)
   return (

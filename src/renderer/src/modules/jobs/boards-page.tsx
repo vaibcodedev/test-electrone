@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactElement } from 'react'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus } from 'lucide-react'
+import { GripVertical, Plus, Trash2 } from 'lucide-react'
 import { jobBoardInputSchema, type JobBoard, type JobFunnelRow } from '@shared/domain/jobs'
+import { PALETTE } from '@shared/colors'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtPercent, plural } from '@/lib/format'
@@ -12,7 +13,9 @@ import { EmptyState, Field, Page, PageBody, PageHeader } from '@/components/comm
 import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 import { NumberInput } from '@/components/common/number-input'
 import { LinkInput } from '@/components/common/text-field'
-import { TAG_COLORS } from '@/components/common/tags'
+import { ColorSwatches } from '@/components/common/color-swatches'
+import { Confirm } from '@/components/common/confirm'
+import { IconAction } from '@/components/common/icon-action'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -25,14 +28,18 @@ import { BoardDot } from './board-label'
 
 const LIMITS = limitsOf(jobBoardInputSchema)
 const RANGES = rangesOf(jobBoardInputSchema)
+/** The palette of tags and events: a board colour is always a named swatch. */
+const COLORS: readonly string[] = PALETTE
 
-function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) {
+function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }): ReactElement {
   const update = useApiMutation('jobs', 'updateBoard')
+  // A board with applications is refused by main with a toast: it is switched off instead.
+  const remove = useApiMutation('jobs', 'removeBoard', { successMessage: 'Майданчик видалено' })
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: board.id })
   const save = (patch: Partial<JobBoard>): void => update.mutate({ id: board.id, patch })
   // Seeded or older boards may carry a colour outside the palette: show it first and selected.
-  const custom = !!board.color && !TAG_COLORS.includes(board.color)
-  const palette = custom ? [board.color!, ...TAG_COLORS] : TAG_COLORS
+  const custom = !!board.color && !COLORS.includes(board.color)
+  const palette = custom ? [board.color!, ...COLORS] : COLORS
 
   return (
     <Card
@@ -56,7 +63,8 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
             onBlur={(e) => e.target.value.trim() && e.target.value !== board.name && save({ name: e.target.value.trim() })}
           />
           <div className="ml-auto flex items-center gap-2">
-            {!board.active && <Badge variant="soft">Вимкнено</Badge>}
+            {/* A mark, not a counter: outline, unlike the stats badge next to it. */}
+            {!board.active && <Badge variant="outline">Вимкнено</Badge>}
             {stats && (
               <Badge variant="soft" className="bg-card font-normal">
                 {stats.applied} {plural(stats.applied, ['відгук', 'відгуки', 'відгуків'])}, {fmtPercent(stats.replyRate)} відповідей
@@ -66,6 +74,16 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
               Активний
               <Switch checked={board.active} onCheckedChange={(active) => save({ active })} />
             </label>
+            <Confirm
+              title={`Видалити «${board.name}»?`}
+              description="Майданчик без відгуків буде видалено. Відновити не можна."
+              confirmLabel="Видалити"
+              onConfirm={() => remove.mutate(board.id)}
+            >
+              <IconAction label="Видалити майданчик">
+                <Trash2 />
+              </IconAction>
+            </Confirm>
           </div>
         </div>
         <div className="grid grid-cols-[1fr_200px] gap-4">
@@ -89,10 +107,12 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
         </div>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <Field label="Дні" className="w-auto">
+            {/* The track is a tint: bg-surface of the segment merged with this surface card. */}
             <ToggleGroup
               type="multiple"
               variant="segment"
               size="sm"
+              className="data-[variant=segment]:bg-foreground/[0.06]"
               value={board.weekdays.map(String)}
               onValueChange={(v) => save({ weekdays: v.map(Number) })}
             >
@@ -105,17 +125,13 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
           </Field>
           {/* Label pinned right like the swatches, so it doesn't move with their count. */}
           <Field label="Колір" className="w-auto [&>*:first-child]:justify-end">
-            <ToggleGroup type="single" value={board.color ?? ''} onValueChange={(c) => c && save({ color: c })} spacing={1}>
-              {palette.map((c, i) => (
-                <ToggleGroupItem
-                  key={c}
-                  value={c}
-                  aria-label={custom && i === 0 ? 'Поточний колір' : `Колір ${custom ? i : i + 1}`}
-                  className="size-6 min-w-6 rounded-full p-0 ring-offset-2 ring-offset-surface on:ring-2 on:ring-foreground"
-                  style={{ background: c }}
-                />
-              ))}
-            </ToggleGroup>
+            <ColorSwatches
+              colors={palette}
+              value={board.color}
+              onChange={(c) => c && save({ color: c })}
+              names={custom ? { [board.color!]: 'Поточний колір' } : undefined}
+              label="Колір майданчика"
+            />
           </Field>
         </div>
       </CardContent>
@@ -124,9 +140,10 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }) 
 }
 
 /** Job boards: where to look every day, with daily targets and weekdays. */
-export function JobBoardsPage() {
+export function JobBoardsPage(): ReactElement {
   const { data: boards = [], isLoading } = useApi('jobs', 'boards', { includeInactive: true })
-  const { data: stats } = useApi('jobs', 'stats', {})
+  // All time, the same query as the board chips on «Вакансії»: one board, one number on both screens.
+  const { data: stats } = useApi('jobs', 'stats', { from: 0 })
   const [name, setName] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
   const create = useApiMutation('jobs', 'createBoard', { successMessage: 'Майданчик додано', onSuccess: () => setName('') })
@@ -158,7 +175,7 @@ export function JobBoardsPage() {
               if (create.isPending) return
               // Empty name (e.g. the N key pressed the button): put the cursor where the name goes.
               if (!name.trim()) return nameRef.current?.focus()
-              create.mutate({ name: name.trim(), color: TAG_COLORS[boards.length % TAG_COLORS.length] })
+              create.mutate({ name: name.trim(), color: COLORS[boards.length % COLORS.length] })
             }}
           >
             <Input
@@ -193,7 +210,7 @@ export function JobBoardsPage() {
               </div>
             </Delayed>
           ) : boards.length === 0 ? (
-            <EmptyState title="Майданчиків немає" hint="Впишіть назву вгорі — Djinni, DOU, LinkedIn — і задайте норму відгуків на день." />
+            <EmptyState title="Майданчиків поки немає" hint="Впишіть назву вгорі — Djinni, DOU, LinkedIn — і задайте норму відгуків на день." />
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={sorted.map((b) => b.id)} strategy={verticalListSortingStrategy}>
@@ -207,7 +224,7 @@ export function JobBoardsPage() {
           )}
           <p className="text-caption text-muted-foreground">
             Норма 0 — просто зайти й перевірити. Вимкнений майданчик зникає з огляду, але його історія й статистика
-            зберігаються.
+            зберігаються. Майданчик із відгуками не видаляється — вимкніть його.
           </p>
         </div>
       </PageBody>

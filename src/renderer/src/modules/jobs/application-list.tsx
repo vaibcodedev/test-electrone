@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import type { Application, JobBoard } from '@shared/domain/jobs'
 import { fmtDay, fmtDayFull } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -11,7 +12,7 @@ import { BoardLabel } from './board-label'
 const COL = {
   company: 'w-[18%]',
   status: 'w-32',
-  next: 'w-44',
+  next: 'w-52',
   salary: 'w-36',
   board: 'w-36',
   applied: 'w-32'
@@ -39,7 +40,7 @@ export function ApplicationList({
   hasMore?: boolean
   loadingMore?: boolean
   onLoadMore?: () => void
-}) {
+}): ReactElement {
   const boardById = new Map(boards.map((b) => [b.id, b]))
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -65,13 +66,11 @@ export function ApplicationList({
         hasMore={hasMore}
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
-        empty={
-          !loading && <div className="py-10 text-center text-body text-muted-foreground">Під фільтр нічого не потрапило.</div>
-        }
         renderItem={(a) => {
           const board = a.boardId ? boardById.get(a.boardId) : undefined
           const closed = CLOSED_APP_STATUSES.includes(a.status)
           const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
+          const next = a.nextStage ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}` : ''
           return (
             <Table className="table-fixed">
               <TableBody>
@@ -89,8 +88,8 @@ export function ApplicationList({
                       {APP_STATUS_LABEL[a.status]}
                     </Badge>
                   </TableCell>
-                  <TableCell className={cn(COL.next, 'truncate text-caption')}>
-                    {a.nextStage ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}` : '—'}
+                  <TableCell className={cn(COL.next, 'truncate text-caption')} title={next || undefined}>
+                    {next || '—'}
                   </TableCell>
                   <TableCell className={cn(COL.salary, 'truncate tabular-nums')} title={salary ?? undefined}>
                     {salaryLabel(a.salaryMin, a.salaryMax, a.currency, true) ?? '—'}

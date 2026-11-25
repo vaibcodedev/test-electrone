@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { ArrowLeft, MessageCircleQuestion, PartyPopper } from 'lucide-react'
 import type { InterviewQuestion, QuestionCategory, QuestionGroup } from '@shared/domain/jobs'
 import { useHotkey } from '@/hooks/use-hotkey'
+import { useApi } from '@/lib/query'
 import { EmptyState, Kbd, SegmentBar } from '@/components/common/page'
 import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 import { Markdown } from '@/components/common/markdown'
@@ -21,7 +22,7 @@ const GRADES: { grade: Grade; label: string; hint: string; text: string; tile: s
   { grade: 0, label: 'Не вдалося', hint: 'повернеться сьогодні', text: 'text-destructive', tile: 'bg-destructive/12 text-destructive' },
   { grade: 1, label: 'Насилу', hint: 'повторимо скоро', text: 'text-warn', tile: 'bg-warn/15 text-warn' },
   { grade: 2, label: 'Добре', hint: 'за планом', text: 'text-foreground', tile: '' },
-  { grade: 3, label: 'Впевнено', hint: 'не скоро', text: 'text-success', tile: 'bg-success/15 text-success' }
+  { grade: 3, label: 'Впевнено', hint: 'нескоро', text: 'text-success', tile: 'bg-success/15 text-success' }
 ]
 
 /** «Тренуватися далі»: more questions ahead of schedule (soonest due and weakest first). */
@@ -204,6 +205,13 @@ function PracticeCard({
 
 type Filter = { group: QuestionGroup | undefined; category: QuestionCategory | undefined }
 
+/** Does each group have any question? One row per group, not the whole bank: a chip must not lead to an empty category. */
+function useGroupPresence(): Partial<Record<QuestionGroup, boolean>> {
+  const { data: technical } = useApi('jobs', 'questions', { group: 'technical', limit: 1, offset: 0 })
+  const { data: nontechnical } = useApi('jobs', 'questions', { group: 'nontechnical', limit: 1, offset: 0 })
+  return { technical: technical && technical.length > 0, nontechnical: nontechnical && nontechnical.length > 0 }
+}
+
 /** Interview practice: say the answer out loud, reveal yours, grade. «Не вдалося» returns at the end of the session. */
 export function PracticePage(): ReactElement {
   const [filter, setFilter] = useState<Filter>({ group: undefined, category: undefined })
@@ -217,6 +225,7 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
   const { group, category } = filter
   const s = usePracticeSession({ category, group, extraFirst: params.get('extra') === '1' })
   const filtered = !!(group || category)
+  const present = useGroupPresence()
 
   const exit = (): void => void navigate('/jobs/questions')
 
@@ -244,7 +253,10 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
         )}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        {!(s.bankEmpty && !filtered) && <QuestionCategoryFilter group={group} category={category} onChange={onFilter} />}
+        {!(s.bankEmpty && !filtered) && (
+          // Neutral: «Показати відповідь» is the focus screen's one accent.
+          <QuestionCategoryFilter group={group} category={category} onChange={onFilter} present={present} tone="neutral" />
+        )}
         {s.mode === 'extra' && <Badge variant="info">Тренування наперед — розклад не зсувається</Badge>}
       </div>
 
@@ -264,7 +276,7 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
           ) : (
             <EmptyState
               icon={MessageCircleQuestion}
-              title="Тут ще немає питань"
+              title="Питань поки немає"
               hint="Додайте питання зі співбесіди й свою відповідь у банк — і тренуйтеся тут."
               cta={{ label: 'До банку питань', icon: ArrowLeft, onClick: exit }}
             />
