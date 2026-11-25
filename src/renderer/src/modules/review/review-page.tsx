@@ -1,12 +1,34 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { addDays, startOfWeek } from 'date-fns'
-import { ArchiveRestore, ArrowDown, ArrowUp, Check, ChevronLeft, ChevronRight, Minus, NotebookPen } from 'lucide-react'
+import {
+  ArchiveRestore,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Minus,
+  NotebookPen
+} from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
-import { reviewNotesSchema, type WeekMetric, type WeekSection, type WeekSnapshot } from '@shared/domain/review'
+import {
+  reviewNotesSchema,
+  type WeekMetric,
+  type WeekSection,
+  type WeekSnapshot
+} from '@shared/domain/review'
 import { limitsOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
-import { dayKey, fmtMinutes, fmtMoneyCompact, fmtPercent, fmtWeekRange, plural } from '@/lib/format'
+import {
+  dayKey,
+  fmtHours,
+  fmtMinutes,
+  fmtMoneyCompact,
+  fmtPercent,
+  fmtWeekRange,
+  plural
+} from '@/lib/format'
 import { moneyEntries } from '@/lib/money'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -20,7 +42,13 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Item, ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MoneyLines } from '@/components/common/money-value'
 import { StatTile } from '@/components/common/stat-tile'
@@ -35,15 +63,46 @@ const parseKey = (key: string): Date => new Date(`${key}T00:00:00`)
 /** «23–29 листопада» for the week starting on `key`. */
 const weekLabel = (key: string): string => fmtWeekRange(parseKey(key), addDays(parseKey(key), 6))
 
-function fmtValue(m: Pick<WeekMetric, 'unit'>, v: number): string {
-  if (m.unit === 'minutes') return fmtMinutes(v)
+/** Tile and badge value: time is compact («1,1 год», never two lines in a narrow tile); `exact` — «1 год 3 хв». */
+function fmtValue(m: Pick<WeekMetric, 'unit'>, v: number, exact = false): string {
+  if (m.unit === 'minutes') return exact ? fmtMinutes(v) : fmtHours(v)
   if (m.unit === 'percent') return fmtPercent(v)
   return String(v)
 }
 
+/** «Пунктів чек-листів»: a hyphenated word never breaks at its hyphen («чек-» / «листів»). */
+function keepHyphenated(text: string): ReactNode {
+  return text.split(/(\S+-\S+)/).map((part, i) =>
+    i % 2 ? (
+      <span key={i} className="whitespace-nowrap">
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  )
+}
+
+/**
+ * Metric tiles of a section by the card's own width: one row when every tile gets room, otherwise rows of equal
+ * tiles with no hole (5 → 3 + 2 on a 6-column grid). Static classes: Tailwind only sees literal class names.
+ */
+function metricLayout(n: number): { grid: string; tile: (i: number) => string } {
+  if (n === 5)
+    return {
+      grid: 'grid-cols-6 @2xl:grid-cols-5',
+      tile: (i) => (i < 3 ? 'col-span-2 @2xl:col-span-1' : 'col-span-3 @2xl:col-span-1')
+    }
+  if (n === 4) return { grid: 'grid-cols-2 @md:grid-cols-4', tile: () => '' }
+  if (n === 3) return { grid: 'grid-cols-3', tile: () => '' }
+  if (n === 2) return { grid: 'grid-cols-2', tile: () => '' }
+  return { grid: 'grid-cols-1', tile: () => '' }
+}
+
 /** «12 задач, 1 040 $ на руки, 3 собеседования» — a one-line story of the week. */
 function headline(s: WeekSnapshot): string {
-  const metric = (key: string): number => s.sections.flatMap((x) => x.metrics).find((m) => m.key === key)?.value ?? 0
+  const metric = (key: string): number =>
+    s.sections.flatMap((x) => x.metrics).find((m) => m.key === key)?.value ?? 0
   const parts: string[] = []
   const cards = metric('cardsDone')
   if (cards) parts.push(`${cards} ${plural(cards, ['завдання', 'завдання', 'завдань'])}`)
@@ -51,13 +110,19 @@ function headline(s: WeekSnapshot): string {
   // Compact like the «На руки» tile below («100 млн USD»); the exact sum is in that tile's tooltip.
   if (net) parts.push(`${fmtMoneyCompact(net[1] ?? 0, net[0] as Currency)} на руки`)
   const interviews = metric('interviews')
-  if (interviews) parts.push(`${interviews} ${plural(interviews, ['співбесіда', 'співбесіди', 'співбесід'])}`)
+  if (interviews)
+    parts.push(`${interviews} ${plural(interviews, ['співбесіда', 'співбесіди', 'співбесід'])}`)
   const sent = metric('proposals') + metric('applications')
   if (sent) parts.push(`${sent} ${plural(sent, ['відгук', 'відгуки', 'відгуків'])}`)
   const minutes = metric('minutes')
   if (!cards && minutes) parts.push(`${fmtMinutes(minutes)} роботи`)
   // Non-breaking spaces keep "1 собеседование" on one line; lines break only between facts.
-  return parts.length ? parts.slice(0, 3).map((p) => p.replace(/ /g, ' ')).join(', ') : 'Тихий тиждень'
+  return parts.length
+    ? parts
+        .slice(0, 3)
+        .map((p) => p.replace(/ /g, ' '))
+        .join(', ')
+    : 'Тихий тиждень'
 }
 
 function Delta({ m }: { m: WeekMetric }) {
@@ -72,11 +137,16 @@ function Delta({ m }: { m: WeekMetric }) {
   const good = m.better === 'up' ? diff > 0 : diff < 0
   const Icon = diff > 0 ? ArrowUp : ArrowDown
   // A bare «↑ 4» says nothing to a screen reader: the badge is focusable and carries the whole phrase.
-  const phrase = `На ${fmtValue(m, Math.abs(diff))} ${diff > 0 ? 'більше' : 'менше'}, ніж минулого тижня (${fmtValue(m, m.previous)})`
+  const phrase = `На ${fmtValue(m, Math.abs(diff), true)} ${diff > 0 ? 'більше' : 'менше'}, ніж минулого тижня (${fmtValue(m, m.previous, true)})`
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Badge tabIndex={0} aria-label={phrase} variant={good ? 'success' : 'soft'} className={cn(!good && 'text-muted-foreground')}>
+        <Badge
+          tabIndex={0}
+          aria-label={phrase}
+          variant={good ? 'success' : 'soft'}
+          className={cn(!good && 'text-muted-foreground')}
+        >
           <Icon aria-hidden />
           {fmtValue(m, Math.abs(diff))}
         </Badge>
@@ -86,7 +156,8 @@ function Delta({ m }: { m: WeekMetric }) {
   )
 }
 
-const isEmpty = (section: WeekSection): boolean => section.metrics.every((m) => !m.value && !m.previous)
+const isEmpty = (section: WeekSection): boolean =>
+  section.metrics.every((m) => !m.value && !m.previous)
 
 /** Up to this many metrics a section takes half a row; more get the whole row. */
 const HALF_MAX = 4
@@ -103,24 +174,35 @@ function wideSections(sections: WeekSection[]): Set<string> {
 }
 
 function SectionCard({ section, wide }: { section: WeekSection; wide: boolean }) {
+  const layout = metricLayout(section.metrics.length)
   return (
     <Card className={cn(wide && 'col-span-2')}>
       <CardHeader>
         <CardTitle>{section.title}</CardTitle>
       </CardHeader>
-      {/* All metrics of a section in one row. */}
-      <CardContent
-        className="grid gap-3"
-        style={{ gridTemplateColumns: `repeat(${section.metrics.length}, minmax(0, 1fr))` }}
-      >
-        {section.metrics.map((m) => (
-          <div key={m.key} className="flex flex-col gap-1.5 rounded-2xl bg-card p-3">
-            {/* Two label lines and a fixed delta slot: numbers of neighbouring tiles stay on one line. */}
-            <span className="line-clamp-2 min-h-[2lh] text-caption text-muted-foreground">{m.label}</span>
-            <span className="font-display text-headline leading-[1.1] tabular-nums text-balance">{fmtValue(m, m.value)}</span>
-            <div className="mt-auto h-5">{(m.value !== 0 || m.previous !== 0) && <Delta m={m} />}</div>
-          </div>
-        ))}
+      <CardContent className="@container">
+        <div className={cn('grid gap-3', layout.grid)}>
+          {section.metrics.map((m, i) => (
+            <div
+              key={m.key}
+              className={cn('flex flex-col gap-1.5 rounded-2xl bg-card p-3', layout.tile(i))}
+            >
+              {/* Two label lines and a fixed delta slot: numbers of neighbouring tiles stay on one line. */}
+              <span className="line-clamp-2 min-h-[2lh] text-caption text-muted-foreground">
+                {keepHyphenated(m.label)}
+              </span>
+              <span
+                className="font-display text-headline leading-[1.1] whitespace-nowrap tabular-nums"
+                title={m.unit === 'minutes' ? fmtValue(m, m.value, true) : undefined}
+              >
+                {fmtValue(m, m.value)}
+              </span>
+              <div className="mt-auto h-5">
+                {(m.value !== 0 || m.previous !== 0) && <Delta m={m} />}
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )
@@ -132,12 +214,20 @@ const hasMoney = (money: WeekSnapshot['money']): boolean =>
 function MoneyCard({ money }: { money: WeekSnapshot['money'] }) {
   return (
     <div className="col-span-12 grid grid-cols-3 gap-3">
-      <StatTile label="На руки" value={<MoneyLines value={money.net} compact emptyLabel="ще немає надходжень" />} />
-      <StatTile label="Витрати" value={<MoneyLines value={money.expenses} compact emptyLabel="ще немає витрат" />} />
+      <StatTile
+        label="На руки"
+        value={<MoneyLines value={money.net} compact emptyLabel="ще немає надходжень" />}
+      />
+      <StatTile
+        label="Витрати"
+        value={<MoneyLines value={money.expenses} compact emptyLabel="ще немає витрат" />}
+      />
       <StatTile
         label="Прибуток за тиждень"
         tone="ink"
-        value={<MoneyLines value={money.profit} compact tone="ink" emptyLabel="ще немає прибутку" />}
+        value={
+          <MoneyLines value={money.profit} compact tone="ink" emptyLabel="ще немає прибутку" />
+        }
       />
     </div>
   )
@@ -228,8 +318,14 @@ export function ReviewPage() {
   const navigate = useNavigate()
   const week = params.get('week') ?? currentWeekKey()
   const isCurrent = week === currentWeekKey()
-  const { data, isLoading } = useApi('review', 'get', isCurrent ? {} : { weekStart: week }, KEEP_PERIOD)
-  const setWeek = (key: string): void => setParams(key === currentWeekKey() ? {} : { week: key }, { replace: true })
+  const { data, isLoading } = useApi(
+    'review',
+    'get',
+    isCurrent ? {} : { weekStart: week },
+    KEEP_PERIOD
+  )
+  const setWeek = (key: string): void =>
+    setParams(key === currentWeekKey() ? {} : { week: key }, { replace: true })
   const shift = (days: number): void => setWeek(dayKey(addDays(parseKey(week), days)))
   // Same keys as the calendar's «‹ period ›» group; there is no week after the current one.
   useHotkey('arrowleft', () => shift(-7))
@@ -251,11 +347,22 @@ export function ReviewPage() {
     <Page>
       <PageHeader
         title="Підсумки тижня"
-        subtitle={isCurrent ? 'Поточний тиждень' : week === previousWeek ? 'Минулий тиждень' : 'Тиждень з архіву'}
+        subtitle={
+          isCurrent
+            ? 'Поточний тиждень'
+            : week === previousWeek
+              ? 'Минулий тиждень'
+              : 'Тиждень з архіву'
+        }
         actions={
           <>
             <ButtonGroup>
-              <Button variant="soft" size="icon" aria-label="Попередній тиждень (←)" onClick={() => shift(-7)}>
+              <Button
+                variant="soft"
+                size="icon"
+                aria-label="Попередній тиждень (←)"
+                onClick={() => shift(-7)}
+              >
                 <ChevronLeft />
               </Button>
               {/* Children stay direct Buttons: ButtonGroup joins only its direct children. The current week is a
@@ -267,14 +374,24 @@ export function ReviewPage() {
               ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="soft" className="min-w-36" onClick={() => setWeek(currentWeekKey())}>
+                    <Button
+                      variant="soft"
+                      className="min-w-36"
+                      onClick={() => setWeek(currentWeekKey())}
+                    >
                       {weekLabel(week)}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>До поточного тижня · T</TooltipContent>
                 </Tooltip>
               )}
-              <Button variant="soft" size="icon" aria-label="Наступний тиждень (→)" disabled={isCurrent} onClick={() => shift(7)}>
+              <Button
+                variant="soft"
+                size="icon"
+                aria-label="Наступний тиждень (→)"
+                disabled={isCurrent}
+                onClick={() => shift(7)}
+              >
                 <ChevronRight />
               </Button>
             </ButtonGroup>
@@ -285,7 +402,9 @@ export function ReviewPage() {
       <PageBody>
         <div className="stagger grid grid-cols-12 gap-3">
           <div className="col-span-12 pb-2">
-            <h2 className="font-display max-w-[28ch] text-title leading-[1.08] text-balance">{title}</h2>
+            <h2 className="font-display max-w-[28ch] text-title leading-[1.08] text-balance">
+              {title}
+            </h2>
             {quiet && (
               <p className="mt-2 text-caption text-muted-foreground">
                 Цифри збираються із закритих карток, відгуків, нотаток і повторень за тиждень.
@@ -303,7 +422,8 @@ export function ReviewPage() {
           {/* A wall of identical «nothing here» cards says nothing; one line names the quiet sections. */}
           {!quiet && unchanged.length > 0 && (
             <p className="col-span-12 text-body text-muted-foreground">
-              Без змін {isCurrent ? 'цього тижня' : 'за тиждень'}: {unchanged.map((s) => s.title).join(', ')}.
+              Без змін {isCurrent ? 'цього тижня' : 'за тиждень'}:{' '}
+              {unchanged.map((s) => s.title).join(', ')}.
             </p>
           )}
 
@@ -311,7 +431,9 @@ export function ReviewPage() {
 
           <ListCard title="Висить" className="col-span-5">
             {snapshot.pending.length === 0 ? (
-              <CardEmptyText>Нічого не висить — на відгуки відповіли, завдання вчасно.</CardEmptyText>
+              <CardEmptyText>
+                Нічого не висить — на відгуки відповіли, завдання вчасно.
+              </CardEmptyText>
             ) : (
               <div className="flex flex-col gap-4">
                 {snapshot.pending.map((g) => (
@@ -355,8 +477,17 @@ export function ReviewPage() {
             {snapshot.upcoming.length ? (
               <ItemGroup className="-mx-2.5 gap-1">
                 {snapshot.upcoming.map((u, idx) => (
-                  <Item key={`${u.route}:${idx}`} asChild size="xs" className="cursor-pointer hover:bg-(--tile-hover)">
-                    <button type="button" className="w-full text-left" onClick={() => navigate(u.route)}>
+                  <Item
+                    key={`${u.route}:${idx}`}
+                    asChild
+                    size="xs"
+                    className="cursor-pointer hover:bg-(--tile-hover)"
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left"
+                      onClick={() => navigate(u.route)}
+                    >
                       {/* On a surface card the date block takes bg-card (DS §10); an all-day event has no time. */}
                       <EventDate when={u.at} withTime={!u.allDay} className="bg-card" />
                       <ItemContent className="min-w-0">
@@ -371,7 +502,12 @@ export function ReviewPage() {
             )}
           </ListCard>
 
-          <Notes key={data.weekStart} weekStart={data.weekStart} summary={data.summary} plan={data.plan} />
+          <Notes
+            key={data.weekStart}
+            weekStart={data.weekStart}
+            summary={data.summary}
+            plan={data.plan}
+          />
         </div>
       </PageBody>
     </Page>

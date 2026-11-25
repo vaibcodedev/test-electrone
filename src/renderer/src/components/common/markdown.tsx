@@ -191,8 +191,10 @@ export function MarkdownField({
           className="px-4 py-3 text-lead leading-relaxed"
         />
       ) : (
+        // «Перегляд» shows the text as it will read: no box, flush with the label. A bg-surface box with px-5 was
+        // invisible on a surface card and left only a stray 20px indent.
         <div
-          className="cursor-text rounded-xl bg-surface px-5 py-4"
+          className="cursor-text"
           style={{ minHeight: `calc(${minHeight} / 2)` }}
           onDoubleClick={() => setMode('edit')}
           title="Подвійний клік — редагувати"

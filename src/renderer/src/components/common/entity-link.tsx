@@ -42,7 +42,9 @@ export function EntityRow({
       asChild
     >
       <div {...clickableProps(() => (onOpen ? onOpen() : open(item)))}>
-        <ItemMedia variant="icon" className="group-hover:bg-card">
+        {/* foreground/7 reads on card, surface and the hover tile alike: bg-surface vanished on a surface card and
+            the circle only appeared on hover. */}
+        <ItemMedia variant="icon" className="bg-foreground/7">
           <Icon />
         </ItemMedia>
         <ItemContent className="min-w-0 gap-0.5">
