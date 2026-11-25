@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactElement } from 'react'
+import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Check, ImagePlus, LayoutGrid, Plus, Star } from 'lucide-react'
@@ -54,33 +54,74 @@ export function PickImagesButton({
   )
 }
 
-/** Image or video thumbnail of a stored file. `autoPlay={false}` shows a video's first frame (pickers). */
+/**
+ * Image or video of a stored file. A video plays by `play`: «hover» (tiles — the first frame at rest, plays while
+ * its card is pointed at or focused, back to the start after), «controls» (the design dialog — the player, started
+ * by its own ▶), «none» (pickers — the first frame), «auto» (previews — muted loop).
+ */
 export function DesignMedia({
   path,
   className,
   alt = '',
-  autoPlay = true
+  play = 'hover'
 }: {
   path: string | null
   className?: string
   alt?: string
-  autoPlay?: boolean
+  play?: 'hover' | 'controls' | 'none' | 'auto'
 }): ReactElement {
   if (!path) return <div className={cn('aspect-video bg-surface', className)} />
-  if (isVideoPath(path)) {
-    return (
-      <video
-        src={fileUrl(path)}
-        className={className}
-        muted
-        loop
-        autoPlay={autoPlay}
-        preload="metadata"
-        playsInline
-      />
-    )
-  }
+  if (isVideoPath(path))
+    return <DesignVideo src={fileUrl(path)} className={className} play={play} />
   return <DesignImage src={fileUrl(path)} alt={alt} className={className} />
+}
+
+/** Hover play listens on the tile (the closest card), not the video: the frame around it counts as «on it». */
+function DesignVideo({
+  src,
+  className,
+  play
+}: {
+  src: string | undefined
+  className?: string
+  play: 'hover' | 'controls' | 'none' | 'auto'
+}): ReactElement {
+  const ref = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    const video = ref.current
+    if (play !== 'hover' || !video) return
+    const card = video.closest<HTMLElement>('[data-slot="card"]') ?? video.parentElement
+    if (!card) return
+    const start = (): void => void video.play().catch(() => undefined)
+    const stop = (): void => {
+      video.pause()
+      video.currentTime = 0
+    }
+    card.addEventListener('pointerenter', start)
+    card.addEventListener('pointerleave', stop)
+    card.addEventListener('focusin', start)
+    card.addEventListener('focusout', stop)
+    return () => {
+      card.removeEventListener('pointerenter', start)
+      card.removeEventListener('pointerleave', stop)
+      card.removeEventListener('focusin', start)
+      card.removeEventListener('focusout', stop)
+    }
+  }, [play])
+  return (
+    <video
+      ref={ref}
+      // #t=0.1: the first frame shows at rest instead of a black box.
+      src={play === 'controls' || play === 'auto' ? src : src && `${src}#t=0.1`}
+      className={className}
+      muted={play !== 'controls'}
+      loop={play !== 'controls'}
+      autoPlay={play === 'auto'}
+      controls={play === 'controls'}
+      preload="metadata"
+      playsInline
+    />
+  )
 }
 
 /**

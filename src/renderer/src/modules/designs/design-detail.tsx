@@ -261,13 +261,22 @@ function Editor({
         <Card className="group relative gap-0 overflow-hidden bg-surface p-2.5">
           {/* A tall page screenshot stays a preview here; the full size opens in the system viewer. The click is a
               mouse shortcut, the keyboard has «Відкрити картинку» in the corner. */}
-          <div className="cursor-zoom-in" onClick={openImage}>
+          {video ? (
+            // A video plays here by its own ▶ (the player's controls); a click on it must not open the system viewer.
             <DesignMedia
               path={design.imagePath}
-              alt={designTitle(design)}
+              play="controls"
               className="max-h-[56vh] w-full rounded-xl object-contain"
             />
-          </div>
+          ) : (
+            <div className="cursor-zoom-in" onClick={openImage}>
+              <DesignMedia
+                path={design.imagePath}
+                alt={designTitle(design)}
+                className="max-h-[56vh] w-full rounded-xl object-contain"
+              />
+            </div>
+          )}
           {design.imagePath && (
             <IconAction
               label={video ? 'Відкрити відео' : 'Відкрити картинку'}

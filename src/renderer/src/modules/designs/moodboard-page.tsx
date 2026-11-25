@@ -215,11 +215,7 @@ function DesignPicker({
                 className="tile h-auto w-full flex-col items-stretch gap-1.5 rounded-2xl bg-surface p-1.5 pb-2 text-caption font-normal on:bg-accent on:outline-2 on:-outline-offset-2 on:outline-ring"
               >
                 <span className="relative block aspect-4/3 overflow-hidden rounded-xl bg-card">
-                  <DesignMedia
-                    path={d.imagePath}
-                    autoPlay={false}
-                    className="size-full object-cover"
-                  />
+                  <DesignMedia path={d.imagePath} play="none" className="size-full object-cover" />
                   {selected.has(d.id) && (
                     <Badge variant="lime" className="absolute top-2 right-2 size-6 p-0">
                       <Check />
