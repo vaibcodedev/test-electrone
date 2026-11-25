@@ -289,13 +289,14 @@ function PairsField({
               onChange={(e) => set(p.key, { value: e.target.value })}
             />
             <IconAction
+              type="button"
               label={p.secret ? 'Зробити звичайним полем' : 'Зробити секретним'}
-              aria-pressed={p.secret}
               onClick={() => set(p.key, { secret: !p.secret, hasValue: false })}
             >
               {p.secret ? <Lock /> : <LockOpen />}
             </IconAction>
             <IconAction
+              type="button"
               label={`Прибрати поле ${p.name.trim() || i + 1}`}
               className="text-muted-foreground hover:text-destructive"
               onClick={() => onChange(pairs.filter((x) => x.key !== p.key))}
