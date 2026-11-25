@@ -31,56 +31,143 @@ const s = (
 ): AppSection => ({ path, label, hub, about, types, action })
 
 export const APP_SECTIONS: readonly AppSection[] = [
-  s('/', 'Головна', null, 'день: задачі, події, швидкі дії, закріплене'),
-  s('/review', 'Підсумки тижня', null, 'що зроблено за тиждень по всіх розділах'),
+  s('/', 'Головна', null, 'задачі й події дня, закріплене'),
+  s('/review', 'Підсумки тижня', null, 'що зроблено за тиждень'),
   // Робота
-  s('/ideas', 'Ідеї', 'Робота', 'ідеї зі статусом і впливом; ідею можна перетворити на дошку', ['idea'], 'create_idea'),
-  s('/boards', 'Дошки', 'Робота', 'канбан-дошки з колонками й картками-задачами', ['board', 'card'], 'create_board'),
-  s('/calendar', 'Календар', 'Робота', 'події, дедлайни карток, оплати, співбесіди', ['event'], 'create_event'),
-  s('/checklists', 'Чек-листи', 'Робота', 'шаблони чек-листів (розділи й пункти) і прогони за ними', ['checklist'], 'create_checklist'),
+  s(
+    '/ideas',
+    'Ідеї',
+    'Робота',
+    'ідеї зі статусом; ідею можна зробити дошкою',
+    ['idea'],
+    'create_idea'
+  ),
+  s(
+    '/boards',
+    'Дошки',
+    'Робота',
+    'канбан: колонки й картки-задачі',
+    ['board', 'card'],
+    'create_board'
+  ),
+  s(
+    '/calendar',
+    'Календар',
+    'Робота',
+    'події, дедлайни, оплати, співбесіди',
+    ['event'],
+    'create_event'
+  ),
+  s(
+    '/checklists',
+    'Чек-листи',
+    'Робота',
+    'шаблони чек-листів (розділи, пункти) і прогони',
+    ['checklist'],
+    'create_checklist'
+  ),
   // Фриланс
-  s('/freelance', 'Фриланс', 'Фриланс', 'огляд: платформи, відгуки, конекти, статистика', ['proposal']),
-  s('/clients', 'Клієнти й контракти', 'Фриланс', 'клієнти, проєкти, доступи, облік часу, оплати', ['client', 'project']),
-  s('/freelance/templates', 'Шаблони', 'Фриланс', 'шаблони відгуків і відповідей клієнтам з {змінними}', ['template'], 'create_template'),
-  s('/freelance/portfolio', 'Портфоліо', 'Фриланс', 'кейси: задача, що зроблено, результат', ['case'], 'create_case'),
-  s('/freelance/flags', 'Червоні прапорці', 'Фриланс', 'ознаки поганих замовлень і що робити', ['redflag'], 'create_redflag'),
-  s('/freelance/goals', 'Цілі', 'Фриланс', 'цілі за доходом і відгуками'),
-  s('/freelance/calculator', 'Калькулятор ставки', 'Фриланс', 'погодинна ставка з урахуванням комісій'),
+  s('/freelance', 'Фриланс', 'Фриланс', 'платформи, відгуки, конекти', ['proposal']),
+  s('/clients', 'Клієнти й контракти', 'Фриланс', 'клієнти, проєкти, доступи, час, оплати', [
+    'client',
+    'project'
+  ]),
+  s(
+    '/freelance/templates',
+    'Шаблони',
+    'Фриланс',
+    'шаблони відгуків і листів з {змінними}',
+    ['template'],
+    'create_template'
+  ),
+  s(
+    '/freelance/portfolio',
+    'Портфоліо',
+    'Фриланс',
+    'кейси: задача, зроблено, результат',
+    ['case'],
+    'create_case'
+  ),
+  s(
+    '/freelance/flags',
+    'Червоні прапорці',
+    'Фриланс',
+    'ознаки поганих замовлень',
+    ['redflag'],
+    'create_redflag'
+  ),
+  s('/freelance/goals', 'Цілі', 'Фриланс', 'цілі за доходом'),
+  s('/freelance/calculator', 'Калькулятор ставки', 'Фриланс', 'погодинна ставка з комісіями'),
   // Пошук роботи
-  s('/jobs', 'Пошук роботи', 'Пошук роботи', 'огляд: воронка відгуків, найближчі співбесіди'),
+  s('/jobs', 'Пошук роботи', 'Пошук роботи', 'воронка відгуків, співбесіди'),
   s('/jobs/applications', 'Вакансії', 'Пошук роботи', 'вакансії, етапи, тестові', ['application']),
-  s('/jobs/interviews', 'Співбесіди', 'Пошук роботи', 'усі співбесіди за датою'),
-  s('/jobs/companies', 'Компанії', 'Пошук роботи', 'компанії й нотатки про них', ['company']),
-  s('/jobs/resumes', 'Резюме', 'Пошук роботи', 'версії резюме (файли)'),
-  s('/jobs/questions', 'Питання й тренажер', 'Пошук роботи', 'банк питань зі співбесід з відповідями й тренажер', ['question'], 'create_question'),
-  s('/jobs/boards', 'Майданчики', 'Пошук роботи', 'сайти вакансій і нагадування їх переглянути'),
-  s('/jobs/stats', 'Статистика', 'Пошук роботи', 'конверсія відгуків у співбесіди'),
-  s('/freelance/templates?situation=cover_letter', 'Шаблони листів', 'Пошук роботи', 'супровідні листи — шаблони з ситуацією «Супровідний лист»', ['template'], 'create_template'),
+  s('/jobs/interviews', 'Співбесіди', 'Пошук роботи', 'співбесіди за датою'),
+  s('/jobs/companies', 'Компанії', 'Пошук роботи', 'компанії й нотатки', ['company']),
+  s('/jobs/resumes', 'Резюме', 'Пошук роботи', 'версії резюме'),
+  s(
+    '/jobs/questions',
+    'Питання й тренажер',
+    'Пошук роботи',
+    'питання зі співбесід, відповіді, тренажер',
+    ['question'],
+    'create_question'
+  ),
+  s('/jobs/boards', 'Майданчики', 'Пошук роботи', 'сайти вакансій'),
+  s('/jobs/stats', 'Статистика', 'Пошук роботи', 'конверсія відгуків'),
+  s(
+    '/freelance/templates?situation=cover_letter',
+    'Шаблони листів',
+    'Пошук роботи',
+    'шаблони супровідних листів',
+    ['template'],
+    'create_template'
+  ),
   // Фінанси
-  s('/finance', 'Фінанси', 'Фінанси', 'огляд доходів і витрат за місяць'),
-  s('/finance/income', 'Доходи', 'Фінанси', 'надходження за місяцями'),
-  s('/finance/expenses', 'Підписки й витрати', 'Фінанси', 'підписки й разові витрати'),
+  s('/finance', 'Фінанси', 'Фінанси', 'доходи й витрати за місяць'),
+  s('/finance/income', 'Доходи', 'Фінанси', 'надходження'),
+  s('/finance/expenses', 'Підписки й витрати', 'Фінанси', 'підписки й витрати'),
   s('/finance/withdrawals', 'Виведення', 'Фінанси', 'виведення з платформ'),
   // Розробка
-  s('/dev', 'Мої проєкти', 'Розробка', 'локальні репозиторії, скрипти, гілки'),
-  s('/dev/github', 'GitHub', 'Розробка', 'issues і коміти з GitHub'),
+  s('/dev', 'Мої проєкти', 'Розробка', 'локальні репозиторії, скрипти'),
+  s('/dev/github', 'GitHub', 'Розробка', 'issues і коміти'),
   // Знання
-  s('/knowledge', 'Знання', 'Знання', 'огляд розділів знань'),
-  s('/notes', 'Нотатки', 'Знання', 'нотатки в теках, Markdown і посилання [[', ['note'], 'create_note'),
-  s('/claude', 'Claude', 'Знання', 'промти, скіли, гайди й нотатки про Claude', ['claude'], 'create_claude'),
-  s('/snippets', 'Сніпети', 'Знання', 'шматки коду з мовою й описом', ['snippet'], 'create_snippet'),
-  s('/components', 'Компоненти', 'Знання', 'React/HTML-компоненти з живим прев’ю', ['component'], 'create_component'),
-  s('/libraries', 'JS-бібліотеки', 'Знання', 'npm-пакети: для чого, як встановити', ['library'], 'create_library'),
-  s('/fixes', 'Помилки й рішення', 'Знання', 'помилки: текст, причина, рішення', ['fix'], 'create_fix'),
+  s('/knowledge', 'Знання', 'Знання', 'огляд знань'),
+  s('/notes', 'Нотатки', 'Знання', 'нотатки в теках', ['note'], 'create_note'),
+  s('/claude', 'Claude', 'Знання', 'промти, скіли, гайди', ['claude'], 'create_claude'),
+  s('/snippets', 'Сніпети', 'Знання', 'шматки коду', ['snippet'], 'create_snippet'),
+  s(
+    '/components',
+    'Компоненти',
+    'Знання',
+    'компоненти з живим прев’ю',
+    ['component'],
+    'create_component'
+  ),
+  s('/libraries', 'JS-бібліотеки', 'Знання', 'npm-пакети', ['library'], 'create_library'),
+  s('/fixes', 'Помилки й рішення', 'Знання', 'помилки, причини, рішення', ['fix'], 'create_fix'),
   // Натхнення й навчання
-  s('/designs', 'Дизайни', 'Натхнення й навчання', 'скріншоти й картинки, добірки', ['design', 'moodboard']),
-  s('/bookmarks', 'Закладки', 'Натхнення й навчання', 'статті, відео, курси з посиланням', ['bookmark'], 'create_bookmark'),
-  s('/english', 'Англійська', 'Натхнення й навчання', 'слова й фрази з перекладом і інтервальним повторенням', ['word'], 'create_word'),
+  s('/designs', 'Дизайни', 'Натхнення й навчання', 'скріншоти, добірки', ['design', 'moodboard']),
+  s(
+    '/bookmarks',
+    'Закладки',
+    'Натхнення й навчання',
+    'статті, відео, курси',
+    ['bookmark'],
+    'create_bookmark'
+  ),
+  s(
+    '/english',
+    'Англійська',
+    'Натхнення й навчання',
+    'слова з перекладом, повторення',
+    ['word'],
+    'create_word'
+  ),
   // Always shown: the guide and the footer icons
-  s('/guide', 'Гайд', null, 'як усе працює, гарячі клавіші, FAQ'),
-  s('/tags', 'Мітки', null, 'усі мітки й записи з ними'),
-  s('/trash', 'Кошик', null, 'видалене за 30 днів, «Відновити»'),
-  s('/settings', 'Налаштування', null, 'тема, меню, бекап, експорт, ШІ, розширення, оновлення')
+  s('/guide', 'Гайд', null, 'як усе працює, FAQ'),
+  s('/tags', 'Мітки', null, 'мітки й записи з ними'),
+  s('/trash', 'Кошик', null, 'видалене за 30 днів'),
+  s('/settings', 'Налаштування', null, 'тема, меню, бекап, експорт, ШІ')
 ]
 
 /** Where things are in Vault and the main keys: answers «як…», «де…» questions without guessing. */
@@ -114,18 +201,21 @@ export function sectionAt(location: string): AppSection | null {
       if (pathname === base && all) return sec
       continue
     }
-    const hit = base === '/' ? pathname === '/' : pathname === base || pathname.startsWith(`${base}/`)
+    const hit =
+      base === '/' ? pathname === '/' : pathname === base || pathname.startsWith(`${base}/`)
     if (hit && (!best || base.length > best.path.length)) best = sec
   }
   // A record page outside its section's route: client and project pages are «Клієнти й контракти».
-  if (!best && /^\/projects\//.test(pathname)) return APP_SECTIONS.find((x) => x.path === '/clients') ?? null
-  if (!best && /^\/cards\//.test(pathname)) return APP_SECTIONS.find((x) => x.path === '/boards') ?? null
+  if (!best && /^\/projects\//.test(pathname))
+    return APP_SECTIONS.find((x) => x.path === '/clients') ?? null
+  if (!best && /^\/cards\//.test(pathname))
+    return APP_SECTIONS.find((x) => x.path === '/boards') ?? null
   return best
 }
 
 /** The map for the system prompt: one line per section, ~2 000 characters. */
 export function appMapPrompt(): string {
   return APP_SECTIONS.map(
-    (sec) => `- ${sectionPath(sec)} (${sec.path}): ${sec.about}${sec.action ? ` → ${sec.action}` : ''}`
+    (sec) => `- ${sectionPath(sec)}: ${sec.about}${sec.action ? ` → ${sec.action}` : ''}`
   ).join('\n')
 }

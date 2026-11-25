@@ -10,7 +10,12 @@ import { fieldMax, MAX } from './limits'
 import { ideaInputSchema } from './ideas'
 import { noteInputSchema } from './notes'
 import { SNIPPET_LANGUAGES, snippetInputSchema } from './snippets'
-import { boardInputSchema, cardCheckInputSchema, cardInputSchema, columnInputSchema } from './boards'
+import {
+  boardInputSchema,
+  cardCheckInputSchema,
+  cardInputSchema,
+  columnInputSchema
+} from './boards'
 import { eventInputSchema } from './calendar'
 import { checklistImportSchema } from './checklists'
 import { bookmarkInputSchema } from './bookmarks'
@@ -19,15 +24,20 @@ import { claudeInputSchema } from './claude'
 import { fixInputSchema } from './fixes'
 import { libraryInputSchema } from './libraries'
 import { questionInputSchema } from './jobs'
-import { caseInputSchema, redFlagInputSchema, TEMPLATE_SITUATIONS, templateInputSchema } from './freelance'
+import {
+  caseInputSchema,
+  redFlagInputSchema,
+  TEMPLATE_SITUATIONS,
+  templateInputSchema
+} from './freelance'
 import { componentInputSchema } from './components'
 import { tagInputSchema } from './system'
 
 /** A local day or a local day and time, as the model writes it: 2026-11-26 or 2026-11-26T10:00. */
 export const LOCAL_WHEN = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?$/
 const when = z.string().trim().regex(LOCAL_WHEN)
-/** One «Додати текст» may not be a whole book: the record keeps its own, larger limit. */
-export const APPEND_MAX = 20_000
+/** One «Додати текст» is at most a long text of its own; the record's own limit is checked on top of it. */
+export const APPEND_MAX = MAX.article
 export const TAGS_MAX = 10
 /** Columns of a new board, checks of a new card. */
 export const COLUMNS_MAX = 12
@@ -39,17 +49,19 @@ const createIdea = ideaInputSchema.pick({ title: true, body: true }).extend(type
 const createNote = noteInputSchema
   .pick({ title: true, body: true, folder: true })
   .extend(type('create_note'))
-const createSnippet = snippetInputSchema.pick({ title: true, code: true, description: true }).extend({
-  ...type('create_snippet'),
-  // A language the list doesn't know («python») is still a snippet: plain text.
-  language: z.enum(SNIPPET_LANGUAGES).catch('text').default('text')
-})
+const createSnippet = snippetInputSchema
+  .pick({ title: true, code: true, description: true })
+  .extend({
+    ...type('create_snippet'),
+    // A language the list doesn't know («python») is still a snippet: plain text.
+    language: z.enum(SNIPPET_LANGUAGES).catch('text').default('text')
+  })
 const createCard = cardInputSchema.pick({ title: true, description: true }).extend({
   ...type('create_card'),
   /** Board title (or id); empty — the board used most recently. */
-  board: z.string().trim().max(MAX.title).default(''),
+  board: z.string().trim().max(fieldMax(boardInputSchema.shape.title)).default(''),
   /** Column title; empty — the board's first column. */
-  column: z.string().trim().max(MAX.label).default(''),
+  column: z.string().trim().max(fieldMax(columnInputSchema.shape.title)).default(''),
   checks: z.array(cardCheckInputSchema.shape.text).max(CHECKS_MAX).default([])
 })
 const createEvent = eventInputSchema.pick({ title: true, description: true }).extend({
@@ -232,7 +244,8 @@ export const AI_ACTIONS: Record<AiActionType, AiActionMeta> = {
   },
   create_card: {
     entity: 'card',
-    fields: '{title, description: markdown, board?: board title, column?: column title, checks?: [text]}',
+    fields:
+      '{title, description: markdown, board?: board title, column?: column title, checks?: [text]}',
     edit: [
       TITLE,
       f('description', 'Опис', 'markdown'),
@@ -295,7 +308,8 @@ export const AI_ACTIONS: Record<AiActionType, AiActionMeta> = {
   },
   create_library: {
     entity: 'library',
-    fields: '{name: npm package, purpose, installCmd?, npmUrl?, githubUrl?, docsUrl?, notes?: markdown}',
+    fields:
+      '{name: npm package, purpose, installCmd?, npmUrl?, githubUrl?, docsUrl?, notes?: markdown}',
     edit: [
       f('name', 'Пакет', 'line', { required: true }),
       f('purpose', 'Для чого', 'text'),
@@ -334,7 +348,8 @@ export const AI_ACTIONS: Record<AiActionType, AiActionMeta> = {
   },
   create_case: {
     entity: 'case',
-    fields: '{title, client?, niche?, problem, whatDone, result, stack?, url?, textEn?: English text for the platform}',
+    fields:
+      '{title, client?, niche?, problem, whatDone, result, stack?, url?, textEn?: English text for the platform}',
     edit: [
       TITLE,
       f('problem', 'Задача', 'text'),
@@ -377,7 +392,8 @@ export const AI_ACTIONS: Record<AiActionType, AiActionMeta> = {
 export const aiActionEditsSchema = z
   .record(
     z.string().max(40),
-    z.union([z.string().max(600_000), z.array(z.string().max(2000)).max(300)])
+    // Transport caps only: withEdits checks every field again with the action's own schema.
+    z.union([z.string().max(MAX.document), z.array(z.string().max(MAX.short)).max(300)])
   )
   .refine((r) => Object.keys(r).length <= 20)
 export type AiActionEdits = z.infer<typeof aiActionEditsSchema>

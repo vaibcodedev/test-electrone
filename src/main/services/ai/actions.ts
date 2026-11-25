@@ -21,6 +21,7 @@ import { CLAUDE_KIND_LABEL } from '@shared/domain/claude'
 import { SITUATION_LABEL } from '@shared/domain/freelance'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { fmtWhen } from '@shared/dates'
+import { MAX } from '@shared/domain/limits'
 import { UserError } from '../../core/util'
 import type { AiRecordWriter } from './record-writer'
 
@@ -107,7 +108,10 @@ type Ctx = { deps: AiActionDeps; target: EntityRef | null }
 
 interface ActionDef<K extends AiActionType> {
   /** Facts for the card and why it can't be applied; label and title are added by the runner. */
-  prepare?(a: AiActionOf<K>, ctx: Ctx): { fields?: { label: string; value: string }[]; problem?: string }
+  prepare?(
+    a: AiActionOf<K>,
+    ctx: Ctx
+  ): { fields?: { label: string; value: string }[]; problem?: string }
   apply(a: AiActionOf<K>, ctx: Ctx): Promise<Applied>
 }
 
@@ -401,7 +405,8 @@ const DEFS: { [K in AiActionType]: ActionDef<K> } = {
         const details = await deps.api.boards.details(board.id)
         const existing = details?.columns ?? []
         for (const [i, title] of a.columns.entries()) {
-          const isDone = i === a.columns.length - 1 && (a.columns.length > 1 || DONE_COLUMN.test(title))
+          const isDone =
+            i === a.columns.length - 1 && (a.columns.length > 1 || DONE_COLUMN.test(title))
           const col = existing[i]
           if (col) await deps.api.boards.updateColumn({ id: col.id, patch: { title, isDone } })
           else await deps.api.boards.addColumn({ boardId: board.id, input: { title, isDone } })
@@ -461,7 +466,7 @@ export class AiActionRunner {
       preview: {
         label: labelOf(action.type, where),
         type: edit ? (target?.type ?? 'note') : AI_ACTIONS[action.type].entity,
-        title: titleOf(action, live?.title ?? '').slice(0, 500),
+        title: titleOf(action, live?.title ?? '').slice(0, MAX.title),
         fields: (out.fields ?? []).slice(0, 8),
         target: live?.ref ?? null
       },

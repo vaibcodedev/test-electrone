@@ -16,6 +16,7 @@ import type { AiChatMessage, AiSource } from '@shared/domain/ai-chat'
 import type { EntityRef } from '@shared/domain/common'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { wikiLink } from '@shared/wikilinks'
+import { MAX } from '@shared/domain/limits'
 import type { AiTurn } from './adapter'
 
 /** Characters per token, roughly (Cyrillic costs more than English): the budgets below are in characters. */
@@ -166,7 +167,7 @@ export function sourcesBlock(found: ChatRecord[]): { text: string; sources: AiSo
     if (sources.length && used + entry.length > BUDGET.sources) break
     used += entry.length
     parts.push(entry)
-    sources.push({ n, ref: r.ref, title: r.title.slice(0, 500), cited: false })
+    sources.push({ n, ref: r.ref, title: r.title.slice(0, MAX.title), cited: false })
   }
   return {
     text: [

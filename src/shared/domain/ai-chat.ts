@@ -34,7 +34,7 @@ const previewSchema = z.object({
 })
 export type AiActionPreview = z.infer<typeof previewSchema>
 
-const proposalSchema = z.object({
+export const aiActionProposalSchema = z.object({
   id: idSchema,
   action: aiActionSchema,
   preview: previewSchema,
@@ -44,7 +44,7 @@ const proposalSchema = z.object({
   /** After «Застосувати»: the record created or changed. */
   result: z.object({ ref: entityRefSchema, title: z.string().max(MAX.title) }).nullable()
 })
-export type AiActionProposal = z.infer<typeof proposalSchema>
+export type AiActionProposal = z.infer<typeof aiActionProposalSchema>
 
 /* ───────────── Chat history ───────────── */
 
@@ -74,7 +74,7 @@ export const aiChatMessageSchema = z.object({
   searched: z.boolean().default(false),
   /** Assistant: records found in the base and given to the model, in the order of [n]. */
   sources: z.array(sourceSchema).max(20).default([]),
-  actions: z.array(proposalSchema).max(10).default([]),
+  actions: z.array(aiActionProposalSchema).max(10).default([]),
   /** Assistant: actions the model wrote that failed validation (the card says how many were skipped). */
   skipped: z.number().int().min(0).max(100).default(0),
   model: z.string().max(200).default('')
@@ -106,7 +106,7 @@ export const aiChatSendSchema = z.object({
   /** The context chip: the record open on the page. */
   context: entityRefSchema.nullable().default(null),
   /** Where the person is: the page's route with its query («/checklists», «/notes?open=…»). */
-  page: z.string().max(500).default(''),
+  page: z.string().max(MAX.line).default(''),
   /** «Шукати в моїй базі». */
   search: z.boolean().default(false),
   /** The person has just agreed that record texts go to this cloud provider. */

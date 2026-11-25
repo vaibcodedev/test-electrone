@@ -14,6 +14,7 @@ import {
   type AiSource
 } from '@shared/domain/ai-chat'
 import { idSchema, type EntityRef } from '@shared/domain/common'
+import { MAX } from '@shared/domain/limits'
 import type { EntityType } from '@shared/entity-types'
 import { newId, now as clock, UserError } from '../../core/util'
 import { log } from '../../core/logger'
@@ -243,7 +244,7 @@ export class AiChatService {
       preview: fresh.preview,
       status: 'applied',
       problem: null,
-      result: { ref: done.ref, title: done.title.slice(0, 500) }
+      result: { ref: done.ref, title: done.title.slice(0, MAX.title) }
     })
     return { ref: done.ref, title: done.title, kind: done.kind, chat: next }
   }
