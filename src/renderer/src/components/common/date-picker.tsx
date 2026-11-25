@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { format, startOfDay } from 'date-fns'
 import { uk } from 'date-fns/locale'
 import { CalendarDays, X } from 'lucide-react'
@@ -11,6 +11,37 @@ import { Calendar } from '@/components/ui/calendar'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+
+/**
+ * The time field keeps its own text while focused. A record saves asynchronously (card deadline, interview
+ * stage): bound to the saved value, React put the old time back after the first digit, Chromium forgot what had
+ * been typed, and of «15» only «05» remained.
+ */
+function TimeInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [text, setText] = useState(value)
+  const focused = useRef(false)
+  useEffect(() => {
+    if (!focused.current) setText(value)
+  }, [value])
+  return (
+    <Input
+      type="time"
+      aria-label="Час"
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value)
+        onChange(e.target.value)
+      }}
+      onFocus={() => (focused.current = true)}
+      onBlur={(e) => {
+        focused.current = false
+        // A half-cleared field saved nothing: show the saved time again.
+        if (!e.target.value) setText(value)
+      }}
+      className="h-8 flex-1 [&::-webkit-calendar-picker-indicator]:hidden"
+    />
+  )
+}
 
 /**
  * Date (and optional time) picker — shadcn Calendar in a Popover, time via shadcn Input type="time"
@@ -104,12 +135,7 @@ export function DatePicker({
           {withTime && (
             <div className="flex items-center gap-2 border-t border-border p-3">
               <span className="text-caption text-muted-foreground">Час</span>
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="h-8 flex-1 [&::-webkit-calendar-picker-indicator]:hidden"
-              />
+              <TimeInput value={time} onChange={setTime} />
               <Button type="button" size="sm" variant="lime" onClick={() => setOpen(false)}>
                 Готово
               </Button>
