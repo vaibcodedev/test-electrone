@@ -14,6 +14,8 @@ import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { cn } from '@/lib/utils'
 import { ImportButton } from '@/components/common/import-dialog'
+import { DisabledHint } from '@/components/common/disabled-hint'
+import { useFormGate } from '@/hooks/use-form-gate'
 import { Badge } from '@/components/ui/badge'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -30,19 +32,25 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
     successMessage: 'Ідею додано',
     onSuccess: (idea) => onCreated(idea.id)
   })
+  // The title is required: «+» is off while it is empty (with the reason), Enter adds nothing.
+  const { attach, reason, submit } = useFormGate()
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (!title.trim() || create.isPending) return
-        // Cleared only after the server accepted it: a rejected title stays for fixing.
-        create.mutate({ title: title.trim() }, { onSuccess: () => setTitle('') })
-      }}
+      ref={attach}
+      onSubmit={(e) =>
+        submit(e, () => {
+          if (create.isPending) return
+          // Cleared only after the server accepted it: a rejected title stays for fixing.
+          create.mutate({ title: title.trim() }, { onSuccess: () => setTitle('') })
+        })
+      }
     >
       <InputGroup className="h-11 pr-1">
         {/* data-page-new: the page has no lime header button, so `N` puts the caret here. */}
         <InputGroupInput
           data-page-new
+          required
+          aria-label="Нова ідея"
           value={title}
           maxLength={MAX.title}
           onChange={(e) => setTitle(e.target.value)}
@@ -50,16 +58,18 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
           className="pl-4 text-body"
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            type="submit"
-            size="icon-sm"
-            variant="default"
-            className="rounded-full"
-            disabled={!title.trim() || create.isPending}
-            aria-label="Додати ідею"
-          >
-            <Plus />
-          </InputGroupButton>
+          <DisabledHint reason={reason}>
+            <InputGroupButton
+              type="submit"
+              size="icon-sm"
+              variant="default"
+              className="rounded-full"
+              disabled={!!reason || create.isPending}
+              aria-label="Додати ідею"
+            >
+              <Plus />
+            </InputGroupButton>
+          </DisabledHint>
         </InputGroupAddon>
       </InputGroup>
     </form>

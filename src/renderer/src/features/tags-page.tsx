@@ -8,6 +8,8 @@ import { EntityRow } from '@/components/common/entity-link'
 import { ColorSwatches } from '@/components/common/color-swatches'
 import { Confirm } from '@/components/common/confirm'
 import { SectionLabel } from '@/components/common/section-label'
+import { DisabledHint } from '@/components/common/disabled-hint'
+import { useFormGate } from '@/hooks/use-form-gate'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -89,6 +91,8 @@ export function TagsPage(): ReactElement {
     setParams({ tag: tag.id })
   }
 
+  // The name is required: «Додати» is off while it is empty, Enter adds nothing (useFormGate).
+  const { attach, reason, submit: gate } = useFormGate()
   return (
     <Page>
       <PageHeader
@@ -99,32 +103,30 @@ export function TagsPage(): ReactElement {
         <div className="grid grid-cols-[minmax(280px,360px)_minmax(0,1fr)] items-start gap-3">
           <Card className="gap-3">
             <CardContent className="flex flex-col gap-3">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void submit()
-                }}
-              >
+              <form ref={attach} onSubmit={(e) => gate(e, () => void submit())}>
                 <InputGroup className="bg-card">
                   {/* data-page-new: there is no lime button in the header, so `N` puts the caret here. */}
                   <InputGroupInput
                     data-page-new
                     aria-label="Нова мітка"
+                    required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Нова мітка"
                     maxLength={TAG_LIMITS.name}
                   />
                   <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      type="submit"
-                      variant={name.trim() ? 'lime' : 'ghost'}
-                      size="xs"
-                      className="rounded-full"
-                      disabled={!name.trim() || create.isPending}
-                    >
-                      <Plus /> Додати
-                    </InputGroupButton>
+                    <DisabledHint reason={reason}>
+                      <InputGroupButton
+                        type="submit"
+                        variant={name.trim() ? 'lime' : 'ghost'}
+                        size="xs"
+                        className="rounded-full"
+                        disabled={!!reason || create.isPending}
+                      >
+                        <Plus /> Додати
+                      </InputGroupButton>
+                    </DisabledHint>
                   </InputGroupAddon>
                 </InputGroup>
               </form>

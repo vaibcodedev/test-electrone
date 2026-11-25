@@ -30,11 +30,12 @@ test.describe('конвертації: деталі', () => {
     const hire = win.getByRole('dialog', { name: 'Оформити контракт' })
     const submit = hire.getByRole('button', { name: 'Створити контракт' })
 
-    // The title is required: said at the field, the button waits.
+    // The title is required: the button waits, and the field says so once it is left empty.
     const title = hire.getByRole('textbox').first()
     await title.fill('')
-    await expect(hire.getByText('Вкажіть назву контракту')).toBeVisible()
     await expect(submit).toBeDisabled()
+    await title.blur()
+    await expect(hire.getByText('Заповніть це поле')).toBeVisible()
     await title.fill(`Підтримка ${token}`)
 
     await hire.getByRole('radio', { name: 'Погодинно' }).click()

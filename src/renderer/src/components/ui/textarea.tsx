@@ -22,6 +22,7 @@ function Textarea({ className, readOnly, onInput, ...props }: React.ComponentPro
       }}
       aria-describedby={field.describedBy}
       aria-invalid={field.invalid}
+      required={field.required}
       readOnly={readOnly || viewMode}
       data-view={viewMode || undefined}
       data-empty={viewMode && empty ? true : undefined}

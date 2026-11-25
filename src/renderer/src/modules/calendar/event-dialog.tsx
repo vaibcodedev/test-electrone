@@ -7,7 +7,7 @@ import {
   type EventInput,
   type Recurrence
 } from '@shared/domain/calendar'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, requiredOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import {
   Dialog,
@@ -31,11 +31,14 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { ColorSwatches } from '@/components/common/color-swatches'
-import { DisabledHint } from '@/components/common/disabled-hint'
+import { SubmitButton } from '@/components/common/submit-button'
 import { NO_CHANGES } from '@/lib/edit-session'
+import { useFormGate } from '@/hooks/use-form-gate'
+import { FormAttemptContext } from '@/components/ui/field-control'
 import { PALETTE } from '@shared/colors'
 
 const LIMITS = limitsOf(eventInputSchema)
+const REQUIRED = requiredOf(eventInputSchema)
 
 const REMINDERS: { value: string; label: string }[] = [
   { value: 'none', label: 'Без нагадування' },
@@ -139,7 +142,6 @@ export function EventDialog({
   const [form, setForm] = useState<FormState>(() =>
     event ? fromEvent(event) : blank(date ?? new Date())
   )
-  const [titleError, setTitleError] = useState<string>()
   // An existing event as it was when the dialog opened: «Зберегти» stays off until the form differs from it.
   const [baseline, setBaseline] = useState(() => (event ? JSON.stringify(fromEvent(event)) : null))
   const create = useApiMutation('events', 'create', { successMessage: 'Подію додано' })
@@ -155,7 +157,6 @@ export function EventDialog({
     if (open) {
       setForm(event ? fromEvent(event) : blank(date ?? new Date()))
       setBaseline(event ? JSON.stringify(fromEvent(event)) : null)
-      setTitleError(undefined)
     }
   }
 
@@ -164,9 +165,11 @@ export function EventDialog({
     setForm((f) => ({ ...f, [key]: value }))
   const { startAt, endAt } = form
   const endBeforeStart = endAt !== null && startAt !== null && endAt < startAt
-  // An empty title doesn't disable «Додати»: pressing it says what's missing at the field.
   const invalid = startAt === null || endBeforeStart
   const unchanged = !!event && baseline === JSON.stringify(form)
+  // An empty title (required) or a field showing an error: «Додати» is off and Enter sends nothing (useFormGate).
+  const { attach, reason: gateReason, attempted, submit } = useFormGate(open)
+  const reason = gateReason ?? (unchanged ? NO_CHANGES : undefined)
   // A colour outside the palette (older data) stays visible and chosen, first in the row.
   const swatches: readonly string[] =
     form.color && !(PALETTE as readonly string[]).includes(form.color)
@@ -176,11 +179,6 @@ export function EventDialog({
   const save = (): void => {
     // Enter can't be disabled like the button: a second submit while saving would create a duplicate.
     if (invalid || unchanged || startAt === null || create.isPending || update.isPending) return
-    if (!form.title.trim()) {
-      setTitleError('Введіть назву події')
-      document.getElementById('event-title')?.focus()
-      return
-    }
     const input: EventInput = {
       title: form.title.trim(),
       description: form.description,
@@ -211,132 +209,102 @@ export function EventDialog({
             {event ? 'Подія' : 'Нова подія'}
           </DialogTitle>
         </DialogHeader>
-        <form
-          className="flex min-h-0 flex-col"
-          onSubmit={(e) => {
-            e.preventDefault()
-            save()
-          }}
-        >
-          {/* Only the fields scroll; the footer sits below them, outside the scroll area.
+        <form ref={attach} className="flex min-h-0 flex-col" onSubmit={(e) => submit(e, save)}>
+          <FormAttemptContext.Provider value={attempted}>
+            {/* Only the fields scroll; the footer sits below them, outside the scroll area.
               gutter auto: the global stable gutter made the right margin 40px against 30px on the left. */}
-          <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1 scrollbar-gutter-auto">
-            {linked ? (
-              // The owning module controls the title: plain text, not a field that takes the cursor but no typing.
-              <Field label="Назва">
-                <p className="text-lead font-medium wrap-anywhere">{form.title}</p>
-              </Field>
-            ) : (
-              <Field
-                label="Назва"
-                htmlFor="event-title"
-                count={{ length: form.title.length, max: LIMITS.title }}
-                error={titleError}
-              >
-                <Input
-                  id="event-title"
-                  autoFocus
-                  value={form.title}
-                  maxLength={LIMITS.title}
-                  aria-invalid={!!titleError || undefined}
-                  onChange={(e) => {
-                    set('title', e.target.value)
-                    setTitleError(undefined)
-                  }}
-                  placeholder="Дзвінок, дедлайн, нагадування…"
-                  className="h-11 text-lead"
-                />
-              </Field>
-            )}
-            {linked && (
-              <p className="-mt-2 rounded-xl bg-surface px-3 py-2 text-caption text-muted-foreground">
-                Створено з вакансії — час синхронізується з етапом співбесіди.
-              </p>
-            )}
-            <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5">
-              <Label htmlFor="event-all-day" className="text-body text-foreground">
-                Увесь день
-              </Label>
-              <Switch
-                id="event-all-day"
-                checked={form.allDay}
-                onCheckedChange={(allDay) =>
-                  setForm((f) => ({
-                    ...f,
-                    allDay,
-                    startAt: convert(f.startAt, allDay),
-                    endAt: convert(f.endAt, allDay)
-                  }))
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Початок">
-                <DatePicker
-                  value={startAt}
-                  // Moving the start moves the end too, so the event keeps its length (like any calendar).
-                  onChange={(v) =>
+            <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1 scrollbar-gutter-auto">
+              {linked ? (
+                // The owning module controls the title: plain text, not a field that takes the cursor but no typing.
+                <Field label="Назва">
+                  <p className="text-lead font-medium wrap-anywhere">{form.title}</p>
+                </Field>
+              ) : (
+                <Field label="Назва" htmlFor="event-title" required={REQUIRED.title}>
+                  <Input
+                    id="event-title"
+                    autoFocus
+                    value={form.title}
+                    maxLength={LIMITS.title}
+                    onChange={(e) => set('title', e.target.value)}
+                    placeholder="Дзвінок, дедлайн, нагадування…"
+                    className="h-11 text-lead"
+                  />
+                </Field>
+              )}
+              {linked && (
+                <p className="-mt-2 rounded-xl bg-surface px-3 py-2 text-caption text-muted-foreground">
+                  Створено з вакансії — час синхронізується з етапом співбесіди.
+                </p>
+              )}
+              <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-2.5">
+                <Label htmlFor="event-all-day" className="text-body text-foreground">
+                  Увесь день
+                </Label>
+                <Switch
+                  id="event-all-day"
+                  checked={form.allDay}
+                  onCheckedChange={(allDay) =>
                     setForm((f) => ({
                       ...f,
-                      startAt: v,
-                      endAt:
-                        f.endAt !== null && f.startAt !== null && v !== null
-                          ? f.endAt + (v - f.startAt)
-                          : f.endAt
+                      allDay,
+                      startAt: convert(f.startAt, allDay),
+                      endAt: convert(f.endAt, allDay)
                     }))
                   }
-                  withTime={!form.allDay}
-                  clearable={false}
                 />
-              </Field>
-              <Field
-                label="Кінець (необов’язково)"
-                error={endBeforeStart ? 'Кінець раніше за початок — виправте дату' : undefined}
-              >
-                <DatePicker
-                  value={endAt}
-                  onChange={(v) => set('endAt', v)}
-                  min={startAt}
-                  invalid={endBeforeStart}
-                  withTime={!form.allDay}
-                  placeholder="Не задано"
-                />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Нагадування">
-                {/* No first reminder → no second one either. */}
-                <Select
-                  value={form.remind}
-                  onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      remind: v,
-                      remind2: v === 'none' ? 'none' : f.remind2
-                    }))
-                  }
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Початок">
+                  <DatePicker
+                    value={startAt}
+                    // Moving the start moves the end too, so the event keeps its length (like any calendar).
+                    onChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        startAt: v,
+                        endAt:
+                          f.endAt !== null && f.startAt !== null && v !== null
+                            ? f.endAt + (v - f.startAt)
+                            : f.endAt
+                      }))
+                    }
+                    withTime={!form.allDay}
+                    clearable={false}
+                  />
+                </Field>
+                <Field
+                  label="Кінець (необов’язково)"
+                  error={endBeforeStart ? 'Кінець раніше за початок — виправте дату' : undefined}
                 >
-                  <SelectTrigger className="w-full rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REMINDERS.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              {/* An old event may hold a second reminder without a first one: it stays visible until cleared. */}
-              {(form.remind !== 'none' || form.remind2 !== 'none') && (
-                <Field label="Друге нагадування">
-                  <Select value={form.remind2} onValueChange={(v) => set('remind2', v)}>
+                  <DatePicker
+                    value={endAt}
+                    onChange={(v) => set('endAt', v)}
+                    min={startAt}
+                    invalid={endBeforeStart}
+                    withTime={!form.allDay}
+                    placeholder="Не задано"
+                  />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Нагадування">
+                  {/* No first reminder → no second one either. */}
+                  <Select
+                    value={form.remind}
+                    onValueChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        remind: v,
+                        remind2: v === 'none' ? 'none' : f.remind2
+                      }))
+                    }
+                  >
                     <SelectTrigger className="w-full rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {SECOND_REMINDERS.map((r) => (
+                      {REMINDERS.map((r) => (
                         <SelectItem key={r.value} value={r.value}>
                           {r.label}
                         </SelectItem>
@@ -344,82 +312,98 @@ export function EventDialog({
                     </SelectContent>
                   </Select>
                 </Field>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Повтор">
-                <Select
-                  value={form.recurrence}
-                  onValueChange={(v) => set('recurrence', v as Recurrence)}
-                >
-                  <SelectTrigger className="w-full rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RECURRENCES.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {RECURRENCE_LABEL[r]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* An old event may hold a second reminder without a first one: it stays visible until cleared. */}
+                {(form.remind !== 'none' || form.remind2 !== 'none') && (
+                  <Field label="Друге нагадування">
+                    <Select value={form.remind2} onValueChange={(v) => set('remind2', v)}>
+                      <SelectTrigger className="w-full rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SECOND_REMINDERS.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Повтор">
+                  <Select
+                    value={form.recurrence}
+                    onValueChange={(v) => set('recurrence', v as Recurrence)}
+                  >
+                    <SelectTrigger className="w-full rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RECURRENCES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {RECURRENCE_LABEL[r]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <Field label="Колір">
+                <ColorSwatches
+                  colors={swatches}
+                  value={form.color ?? DEFAULT_COLOR}
+                  onChange={(c) => set('color', c === DEFAULT_COLOR ? null : c)}
+                  names={SWATCH_NAMES}
+                />
+              </Field>
+              <Field
+                label="Нотатки"
+                htmlFor="event-notes"
+                count={{ length: form.description.length, max: LIMITS.description }}
+              >
+                <Textarea
+                  id="event-notes"
+                  maxLength={LIMITS.description}
+                  value={form.description}
+                  onChange={(e) => set('description', e.target.value)}
+                  placeholder="Порядок денний, посилання на дзвінок"
+                  // Grows with the text: one scroll for the whole dialog body, not a second one inside the field.
+                  className="max-h-none"
+                />
               </Field>
             </div>
-            <Field label="Колір">
-              <ColorSwatches
-                colors={swatches}
-                value={form.color ?? DEFAULT_COLOR}
-                onChange={(c) => set('color', c === DEFAULT_COLOR ? null : c)}
-                names={SWATCH_NAMES}
-              />
-            </Field>
-            <Field
-              label="Нотатки"
-              htmlFor="event-notes"
-              count={{ length: form.description.length, max: LIMITS.description }}
-            >
-              <Textarea
-                id="event-notes"
-                maxLength={LIMITS.description}
-                value={form.description}
-                onChange={(e) => set('description', e.target.value)}
-                placeholder="Порядок денний, посилання на дзвінок"
-                // Grows with the text: one scroll for the whole dialog body, not a second one inside the field.
-                className="max-h-none"
-              />
-            </Field>
-          </div>
-          <DialogFooter className="items-center gap-2 pt-3 sm:justify-between">
-            {/* An event of a vacancy stage is removed with the stage, not here (main refuses it). */}
-            {event && !linked ? (
-              <Button
-                type="button"
-                variant="ghost"
-                // Flush-left: the icon lines up with the fields above; hover tint is the only background.
-                className="-ml-3 text-muted-foreground hover:text-destructive"
-                disabled={remove.isPending}
-                onClick={() => remove.mutate(event.id, { onSuccess: () => onOpenChange(false) })}
-              >
-                <Trash2 /> У кошик
-              </Button>
-            ) : (
-              <span />
-            )}
-            <div className="flex gap-2">
-              <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
-                Скасувати
-              </Button>
-              <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
+            <DialogFooter className="items-center gap-2 pt-3 sm:justify-between">
+              {/* An event of a vacancy stage is removed with the stage, not here (main refuses it). */}
+              {event && !linked ? (
                 <Button
-                  type="submit"
+                  type="button"
+                  variant="ghost"
+                  // Flush-left: the icon lines up with the fields above; hover tint is the only background.
+                  className="-ml-3 text-muted-foreground hover:text-destructive"
+                  disabled={remove.isPending}
+                  onClick={() => remove.mutate(event.id, { onSuccess: () => onOpenChange(false) })}
+                >
+                  <Trash2 /> У кошик
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
+                  Скасувати
+                </Button>
+                <SubmitButton
                   variant="lime"
-                  disabled={invalid || unchanged || create.isPending || update.isPending}
+                  reason={reason}
+                  disabled={invalid}
+                  pending={create.isPending || update.isPending}
                 >
                   {event ? 'Зберегти' : 'Додати'}
-                </Button>
-              </DisabledHint>
-            </div>
-          </DialogFooter>
+                </SubmitButton>
+              </div>
+            </DialogFooter>
+          </FormAttemptContext.Provider>
         </form>
       </DialogContent>
     </Dialog>

@@ -13,6 +13,8 @@ import { NumberField } from '@/components/common/number-field'
 import { MoneyLines } from '@/components/common/money-value'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
+import { SubmitButton } from '@/components/common/submit-button'
+import { useFormGate } from '@/hooks/use-form-gate'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -63,6 +65,8 @@ function PaidAmountAction({
   const [open, setOpen] = useState(false)
   // Neither an empty field nor 0 is a payment: the same «more than 0» rule as the dialogs.
   const canSubmit = amount !== null && amount > 0 && !setPaid.isPending
+  // An empty sum (required) or one out of range: the button is off and Enter marks nothing.
+  const { attach, reason, submit: gate } = useFormGate(open)
   return (
     <Popover
       open={open}
@@ -79,15 +83,17 @@ function PaidAmountAction({
       </PopoverTrigger>
       <PopoverContent className="w-64 rounded-2xl" align="end">
         <form
+          ref={attach}
           className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (!canSubmit || amount === null) return
-            setPaid.mutate(
-              { id: row.id, month, paid: true, amount },
-              { onSuccess: () => setOpen(false) }
-            )
-          }}
+          onSubmit={(e) =>
+            gate(e, () => {
+              if (!canSubmit || amount === null) return
+              setPaid.mutate(
+                { id: row.id, month, paid: true, amount },
+                { onSuccess: () => setOpen(false) }
+              )
+            })
+          }
         >
           <NumberField
             id={id}
@@ -98,10 +104,16 @@ function PaidAmountAction({
             {...AMOUNT_RANGE}
             value={amount}
             onCommit={setAmount}
+            required
           />
-          <Button type="submit" size="sm" variant="lime" disabled={!canSubmit}>
+          <SubmitButton
+            size="sm"
+            variant="lime"
+            reason={reason ?? (amount === 0 ? 'Сума має бути більше 0' : undefined)}
+            disabled={!canSubmit}
+          >
             Позначити оплаченою
-          </Button>
+          </SubmitButton>
         </form>
       </PopoverContent>
     </Popover>

@@ -2,7 +2,7 @@ import { useId, useState, type ReactElement } from 'react'
 import type { Currency } from '@shared/domain/crm'
 import { withdrawalInputSchema, type Withdrawal } from '@shared/domain/finance'
 import { useApi, useApiMutation } from '@/lib/query'
-import { limitsOf, rangesOf } from '@/lib/limits'
+import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { fmtMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Field } from '@/components/common/page'
@@ -23,6 +23,7 @@ import { fmtRate } from './money'
 
 const WD_L = limitsOf(withdrawalInputSchema)
 const WD_R = rangesOf(withdrawalInputSchema)
+const WD_REQ = requiredOf(withdrawalInputSchema)
 
 const NO_PLATFORM = '__none__'
 
@@ -156,6 +157,7 @@ export function WithdrawalDialog({
         <NumberField
           id={`${id}-amount`}
           label="Сума"
+          required={WD_REQ.amount}
           autoFocus={!w}
           live
           {...WD_R.amount}

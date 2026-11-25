@@ -11,6 +11,8 @@ export type FieldControl = {
   id?: string
   describedBy?: string
   invalid?: boolean
+  /** Must be filled (`Field required`, from `requiredOf(schema)`): the control gets `required`. */
+  required?: boolean
   /** The control reports its text length and limit (maxLength). */
   count?: (length: number, max: number) => void
 }
@@ -19,11 +21,25 @@ const FieldControlContext = createContext<FieldControl>({})
 
 export const FieldControlProvider = FieldControlContext.Provider
 
-export function useFieldControl(id: string | undefined): { describedBy?: string; invalid?: true } {
+export function useFieldControl(id: string | undefined): {
+  describedBy?: string
+  invalid?: true
+  required?: true
+} {
   const field = useContext(FieldControlContext)
   if (!id || field.id !== id) return {}
-  return { describedBy: field.describedBy, invalid: field.invalid || undefined }
+  return {
+    describedBy: field.describedBy,
+    invalid: field.invalid || undefined,
+    required: field.required || undefined
+  }
 }
+
+/**
+ * The form tried to submit while something was missing (useFormGate, FormDialog): required fields left empty show
+ * their error now, not only once touched — a pristine form never opens in red.
+ */
+export const FormAttemptContext = createContext(false)
 
 /** A text control with a limit tells its field how much is used: every limited field shows its limit. */
 export function useFieldCount(

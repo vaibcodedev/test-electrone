@@ -2,7 +2,7 @@ import { useId, useState, type ReactElement } from 'react'
 import type { Currency } from '@shared/domain/crm'
 import { expenseInputSchema, type Expense, type ExpenseCategory } from '@shared/domain/finance'
 import { useApiMutation } from '@/lib/query'
-import { limitsOf, rangesOf } from '@/lib/limits'
+import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { Field } from '@/components/common/page'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
 import { DatePicker } from '@/components/common/date-picker'
@@ -14,6 +14,7 @@ import { CategorySelect } from './finance-fields'
 
 const EXP_L = limitsOf(expenseInputSchema)
 const EXP_R = rangesOf(expenseInputSchema)
+const EXP_REQ = requiredOf(expenseInputSchema)
 
 export function ExpenseDialog({
   open,
@@ -67,6 +68,7 @@ export function ExpenseDialog({
     >
       <Field
         label="На що"
+        required={EXP_REQ.title}
         htmlFor={`${id}-title`}
         error={titleMissing ? 'Вкажіть назву' : undefined}
       >
@@ -85,6 +87,7 @@ export function ExpenseDialog({
         <NumberField
           id={`${id}-amount`}
           label="Сума"
+          required={EXP_REQ.amount}
           live
           {...EXP_R.amount}
           value={amount}

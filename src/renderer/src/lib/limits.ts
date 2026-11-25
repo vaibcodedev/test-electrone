@@ -2,7 +2,12 @@ import type { z } from 'zod'
 import { fmtNumber } from '@/lib/format'
 
 type AnySchema = {
-  def?: { innerType?: AnySchema; checks?: { _zod: { def: { check: string; value?: unknown } } }[] }
+  def?: {
+    type?: string
+    innerType?: AnySchema
+    checks?: { _zod: { def: { check: string; value?: unknown } } }[]
+  }
+  minLength?: number | null
   maxLength?: number | null
   minValue?: number | null
   maxValue?: number | null
@@ -23,6 +28,39 @@ export function limitsOf<S extends z.ZodObject>(schema: S): Partial<Record<keyof
     if (typeof t.maxLength === 'number') out[key] = t.maxLength
   }
   return out as Partial<Record<keyof z.infer<S>, number>>
+}
+
+/** Wrappers that let a value be left out: the server fills a default, or takes nothing / null. */
+const OPTIONAL = new Set(['optional', 'nullable', 'default', 'prefault', 'catch', 'nullish'])
+
+/**
+ * Fields a form can't be sent without, read from the zod input schema: a string that must not be empty
+ * (`.min(1)`, `.trim().min(1)`), a number or an enum with no default. Anything optional, nullable or with a default
+ * is not required — the server fills it. A form marks these `Field required`: the control gets `required`, the
+ * submit stays off until it is filled, and the reason names it («Заповніть: Назва») — one source of truth with
+ * the server (docs/design-system.md → Формы).
+ */
+export function requiredOf<S extends z.ZodObject>(
+  schema: S
+): Partial<Record<keyof z.infer<S>, true>> {
+  const out: Record<string, true> = {}
+  for (const [key, field] of Object.entries(schema.shape)) {
+    let t = field as AnySchema
+    let optional = false
+    while (t.def?.innerType) {
+      if (OPTIONAL.has(t.def.type ?? '')) optional = true
+      t = t.def.innerType
+    }
+    if (optional) continue
+    const type = t.def?.type
+    if (
+      (type === 'string' && typeof t.minLength === 'number' && t.minLength > 0) ||
+      type === 'number' ||
+      type === 'enum'
+    )
+      out[key] = true
+  }
+  return out as Partial<Record<keyof z.infer<S>, true>>
 }
 
 /** What a number field of the schema takes: its range, whole numbers only (`.int()`), the step (`.multipleOf()`). */

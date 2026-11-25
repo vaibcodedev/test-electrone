@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { credentialInputSchema, type Credential, type CredentialInput } from '@shared/domain/crm'
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
-import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
+import { isLikelyUrl, limitsOf, requiredOf, URL_ERROR } from '@/lib/limits'
 import { hostOf } from '@/lib/format'
 import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { copyText } from '@/components/common/copy-button'
@@ -13,7 +13,9 @@ import { IconAction } from '@/components/common/icon-action'
 import { Field } from '@/components/common/page'
 import { useDetailMode } from '@/components/common/detail-mode-context'
 import { EditHintText } from '@/components/common/detail-mode'
-import { DisabledHint } from '@/components/common/disabled-hint'
+import { SubmitButton } from '@/components/common/submit-button'
+import { useFormGate } from '@/hooks/use-form-gate'
+import { FormAttemptContext } from '@/components/ui/field-control'
 import { NO_CHANGES } from '@/lib/edit-session'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -25,6 +27,7 @@ import { escapeCloses, useInlineForm } from './inline-form'
 type Owner = { projectId: string } | { clientId: string }
 
 const L = limitsOf(credentialInputSchema)
+const REQUIRED = requiredOf(credentialInputSchema)
 
 function CredentialForm({
   initial,
@@ -53,7 +56,6 @@ function CredentialForm({
   })
   const set = (patch: Partial<typeof form>): void => setForm((f) => ({ ...f, ...patch }))
   const urlBad = !isLikelyUrl(form.url)
-  const noLabel = !form.label.trim()
   const pending = create.isPending || update.isPending
   // Editing: «Зберегти» waits for a change (an empty password keeps the stored one).
   const unchanged =
@@ -63,99 +65,100 @@ function CredentialForm({
     form.url === initial.url &&
     form.login === initial.login &&
     form.notes === initial.notes
+  // An empty name (required) or a bad link: the button is off and Enter adds nothing.
+  const { attach, reason: gateReason, attempted, submit } = useFormGate()
   return (
     <Card className="p-4">
       <form
+        ref={attach}
         className="grid grid-cols-2 gap-3"
         onKeyDown={escapeCloses(onDone)}
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (noLabel || urlBad || pending || unchanged) return
-          // Saved with a scheme: hostOf() and «Відкрити» need a full URL.
-          const values = { ...form, url: form.url.trim() ? normalizeUrl(form.url) : '' }
-          if (initial) {
-            const { secret, ...rest } = values
-            update.mutate({ id: initial.id, patch: secret ? values : rest })
-          } else {
-            create.mutate({ ...values, ...owner } as CredentialInput)
-          }
-        }}
+        onSubmit={(e) =>
+          submit(e, () => {
+            if (urlBad || pending || unchanged) return
+            // Saved with a scheme: hostOf() and «Відкрити» need a full URL.
+            const values = { ...form, url: form.url.trim() ? normalizeUrl(form.url) : '' }
+            if (initial) {
+              const { secret, ...rest } = values
+              update.mutate({ id: initial.id, patch: secret ? values : rest })
+            } else {
+              create.mutate({ ...values, ...owner } as CredentialInput)
+            }
+          })
+        }
       >
-        <Field
-          label="Назва"
-          htmlFor={`${uid}-label`}
-          hint={noLabel ? 'Обов’язкове поле' : undefined}
-        >
-          <Input
-            id={`${uid}-label`}
-            autoFocus
-            value={form.label}
-            maxLength={L.label}
-            onChange={(e) => set({ label: e.target.value })}
-            placeholder="Напр.: Адмінка Shopify"
-          />
-        </Field>
-        <Field label="Посилання" htmlFor={`${uid}-url`} error={urlBad ? URL_ERROR : undefined}>
-          <Input
-            id={`${uid}-url`}
-            type="url"
-            maxLength={L.url}
-            aria-invalid={urlBad || undefined}
-            value={form.url}
-            onChange={(e) => set({ url: e.target.value })}
-            placeholder="https://"
-          />
-        </Field>
-        <Field label="Логін" htmlFor={`${uid}-login`}>
-          <Input
-            id={`${uid}-login`}
-            value={form.login}
-            maxLength={L.login}
-            onChange={(e) => set({ login: e.target.value })}
-          />
-        </Field>
-        <Field
-          label={initial?.hasSecret ? 'Новий пароль' : 'Пароль / токен'}
-          htmlFor={`${uid}-secret`}
-          hint={initial?.hasSecret ? 'Залиште порожнім, щоб не змінювати' : undefined}
-        >
-          <Input
-            id={`${uid}-secret`}
-            type="password"
-            autoComplete="new-password"
-            value={form.secret}
-            maxLength={L.secret}
-            onChange={(e) => set({ secret: e.target.value })}
-          />
-        </Field>
-        <Field
-          label="Нотатка"
-          htmlFor={`${uid}-notes`}
-          className="col-span-2"
-          count={{ length: form.notes.length, max: L.notes }}
-        >
-          <Textarea
-            id={`${uid}-notes`}
-            className="min-h-12"
-            maxLength={L.notes}
-            value={form.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-          />
-        </Field>
-        <div className="col-span-2 flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onDone}>
-            Скасувати
-          </Button>
-          <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
-            <Button
-              type="submit"
+        <FormAttemptContext.Provider value={attempted}>
+          <Field label="Назва" htmlFor={`${uid}-label`} required={REQUIRED.label}>
+            <Input
+              id={`${uid}-label`}
+              autoFocus
+              value={form.label}
+              maxLength={L.label}
+              onChange={(e) => set({ label: e.target.value })}
+              placeholder="Напр.: Адмінка Shopify"
+            />
+          </Field>
+          <Field label="Посилання" htmlFor={`${uid}-url`} error={urlBad ? URL_ERROR : undefined}>
+            <Input
+              id={`${uid}-url`}
+              type="url"
+              maxLength={L.url}
+              aria-invalid={urlBad || undefined}
+              value={form.url}
+              onChange={(e) => set({ url: e.target.value })}
+              placeholder="https://"
+            />
+          </Field>
+          <Field label="Логін" htmlFor={`${uid}-login`}>
+            <Input
+              id={`${uid}-login`}
+              value={form.login}
+              maxLength={L.login}
+              onChange={(e) => set({ login: e.target.value })}
+            />
+          </Field>
+          <Field
+            label={initial?.hasSecret ? 'Новий пароль' : 'Пароль / токен'}
+            htmlFor={`${uid}-secret`}
+            hint={initial?.hasSecret ? 'Залиште порожнім, щоб не змінювати' : undefined}
+          >
+            <Input
+              id={`${uid}-secret`}
+              type="password"
+              autoComplete="new-password"
+              value={form.secret}
+              maxLength={L.secret}
+              onChange={(e) => set({ secret: e.target.value })}
+            />
+          </Field>
+          <Field
+            label="Нотатка"
+            htmlFor={`${uid}-notes`}
+            className="col-span-2"
+            count={{ length: form.notes.length, max: L.notes }}
+          >
+            <Textarea
+              id={`${uid}-notes`}
+              className="min-h-12"
+              maxLength={L.notes}
+              value={form.notes}
+              onChange={(e) => set({ notes: e.target.value })}
+            />
+          </Field>
+          <div className="col-span-2 flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={onDone}>
+              Скасувати
+            </Button>
+            <SubmitButton
               variant="subtle"
-              disabled={noLabel || urlBad || pending || unchanged}
+              reason={gateReason ?? (unchanged ? NO_CHANGES : undefined)}
+              disabled={urlBad}
+              pending={pending}
             >
               {initial ? 'Зберегти' : 'Додати доступ'}
-            </Button>
-          </DisabledHint>
-        </div>
+            </SubmitButton>
+          </div>
+        </FormAttemptContext.Provider>
       </form>
     </Card>
   )

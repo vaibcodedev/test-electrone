@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { BellRing, FileUser, Kanban, List, Plus } from 'lucide-react'
 import { applicationInputSchema, type Application } from '@shared/domain/jobs'
-import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
+import { isLikelyUrl, limitsOf, requiredOf, URL_ERROR } from '@/lib/limits'
 import { normalizeUrl } from '@/lib/open-url'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -12,11 +12,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageHeader, SearchInput, Segmented } from '@/components/common/page'
+import {
+  EmptyState,
+  Field,
+  FilterBar,
+  FilterChips,
+  NoResults,
+  Page,
+  PageHeader,
+  SearchInput,
+  Segmented
+} from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { TagFilter } from '@/components/common/tags'
 import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { Choice } from '@/components/common/choice'
+import { SubmitButton } from '@/components/common/submit-button'
+import { useFormGate } from '@/hooks/use-form-gate'
 import { CompanyCombobox, type CompanyValue } from './j1-fields'
 import { agoLabel } from './labels'
 import { ApplicationBoard } from './application-board'
@@ -25,10 +37,17 @@ import { ApplicationEditorSheet } from './application-editor'
 import { ScheduleStageHost } from './schedule-stage'
 
 const LIMITS = limitsOf(applicationInputSchema)
+const REQUIRED = requiredOf(applicationInputSchema)
 
 type View = 'kanban' | 'list'
 
-function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: Application) => void; variant?: 'lime' | 'soft' }): ReactElement {
+function NewApplicationButton({
+  onCreated,
+  variant = 'lime'
+}: {
+  onCreated: (a: Application) => void
+  variant?: 'lime' | 'soft'
+}): ReactElement {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [company, setCompany] = useState<CompanyValue>({ companyId: null, companyName: '' })
@@ -46,8 +65,15 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
   })
   const submit = (): void => {
     if (!title.trim() || create.isPending) return
-    create.mutate({ title: title.trim(), ...company, boardId, url: url.trim() ? normalizeUrl(url.trim()) : '' })
+    create.mutate({
+      title: title.trim(),
+      ...company,
+      boardId,
+      url: url.trim() ? normalizeUrl(url.trim()) : ''
+    })
   }
+  // «Посада» is required, a bad link is an error: the button is off and Enter adds nothing (useFormGate).
+  const { attach, reason, submit: gate } = useFormGate(open)
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -56,15 +82,10 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-105 rounded-2xl p-4">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            submit()
-          }}
-        >
-          <Field label="Посада">
+        <form ref={attach} className="flex flex-col gap-3" onSubmit={(e) => gate(e, submit)}>
+          <Field label="Посада" htmlFor="new-application-title" required={REQUIRED.title}>
             <Input
+              id="new-application-title"
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -76,7 +97,12 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
             <CompanyCombobox value={company} onChange={setCompany} showLink={false} />
           </Field>
           <Field label="Майданчик">
-            <Choice value={boardId} onChange={setBoardId} none="Не вказано" options={boards.map((b) => ({ value: b.id, label: b.name }))} />
+            <Choice
+              value={boardId}
+              onChange={setBoardId}
+              none="Не вказано"
+              options={boards.map((b) => ({ value: b.id, label: b.name }))}
+            />
           </Field>
           <Field label="Посилання" error={isLikelyUrl(url) ? undefined : URL_ERROR}>
             <Input
@@ -90,9 +116,9 @@ function NewApplicationButton({ onCreated, variant = 'lime' }: { onCreated: (a: 
               aria-invalid={!isLikelyUrl(url) || undefined}
             />
           </Field>
-          <Button type="submit" variant="lime" disabled={!title.trim() || !isLikelyUrl(url) || create.isPending}>
+          <SubmitButton variant="lime" reason={reason} pending={create.isPending}>
             Додати й відкрити
-          </Button>
+          </SubmitButton>
           <p className="text-caption text-muted-foreground">
             {title.trim()
               ? 'Статус «Надіслано» і сьогоднішня дата — майданчик одразу зарахується в денну норму.'
@@ -117,17 +143,28 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }): ReactElem
           <BellRing className="size-4 text-warn" /> Нагадати про себе
         </CardTitle>
         <CardDescription>
-          {list.length} {plural(list.length, ['вакансія', 'вакансії', 'вакансій'])}: настав час нагадування або немає відповіді тиждень.
+          {list.length} {plural(list.length, ['вакансія', 'вакансії', 'вакансій'])}: настав час
+          нагадування або немає відповіді тиждень.
         </CardDescription>
         <CardAction>
-          <Button variant="subtle" size="sm" onClick={() => navigate('/freelance/templates?situation=follow_up')}>
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={() => navigate('/freelance/templates?situation=follow_up')}
+          >
             Шаблони нагадувань
           </Button>
         </CardAction>
       </CardHeader>
       <div className="flex flex-wrap gap-1.5 px-5">
         {list.slice(0, 8).map((a) => (
-          <Button key={a.id} variant="subtle" size="sm" className="max-w-75 font-normal" onClick={() => onOpen(a.id)}>
+          <Button
+            key={a.id}
+            variant="subtle"
+            size="sm"
+            className="max-w-75 font-normal"
+            onClick={() => onOpen(a.id)}
+          >
             <span className="truncate">
               {a.title}
               {a.company ? ` — ${a.company}` : ''}
@@ -155,7 +192,14 @@ export function ApplicationsPage(): ReactElement {
   const { data: companies = [] } = useApi('jobs', 'companies')
   const { data: resumes = [] } = useApi('jobs', 'resumes')
   const q = useDebounced(search.trim())
-  const base = { search: q || undefined, companyId: companyId ?? undefined, resumeId: resumeId ?? undefined, tagId, boardId, favorite: favorite || undefined }
+  const base = {
+    search: q || undefined,
+    companyId: companyId ?? undefined,
+    resumeId: resumeId ?? undefined,
+    tagId,
+    boardId,
+    favorite: favorite || undefined
+  }
   // Kanban needs every card of the filter; the list view pages through the server. Both filter on the server.
   const kanban = useApi('jobs', 'list', base, { enabled: view === 'kanban' })
   const paged = useInfiniteApi('jobs', 'list', base)
@@ -220,14 +264,24 @@ export function ApplicationsPage(): ReactElement {
             // No «Djinni 0 · DOU 0» row above an empty base.
             boardChips.length > 0 &&
             (total > 0 || filtered) && (
-              <FilterChips options={boardChips} value={boardId} onChange={setBoardId} allLabel="Усі майданчики" label="Майданчик" />
+              <FilterChips
+                options={boardChips}
+                value={boardId}
+                onChange={setBoardId}
+                allLabel="Усі майданчики"
+                label="Майданчик"
+              />
             )
           }
           trailing={
             <>
               <FavoriteFilter type="application" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Посада, компанія, нотатки" />
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Посада, компанія, нотатки"
+              />
             </>
           }
           secondary={
@@ -271,7 +325,11 @@ export function ApplicationsPage(): ReactElement {
             />
           ) : !isLoading && total === 0 ? (
             // Not empty columns «0 / Перетягніть сюди картку»: the vacancies exist, the filters hide them.
-            <NoResults icon={FileUser} hint={`Вакансій ${conditions.join(' і ')} немає.`} onReset={resetFilters} />
+            <NoResults
+              icon={FileUser}
+              hint={`Вакансій ${conditions.join(' і ')} немає.`}
+              onReset={resetFilters}
+            />
           ) : view === 'kanban' ? (
             <ApplicationBoard applications={list} boards={boards} onOpen={setOpenId} />
           ) : (

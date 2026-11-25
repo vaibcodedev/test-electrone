@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { Choice } from '@/components/common/choice'
 import { checklistInputSchema } from '@shared/domain/checklists'
-import { limitsOf } from '@/lib/limits'
+import { limitsOf, requiredOf } from '@/lib/limits'
 
 const LIMITS = limitsOf(checklistInputSchema)
+const REQUIRED = requiredOf(checklistInputSchema)
 
 /**
  * «Деплой — 25 листопада»: the run is named after its template and the day it was started. A template name
@@ -61,8 +62,7 @@ export function LaunchDialog({
       title="Запустити прогін"
       description="Створюється копія шаблону, у якій можна позначати пункти. Шаблон не змінюється."
       submitLabel="Запустити"
-      invalid={!title.trim() || !template}
-      invalidReason="Вкажіть назву прогону"
+      invalid={!template}
       pending={instantiate.isPending}
       onSubmit={() => {
         if (template)
@@ -70,8 +70,9 @@ export function LaunchDialog({
       }}
       className="sm:max-w-120"
     >
-      <Field label="Назва прогону">
+      <Field label="Назва прогону" htmlFor="run-title" required={REQUIRED.title}>
         <Input
+          id="run-title"
           autoFocus
           value={title}
           maxLength={LIMITS.title}
