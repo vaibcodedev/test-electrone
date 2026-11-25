@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/common/page'
 import { EntityRow } from '@/components/common/entity-link'
 import { Markdown } from '@/components/common/markdown'
 import { plural } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { ActionCard } from './action-card'
 import { sendMessage, useChatSession, type Outgoing } from './session'
 
@@ -203,12 +204,15 @@ export function ChatThread({
   chat,
   hasContext,
   onStart,
-  footer
+  footer,
+  wide
 }: {
   chat: AiChat | null
   hasContext: boolean
   onStart: (text: string) => void
   footer?: ReactNode
+  /** «На всю сторінку»: the messages keep a readable width in the middle. */
+  wide?: boolean
 }): ReactElement {
   const pending = useChatSession((s) => s.pending)
   const failure = useChatSession((s) => s.failure)
@@ -218,7 +222,11 @@ export function ChatThread({
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className="min-h-0 flex-1">
         <MessageScrollerViewport aria-label="Повідомлення чату" className="px-4">
-          <MessageScrollerContent className="py-3" aria-label="Повідомлення">
+          {/* On the whole page the thread is a readable column, not a line across the window. */}
+          <MessageScrollerContent
+            className={cn('py-3', wide && 'mx-auto w-full max-w-3xl')}
+            aria-label="Повідомлення"
+          >
             {empty && <Intro hasContext={hasContext} onStart={onStart} />}
             {messages.map((m) => (
               <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === 'user'}>

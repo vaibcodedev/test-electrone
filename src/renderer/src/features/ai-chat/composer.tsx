@@ -16,6 +16,7 @@ import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IconAction } from '@/components/common/icon-action'
 import { useApi } from '@/lib/query'
+import { cn } from '@/lib/utils'
 import { stopMessage, useChatSession } from './session'
 
 /** «Контекст: Нотатка «Docker»» — the open record goes with the question; ✕ leaves it out for this record. */
@@ -47,12 +48,15 @@ export function Composer({
   ref,
   context,
   onSubmit,
-  disabledReason
+  disabledReason,
+  wide
 }: {
   ref?: Ref<HTMLTextAreaElement>
   context: EntityRef | null
   onSubmit: () => void
   disabledReason: string | null
+  /** «На всю сторінку»: the composer keeps the thread's readable width. */
+  wide?: boolean
 }): ReactElement {
   const draft = useChatSession((s) => s.draft)
   const search = useChatSession((s) => s.search)
@@ -60,7 +64,7 @@ export function Composer({
   const canSend = !!draft.trim() && !pending && !disabledReason
   return (
     <form
-      className="shrink-0 px-3 pb-3"
+      className={cn('shrink-0 px-3 pb-3', wide && 'mx-auto w-full max-w-3xl')}
       onSubmit={(e) => {
         e.preventDefault()
         if (canSend) onSubmit()
