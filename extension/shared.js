@@ -21,29 +21,86 @@ export function validPort(value) {
   return Number.isInteger(n) && n >= 1024 && n <= 65535 ? n : null
 }
 
-/** Calls the local Vault bridge. Never talks to anything but 127.0.0.1. */
-export async function vaultFetch(path, { method = 'GET', body } = {}) {
+/** Error under a field (`#<id>-error`) plus aria-invalid on it; an empty text clears both. Popup and options only. */
+export function setFieldError(id, text) {
+  document.getElementById(`${id}-error`).textContent = text || ''
+  if (text) document.getElementById(id).setAttribute('aria-invalid', 'true')
+  else document.getElementById(id).removeAttribute('aria-invalid')
+}
+
+const SETTINGS_HINT ='Налаштування → «Розширення для Chrome»'
+
+/**
+ * Calls the local Vault bridge. Never talks to anything but 127.0.0.1.
+ * Every request has a deadline: a hung Vault or a foreign process on the port must not leave «Зберігаю…» forever.
+ */
+export async function vaultFetch(path, { method = 'GET', body, timeout = method === 'GET' ? 3000 : 30_000 } = {}) {
   const { port, key } = await getConnection()
-  if (!key) return { ok: false, status: 'nokey', error: 'Немає ключа — відкрийте налаштування розширення' }
+  if (!key) return { ok: false, status: 'nokey', error: `Немає ключа. Скопіюйте його у Vault: ${SETTINGS_HINT}.` }
   let res
   try {
     res = await fetch(`http://127.0.0.1:${port}${path}`, {
       method,
       headers: { 'Content-Type': 'application/json', 'X-Vault-Key': key },
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(timeout)
     })
-  } catch {
-    return { ok: false, status: 'offline', error: 'Vault не запущено' }
+  } catch (e) {
+    if (e?.name === 'TimeoutError') return { ok: false, status: 'timeout', error: 'Vault не відповідає. Спробуйте ще раз за хвилину.' }
+    return {
+      ok: false,
+      status: 'offline',
+      error: `Немає зв’язку з Vault на порту ${port}. Запустіть Vault (досить іконки в треї) і перевірте в ${SETTINGS_HINT}, що приймання даних увімкнено й порт збігається.`
+    }
   }
   let data = {}
   try {
     data = await res.json()
   } catch {
-    /* empty body */
+    /* empty or non-JSON body */
   }
-  if (res.status === 401) return { ok: false, status: 'unauthorized', error: 'Невірний ключ — відкрийте налаштування' }
-  if (!res.ok || data.ok === false) return { ok: false, status: 'error', error: data.error || `Помилка ${res.status}` }
+  if (res.status === 401) return { ok: false, status: 'unauthorized', error: data.error || `Ключ не підходить. Скопіюйте новий у Vault: ${SETTINGS_HINT}.` }
+  if (path === '/ping' && data.app !== 'vault') {
+    return { ok: false, status: 'offline', error: `На порту ${port} відповідає не Vault — перевірте порт у налаштуваннях розширення.` }
+  }
+  if (!res.ok || data.ok === false) return { ok: false, status: 'error', error: data.error || 'Не вдалося зберегти. Спробуйте ще раз.' }
   return { ok: true, status: 'ok', ...data }
+}
+
+/** Statuses that mean «no working connection» rather than «this record was refused». */
+export const CONNECTION_PROBLEMS = ['nokey', 'unauthorized', 'offline', 'timeout']
+
+/** An area capture older than this is not offered any more (the page has likely changed). */
+export const AREA_TTL = 10 * 60 * 1000
+
+async function rememberTarget(url, target) {
+  const host = hostOf(url)
+  if (!host) return
+  const { targets = {} } = await chrome.storage.local.get('targets')
+  targets[host] = target
+  await chrome.storage.local.set({ targets })
+}
+
+async function rememberTags(tags) {
+  const { recentTags = [] } = await chrome.storage.local.get('recentTags')
+  const next = [...tags, ...recentTags.filter((t) => !tags.includes(t))].slice(0, 12)
+  await chrome.storage.local.set({ recentTags: next })
+}
+
+/**
+ * Sends a capture and, on success, clears the tab's draft, area and badge.
+ * Runs in the service worker: the popup may close mid-request, and a leftover draft would invite a duplicate save.
+ */
+export async function sendCapture(tabId, body) {
+  const res = await vaultFetch('/capture', { method: 'POST', body })
+  if (!res.ok) return res
+  await Promise.all([
+    rememberTarget(body.url, body.target),
+    rememberTags(body.tags),
+    chrome.storage.session.remove([`draft:${tabId}`, `area:${tabId}`, `area-error:${tabId}`]),
+    chrome.action.setBadgeText({ tabId, text: '' })
+  ])
+  return res
 }
 
 /** Suggests a target from the page URL. */

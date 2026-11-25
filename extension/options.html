@@ -15,20 +15,24 @@
       <p class="hint">
         Відкрийте Vault → Налаштування → «Розширення для Chrome» і скопіюйте ключ і порт. Дані надходять лише у Vault на цьому комп’ютері (127.0.0.1).
       </p>
-      <div class="row">
-        <label class="label" for="port">Порт</label>
-        <input id="port" inputmode="numeric" placeholder="47219" />
-      </div>
-      <div class="row">
-        <label class="label" for="key">Ключ</label>
-        <input id="key" type="password" autocomplete="off" spellcheck="false" />
-      </div>
-      <div class="error" id="error" role="alert"></div>
-      <div class="actions">
-        <span class="status" id="status" data-state="pending"><span class="dot"></span><span id="status-text">Не перевірено</span></span>
-        <button type="button" class="ghost" id="check">Перевірити під’єднання</button>
-        <button type="button" class="primary" id="save">Зберегти</button>
-      </div>
+      <form id="form" class="card-form" novalidate>
+        <div class="row">
+          <label class="label" for="port">Порт</label>
+          <input id="port" inputmode="numeric" placeholder="47219" aria-describedby="port-error" />
+          <div class="field-error" id="port-error"></div>
+        </div>
+        <div class="row">
+          <label class="label" for="key">Ключ</label>
+          <input id="key" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-error" />
+          <div class="field-error" id="key-error"></div>
+        </div>
+        <div class="status-row">
+          <div class="status" id="status" role="status" data-state="pending"><span class="dot"></span><span id="status-text">Не перевірено</span></div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary" id="save">Зберегти й перевірити</button>
+        </div>
+      </form>
     </main>
     <script type="module" src="options.js"></script>
   </body>

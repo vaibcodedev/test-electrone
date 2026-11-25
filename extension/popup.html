@@ -11,61 +11,66 @@
       <div class="head">
         <span class="logo">V</span>
         <span class="title">Зберегти у Vault</span>
-        <span class="status" id="status" data-state="pending"><span class="dot"></span><span id="status-text">Перевіряю…</span></span>
+        <div class="status" id="status" role="status" data-state="pending">
+          <span class="dot"></span><span id="status-text">Перевіряю…</span>
+          <button type="button" class="status-action" id="status-action" hidden></button>
+        </div>
       </div>
 
-      <div class="chips" id="targets" role="group" aria-label="Куди зберегти"></div>
+      <div class="segment" id="targets" aria-label="Куди зберегти"></div>
 
       <div>
-        <label class="label" for="title" id="title-label">Назва</label>
-        <input id="title" maxlength="500" />
+        <div class="label-row">
+          <label class="label" for="title" id="title-label">Назва</label>
+          <span class="count" id="title-count"></span>
+        </div>
+        <input id="title" maxlength="500" aria-describedby="title-error" />
+        <div class="field-error" id="title-error"></div>
       </div>
       <!-- Per-target fields: shown by renderFields() for the chosen type. -->
       <div class="field" data-for="application">
         <label class="label" for="company">Компанія</label>
-        <input id="company" maxlength="200" placeholder="Назва компанії" />
+        <input id="company" maxlength="200" />
       </div>
       <div class="field" data-for="bookmark">
-        <span class="label">Тип</span>
-        <div class="chips" id="kinds" role="group" aria-label="Тип закладки"></div>
+        <span class="label" id="kinds-label">Вид закладки</span>
+        <div class="segment" id="kinds" aria-labelledby="kinds-label"></div>
       </div>
       <div class="field" data-for="component application bookmark">
         <label class="label" for="body" id="body-label">Код</label>
-        <textarea id="body" rows="4" maxlength="200000"></textarea>
+        <textarea id="body" rows="2" maxlength="200000"></textarea>
       </div>
       <div>
         <label class="label" for="note" id="note-label">Нотатка</label>
-        <textarea id="note" rows="2" maxlength="10000" placeholder="Чим сподобалося, де знадобиться"></textarea>
+        <textarea id="note" rows="1" maxlength="10000" placeholder="Чим сподобалося, де знадобиться"></textarea>
       </div>
       <div>
-        <label class="label" for="tags">Мітки через кому</label>
-        <input id="tags" placeholder="shopify, анімації" />
+        <label class="label" for="tags">Мітки <span class="hint">через кому</span></label>
+        <input id="tags" aria-describedby="tags-error" />
+        <div class="field-error" id="tags-error"></div>
         <div class="chips tag-row" id="recent-tags"></div>
       </div>
 
       <div>
-        <span class="label">Скриншот</span>
-        <div class="segment" id="shot-mode" role="group" aria-label="Скриншот">
-          <button type="button" data-mode="visible" aria-pressed="true">Видима область</button>
-          <button type="button" data-mode="area" aria-pressed="false">Виділити область</button>
-          <button type="button" data-mode="none" aria-pressed="false">Без скриншота</button>
-        </div>
+        <span class="label" id="shot-label">Скриншот</span>
+        <div class="segment" id="shot-mode" aria-labelledby="shot-label"></div>
       </div>
       <div class="preview" id="preview"><img id="preview-img" alt="Скриншот" /></div>
 
       <div class="error" id="error" role="alert"></div>
       <div class="actions">
         <button type="button" class="ghost" id="open-options">Налаштування</button>
-        <button type="button" class="primary" id="save">Зберегти у Vault</button>
+        <button type="button" class="primary" id="save" title="Ctrl+Enter" aria-keyshortcuts="Control+Enter">Зберегти у Vault</button>
       </div>
     </main>
 
     <section class="done" id="done" aria-live="polite">
-      <span class="big">✓</span>
+      <span class="big" aria-hidden="true">✓</span>
       <span class="what" id="done-title"></span>
       <span class="hint" id="done-type"></span>
       <div class="actions">
         <button type="button" class="ghost" id="back">Зберегти ще</button>
+        <button type="button" class="ghost" id="open-record">Відкрити у Vault</button>
         <button type="button" class="primary" id="close">Готово</button>
       </div>
     </section>

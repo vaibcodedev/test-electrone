@@ -24,7 +24,7 @@
     pointerEvents: 'none'
   })
   const hint = document.createElement('div')
-  hint.textContent = 'Виділіть область для Vault · Esc — скасувати'
+  hint.textContent = 'Протягніть, щоб виділити область · Esc — скасувати'
   Object.assign(hint.style, {
     position: 'fixed',
     top: '16px',
@@ -34,6 +34,7 @@
     borderRadius: '999px',
     background: '#14160f',
     color: '#d4f542',
+    // system-ui on purpose: Onest can't reach a foreign page without web_accessible_resources.
     font: '500 13px system-ui, -apple-system, Segoe UI, sans-serif',
     pointerEvents: 'none'
   })
@@ -48,13 +49,24 @@
     window.__vaultSelecting = false
   }
 
+  const cancel = () => {
+    start = null
+    cleanup()
+    chrome.runtime.sendMessage({ type: 'vault-area-cancel' })
+  }
+
   const onKey = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
-      cleanup()
-      chrome.runtime.sendMessage({ type: 'vault-area-cancel' })
+      cancel()
     }
   }
+
+  /** The rectangle never leaves the viewport: the screenshot only has what is on screen. */
+  const pointOf = (e) => ({
+    x: Math.min(Math.max(e.clientX, 0), innerWidth),
+    y: Math.min(Math.max(e.clientY, 0), innerHeight)
+  })
 
   const rectFrom = (a, b) => ({
     x: Math.min(a.x, b.x),
@@ -63,25 +75,27 @@
     height: Math.abs(a.y - b.y)
   })
 
-  root.addEventListener('mousedown', (e) => {
+  root.addEventListener('contextmenu', (e) => e.preventDefault())
+  root.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return
     e.preventDefault()
-    start = { x: e.clientX, y: e.clientY }
+    // Capture: a drag that ends outside the window still finishes here.
+    root.setPointerCapture(e.pointerId)
+    start = pointOf(e)
     box.style.display = 'block'
   })
-  root.addEventListener('mousemove', (e) => {
+  root.addEventListener('pointermove', (e) => {
     if (!start) return
-    const r = rectFrom(start, { x: e.clientX, y: e.clientY })
+    const r = rectFrom(start, pointOf(e))
     Object.assign(box.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.width}px`, height: `${r.height}px` })
   })
-  root.addEventListener('mouseup', (e) => {
+  root.addEventListener('pointercancel', () => start && cancel())
+  root.addEventListener('pointerup', (e) => {
     if (!start) return
-    const rect = rectFrom(start, { x: e.clientX, y: e.clientY })
+    const rect = rectFrom(start, pointOf(e))
     start = null
+    if (rect.width < 8 || rect.height < 8) return cancel()
     cleanup()
-    if (rect.width < 8 || rect.height < 8) {
-      chrome.runtime.sendMessage({ type: 'vault-area-cancel' })
-      return
-    }
     // Wait two frames so the overlay is gone from the rendered page before capturing.
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {

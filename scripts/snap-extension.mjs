@@ -1,13 +1,15 @@
 /**
  * Screenshots of the Chrome extension popup and options page in every state, rendered in Electron with a
  * stubbed `chrome.*` API and a fake Vault bridge (no browser, no running Vault needed):
- *   <out>/<theme>/popup-<target>.png              each target type, connected
- *   <out>/<theme>/popup-nokey.png | popup-offline.png | popup-long.png | popup-selection.png
- *   <out>/<theme>/popup-saved.png | popup-error.png | options.png
+ *   <out>/<theme>/popup-<target>.png              each target type, connected (full height)
+ *   <out>/<theme>/popup-<target>-600.png          the same in Chrome's 600px popup cap (warns if «Зберегти» is below it)
+ *   <out>/<theme>/popup-nokey | offline | long | selection | restricted | focus .png
+ *   <out>/<theme>/popup-saved | back | error .png  after «Зберегти», after «Зберегти ще», server error
+ *   <out>/<theme>/options | options-nokey | options-offline | options-badport .png
  * Usage: node scripts/snap-extension.mjs <out> [--themes=dark,light]
  */
 import { _electron as electron } from 'playwright-core'
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 
@@ -42,7 +44,12 @@ window.chrome = {
   storage: { local: area(store), session: area(session) },
   scripting: { executeScript: async () => [{ result: q.get('sel') || '' }] },
   action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, openPopup: async () => {} },
-  runtime: { openOptionsPage() {}, sendMessage: async () => ({}), onMessage: { addListener() {} }, onStartup: { addListener() {} } }
+  runtime: {
+    openOptionsPage() {},
+    // The popup saves through the service worker; run the same code here.
+    sendMessage: async (msg) => (msg?.type === 'vault-capture' ? (await import('./shared.js')).sendCapture(msg.tabId, msg.body) : {}),
+    onMessage: { addListener() {} }
+  }
 }
 const realFetch = window.fetch
 window.fetch = async (url, init) => {
@@ -70,20 +77,29 @@ app.whenReady().then(() => {
 })
 `)
 
+const CODE = 'export function Button() {\n  return <button className="btn">Hi</button>\n}'
+/** [file, page, query, action]: action = save | back (save → «Зберегти ще») | focus | submit | badport. */
 const STATES = [
   ['popup-bookmark', 'popup', ''],
   ['popup-design', 'popup', 'url=https://dribbble.com/shots/1&target=design'],
   ['popup-library', 'popup', 'url=https://www.npmjs.com/package/zustand&title=zustand - npm'],
-  ['popup-component', 'popup', 'url=https://ui.shadcn.com/docs/components/button&sel=export function Button() {\\n  return <button className="btn">Hi</button>\\n}'],
+  ['popup-component', 'popup', `url=https://ui.shadcn.com/docs/components/button&sel=${encodeURIComponent(CODE)}`],
   ['popup-application', 'popup', 'url=https://djinni.co/jobs/1-frontend/&title=Middle Frontend Developer at Acme&sel=Ми шукаємо Frontend-розробника з досвідом React від 3 років.'],
   ['popup-nokey', 'popup', 'key=0'],
   ['popup-offline', 'popup', 'ping=offline'],
   ['popup-long', 'popup', `title=${encodeURIComponent('Дуже довга назва сторінки '.repeat(12) + 'Суперкаліфраджилістікекспіалідоціозний'.repeat(3))}`],
-  ['popup-selection', 'popup', `sel=${encodeURIComponent('Виділений текст статті. '.repeat(40))}`],
-  ['popup-saved', 'popup', 'save=1'],
-  ['popup-error', 'popup', 'save=1&capture=error'],
-  ['options', 'options', '']
+  ['popup-selection', 'popup', `url=https://example.com/post&sel=${encodeURIComponent('Виділений текст статті. '.repeat(40))}`],
+  ['popup-restricted', 'popup', 'url=chrome://extensions/&title=Розширення'],
+  ['popup-focus', 'popup', '', 'focus'],
+  ['popup-saved', 'popup', '', 'save'],
+  ['popup-back', 'popup', '', 'back'],
+  ['popup-error', 'popup', 'capture=error', 'save'],
+  ['options', 'options', ''],
+  ['options-nokey', 'options', 'key=0'],
+  ['options-offline', 'options', 'ping=offline', 'submit'],
+  ['options-badport', 'options', '', 'badport']
 ]
+const TYPES = ['popup-bookmark', 'popup-design', 'popup-library', 'popup-component', 'popup-application']
 // Targets are picked from the URL by the popup (suggestTarget); «target=» clicks the chip to be sure.
 const TARGET_LABEL = { design: 'Дизайн', bookmark: 'Закладка', library: 'Бібліотека', component: 'Компонент', application: 'Вакансія' }
 
@@ -95,23 +111,51 @@ for (const theme of THEMES) {
   const errors = []
   win.on('pageerror', (e) => errors.push(String(e)))
   await win.emulateMedia({ colorScheme: theme })
-  for (const [file, page, query] of STATES) {
+  for (const [file, page, query, action] of STATES) {
     const params = new URLSearchParams(query)
     const url = `file:///${join(ext, `${page}.test.html`).replace(/\\/g, '/')}?${query}`
     await win.goto(url)
     await win.waitForTimeout(500)
     const target = params.get('target') || file.replace('popup-', '')
     if (page === 'popup' && TARGET_LABEL[target]) {
-      await win.getByRole('button', { name: TARGET_LABEL[target], exact: true }).click().catch(() => {})
+      await win.getByRole('radio', { name: TARGET_LABEL[target], exact: true }).click().catch(() => {})
       await win.waitForTimeout(200)
     }
-    if (params.get('save')) {
+    if (action === 'save' || action === 'back') {
       await win.locator('#save').click().catch(() => {})
       await win.waitForTimeout(500)
     }
-    // Full content height: the popup can be taller than the window.
+    if (action === 'back') {
+      await win.locator('#back').click().catch(() => {})
+      await win.waitForTimeout(200)
+    }
+    if (action === 'focus') {
+      // Back from «Назва» to the «Куди зберегти» group: the keyboard focus ring on a chip.
+      await win.keyboard.press('Shift+Tab')
+      await win.waitForTimeout(100)
+    }
+    if (action === 'badport') await win.locator('#port').fill('80')
+    if (action === 'submit' || action === 'badport') {
+      await win.locator('#save').click().catch(() => {})
+      await win.waitForTimeout(500)
+    }
+    if (TYPES.includes(file)) {
+      // Chrome caps the popup at 600px: the main button must stay visible there.
+      await win.setViewportSize({ width: 420, height: 600 })
+      await win.waitForTimeout(100)
+      const bottom = await win.evaluate(() => {
+        document.body.style.maxHeight = ''
+        return document.getElementById('save').getBoundingClientRect().bottom
+      })
+      if (bottom > 600) console.warn(`[snap-extension] ${theme}/${file}: «Зберегти у Vault» is below the 600px popup cap (${Math.round(bottom)}px)`)
+      await win.screenshot({ path: join(dir, `${file}-600.png`) })
+    }
+    // Full content height: lift the 600px cap so every field is on the picture.
     await win.setViewportSize({ width: page === 'options' ? 640 : 420, height: 300 })
-    const h = await win.evaluate(() => Math.min(Math.max(document.body.scrollHeight, 200), 1400))
+    const h = await win.evaluate(() => {
+      document.body.style.maxHeight = 'none'
+      return Math.min(Math.max(document.documentElement.scrollHeight, 200), 1400)
+    })
     await win.setViewportSize({ width: page === 'options' ? 640 : 420, height: h })
     await win.screenshot({ path: join(dir, `${file}.png`) })
   }
@@ -119,3 +163,4 @@ for (const theme of THEMES) {
   await app.close()
   console.log(`[snap-extension] ${theme} done → ${dir}`)
 }
+rmSync(work, { recursive: true, force: true })
