@@ -16,7 +16,9 @@ import { AiChatService, type AiChatBase, type AiRequester } from '@main/services
 import { ChatStore, type AiChatHistory } from '@main/services/ai/chat-store'
 import {
   BUDGET,
+  CHAT_TITLE_MAX,
   chatSystem,
+  chatTitle,
   historyTurns,
   keywords,
   linkCitations,
@@ -763,5 +765,38 @@ describe('the chat applies the edited action and brings a cancelled one back', (
     await expect(chat.apply({ ...ideaRef, edits: { title: '' } })).rejects.toThrow()
     expect((await chat.dismiss(ideaRef)).messages[1].actions[1].status).toBe('dismissed')
     expect((await chat.reopen(ideaRef)).messages[1].actions[1].status).toBe('proposed')
+  })
+})
+
+describe('chat titles and «Повторити відповідь»', () => {
+  it('a title is the first sentence, short, without trailing punctuation', () => {
+    expect(chatTitle('Додай ідею: кешувати запити')).toBe('Додай ідею')
+    expect(chatTitle('Що в мене на завтра?')).toBe('Що в мене на завтра')
+    expect(
+      chatTitle('  \nДодай шаблон чек-листа для створення лендингу. Достатньо детальний.')
+    ).toBe('Додай шаблон чек-листа для створення лендингу')
+    const long = chatTitle(`Опиши ${'дуже '.repeat(30)}довгу річ`)
+    expect(long.length).toBeLessThanOrEqual(CHAT_TITLE_MAX + 1)
+    expect(long.endsWith('…')).toBe(true)
+    expect(chatTitle('…')).toBe('Новий чат')
+  })
+
+  it('«Повторити відповідь» replaces the last question and answer instead of adding a turn', async () => {
+    const { chat, request } = chatSetup('Відповідь')
+    const first = await chat.send({ text: 'Перше питання' })
+    const second = await chat.send({ chatId: first.id, text: 'Друге питання' })
+    expect(second.messages).toHaveLength(4)
+    const again = await chat.send({ chatId: first.id, text: 'Друге питання', retry: true })
+    expect(again.messages.map((m) => m.text)).toEqual([
+      'Перше питання',
+      'Відповідь',
+      'Друге питання',
+      'Відповідь'
+    ])
+    // The model sees the history without the replaced turn.
+    expect(request.mock.calls[2][0].history).toEqual([
+      { role: 'user', text: 'Перше питання' },
+      { role: 'assistant', text: 'Відповідь' }
+    ])
   })
 })

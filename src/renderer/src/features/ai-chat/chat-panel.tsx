@@ -52,7 +52,6 @@ export default function AiChatPanel({ onClose }: { onClose: () => void }): React
   const asking = useChatSession((s) => s.consent)
   const online = useOnline()
   const input = useRef<HTMLTextAreaElement>(null)
-  const full = useUi((s) => s.aiChatFull)
   const ready = !!status?.ready
 
   const submit = (text?: string, withSearch?: boolean): void => {
@@ -144,10 +143,10 @@ export default function AiChatPanel({ onClose }: { onClose: () => void }): React
     body = (
       <>
         <ChatThread
-          wide={full}
           chat={chat ?? null}
           hasContext={!!context}
-          onStart={(text) => {
+          onStart={(text, send) => {
+            if (send) return submit(text)
             useChatSession.setState({ draft: text })
             input.current?.focus()
           }}
@@ -181,7 +180,6 @@ export default function AiChatPanel({ onClose }: { onClose: () => void }): React
           }
         />
         <Composer
-          wide={full}
           ref={input}
           context={context}
           onSubmit={() => submit()}

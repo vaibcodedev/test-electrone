@@ -1,6 +1,6 @@
 import { memo, type ReactElement, type ReactNode } from 'react'
-import { useNavigate } from 'react-router'
-import { CircleSlash, Database, RotateCcw, Settings, Sparkles } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router'
+import { CircleSlash, Copy, Database, RotateCcw, Settings, Sparkles } from 'lucide-react'
 import type { AiChat, AiChatMessage } from '@shared/domain/ai-chat'
 import type { EntityRef } from '@shared/domain/common'
 import { ENTITY_META } from '@shared/entity-types'
@@ -17,22 +17,49 @@ import {
   MessageScrollerViewport
 } from '@/components/ui/message-scroller'
 import { Spinner } from '@/components/ui/spinner'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EmptyState } from '@/components/common/page'
 import { EntityRow } from '@/components/common/entity-link'
+import { IconAction } from '@/components/common/icon-action'
 import { Markdown } from '@/components/common/markdown'
-import { plural } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { copyText } from '@/components/common/copy-button'
+import { fmtDateTime, plural } from '@/lib/format'
 import { ActionCard } from './action-card'
-import { sendMessage, useChatSession, type Outgoing } from './session'
+import { retryLast, sendMessage, useChatSession, type Outgoing } from './session'
+
+/**
+ * The thread's rhythm (docs/design-system.md → Чат ШІ): a readable column, 16px between messages and 12px more
+ * before each new question, so a question and its answer read as one turn.
+ */
+const COLUMN = 'mx-auto w-full max-w-3xl'
+const TURN = 'pt-3 first:pt-0'
+
+/** «14:05», the full date in a tooltip: when it was said, without a timestamp on every line. */
+function Time({ at }: { at: number }): ReactElement {
+  const d = new Date(at)
+  const short = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <time dateTime={d.toISOString()} tabIndex={0} className="rounded-sm tabular-nums">
+          {short}
+        </time>
+      </TooltipTrigger>
+      <TooltipContent>{fmtDateTime(at)}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 function Question({
   text,
   context,
-  search
+  search,
+  at
 }: {
   text: string
   context: EntityRef | null
   search: boolean
+  at?: number
 }): ReactElement {
   const notes = [
     context ? `Контекст: ${ENTITY_META[context.type].label.toLocaleLowerCase('uk')}` : '',
@@ -40,12 +67,15 @@ function Question({
   ].filter(Boolean)
   return (
     <Message align="end">
-      <MessageContent>
+      <MessageContent className="gap-1.5">
         <Bubble align="end">
           <BubbleContent className="whitespace-pre-wrap">{text}</BubbleContent>
         </Bubble>
-        {notes.length > 0 && (
-          <MessageFooter className="max-w-[85%] truncate">{notes.join(' · ')}</MessageFooter>
+        {(notes.length > 0 || at) && (
+          <MessageFooter className="max-w-[85%] pr-1">
+            <span className="min-w-0 truncate">{notes.join(' · ')}</span>
+            {at && <Time at={at} />}
+          </MessageFooter>
         )}
       </MessageContent>
     </Message>
@@ -73,23 +103,66 @@ function Sources({ message }: { message: AiChatMessage }): ReactElement | null {
   )
 }
 
+/**
+ * An answer's own actions under it — «Скопіювати», «Повторити відповідь» on the last one, the time: quiet until
+ * the answer is hovered or reached with the keyboard (WCAG 2.4.7: never invisible while focused).
+ */
+function AnswerActions({
+  message,
+  onRetry
+}: {
+  message: AiChatMessage
+  onRetry?: () => void
+}): ReactElement {
+  return (
+    <MessageFooter className="-ml-1.5 gap-0.5 px-0 opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 focus-within:opacity-100">
+      {message.text && (
+        <IconAction label="Скопіювати відповідь" onClick={() => void copyText(message.text)}>
+          <Copy />
+        </IconAction>
+      )}
+      {onRetry && (
+        <IconAction label="Повторити відповідь" onClick={onRetry}>
+          <RotateCcw />
+        </IconAction>
+      )}
+      <span className="ml-1.5">
+        <Time at={message.at} />
+      </span>
+    </MessageFooter>
+  )
+}
+
 /** One saved turn. Memoized: typing in the composer or a new answer doesn't re-render the older ones. */
 const SavedMessage = memo(function SavedMessage({
   message,
-  chatId
+  chatId,
+  onRetry
 }: {
   message: AiChatMessage
   chatId: string
+  onRetry?: () => void
 }): ReactElement {
   if (message.role === 'user')
-    return <Question text={message.text} context={message.context} search={message.searched} />
+    return (
+      <Question
+        text={message.text}
+        context={message.context}
+        search={message.searched}
+        at={message.at}
+      />
+    )
   return (
     <Message align="start">
-      <MessageContent>
+      <MessageContent className="gap-3">
         {message.text && (
           <Bubble variant="ghost">
             <BubbleContent>
-              <Markdown source={message.text} />
+              {/* Code in a narrow panel wraps instead of scrolling sideways; its copy button is the Markdown's own. */}
+              <Markdown
+                source={message.text}
+                className="[&_pre]:whitespace-pre-wrap [&_pre]:wrap-anywhere"
+              />
             </BubbleContent>
           </Bubble>
         )}
@@ -108,6 +181,7 @@ const SavedMessage = memo(function SavedMessage({
           </Marker>
         )}
         <Sources message={message} />
+        <AnswerActions message={message} onRetry={onRetry} />
       </MessageContent>
     </Message>
   )
@@ -147,7 +221,8 @@ function Failure({ failure }: { failure: Outgoing & { message: string } }): Reac
                 text: failure.text,
                 context: failure.context,
                 search: failure.search,
-                page: failure.page
+                page: failure.page,
+                retry: failure.retry
               })
             }
           >
@@ -166,28 +241,45 @@ function Failure({ failure }: { failure: Outgoing & { message: string } }): Reac
   )
 }
 
-/** A new chat: what the chat can do, and a few starts that fill the composer. */
+/** A start of a request: «…» fills the composer to finish the sentence, a whole question is asked at once. */
+interface Start {
+  label: string
+  text: string
+  send?: boolean
+}
+
+const RECORD_STARTS: Start[] = [
+  { label: 'Підсумуй цей запис', text: 'Підсумуй цей запис', send: true },
+  { label: 'Запропонуй мітки', text: 'Запропонуй мітки для цього запису', send: true },
+  { label: 'Додай план дій', text: 'Додай до запису план дій', send: true }
+]
+const APP_STARTS: Start[] = [
+  { label: 'Створи чек-лист…', text: 'Створи шаблон чек-листа: ' },
+  { label: 'Додай слово…', text: 'Додай в англійську слово: ' },
+  { label: 'Додай подію…', text: 'Додай подію на завтра о 10:00: ' },
+  { label: 'Як сховати розділ?', text: 'Як сховати розділ меню, яким я не користуюся?', send: true }
+]
+
+/** A new chat: what the chat can do, and starts that are about this app. */
 function Intro({
   hasContext,
   onStart
 }: {
   hasContext: boolean
-  onStart: (text: string) => void
+  onStart: (start: Start) => void
 }): ReactElement {
-  const starts = hasContext
-    ? ['Підсумуй цей запис', 'Запропонуй мітки для цього запису', 'Додай до запису план дій']
-    : ['Додай ідею: ', 'Створи картку: ', 'Додай подію на завтра о 10:00: ']
+  const starts = hasContext ? RECORD_STARTS : APP_STARTS
   return (
     <EmptyState
       icon={Sparkles}
       title="Чим допомогти?"
-      hint="Спитайте про що завгодно або попросіть додати ідею, нотатку, сніпет, картку чи подію. ШІ покаже, що саме зміниться, — застосовуєте ви."
+      hint="Спитайте про Vault чи свої записи або попросіть створити чек-лист, нотатку, картку, подію, слово… ШІ покаже, як це виглядатиме, — застосовуєте ви."
       className="my-auto py-8"
       action={
         <div className="flex flex-wrap justify-center gap-2">
           {starts.map((s) => (
-            <Button key={s} variant="soft" size="sm" onClick={() => onStart(s)}>
-              {s.replace(/:\s*$/, '…')}
+            <Button key={s.label} variant="soft" size="sm" onClick={() => onStart(s)}>
+              {s.label}
             </Button>
           ))}
         </div>
@@ -198,44 +290,56 @@ function Intro({
 
 /**
  * The conversation (shadcn MessageScroller: follows the answer, keeps the question in view, «до останнього»
- * when scrolled away). The content is a `log` region: a new answer is read out by a screen reader.
+ * when scrolled away) in a readable column. The content is a `log` region: a new answer is read out.
  */
 export function ChatThread({
   chat,
   hasContext,
   onStart,
-  footer,
-  wide
+  footer
 }: {
   chat: AiChat | null
   hasContext: boolean
-  onStart: (text: string) => void
+  /** A start was picked: fill the composer with its text, or ask it right away (`send`). */
+  onStart: (text: string, send: boolean) => void
   footer?: ReactNode
-  /** «На всю сторінку»: the messages keep a readable width in the middle. */
-  wide?: boolean
 }): ReactElement {
   const pending = useChatSession((s) => s.pending)
   const failure = useChatSession((s) => s.failure)
-  const messages = chat?.messages ?? []
+  const { pathname, search } = useLocation()
+  // «Повторити відповідь» in flight (or failed): the turn it replaces steps aside.
+  const replacing = !!(pending?.retry || (failure?.retry && !pending))
+  const all = chat?.messages ?? []
+  const messages = replacing ? all.slice(0, -2) : all
   const empty = !messages.length && !pending && !failure
+  const last = messages[messages.length - 1]
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className="min-h-0 flex-1">
         <MessageScrollerViewport aria-label="Повідомлення чату" className="px-4">
-          {/* On the whole page the thread is a readable column, not a line across the window. */}
-          <MessageScrollerContent
-            className={cn('py-3', wide && 'mx-auto w-full max-w-3xl')}
-            aria-label="Повідомлення"
-          >
-            {empty && <Intro hasContext={hasContext} onStart={onStart} />}
+          <MessageScrollerContent className={`${COLUMN} gap-4 py-4`} aria-label="Повідомлення">
+            {empty && <Intro hasContext={hasContext} onStart={(s) => onStart(s.text, !!s.send)} />}
             {messages.map((m) => (
-              <MessageScrollerItem key={m.id} messageId={m.id} scrollAnchor={m.role === 'user'}>
-                <SavedMessage message={m} chatId={chat!.id} />
+              <MessageScrollerItem
+                key={m.id}
+                messageId={m.id}
+                scrollAnchor={m.role === 'user'}
+                className={m.role === 'user' ? TURN : undefined}
+              >
+                <SavedMessage
+                  message={m}
+                  chatId={chat!.id}
+                  onRetry={
+                    m === last && m.role === 'assistant' && !pending && chat
+                      ? () => retryLast(chat, `${pathname}${search}`)
+                      : undefined
+                  }
+                />
               </MessageScrollerItem>
             ))}
             {pending && (
               <>
-                <MessageScrollerItem messageId="pending-question" scrollAnchor>
+                <MessageScrollerItem messageId="pending-question" scrollAnchor className={TURN}>
                   <Question text={pending.text} context={pending.context} search={pending.search} />
                 </MessageScrollerItem>
                 <MessageScrollerItem messageId="pending-answer">
@@ -245,7 +349,7 @@ export function ChatThread({
             )}
             {failure && !pending && (
               <>
-                <MessageScrollerItem messageId="failed-question" scrollAnchor>
+                <MessageScrollerItem messageId="failed-question" scrollAnchor className={TURN}>
                   <Question text={failure.text} context={failure.context} search={failure.search} />
                 </MessageScrollerItem>
                 <MessageScrollerItem messageId="failed-answer">

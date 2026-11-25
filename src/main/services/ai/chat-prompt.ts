@@ -311,8 +311,21 @@ export function linkCitations(
   return { text: out, sources: sources.map((s) => ({ ...s, cited: cited.has(s.n) })) }
 }
 
-/** Chat title from its first question: one line, at most 60 characters. */
+export const CHAT_TITLE_MAX = 48
+
+/**
+ * Chat title from its first question: its first sentence on one line, without the trailing «:», «?» or «…»,
+ * cut at a word to at most CHAT_TITLE_MAX characters («Додай ідею: кешувати запити» → «Додай ідею»).
+ */
 export function chatTitle(question: string): string {
-  const line = question.replace(/\s+/g, ' ').trim()
-  return line.length > 60 ? `${line.slice(0, 59).trimEnd()}…` : line || 'Новий чат'
+  const firstLine = question.split('\n').find((l) => l.trim()) ?? ''
+  const sentence = (firstLine.match(/^.*?[.!?:](?=\s|$)/)?.[0] ?? firstLine).replace(/\s+/g, ' ')
+  const clean = (s: string): string => s.replace(/[\s.,:;!?…—-]+$/u, '').trim()
+  let title = clean(sentence)
+  if (title.length > CHAT_TITLE_MAX) {
+    const cut = title.slice(0, CHAT_TITLE_MAX)
+    const space = cut.lastIndexOf(' ')
+    title = `${clean(space > CHAT_TITLE_MAX / 2 ? cut.slice(0, space) : cut)}…`
+  }
+  return title || 'Новий чат'
 }

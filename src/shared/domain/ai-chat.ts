@@ -110,7 +110,9 @@ export const aiChatSendSchema = z.object({
   /** «Шукати в моїй базі». */
   search: z.boolean().default(false),
   /** The person has just agreed that record texts go to this cloud provider. */
-  consent: z.boolean().optional()
+  consent: z.boolean().optional(),
+  /** «Повторити відповідь»: the chat's last question and answer are replaced by the new ones. */
+  retry: z.boolean().default(false)
 })
 export type AiChatSendInput = z.input<typeof aiChatSendSchema>
 

@@ -17,6 +17,8 @@ export interface Outgoing {
   search: boolean
   /** The page the question was asked on (route + query): «додай сюди» means its section. */
   page?: string
+  /** «Повторити відповідь»: replaces the chat's last question and answer (they hide while it is asked). */
+  retry?: boolean
 }
 
 /**
@@ -105,6 +107,13 @@ export async function sendMessage(out: Outgoing, consent?: boolean): Promise<voi
     // Today's requests and tokens under the chat title.
     void queryClient.invalidateQueries({ queryKey: ['ai', 'status'] })
   }
+}
+
+/** «Повторити відповідь» on the last answer: the same question, context and search, asked again. */
+export function retryLast(chat: AiChat, page: string): void {
+  const q = [...chat.messages].reverse().find((m) => m.role === 'user')
+  if (!q) return
+  void sendMessage({ text: q.text, context: q.context, search: q.searched, page, retry: true })
 }
 
 export function stopMessage(): void {

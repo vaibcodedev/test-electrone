@@ -63,6 +63,14 @@ export interface AiChatDeps {
   now?: () => number
 }
 
+/** The messages without the last question and its answer (an answer is always saved with its question). */
+function withoutLastTurn(messages: AiChatMessage[]): AiChatMessage[] {
+  const n = messages.length
+  return n >= 2 && messages[n - 1].role === 'assistant' && messages[n - 2].role === 'user'
+    ? messages.slice(0, -2)
+    : messages
+}
+
 /** Room for a reasoning model's thinking before a long answer. */
 const MAX_TOKENS = 4096
 
@@ -102,9 +110,12 @@ export class AiChatService {
   }
 
   async send(input: AiChatSendInput): Promise<AiChat> {
-    const { chatId, text, context, search, consent, page } = aiChatSendSchema.parse(input)
-    const existing = chatId ? this.deps.history.get(chatId) : null
-    if (chatId && !existing) throw new UserError('Цього чату вже немає — почніть новий')
+    const { chatId, text, context, search, consent, page, retry } = aiChatSendSchema.parse(input)
+    const stored = chatId ? this.deps.history.get(chatId) : null
+    if (chatId && !stored) throw new UserError('Цього чату вже немає — почніть новий')
+    // «Повторити відповідь»: the last turn (question + answer) is asked again and replaced.
+    const existing =
+      stored && retry ? { ...stored, messages: withoutLastTurn(stored.messages) } : stored
     const at = this.now()
     const record = context ? this.deps.base.record(context) : null
     const found = search ? this.find(text) : null

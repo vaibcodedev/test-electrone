@@ -12,6 +12,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
@@ -122,8 +123,8 @@ export function ChatHeader({
 }): ReactElement {
   return (
     <header className="flex shrink-0 flex-col gap-0.5 px-4 pt-3 pb-2.5">
-      <div className="flex min-w-0 items-center gap-2">
-        <Sparkles aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      <div className="flex min-w-0 items-center gap-1">
+        <Sparkles aria-hidden className="mr-1 size-4 shrink-0 text-muted-foreground" />
         <h2
           id="ai-chat-title"
           className="min-w-0 flex-1 truncate text-body font-semibold"
@@ -140,6 +141,8 @@ export function ChatHeader({
           </>
         )}
         <FullPageToggle />
+        {/* ✕ stands apart from the chat's own actions. */}
+        <Separator orientation="vertical" className="mx-0.5 h-4" />
         <IconAction label="Закрити" shortcut="Esc" size="icon-sm" onClick={onClose}>
           <X />
         </IconAction>

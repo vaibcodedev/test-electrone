@@ -16,7 +16,6 @@ import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IconAction } from '@/components/common/icon-action'
 import { useApi } from '@/lib/query'
-import { cn } from '@/lib/utils'
 import { stopMessage, useChatSession } from './session'
 
 /** «Контекст: Нотатка «Docker»» — the open record goes with the question; ✕ leaves it out for this record. */
@@ -48,15 +47,12 @@ export function Composer({
   ref,
   context,
   onSubmit,
-  disabledReason,
-  wide
+  disabledReason
 }: {
   ref?: Ref<HTMLTextAreaElement>
   context: EntityRef | null
   onSubmit: () => void
   disabledReason: string | null
-  /** «На всю сторінку»: the composer keeps the thread's readable width. */
-  wide?: boolean
 }): ReactElement {
   const draft = useChatSession((s) => s.draft)
   const search = useChatSession((s) => s.search)
@@ -64,13 +60,16 @@ export function Composer({
   const canSend = !!draft.trim() && !pending && !disabledReason
   return (
     <form
-      className={cn('shrink-0 px-3 pb-3', wide && 'mx-auto w-full max-w-3xl')}
+      // The thread's readable column (max-w-3xl), on the whole page and on a wide panel alike.
+      className="mx-auto w-full max-w-3xl shrink-0 px-3 pb-3"
       onSubmit={(e) => {
         e.preventDefault()
         if (canSend) onSubmit()
       }}
     >
-      <InputGroup>
+      {/* Focus: the field's ring colour as a thin border and a 1px soft ring — the 3px halo of a form field was
+          the heaviest thing on the screen (lime in the dark theme) for the one field that always has the focus. */}
+      <InputGroup className="has-[[data-slot=input-group-control]:focus-visible]:ring-1 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/30">
         <InputGroupTextarea
           ref={ref}
           value={draft}
