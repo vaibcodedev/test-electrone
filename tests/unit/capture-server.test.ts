@@ -654,6 +654,17 @@ describe('CaptureServer: pairing over HTTP', () => {
     expect(config.captureClients.map((c) => c.origin)).toEqual([ORIGIN])
   })
 
+  it('closes the question when the extension cancels', async () => {
+    changes.length = 0
+    const id = (await call('/pair')).json.id as string
+    expect((await call(`/pair/${id}/cancel`, { Origin: OTHER })).json).toEqual({ ok: false })
+    expect(server.pendingPair()?.id).toBe(id)
+    expect((await call(`/pair/${id}/cancel`)).json).toEqual({ ok: true })
+    expect(server.pendingPair()).toBeNull()
+    expect(changes).toEqual([ORIGIN, null])
+    expect(() => server.answerPair({ id, allow: true })).toThrow(/не дійсний/)
+  })
+
   it('rotates the key and forgets paired extensions on «Відключити»', () => {
     server.regenerate()
     expect(config.secrets.captureKey).not.toBe(KEY)

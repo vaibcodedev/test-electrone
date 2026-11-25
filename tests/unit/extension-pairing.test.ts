@@ -147,6 +147,19 @@ describe('PairingBroker', () => {
     expect(b.open(CHROME).ok).toBe(true)
   })
 
+  it('lets only the asking extension withdraw its waiting request', () => {
+    const b = broker()
+    const changes: (string | null)[] = []
+    b.onChange((p) => changes.push(p?.id ?? null))
+    b.open(CHROME)
+    expect(b.cancel('id1', OTHER)).toBe(false)
+    expect(b.cancel('nope', CHROME)).toBe(false)
+    expect(b.cancel('id1', CHROME)).toBe(true)
+    expect(changes).toEqual(['id1', null])
+    expect(b.answer('id1', true)).toBe(false)
+    expect(b.cancel('id1', CHROME)).toBe(false)
+  })
+
   it('forgets everything on dispose', () => {
     const b = broker()
     b.open(CHROME)

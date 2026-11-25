@@ -145,6 +145,17 @@ export class PairingBroker {
     return { state: r.status }
   }
 
+  /**
+   * «Скасувати» in the extension: the dialog in Vault closes instead of waiting out the minute. Only the origin
+   * that asked can withdraw its own waiting request.
+   */
+  cancel(id: string, origin: unknown): boolean {
+    const r = this.request
+    if (!r || r.id !== id || r.origin !== origin || r.status !== 'waiting') return false
+    this.clear()
+    return true
+  }
+
   onChange(listener: Listener): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)

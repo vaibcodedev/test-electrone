@@ -4,6 +4,7 @@
 // POST /pair        → Vault shows «Дозволити розширенню доступ?»; answers { id, expiresIn }.
 // POST /pair/<id>   → waiting | approved (+ key) | denied | expired. POST, not GET: Chrome sends the Origin
 //                     header (which Vault checks) on an extension's GET only when the host is not permitted.
+// POST /pair/<id>/cancel → «Скасувати»: the question in Vault goes away.
 // The state lives in chrome.storage.session under PAIR_KEY; the popup renders it and follows its changes.
 import { getConnection } from './shared.js'
 
@@ -63,10 +64,13 @@ export async function startPairing() {
   return next
 }
 
-/** Stops waiting (the popup's «Скасувати»): the request in Vault simply expires. */
+/** Stops waiting (the popup's «Скасувати») and withdraws the question in Vault; a Vault without it lets it expire. */
 export async function cancelPairing() {
   polling = null
+  const pairing = await getPairing()
   await chrome.storage.session.remove(PAIR_KEY)
+  if (pairing?.state === 'waiting' && pairing.id)
+    await bridge(pairing.port, `/pair/${encodeURIComponent(pairing.id)}/cancel`)
 }
 
 /**

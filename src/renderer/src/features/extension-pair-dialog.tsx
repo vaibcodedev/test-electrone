@@ -84,13 +84,15 @@ export function ExtensionPairDialog(): ReactElement {
     }
   })
 
-  // The question went away without an answer from here: time ran out (a replaced one shows the new question).
+  // The question went away without an answer from here: time ran out or the extension withdrew it (a replaced
+  // one shows the new question instead).
   useEffect(() => {
     const previous = shownId.current
     shownId.current = request?.id ?? null
     if (previous && !request && previous !== answered)
-      toast.info('Час на відповідь минув', {
-        description: 'Щоб під’єднати розширення, натисніть у ньому «Під’єднати до Vault» ще раз.'
+      toast.info('Запит розширення більше не дійсний', {
+        description:
+          'Його скасували або минув час. Щоб під’єднати розширення, натисніть у ньому «Під’єднати до Vault» ще раз.'
       })
   }, [request, answered])
 

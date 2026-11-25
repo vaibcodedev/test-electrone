@@ -493,7 +493,7 @@ export class CaptureServer {
   /**
    * POST /pair — an extension asks for access without a key: one waiting request, the window comes up with
    * «Дозволити розширенню доступ?». POST /pair/<id> — its poll: waiting / approved (+ the key, once) / denied /
-   * expired. POST, not GET: Chrome adds the Origin header to an extension's GET only for hosts it may not
+   * expired; POST /pair/<id>/cancel — «Скасувати». POST, not GET: Chrome adds the Origin header to an extension's GET only for hosts it may not
    * access, and 127.0.0.1 is in its host_permissions. Only extension origins on our own Host get an answer;
    * the key is never logged.
    */
@@ -514,6 +514,10 @@ export class CaptureServer {
         return this.json(res, 200, { ok: true, state: 'approved', key: this.token() })
       return this.json(res, 200, { ok: true, ...poll })
     }
+    // «Скасувати» in the popup: the question in Vault goes away with it.
+    const cancel = path.match(/^\/pair\/([\w-]{1,64})\/cancel$/)
+    if (req.method === 'POST' && cancel)
+      return this.json(res, 200, { ok: this.pairing.cancel(cancel[1], origin) })
     return this.json(res, 404, { ok: false, error: 'Невідомий запит' })
   }
 
