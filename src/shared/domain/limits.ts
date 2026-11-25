@@ -1,6 +1,6 @@
 /**
  * One place for text limits (zod schemas read them; the UI gets them back through limitsOf()).
- * A field takes the tier of its purpose, not one huge number everywhere (docs/design-system.md → Ліміти полів).
+ * A field takes the tier of its purpose, not one huge number everywhere (docs/design-system.md → Лимиты полей).
  * Every record title shares MAX.title, so moving a record between sections (idea → board,
  * proposal → template, a page title from the extension) can never fail on length.
  *

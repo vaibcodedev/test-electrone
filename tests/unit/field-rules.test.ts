@@ -1,5 +1,5 @@
 /**
- * Field limits and number rules (docs/design-system.md → Ліміти полів): realistic text tiers, number fields that
+ * Field limits and number rules (docs/design-system.md → Лимиты полей): realistic text tiers, number fields that
  * refuse impossible keys, and stored data from before the limits that still opens and saves its other fields.
  */
 import { describe, expect, it } from 'vitest'
