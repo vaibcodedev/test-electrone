@@ -26,7 +26,12 @@ export default defineConfig(
     },
     rules: {
       ...eslintPluginReactHooks.configs.recommended.rules,
-      ...eslintPluginReactRefresh.configs.vite.rules
+      ...eslintPluginReactRefresh.configs.vite.rules,
+      // freshOnOpen (components/common/fresh-on-open) wraps a dialog component: its result is a component too.
+      'react-refresh/only-export-components': [
+        'error',
+        { allowConstantExport: true, allowCompoundComponents: true, extraHOCs: ['freshOnOpen'] }
+      ]
     }
   },
   {
