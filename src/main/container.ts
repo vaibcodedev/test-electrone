@@ -2,8 +2,9 @@
  * Composition root: builds every service once and wires them by constructor injection.
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
-import { app, shell } from 'electron'
+import { app } from 'electron'
 import { log } from './core/logger'
+import { openPathOrThrow } from './core/open-path'
 import type { Api } from '@shared/api'
 import { AppPaths } from './core/paths'
 import { ConfigStore } from './core/config-store'
@@ -42,7 +43,7 @@ import { GitClient } from './services/git-client'
 import { ScriptRunner } from './system/script-runner'
 import { WeeklyReviewService } from './services/weekly-review-service'
 import { CaptureServer } from './services/capture-server'
-import type { CalendarItem } from '@shared/domain/calendar'
+import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import type { ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
 import { TrayController } from './system/tray'
@@ -62,7 +63,7 @@ export class Container {
   readonly links = new LinkService(this.db, this.registry)
   readonly pins = new PinService(this.db, this.registry)
   readonly files = new FileStorage(this.paths.filesDir)
-  readonly attachments = new AttachmentService(this.db, this.files)
+  readonly attachments = new AttachmentService(this.db, this.files, this.registry)
   readonly secrets = new SecretBox()
   readonly revisions = new RevisionService(this.db, this.registry, this.tags, this.search, this.files)
   readonly trash = new TrashService(this.db, this.registry, {
@@ -180,13 +181,22 @@ export class Container {
     })
   }
 
-  /** Opens the DB and performs housekeeping. */
-  init(): void {
+  private dbOpen = false
+
+  /** Opens the database (runs pending migrations, a safety copy is made before them). */
+  openDb(): void {
     this.db.open()
+    this.dbOpen = true
+  }
+
+  /** Housekeeping after the database is open (opens it first when the caller didn't). */
+  init(): void {
+    if (!this.dbOpen) this.openDb()
     if (this.search.count() === 0) this.search.rebuild()
     this.checklists.seedIfEmpty(this.config)
     this.freelance.seedIfEmpty(this.config)
     this.jobs.seedIfEmpty(this.config)
+    this.jobs.tidy()
     this.registerCalendarFeeds()
     this.trash.purgeExpired()
     this.trash.purgeStaleDrafts()
@@ -206,7 +216,8 @@ export class Container {
     }
     const stageRoute = (e: { sourceId: string | null }): Partial<CalendarItem> | null => {
       const appId = e.sourceId ? this.jobs.applicationOfStage(e.sourceId) : null
-      return appId ? { source: 'interview', ref: { type: 'application', id: appId } } : null
+      // The colour too: older stage events keep the one saved when they were created.
+      return appId ? { source: 'interview', ref: { type: 'application', id: appId }, color: FEED_COLOR.interview } : null
     }
     this.calendar.decorateSource(STAGE_SOURCE, stageRoute)
     this.calendar.decorateSource(STAGE_DEADLINE_SOURCE, stageRoute)
@@ -231,6 +242,7 @@ export class Container {
       checklists: this.checklists.api(),
       fixes: this.knowledge.fixesApi(),
       bookmarks: this.knowledge.bookmarksApi(),
+      knowledge: this.knowledge.knowledgeApi(),
       english: this.english.api(),
       events: this.calendar.api(),
       notes: this.knowledge.notesApi(),
@@ -253,9 +265,7 @@ export class Container {
           this.capture.regenerate()
           return this.capture.info()
         },
-        openExtensionDir: async () => {
-          await shell.openPath(this.capture.extensionDir)
-        }
+        openExtensionDir: () => openPathOrThrow(this.capture.extensionDir, 'Папку розширення не знайдено — перевстановіть Vault')
       }
     }
     const quickAdd = new QuickAddService(modulesApi, this.db)

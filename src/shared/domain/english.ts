@@ -62,4 +62,6 @@ export interface EnglishStats {
   byStage: Record<WordStage, number>
   reviewedToday: number
   streakDays: number
+  /** When the next word not due yet becomes due (null: none). */
+  nextDueAt: number | null
 }

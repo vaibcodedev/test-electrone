@@ -3,6 +3,7 @@ import type { BoardsApi, CardsApi } from '@shared/api'
 import {
   boardInputSchema,
   boardPatchSchema,
+  cardCheckInputSchema,
   cardInputSchema,
   cardMoveSchema,
   cardPatchSchema,
@@ -19,6 +20,7 @@ import { z } from 'zod'
 import { pageSchema } from '@shared/domain/common'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { boardColumns, boards, cardChecklist, cards } from '../db/schema'
+import type { Orm } from '../db/client'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { excerpt, newId, now, NotFoundError, startOfDay, UserError } from '../core/util'
@@ -73,6 +75,7 @@ export class BoardsModule {
       summary: (r) => ({ title: r.title, subtitle: PRIORITY_LABEL[r.priority] || undefined }),
       // Cards of a board in the trash stay deletedAt = null; this hides them from feeds, pins, links, search.
       aliveWhere: CARD_ON_LIVE_BOARD,
+      parentHint: 'Спершу відновіть дошку, до якої належить ця картка',
       onRestore: (r) => this.reattachCard(r as CardRow)
     }
     this.descriptors = [boardDescriptor, cardDescriptor]
@@ -89,7 +92,7 @@ export class BoardsModule {
     }))
   }
 
-  private get db() {
+  private get db(): Orm {
     return this.m.db.orm
   }
 
@@ -286,7 +289,8 @@ export class BoardsModule {
           columnId,
           boardId: target.boardId,
           updatedAt: now(),
-          ...(movedColumn ? { completedAt: target.isDone ? now() : null } : {})
+          // Between two «Готово» columns the card stays closed when it was: not «done this week» again.
+          ...(movedColumn ? { completedAt: target.isDone ? (card.completedAt ?? now()) : null } : {})
         })
         .where(eq(cards.id, cardId))
         .run()
@@ -431,7 +435,7 @@ export class BoardsModule {
           if (target) {
             this.db
               .update(cards)
-              .set({ columnId: target.id, completedAt: target.isDone ? now() : null })
+              .set({ columnId: target.id, completedAt: target.isDone ? sql`coalesce(${cards.completedAt}, ${now()})` : null })
               .where(eq(cards.columnId, id))
               .run()
           } else {
@@ -489,9 +493,7 @@ export class BoardsModule {
           z.object({ from: z.number(), to: z.number(), boardId: idArg.optional() }).parse(args)
         ),
       addCheck: async (args) => {
-        const { cardId, text } = z
-          .object({ cardId: idArg, text: z.string().trim().min(1).max(1000) })
-          .parse(args)
+        const { cardId, text } = cardCheckInputSchema.extend({ cardId: idArg }).parse(args)
         this.cardRepo.rowOrThrow(cardId)
         const position = nextPosition(this.m.db, cardChecklist.position, eq(cardChecklist.cardId, cardId))
         const entry = { id: newId(), cardId, text, done: false, position }
@@ -503,7 +505,7 @@ export class BoardsModule {
         const { id, ...patch } = z
           .object({
             id: idArg,
-            text: z.string().trim().min(1).max(1000).optional(),
+            text: cardCheckInputSchema.shape.text.optional(),
             done: z.boolean().optional()
           })
           .parse(args)

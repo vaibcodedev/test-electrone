@@ -21,6 +21,7 @@ import {
   type RunningScript
 } from '@shared/domain/dev'
 import { devProjects } from '../db/schema'
+import type { Orm } from '../db/client'
 import { newId, now, NotFoundError, UserError } from '../core/util'
 import { githubRepoOf, type GitClient } from '../services/git-client'
 import type { ScriptRunner } from '../system/script-runner'
@@ -77,7 +78,7 @@ export class DevProjectsModule {
     private readonly scripts: ScriptRunner
   ) {}
 
-  private get db() {
+  private get db(): Orm {
     return this.m.db.orm
   }
 

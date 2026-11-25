@@ -20,7 +20,7 @@ export type ImportKind = (typeof IMPORT_KINDS)[number]
 export const IMPORT_MAX_ITEMS = 500
 
 /** `[…]` or `{ "items": […] }` → the array, 1…500 items. */
-function arrayPayload<T extends z.ZodType>(item: T) {
+function arrayPayload<T extends z.ZodType>(item: T): z.ZodType<z.output<T>[], z.input<T>[] | { items: z.input<T>[] }> {
   const list = z.array(item).min(1).max(IMPORT_MAX_ITEMS)
   return z.union([list, z.object({ items: list })]).transform((v) => (Array.isArray(v) ? v : v.items))
 }

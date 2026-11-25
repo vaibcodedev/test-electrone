@@ -105,7 +105,7 @@ export class TrashService {
       if (!restored) throw new NotFoundError(ref.type, ref.id)
       // A card whose board is still in the trash would vanish (hidden by aliveWhere) while the UI says «restored».
       if (d.aliveWhere && !this.registry.findRow(ref))
-        throw new UserError('Спершу відновіть дошку, до якої належить ця картка')
+        throw new UserError(d.parentHint ?? 'Спершу відновіть запис, до якого це належить')
       if (!d.onRestore) return restored
       // The hook may change the row itself (a card moved to another column): index what it left.
       d.onRestore(restored)
@@ -222,7 +222,13 @@ export class TrashService {
         this.restore(entityRefSchema.parse(ref))
         bus.dataChanged('all')
       },
-      purge: async (ref) => this.purge(entityRefSchema.parse(ref)),
+      // The list may be stale (restored in another window meanwhile): «Видалити назавжди» never hits a live record.
+      purge: async (ref) => {
+        const r = entityRefSchema.parse(ref)
+        const row = this.registry.findRow(r, { withDeleted: true })
+        if (row && row.deletedAt == null) throw new UserError('Запис уже не в кошику — оновіть список')
+        this.purge(r)
+      },
       empty: async () => this.empty(),
       discardDraft: async (ref) => this.discardDraft(entityRefSchema.parse(ref)),
       discardNew: async (ref) => this.discardNew(entityRefSchema.parse(ref))

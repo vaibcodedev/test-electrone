@@ -51,6 +51,13 @@ export const pageSchema = z.object({
 })
 export type PageQuery = z.infer<typeof pageSchema>
 
+/** Filters a list page shares with its chip counters (`counts` methods): the chips count what the search shows. */
+export const chipCountsQuerySchema = z.object({
+  search: z.string().max(200).optional(),
+  tagId: idSchema.optional()
+})
+export type ChipCountsQuery = z.infer<typeof chipCountsQuerySchema>
+
 
 export interface EntityRef {
   type: EntityType

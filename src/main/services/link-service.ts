@@ -47,6 +47,11 @@ export class LinkService {
     if (data.fromType === data.toType && data.fromId === data.toId) {
       throw new UserError('Не можна пов’язати об’єкт із самим собою')
     }
+    // A link to a record in the trash would make an empty draft look non-empty (hasTraces) for good.
+    const alive = (type: typeof data.fromType, id: string): boolean => !!this.registry.findRow({ type, id })
+    if (!alive(data.fromType, data.fromId) || !alive(data.toType, data.toId)) {
+      throw new UserError('Об’єкт для зв’язку не знайдено — можливо, його видалено')
+    }
     const exists = this.ctx.orm
       .select({ id: entityLinks.id })
       .from(entityLinks)

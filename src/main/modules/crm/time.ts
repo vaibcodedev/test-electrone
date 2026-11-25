@@ -170,6 +170,10 @@ export class TimeTracker {
       update: async (args) => {
         const { id, patch } = updateArgs(timeEntryPatchSchema).parse(args)
         const cur = find(id)
+        // One running timer at a time: reopening a finished entry would start a second one (hours counted twice).
+        if (patch.endedAt === null && cur.endedAt !== null)
+          throw new UserError('Завершений запис не можна знову запустити — почніть новий таймер')
+        if (patch.projectId) this.projectRepo.rowOrThrow(patch.projectId)
         const startedAt = patch.startedAt ?? cur.startedAt
         const endedAt = patch.endedAt !== undefined ? patch.endedAt : cur.endedAt
         if (endedAt !== null && endedAt < startedAt) throw new UserError('Кінець раніше за початок')

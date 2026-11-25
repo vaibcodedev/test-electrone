@@ -12,7 +12,7 @@ import {
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path'
 import Database from 'better-sqlite3'
 import { log } from '../core/logger'
-import type { AsyncZippable } from 'fflate'
+import type { AsyncZippable, Unzipped } from 'fflate'
 import { unzipAsync, zipAsync } from '../core/zip'
 import { z } from 'zod'
 import type { BackupApi } from '@shared/api'
@@ -23,8 +23,8 @@ import type { ConfigStore } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
 import type { SearchIndex } from './search-index'
 import type { ExportService } from './export-service'
-import { DAY_MS, now, UserError } from '../core/util'
-
+import { showNotification } from '../core/notify'
+import { DAY_MS, dayKey, now, UserError } from '../core/util'
 
 const BACKUP_EXT = 'vaultbak'
 const MANIFEST = 'manifest.json'
@@ -59,6 +59,8 @@ export function collectFiles(root: string, prefix: string, out: AsyncZippable = 
 export class BackupService {
   private timer: NodeJS.Timeout | null = null
   private running = false
+  /** Day a failed auto-backup was last reported: once a day is enough, the hourly retry stays silent. */
+  private failNotifiedDay: string | null = null
 
   constructor(
     private readonly ctx: DbContext,
@@ -120,7 +122,16 @@ export class BackupService {
       }
       const bytes = await this.build()
       mkdirSync(dirname(target), { recursive: true })
-      writeFileSync(target, bytes)
+      // Written aside and renamed: a full disk or a quit mid-write leaves a «.part» (list() skips it),
+      // not a truncated backup that looks fine and takes a rotation slot.
+      const part = `${target}.part`
+      try {
+        writeFileSync(part, bytes)
+        renameSync(part, target)
+      } catch (e) {
+        rmSync(part, { force: true })
+        throw e
+      }
       this.config.lastBackupAt = now()
       if (!opts.saveAs) this.prune()
       const st = statSync(target)
@@ -163,10 +174,17 @@ export class BackupService {
     })
     if (confirm.response !== 0) return false
 
-    const archive = await unzipAsync(readFileSync(file))
-    const manifestRaw = archive[MANIFEST]
-    if (!manifestRaw || !archive['vault.db']) throw new UserError('Це не файл бекапу Vault')
-    const manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as Manifest
+    let archive: Unzipped
+    let manifest: Manifest
+    try {
+      archive = await unzipAsync(readFileSync(file))
+      const manifestRaw = archive[MANIFEST]
+      if (!manifestRaw || !archive['vault.db']) throw new Error('no manifest or vault.db in the archive')
+      manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as Manifest
+    } catch (e) {
+      log.warn('[backup] unreadable backup', file, e)
+      throw new UserError('Файл пошкоджений або це не бекап Vault')
+    }
     if (manifest.format !== 'vault-backup') throw new UserError('Невідомий формат бекапу')
     // A backup from a newer Vault may carry migrations this version doesn't know.
     if (manifest.appVersion && compareVersions(manifest.appVersion, app.getVersion()) > 0)
@@ -184,14 +202,15 @@ export class BackupService {
       if (ok !== 'ok') throw new Error(String(ok))
     } catch (e) {
       rmSync(candidate, { force: true })
-      throw new UserError(`База в бекапі пошкоджена: ${(e as Error).message}`)
+      log.warn('[backup] the database in the backup failed the check', file, e)
+      throw new UserError('База в бекапі пошкоджена — відновити з нього не вийде')
     }
 
     // Archive entries are untrusted: only plain relative paths that stay inside files/ (zip-slip incl. «..\»).
     const files: [string, Uint8Array][] = []
     for (const [name, bytes] of Object.entries(archive)) {
       if (!name.startsWith('files/') || name.endsWith('/')) continue
-      const parts = name.slice('files/'.length).split(/[\/]/)
+      const parts = name.slice('files/'.length).split(/[\\/]/)
       if (parts.some((p) => p === '' || p === '.' || p === '..' || p.includes(':'))) {
         log.warn(`[backup] skipped unsafe entry: ${name}`)
         continue
@@ -213,15 +232,31 @@ export class BackupService {
     }
 
     // Swap with rollback: if anything fails, the current DB and files come back exactly as they were.
+    // The flags record what has actually moved: a rename that failed (EBUSY from an antivirus) left the
+    // live database or folder in place, and the rollback must not delete it.
+    const { dbFile, filesDir } = this.paths
     const oldDb = join(this.paths.tmpDir, `db-before-restore-${stamp}.db`)
     const oldFiles = join(this.paths.tmpDir, `files-before-restore-${stamp}`)
+    const hadFiles = existsSync(filesDir)
+    let movedDb = false
+    let placedDb = false
+    let movedFiles = false
+    let createdFiles = false
     this.ctx.close()
     try {
-      for (const suffix of ['-wal', '-shm']) rmSync(this.paths.dbFile + suffix, { force: true })
-      if (existsSync(this.paths.dbFile)) renameSync(this.paths.dbFile, oldDb)
-      renameSync(candidate, this.paths.dbFile)
-      if (existsSync(this.paths.filesDir)) renameSync(this.paths.filesDir, oldFiles)
-      mkdirSync(this.paths.filesDir, { recursive: true })
+      for (const suffix of ['-wal', '-shm']) rmSync(dbFile + suffix, { force: true })
+      if (existsSync(dbFile)) {
+        renameSync(dbFile, oldDb)
+        movedDb = true
+      }
+      renameSync(candidate, dbFile)
+      placedDb = true
+      if (hadFiles) {
+        renameSync(filesDir, oldFiles)
+        movedFiles = true
+      }
+      mkdirSync(filesDir, { recursive: true })
+      createdFiles = true
       for (const [abs, bytes] of files) {
         mkdirSync(dirname(abs), { recursive: true })
         writeFileSync(abs, bytes)
@@ -235,14 +270,12 @@ export class BackupService {
       } catch {
         /* not open */
       }
-      rmSync(this.paths.dbFile, { force: true })
-      if (existsSync(oldDb)) renameSync(oldDb, this.paths.dbFile)
-      if (existsSync(oldFiles)) {
-        rmSync(this.paths.filesDir, { recursive: true, force: true })
-        renameSync(oldFiles, this.paths.filesDir)
-      }
+      if (placedDb || movedDb) rmSync(dbFile, { force: true })
+      if (movedDb) renameSync(oldDb, dbFile)
+      if (movedFiles || (createdFiles && !hadFiles)) rmSync(filesDir, { recursive: true, force: true })
+      if (movedFiles) renameSync(oldFiles, filesDir)
       this.ctx.open()
-      throw new UserError(`Не вдалося відновити бекап: ${(e as Error).message}. Поточні дані залишилися як були.`)
+      throw new UserError(restoreFailMessage(e))
     }
     rmSync(oldDb, { force: true })
     rmSync(oldFiles, { recursive: true, force: true })
@@ -258,10 +291,24 @@ export class BackupService {
       const s = this.config.settings
       const last = this.config.lastBackupAt ?? 0
       if (!s.autoBackup || now() - last < DAY_MS) return
-      this.create({ saveAs: false }).catch((e) => log.error('[backup] auto backup failed', e))
+      this.create({ saveAs: false })
+        .then(() => {
+          this.failNotifiedDay = null
+        })
+        .catch((e) => this.autoFailed(e))
     }
     setTimeout(check, 20_000)
     this.timer = setInterval(check, 60 * 60_000)
+  }
+
+  /** Without a word the user finds out only when they need a backup that was never made. */
+  private autoFailed(e: unknown): void {
+    log.error('[backup] auto backup failed', e)
+    const today = dayKey(now())
+    if (this.failNotifiedDay === today) return
+    this.failNotifiedDay = today
+    showNotification({ title: 'Автобекап не вдався', body: 'Подробиці — у журналі помилок (Налаштування → Дані)' })
+    this.bus.emit('toast', { kind: 'error', message: 'Автобекап не вдався — подробиці в журналі помилок (Налаштування → Дані)' })
   }
 
   stop(): void {
@@ -280,6 +327,14 @@ export class BackupService {
       export: async (format) => exporter.export(z.enum(EXPORT_FORMATS).parse(format))
     }
   }
+}
+
+/** Why the swap failed, in words the user can act on; the technical cause goes to the log. */
+function restoreFailMessage(e: unknown): string {
+  const code = (e as NodeJS.ErrnoException | undefined)?.code
+  if (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES')
+    return 'Папку з файлами або базу зараз використовує інша програма (Провідник, переглядач) — закрийте її й спробуйте ще раз. Поточні дані залишилися як були.'
+  return 'Не вдалося відновити бекап — подробиці в журналі. Поточні дані залишилися як були.'
 }
 
 /** -1 / 0 / 1 for versions like «0.1.0-beta.6»: prerelease < release, beta.10 > beta.9. */

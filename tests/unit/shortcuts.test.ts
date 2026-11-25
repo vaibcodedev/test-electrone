@@ -1,4 +1,4 @@
-/** Global quick-add hotkey: a busy/invalid choice never leaves the user without a working one (main-b-01). */
+/** Global quick-add hotkey: a busy/invalid choice never leaves the user without a working one. */
 import { describe, expect, it, vi } from 'vitest'
 import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'

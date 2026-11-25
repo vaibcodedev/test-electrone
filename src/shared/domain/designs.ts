@@ -78,6 +78,8 @@ export interface Moodboard extends EntityBase, WithTags {
   itemCount: number
   /** First few image paths for the cover mosaic. */
   previewPaths: string[]
+  /** Only when listed for a design (`moodboards.list({ designId })`): that design is in this moodboard. */
+  contains?: boolean
 }
 
 export interface MoodboardDetails extends Moodboard {

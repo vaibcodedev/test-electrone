@@ -1,7 +1,8 @@
-import { and, eq, inArray, isNotNull } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, sql, type SQL } from 'drizzle-orm'
+import { FEED_COLOR } from '@shared/domain/calendar'
 import { fieldMax, MAX } from '@shared/domain/limits'
 import { stageInputSchema, type StageKind } from '@shared/domain/jobs'
-import { applicationStages, events } from '../../db/schema'
+import { applications, applicationStages, events, pins } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import { now } from '../../core/util'
 import type { ModuleContext } from '../context'
@@ -9,12 +10,21 @@ import type { CalendarModule } from '../calendar'
 import { applicationTitle, STAGE_DEADLINE_SOURCE, STAGE_LABEL, STAGE_SOURCE, type StageRow } from './shared'
 
 const STAGE_DURATION_MAX = fieldMax(stageInputSchema.shape.durationMin)
-const INTERVIEW_COLOR = '#7c8cf8'
-const DEADLINE_COLOR = '#f5a524'
+
+/** Ids of the stages whose vacancy is in the trash. */
+const STAGES_OF_TRASHED_VACANCIES = sql`SELECT ${applicationStages.id} FROM ${applicationStages} INNER JOIN ${applications} ON ${applications.id} = ${applicationStages.applicationId} WHERE ${applications.deletedAt} IS NOT NULL`
+
+/**
+ * Stage events of a vacancy in the trash keep deletedAt = null (they'd otherwise show up in the trash one by
+ * one, restorable apart from the vacancy) and are hidden through this condition, like cards of a deleted board.
+ * coalesce: a NULL sourceType would make NOT (NULL IN …) NULL and hide every ordinary event.
+ */
+export const STAGE_EVENTS_ALIVE: SQL = sql`NOT (coalesce(${events.sourceType}, '') IN (${STAGE_SOURCE}, ${STAGE_DEADLINE_SOURCE}) AND coalesce(${events.sourceId}, '') IN (${STAGES_OF_TRASHED_VACANCIES}))`
 
 /**
  * Interview stages ↔ calendar events, both ways: a stage with a time gets an event (and a test task its
- * deadline event); moving the event in the calendar moves the stage. The events live and die with the vacancy.
+ * deadline event); moving the event in the calendar moves the stage. The events live and die with the vacancy;
+ * the stage is the source of truth, so the calendar can't delete them on its own.
  */
 export class StageCalendarSync {
   constructor(
@@ -23,6 +33,12 @@ export class StageCalendarSync {
   ) {
     // Moving/renaming an interview in the calendar updates the stage.
     calendar.onEventChanged((e) => this.syncFromEvent(e))
+    calendar.hideWhen(STAGE_EVENTS_ALIVE, 'Спершу відновіть вакансію, до якої належить ця подія')
+    const owns = (stageId: string): boolean =>
+      !!this.db.select({ id: applicationStages.id }).from(applicationStages).where(eq(applicationStages.id, stageId)).get()
+    const hint = 'Це подія етапу вакансії — скасуйте або видаліть етап у самій вакансії'
+    calendar.ownSource(STAGE_SOURCE, hint, owns)
+    calendar.ownSource(STAGE_DEADLINE_SOURCE, hint, owns)
   }
 
   private get db(): Orm {
@@ -58,11 +74,16 @@ export class StageCalendarSync {
         source: string
       }
     ): string | null => {
+      // Not wanted any more (cancelled, time removed): gone for good, not into the trash, where a restore
+      // would bring back a second event the next time the stage is planned.
       if (!want) {
-        if (eventId) this.calendar.repo.softDelete(eventId)
+        if (eventId) this.dropEvents([eventId])
         return null
       }
-      const existing = eventId ? this.calendar.repo.row(eventId) : undefined
+      // An event that ended up in the trash (older versions, a vacancy restored from it) comes back: the
+      // stage still wants it, and a fresh insert would leave a duplicate waiting in the trash.
+      const existing = eventId ? this.calendar.repo.row(eventId, true) : undefined
+      if (existing?.deletedAt) this.db.update(events).set({ deletedAt: null }).where(eq(events.id, existing.id)).run()
       const data = {
         // «Етап: компанія» can outgrow an event title (both parts are long): clip, the full text is in the stage.
         title: values.title.slice(0, MAX.title),
@@ -96,7 +117,7 @@ export class StageCalendarSync {
       startAt: stage.at ?? 0,
       endAt: stage.at ? stage.at + stage.durationMin * 60_000 : null,
       allDay: false,
-      color: INTERVIEW_COLOR,
+      color: FEED_COLOR.interview,
       source: STAGE_SOURCE
     })
     const deadlineEventId = upsert(
@@ -107,7 +128,7 @@ export class StageCalendarSync {
         startAt: stage.deadlineAt ?? 0,
         endAt: null,
         allDay: false,
-        color: DEADLINE_COLOR,
+        color: FEED_COLOR.interview,
         source: STAGE_DEADLINE_SOURCE
       }
     )
@@ -153,16 +174,46 @@ export class StageCalendarSync {
       .run()
   }
 
-  /** A stage removed: its events go to the trash. */
-  removeStageEvents(stage: StageRow): void {
-    for (const id of [stage.eventId, stage.deadlineEventId]) {
-      if (id && this.calendar.repo.row(id)) this.calendar.repo.softDelete(id)
-    }
+  /** Deletes stage events for good with their tags, links, pins, files and index entries. */
+  private dropEvents(ids: string[]): void {
+    if (!ids.length) return
+    const { repo, links, attachments } = this.m
+    this.m.files.afterCommit(() =>
+      this.m.db.tx(() => {
+        for (const id of ids) {
+          const ref = { type: 'event' as const, id }
+          repo.tags.clearFor('event', id)
+          links.clearFor(ref)
+          attachments.clearFor(ref)
+          repo.search.remove('event', id)
+        }
+        this.db.delete(pins).where(and(eq(pins.entityType, 'event'), inArray(pins.entityId, ids))).run()
+        this.db.delete(events).where(inArray(events.id, ids)).run()
+      })
+    )
   }
 
-  /** The vacancy went to the trash: so do its interviews and deadlines. */
-  remove(applicationId: string): void {
-    for (const s of this.stagesOf(applicationId)) this.removeStageEvents(s)
+  /** A stage removed: its events go with it (in the trash they would point at a stage that no longer exists). */
+  purgeStage(stage: StageRow): void {
+    this.dropEvents([stage.eventId, stage.deadlineEventId].filter((id): id is string => !!id))
+  }
+
+  /**
+   * Older versions put the stage events of a deleted vacancy into the trash one by one. They now stay
+   * deletedAt = null, hidden by STAGE_EVENTS_ALIVE until the vacancy is restored: take them out of the trash.
+   */
+  untrashHiddenEvents(): void {
+    this.db
+      .update(events)
+      .set({ deletedAt: null })
+      .where(
+        and(
+          isNotNull(events.deletedAt),
+          inArray(events.sourceType, [STAGE_SOURCE, STAGE_DEADLINE_SOURCE]),
+          sql`${events.sourceId} IN (${STAGES_OF_TRASHED_VACANCIES})`
+        )
+      )
+      .run()
   }
 
   /** The vacancy is back from the trash: so are its interviews and deadlines (re-synced: title, time). */
@@ -180,7 +231,6 @@ export class StageCalendarSync {
 
   /** The vacancy is deleted for good: its stage events too (not into the trash, where they'd be orphans). */
   purge(applicationId: string): void {
-    const ids = this.eventIds(applicationId)
-    if (ids.length) this.db.delete(events).where(inArray(events.id, ids)).run()
+    this.dropEvents(this.eventIds(applicationId))
   }
 }

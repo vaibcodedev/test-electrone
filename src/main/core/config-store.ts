@@ -1,5 +1,6 @@
-import { readFileSync, renameSync, writeFileSync } from 'fs'
+import { copyFileSync, readFileSync, renameSync, writeFileSync } from 'fs'
 import { settingsSchema, type Settings, type SettingsPatch } from '@shared/domain/system'
+import { log } from './logger'
 
 export interface WindowState {
   x?: number
@@ -18,6 +19,8 @@ interface ConfigShape {
   lastWeeklyReview: string | null
   /** Day (dayKey) the evening job-boards reminder was last shown: once a day, restarts included. */
   lastJobNudge: string | null
+  /** Day (dayKey) the morning «Сьогодні дедлайн» reminder about all-day card deadlines was last shown. */
+  lastCardNudge: string | null
   /** Seed sets already created once (checklist templates, platforms…): deleted seeds never come back. */
   seeded: string[]
 }
@@ -46,7 +49,24 @@ const DEFAULTS: ConfigShape = {
   secrets: {},
   lastWeeklyReview: null,
   lastJobNudge: null,
+  lastCardNudge: null,
   seeded: []
+}
+
+/**
+ * Settings key by key: one bad value (hand edit, an older version, a narrowed schema) resets only itself,
+ * not the hotkey, autostart and backups along with it.
+ */
+function readSettings(raw: unknown): Settings {
+  const stored = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const settings: Record<string, unknown> = {}
+  for (const [key, schema] of Object.entries(settingsSchema.shape)) {
+    const value = stored[key]
+    const parsed = value === undefined ? undefined : schema.safeParse(value)
+    if (parsed && !parsed.success) log.warn(`[config] invalid setting «${key}» reset to the default`)
+    settings[key] = parsed?.success ? parsed.data : DEFAULT_SETTINGS[key as keyof Settings]
+  }
+  return settingsSchema.parse(settings)
 }
 
 type Listener = (settings: Settings) => void
@@ -65,21 +85,34 @@ export class ConfigStore {
   }
 
   private read(): ConfigShape {
+    let raw: Partial<ConfigShape>
     try {
-      const raw = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<ConfigShape>
-      const settings = settingsSchema.safeParse({ ...DEFAULT_SETTINGS, ...raw.settings })
-      return {
-        settings: settings.success ? settings.data : DEFAULT_SETTINGS,
-        window: { ...DEFAULTS.window, ...raw.window },
-        lastBackupAt: typeof raw.lastBackupAt === 'number' ? raw.lastBackupAt : null,
-        secrets: raw.secrets && typeof raw.secrets === 'object' ? raw.secrets : {},
-        lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null,
-        lastJobNudge: typeof raw.lastJobNudge === 'string' ? raw.lastJobNudge : null,
-        seeded: Array.isArray(raw.seeded) ? raw.seeded.filter((x): x is string => typeof x === 'string') : []
-      }
-    } catch {
+      raw = JSON.parse(readFileSync(this.file, 'utf8')) as Partial<ConfigShape>
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') this.keepBroken(e)
       return structuredClone(DEFAULTS)
     }
+    return {
+      settings: readSettings(raw.settings),
+      window: { ...DEFAULTS.window, ...raw.window },
+      lastBackupAt: typeof raw.lastBackupAt === 'number' ? raw.lastBackupAt : null,
+      secrets: raw.secrets && typeof raw.secrets === 'object' ? raw.secrets : {},
+      lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null,
+      lastJobNudge: typeof raw.lastJobNudge === 'string' ? raw.lastJobNudge : null,
+      lastCardNudge: typeof raw.lastCardNudge === 'string' ? raw.lastCardNudge : null,
+      seeded: Array.isArray(raw.seeded) ? raw.seeded.filter((x): x is string => typeof x === 'string') : []
+    }
+  }
+
+  /** A broken file holds the encrypted keys and the seed ledger: keep a copy before the next write replaces it. */
+  private keepBroken(e: unknown): void {
+    const copy = `${this.file}.broken-${Date.now()}`
+    try {
+      copyFileSync(this.file, copy)
+    } catch {
+      /* unreadable as well: nothing to keep */
+    }
+    log.error(`[config] ${this.file} is unreadable, starting from defaults (copy: ${copy})`, e)
   }
 
   private scheduleWrite(): void {
@@ -145,6 +178,15 @@ export class ConfigStore {
 
   set lastJobNudge(day: string | null) {
     this.data.lastJobNudge = day
+    this.scheduleWrite()
+  }
+
+  get lastCardNudge(): string | null {
+    return this.data.lastCardNudge
+  }
+
+  set lastCardNudge(day: string | null) {
+    this.data.lastCardNudge = day
     this.scheduleWrite()
   }
 

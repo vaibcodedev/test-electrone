@@ -36,19 +36,28 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
 
     const c = new Container(icon)
+    // A locked/corrupt database, a failed migration or a failed startup step: say so and exit instead of
+    // hanging in the background with the single-instance lock (every next launch would just do nothing).
+    // The technical cause (English SQLite/drizzle text) goes to the log only.
+    const fail = (message: string, e: unknown): void => {
+      log.error('[startup]', message, e)
+      dialog.showErrorBox(
+        'Vault не запустився',
+        `${message} Резервні копії — у папці ${c.paths.backupsDir}, подробиці — у журналі: ${logFilePath()}.`
+      )
+      app.exit(1)
+    }
+    try {
+      c.openDb()
+    } catch (e) {
+      fail('Не вдалося відкрити базу даних. Дані не змінено.', e)
+      return
+    }
     try {
       c.init()
     } catch (e) {
-      // A locked/corrupt database or a failed migration: say so and exit instead of hanging in the
-      // background with the single-instance lock (every next launch would just do nothing).
-      log.error('[startup] init failed', e)
-      dialog.showErrorBox(
-        'Vault не запустився',
-        `Не вдалося відкрити базу даних: ${(e as Error).message}
-
-Дані не змінено. Резервні копії — у папці ${c.paths.backupsDir}, журнал — ${logFilePath()}.`
-      )
-      app.exit(1)
+      // The database is open and housekeeping may have changed it already: no «Дані не змінено» here.
+      fail('Vault не зміг завершити запуск.', e)
       return
     }
     container = c

@@ -122,8 +122,12 @@ export class Resumes {
           .where(eq(resumes.id, idArg.parse(id)))
           .get()
         if (!cur) return
-        this.db.delete(resumeBoards).where(eq(resumeBoards.resumeId, cur.id)).run()
-        this.db.delete(resumes).where(eq(resumes.id, cur.id)).run()
+        // applications.resumeId has no foreign key: without this the stats got a second «Без резюме» row.
+        this.m.db.tx(() => {
+          this.db.update(applications).set({ resumeId: null }).where(eq(applications.resumeId, cur.id)).run()
+          this.db.delete(resumeBoards).where(eq(resumeBoards.resumeId, cur.id)).run()
+          this.db.delete(resumes).where(eq(resumes.id, cur.id)).run()
+        })
         this.m.files.remove(cur.filePath)
       },
       setResumeUploaded: async (args) => {

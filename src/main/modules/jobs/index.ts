@@ -7,7 +7,7 @@
 import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { JobsApi } from '@shared/api'
-import type { CalendarItem } from '@shared/domain/calendar'
+import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import type { Currency } from '@shared/domain/crm'
 import type {
   ApplicationStatus,
@@ -33,8 +33,6 @@ import { JobStatistics } from './stats'
 import { STATUS_LABEL, type AppRepo, type CompanyRepo, type QuestionRepo } from './shared'
 
 export { STAGE_DEADLINE_SOURCE, STAGE_SOURCE } from './shared'
-
-const FOLLOW_UP_COLOR = '#3fbf9b'
 
 export class JobsModule {
   readonly descriptors: EntityDescriptor[]
@@ -122,6 +120,11 @@ export class JobsModule {
     seedOnce(ledger, 'jobBoards', () => this.boards.hasAny(), () => this.boards.seed())
   }
 
+  /** Startup housekeeping: stage events older versions left in the trash next to their vacancy. */
+  tidy(): void {
+    this.sync.untrashHiddenEvents()
+  }
+
   /** Boards expected today that are not done yet (for the evening reminder). */
   pendingToday(): JobBoard[] {
     return this.boards.pendingToday()
@@ -139,7 +142,7 @@ export class JobsModule {
         startAt: a.followUpAt!,
         endAt: null,
         allDay: true,
-        color: FOLLOW_UP_COLOR,
+        color: FEED_COLOR.followup,
         done: false
       }))
   }

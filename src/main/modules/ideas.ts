@@ -1,9 +1,10 @@
-import { pageSchema } from '@shared/domain/common'
+import { chipCountsQuerySchema, pageSchema } from '@shared/domain/common'
 import { fieldMax, MAX } from '@shared/domain/limits'
 import { boardInputSchema } from '@shared/domain/boards'
 import { and, asc, eq, sql } from 'drizzle-orm'
 import type { IdeasApi } from '@shared/api'
 import {
+  IDEA_STATUS_LABEL,
   ideaInputSchema,
   ideaListQuerySchema,
   ideaPatchSchema,
@@ -20,15 +21,6 @@ import type { BoardsModule } from './boards'
 type IdeaRow = typeof ideas.$inferSelect
 
 const BOARD_DESCRIPTION_MAX = fieldMax(boardInputSchema.shape.description)
-
-export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
-  inbox: 'Вхідні',
-  thinking: 'Обмірковую',
-  planned: 'У планах',
-  in_progress: 'У роботі',
-  done: 'Зроблено',
-  dropped: 'Відмовився'
-}
 
 export class IdeasModule {
   readonly repo: SoftRepository<IdeaRow, Idea>
@@ -53,6 +45,10 @@ export class IdeasModule {
 
   api(): IdeasApi {
     return {
+      counts: async (query) => {
+        const q = chipCountsQuerySchema.parse(query ?? {})
+        return this.repo.countBy(ideas.status, [this.repo.hasTag(q.tagId), this.repo.matches(q.search, [ideas.title, ideas.body])])
+      },
       list: async (query) => {
         const q = ideaListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})

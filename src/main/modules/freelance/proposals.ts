@@ -137,7 +137,8 @@ export class Proposals {
           if (current.projectId && this.crm.projectRepo.row(current.projectId)) {
             throw new UserError('Цей відгук уже перетворено на контракт')
           }
-          let clientId = data.clientId ?? p.clientId
+          // The proposal's client may be in the trash: a contract there would be invisible (details.client = null).
+          let clientId = data.clientId ?? (p.clientId && this.crm.clientRepo.row(p.clientId) ? p.clientId : null)
           if (!clientId) {
             const created = this.crm.clientRepo.insert({
               name: p.clientName || 'Клієнт',

@@ -2,9 +2,9 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { TagsApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
-import { idSchema, patchOf, type EntitySummary, type Tag, type TagWithUsage } from '@shared/domain/common'
+import { idSchema, pageSchema, patchOf, type EntitySummary, type Tag, type TagWithUsage } from '@shared/domain/common'
 import { tagInputSchema, type TagInput } from '@shared/domain/system'
-import type { DbContext } from '../db/client'
+import type { DbContext, Orm } from '../db/client'
 import { entityTags, tags } from '../db/schema'
 import type { EntityRegistry } from '../core/registry'
 import { newId, now, NotFoundError, UserError } from '../core/util'
@@ -16,22 +16,32 @@ export class TagService {
     private readonly registry: EntityRegistry
   ) {}
 
-  private get db() {
+  private get db(): Orm {
     return this.ctx.orm
   }
 
+  /**
+   * Usage counts only live records (not the trash, not cards of a deleted board): the number on a tag
+   * matches the list it opens. One grouped query per entity type, no N+1.
+   */
   list(): TagWithUsage[] {
+    const usage = new Map<string, number>()
+    for (const d of this.registry.all()) {
+      const rows = this.db
+        .select({ tagId: entityTags.tagId, n: sql<number>`count(*)` })
+        .from(entityTags)
+        .innerJoin(d.table, eq(d.table.id, entityTags.entityId))
+        .where(and(eq(entityTags.entityType, d.type), this.registry.live(d)))
+        .groupBy(entityTags.tagId)
+        .all()
+      for (const r of rows) usage.set(r.tagId, (usage.get(r.tagId) ?? 0) + r.n)
+    }
     return this.db
-      .select({
-        id: tags.id,
-        name: tags.name,
-        color: tags.color,
-        createdAt: tags.createdAt,
-        usage: sql<number>`(SELECT count(*) FROM ${entityTags} WHERE ${entityTags.tagId} = ${tags.id})`
-      })
+      .select()
       .from(tags)
       .orderBy(asc(tags.name))
       .all()
+      .map((t) => ({ ...t, usage: usage.get(t.id) ?? 0 }))
   }
 
   create(input: TagInput): Tag {
@@ -112,13 +122,21 @@ export class TagService {
       .run()
   }
 
-  entities(tagId: string): EntitySummary[] {
+  /**
+   * Live records carrying the tag, recently changed first. Paged after summarize(): an OFFSET over raw
+   * entity_tags would drift, since records in the trash drop out only there.
+   */
+  entities(tagId: string, page: { limit?: number; offset?: number } = {}): EntitySummary[] {
     const refs = this.db
       .select({ type: entityTags.entityType, id: entityTags.entityId })
       .from(entityTags)
       .where(eq(entityTags.tagId, tagId))
       .all()
-    return this.registry.summarize(refs as { type: EntityType; id: string }[])
+    const offset = page.offset ?? 0
+    return this.registry
+      .summarize(refs as { type: EntityType; id: string }[])
+      .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+      .slice(offset, page.limit ? offset + page.limit : undefined)
   }
 
   api(): TagsApi {
@@ -130,7 +148,11 @@ export class TagService {
         return this.update(id, patch)
       },
       remove: async (id) => this.remove(idSchema.parse(id)),
-      entities: async (tagId) => this.entities(idSchema.parse(tagId))
+      entities: async (args) => {
+        const { tagId, ...page } =
+          typeof args === 'string' ? { tagId: idSchema.parse(args) } : pageSchema.extend({ tagId: idSchema }).parse(args)
+        return this.entities(tagId, page)
+      }
     }
   }
 }

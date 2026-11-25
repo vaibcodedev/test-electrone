@@ -9,14 +9,14 @@ import {
   type Currency,
   type ProjectSummary
 } from '@shared/domain/crm'
-import { payments, projects, timeEntries } from '../../db/schema'
+import { payments, projects } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import { now, startOfMonth, startOfWeek } from '../../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from '../context'
 import type { Credentials } from './credentials'
 import type { CrmSummaries } from './summaries'
 import type { TimeTracker } from './time'
-import { toPayment, toTime, type ClientRepo, type ProjectRepo } from './shared'
+import { toPayment, type ClientRepo, type ProjectRepo } from './shared'
 
 /** Projects with their time, payments and logins; the CRM overview (this month, outstanding, overdue). */
 export class Projects {
@@ -83,13 +83,6 @@ export class Projects {
         return {
           project,
           client: p.clientId ? this.clientRepo.get(p.clientId) : null,
-          timeEntries: this.db
-            .select()
-            .from(timeEntries)
-            .where(eq(timeEntries.projectId, p.id))
-            .orderBy(desc(timeEntries.startedAt))
-            .all()
-            .map(toTime),
           payments: this.db
             .select()
             .from(payments)

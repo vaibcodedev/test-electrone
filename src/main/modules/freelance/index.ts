@@ -80,6 +80,8 @@ export class FreelanceModule {
         title: r.title,
         subtitle: SITUATION_LABEL[r.situation as TemplateSituation]
       }),
+      // copyCount is a system field and copying bumps updatedAt: a used template never counts as a draft.
+      draft: { titleField: 'title', contentFields: ['trigger', 'body', 'note', 'niche'] },
       systemFields: ['copyCount']
     }
     const portfolioCase: EntityDescriptor = {
@@ -99,7 +101,7 @@ export class FreelanceModule {
       table: redFlags,
       draft: { titleField: 'title', contentFields: ['signs', 'action'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.signs}\n${r.action}` }),
-      summary: (r) => ({ title: r.title, subtitle: 'Червоний прапорець' })
+      summary: (r) => ({ title: r.title, subtitle: r.signs ? r.signs.slice(0, 80) : undefined })
     }
     this.descriptors = [proposal, template, portfolioCase, flag]
     this.proposalRepo = new SoftRepository(m.repo, proposal, (r, tags) => ({

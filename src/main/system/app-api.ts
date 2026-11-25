@@ -7,6 +7,7 @@ import { settingsPatchSchema } from '@shared/domain/system'
 import type { AppPaths } from '../core/paths'
 import type { ConfigStore } from '../core/config-store'
 import { log, logFilePath } from '../core/logger'
+import { openPathOrThrow } from '../core/open-path'
 import { UserError } from '../core/util'
 import type { DashboardService } from '../services/dashboard-service'
 import type { QuickAddService } from '../services/quick-add-service'
@@ -57,12 +58,8 @@ export class AppApiFactory {
           }
         })()
       }),
-      openDataDir: async () => {
-        await shell.openPath(paths.dataDir)
-      },
-      openLogs: async () => {
-        await shell.openPath(dirname(logFilePath()))
-      }
+      openDataDir: () => openPathOrThrow(paths.dataDir, 'Не вдалося відкрити папку — можливо, її видалено'),
+      openLogs: () => openPathOrThrow(dirname(logFilePath()), 'Не вдалося відкрити папку — можливо, її видалено')
     }
   }
 

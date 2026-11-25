@@ -15,6 +15,7 @@ import {
   checklistImportSchema
 } from '@shared/domain/checklists'
 import { checklistItems, checklists } from '../db/schema'
+import type { Orm } from '../db/client'
 import { SoftRepository } from '../core/soft-repository'
 import { seedOnce, type SeedLedger } from '../core/config-store'
 import type { EntityDescriptor } from '../core/registry'
@@ -41,7 +42,19 @@ export class ChecklistsModule {
           .all()
         return { title: r.title, body: `${r.description}\n${items.map((i) => i.text).join('\n')}` }
       },
-      summary: (r) => ({ title: r.title, subtitle: r.kind === 'template' ? 'Шаблон' : 'Прохід' })
+      summary: (r) => ({ title: r.title, subtitle: r.kind === 'template' ? 'Шаблон' : 'Прохід' }),
+      // An imported template or a run keeps the default title but has items: it is not an empty draft.
+      draft: {
+        titleField: 'title',
+        contentFields: ['description'],
+        hasChildren: (id) =>
+          !!m.db.orm
+            .select({ id: checklistItems.id })
+            .from(checklistItems)
+            .where(eq(checklistItems.checklistId, id))
+            .limit(1)
+            .get()
+      }
     }
     this.repo = new SoftRepository(m.repo, this.descriptor, (r, tags) => ({
       ...r,
@@ -52,7 +65,7 @@ export class ChecklistsModule {
     }))
   }
 
-  private get db() {
+  private get db(): Orm {
     return this.m.db.orm
   }
 
@@ -217,7 +230,8 @@ export class ChecklistsModule {
           }
           return created
         })
-        if (data.projectId) {
+        // A project in the trash gets no link (links.create refuses one): the run itself is already made.
+        if (data.projectId && this.m.registry.findRow({ type: 'project', id: data.projectId })) {
           this.m.links.create({
             fromType: 'checklist',
             fromId: run.id,

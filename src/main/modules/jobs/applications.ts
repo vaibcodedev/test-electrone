@@ -260,11 +260,8 @@ export class Applications {
         }
         return this.one(id)
       },
-      remove: async (id) => {
-        const appId = idArg.parse(id)
-        apps.softDelete(appId)
-        this.sync.remove(appId)
-      },
+      // Stage events stay as they are: hidden while the vacancy is in the trash (STAGE_EVENTS_ALIVE).
+      remove: async (id) => apps.softDelete(idArg.parse(id)),
       followUps: async () => this.followUps(),
 
       addStage: async (input) => {
@@ -293,13 +290,16 @@ export class Applications {
       },
       updateStage: async (args) => {
         const { id, patch } = updateArgs(stagePatchSchema).parse(args)
+        const stage = this.db.select().from(applicationStages).where(eq(applicationStages.id, id)).get()
+        if (!stage) throw new NotFoundError('Етап', id)
+        // A vacancy in the trash: its hidden events must not be re-created or re-armed.
+        apps.rowOrThrow(stage.applicationId)
         const row = this.db
           .update(applicationStages)
           .set({ ...patch, updatedAt: now() })
           .where(eq(applicationStages.id, id))
           .returning()
-          .get()
-        if (!row) throw new NotFoundError('Етап', id)
+          .get()!
         this.sync.sync(row)
         apps.touch(row.applicationId)
         return toStage(this.db.select().from(applicationStages).where(eq(applicationStages.id, id)).get()!)
@@ -311,8 +311,10 @@ export class Applications {
           .where(eq(applicationStages.id, idArg.parse(id)))
           .get()
         if (!row) return
-        this.sync.removeStageEvents(row)
-        this.db.delete(applicationStages).where(eq(applicationStages.id, row.id)).run()
+        this.m.db.tx(() => {
+          this.sync.purgeStage(row)
+          this.db.delete(applicationStages).where(eq(applicationStages.id, row.id)).run()
+        })
       },
       upcoming: async (limit) => this.upcomingStages(z.number().int().min(1).max(100).optional().parse(limit)),
       pastStages: async (limit) => this.pastStages(z.number().int().min(1).max(500).optional().parse(limit))

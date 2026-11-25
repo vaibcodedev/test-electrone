@@ -9,17 +9,18 @@ import {
   type DailyBoard,
   type JobBoard
 } from '@shared/domain/jobs'
-import { applications, boardCheckins, jobBoards } from '../../db/schema'
+import { applications, boardCheckins, jobBoards, resumeBoards } from '../../db/schema'
 import type { Orm } from '../../db/client'
 import { nextPosition, reorder } from '../../core/ordering'
-import { addDays, dayKey, newId, now, NotFoundError, startOfDay } from '../../core/util'
-import { orderedIds, updateArgs, type ModuleContext } from '../context'
+import { addDays, dayKey, newId, now, NotFoundError, startOfDay, UserError } from '../../core/util'
+import { idArg, orderedIds, updateArgs, type ModuleContext } from '../context'
 
+// Colours from the shared palette (shared/colors.ts), so the colour picker shows the seeded swatch as chosen.
 const SEED = [
-  { name: 'Djinni', url: 'https://djinni.co/jobs/', color: '#3ec5a5', dailyTarget: 2 },
+  { name: 'Djinni', url: 'https://djinni.co/jobs/', color: '#3fbf9b', dailyTarget: 2 },
   { name: 'DOU', url: 'https://jobs.dou.ua/', color: '#5aa9f0', dailyTarget: 1 },
-  { name: 'LinkedIn', url: 'https://www.linkedin.com/jobs/', color: '#0a66c2', dailyTarget: 1 },
-  { name: 'Work.ua', url: 'https://www.work.ua/jobs-it/', color: '#e05a4f', dailyTarget: 0 }
+  { name: 'LinkedIn', url: 'https://www.linkedin.com/jobs/', color: '#7c8cf8', dailyTarget: 1 },
+  { name: 'Work.ua', url: 'https://www.work.ua/jobs-it/', color: '#f06b6b', dailyTarget: 0 }
 ]
 
 /** Job boards (Djinni, DOU…) with the daily habit: applications per day, manual check-ins, streaks. */
@@ -81,7 +82,8 @@ export class JobBoards {
         const day = dayKey(ts)
         const n = applied.filter((a) => a.boardId === b.id && a.at && dayKey(a.at) === day).length
         const checked = checks.some((c) => c.boardId === b.id && c.day === day)
-        const expected = b.weekdays.includes(new Date(ts).getDay())
+        // Days before the board existed are not missed days (a new base would start with weeks of gaps).
+        const expected = ts >= startOfDay(b.createdAt) && b.weekdays.includes(new Date(ts).getDay())
         const done = checked || (b.dailyTarget > 0 ? n >= b.dailyTarget : n > 0)
         history.push({ boardId: b.id, day, applied: n, checked, done, expected })
       }
@@ -102,7 +104,21 @@ export class JobBoards {
     return this.daily(1).filter((b) => b.today.expected && !b.today.done)
   }
 
-  api(): Pick<JobsApi, 'boards' | 'createBoard' | 'updateBoard' | 'reorderBoards' | 'daily' | 'checkin'> {
+  /** Only a board nothing refers to yet (a typo, a test): one with history is switched off instead. */
+  remove(id: string): void {
+    this.m.db.tx(() => {
+      if (!this.db.select({ id: jobBoards.id }).from(jobBoards).where(eq(jobBoards.id, id)).get())
+        throw new NotFoundError('Майданчик', id)
+      const used =
+        this.db.select({ id: applications.id }).from(applications).where(eq(applications.boardId, id)).limit(1).get() ||
+        this.db.select({ day: boardCheckins.day }).from(boardCheckins).where(eq(boardCheckins.boardId, id)).limit(1).get()
+      if (used) throw new UserError('Майданчик уже має відгуки — вимкніть його замість видалення')
+      this.db.delete(resumeBoards).where(eq(resumeBoards.boardId, id)).run()
+      this.db.delete(jobBoards).where(eq(jobBoards.id, id)).run()
+    })
+  }
+
+  api(): Pick<JobsApi, 'boards' | 'createBoard' | 'updateBoard' | 'removeBoard' | 'reorderBoards' | 'daily' | 'checkin'> {
     return {
       boards: async (args) =>
         this.list(z.object({ includeInactive: z.boolean().optional() }).parse(args ?? {}).includeInactive),
@@ -132,6 +148,7 @@ export class JobBoards {
         if (!row) throw new NotFoundError('Майданчик', id)
         return row
       },
+      removeBoard: async (id) => this.remove(idArg.parse(id)),
       reorderBoards: async (ids) => reorder(this.m.db, jobBoards, jobBoards.id, orderedIds.parse(ids)),
       daily: async (args) =>
         this.daily(z.object({ days: z.number().int().min(1).max(370).optional() }).parse(args ?? {}).days),

@@ -2,9 +2,22 @@
  * Text-first knowledge modules: Claude notes, JS libraries, snippets, errors & fixes, bookmarks.
  * Each is a descriptor + repository + declarative CRUD API.
  */
-import { eq, sql } from 'drizzle-orm'
-import type { BookmarksApi, ClaudeApi, FixesApi, LibrariesApi, SnippetsApi } from '@shared/api'
+import { and, desc, eq, gt, isNull, sql, type SQL } from 'drizzle-orm'
+import { z } from 'zod'
+import type {
+  BookmarksApi,
+  ClaudeApi,
+  CopiedItem,
+  FixesApi,
+  KnowledgeApi,
+  LibrariesApi,
+  NotesApi,
+  SnippetsApi
+} from '@shared/api'
+import { chipCountsQuerySchema, type ChipCountsQuery } from '@shared/domain/common'
+import { hostOf } from '@shared/url'
 import {
+  CLAUDE_KIND_LABEL,
   claudeInputSchema,
   claudeListQuerySchema,
   claudePatchSchema,
@@ -15,6 +28,7 @@ import {
   type ClaudePatch
 } from '@shared/domain/claude'
 import {
+  LIBRARY_STATUS_LABEL,
   libraryInputSchema,
   libraryListQuerySchema,
   libraryPatchSchema,
@@ -64,30 +78,11 @@ import {
   type NoteListQuery,
   type NotePatch
 } from '@shared/domain/notes'
-import type { NotesApi } from '@shared/api'
-import { and, isNull } from 'drizzle-orm'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { now } from '../core/util'
 import { idArg, type ModuleContext } from './context'
 import { createCrudApi } from './crud'
-
-const CLAUDE_LABEL: Record<ClaudeKind, string> = {
-  note: 'Нотатка',
-  branch: 'Гілка',
-  skill: 'Скіл',
-  plugin: 'Плагін',
-  guide: 'Гайд',
-  prompt: 'Промт'
-}
-
-const LIB_STATUS_LABEL: Record<LibraryStatus, string> = {
-  used: 'Використовував',
-  favorite: 'Улюблена',
-  want: 'Хочу спробувати',
-  testing: 'Пробую',
-  dropped: 'Не зайшла'
-}
 
 export class KnowledgeModule {
   readonly descriptors: EntityDescriptor[]
@@ -104,7 +99,7 @@ export class KnowledgeModule {
       table: claudeItems,
       draft: { titleField: 'title', contentFields: ['summary', 'content', 'url'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.summary}\n${r.content}` }),
-      summary: (r) => ({ title: r.title, subtitle: CLAUDE_LABEL[r.kind as ClaudeKind] }),
+      summary: (r) => ({ title: r.title, subtitle: CLAUDE_KIND_LABEL[r.kind as ClaudeKind] }),
       systemFields: ['copyCount']
     }
     const library: EntityDescriptor = {
@@ -114,7 +109,7 @@ export class KnowledgeModule {
       searchDoc: (r) => ({ title: r.name, body: `${r.purpose}\n${r.installCmd}\n${r.notes}` }),
       summary: (r) => ({
         title: r.name,
-        subtitle: r.purpose || LIB_STATUS_LABEL[r.status as LibraryStatus]
+        subtitle: r.purpose || LIBRARY_STATUS_LABEL[r.status as LibraryStatus]
       })
     }
     const snippet: EntityDescriptor = {
@@ -178,6 +173,10 @@ export class KnowledgeModule {
 
   claudeApi(): ClaudeApi {
     const repo = this.claudeRepo
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      repo.hasTag(q.tagId),
+      repo.matches(q.search, [claudeItems.title, claudeItems.summary, claudeItems.content])
+    ]
     return {
       ...createCrudApi<
         typeof claudeItems.$inferSelect,
@@ -190,13 +189,10 @@ export class KnowledgeModule {
         input: claudeInputSchema,
         patch: claudePatchSchema,
         query: claudeListQuerySchema,
-        where: (q) => [
-          q.kind ? eq(claudeItems.kind, q.kind) : undefined,
-          repo.hasTag(q.tagId),
-          repo.matches(q.search, [claudeItems.title, claudeItems.summary, claudeItems.content])
-        ],
+        where: (q) => [q.kind ? eq(claudeItems.kind, q.kind) : undefined, ...filters(q)],
         orderBy: [sql`${claudeItems.works} DESC`, sql`${claudeItems.updatedAt} DESC`]
       }),
+      counts: async (query) => repo.countBy(claudeItems.kind, filters(chipCountsQuerySchema.parse(query ?? {}))),
       markCopied: async (id) => {
         this.m.db.orm
           .update(claudeItems)
@@ -209,28 +205,29 @@ export class KnowledgeModule {
 
   librariesApi(): LibrariesApi {
     const repo = this.libraryRepo
-    return createCrudApi<
-      typeof libraries.$inferSelect,
-      Library,
-      LibraryInput,
-      LibraryPatch,
-      LibraryListQuery
-    >({
-      repo,
-      input: libraryInputSchema,
-      patch: libraryPatchSchema,
-      query: libraryListQuerySchema,
-      where: (q) => [
-        q.status ? eq(libraries.status, q.status) : undefined,
-        repo.hasTag(q.tagId),
-        repo.matches(q.search, [libraries.name, libraries.purpose, libraries.notes])
-      ],
-      orderBy: [sql`ulower(${libraries.name}) ASC`]
-    })
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      repo.hasTag(q.tagId),
+      repo.matches(q.search, [libraries.name, libraries.purpose, libraries.notes])
+    ]
+    return {
+      ...createCrudApi<typeof libraries.$inferSelect, Library, LibraryInput, LibraryPatch, LibraryListQuery>({
+        repo,
+        input: libraryInputSchema,
+        patch: libraryPatchSchema,
+        query: libraryListQuerySchema,
+        where: (q) => [q.status ? eq(libraries.status, q.status) : undefined, ...filters(q)],
+        orderBy: [sql`ulower(${libraries.name}) ASC`]
+      }),
+      counts: async (query) => repo.countBy(libraries.status, filters(chipCountsQuerySchema.parse(query ?? {})))
+    }
   }
 
   snippetsApi(): SnippetsApi {
     const repo = this.snippetRepo
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      repo.hasTag(q.tagId),
+      repo.matches(q.search, [snippets.title, snippets.description, snippets.code])
+    ]
     return {
       ...createCrudApi<
         typeof snippets.$inferSelect,
@@ -243,12 +240,9 @@ export class KnowledgeModule {
         input: snippetInputSchema,
         patch: snippetPatchSchema,
         query: snippetListQuerySchema,
-        where: (q) => [
-          q.language ? eq(snippets.language, q.language) : undefined,
-          repo.hasTag(q.tagId),
-          repo.matches(q.search, [snippets.title, snippets.description, snippets.code])
-        ]
+        where: (q) => [q.language ? eq(snippets.language, q.language) : undefined, ...filters(q)]
       }),
+      counts: async (query) => repo.countBy(snippets.language, filters(chipCountsQuerySchema.parse(query ?? {}))),
       markCopied: async (id) => {
         this.m.db.orm
           .update(snippets)
@@ -261,17 +255,23 @@ export class KnowledgeModule {
 
   fixesApi(): FixesApi {
     const repo = this.fixRepo
-    return createCrudApi<typeof fixes.$inferSelect, Fix, FixInput, FixPatch, FixListQuery>({
-      repo,
-      input: fixInputSchema,
-      patch: fixPatchSchema,
-      query: fixListQuerySchema,
-      where: (q) => [
-        q.resolved === undefined ? undefined : eq(fixes.resolved, q.resolved),
-        repo.hasTag(q.tagId),
-        repo.matches(q.search, [fixes.title, fixes.errorText, fixes.solution, fixes.context])
-      ]
-    })
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      repo.hasTag(q.tagId),
+      repo.matches(q.search, [fixes.title, fixes.errorText, fixes.solution, fixes.context])
+    ]
+    return {
+      ...createCrudApi<typeof fixes.$inferSelect, Fix, FixInput, FixPatch, FixListQuery>({
+        repo,
+        input: fixInputSchema,
+        patch: fixPatchSchema,
+        query: fixListQuerySchema,
+        where: (q) => [q.resolved === undefined ? undefined : eq(fixes.resolved, q.resolved), ...filters(q)]
+      }),
+      counts: async (query) => {
+        const by = repo.countBy(fixes.resolved, filters(chipCountsQuerySchema.parse(query ?? {})))
+        return { open: by['false'] ?? 0, resolved: by['true'] ?? 0 }
+      }
+    }
   }
 
   notesApi(): NotesApi {
@@ -295,44 +295,75 @@ export class KnowledgeModule {
           .where(and(isNull(notes.deletedAt), sql`${notes.folder} != ''`))
           .all()
           .map((r) => r.folder)
-          .sort((a, b) => a.localeCompare(b, 'uk'))
+          .sort((a, b) => a.localeCompare(b, 'uk')),
+      folderCounts: async () =>
+        Object.entries(repo.countBy(notes.folder))
+          .map(([folder, count]) => ({ folder, count }))
+          .sort((a, b) => a.folder.localeCompare(b.folder, 'uk'))
     }
   }
 
   bookmarksApi(): BookmarksApi {
     const repo = this.bookmarkRepo
-    return createCrudApi<
-      typeof bookmarks.$inferSelect,
-      Bookmark,
-      BookmarkInput,
-      BookmarkPatch,
-      BookmarkListQuery
-    >({
-      repo,
-      input: bookmarkInputSchema,
-      patch: bookmarkPatchSchema,
-      query: bookmarkListQuerySchema,
-      where: (q) => [
-        q.kind ? eq(bookmarks.kind, q.kind) : undefined,
-        q.status ? eq(bookmarks.status, q.status) : undefined,
-        repo.hasTag(q.tagId),
-        repo.matches(q.search, [bookmarks.title, bookmarks.url, bookmarks.notes])
-      ],
-      beforeWrite: (data, current) => {
-        if (data.status === undefined) return data
-        const wasDone = current?.status === 'done'
-        if (data.status === 'done' && !wasDone) return { ...data, finishedAt: now(), progress: 100 }
-        if (data.status !== 'done' && wasDone) return { ...data, finishedAt: null }
-        return data
+    const filters = (q: ChipCountsQuery): (SQL | undefined)[] => [
+      repo.hasTag(q.tagId),
+      repo.matches(q.search, [bookmarks.title, bookmarks.url, bookmarks.notes])
+    ]
+    return {
+      ...createCrudApi<typeof bookmarks.$inferSelect, Bookmark, BookmarkInput, BookmarkPatch, BookmarkListQuery>({
+        repo,
+        input: bookmarkInputSchema,
+        patch: bookmarkPatchSchema,
+        query: bookmarkListQuerySchema,
+        where: (q) => [
+          q.kind ? eq(bookmarks.kind, q.kind) : undefined,
+          q.status ? eq(bookmarks.status, q.status) : undefined,
+          ...filters(q)
+        ],
+        beforeWrite: (data, current) => {
+          if (data.status === undefined) return data
+          const wasDone = current?.status === 'done'
+          if (data.status === 'done' && !wasDone) return { ...data, finishedAt: now(), progress: 100 }
+          if (data.status !== 'done' && wasDone) return { ...data, finishedAt: null }
+          return data
+        }
+      }),
+      counts: async (query) => {
+        const q = chipCountsQuerySchema.extend({ kind: bookmarkListQuerySchema.shape.kind }).parse(query ?? {})
+        return {
+          byStatus: repo.countBy(bookmarks.status, [q.kind ? eq(bookmarks.kind, q.kind) : undefined, ...filters(q)]),
+          byKind: repo.countBy(bookmarks.kind, filters(q))
+        }
       }
-    })
+    }
   }
-}
 
-export function hostOf(url: string): string | undefined {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return undefined
+  /** «Часто копіюю»: copy counters of snippets and prompts, without their code and text. */
+  knowledgeApi(): KnowledgeApi {
+    return {
+      mostCopied: async (limit) => {
+        const n = z.number().int().min(1).max(20).optional().parse(limit) ?? 7
+        const db = this.m.db.orm
+        const top: CopiedItem[] = [
+          ...db
+            .select({ id: snippets.id, title: snippets.title, sub: snippets.language, count: snippets.copyCount })
+            .from(snippets)
+            .where(and(isNull(snippets.deletedAt), gt(snippets.copyCount, 0)))
+            .orderBy(desc(snippets.copyCount))
+            .limit(n)
+            .all()
+            .map((r) => ({ ...r, type: 'snippet' as const })),
+          ...db
+            .select({ id: claudeItems.id, title: claudeItems.title, count: claudeItems.copyCount })
+            .from(claudeItems)
+            .where(and(isNull(claudeItems.deletedAt), eq(claudeItems.kind, 'prompt'), gt(claudeItems.copyCount, 0)))
+            .orderBy(desc(claudeItems.copyCount))
+            .limit(n)
+            .all()
+            .map((r) => ({ ...r, type: 'claude' as const, sub: CLAUDE_KIND_LABEL.prompt }))
+        ]
+        return top.sort((a, b) => b.count - a.count).slice(0, n)
+      }
+    }
   }
 }

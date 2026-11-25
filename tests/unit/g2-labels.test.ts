@@ -55,4 +55,10 @@ describe('variableLabel', () => {
     expect(variableLabel('due-date')).toBe('Due date')
     expect(variableLabel('термін')).toBe('Термін')
   })
+  it('numbered variables keep the number', () => {
+    expect(variableLabel('question_1')).toBe('Питання 1')
+    expect(variableLabel('hours_2')).toBe('Години 2')
+    expect(variableLabel('part_3')).toBe('Частина 3')
+    expect(variableLabel('step-1')).toBe('Крок 1')
+  })
 })

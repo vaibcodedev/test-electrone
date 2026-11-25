@@ -273,7 +273,6 @@ export interface Payment {
 export interface ProjectDetails {
   project: ProjectSummary
   client: Client | null
-  timeEntries: TimeEntry[]
   payments: Payment[]
   credentials: Credential[]
 }

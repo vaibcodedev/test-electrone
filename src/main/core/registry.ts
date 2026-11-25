@@ -38,6 +38,8 @@ export interface EntityDescriptor {
    * deletedAt = null, so it can't appear in the trash on its own). Applied everywhere through `live()`.
    */
   aliveWhere?: SQL
+  /** Why a restore from the trash stays hidden by aliveWhere: what to restore first. */
+  parentHint?: string
   /** Extra cleanup on permanent deletion (files on disk…). */
   onPurge?(row: AnyRow): void
   /** After a restore from the trash, inside its transaction (re-attach dependents, fix references). Throwing rolls the restore back. */
@@ -54,7 +56,12 @@ export interface EntityDescriptor {
    * Draft detection: the title column and the content columns that must all be empty.
    * Types without it never count as drafts.
    */
-  draft?: { titleField: string; contentFields: string[] }
+  draft?: {
+    titleField: string
+    contentFields: string[]
+    /** Child rows (checklist items…) make the record non-empty even when its own columns are untouched. */
+    hasChildren?: (id: string) => boolean
+  }
 }
 
 /** Never edited since creation, default title, no content → an empty draft (see DRAFT_TITLES). */
@@ -63,10 +70,11 @@ export function isDraft(d: EntityDescriptor, row: AnyRow): boolean {
   const titles = DRAFT_TITLES[d.type]
   if (!titles?.includes(String(row[d.draft.titleField] ?? '').trim())) return false
   if (row.createdAt !== row.updatedAt) return false
-  return d.draft.contentFields.every((f) => {
+  const empty = d.draft.contentFields.every((f) => {
     const v = row[f]
     return v === null || v === undefined || (typeof v === 'string' && !v.trim())
   })
+  return empty && !d.draft.hasChildren?.(row.id)
 }
 
 export class EntityRegistry {

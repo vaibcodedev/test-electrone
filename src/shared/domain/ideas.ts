@@ -12,6 +12,15 @@ export const IDEA_STATUSES = [
 ] as const
 export type IdeaStatus = (typeof IDEA_STATUSES)[number]
 
+export const IDEA_STATUS_LABEL: Record<IdeaStatus, string> = {
+  inbox: 'Вхідні',
+  thinking: 'Обмірковую',
+  planned: 'У планах',
+  in_progress: 'У роботі',
+  done: 'Зроблено',
+  dropped: 'Відмовився'
+}
+
 export const ideaInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
   body: z.string().max(100_000).default(''),

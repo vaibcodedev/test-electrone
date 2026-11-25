@@ -103,7 +103,12 @@ export const FIELD_LABEL: Record<string, string> = {
   term: 'Слово',
   translation: 'Переклад',
   example: 'Приклад',
-  items: 'Записи'
+  items: 'Записи',
+  tags: 'Мітки',
+  screenshot: 'Скриншот',
+  selection: 'Виділений текст',
+  company: 'Компанія',
+  kind: 'Вид'
 }
 
 /** «Назва: занадто довго…»; inside a list (JSON import) «Запис 38 → Назва: …». */
@@ -111,7 +116,11 @@ export function describeZodError(e: ZodError): string {
   const first = e.issues[0]
   if (!first) return 'Некоректні дані'
   const path = first.path.filter((p) => p !== 'patch' && p !== 'input')
-  const index = path.find((p): p is number => typeof p === 'number')
+  // «Запис N» is a record of a list ([37, 'title'], ['items', 37, 'title'], an imported [37]), not a value
+  // of an array field: ['tags', 0] is «Мітки: …».
+  const at = path.findIndex((p) => typeof p === 'number')
+  const valueOfField = at > 0 && at === path.length - 1
+  const index = at >= 0 && !valueOfField ? (path[at] as number) : undefined
   const key = [...path].reverse().find((p): p is string => typeof p === 'string')
   const field = key ? (FIELD_LABEL[key] ?? 'Поле') : ''
   const where = [index !== undefined ? `Запис ${index + 1}` : '', field].filter(Boolean).join(' → ')

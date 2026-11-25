@@ -5,6 +5,16 @@ import { idSchema, urlSchema, withTagIds, type EntityBase, type WithTags, patchO
 export const CLAUDE_KINDS = ['note', 'branch', 'skill', 'plugin', 'guide', 'prompt'] as const
 export type ClaudeKind = (typeof CLAUDE_KINDS)[number]
 
+/** One record's kind (search, links, pins subtitles; the picker). */
+export const CLAUDE_KIND_LABEL: Record<ClaudeKind, string> = {
+  note: 'Нотатка',
+  branch: 'Гілка',
+  skill: 'Скіл',
+  plugin: 'Плагін',
+  guide: 'Гайд',
+  prompt: 'Промт'
+}
+
 export const claudeInputSchema = z.object({
   kind: z.enum(CLAUDE_KINDS),
   title: z.string().trim().min(1).max(MAX.title),

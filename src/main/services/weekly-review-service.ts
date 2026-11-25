@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, isNull, lte, sql } from 'drizzle-orm'
+import { and, eq, gte, isNotNull, isNull, lte, sql, type SQL } from 'drizzle-orm'
 import type { ReviewApi } from '@shared/api'
 import { CARD_ON_LIVE_BOARD } from '../modules/boards'
 import type { EntitySummary } from '@shared/domain/common'
@@ -6,13 +6,14 @@ import type { MoneyByCurrency } from '@shared/domain/finance'
 import type { Currency } from '@shared/domain/crm'
 import { reviewNotesSchema, type WeekMetric, type WeekSection, type WeekSnapshot, type WeeklyReview } from '@shared/domain/review'
 import { ENTITY_META } from '@shared/entity-types'
-import type { DbContext } from '../db/client'
+import type { DbContext, Orm } from '../db/client'
 import {
   applications,
   applicationStages,
   bookmarks,
   cards,
   checklistItems,
+  checklists,
   expenses,
   ideas,
   interviewQuestions,
@@ -52,7 +53,7 @@ export class WeeklyReviewService {
     }
   ) {}
 
-  private get db() {
+  private get db(): Orm {
     return this.ctx.orm
   }
 
@@ -62,7 +63,7 @@ export class WeeklyReviewService {
 
   /** Raw numbers for a week (used for the current and the previous week). */
   private async numbers(from: number, to: number): Promise<Record<string, number>> {
-    const inRange = (col: Parameters<typeof gte>[0]) => and(gte(col, from), lte(col, to))
+    const inRange = (col: Parameters<typeof gte>[0]): SQL | undefined => and(gte(col, from), lte(col, to))
     // Finished entries, only the part inside the week (a session over Sunday midnight is split).
     // Time of projects in the trash is not counted.
     const minutes = this.db
@@ -92,7 +93,14 @@ export class WeeklyReviewService {
     const commits = await this.mods.git.commitsBetween(this.mods.dev.paths(), from, to)
     return {
       cardsDone: this.count(cards, and(isNull(cards.deletedAt), CARD_ON_LIVE_BOARD, inRange(cards.completedAt))),
-      checksDone: this.count(checklistItems, inRange(checklistItems.doneAt)),
+      // Items of checklists in the trash don't count (same as the dashboard).
+      checksDone: this.count(
+        checklistItems,
+        and(
+          inRange(checklistItems.doneAt),
+          sql`${checklistItems.checklistId} IN (SELECT ${checklists.id} FROM ${checklists} WHERE ${checklists.deletedAt} IS NULL)`
+        )
+      ),
       ideas: this.count(ideas, and(isNull(ideas.deletedAt), inRange(ideas.createdAt))),
       notes: this.count(notes, and(isNull(notes.deletedAt), inRange(notes.createdAt))),
       minutes,
@@ -167,7 +175,7 @@ export class WeeklyReviewService {
       { id: 'code', title: 'Код', metrics: [metric('commits', 'Комітів у моїх проєктах')] }
     ]
 
-    const summaries = (refs: EntitySummary[]): EntitySummary[] => refs.slice(0, 12)
+    const summaries = <T extends EntitySummary>(refs: T[]): T[] => refs.slice(0, 12)
     const doneCards = this.db
       .select({ id: cards.id, title: cards.title })
       .from(cards)
@@ -190,11 +198,23 @@ export class WeeklyReviewService {
     const unpaid = months
       .flatMap((m) => this.mods.finance.subscriptionMonth(m))
       .filter((s) => !s.expenseId && s.dueAt >= from && s.dueAt <= dueUntil)
-      .map((s): EntitySummary => ({ type: 'event', id: s.id, title: `${s.title} · ${s.amount} ${s.currency}`, subtitle: 'Підписку не позначено' }))
+      // A subscription is no entity of its own: the row opens the month on «Витрати», where it is marked paid.
+      .map((s) => ({
+        type: 'event' as const,
+        id: s.id,
+        title: `${s.title} · ${s.amount} ${s.currency}`,
+        subtitle: 'Підписку не позначено',
+        route: `/finance/expenses?month=${dayKey(s.dueAt).slice(0, 7)}`
+      }))
     const upcoming = this.mods.calendar
       .feed(to + 1, addDays(from, 14) - 1)
       .slice(0, 12)
-      .map((i) => ({ title: i.title, at: i.startAt, route: i.route ?? ENTITY_META[i.ref.type].route(i.ref.id) }))
+      .map((i) => ({
+        title: i.title,
+        at: i.startAt,
+        route: i.route ?? ENTITY_META[i.ref.type].route(i.ref.id),
+        allDay: i.allDay
+      }))
     return {
       weekStart: dayKey(from),
       from,

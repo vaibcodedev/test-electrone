@@ -26,7 +26,7 @@ export const idArg = z.string().min(1).max(64)
 export const orderedIds = z.array(idArg).max(1000)
 
 /** Parses `{ id, patch }` update arguments with the module's patch schema. */
-export function updateArgs<T extends z.ZodType>(patch: T) {
+export function updateArgs<T extends z.ZodType>(patch: T): z.ZodObject<{ id: typeof idArg; patch: T }> {
   return z.object({ id: idArg, patch })
 }
 

@@ -2,7 +2,7 @@
  * Calendar events with recurrence + one aggregated feed: other modules add their dated items
  * (card deadlines, payments, subscriptions, follow-ups…) as feed providers, wired in container.ts.
  */
-import { and, asc, gte, lte, ne, or, eq } from 'drizzle-orm'
+import { and, asc, gte, lte, ne, or, eq, type SQL } from 'drizzle-orm'
 import type { EventsApi } from '@shared/api'
 import {
   eventInputSchema,
@@ -13,9 +13,11 @@ import {
   type Recurrence
 } from '@shared/domain/calendar'
 import { pageSchema } from '@shared/domain/common'
+import { fmtDateTime, fmtDayFull } from '@shared/dates'
 import { events } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
+import { UserError } from '../core/util'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 
 type EventRow = typeof events.$inferSelect
@@ -82,6 +84,7 @@ export class CalendarModule {
   private readonly listeners: EventListener[] = []
   private readonly providers: FeedProvider[] = []
   private readonly decorators = new Map<string, SourceDecorator>()
+  private readonly owners = new Map<string, { hint: string; owns: (sourceId: string) => boolean }>()
 
   onEventChanged(listener: EventListener): void {
     this.listeners.push(listener)
@@ -95,18 +98,26 @@ export class CalendarModule {
     this.decorators.set(sourceType, decorator)
   }
 
+  /**
+   * Events another module keeps in sync with its own records (interview stages): the calendar can't delete
+   * them while `owns(sourceId)`, the next sync would bring them back. `hint` tells the user where to do it.
+   */
+  ownSource(sourceType: string, hint: string, owns: (sourceId: string) => boolean): void {
+    this.owners.set(sourceType, { hint, owns })
+  }
+
+  /** Hides events whose owner is in the trash for now (stage events of a vacancy): see aliveWhere. */
+  hideWhen(alive: SQL, parentHint: string): void {
+    this.descriptor.aliveWhere = this.descriptor.aliveWhere ? and(this.descriptor.aliveWhere, alive) : alive
+    this.descriptor.parentHint = parentHint
+  }
+
   constructor(m: ModuleContext) {
     this.descriptor = {
       type: 'event',
       table: events,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({
-        title: r.title,
-        subtitle: new Date(r.startAt).toLocaleString('uk-UA', {
-          dateStyle: 'medium',
-          timeStyle: r.allDay ? undefined : 'short'
-        })
-      }),
+      summary: (r) => ({ title: r.title, subtitle: r.allDay ? fmtDayFull(r.startAt) : fmtDateTime(r.startAt) }),
       systemFields: ['remindedFor', 'reminded2For'],
       // An edit moved the event (→ a job stage followed it); «Скасувати» moves it back: the stage follows again.
       afterRevert: (row, before) => {
@@ -133,7 +144,8 @@ export class CalendarModule {
             or(gte(events.startAt, from), gte(events.endAt, from))
           ),
           and(ne(events.recurrence, 'none'), lte(events.startAt, to))
-        )
+        ),
+        this.descriptor.aliveWhere
       ],
       [asc(events.startAt)]
     )
@@ -167,7 +179,7 @@ export class CalendarModule {
     return {
       list: async (query) => {
         const page = pageSchema.parse(query ?? {})
-        return repo.listWhere([], [asc(events.startAt)], page.limit, page.offset)
+        return repo.listWhere([this.descriptor.aliveWhere], [asc(events.startAt)], page.limit, page.offset)
       },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
@@ -197,7 +209,13 @@ export class CalendarModule {
         }
         return updated
       },
-      remove: async (id) => repo.softDelete(idArg.parse(id)),
+      remove: async (id) => {
+        const eventId = idArg.parse(id)
+        const row = repo.row(eventId)
+        const owner = row?.sourceType ? this.owners.get(row.sourceType) : undefined
+        if (owner && row?.sourceId && owner.owns(row.sourceId)) throw new UserError(owner.hint)
+        repo.softDelete(eventId)
+      },
       feed: async (range) => {
         const { from, to } = rangeSchema.parse(range)
         return this.feed(from, to)

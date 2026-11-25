@@ -4,8 +4,8 @@
  * Every method takes at most ONE argument so that the transport stays trivial: rpc(path, arg).
  */
 import type { EntityType } from './entity-types'
-import type { EntityRef, EntitySummary, PageQuery, Tag, TagWithUsage } from './domain/common'
-import type { Idea, IdeaInput, IdeaListQuery, IdeaPatch } from './domain/ideas'
+import type { ChipCountsQuery, EntityRef, EntitySummary, PageQuery, Tag, TagWithUsage } from './domain/common'
+import type { Idea, IdeaInput, IdeaListQuery, IdeaPatch, IdeaStatus } from './domain/ideas'
 import type {
   Board,
   BoardColumn,
@@ -23,8 +23,8 @@ import type {
   ColumnPatch,
   DueCard
 } from './domain/boards'
-import type { ClaudeInput, ClaudeItem, ClaudeListQuery, ClaudePatch } from './domain/claude'
-import type { Library, LibraryInput, LibraryListQuery, LibraryPatch } from './domain/libraries'
+import type { ClaudeInput, ClaudeItem, ClaudeKind, ClaudeListQuery, ClaudePatch } from './domain/claude'
+import type { Library, LibraryInput, LibraryListQuery, LibraryPatch, LibraryStatus } from './domain/libraries'
 import type {
   ComponentInput,
   ComponentListQuery,
@@ -42,7 +42,7 @@ import type {
   MoodboardInput,
   MoodboardPatch
 } from './domain/designs'
-import type { Snippet, SnippetInput, SnippetListQuery, SnippetPatch } from './domain/snippets'
+import type { Snippet, SnippetInput, SnippetLanguage, SnippetListQuery, SnippetPatch } from './domain/snippets'
 import type {
   ClientDetails,
   ClientInput,
@@ -78,7 +78,14 @@ import type {
   InstantiateInput
 } from './domain/checklists'
 import type { Fix, FixInput, FixListQuery, FixPatch } from './domain/fixes'
-import type { Bookmark, BookmarkInput, BookmarkListQuery, BookmarkPatch } from './domain/bookmarks'
+import type {
+  Bookmark,
+  BookmarkInput,
+  BookmarkKind,
+  BookmarkListQuery,
+  BookmarkPatch,
+  BookmarkStatus
+} from './domain/bookmarks'
 import type {
   EnglishStats,
   ReviewGrade,
@@ -207,9 +214,13 @@ export interface CrudApi<TEntity, TInput, TPatch, TQuery = void> {
   remove(id: string): Promise<void>
 }
 
+/** Live records per value of one column, under the page's search and tag (chip counters). */
+export type ChipCounts<K extends string> = Partial<Record<K, number>>
+
 export interface IdeasApi extends CrudApi<Idea, IdeaInput, IdeaPatch, IdeaListQuery> {
   /** Creates a board from the idea (default columns, idea body as first card) and links them. */
   convertToBoard(id: string): Promise<Board>
+  counts(query?: ChipCountsQuery): Promise<ChipCounts<IdeaStatus>>
 }
 
 export interface BoardsApi extends CrudApi<BoardSummary, BoardInput, BoardPatch> {
@@ -237,9 +248,12 @@ export interface CardsApi {
 
 export interface ClaudeApi extends CrudApi<ClaudeItem, ClaudeInput, ClaudePatch, ClaudeListQuery> {
   markCopied(id: string): Promise<void>
+  counts(query?: ChipCountsQuery): Promise<ChipCounts<ClaudeKind>>
 }
 
-export type LibrariesApi = CrudApi<Library, LibraryInput, LibraryPatch, LibraryListQuery>
+export interface LibrariesApi extends CrudApi<Library, LibraryInput, LibraryPatch, LibraryListQuery> {
+  counts(query?: ChipCountsQuery): Promise<ChipCounts<LibraryStatus>>
+}
 
 export interface ComponentsApi
   extends CrudApi<UiComponent, ComponentInput, ComponentPatch, ComponentListQuery> {
@@ -255,8 +269,9 @@ export interface DesignsApi extends CrudApi<Design, DesignInput, DesignPatch, De
   palette(): Promise<string[]>
 }
 
+/** `designId`: each moodboard also says whether that design is in it (`contains`, the «У добірку» picker). */
 export interface MoodboardsApi
-  extends CrudApi<Moodboard, MoodboardInput, MoodboardPatch> {
+  extends CrudApi<Moodboard, MoodboardInput, MoodboardPatch, { designId?: string }> {
   details(id: string): Promise<MoodboardDetails | null>
   addDesigns(args: { moodboardId: string; designIds: string[] }): Promise<void>
   removeDesign(args: { moodboardId: string; designId: string }): Promise<void>
@@ -265,6 +280,21 @@ export interface MoodboardsApi
 
 export interface SnippetsApi extends CrudApi<Snippet, SnippetInput, SnippetPatch, SnippetListQuery> {
   markCopied(id: string): Promise<void>
+  counts(query?: ChipCountsQuery): Promise<ChipCounts<SnippetLanguage>>
+}
+
+/** A snippet or a Claude prompt in «Часто копіюю» (no code or prompt text: fetch it with `get` to copy). */
+export interface CopiedItem {
+  type: 'snippet' | 'claude'
+  id: string
+  title: string
+  sub: string
+  count: number
+}
+
+export interface KnowledgeApi {
+  /** Snippets and prompts copied at least once, most copied first (limit ≤ 20, default 7). */
+  mostCopied(limit?: number): Promise<CopiedItem[]>
 }
 
 export interface ClientsApi extends CrudApi<ClientSummary, ClientInput, ClientPatch, ClientListQuery> {
@@ -328,8 +358,16 @@ export interface ChecklistsApi {
   importTemplate(json: unknown): Promise<Checklist>
 }
 
-export type FixesApi = CrudApi<Fix, FixInput, FixPatch, FixListQuery>
-export type BookmarksApi = CrudApi<Bookmark, BookmarkInput, BookmarkPatch, BookmarkListQuery>
+export interface FixesApi extends CrudApi<Fix, FixInput, FixPatch, FixListQuery> {
+  counts(query?: ChipCountsQuery): Promise<{ open: number; resolved: number }>
+}
+
+export interface BookmarksApi extends CrudApi<Bookmark, BookmarkInput, BookmarkPatch, BookmarkListQuery> {
+  /** `byStatus` within the chosen kind (as the status chips show it), `byKind` over all kinds. */
+  counts(
+    query?: ChipCountsQuery & { kind?: BookmarkKind }
+  ): Promise<{ byStatus: ChipCounts<BookmarkStatus>; byKind: ChipCounts<BookmarkKind> }>
+}
 
 export interface EnglishApi extends CrudApi<Word, WordInput, WordPatch, WordListQuery> {
   /** Words due for review now, oldest first. */
@@ -348,6 +386,8 @@ export interface EventsApi extends CrudApi<CalendarEvent, EventInput, EventPatch
 export type NotesApi = CrudApi<Note, NoteInput, NotePatch, NoteListQuery> & {
   /** Distinct folders in use. */
   folders(): Promise<string[]>
+  /** Live notes per folder ('' = without a folder). */
+  folderCounts(): Promise<{ folder: string; count: number }[]>
 }
 
 export interface PlatformsApi {
@@ -424,6 +464,8 @@ export interface JobsApi {
   boards(args?: { includeInactive?: boolean }): Promise<JobBoard[]>
   createBoard(input: JobBoardInput): Promise<JobBoard>
   updateBoard(args: { id: string; patch: JobBoardPatch }): Promise<JobBoard>
+  /** Deletes a board with no applications or check-ins yet; otherwise a UserError (switch it off instead). */
+  removeBoard(id: string): Promise<void>
   reorderBoards(ids: string[]): Promise<void>
   /** Board × day matrix (default 28 days) with today's status and streaks. */
   daily(args?: { days?: number }): Promise<DailyBoard[]>
@@ -528,8 +570,8 @@ export interface TagsApi {
   create(input: TagInput): Promise<Tag>
   update(args: { id: string; patch: Partial<TagInput> }): Promise<Tag>
   remove(id: string): Promise<void>
-  /** Every entity carrying the tag. */
-  entities(tagId: string): Promise<EntitySummary[]>
+  /** Live entities carrying the tag, recently changed first; pass `{ tagId, limit, offset }` to page. */
+  entities(args: string | ({ tagId: string } & PageQuery)): Promise<EntitySummary[]>
 }
 
 export interface LinksApi {
@@ -645,6 +687,7 @@ export interface Api {
   checklists: ChecklistsApi
   fixes: FixesApi
   bookmarks: BookmarksApi
+  knowledge: KnowledgeApi
   english: EnglishApi
   events: EventsApi
   notes: NotesApi

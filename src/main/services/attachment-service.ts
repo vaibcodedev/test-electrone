@@ -8,24 +8,22 @@ import { fileSourceSchema, type FileSource } from '@shared/domain/designs'
 import type { Attachment } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { attachments } from '../db/schema'
-import { newId, now, NotFoundError, UserError } from '../core/util'
-import { log } from '../core/logger'
+import { newId, now, NotFoundError } from '../core/util'
+import { openPathOrThrow } from '../core/open-path'
+import type { EntityRegistry } from '../core/registry'
 import type { FileStorage } from './file-storage'
 
 /** Opens a stored file in its default app; shell's English error goes to the log, the user gets a plain reason. */
-export async function openStoredFile(abs: string): Promise<void> {
-  const err = await shell.openPath(abs)
-  if (err) {
-    log.warn('[files] openPath', abs, err)
-    throw new UserError('Не вдалося відкрити файл — можливо, його видалено або перейменовано')
-  }
+export function openStoredFile(abs: string): Promise<void> {
+  return openPathOrThrow(abs, 'Не вдалося відкрити файл — можливо, його видалено або перейменовано')
 }
 
 /** Files attached to any entity. */
 export class AttachmentService {
   constructor(
     private readonly ctx: DbContext,
-    private readonly storage: FileStorage
+    private readonly storage: FileStorage,
+    private readonly registry: EntityRegistry
   ) {}
 
   list(ref: EntityRef): Attachment[] {
@@ -38,6 +36,8 @@ export class AttachmentService {
   }
 
   async add(ref: EntityRef, source: FileSource): Promise<Attachment> {
+    // A file for a deleted record would be copied into <data>/files (up to 300 MB) with nothing to clean it up.
+    if (!this.registry.findRow(ref)) throw new NotFoundError(ref.type, ref.id)
     const stored = await this.storage.import(source)
     const row = {
       id: newId(),

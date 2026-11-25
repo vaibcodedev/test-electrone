@@ -135,8 +135,11 @@ export class ScriptRunner {
       : spawn(pm, ['run', script], { cwd, shell: false, detached: true, windowsHide: true, env })
     run.child = child
     run.pid = child.pid ?? null
-    child.stdout?.on('data', (d: Buffer) => this.push(run, d.toString(), 'out'))
-    child.stderr?.on('data', (d: Buffer) => this.push(run, d.toString(), 'err'))
+    // A decoder per stream: a multi-byte UTF-8 character split between two chunks stays whole (no «�»).
+    child.stdout?.setEncoding('utf8')
+    child.stderr?.setEncoding('utf8')
+    child.stdout?.on('data', (d: string) => this.push(run, d, 'out'))
+    child.stderr?.on('data', (d: string) => this.push(run, d, 'err'))
     child.on('error', (e) => {
       run.status = 'failed'
       this.push(run, `Не вдалося запустити: ${e.message}\n`, 'sys')

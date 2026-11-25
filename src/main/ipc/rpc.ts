@@ -10,8 +10,6 @@ import { NotFoundError, UserError } from '../core/util'
 import { log } from '../core/logger'
 import { changedTypes, formatError } from './rpc-utils'
 
-export { formatError }
-
 /** Only our own pages may call the API (defence against a navigated/injected frame). */
 function trustedSender(event: IpcMainInvokeEvent): boolean {
   const url = event.senderFrame?.url ?? ''

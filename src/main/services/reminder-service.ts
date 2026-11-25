@@ -9,11 +9,18 @@ import { occurrences } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
 import type { JobsModule } from '../modules/jobs'
 import type { ConfigStore } from '../core/config-store'
-import { DAY_MS, dayKey, now, startOfWeek } from '../core/util'
+import { addDays, DAY_MS, dayKey, now, startOfDay, startOfWeek } from '../core/util'
 
 const TICK_MS = 30_000
 /** Reminders older than this (app was closed) are skipped instead of spamming on startup. */
 const STALE_MS = 15 * 60_000
+/** All-day card deadlines (stored as 00:00) are announced in the morning, not at midnight. */
+const CARD_DAY_NUDGE_HOUR = 9
+
+const isAllDay = (ts: number): boolean => {
+  const d = new Date(ts)
+  return d.getHours() === 0 && d.getMinutes() === 0
+}
 
 /** Fires OS notifications for calendar reminders and card deadlines. */
 export class ReminderService {
@@ -76,9 +83,10 @@ export class ReminderService {
       }
     }
     for (const c of this.boards.due({ from: Math.max(this.lastTick, t - STALE_MS), to: t })) {
-      if (c.columnIsDone || c.dueAt! <= this.lastTick) continue
+      if (c.columnIsDone || c.dueAt! <= this.lastTick || isAllDay(c.dueAt!)) continue
       this.notify(`Дедлайн: ${c.title}`, c.boardTitle, ENTITY_META.card.route(c.id))
     }
+    this.cardDayNudge(t)
     this.jobNudge(t)
     this.weeklyNudge(t)
     this.lastTick = t
@@ -95,6 +103,24 @@ export class ReminderService {
     if (this.config.lastWeeklyReview === week) return
     this.config.lastWeeklyReview = week
     this.notify('Підсумки тижня готові', 'Що зроблено, гроші, відгуки без відповіді й плани на наступний тиждень', '/review')
+  }
+
+  /**
+   * Morning reminder about today's all-day card deadlines, once a day. At midnight a sleeping laptop or a
+   * closed Vault missed them entirely, and 00:00 is no time to be reminded anyway.
+   */
+  private cardDayNudge(t: number): void {
+    const key = dayKey(t)
+    if (this.config.lastCardNudge === key || new Date(t).getHours() < CARD_DAY_NUDGE_HOUR) return
+    this.config.lastCardNudge = key
+    const day = startOfDay(t)
+    const due = this.boards
+      .due({ from: day, to: addDays(day, 1) - 1 })
+      .filter((c) => !c.columnIsDone && isAllDay(c.dueAt!))
+    if (!due.length) return
+    const route = due.length === 1 ? ENTITY_META.card.route(due[0].id) : '/boards'
+    const names = due.slice(0, 3).map((c) => c.title).join(', ')
+    this.notify('Сьогодні дедлайн', due.length > 3 ? `${names} і ще ${due.length - 3}` : names, route)
   }
 
   /** Evening reminder: job boards expected today that are not marked yet. */

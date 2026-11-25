@@ -15,6 +15,7 @@ import {
 } from '@shared/domain/english'
 import { z } from 'zod'
 import { wordReviews, words } from '../db/schema'
+import type { Orm } from '../db/client'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { addDays, localDayNumber, newId, now, startOfDay } from '../core/util'
@@ -24,7 +25,7 @@ import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 type WordRow = typeof words.$inferSelect
 
 /** SQL twin of `stageOf` (core/srs): the stage filter runs in the query, so pages stay correct. */
-export function stageWhere(stage: WordStage): SQL {
+function stageWhere(stage: WordStage): SQL {
   const reviewed = isNotNull(words.lastReviewedAt)
   switch (stage) {
     case 'new':
@@ -61,7 +62,7 @@ export class EnglishModule {
     }))
   }
 
-  private get db() {
+  private get db(): Orm {
     return this.m.db.orm
   }
 
@@ -104,12 +105,15 @@ export class EnglishModule {
       streak++
       cursor = addDays(cursor, -1)
     }
+    const t = now()
+    const upcoming = list.map((w) => w.dueAt).filter((d) => d > t)
     return {
       total: list.length,
-      due: list.filter((w) => w.dueAt <= now()).length,
+      due: list.length - upcoming.length,
       byStage,
       reviewedToday: reviews.filter((r) => r.at >= today).length,
-      streakDays: streak
+      streakDays: streak,
+      nextDueAt: upcoming.length ? Math.min(...upcoming) : null
     }
   }
 

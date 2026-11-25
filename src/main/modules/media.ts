@@ -28,13 +28,14 @@ import {
   type MoodboardPatch
 } from '@shared/domain/designs'
 import { designs, moodboardItems, moodboards, uiComponents } from '../db/schema'
+import type { Orm } from '../db/client'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { NotFoundError } from '../core/util'
 import { nextPosition, reorder } from '../core/ordering'
 import { idArg, orderedIds, splitTags, updateArgs, type ModuleContext } from './context'
 import { createCrudApi } from './crud'
-import { hostOf } from './knowledge'
+import { hostOf } from '@shared/url'
 
 type ComponentRow = typeof uiComponents.$inferSelect
 type DesignRow = typeof designs.$inferSelect
@@ -79,6 +80,7 @@ export class MediaModule {
       table: uiComponents,
       searchDoc: (r) => ({ title: r.title, body: `${r.description}\n${r.code}` }),
       summary: (r) => ({ title: r.title, subtitle: r.language.toUpperCase() }),
+      draft: { titleField: 'title', contentFields: ['description', 'sourceUrl', 'coverPath', 'code'] },
       onPurge: (r) => m.files.remove(r.coverPath),
       fileFields: { coverPath: [] }
     }
@@ -101,7 +103,7 @@ export class MediaModule {
       table: moodboards,
       draft: { titleField: 'title', contentFields: ['description'] },
       searchDoc: (r) => ({ title: r.title, body: r.description }),
-      summary: (r) => ({ title: r.title, subtitle: 'Добірка' })
+      summary: (r) => ({ title: r.title, subtitle: r.description ? r.description.slice(0, 80) : undefined })
     }
     this.descriptors = [component, design, moodboard]
     this.componentRepo = new SoftRepository(m.repo, component, (r, tags) => ({
@@ -118,7 +120,7 @@ export class MediaModule {
     this.moodboardRepo = new SoftRepository(m.repo, moodboard, (r, tags) => ({ ...r, tags }))
   }
 
-  private get db() {
+  private get db(): Orm {
     return this.m.db.orm
   }
 
@@ -277,7 +279,9 @@ export class MediaModule {
 
   /* ───────── moodboards ───────── */
 
-  private moodboardSummaries(opts: { ids?: string[]; limit?: number; offset?: number } = {}): Moodboard[] {
+  private moodboardSummaries(
+    opts: { ids?: string[]; limit?: number; offset?: number; designId?: string } = {}
+  ): Moodboard[] {
     const list = this.moodboardRepo.listWhere(
       [opts.ids ? inArray(moodboards.id, opts.ids) : undefined],
       undefined,
@@ -300,10 +304,21 @@ export class MediaModule {
       )
       .orderBy(asc(moodboardItems.position))
       .all()
+    const holding = opts.designId
+      ? new Set(
+          this.db
+            .select({ id: moodboardItems.moodboardId })
+            .from(moodboardItems)
+            .where(eq(moodboardItems.designId, opts.designId))
+            .all()
+            .map((r) => r.id)
+        )
+      : null
     return list.map((b) => {
       const mine = items.filter((i) => i.moodboardId === b.id)
       return {
         ...b,
+        ...(holding ? { contains: holding.has(b.id) } : {}),
         itemCount: mine.length,
         previewPaths: mine
           .map((i) => i.path)
@@ -321,7 +336,7 @@ export class MediaModule {
       return found
     }
     return {
-      list: async (query) => this.moodboardSummaries(pageSchema.parse(query ?? {})),
+      list: async (query) => this.moodboardSummaries(pageSchema.extend({ designId: idArg.optional() }).parse(query ?? {})),
       get: async (id) => this.moodboardSummaries({ ids: [idArg.parse(id)] })[0] ?? null,
       create: async (input: MoodboardInput) => {
         const [data, tagIds] = splitTags(moodboardInputSchema.parse(input))

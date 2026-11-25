@@ -1,4 +1,4 @@
-import { and, asc, eq, max } from 'drizzle-orm'
+import { and, asc, eq, max, type SQL } from 'drizzle-orm'
 import { z } from 'zod'
 import type { PinsApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
@@ -33,7 +33,7 @@ export class PinService {
     })
   }
 
-  private where(ref: EntityRef, kind: PinKind) {
+  private where(ref: EntityRef, kind: PinKind): SQL | undefined {
     return and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id), eq(pins.kind, kind))
   }
 

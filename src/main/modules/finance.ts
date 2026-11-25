@@ -6,7 +6,7 @@ import { and, asc, desc, eq, gte, isNull, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import type { FinanceApi } from '@shared/api'
 import type { Currency } from '@shared/domain/crm'
-import type { CalendarItem } from '@shared/domain/calendar'
+import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import {
   expenseInputSchema,
   expensePatchSchema,
@@ -35,6 +35,7 @@ import {
   subscriptions,
   withdrawals
 } from '../db/schema'
+import type { Orm } from '../db/client'
 import { newId, now, NotFoundError, startOfMonth } from '../core/util'
 import { idArg, updateArgs, type ModuleContext } from './context'
 import type { FreelanceModule } from './freelance'
@@ -62,15 +63,13 @@ export function monthKey(ts: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-const SUBSCRIPTION_COLOR = '#c98af0'
-
 export class FinanceModule {
   constructor(
     private readonly m: ModuleContext,
     private readonly freelance: FreelanceModule
   ) {}
 
-  private get db() {
+  private get db(): Orm {
     return this.m.db.orm
   }
 
@@ -160,7 +159,7 @@ export class FinanceModule {
           startAt: s.dueAt,
           endAt: null,
           allDay: true,
-          color: SUBSCRIPTION_COLOR,
+          color: FEED_COLOR.subscription,
           done: !!s.expenseId
         })
       }
@@ -385,10 +384,9 @@ export class FinanceModule {
           })
           .parse(args)
         const row = this.subscriptionMonth(month).find((s) => s.id === id)
-        const sub =
-          row ??
-          this.toSub(this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()!)
-        if (!sub) throw new NotFoundError('Підписка', id)
+        const raw = row ? undefined : this.db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()
+        if (!row && !raw) throw new NotFoundError('Підписка', id)
+        const sub = row ?? this.toSub(raw!)
         const [from, to] = monthRange(month)
         this.db
           .delete(expenses)

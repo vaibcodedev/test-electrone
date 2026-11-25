@@ -113,6 +113,9 @@ export const cardMoveSchema = z.object({
 })
 export type CardMove = z.infer<typeof cardMoveSchema>
 
+/** A sub-task line of a card (both processes: main validates, the card sheet limits the input). */
+export const cardCheckInputSchema = z.object({ text: z.string().trim().min(1).max(1000) })
+
 export interface DueCard extends Card {
   boardTitle: string
   columnTitle: string

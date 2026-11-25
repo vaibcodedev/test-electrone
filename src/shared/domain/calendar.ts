@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import type { EntityType } from '../entity-types'
+import type { PaletteColor } from '../colors'
 import {
   hexColorSchema,
   timestampSchema,
@@ -63,6 +64,18 @@ export interface CalendarEvent extends EntityBase, WithTags {
 
 export const rangeSchema = z.object({ from: timestampSchema, to: timestampSchema })
 export type DateRange = z.infer<typeof rangeSchema>
+
+/**
+ * Colours of the items other modules put on the calendar: one per legend entry, pairwise distinct.
+ * A test-task deadline is part of the interview stage and shares its colour (one «Співбесіда» in the legend).
+ */
+export const FEED_COLOR: Record<'payment' | 'project' | 'interview' | 'subscription' | 'followup', PaletteColor> = {
+  payment: '#f5a524',
+  project: '#f06b6b',
+  interview: '#7c8cf8',
+  subscription: '#c98af0',
+  followup: '#3fbf9b'
+}
 
 /** A single item placed on the calendar grid, from any module. */
 export interface CalendarItem {

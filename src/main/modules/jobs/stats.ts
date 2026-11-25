@@ -121,12 +121,13 @@ export class JobStatistics {
         (r) => r.boardId ?? '—',
         (k) => boardNames.get(k) ?? 'Без майданчика'
       ),
+      // An id of a resume/template deleted for good joins the «Без …» row instead of a second one.
       byResume: group(
-        (r) => r.resumeId ?? '—',
+        (r) => (r.resumeId && resumeNames.has(r.resumeId) ? r.resumeId : '—'),
         (k) => resumeNames.get(k) ?? 'Без резюме'
       ),
       byTemplate: group(
-        (r) => r.templateId ?? '—',
+        (r) => (r.templateId && templateNames.has(r.templateId) ? r.templateId : '—'),
         (k) => templateNames.get(k) ?? 'Без шаблону'
       ),
       weekly: [...weeks.entries()].map(([week, v]) => ({ week, ...v })),

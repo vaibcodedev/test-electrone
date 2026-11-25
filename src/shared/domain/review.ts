@@ -27,10 +27,11 @@ export interface WeekSnapshot {
   sections: WeekSection[]
   money: { net: MoneyByCurrency; expenses: MoneyByCurrency; profit: MoneyByCurrency }
   /** Things still hanging: stale proposals, applications without answer, overdue cards, unpaid subscriptions. */
-  pending: { title: string; items: EntitySummary[] }[]
+  pending: { title: string; items: (EntitySummary & { route?: string })[] }[]
   /** Finished this week (cards, checklists, contracts…). */
   done: EntitySummary[]
-  upcoming: { title: string; at: number; route: string }[]
+  /** `allDay` is missing in snapshots frozen by older versions. */
+  upcoming: { title: string; at: number; route: string; allDay?: boolean }[]
 }
 
 export interface WeeklyReview {

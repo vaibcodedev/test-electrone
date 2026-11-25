@@ -1,4 +1,4 @@
-import { asc, eq, isNull } from 'drizzle-orm'
+import { eq, isNull, sql } from 'drizzle-orm'
 import type { ClientsApi } from '@shared/api'
 import { pageSchema } from '@shared/domain/common'
 import { clientInputSchema, clientListQuerySchema, clientPatchSchema, type ClientSummary } from '@shared/domain/crm'
@@ -32,7 +32,11 @@ export class Clients {
               repo.matches(q.search, [clients.name, clients.company, clients.email, clients.country]),
               q.platformId === 'direct' ? isNull(clients.platformId) : q.platformId ? eq(clients.platformId, q.platformId) : undefined
             ],
-            [asc(clients.status), asc(clients.name)],
+            // Working clients first, «Не працювати» last; the status codes themselves sort in English.
+            [
+              sql`CASE ${clients.status} WHEN 'active' THEN 0 WHEN 'lead' THEN 1 WHEN 'paused' THEN 2 WHEN 'archived' THEN 3 ELSE 4 END`,
+              sql`ulower(${clients.name})`
+            ],
             q.limit,
             q.offset
           )

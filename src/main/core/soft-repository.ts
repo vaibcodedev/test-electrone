@@ -2,12 +2,12 @@ import { and, asc, desc, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-
 import type { SQLiteColumn } from 'drizzle-orm/sqlite-core'
 import type { EntityType } from '@shared/entity-types'
 import type { Tag } from '@shared/domain/common'
-import type { DbContext } from '../db/client'
+import type { DbContext, Orm } from '../db/client'
 import { entityTags } from '../db/schema'
 import type { TagService } from '../services/tag-service'
 import type { SearchIndex } from '../services/search-index'
 import { hasTraces } from './traces'
-import { isDraft, type AnyRow, type EntityDescriptor } from './registry'
+import { isDraft, type AnyRow, type EntityDescriptor, type SoftTable } from './registry'
 import { defined, likePattern, newId, now, NotFoundError } from './util'
 
 export interface RepositoryDeps {
@@ -34,11 +34,11 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
     this.type = descriptor.type
   }
 
-  protected get db() {
+  protected get db(): Orm {
     return this.deps.ctx.orm
   }
 
-  protected get table() {
+  protected get table(): SoftTable {
     return this.descriptor.table
   }
 
@@ -97,6 +97,20 @@ export class SoftRepository<TRow extends AnyRow, TEntity extends { id: string }>
     else if (offset) q = q.limit(-1)
     if (offset) q = q.offset(offset)
     return this.hydrate(q.all() as TRow[])
+  }
+
+  /**
+   * Live rows matching the conditions, counted per value of `column` (chip counters next to a paged list,
+   * so a page doesn't load the whole table with its texts just to count it).
+   */
+  countBy(column: SQLiteColumn, conditions: (SQL | undefined)[] = []): Record<string, number> {
+    const rows = this.db
+      .select({ key: column, n: sql<number>`count(*)` })
+      .from(this.table)
+      .where(and(isNull(this.table.deletedAt), ...conditions))
+      .groupBy(column)
+      .all() as { key: unknown; n: number }[]
+    return Object.fromEntries(rows.map((r) => [String(r.key), r.n]))
   }
 
   /** Condition: entity has the tag. */

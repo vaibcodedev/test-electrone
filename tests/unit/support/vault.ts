@@ -26,12 +26,25 @@ import { JobsModule } from '@main/modules/jobs'
 import { MediaModule } from '@main/modules/media'
 import { EnglishModule } from '@main/modules/english'
 import { FreelanceModule } from '@main/modules/freelance'
+import { ChecklistsModule } from '@main/modules/checklists'
 import type { ModuleContext } from '@main/modules/context'
 import type { Api as ApiContract } from '@shared/api'
 
 type Api = Pick<
   ApiContract,
-  'boards' | 'cards' | 'projects' | 'time' | 'events' | 'jobs' | 'components' | 'english' | 'platforms' | 'proposals' | 'clients'
+  | 'boards'
+  | 'cards'
+  | 'projects'
+  | 'time'
+  | 'events'
+  | 'jobs'
+  | 'components'
+  | 'english'
+  | 'platforms'
+  | 'proposals'
+  | 'clients'
+  | 'templates'
+  | 'checklists'
 >
 
 export class Vault {
@@ -51,12 +64,14 @@ export class Vault {
   readonly jobs: JobsModule
   readonly media: MediaModule
   readonly api: Api
+  /** What modules get from container.ts: a test can build one more module on the same database. */
+  readonly m: ModuleContext
 
   constructor() {
     this.db.open()
     const pins = new PinService(this.db, this.registry)
-    const attachments = new AttachmentService(this.db, this.files)
-    const m: ModuleContext = {
+    const attachments = new AttachmentService(this.db, this.files, this.registry)
+    const m: ModuleContext = (this.m = {
       db: this.db,
       registry: this.registry,
       repo: { ctx: this.db, tags: this.tags, search: this.search },
@@ -65,7 +80,7 @@ export class Vault {
       attachments,
       bus: new EventBus(),
       secrets: new SecretBox()
-    }
+    })
     this.boards = new BoardsModule(m)
     this.crm = new CrmModule(m)
     this.calendar = new CalendarModule(m)
@@ -73,6 +88,7 @@ export class Vault {
     this.media = new MediaModule(m)
     const english = new EnglishModule(m)
     const freelance = new FreelanceModule(m, this.crm)
+    const checklists = new ChecklistsModule(m)
     for (const d of [
       ...this.boards.descriptors,
       ...this.crm.descriptors,
@@ -80,7 +96,8 @@ export class Vault {
       ...this.jobs.descriptors,
       ...this.media.descriptors,
       english.descriptor,
-      ...freelance.descriptors
+      ...freelance.descriptors,
+      checklists.descriptor
     ]) {
       this.registry.register(d)
     }
@@ -98,7 +115,9 @@ export class Vault {
       english: english.api(),
       platforms: freelance.platformsApi(),
       proposals: freelance.proposalsApi(),
-      clients: this.crm.clientsApi()
+      clients: this.crm.clientsApi(),
+      templates: freelance.templatesApi(),
+      checklists: checklists.api()
     }
   }
 

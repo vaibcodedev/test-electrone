@@ -60,17 +60,25 @@ export class Updater {
 
   /** electron-updater speaks English (net::ERR_…, multi-line HttpError): the details go to the log. */
   private fail(e: unknown): void {
-    log.error('[updater]', e)
+    const downloading = this.status.state === 'downloading'
     const msg = String((e as Error)?.message ?? e)
+    const offline = OFFLINE.test(msg)
+    // No network on an hourly check is expected, not a bug worth an error in the log.
+    if (offline) log.warn('[updater] offline:', msg.split('\n')[0])
+    else log.error('[updater]', e)
     this.set({
       state: 'error',
-      message: OFFLINE.test(msg)
+      message: offline
         ? 'Немає з’єднання з інтернетом — спробуємо пізніше'
-        : 'Не вдалося перевірити оновлення — подробиці в журналі'
+        : downloading
+          ? 'Не вдалося завантажити оновлення — подробиці в журналі'
+          : 'Не вдалося перевірити оновлення — подробиці в журналі'
     })
   }
 
+  /** Same status again (download-progress ticks with an unchanged percent) is not re-sent to the windows. */
   private set(status: UpdateStatus): void {
+    if (JSON.stringify(status) === JSON.stringify(this.status)) return
     this.status = status
     this.bus.emit('updates:status', status)
   }
@@ -84,14 +92,16 @@ export class Updater {
     try {
       await autoUpdater.checkForUpdates()
     } catch (e) {
-      this.fail(e)
+      // The 'error' event has usually reported it already; every check passes through 'checking' first.
+      if (this.status.state !== 'error') this.fail(e)
     }
     return this.status
   }
 
   install(): void {
     if (this.status.state === 'ready') autoUpdater.quitAndInstall()
-    else if (this.status.state === 'available') void autoUpdater.downloadUpdate()
+    // A failed download is reported by the 'error' event; the rejected promise has nothing to add.
+    else if (this.status.state === 'available') autoUpdater.downloadUpdate().catch(() => undefined)
   }
 
   startAuto(): void {

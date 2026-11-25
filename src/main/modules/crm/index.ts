@@ -5,7 +5,7 @@
  */
 import { and, gte, isNull, lte } from 'drizzle-orm'
 import type { ClientsApi, CredentialsApi, PaymentsApi, ProjectsApi, TimeApi } from '@shared/api'
-import type { CalendarItem } from '@shared/domain/calendar'
+import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import type { BillingType, ClientStatus, Currency, ProjectStatus, RunningTimer } from '@shared/domain/crm'
 import { clients, projects } from '../../db/schema'
 import type { Orm } from '../../db/client'
@@ -19,9 +19,6 @@ import { Projects } from './projects'
 import { CrmSummaries } from './summaries'
 import { TimeTracker } from './time'
 import { PROJECT_STATUS_LABEL, type ClientRepo, type ProjectRepo } from './shared'
-
-const PROJECT_COLOR = '#7c8cf8'
-const PAYMENT_COLOR = '#f5a524'
 
 export class CrmModule {
   readonly descriptors: EntityDescriptor[]
@@ -107,7 +104,7 @@ export class CrmModule {
       startAt: p.dueAt!,
       endAt: null,
       allDay: true,
-      color: PAYMENT_COLOR,
+      color: FEED_COLOR.payment,
       done: p.status === 'paid' || p.status === 'cancelled'
     }))
     const deadlines = this.db
@@ -124,7 +121,7 @@ export class CrmModule {
         startAt: p.dueAt!,
         endAt: null,
         allDay: true,
-        color: PROJECT_COLOR,
+        color: FEED_COLOR.project,
         done: p.status === 'done' || p.status === 'cancelled'
       })
     }
