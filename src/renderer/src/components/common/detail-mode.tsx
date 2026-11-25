@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type RefObject
+} from 'react'
 import { DetailModeContext, type DetailMode } from './detail-mode-context'
 
 export {
@@ -17,6 +25,8 @@ import { flushAndSettle, invalidateAll } from '@/lib/query'
 import { resetAllAutosaves } from '@/hooks/use-autosave'
 import { Check, Pencil, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   AlertDialog,
@@ -49,13 +59,16 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
   const [fresh, setFresh] = useState(isNew)
   // The snapshot is a promise: «Скасувати» pressed before it arrived waits for it instead of reverting nothing.
   const snap = useRef<Promise<RecordSnapshot | null>>(Promise.resolve(null))
+  // Open inline forms (holdOpen): a ref, not state — registering one must not rebuild the mode for everyone.
+  const openForms = useRef(new Map<symbol, string | undefined>())
 
   useEffect(() => {
     if (!editing || !type) {
       snap.current = Promise.resolve(null)
       return
     }
-    snap.current = api.records.snapshot({ type, id }).catch(() => {
+    snap.current = api.records.snapshot({ type, id }).catch((e) => {
+      reportError(e, 'detail-mode:snapshot')
       // Without a snapshot «Скасувати» can't revert: say so now, not silently later.
       toast.warning('«Скасувати» зараз недоступне — зміни зберігатимуться одразу')
       return null
@@ -70,6 +83,8 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     const hasChanges = async (): Promise<boolean> => {
       // Wait for the saves to land: otherwise «changed» is asked before the last keystrokes reach main.
       lastFailed = (await flushAndSettle()).failed
+      // An open inline form is an unsaved change: leaving asks instead of dropping what was typed in it.
+      if (openForms.current.size) return true
       const s = await snap.current
       if (!ref || !s) return false
       return api.records.changed({ ref, snapshot: s }).catch((e) => {
@@ -82,6 +97,12 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
       if (lastFailed > 0) {
         // The field's own error toast already said what; stay in edit mode so the text isn't lost.
         toast.error('Не все збережено — виправте поле з помилкою й натисніть «Зберегти» ще раз')
+        return false
+      }
+      if (openForms.current.size) {
+        // Leaving edit mode closes inline forms: «Зберегти» would drop the typed stage / login and say «Збережено».
+        const what = [...openForms.current.values()].find(Boolean)
+        toast.warning(`Спершу додайте або скасуйте ${what ?? 'відкриту форму'}`)
         return false
       }
       setFresh(false)
@@ -98,7 +119,9 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
             try {
               await api.records.revert({ ref, snapshot: s })
             } catch (e) {
-              toast.error(`Не вдалося скасувати: ${(e as Error).message}`)
+              // The technical reason goes to the log, not to the person.
+              toast.error('Не вдалося скасувати зміни. Спробуйте ще раз.')
+              reportError(e, 'detail-mode:revert')
               return false
             }
             resetAllAutosaves()
@@ -123,26 +146,67 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
           return true
         }
       : undefined
+    /**
+     * An untouched new record left by Esc / ✕: only an empty draft (a DRAFT_TITLES name, nothing else — the
+     * server checks) disappears. A name typed before creating it (quick add, a form) keeps the record:
+     * only «Скасувати» means «don't create it». true — the draft is gone.
+     */
+    const dropDraft = (): Promise<boolean> =>
+      ref
+        ? api.trash.discardDraft(ref).then(
+            (gone) => {
+              if (gone) invalidateAll()
+              return gone
+            },
+            (e) => {
+              reportError(e, 'detail-mode:discardDraft')
+              return false
+            }
+          )
+        : Promise.resolve(false)
     /** Leave editing (Esc): asks only when something actually changed. */
     const exit = (close?: () => void): void => {
       void hasChanges().then((changed) => {
-        if (!changed) return fresh && cancel ? void cancel(close) : setEditing(false)
-        useUi.getState().askClose({ keep: () => void save(), discard: () => void cancel?.(close) })
+        if (!changed) {
+          if (!fresh) return setEditing(false)
+          return void dropDraft().then((gone) => {
+            setFresh(false)
+            setEditing(false)
+            if (gone) {
+              toast('Запис не створено')
+              close?.()
+            }
+          })
+        }
+        // A variable, not a literal: `fresh` changes the dialog's description (CloseConfirmHost).
+        const ask = { keep: () => void save(), discard: () => void cancel?.(close), fresh }
+        useUi.getState().askClose(ask)
       })
     }
     const confirmClose = (close: () => void): void => {
       if (!editing || !ref) return close()
       void hasChanges().then((changed) => {
-        // Untouched: just close (an untouched new record is removed by the pane's draft cleanup).
-        if (!changed) return close()
-        useUi.getState().askClose({
+        // Untouched: just close; an untouched new record goes only if it is an empty draft (sheets and pages
+        // have no pane cleanup of their own).
+        if (!changed) {
+          if (fresh) void dropDraft()
+          return close()
+        }
+        const ask = {
           // A rejected field or a failed revert keeps the record open, so the typed text isn't lost.
           keep: () => void save().then((ok) => ok && close()),
-          discard: () => void cancel?.().then((ok) => ok && close())
-        })
+          discard: () => void cancel?.().then((ok) => ok && close()),
+          fresh
+        }
+        useUi.getState().askClose(ask)
       })
     }
-    return { editing, setEditing, fresh, save, cancel, exit, confirmClose }
+    const holdOpen = (what?: string): (() => void) => {
+      const key = Symbol()
+      openForms.current.set(key, what)
+      return () => void openForms.current.delete(key)
+    }
+    return { editing, setEditing, fresh, save, cancel, exit, confirmClose, holdOpen }
   }, [editing, fresh, id, type])
 }
 
@@ -192,18 +256,56 @@ export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () =
               <Undo2 /> Скасувати
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Повернути все як було до «Редагувати»</TooltipContent>
+          {/* A record created a moment ago is not reverted but discarded («Запис не створено»). */}
+          <TooltipContent>
+            {mode.fresh ? 'Не створювати запис' : 'Повернути все як було до «Редагувати»'}
+          </TooltipContent>
         </Tooltip>
       )}
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="lime" size="sm" data-save onClick={() => void (mode.save ? mode.save() : mode.setEditing(false))}>
+          <Button
+            variant="lime"
+            size="sm"
+            data-save
+            onClick={() => void (mode.save ? mode.save() : mode.setEditing(false))}
+          >
             <Check /> Зберегти
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Зберегти й повернутися до перегляду · Esc</TooltipContent>
+        {/* No «· Esc»: Esc leaves editing and asks «Зберегти зміни?», it doesn't save. */}
+        <TooltipContent>Зберегти й повернутися до перегляду</TooltipContent>
       </Tooltip>
     </span>
+  )
+}
+
+/** «Натисніть «Редагувати» або E, щоб …» — the one wording of «fill this in» (DetailPane's empty hint too). */
+export function EditHintText({ action = 'додати' }: { action?: string }): ReactElement {
+  return (
+    <>
+      Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб {action}.
+    </>
+  )
+}
+
+/**
+ * An empty section in view mode: what is missing + how to add it («Етапів ще немає. Натисніть «Редагувати» або E,
+ * щоб додати.»). `children` is the first sentence, with its full stop.
+ */
+export function EditHint({
+  children,
+  action,
+  className
+}: {
+  children: ReactNode
+  action?: string
+  className?: string
+}): ReactElement {
+  return (
+    <p className={cn('text-body leading-relaxed text-muted-foreground', className)}>
+      {children} <EditHintText action={action} />
+    </p>
   )
 }
 
@@ -211,13 +313,17 @@ export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () =
 export function CloseConfirmHost() {
   const ask = useUi((s) => s.closeAsk)
   const clear = useUi((s) => s.askClose)
+  // A record created a moment ago isn't reverted by «Не зберігати» but not created at all (exit / confirmClose).
+  const fresh = !!ask && 'fresh' in ask && ask.fresh === true
   return (
     <AlertDialog open={!!ask} onOpenChange={(o) => !o && clear(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Зберегти зміни?</AlertDialogTitle>
           <AlertDialogDescription>
-            Запис змінено, але зміни ще не збережено. «Не зберігати» поверне все як було до «Редагувати».
+            {fresh
+              ? 'Запис ще не збережено. «Не зберігати» його не створить.'
+              : 'Запис змінено, але зміни ще не збережено. «Не зберігати» поверне все як було до «Редагувати».'}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -252,7 +358,10 @@ export function useModeRef(): RefObject<DetailMode | null> {
 }
 
 /** Call inside the editor: keeps the sheet's ref pointed at the current mode. */
-export function usePublishMode(ref: RefObject<DetailMode | null> | undefined, mode: DetailMode): void {
+export function usePublishMode(
+  ref: RefObject<DetailMode | null> | undefined,
+  mode: DetailMode
+): void {
   useEffect(() => {
     if (!ref) return
     ref.current = mode

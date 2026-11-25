@@ -20,6 +20,12 @@ export interface DetailMode {
   exit?: (close?: () => void) => void
   /** Close the record; asks «Зберегти / Не зберігати» if something changed while editing. */
   confirmClose?: (close: () => void) => void
+  /**
+   * An inline form inside the record is open («+ Етап», «+ Доступ», «Вручну»): «Зберегти» waits until it is
+   * added or cancelled instead of closing it with the typed text. `what` names it in the warning («етап»).
+   * Call while the form is open; the returned function releases it.
+   */
+  holdOpen?: (what?: string) => () => void
 }
 
 const ALWAYS_EDIT: DetailMode = { editing: true, setEditing: () => undefined }

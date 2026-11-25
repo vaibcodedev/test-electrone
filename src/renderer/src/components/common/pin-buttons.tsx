@@ -6,9 +6,11 @@ import { cn } from '@/lib/utils'
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-const baseCls = 'size-8 min-w-8 rounded-full bg-surface p-0 text-muted-foreground hover:text-foreground'
+const baseCls =
+  'size-8 min-w-8 rounded-full bg-surface p-0 text-muted-foreground hover:text-foreground'
 // Pinned = ink pill (it's on the dashboard now); favourite = filled amber star, like project favourites.
-const pinCls = `${baseCls} on:bg-ink on:text-ink-foreground on:hover:text-ink-foreground`
+// Focus ring on the ink pill: ink-accent, as on Toggle outline — --ring on the dark-theme ink was 1.1:1.
+const pinCls = `${baseCls} on:bg-ink on:text-ink-foreground on:hover:text-ink-foreground on:focus-visible:ring-ink-accent`
 const starCls = `${baseCls} on:bg-warn/15 on:text-warn on:hover:text-warn`
 
 /** "Pin to dashboard" + "favorite" toggles for any entity (shadcn Toggle). */
@@ -18,7 +20,13 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
   const toggle = useApiMutation('pins', 'toggle', {
     onSuccess: (on, { kind }) =>
       toast.success(
-        kind === 'pin' ? (on ? 'Закріплено на головній' : 'Відкріплено з головної') : on ? 'Додано в обране' : 'Прибрано з обраного'
+        kind === 'pin'
+          ? on
+            ? 'Закріплено на головній'
+            : 'Відкріплено з головної'
+          : on
+            ? 'Додано в обране'
+            : 'Прибрано з обраного'
       )
   })
   return (
@@ -35,7 +43,9 @@ export function PinButtons({ entity, className }: { entity: EntityRef; className
             <Pin />
           </Toggle>
         </TooltipTrigger>
-        <TooltipContent>{data?.pin ? 'Відкріпити з головної' : 'Закріпити на головній'}</TooltipContent>
+        <TooltipContent>
+          {data?.pin ? 'Відкріпити з головної' : 'Закріпити на головній'}
+        </TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>

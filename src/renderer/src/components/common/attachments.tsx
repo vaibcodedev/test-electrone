@@ -11,7 +11,14 @@ import { reportError } from '@/lib/error-reporting'
 import { useFileDrop } from '@/hooks/use-file-drop'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle
+} from '@/components/ui/item'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Confirm } from './confirm'
 import { IconAction } from './icon-action'
@@ -31,14 +38,18 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
   const add = useApiMutation('files', 'add')
   const remove = useApiMutation('files', 'remove')
   const picker = useRef<HTMLInputElement>(null)
-  const addAll = (sources: FileSource[]): void => sources.forEach((source) => add.mutate({ ref: entity, source }))
+  const addAll = (sources: FileSource[]): void =>
+    sources.forEach((source) => add.mutate({ ref: entity, source }))
   const { isOver, props } = useFileDrop(addAll)
 
   return (
     // The whole section takes drops, its title included; -m-2 p-2 gives the highlight room without moving anything.
     <section
       {...props}
-      className={cn('-m-2 flex flex-col gap-2 rounded-2xl p-2 transition-colors', isOver && 'bg-lime-soft')}
+      className={cn(
+        'relative -m-2 flex flex-col gap-2 rounded-2xl p-2 transition-colors',
+        isOver && 'bg-lime-soft'
+      )}
     >
       <SectionLabel
         action={
@@ -54,28 +65,38 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
       >
         Файли
       </SectionLabel>
-      {isOver && (
-        <p className="rounded-xl border border-dashed border-ring px-3 py-2 text-caption">Відпустіть, щоб додати</p>
-      )}
       {/* empty:hidden — no files, no extra gap under the title. */}
       <div className="flex flex-col gap-1 empty:hidden">
         {files.map((f) => (
           <Item key={f.id} size="xs" className="group hover:bg-(--tile-hover)">
             <ItemMedia variant="image" className="size-8">
-              {f.mime.startsWith('image/') ? <img src={fileUrl(f.path)} alt="" /> : <Paperclip className="size-4" />}
+              {f.mime.startsWith('image/') ? (
+                <img src={fileUrl(f.path)} alt="" />
+              ) : (
+                <Paperclip className="size-4" />
+              )}
             </ItemMedia>
             <ItemContent className="min-w-0 gap-0">
-              <ItemTitle className="w-full truncate text-caption font-normal" title={f.originalName}>
+              <ItemTitle
+                className="w-full truncate text-caption font-normal"
+                title={f.originalName}
+              >
                 {f.originalName}
               </ItemTitle>
               <ItemDescription className="text-meta">{fmtBytes(f.size)}</ItemDescription>
             </ItemContent>
             {/* Shown on hover and whenever keyboard focus is inside the row. */}
             <ItemActions className="gap-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
-              <IconAction label="Відкрити" onClick={() => openFile(api.files.open(f.id), 'files:open')}>
+              <IconAction
+                label="Відкрити"
+                onClick={() => openFile(api.files.open(f.id), 'files:open')}
+              >
                 <ExternalLink />
               </IconAction>
-              <IconAction label="Показати в папці" onClick={() => openFile(api.files.reveal(f.id), 'files:reveal')}>
+              <IconAction
+                label="Показати в папці"
+                onClick={() => openFile(api.files.reveal(f.id), 'files:reveal')}
+              >
                 <FolderOpen />
               </IconAction>
               {/* Removing deletes the file from disk (no trash for attachments), so it asks first. */}
@@ -103,6 +124,12 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
           if (picked.length) addAll(await toFileSources(picked))
         }}
       />
+      {/* An overlay, not a line in the flow: dragging over the section must not push the files and dates down. */}
+      {isOver && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center rounded-2xl border border-dashed border-ring bg-lime-soft/90 text-caption font-medium">
+          Відпустіть, щоб додати
+        </div>
+      )}
     </section>
   )
 }

@@ -13,6 +13,26 @@ import {
 } from '@/components/ui/alert-dialog'
 
 /**
+ * Either a trigger (`children`, the dialog keeps its own state) or controlled (`open` + `onOpenChange` together):
+ * `open` alone made «Скасувати» / Esc change a state nobody read, and the dialog never closed.
+ */
+type ConfirmProps = (
+  | { children: ReactNode; open?: undefined; onOpenChange?: undefined }
+  | { children?: ReactNode; open: boolean; onOpenChange: (open: boolean) => void }
+) & {
+  title: string
+  description?: ReactNode
+  confirmLabel?: string
+  tone?: 'destructive' | 'default'
+  onConfirm: () => void
+  /**
+   * Where focus goes as the dialog closes: by default back to the trigger. An action that removes its own
+   * trigger («Очистити кошик») calls `e.preventDefault()` here and focuses something else.
+   */
+  onCloseAutoFocus?: (e: Event) => void
+}
+
+/**
  * Confirmation before an irreversible or cascading action (a file off the disk, a record with its children).
  * The trigger can be an `IconAction`: Slot props reach its Button. Without `children` it is controlled by
  * `open` / `onOpenChange` — for an item of a ⋯ menu, which unmounts as the menu closes.
@@ -27,17 +47,9 @@ export function Confirm({
   tone = 'destructive',
   onConfirm,
   open,
-  onOpenChange
-}: {
-  children?: ReactNode
-  title: string
-  description?: ReactNode
-  confirmLabel?: string
-  tone?: 'destructive' | 'default'
-  onConfirm: () => void
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-}) {
+  onOpenChange,
+  onCloseAutoFocus
+}: ConfirmProps) {
   const [inner, setInner] = useState(false)
   const isOpen = open ?? inner
   const setOpen = onOpenChange ?? setInner
@@ -47,6 +59,7 @@ export function Confirm({
       {children && <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>}
       <AlertDialogContent
         className="rounded-3xl"
+        onCloseAutoFocus={onCloseAutoFocus}
         onOpenAutoFocus={(e) => {
           // Chromium shows the ring only when the dialog was opened from the keyboard.
           e.preventDefault()
@@ -56,7 +69,11 @@ export function Confirm({
         <AlertDialogHeader>
           {/* A file name or title without spaces wraps instead of leaving the dialog. */}
           <AlertDialogTitle className="[overflow-wrap:anywhere]">{title}</AlertDialogTitle>
-          {description && <AlertDialogDescription className="[overflow-wrap:anywhere]">{description}</AlertDialogDescription>}
+          {description && (
+            <AlertDialogDescription className="[overflow-wrap:anywhere]">
+              {description}
+            </AlertDialogDescription>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel ref={cancelRef} variant="soft">

@@ -13,7 +13,7 @@ export async function copyText(text: string, message = 'Скопійовано')
     toast.success(message)
     return true
   } catch (e) {
-    toast.error('Не вдалося скопіювати')
+    toast.error('Не вдалося скопіювати. Спробуйте ще раз.')
     reportError(e, 'copy')
     return false
   }
@@ -37,7 +37,7 @@ export function CopyButton({
   message?: string
   onCopied?: () => void
   className?: string
-  variant?: 'soft' | 'lime' | 'default' | 'ghost' | 'code'
+  variant?: 'soft' | 'subtle' | 'lime' | 'default' | 'ghost' | 'code'
   size?: 'sm' | 'icon-sm' | 'xs' | 'default'
 }) {
   const [done, setDone] = useState(false)
