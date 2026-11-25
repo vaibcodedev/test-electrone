@@ -175,7 +175,7 @@ export function TagPicker({
             {value.length ? '' : 'Додати мітку'}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 rounded-2xl p-0" align="start">
+        <PopoverContent className="w-64 p-0" align="start">
           <Command>
             <CommandInput
               placeholder="Знайти або створити…"
@@ -302,7 +302,7 @@ export function TagFilter({
           </Tooltip>
         )}
       </ButtonGroup>
-      <PopoverContent className="w-56 rounded-2xl p-0" align="start">
+      <PopoverContent className="w-56 p-0" align="start">
         <Command>
           <CommandInput placeholder="Знайти мітку…" />
           <CommandList>

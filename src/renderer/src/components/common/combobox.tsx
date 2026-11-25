@@ -142,10 +142,7 @@ export function Combobox({
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-(--radix-popover-trigger-width) min-w-64 rounded-2xl p-0"
-        align="start"
-      >
+      <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
         {/* Items are matched by their label (keywords), not by value: an id must neither match the search nor
             merge two options with the same label. A server search has filtered them already. */}
         <Command filter={matchLabel} shouldFilter={!onSearchChange}>

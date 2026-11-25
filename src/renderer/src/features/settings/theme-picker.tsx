@@ -66,7 +66,8 @@ function PreviewHalf({ p }: { p: Swatch }): ReactElement {
 
 function ThemePreview({ theme }: { theme: Theme }): ReactElement {
   return (
-    <div aria-hidden className="flex h-16 w-full overflow-hidden rounded-xl ring-1 ring-foreground/10">
+    // rounded-md (12) = the card's 24 − its border and 10px padding: concentric with the card's corner.
+    <div aria-hidden className="flex h-16 w-full overflow-hidden rounded-md ring-1 ring-foreground/10">
       {theme === 'light' && <PreviewHalf p={PREVIEW.light} />}
       {theme === 'dark' && <PreviewHalf p={PREVIEW.dark} />}
       {theme === 'system' && (
