@@ -5,13 +5,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { FormDialog } from '@/components/common/form-dialog'
 import { fillTemplate, templateVariables, variableLabel } from './g2-labels'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 /**
  * Fills a template's {variables} before its text is used: one field per variable (named in Ukrainian, the raw
  * `{name}` next to it), the finished text below. Empty ones stay in braces. Shared by «Скопіювати» on the
  * templates page and «Вставити» in a proposal. `initial` pre-fills what Vault already knows (the person's name).
  */
-export function TemplateFillDialog({
+function TemplateFillDialogForm({
   open,
   onOpenChange,
   heading,
@@ -39,10 +40,7 @@ export function TemplateFillDialog({
   return (
     <FormDialog
       open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o)
-        if (!o) setValues({})
-      }}
+      onOpenChange={onOpenChange}
       title={heading}
       description={
         vars.length
@@ -95,3 +93,6 @@ export function TemplateFillDialog({
     </FormDialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+export const TemplateFillDialog = freshOnOpen(TemplateFillDialogForm)

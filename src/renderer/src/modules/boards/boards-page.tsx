@@ -17,11 +17,12 @@ import { useUi } from '@/stores/ui-store'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const LIMITS = limitsOf(boardInputSchema)
 const REQUIRED = requiredOf(boardInputSchema)
 
-function CreateBoardDialog({
+function CreateBoardDialogForm({
   open,
   onOpenChange
 }: {
@@ -74,6 +75,9 @@ function CreateBoardDialog({
     </FormDialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+const CreateBoardDialog = freshOnOpen(CreateBoardDialogForm)
 
 function BoardTile({ board }: { board: BoardSummary }) {
   const marked = board.overdueCount > 0 || board.archived || board.tags.length > 0

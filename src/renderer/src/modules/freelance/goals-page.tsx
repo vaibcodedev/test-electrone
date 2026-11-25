@@ -40,6 +40,7 @@ import { GOAL_METRIC_LABEL, GOAL_PERIOD_LABEL } from './g2-labels'
 import { GoalCard } from './goal-card'
 import { useNewParam } from './use-new-param'
 import { formatGoalValue, goalTitle } from './goal-format'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const TITLE_MAX = limitsOf(goalInputSchema).title
 const GOAL_R = rangesOf(goalInputSchema)
@@ -50,7 +51,7 @@ const ALL = '__all__'
 const isRateMetric = (m: GoalMetric): boolean => m === 'reply_rate' || m === 'hire_rate'
 
 /** Create / edit dialog: Enter submits; a target out of range blocks the button with the reason under the field. */
-function GoalDialog({
+function GoalDialogForm({
   goal,
   open,
   onOpenChange
@@ -70,27 +71,18 @@ function GoalDialog({
     target: 10 as number | null,
     platformId: null as string | null
   }
-  const [form, setForm] = useState(empty)
-
-  const reset = (): void =>
-    setForm(
-      goal
-        ? {
-            title: goal.title,
-            metric: goal.metric,
-            period: goal.period,
-            target: goal.target,
-            platformId: goal.platformId
-          }
-        : empty
-    )
-
-  // Each opening starts from the goal as it is now (or a blank form): reset while rendering, not in an effect.
-  const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) {
-    setWasOpen(open)
-    if (open) reset()
-  }
+  // Created anew on each opening (freshOnOpen): the goal as it is now, or a blank form.
+  const [form, setForm] = useState(() =>
+    goal
+      ? {
+          title: goal.title,
+          metric: goal.metric,
+          period: goal.period,
+          target: goal.target as number | null,
+          platformId: goal.platformId
+        }
+      : empty
+  )
 
   const rate = isRateMetric(form.metric)
   // «Усі платформи» has no currency of its own: the server counts in the one with the most payments.
@@ -211,6 +203,9 @@ function GoalDialog({
     </FormDialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+const GoalDialog = freshOnOpen(GoalDialogForm, { identity: (p) => p.goal?.id })
 
 /**
  * ⋯ menu instead of bare icons + an unlabeled switch: Змінити / Призупинити (Продовжити) / Видалити.

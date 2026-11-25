@@ -19,6 +19,7 @@ import { NumberField, useInvalidFields } from '@/components/common/number-field'
 import { Choice } from '@/components/common/choice'
 import { ColorSwatches } from '@/components/common/color-swatches'
 import { PLATFORM_COLOR_NAME, PLATFORM_COLORS, PLATFORM_KIND_LABEL } from './proposal-labels'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const PLATFORM_L = limitsOf(platformInputSchema)
 const PLATFORM_R = rangesOf(platformInputSchema)
@@ -79,15 +80,20 @@ const START_KIND: PlatformKind = 'freelancehunt'
 /** «+ Платформа» dialog, mounted once in the shell and opened from the sidebar. */
 export function PlatformDialogHost(): ReactElement {
   const open = useUi((s) => s.platformDialogOpen)
+  return <PlatformDialog open={open} />
+}
+
+function PlatformDialogForm({ open }: { open: boolean }): ReactElement {
   const setOpen = useUi((s) => s.setPlatformDialogOpen)
   const navigate = useNavigate()
   const numbers = useInvalidFields()
+  // Every opening starts from the default preset: the form is created anew (freshOnOpen).
   const [kind, setKind] = useState<PlatformKind>(START_KIND)
   const [name, setName] = useState(PRESETS[START_KIND].name)
   const [color, setColor] = useState<string | null>(PRESETS[START_KIND].color)
   const [currency, setCurrency] = useState<Currency>('USD')
-  const [creditsName, setCreditsName] = useState('')
-  const [fee, setFee] = useState<number | null>(0)
+  const [creditsName, setCreditsName] = useState(PRESETS[START_KIND].creditsName)
+  const [fee, setFee] = useState<number | null>(PRESETS[START_KIND].defaultFeePercent)
   const create = useApiMutation('platforms', 'create', {
     successMessage: 'Платформу додано',
     onSuccess: (p) => {
@@ -103,16 +109,6 @@ export function PlatformDialogHost(): ReactElement {
     setColor(p.color)
     setCreditsName(p.creditsName)
     setFee(p.defaultFeePercent)
-  }
-
-  // Every opening starts from the default preset (reset while rendering, not in an effect).
-  const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) {
-    setWasOpen(open)
-    if (open) {
-      pickKind(START_KIND)
-      setCurrency('USD')
-    }
   }
 
   return (
@@ -208,3 +204,6 @@ export function PlatformDialogHost(): ReactElement {
     </FormDialog>
   )
 }
+
+/** Created anew on each opening (freshOnOpen). */
+const PlatformDialog = freshOnOpen(PlatformDialogForm)

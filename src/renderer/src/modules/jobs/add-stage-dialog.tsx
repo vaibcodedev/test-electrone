@@ -11,6 +11,7 @@ import { DatePicker } from '@/components/common/date-picker'
 import { NumberInput } from '@/components/common/number-input'
 import { DUE_BEFORE_START } from '../crm/labels'
 import { KIND_OPTIONS } from './labels'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const LIMITS = limitsOf(stageInputSchema)
 const RANGES = rangesOf(stageInputSchema)
@@ -32,7 +33,7 @@ const startOf = (kind: StageKind): number => (kind === 'test_task' ? Date.now() 
  * New stage form (also used by the «Запланувати» prompt when a vacancy moves to interview / test task).
  * The backend mirrors the stage to the calendar.
  */
-export function AddStageDialog({
+function AddStageDialogForm({
   applicationId,
   open,
   onOpenChange,
@@ -58,21 +59,6 @@ export function AddStageDialog({
   const [notes, setNotes] = useState('')
   const [location, setLocation] = useState('')
   const locationId = useId()
-
-  // Fresh, prefilled form every time it opens (kind from the status the vacancy moved to). Compared with the
-  // last `open` during render: an effect showed the previous form for one frame (docs/design-system.md → Формы).
-  const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) {
-    setWasOpen(open)
-    if (open) {
-      setKind(defaultKind)
-      setNotes('')
-      setLocation('')
-      setDurationMin(60)
-      setAt(startOf(defaultKind))
-      setDeadlineAt(defaultKind === 'test_task' ? defaultDeadline() : null)
-    }
-  }
 
   const add = useApiMutation('jobs', 'addStage', {
     successMessage: 'Етап заплановано — подія вже в календарі',
@@ -162,3 +148,6 @@ export function AddStageDialog({
     </FormDialog>
   )
 }
+
+/** A fresh, prefilled form on each opening (kind from the status the vacancy moved to) — freshOnOpen. */
+export const AddStageDialog = freshOnOpen(AddStageDialogForm, { identity: (p) => `${p.applicationId}:${p.defaultKind ?? ''}` })

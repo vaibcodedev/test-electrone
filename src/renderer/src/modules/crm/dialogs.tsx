@@ -24,6 +24,7 @@ import { amountPatch } from './money'
 import { ClientCombobox } from './client-combobox'
 import { ClientPlatformFields, FeeField, PlatformSelect } from './platform-fields'
 import { usePlatforms } from './use-platforms'
+import { freshOnOpen } from '@/components/common/fresh-on-open'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_REQ = requiredOf(clientInputSchema)
@@ -93,7 +94,7 @@ const EMPTY_CLIENT: ClientInput = {
   paymentVerified: null
 }
 
-export function ClientDialog({
+function ClientDialogForm({
   open,
   onOpenChange
 }: {
@@ -104,15 +105,6 @@ export function ClientDialog({
   const uid = useId()
   const [form, setForm] = useState<ClientInput>(EMPTY_CLIENT)
   const [emailBlurred, setEmailBlurred] = useState(false)
-  // Every opening starts empty, also after «Скасувати» (docs/design-system.md → Сброс формы диалога).
-  const [wasOpen, setWasOpen] = useState(open)
-  if (open !== wasOpen) {
-    setWasOpen(open)
-    if (open) {
-      setForm(EMPTY_CLIENT)
-      setEmailBlurred(false)
-    }
-  }
   const numbers = useInvalidFields()
   const create = useApiMutation('clients', 'create', {
     successMessage: 'Клієнта додано',
@@ -198,6 +190,9 @@ export function ClientDialog({
   )
 }
 
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+export const ClientDialog = freshOnOpen(ClientDialogForm)
+
 const emptyProject = (clientId: string | null): ProjectInput => ({
   title: '',
   clientId,
@@ -231,7 +226,7 @@ function withClientDefaults(
   return next
 }
 
-export function ProjectDialog({
+function ProjectDialogForm({
   open,
   onOpenChange,
   clientId
@@ -248,18 +243,9 @@ export function ProjectDialog({
   const { data: ownerClient } = useApi('clients', 'get', clientId ?? '', {
     enabled: open && !!clientId
   })
-  // Reset when the dialog opens, during render (docs/design-system.md → Сброс формы диалога); the owner's
-  // terms are applied once when they arrive, to the fields not typed yet.
-  const [wasOpen, setWasOpen] = useState(open)
+  // Created anew on each opening (freshOnOpen); the owner's terms are applied once when they arrive, to the
+  // fields not typed yet.
   const [appliedFor, setAppliedFor] = useState<string | null>(null)
-  if (open !== wasOpen) {
-    setWasOpen(open)
-    if (open) {
-      setTouched(new Set())
-      setForm(emptyProject(clientId ?? null))
-      setAppliedFor(null)
-    }
-  }
   if (open && ownerClient && ownerClient.id === clientId && appliedFor !== ownerClient.id) {
     setAppliedFor(ownerClient.id)
     setForm((f) =>
@@ -423,3 +409,6 @@ export function ProjectDialog({
     </FormDialog>
   )
 }
+
+/** Opens clean every time: created anew on each opening (freshOnOpen). */
+export const ProjectDialog = freshOnOpen(ProjectDialogForm, { identity: (p) => p.clientId })
