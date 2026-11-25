@@ -1,9 +1,12 @@
 import type { AiChatApi } from '@shared/api'
+import { withEdits } from '@shared/domain/ai-actions'
 import {
   aiActionRefSchema,
+  aiApplySchema,
   aiChatSendSchema,
   type AiActionProposal,
   type AiActionRef,
+  type AiApplyInput,
   type AiApplyResult,
   type AiChat,
   type AiChatMessage,
@@ -11,6 +14,7 @@ import {
   type AiSource
 } from '@shared/domain/ai-chat'
 import { idSchema, type EntityRef } from '@shared/domain/common'
+import { MAX } from '@shared/domain/limits'
 import type { EntityType } from '@shared/entity-types'
 import { newId, now as clock, UserError } from '../../core/util'
 import { log } from '../../core/logger'
@@ -59,6 +63,14 @@ export interface AiChatDeps {
   now?: () => number
 }
 
+/** The messages without the last question and its answer (an answer is always saved with its question). */
+function withoutLastTurn(messages: AiChatMessage[]): AiChatMessage[] {
+  const n = messages.length
+  return n >= 2 && messages[n - 1].role === 'assistant' && messages[n - 2].role === 'user'
+    ? messages.slice(0, -2)
+    : messages
+}
+
 /** Room for a reasoning model's thinking before a long answer. */
 const MAX_TOKENS = 4096
 
@@ -98,9 +110,12 @@ export class AiChatService {
   }
 
   async send(input: AiChatSendInput): Promise<AiChat> {
-    const { chatId, text, context, search, consent } = aiChatSendSchema.parse(input)
-    const existing = chatId ? this.deps.history.get(chatId) : null
-    if (chatId && !existing) throw new UserError('Цього чату вже немає — почніть новий')
+    const { chatId, text, context, search, consent, page, retry } = aiChatSendSchema.parse(input)
+    const stored = chatId ? this.deps.history.get(chatId) : null
+    if (chatId && !stored) throw new UserError('Цього чату вже немає — почніть новий')
+    // «Повторити відповідь»: the last turn (question + answer) is asked again and replaced.
+    const existing =
+      stored && retry ? { ...stored, messages: withoutLastTurn(stored.messages) } : stored
     const at = this.now()
     const record = context ? this.deps.base.record(context) : null
     const found = search ? this.find(text) : null
@@ -110,7 +125,8 @@ export class AiChatService {
         system: chatSystem({
           now: at,
           boards: this.deps.base.boards().slice(0, 20),
-          contextType: record?.ref.type ?? null
+          contextType: record?.ref.type ?? null,
+          page
         }),
         history: historyTurns(existing?.messages ?? []),
         prompt: chatPrompt({
@@ -208,13 +224,15 @@ export class AiChatService {
     return next
   }
 
-  async apply(input: AiActionRef): Promise<AiApplyResult> {
-    const ref = aiActionRefSchema.parse(input)
+  async apply(input: AiApplyInput): Promise<AiApplyResult> {
+    const { edits, ...ref } = aiApplySchema.parse(input)
     const { chat, proposal, target } = this.locate(ref)
     if (proposal.status === 'applied' || this.applying.has(ref.actionId))
       throw new UserError('Цю дію вже застосовано')
+    // «Змінити»: only the fields the card offers, checked by the action's own schema (the module's limits).
+    const action = withEdits(proposal.action, edits)
     // Checked again: the board or the record may be gone since the answer came.
-    const fresh = this.deps.actions.prepare(proposal.action, target)
+    const fresh = this.deps.actions.prepare(action, target)
     if (fresh.problem) {
       this.update(chat, ref, { problem: fresh.problem, preview: fresh.preview })
       throw new UserError(fresh.problem)
@@ -222,7 +240,7 @@ export class AiChatService {
     this.applying.add(ref.actionId)
     let done: Applied
     try {
-      done = await this.deps.actions.apply(proposal.action, target)
+      done = await this.deps.actions.apply(action, target)
     } finally {
       this.applying.delete(ref.actionId)
     }
@@ -231,10 +249,13 @@ export class AiChatService {
     log.info(
       `[ai] chat ${chat.id}: applied ${proposal.action.type} → ${done.ref.type} ${done.ref.id}`
     )
+    // The chat keeps what was really applied: the edited version.
     const next = this.update(chat, ref, {
+      action,
+      preview: fresh.preview,
       status: 'applied',
       problem: null,
-      result: { ref: done.ref, title: done.title.slice(0, 500) }
+      result: { ref: done.ref, title: done.title.slice(0, MAX.title) }
     })
     return { ref: done.ref, title: done.title, kind: done.kind, chat: next }
   }
@@ -259,6 +280,14 @@ export class AiChatService {
     return this.update(chat, ref, { status: 'dismissed' })
   }
 
+  /** «Повернути» after «Скасувати»: the action is proposed again (checked again on «Застосувати»). */
+  async reopen(input: AiActionRef): Promise<AiChat> {
+    const ref = aiActionRefSchema.parse(input)
+    const { chat, proposal } = this.locate(ref)
+    if (proposal.status !== 'dismissed') return chat
+    return this.update(chat, ref, { status: 'proposed' })
+  }
+
   api(): AiChatApi {
     return {
       list: async () => this.deps.history.list(),
@@ -267,7 +296,8 @@ export class AiChatService {
       send: (input) => this.send(input),
       apply: (ref) => this.apply(ref),
       undo: (ref) => this.undo(ref),
-      dismiss: (ref) => this.dismiss(ref)
+      dismiss: (ref) => this.dismiss(ref),
+      reopen: (ref) => this.reopen(ref)
     }
   }
 }

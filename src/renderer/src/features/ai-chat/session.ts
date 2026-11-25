@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { toast } from 'sonner'
+import type { AiActionEdits } from '@shared/domain/ai-actions'
 import type { AiActionRef, AiChat } from '@shared/domain/ai-chat'
+import type { RawEdits } from './action-text'
 import type { EntityRef } from '@shared/domain/common'
 import type { EntityType } from '@shared/entity-types'
 import { api, ApiError } from '@/lib/api'
@@ -13,6 +15,10 @@ export interface Outgoing {
   text: string
   context: EntityRef | null
   search: boolean
+  /** The page the question was asked on (route + query): «додай сюди» means its section. */
+  page?: string
+  /** «Повторити відповідь»: replaces the chat's last question and answer (they hide while it is asked). */
+  retry?: boolean
 }
 
 /**
@@ -33,6 +39,8 @@ interface ChatSession {
   busy: Record<string, true>
   /** A question waiting for «Надіслати» in the warning before the first cloud request with record texts. */
   consent: Outgoing | null
+  /** «Змінити»: raw text of the edited fields per action, kept until «Застосувати» (closing the panel keeps it). */
+  edits: Record<string, RawEdits>
 }
 
 export const useChatSession = create<ChatSession>(() => ({
@@ -44,8 +52,23 @@ export const useChatSession = create<ChatSession>(() => ({
   failure: null,
   stopping: false,
   busy: {},
-  consent: null
+  consent: null,
+  edits: {}
 }))
+
+export function setEdit(actionId: string, key: string, value: string): void {
+  useChatSession.setState((s) => ({
+    edits: { ...s.edits, [actionId]: { ...s.edits[actionId], [key]: value } }
+  }))
+}
+
+export function dropEdits(actionId: string): void {
+  useChatSession.setState((s) => {
+    const edits = { ...s.edits }
+    delete edits[actionId]
+    return { edits }
+  })
+}
 
 const chatKey = (id: string): unknown[] => ['aiChat', 'get', id]
 
@@ -84,6 +107,13 @@ export async function sendMessage(out: Outgoing, consent?: boolean): Promise<voi
     // Today's requests and tokens under the chat title.
     void queryClient.invalidateQueries({ queryKey: ['ai', 'status'] })
   }
+}
+
+/** «Повторити відповідь» on the last answer: the same question, context and search, asked again. */
+export function retryLast(chat: AiChat, page: string): void {
+  const q = [...chat.messages].reverse().find((m) => m.role === 'user')
+  if (!q) return
+  void sendMessage({ text: q.text, context: q.context, search: q.searched, page, retry: true })
 }
 
 export function stopMessage(): void {
@@ -147,14 +177,22 @@ export async function undoAction(ref: AiActionRef, kind: 'create' | 'edit'): Pro
   toast.success(kind === 'create' ? 'Створення скасовано' : 'Зміну скасовано')
 }
 
-/** «Застосувати»: the record is created or changed, the toast offers «Відкрити» and «Скасувати». */
-export async function applyAction(ref: AiActionRef, open: (ref: EntityRef) => void): Promise<void> {
-  const done = await withBusy(ref, () => api.aiChat.apply(ref))
+/**
+ * «Застосувати»: the record is created or changed (with the edits from «Змінити»), the toast offers «Відкрити» and
+ * «Скасувати». True when it was applied.
+ */
+export async function applyAction(
+  ref: AiActionRef,
+  open: (ref: EntityRef) => void,
+  edits?: AiActionEdits
+): Promise<boolean> {
+  const done = await withBusy(ref, () => api.aiChat.apply({ ...ref, edits }))
   if (!done) {
     // A refused action may now carry its reason (the board is gone): show it on the card.
     void queryClient.invalidateQueries({ queryKey: chatKey(ref.chatId) })
-    return
+    return false
   }
+  dropEdits(ref.actionId)
   putChat(done.chat)
   invalidateAll()
   toast.success(
@@ -165,9 +203,16 @@ export async function applyAction(ref: AiActionRef, open: (ref: EntityRef) => vo
       cancel: { label: 'Скасувати', onClick: () => void undoAction(ref, done.kind) }
     }
   )
+  return true
 }
 
 export async function dismissAction(ref: AiActionRef): Promise<void> {
   const chat = await withBusy(ref, () => api.aiChat.dismiss(ref))
+  if (chat) putChat(chat)
+}
+
+/** «Повернути»: the cancelled action is proposed again, with the edits it had. */
+export async function reopenAction(ref: AiActionRef): Promise<void> {
+  const chat = await withBusy(ref, () => api.aiChat.reopen(ref))
   if (chat) putChat(chat)
 }

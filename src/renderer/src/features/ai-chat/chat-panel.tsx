@@ -59,7 +59,8 @@ export default function AiChatPanel({ onClose }: { onClose: () => void }): React
     const out: Outgoing = {
       text: (text ?? s.draft).trim(),
       context,
-      search: withSearch ?? s.search
+      search: withSearch ?? s.search,
+      page: `${pathname}${search}`
     }
     if (!out.text || s.pending || !status?.ready) return
     if ((out.context || out.search) && !status.consented) {
@@ -144,7 +145,8 @@ export default function AiChatPanel({ onClose }: { onClose: () => void }): React
         <ChatThread
           chat={chat ?? null}
           hasContext={!!context}
-          onStart={(text) => {
+          onStart={(text, send) => {
+            if (send) return submit(text)
             useChatSession.setState({ draft: text })
             input.current?.focus()
           }}

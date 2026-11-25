@@ -60,13 +60,16 @@ export function Composer({
   const canSend = !!draft.trim() && !pending && !disabledReason
   return (
     <form
-      className="shrink-0 px-3 pb-3"
+      // The thread's readable column (max-w-3xl), on the whole page and on a wide panel alike.
+      className="mx-auto w-full max-w-3xl shrink-0 px-3 pb-3"
       onSubmit={(e) => {
         e.preventDefault()
         if (canSend) onSubmit()
       }}
     >
-      <InputGroup>
+      {/* Focus: the field's ring colour as a thin border and a 1px soft ring — the 3px halo of a form field was
+          the heaviest thing on the screen (lime in the dark theme) for the one field that always has the focus. */}
+      <InputGroup className="has-[[data-slot=input-group-control]:focus-visible]:ring-1 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/30">
         <InputGroupTextarea
           ref={ref}
           value={draft}

@@ -1,5 +1,10 @@
 import { readFileSync, renameSync, writeFileSync } from 'fs'
-import { aiChatSchema, type AiChat, type AiChatSummary } from '@shared/domain/ai-chat'
+import {
+  aiActionProposalSchema,
+  aiChatSchema,
+  type AiChat,
+  type AiChatSummary
+} from '@shared/domain/ai-chat'
 import { log } from '../../core/logger'
 import { retryBusy } from '../../core/util'
 
@@ -7,6 +12,23 @@ import { retryBusy } from '../../core/util'
 export const CHATS_MAX = 50
 /** Messages kept per chat (the oldest go first); the model sees far fewer anyway. */
 export const CHAT_MESSAGES_MAX = 200
+
+/** A stored chat with the actions that fail today's schema left out (everything else is checked as usual). */
+function withoutBadActions(raw: unknown): unknown {
+  const chat = raw as { messages?: unknown }
+  if (!chat || typeof chat !== 'object' || !Array.isArray(chat.messages)) return raw
+  return {
+    ...chat,
+    messages: chat.messages.map((m: unknown) => {
+      const msg = m as { actions?: unknown }
+      if (!msg || typeof msg !== 'object' || !Array.isArray(msg.actions)) return m
+      return {
+        ...msg,
+        actions: msg.actions.filter((a) => aiActionProposalSchema.safeParse(a).success)
+      }
+    })
+  }
+}
 
 /** The slice of ChatStore the chat service needs (a memory store in unit tests). */
 export interface AiChatHistory {
@@ -41,10 +63,12 @@ export class ChatStore implements AiChatHistory {
     const list = Array.isArray((raw as { chats?: unknown })?.chats)
       ? ((raw as { chats: unknown[] }).chats ?? [])
       : []
-    // One damaged chat (hand edit, an older format) is dropped alone, not the whole history.
+    // One damaged chat (hand edit, an older format) is dropped alone, not the whole history; an action that no
+    // longer fits its module's limits (a lowered limit) is dropped from its message, the chat stays.
     const chats = list.flatMap((c) => {
-      const parsed = aiChatSchema.safeParse(c)
-      return parsed.success ? [parsed.data] : []
+      const parsed = aiChatSchema.safeParse(c) as { success: boolean; data?: AiChat }
+      const ok = parsed.success ? parsed : aiChatSchema.safeParse(withoutBadActions(c))
+      return ok.success && ok.data ? [ok.data] : []
     })
     if (chats.length < list.length)
       log.warn(`[ai] ${list.length - chats.length} chats dropped as invalid`)

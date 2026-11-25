@@ -7,7 +7,7 @@ import { useUi } from '@/stores/ui-store'
 const Toaster = (props: ToasterProps): ReactElement => {
   const theme = useResolvedTheme()
   // With the chat ШІ open on the right, toasts stay in the page's corner: over the chat they hid its composer.
-  const chat = useUi((s) => (s.aiChatOpen ? s.aiChatWidth : 0))
+  const chat = useUi((s) => (s.aiChatOpen && !s.aiChatFull ? s.aiChatWidth : 0))
   return (
     <Sonner
       theme={theme}
