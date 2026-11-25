@@ -1,10 +1,18 @@
 import { net } from 'electron'
-import type { GithubCommit, GithubIssue, GithubRepo, GithubStatus } from '@shared/domain/dev'
+import { z } from 'zod'
+import type { GithubApi } from '@shared/api'
+import { githubTokenSchema, type GithubCommit, type GithubIssue, type GithubRepo, type GithubStatus } from '@shared/domain/dev'
 import type { ConfigStore } from '../core/config-store'
 import type { SecretBox } from './secret-box'
 import { UserError } from '../core/util'
+import { log } from '../core/logger'
 
 const API = 'https://api.github.com'
+/** «owner/name» — goes into an API path sent with the user's token. */
+const repoArg = z
+  .string()
+  .regex(/^[\w.-]+\/[\w.-]+$/)
+  .optional()
 const TTL = 3 * 60_000
 
 interface GhRepo {
@@ -73,16 +81,24 @@ export class GithubService {
     if (!token) throw new UserError('GitHub не під’єднано: додайте токен у Налаштуваннях')
     const hit = this.cache.get(path)
     if (!force && hit && Date.now() - hit.at < TTL) return hit.data as T
-    const res = await net.fetch(`${API}${path}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'vault-desktop'
-      }
-    })
+    let res: Response
+    try {
+      res = await net.fetch(`${API}${path}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'User-Agent': 'vault-desktop'
+        }
+      })
+    } catch (e) {
+      // Offline is an expected state, not a bug: a plain reason instead of «Щось пішло не так».
+      log.warn('[github]', e)
+      throw new UserError('Немає зв’язку з GitHub — перевірте інтернет')
+    }
     const remaining = res.headers.get('x-ratelimit-remaining')
     if (remaining) this.rateRemaining = Number(remaining)
+    if (res.status === 403 && remaining === '0') throw new UserError('Ліміт запитів GitHub вичерпано — спробуйте за годину')
     if (res.status === 401) throw new UserError('GitHub відхилив токен — створіть новий у Налаштуваннях')
     if (!res.ok) throw new UserError(`GitHub: ${res.status} ${res.statusText}`)
     const data = (await res.json()) as T
@@ -175,6 +191,20 @@ export class GithubService {
       return list.filter((c) => c.at >= from && c.at <= to).length
     } catch {
       return null
+    }
+  }
+
+  /** `repoIndex`: owner/repo → local project id, to link GitHub repos with «Мої проєкти». */
+  api(repoIndex: () => Map<string, string>): GithubApi {
+    return {
+      status: async () => this.status(),
+      setToken: async (args) => {
+        this.setToken(githubTokenSchema.parse(args).token)
+        return this.status()
+      },
+      repos: async (args) => this.repos(repoIndex(), !!args?.force),
+      issues: async (args) => this.issues(repoArg.parse(args?.repo), !!args?.force),
+      commits: async (args) => this.commits(repoIndex(), repoArg.parse(args?.repo), !!args?.force)
     }
   }
 }

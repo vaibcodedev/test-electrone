@@ -1,5 +1,8 @@
-/** Calendar events with recurrence + an aggregated feed (cards, payments, project deadlines). */
-import { and, asc, gte, isNull, lte, ne, or, eq } from 'drizzle-orm'
+/**
+ * Calendar events with recurrence + one aggregated feed: other modules add their dated items
+ * (card deadlines, payments, subscriptions, follow-ups…) as feed providers, wired in container.ts.
+ */
+import { and, asc, gte, lte, ne, or, eq } from 'drizzle-orm'
 import type { EventsApi } from '@shared/api'
 import {
   eventInputSchema,
@@ -9,12 +12,11 @@ import {
   type CalendarItem,
   type Recurrence
 } from '@shared/domain/calendar'
-import { events, projects } from '../db/schema'
+import { pageSchema } from '@shared/domain/common'
+import { events } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
-import type { BoardsModule } from './boards'
-import type { CrmModule } from './crm'
 
 type EventRow = typeof events.$inferSelect
 
@@ -68,11 +70,8 @@ export function occurrences(
   return out
 }
 
-const PROJECT_COLOR = '#7c8cf8'
-const PAYMENT_COLOR = '#f5a524'
-
 type EventListener = (e: EventRow) => void
-/** Extra calendar items contributed by other modules (subscriptions, follow-ups…). */
+/** Calendar items contributed by other modules (card deadlines, payments, subscriptions, follow-ups…). */
 export type FeedProvider = (from: number, to: number) => CalendarItem[]
 /** Decorates events owned by another module (interview stages → open the vacancy). */
 export type SourceDecorator = (e: CalendarEvent) => Partial<CalendarItem> | null
@@ -96,11 +95,7 @@ export class CalendarModule {
     this.decorators.set(sourceType, decorator)
   }
 
-  constructor(
-    private readonly m: ModuleContext,
-    private readonly boards: BoardsModule,
-    private readonly crm: CrmModule
-  ) {
+  constructor(m: ModuleContext) {
     this.descriptor = {
       type: 'event',
       table: events,
@@ -111,7 +106,14 @@ export class CalendarModule {
           dateStyle: 'medium',
           timeStyle: r.allDay ? undefined : 'short'
         })
-      })
+      }),
+      systemFields: ['remindedFor', 'reminded2For'],
+      // An edit moved the event (→ a job stage followed it); «Скасувати» moves it back: the stage follows again.
+      afterRevert: (row, before) => {
+        if (row.startAt !== before.startAt || row.endAt !== before.endAt) {
+          for (const l of this.listeners) l(row as EventRow)
+        }
+      }
     }
     this.repo = new SoftRepository(m.repo, this.descriptor, (r, tags) => ({
       ...r,
@@ -156,55 +158,6 @@ export class CalendarModule {
         })
       }
     }
-    for (const c of this.boards.due({ from, to })) {
-      items.push({
-        key: `card:${c.id}`,
-        source: 'card',
-        ref: { type: 'card', id: c.id },
-        title: c.title,
-        startAt: c.dueAt!,
-        endAt: null,
-        allDay: new Date(c.dueAt!).getHours() === 0 && new Date(c.dueAt!).getMinutes() === 0,
-        color: null,
-        done: c.columnIsDone
-      })
-    }
-    for (const p of this.crm.paymentsDue(from, to)) {
-      items.push({
-        key: `payment:${p.id}`,
-        source: 'payment',
-        ref: { type: 'project', id: p.projectId },
-        title: `Оплата ${p.amount} ${p.currency} · ${p.projectTitle}`,
-        startAt: p.dueAt!,
-        endAt: null,
-        allDay: true,
-        color: PAYMENT_COLOR,
-        done: p.status === 'paid' || p.status === 'cancelled'
-      })
-    }
-    const deadlines = this.m.db.orm
-      .select({
-        id: projects.id,
-        title: projects.title,
-        dueAt: projects.dueAt,
-        status: projects.status
-      })
-      .from(projects)
-      .where(and(isNull(projects.deletedAt), gte(projects.dueAt, from), lte(projects.dueAt, to)))
-      .all()
-    for (const p of deadlines) {
-      items.push({
-        key: `project:${p.id}`,
-        source: 'project',
-        ref: { type: 'project', id: p.id },
-        title: `Дедлайн: ${p.title}`,
-        startAt: p.dueAt!,
-        endAt: null,
-        allDay: true,
-        color: PROJECT_COLOR,
-        done: p.status === 'done' || p.status === 'cancelled'
-      })
-    }
     for (const provider of this.providers) items.push(...provider(from, to))
     return items.sort((a, b) => a.startAt - b.startAt)
   }
@@ -212,7 +165,10 @@ export class CalendarModule {
   api(): EventsApi {
     const repo = this.repo
     return {
-      list: async () => repo.listWhere([], [asc(events.startAt)]),
+      list: async (query) => {
+        const page = pageSchema.parse(query ?? {})
+        return repo.listWhere([], [asc(events.startAt)], page.limit, page.offset)
+      },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {
         const [data, tagIds] = splitTags(eventInputSchema.parse(input))

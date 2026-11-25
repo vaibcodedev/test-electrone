@@ -5,8 +5,11 @@ import electronUpdater from 'electron-updater'
 import type { UpdateStatus } from '@shared/domain/system'
 import type { EventBus } from '../core/event-bus'
 import type { ConfigStore } from '../core/config-store'
+import { log } from '../core/logger'
 
 const { autoUpdater } = electronUpdater
+
+const OFFLINE = /ERR_INTERNET_DISCONNECTED|ERR_NAME_NOT_RESOLVED|ERR_NETWORK|ENOTFOUND|ETIMEDOUT|ECONNREFUSED/i
 
 /** Wraps electron-updater: GitHub Releases (configured in electron-builder.yml → publish). */
 export class Updater {
@@ -49,9 +52,21 @@ export class Updater {
     autoUpdater.on('update-not-available', () => this.set({ state: 'none' }))
     autoUpdater.on('download-progress', (p) => this.set({ state: 'downloading', percent: Math.round(p.percent) }))
     autoUpdater.on('update-downloaded', (i) => this.set({ state: 'ready', version: i.version }))
-    autoUpdater.on('error', (e) => this.set({ state: 'error', message: e?.message ?? String(e) }))
+    autoUpdater.on('error', (e) => this.fail(e))
     config.onSettingsChange((s) => {
       autoUpdater.autoDownload = s.autoUpdate
+    })
+  }
+
+  /** electron-updater speaks English (net::ERR_…, multi-line HttpError): the details go to the log. */
+  private fail(e: unknown): void {
+    log.error('[updater]', e)
+    const msg = String((e as Error)?.message ?? e)
+    this.set({
+      state: 'error',
+      message: OFFLINE.test(msg)
+        ? 'Немає з’єднання з інтернетом — спробуємо пізніше'
+        : 'Не вдалося перевірити оновлення — подробиці в журналі'
     })
   }
 
@@ -69,7 +84,7 @@ export class Updater {
     try {
       await autoUpdater.checkForUpdates()
     } catch (e) {
-      this.set({ state: 'error', message: (e as Error).message })
+      this.fail(e)
     }
     return this.status
   }

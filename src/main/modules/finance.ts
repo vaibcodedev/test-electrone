@@ -6,6 +6,7 @@ import { and, asc, desc, eq, gte, isNull, lte } from 'drizzle-orm'
 import { z } from 'zod'
 import type { FinanceApi } from '@shared/api'
 import type { Currency } from '@shared/domain/crm'
+import type { CalendarItem } from '@shared/domain/calendar'
 import {
   expenseInputSchema,
   expensePatchSchema,
@@ -34,7 +35,7 @@ import {
   subscriptions,
   withdrawals
 } from '../db/schema'
-import { newId, now, NotFoundError } from '../core/util'
+import { newId, now, NotFoundError, startOfMonth } from '../core/util'
 import { idArg, updateArgs, type ModuleContext } from './context'
 import type { FreelanceModule } from './freelance'
 
@@ -60,6 +61,8 @@ export function monthKey(ts: number): string {
   const d = new Date(ts)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
+
+const SUBSCRIPTION_COLOR = '#c98af0'
 
 export class FinanceModule {
   constructor(
@@ -139,6 +142,30 @@ export class FinanceModule {
       currency: r.currency as Currency,
       receivedCurrency: r.receivedCurrency as Currency
     }
+  }
+
+  /** Calendar feed: subscription payments of every month overlapping [from, to]. */
+  calendarFeed(from: number, to: number): CalendarItem[] {
+    const items: CalendarItem[] = []
+    for (let m = startOfMonth(from); m <= to; m = monthRange(monthKey(m))[1] + 1) {
+      const month = monthKey(m)
+      for (const s of this.subscriptionMonth(month)) {
+        if (s.dueAt < from || s.dueAt > to) continue
+        items.push({
+          key: `subscription:${s.id}:${month}`,
+          source: 'subscription',
+          ref: { type: 'event', id: s.id },
+          route: `/finance/expenses?month=${month}`,
+          title: `Підписка: ${s.title} · ${s.amount} ${s.currency}`,
+          startAt: s.dueAt,
+          endAt: null,
+          allDay: true,
+          color: SUBSCRIPTION_COLOR,
+          done: !!s.expenseId
+        })
+      }
+    }
+    return items
   }
 
   subscriptionMonth(month: string): SubscriptionMonthRow[] {

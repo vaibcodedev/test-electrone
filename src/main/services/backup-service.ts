@@ -14,17 +14,22 @@ import Database from 'better-sqlite3'
 import { log } from '../core/logger'
 import type { AsyncZippable } from 'fflate'
 import { unzipAsync, zipAsync } from '../core/zip'
-import type { BackupEntry } from '@shared/domain/system'
+import { z } from 'zod'
+import type { BackupApi } from '@shared/api'
+import { EXPORT_FORMATS, type BackupEntry } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import type { AppPaths } from '../core/paths'
 import type { ConfigStore } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
 import type { SearchIndex } from './search-index'
+import type { ExportService } from './export-service'
 import { DAY_MS, now, UserError } from '../core/util'
 
 
 const BACKUP_EXT = 'vaultbak'
 const MANIFEST = 'manifest.json'
+/** Safety copies made right before a restore («vault-pre-restore-…»): the newest few are enough. */
+const PRE_RESTORE_KEEP = 3
 const STORE_ONLY = /\.(png|jpe?g|gif|webp|avif|mp4|webm|mov|zip)$/i
 
 interface Manifest {
@@ -125,10 +130,14 @@ export class BackupService {
     }
   }
 
+  /** Keeps the newest `backupKeep` regular backups and the 3 newest safety copies made before a restore. */
   private prune(): void {
-    const keep = this.config.settings.backupKeep
-    const auto = this.list().filter((b) => !b.fileName.includes('-pre-restore-'))
-    for (const b of auto.slice(keep)) rmSync(b.path, { force: true })
+    const all = this.list()
+    const pre = all.filter((b) => b.fileName.includes('-pre-restore-'))
+    const auto = all.filter((b) => !b.fileName.includes('-pre-restore-'))
+    for (const b of [...auto.slice(this.config.settings.backupKeep), ...pre.slice(PRE_RESTORE_KEEP)]) {
+      rmSync(b.path, { force: true })
+    }
   }
 
   async restore(path?: string): Promise<boolean> {
@@ -196,7 +205,12 @@ export class BackupService {
       files.push([abs, bytes])
     }
 
-    await this.create({ saveAs: false, label: 'pre-restore' })
+    try {
+      await this.create({ saveAs: false, label: 'pre-restore' })
+    } catch (e) {
+      rmSync(candidate, { force: true })
+      throw e
+    }
 
     // Swap with rollback: if anything fails, the current DB and files come back exactly as they were.
     const oldDb = join(this.paths.tmpDir, `db-before-restore-${stamp}.db`)
@@ -215,6 +229,7 @@ export class BackupService {
       this.ctx.open() // runs migrations on the restored DB
     } catch (e) {
       log.error('[backup] restore failed, rolling back', e)
+      rmSync(candidate, { force: true })
       try {
         this.ctx.close()
       } catch {
@@ -255,6 +270,15 @@ export class BackupService {
 
   private parent(): BrowserWindow {
     return BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  }
+
+  api(exporter: ExportService): BackupApi {
+    return {
+      list: async () => this.list(),
+      create: async (args) => this.create(z.object({ saveAs: z.boolean() }).parse(args)),
+      restore: async (args) => this.restore(z.object({ path: z.string().optional() }).parse(args ?? {}).path),
+      export: async (format) => exporter.export(z.enum(EXPORT_FORMATS).parse(format))
+    }
   }
 }
 

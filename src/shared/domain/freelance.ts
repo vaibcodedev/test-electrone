@@ -83,16 +83,6 @@ export const PROPOSAL_STATUSES = [
 ] as const
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number]
 
-/** Funnel stages used by statistics (a proposal "reached" a stage if its status is at or past it). */
-export const PROPOSAL_FUNNEL: ProposalStatus[] = [
-  'sent',
-  'viewed',
-  'replied',
-  'interview',
-  'offer',
-  'hired'
-]
-
 export const BID_TYPES = ['fixed', 'hourly'] as const
 export type BidType = (typeof BID_TYPES)[number]
 

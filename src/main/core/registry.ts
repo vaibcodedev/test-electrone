@@ -40,6 +40,16 @@ export interface EntityDescriptor {
   aliveWhere?: SQL
   /** Extra cleanup on permanent deletion (files on disk…). */
   onPurge?(row: AnyRow): void
+  /** After a restore from the trash, inside its transaction (re-attach dependents, fix references). Throwing rolls the restore back. */
+  onRestore?(row: AnyRow): void
+  /** After «Скасувати» rolled the row back to a snapshot: undo side effects the edits had (mirrors, links). */
+  afterRevert?(row: AnyRow, before: AnyRow): void
+  /** File columns (relative path in <data>/files) and the columns that describe that file (size, colours…). */
+  fileFields?: Record<string, string[]>
+  /** Columns the app changes on its own (counters, SRS state, reminders): never reverted, not exported. */
+  systemFields?: string[]
+  /** Extra markdown appended to the record's file in the Markdown export (a board's columns and cards…). */
+  exportBody?(row: AnyRow): string[]
   /**
    * Draft detection: the title column and the content columns that must all be empty.
    * Types without it never count as drafts.
@@ -78,7 +88,7 @@ export class EntityRegistry {
     return [...this.map.values()]
   }
 
-/** Not in the trash and (for dependents) the parent isn't either. */
+  /** Not in the trash and (for dependents) the parent isn't either. */
   live(d: EntityDescriptor): SQL {
     return d.aliveWhere ? and(isNull(d.table.deletedAt), d.aliveWhere)! : isNull(d.table.deletedAt)
   }

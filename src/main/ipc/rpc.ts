@@ -1,14 +1,16 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { ZodError } from 'zod'
-import { configureZod, describeZodError } from '@shared/zod-locale'
+import { configureZod } from '@shared/zod-locale'
 // Validation messages reach the UI as toasts → Ukrainian, in plain words (shared with the renderer).
 configureZod()
 import { RPC_CHANNEL, type Api, type RpcResult } from '@shared/api'
-import type { EntityType } from '@shared/entity-types'
 import type { EventBus } from '../core/event-bus'
 import { NotFoundError, UserError } from '../core/util'
 import { log } from '../core/logger'
+import { changedTypes, formatError } from './rpc-utils'
+
+export { formatError }
 
 /** Only our own pages may call the API (defence against a navigated/injected frame). */
 function trustedSender(event: IpcMainInvokeEvent): boolean {
@@ -17,45 +19,6 @@ function trustedSender(event: IpcMainInvokeEvent): boolean {
   const dev = process.env['ELECTRON_RENDERER_URL']
   return is.dev && !!dev && url.startsWith(dev)
 }
-
-export function formatError(e: unknown): { error: string; code?: string } {
-  if (e instanceof ZodError) return { error: describeZodError(e), code: 'VALIDATION' }
-  if (e instanceof Error) return { error: e.message, code: (e as { code?: string }).code }
-  return { error: String(e) }
-}
-
-/** Namespaces whose writes should notify other windows (e.g. quick-add → main). */
-const NS_TYPES: Partial<Record<keyof Api, EntityType[]>> = {
-  ideas: ['idea'],
-  boards: ['board', 'card'],
-  cards: ['card'],
-  claude: ['claude'],
-  libraries: ['library'],
-  components: ['component'],
-  designs: ['design'],
-  moodboards: ['moodboard'],
-  snippets: ['snippet'],
-  clients: ['client'],
-  projects: ['project'],
-  checklists: ['checklist'],
-  fixes: ['fix'],
-  bookmarks: ['bookmark'],
-  english: ['word'],
-  events: ['event'],
-  notes: ['note'],
-  proposals: ['proposal'],
-  templates: ['template'],
-  cases: ['case'],
-  redflags: ['redflag'],
-  platforms: ['proposal'],
-  credits: ['proposal'],
-  goals: ['proposal'],
-  finance: ['project'],
-  jobs: ['application', 'company', 'question', 'event'],
-  importer: ['checklist', 'question', 'word', 'snippet', 'template', 'redflag', 'idea', 'bookmark', 'library']
-}
-const READ_METHODS =
-  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|findCompany|counts|count|resumes|questions|question|topics|practiceQueue|practiceExtra|snapshot|changed|runs|logs|repos|issues|commits|pickFolder|scan)$/
 
 /**
  * Single IPC entry point: `rpc("ns.method", arg)` → api[ns][method](arg).
@@ -71,17 +34,15 @@ export function registerRpc(api: Api, bus: EventBus): void {
     if (typeof fn !== 'function') return { ok: false, error: `Unknown method ${path}`, code: 'NOT_FOUND' }
     try {
       const data = await (fn as (a: unknown) => unknown).call(target, arg)
-      const types = NS_TYPES[ns]
-      if (types && !READ_METHODS.test(method)) {
-        // Lets other windows (quick add ↔ main) refresh their caches.
-        bus.emit('data:changed', { types })
-      }
+      const types = changedTypes(ns, method, data)
+      // Lets other windows (quick add ↔ main) refresh their caches.
+      if (types) bus.emit('data:changed', { types })
       return { ok: true, data }
     } catch (e) {
       // Our own expected errors (validation, UserError, not found) are warnings; anything else — SQLite,
       // file system, a plain Error — is a bug: logged with its stack, shown to the user in plain words.
       const expected = e instanceof ZodError || e instanceof UserError || e instanceof NotFoundError
-      if (expected) log.warn(`[rpc] ${path}: ${(e as Error).message}`)
+      if (expected) log.warn(`[rpc] ${path}: ${(e as Error).message}${e instanceof NotFoundError ? ` (${e.id})` : ''}`)
       else log.error(`[rpc] ${path}`, e)
       const result = formatError(e)
       if (!expected && !/[А-яЄІЇҐєіїґ]/.test(result.error)) {

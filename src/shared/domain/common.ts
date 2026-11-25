@@ -51,12 +51,6 @@ export const pageSchema = z.object({
 })
 export type PageQuery = z.infer<typeof pageSchema>
 
-export const listQuerySchema = z.object({
-  search: z.string().max(200).optional(),
-  tagId: idSchema.optional(),
-  limit: z.number().int().min(1).max(5000).optional()
-})
-export type ListQuery = z.infer<typeof listQuerySchema>
 
 export interface EntityRef {
   type: EntityType

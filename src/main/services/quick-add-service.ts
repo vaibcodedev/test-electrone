@@ -1,4 +1,4 @@
-import { asc, eq, isNull } from 'drizzle-orm'
+import { asc, desc, eq, isNull } from 'drizzle-orm'
 import { MAX } from '@shared/domain/limits'
 import type { Api } from '@shared/api'
 import type { EntitySummary } from '@shared/domain/common'
@@ -17,13 +17,13 @@ export class QuickAddService {
     private readonly ctx: DbContext
   ) {}
 
-  /** Inbox for quick tasks: the first column of the most recently updated board. */
+  /** Inbox for quick tasks: the first column of the most recently updated board (archived ones last). */
   private inboxColumn(): { boardId: string; columnId: string } {
     const board = this.ctx.orm
       .select({ id: boards.id })
       .from(boards)
       .where(isNull(boards.deletedAt))
-      .orderBy(asc(boards.archived), asc(boards.createdAt))
+      .orderBy(asc(boards.archived), desc(boards.updatedAt))
       .get()
     if (!board) throw new UserError('Спершу створіть хоча б одну дошку')
     const col = this.ctx.orm

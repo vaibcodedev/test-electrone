@@ -1,19 +1,27 @@
+import { existsSync } from 'fs'
 import { eq } from 'drizzle-orm'
-import type { EntityRef } from '@shared/domain/common'
-import type { RecordSnapshot } from '@shared/api'
+import { z } from 'zod'
+import { entityRefSchema, type EntityRef } from '@shared/domain/common'
+import type { RecordsApi, RecordSnapshot } from '@shared/api'
 import type { DbContext } from '../db/client'
-import type { AnyRow, EntityRegistry } from '../core/registry'
-import { NotFoundError } from '../core/util'
+import type { AnyRow, EntityDescriptor, EntityRegistry } from '../core/registry'
+import { NotFoundError, UserError } from '../core/util'
 import type { TagService } from './tag-service'
 import type { SearchIndex } from './search-index'
+import type { FileStorage } from './file-storage'
+import type { EventBus } from '../core/event-bus'
+
+/** A snapshot comes back from the renderer: only its shape is trusted, values are checked in revert(). */
+const snapshotArg = z.object({ row: z.record(z.string(), z.unknown()), tagIds: z.array(z.string().max(40)).max(200) })
 
 /** Columns a revert may never touch. */
 const FIXED = new Set(['id', 'createdAt', 'deletedAt'])
+
 /**
- * Bookkeeping the app changes on its own while you edit (copy counter, reminders, last opened…):
- * not «your changes» — never a reason to ask «Зберегти зміни?», never rolled back.
+ * Bookkeeping the app changes on its own while you edit (updatedAt + each type's `systemFields`: copy
+ * counter, reminders, SRS state…): not «your changes» — never a reason to ask «Зберегти зміни?», never rolled back.
  */
-const SYSTEM = new Set(['updatedAt', 'copyCount', 'lastOpenedAt', 'lastReviewedAt', 'remindedFor', 'reminded2For'])
+const isSystem = (d: EntityDescriptor, k: string): boolean => k === 'updatedAt' || !!d.systemFields?.includes(k)
 
 /**
  * «Скасувати» for the view/edit mode: a snapshot of a record (its row + tags) taken when editing starts,
@@ -25,7 +33,8 @@ export class RevisionService {
     private readonly ctx: DbContext,
     private readonly registry: EntityRegistry,
     private readonly tags: TagService,
-    private readonly search: SearchIndex
+    private readonly search: SearchIndex,
+    private readonly files: FileStorage
   ) {}
 
   snapshot(ref: EntityRef): RecordSnapshot {
@@ -37,37 +46,78 @@ export class RevisionService {
 
   /** True when the record (own columns or tags) differs from the snapshot. */
   changed(ref: EntityRef, snap: RecordSnapshot): boolean {
+    const d = this.registry.get(ref.type)
     const now = this.snapshot(ref)
     if (now.tagIds.join() !== [...snap.tagIds].sort().join()) return true
     // createdAt too: «+ Створити» may reuse this very draft and re-stamp it while it's open.
     return Object.keys(now.row).some(
-      (k) => !SYSTEM.has(k) && !FIXED.has(k) && JSON.stringify(now.row[k]) !== JSON.stringify(snap.row[k])
+      (k) => !isSystem(d, k) && !FIXED.has(k) && JSON.stringify(now.row[k]) !== JSON.stringify(snap.row[k])
     )
+  }
+
+  /** A stored file still on disk (paths outside <data>/files count as missing). */
+  private fileExists(path: unknown): boolean {
+    if (typeof path !== 'string' || !path) return false
+    try {
+      return existsSync(this.files.resolve(path))
+    } catch {
+      return false
+    }
   }
 
   revert(ref: EntityRef, snap: RecordSnapshot): void {
     const d = this.registry.get(ref.type)
     const current = this.registry.findRow(ref)
     if (!current) throw new NotFoundError(ref.type, ref.id)
-    if (snap.row.id !== ref.id) throw new Error('Знімок належить іншому запису')
+    if (snap.row.id !== ref.id) throw new UserError('Знімок належить іншому запису')
     // Only columns the row really has, with the same primitive type: the snapshot came from the renderer.
     const values: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(snap.row)) {
-      if (FIXED.has(k) || SYSTEM.has(k) || !(k in current)) continue
+      if (FIXED.has(k) || isSystem(d, k) || !(k in current)) continue
       const cur = (current as AnyRow)[k]
       if (cur !== null && v !== null && typeof cur !== typeof v) continue
       values[k] = v
+    }
+    // A replaced cover/image: its old file is deleted at once (setCover, replaceImage). Rolling the path back
+    // to a missing file would break the picture, so then the new one stays; otherwise the new file goes.
+    const orphans: string[] = []
+    for (const [col, companions] of Object.entries(d.fileFields ?? {})) {
+      if (!(col in values) || values[col] === current[col]) continue
+      if (values[col] !== null && !this.fileExists(values[col])) {
+        for (const k of [col, ...companions]) delete values[k]
+      } else if (typeof current[col] === 'string') {
+        orphans.push(current[col])
+      }
     }
     // A record untouched at snapshot time stays a draft after the revert (createdAt === updatedAt), even if
     // draft reuse re-stamped createdAt meanwhile; otherwise updatedAt never goes below createdAt.
     const snapAt = Number(snap.row.updatedAt)
     const createdAt = Number((current as AnyRow).createdAt)
     values.updatedAt = snapAt === Number(snap.row.createdAt) ? createdAt : Math.max(snapAt, createdAt)
-    this.ctx.tx(() => {
-      this.ctx.orm.update(d.table).set(values).where(eq(d.table.id, ref.id)).run()
-      this.tags.setFor(ref.type, ref.id, snap.tagIds)
-      const row = this.registry.findRow(ref)
-      if (row) this.search.indexRow(ref.type, row)
-    })
+    // Files go only after the commit (FileStorage.afterCommit): a failed revert keeps the picture.
+    this.files.afterCommit(() =>
+      this.ctx.tx(() => {
+        this.ctx.orm.update(d.table).set(values).where(eq(d.table.id, ref.id)).run()
+        this.tags.setFor(ref.type, ref.id, snap.tagIds)
+        const reverted = this.registry.findRow(ref)
+        if (reverted) {
+          this.search.indexRow(ref.type, reverted)
+          d.afterRevert?.(reverted, current)
+        }
+        for (const p of orphans) this.files.remove(p)
+      })
+    )
+  }
+
+  api(bus: EventBus): RecordsApi {
+    return {
+      snapshot: async (ref) => this.snapshot(entityRefSchema.parse(ref)),
+      changed: async (args) => this.changed(entityRefSchema.parse(args.ref), snapshotArg.parse(args.snapshot)),
+      revert: async (args) => {
+        const ref = entityRefSchema.parse(args.ref)
+        this.revert(ref, snapshotArg.parse(args.snapshot))
+        bus.dataChanged([ref.type])
+      }
+    }
   }
 }

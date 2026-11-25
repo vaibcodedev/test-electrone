@@ -1,6 +1,8 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
+import { z } from 'zod'
+import type { TagsApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
-import { patchOf, type EntitySummary, type Tag, type TagWithUsage } from '@shared/domain/common'
+import { idSchema, patchOf, type EntitySummary, type Tag, type TagWithUsage } from '@shared/domain/common'
 import { tagInputSchema, type TagInput } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { entityTags, tags } from '../db/schema'
@@ -117,5 +119,18 @@ export class TagService {
       .where(eq(entityTags.tagId, tagId))
       .all()
     return this.registry.summarize(refs as { type: EntityType; id: string }[])
+  }
+
+  api(): TagsApi {
+    return {
+      list: async () => this.list(),
+      create: async (input) => this.create(input),
+      update: async (args) => {
+        const { id, patch } = z.object({ id: idSchema, patch: z.record(z.string(), z.unknown()) }).parse(args)
+        return this.update(id, patch)
+      },
+      remove: async (id) => this.remove(idSchema.parse(id)),
+      entities: async (tagId) => this.entities(idSchema.parse(tagId))
+    }
   }
 }

@@ -1,5 +1,6 @@
 import { IMPORT_DEFS, importRunSchema, type ImportKind, type ImportResult } from '@shared/domain/import'
 import type { DbContext } from '../db/client'
+import { UserError } from '../core/util'
 
 /** Creates records from an already validated payload (the shape of IMPORT_DEFS[kind].schema output). */
 export type ImportHandler = (data: unknown) => Promise<ImportResult>
@@ -21,7 +22,7 @@ export class ImportService {
   async run(args: unknown): Promise<ImportResult> {
     const { kind, payload } = importRunSchema.parse(args)
     const handler = this.handlers.get(kind)
-    if (!handler) throw new Error(`Імпорт «${IMPORT_DEFS[kind].label}» поки не підтримується`)
+    if (!handler) throw new UserError(`Імпорт «${IMPORT_DEFS[kind].label}» поки не підтримується`)
     const data = IMPORT_DEFS[kind].schema.parse(payload)
     // Module creates are synchronous under the hood (better-sqlite3); their own transactions nest as savepoints.
     const db = this.ctx.sqlite

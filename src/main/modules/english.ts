@@ -1,10 +1,7 @@
-import { pageSchema } from '@shared/domain/common'
-/**
- * English vocabulary from work with spaced repetition (SM-2 variant with 4 grades).
- * Grades: 0 forgot · 1 hard · 2 good · 3 easy.
- */
-import { and, asc, desc, eq, gt, gte, isNull, lte, sql } from 'drizzle-orm'
+/** English vocabulary from work with spaced repetition (scheduler: core/srs). */
+import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte, sql, type SQL } from 'drizzle-orm'
 import type { EnglishApi } from '@shared/api'
+import { pageSchema } from '@shared/domain/common'
 import {
   reviewInputSchema,
   WORD_STAGES,
@@ -12,7 +9,6 @@ import {
   wordListQuerySchema,
   wordPatchSchema,
   type EnglishStats,
-  type ReviewGrade,
   type Word,
   type WordKind,
   type WordStage
@@ -22,48 +18,23 @@ import { wordReviews, words } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
 import { addDays, localDayNumber, newId, now, startOfDay } from '../core/util'
+import { MASTERED_DAYS, REVIEW_DAYS, schedule, SRS_FIELDS, stageOf } from '../core/srs'
 import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
 
 type WordRow = typeof words.$inferSelect
 
-export function stageOf(
-  r: Pick<WordRow, 'repetitions' | 'intervalDays' | 'lastReviewedAt'>
-): WordStage {
-  if (!r.lastReviewedAt) return 'new'
-  if (r.intervalDays >= 30) return 'mastered'
-  if (r.intervalDays >= 7) return 'review'
-  return 'learning'
-}
-
-/** Pure SM-2 step. Exported for unit tests. */
-export function schedule(
-  state: Pick<WordRow, 'ease' | 'intervalDays' | 'repetitions' | 'lapses'>,
-  grade: ReviewGrade,
-  at: number
-): Pick<WordRow, 'ease' | 'intervalDays' | 'repetitions' | 'lapses' | 'dueAt' | 'lastReviewedAt'> {
-  const q = [1, 3, 4, 5][grade]
-  let { ease, intervalDays, repetitions, lapses } = state
-  if (q < 3) {
-    repetitions = 0
-    lapses += 1
-    intervalDays = 0
-    ease = Math.max(1.3, ease - 0.2)
-    // Show again in 10 minutes in the same session.
-    return { ease, intervalDays, repetitions, lapses, dueAt: at + 10 * 60_000, lastReviewedAt: at }
-  }
-  ease = Math.max(1.3, ease + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02)))
-  if (repetitions === 0) intervalDays = q === 5 ? 3 : 1
-  else if (repetitions === 1) intervalDays = q === 5 ? 7 : q === 3 ? 3 : 4
-  else intervalDays = Math.round(intervalDays * ease * (q === 3 ? 0.8 : q === 5 ? 1.3 : 1))
-  intervalDays = Math.min(intervalDays, 365)
-  repetitions += 1
-  return {
-    ease,
-    intervalDays,
-    repetitions,
-    lapses,
-    dueAt: startOfDay(addDays(at, intervalDays)) + 4 * 3600_000,
-    lastReviewedAt: at
+/** SQL twin of `stageOf` (core/srs): the stage filter runs in the query, so pages stay correct. */
+export function stageWhere(stage: WordStage): SQL {
+  const reviewed = isNotNull(words.lastReviewedAt)
+  switch (stage) {
+    case 'new':
+      return isNull(words.lastReviewedAt)
+    case 'mastered':
+      return and(reviewed, gte(words.intervalDays, MASTERED_DAYS))!
+    case 'review':
+      return and(reviewed, gte(words.intervalDays, REVIEW_DAYS), lt(words.intervalDays, MASTERED_DAYS))!
+    case 'learning':
+      return and(reviewed, lt(words.intervalDays, REVIEW_DAYS))!
   }
 }
 
@@ -79,7 +50,8 @@ export class EnglishModule {
         title: r.term,
         body: `${r.translation}\n${r.example}\n${r.exampleTranslation}\n${r.context}\n${r.notes}`
       }),
-      summary: (r) => ({ title: r.term, subtitle: r.translation || undefined })
+      summary: (r) => ({ title: r.term, subtitle: r.translation || undefined }),
+      systemFields: SRS_FIELDS
     }
     this.repo = new SoftRepository(m.repo, this.descriptor, (r, tags) => ({
       ...r,
@@ -147,14 +119,17 @@ export class EnglishModule {
       list: async (query) => {
         const q = wordListQuerySchema.parse(query ?? {})
         const page = pageSchema.parse(query ?? {})
-        const list = repo.listWhere([
-          q.kind ? eq(words.kind, q.kind) : undefined,
-          repo.hasTag(q.tagId),
-          repo.matches(q.search, [words.term, words.translation, words.example, words.context])
-        ])
-        const filtered = q.stage ? list.filter((w) => w.stage === q.stage) : list
-        const start = page.offset ?? 0
-        return page.limit ? filtered.slice(start, start + page.limit) : filtered.slice(start)
+        return repo.listWhere(
+          [
+            q.kind ? eq(words.kind, q.kind) : undefined,
+            q.stage ? stageWhere(q.stage) : undefined,
+            repo.hasTag(q.tagId),
+            repo.matches(q.search, [words.term, words.translation, words.example, words.context])
+          ],
+          undefined,
+          page.limit,
+          page.offset
+        )
       },
       get: async (id) => repo.get(idArg.parse(id)),
       create: async (input) => {

@@ -1,5 +1,5 @@
 import { log } from '../core/logger'
-import { Notification } from 'electron'
+import { showNotification } from '../core/notify'
 import { eq } from 'drizzle-orm'
 import { ENTITY_META } from '@shared/entity-types'
 import { events } from '../db/schema'
@@ -9,7 +9,7 @@ import { occurrences } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
 import type { JobsModule } from '../modules/jobs'
 import type { ConfigStore } from '../core/config-store'
-import { DAY_MS, now, startOfWeek } from '../core/util'
+import { DAY_MS, dayKey, now, startOfWeek } from '../core/util'
 
 const TICK_MS = 30_000
 /** Reminders older than this (app was closed) are skipped instead of spamming on startup. */
@@ -29,8 +29,6 @@ export class ReminderService {
     private readonly jobs: JobsModule,
     private readonly config: ConfigStore
   ) {}
-
-  private lastJobNudge = ''
 
   start(): void {
     this.stop()
@@ -52,10 +50,7 @@ export class ReminderService {
   }
 
   private notify(title: string, body: string, route: string): void {
-    if (!Notification.isSupported()) return
-    const n = new Notification({ title, body, icon: this.icon, silent: false })
-    n.on('click', () => this.open(route))
-    n.show()
+    showNotification({ title, body, icon: this.icon, silent: false }, () => this.open(route))
   }
 
   tick(): void {
@@ -108,9 +103,9 @@ export class ReminderService {
     if (!at) return
     const [h, m] = at.split(':').map(Number)
     const d = new Date(t)
-    const key = d.toDateString()
-    if (this.lastJobNudge === key || d.getHours() * 60 + d.getMinutes() < h * 60 + m) return
-    this.lastJobNudge = key
+    const key = dayKey(t)
+    if (this.config.lastJobNudge === key || d.getHours() * 60 + d.getMinutes() < h * 60 + m) return
+    this.config.lastJobNudge = key
     const pending = this.jobs.pendingToday()
     if (!pending.length) return
     this.notify('Пошук роботи: майданчики на сьогодні', `Не позначено: ${pending.map((b) => b.name).join(', ')}`, '/jobs')

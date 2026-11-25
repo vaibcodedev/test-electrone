@@ -1,11 +1,13 @@
 import { and, asc, eq, max } from 'drizzle-orm'
+import { z } from 'zod'
+import type { PinsApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
-import type { EntityRef } from '@shared/domain/common'
-import type { PinKind, PinnedEntity } from '@shared/domain/system'
+import { entityRefSchema, type EntityRef } from '@shared/domain/common'
+import { PIN_KINDS, type PinKind, type PinnedEntity } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { pins } from '../db/schema'
 import type { EntityRegistry } from '../core/registry'
-import { now } from '../core/util'
+import { now, UserError } from '../core/util'
 
 /** "Pinned to dashboard" and "favorite" marks for any entity. */
 export class PinService {
@@ -71,5 +73,22 @@ export class PinService {
       .delete(pins)
       .where(and(eq(pins.entityType, ref.type), eq(pins.entityId, ref.id)))
       .run()
+  }
+
+  api(): PinsApi {
+    const kindArg = z.enum(PIN_KINDS)
+    return {
+      list: async (kind) => this.list(kindArg.optional().parse(kind)),
+      toggle: async (args) => {
+        const { ref, kind } = z.object({ ref: entityRefSchema, kind: kindArg }).parse(args)
+        if (!this.registry.findRow(ref)) throw new UserError('Об’єкт не знайдено')
+        return this.toggle(ref, kind)
+      },
+      state: async (ref) => this.state(entityRefSchema.parse(ref)),
+      reorder: async (args) => {
+        const { kind, refs } = z.object({ kind: kindArg, refs: z.array(entityRefSchema).max(1000) }).parse(args)
+        this.reorder(kind, refs)
+      }
+    }
   }
 }

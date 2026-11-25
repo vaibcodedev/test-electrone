@@ -1,6 +1,6 @@
 /**
  * The single contract between renderer and main.
- * Main implements it (src/main/ipc/router.ts), renderer consumes it through a typed proxy.
+ * Main implements it (src/main/container.ts, served by src/main/ipc/rpc.ts), renderer consumes it through a typed proxy.
  * Every method takes at most ONE argument so that the transport stays trivial: rpc(path, arg).
  */
 import type { EntityType } from './entity-types'
@@ -687,7 +687,6 @@ export interface MainEvents {
   'updates:status': UpdateStatus
   'settings:changed': Settings
   'quick-add:open': { target?: string }
-  'command:search': Record<string, never>
   'dev:log': LogChunk[]
   'dev:status': RunningScript
   /** Messages from background work (e.g. editor not found). */
@@ -701,7 +700,6 @@ export const MAIN_EVENTS: MainEventName[] = [
   'updates:status',
   'settings:changed',
   'quick-add:open',
-  'command:search',
   'dev:log',
   'dev:status',
   'toast'

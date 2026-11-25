@@ -15,7 +15,6 @@ import {
   type WithTags
 } from './common'
 import { CURRENCIES, type Currency } from './crm'
-import type { ReviewGrade } from './english'
 
 /* ───────────── Job boards & daily check-ins ───────────── */
 
@@ -346,7 +345,6 @@ export const questionReviewSchema = z.object({
   /** Practice beyond the due queue: may bring a question back sooner, never pushes it later. */
   extra: z.boolean().optional()
 })
-export type QuestionReview = { id: string; grade: ReviewGrade }
 
 /* ───────────── Stats ───────────── */
 

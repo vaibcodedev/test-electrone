@@ -1,10 +1,16 @@
+import type { Database, Statement } from 'better-sqlite3'
+import { z } from 'zod'
+import type { SearchApi } from '@shared/api'
+import type { EntitySummary } from '@shared/domain/common'
 import type { EntityType } from '@shared/entity-types'
-import type { SearchHit, SearchQuery } from '@shared/domain/system'
+import { searchQuerySchema, type SearchHit, type SearchQuery } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import type { AnyRow, EntityRegistry } from '../core/registry'
 import { toFtsQuery } from '../core/util'
 
 const MAX_BODY = 20_000
+const DELETE_ONE = 'DELETE FROM search_index WHERE entity_type = ? AND entity_id = ?'
+const INSERT = 'INSERT INTO search_index (entity_type, entity_id, title, body) VALUES (?, ?, ?, ?)'
 
 /** Wrapper over the FTS5 `search_index` table. Single responsibility: keep the index in sync and query it. */
 export class SearchIndex {
@@ -13,15 +19,21 @@ export class SearchIndex {
     private readonly registry: EntityRegistry
   ) {}
 
-  upsert(type: EntityType, id: string, doc: { title: string; body: string }): void {
+  /** Prepared once per connection (a backup restore opens a new one, so the cache is keyed by it). */
+  private readonly statements = new WeakMap<Database, Map<string, Statement>>()
+
+  private stmt(sql: string): Statement {
     const db = this.ctx.sqlite
-    db.prepare('DELETE FROM search_index WHERE entity_type = ? AND entity_id = ?').run(type, id)
-    db.prepare('INSERT INTO search_index (entity_type, entity_id, title, body) VALUES (?, ?, ?, ?)').run(
-      type,
-      id,
-      doc.title,
-      doc.body.slice(0, MAX_BODY)
-    )
+    let cache = this.statements.get(db)
+    if (!cache) this.statements.set(db, (cache = new Map()))
+    let s = cache.get(sql)
+    if (!s) cache.set(sql, (s = db.prepare(sql)))
+    return s
+  }
+
+  upsert(type: EntityType, id: string, doc: { title: string; body: string }): void {
+    this.stmt(DELETE_ONE).run(type, id)
+    this.stmt(INSERT).run(type, id, doc.title, doc.body.slice(0, MAX_BODY))
   }
 
   indexRow(type: EntityType, row: AnyRow): void {
@@ -30,9 +42,7 @@ export class SearchIndex {
   }
 
   remove(type: EntityType, id: string): void {
-    this.ctx.sqlite
-      .prepare('DELETE FROM search_index WHERE entity_type = ? AND entity_id = ?')
-      .run(type, id)
+    this.stmt(DELETE_ONE).run(type, id)
   }
 
   query(q: SearchQuery): SearchHit[] {
@@ -66,14 +76,35 @@ export class SearchIndex {
     return (this.ctx.sqlite.prepare('SELECT count(*) AS c FROM search_index').get() as { c: number }).c
   }
 
-  /** Rebuilds the whole index from the tables (first run, after restore). */
+  /**
+   * Rebuilds the whole index from the tables (first run, after restore). Plain inserts into the emptied
+   * table: entity columns are UNINDEXED, so a per-row DELETE would scan the index each time (O(n²)).
+   */
   rebuild(): void {
     this.ctx.tx(() => {
       this.ctx.sqlite.prepare('DELETE FROM search_index').run()
+      const insert = this.stmt(INSERT)
       for (const d of this.registry.all()) {
         const rows = this.ctx.orm.select().from(d.table).where(this.registry.live(d)).all() as AnyRow[]
-        for (const row of rows) this.upsert(d.type, row.id, d.searchDoc(row))
+        for (const row of rows) {
+          const doc = d.searchDoc(row)
+          insert.run(d.type, row.id, doc.title, doc.body.slice(0, MAX_BODY))
+        }
       }
     })
+  }
+
+  /** `recent` comes from the dashboard (recently changed records), the rest is the index. */
+  api(recent: (limit?: number) => EntitySummary[]): SearchApi {
+    return {
+      query: async (q) => {
+        const hits = this.query(searchQuerySchema.parse(q))
+        const found = new Map(this.registry.summarize(hits).map((s) => [`${s.type}:${s.id}`, s]))
+        return hits
+          .filter((h) => found.has(`${h.type}:${h.id}`))
+          .map((h) => ({ ...h, ...found.get(`${h.type}:${h.id}`)!, snippet: h.snippet, rank: h.rank }))
+      },
+      recent: async (limit) => recent(z.number().int().min(1).max(50).optional().parse(limit))
+    }
   }
 }

@@ -39,7 +39,9 @@ export function handleFileProtocol(storage: FileStorage): void {
     try {
       const { pathname } = new URL(request.url)
       const abs = storage.resolve(decodeURIComponent(pathname.replace(/^\/+/, '')))
-      const res = await net.fetch(pathToFileURL(abs).toString())
+      // Range is passed on so long videos (designs, up to 300 MB) can seek instead of loading from the start.
+      const range = request.headers.get('range')
+      const res = await net.fetch(pathToFileURL(abs).toString(), range ? { headers: { Range: range } } : undefined)
       // User files are data, never code: anything except PDF (Chromium's viewer needs scripts) gets a CSP
       // sandbox, so an imported .html/.svg can't run scripts in the vault-file:// origin.
       const isPdf = /\.pdf$/i.test(abs)

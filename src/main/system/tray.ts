@@ -1,4 +1,5 @@
-import { app, Menu, nativeImage, Notification, Tray } from 'electron'
+import { app, Menu, nativeImage, Tray } from 'electron'
+import { showNotification } from '../core/notify'
 import type { ConfigStore } from '../core/config-store'
 import type { WindowManager } from './window-manager'
 
@@ -54,13 +55,13 @@ export class TrayController {
   private warnIfForgotten(run: { projectId: string; projectTitle: string; startedAt: number }): void {
     if (Date.now() - run.startedAt < 12 * 3600_000 || this.warnedFor === run.startedAt) return
     this.warnedFor = run.startedAt
-    if (!Notification.isSupported()) return
-    const n = new Notification({
-      title: 'Таймер іде вже понад 12 годин',
-      body: `${run.projectTitle} · ${elapsed(run.startedAt)}. Можливо, його забули зупинити — відкрийте проєкт і виправте час.`
-    })
-    n.on('click', () => this.windows.showMain(`/projects/${run.projectId}`))
-    n.show()
+    showNotification(
+      {
+        title: 'Таймер іде вже понад 12 годин',
+        body: `${run.projectTitle} · ${elapsed(run.startedAt)}. Можливо, його забули зупинити — відкрийте проєкт і виправте час.`
+      },
+      () => this.windows.showMain(`/projects/${run.projectId}`)
+    )
   }
 
   private timerItems(): Electron.MenuItemConstructorOptions[] {

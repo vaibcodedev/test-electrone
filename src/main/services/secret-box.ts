@@ -1,4 +1,5 @@
 import { safeStorage } from 'electron'
+import { UserError } from '../core/util'
 
 /**
  * Encrypts credentials with the OS keychain (DPAPI on Windows) via Electron safeStorage.
@@ -19,7 +20,7 @@ export class SecretBox {
       try {
         return safeStorage.decryptString(Buffer.from(stored.slice(4), 'base64'))
       } catch {
-        throw new Error('Не вдалося розшифрувати: секрет зашифровано на іншому комп’ютері чи користувачі')
+        throw new UserError('Не вдалося розшифрувати: секрет зашифровано на іншому комп’ютері чи користувачі')
       }
     }
     if (stored.startsWith('plain:')) return Buffer.from(stored.slice(6), 'base64').toString('utf8')

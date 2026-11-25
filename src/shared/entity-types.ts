@@ -66,10 +66,6 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   question: { label: 'Питання', plural: 'Банк питань', route: (id) => `/jobs/questions?open=${id}` }
 }
 
-export function isEntityType(value: unknown): value is EntityType {
-  return typeof value === 'string' && (ENTITY_TYPES as readonly string[]).includes(value)
-}
-
 /**
  * Titles a record gets from a «+ Створити» button, per type. A record that still has one of these titles,
  * was never edited and has no content is a *draft*: creating another one reuses it, closing it discards it

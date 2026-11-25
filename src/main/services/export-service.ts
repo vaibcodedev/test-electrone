@@ -4,7 +4,6 @@ import { join } from 'path'
 import type { AsyncZippable } from 'fflate'
 import { zipAsync } from '../core/zip'
 import { getTableName, isTable } from 'drizzle-orm'
-import { asc, eq, isNull } from 'drizzle-orm'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import type { ExportFormat } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
@@ -18,8 +17,8 @@ import { dayKey, slugify } from '../core/util'
 
 const enc = new TextEncoder()
 
-/** Fields that are bookkeeping and stay out of the markdown body/frontmatter. */
-const HIDDEN = new Set(['deletedAt', 'secret', 'ease', 'intervalDays', 'repetitions', 'lapses', 'remindedFor'])
+/** Fields that stay out of the markdown body/frontmatter; each type adds its own `systemFields`. */
+const HIDDEN = new Set(['deletedAt', 'secret'])
 
 function yamlValue(v: unknown): string {
   if (v === null || v === undefined) return 'null'
@@ -76,7 +75,7 @@ export class ExportService {
     const front: string[] = [`id: ${row.id}`, `type: ${type}`, `title: ${yamlValue(title)}`]
     const body: string[] = [`# ${title}`, '']
     for (const [key, value] of Object.entries(row)) {
-      if (HIDDEN.has(key) || key === 'id') continue
+      if (HIDDEN.has(key) || d.systemFields?.includes(key) || key === 'id') continue
       if (key.endsWith('At') && typeof value === 'number') {
         front.push(`${key}: ${yamlValue(iso(value))}`)
       } else if (typeof value === 'string' && (value.includes('\n') || value.length > 120)) {
@@ -91,36 +90,14 @@ export class ExportService {
     }
     if (tagNames.length) front.push(`tags: ${yamlValue(tagNames)}`)
     if (links.length) body.push('## Зв’язки', '', ...links.map((l) => `- ${l}`), '')
-    if (type === 'board') body.push(...this.boardBody(row.id))
+    body.push(...(d.exportBody?.(row) ?? []))
     return `---\n${front.join('\n')}\n---\n\n${body.join('\n')}`
-  }
-
-  private boardBody(boardId: string): string[] {
-    const cols = this.ctx.orm
-      .select()
-      .from(schema.boardColumns)
-      .where(eq(schema.boardColumns.boardId, boardId))
-      .orderBy(asc(schema.boardColumns.position))
-      .all()
-    const out: string[] = []
-    for (const col of cols) {
-      out.push(`## ${col.title}`, '')
-      const list = this.ctx.orm
-        .select()
-        .from(schema.cards)
-        .where(eq(schema.cards.columnId, col.id))
-        .orderBy(asc(schema.cards.position))
-        .all()
-      for (const c of list) if (!c.deletedAt) out.push(`- [${col.isDone ? 'x' : ' '}] ${c.title}`)
-      out.push('')
-    }
-    return out
   }
 
   async markdownZip(): Promise<Uint8Array> {
     const entries: AsyncZippable = {}
     for (const d of this.registry.all()) {
-      const rows = this.ctx.orm.select().from(d.table).where(isNull(d.table.deletedAt)).all() as AnyRow[]
+      const rows = this.ctx.orm.select().from(d.table).where(this.registry.live(d)).all() as AnyRow[]
       const folder = slugify(ENTITY_META[d.type].plural, d.type)
       const used = new Set<string>()
       for (const row of rows) {

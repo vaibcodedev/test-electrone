@@ -2,16 +2,9 @@
  * Composition root: builds every service once and wires them by constructor injection.
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
-import { app, clipboard, shell } from 'electron'
-import { dirname } from 'path'
-import { log, logFilePath } from './core/logger'
-import { statSync } from 'fs'
-import { z } from 'zod'
-import { pageSchema } from '@shared/domain/common'
+import { app, shell } from 'electron'
+import { log } from './core/logger'
 import type { Api } from '@shared/api'
-import { entityRefSchema } from '@shared/domain/common'
-import { EXPORT_FORMATS, PIN_KINDS, searchQuerySchema, settingsPatchSchema } from '@shared/domain/system'
-import { fileSourceSchema } from '@shared/domain/designs'
 import { AppPaths } from './core/paths'
 import { ConfigStore } from './core/config-store'
 import { EventBus } from './core/event-bus'
@@ -42,21 +35,21 @@ import { EnglishModule } from './modules/english'
 import { CalendarModule } from './modules/calendar'
 import { FreelanceModule } from './modules/freelance'
 import { FinanceModule } from './modules/finance'
-import { JobsModule } from './modules/jobs'
+import { JobsModule, STAGE_DEADLINE_SOURCE, STAGE_SOURCE } from './modules/jobs'
 import { DevProjectsModule } from './modules/dev-projects'
 import { GithubService } from './services/github-service'
+import { GitClient } from './services/git-client'
+import { ScriptRunner } from './system/script-runner'
 import { WeeklyReviewService } from './services/weekly-review-service'
 import { CaptureServer } from './services/capture-server'
-import { githubTokenSchema } from '@shared/domain/dev'
-import { reviewNotesSchema } from '@shared/domain/review'
 import type { CalendarItem } from '@shared/domain/calendar'
-import { idArg, type ModuleContext } from './modules/context'
+import type { ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
 import { TrayController } from './system/tray'
 import { ShortcutController } from './system/shortcuts'
 import { Updater } from './system/updater'
 import { applyAutostart } from './system/autostart'
-import { UserError } from './core/util'
+import { AppApiFactory } from './system/app-api'
 
 export class Container {
   readonly paths = new AppPaths()
@@ -71,7 +64,7 @@ export class Container {
   readonly files = new FileStorage(this.paths.filesDir)
   readonly attachments = new AttachmentService(this.db, this.files)
   readonly secrets = new SecretBox()
-  readonly revisions = new RevisionService(this.db, this.registry, this.tags, this.search)
+  readonly revisions = new RevisionService(this.db, this.registry, this.tags, this.search, this.files)
   readonly trash = new TrashService(this.db, this.registry, {
     tags: this.tags,
     links: this.links,
@@ -99,11 +92,13 @@ export class Container {
   readonly crm = new CrmModule(this.moduleCtx)
   readonly checklists = new ChecklistsModule(this.moduleCtx)
   readonly english = new EnglishModule(this.moduleCtx)
-  readonly calendar = new CalendarModule(this.moduleCtx, this.boards, this.crm)
+  readonly calendar = new CalendarModule(this.moduleCtx)
   readonly freelance = new FreelanceModule(this.moduleCtx, this.crm)
   readonly finance = new FinanceModule(this.moduleCtx, this.freelance)
   readonly jobs = new JobsModule(this.moduleCtx, this.calendar)
-  readonly devProjects = new DevProjectsModule(this.moduleCtx)
+  readonly git = new GitClient()
+  readonly scripts = new ScriptRunner(this.bus)
+  readonly devProjects = new DevProjectsModule(this.moduleCtx, this.git, this.scripts)
   readonly github = new GithubService(this.config, this.secrets)
   readonly review = new WeeklyReviewService(this.db, {
     finance: this.finance,
@@ -111,7 +106,8 @@ export class Container {
     boards: this.boards,
     jobs: this.jobs,
     freelance: this.freelance,
-    dev: this.devProjects
+    dev: this.devProjects,
+    git: this.git
   })
 
   readonly backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus)
@@ -188,9 +184,9 @@ export class Container {
   init(): void {
     this.db.open()
     if (this.search.count() === 0) this.search.rebuild()
-    this.checklists.seedIfEmpty()
-    this.freelance.seedIfEmpty()
-    this.jobs.seedIfEmpty()
+    this.checklists.seedIfEmpty(this.config)
+    this.freelance.seedIfEmpty(this.config)
+    this.jobs.seedIfEmpty(this.config)
     this.registerCalendarFeeds()
     this.trash.purgeExpired()
     this.trash.purgeStaleDrafts()
@@ -203,54 +199,17 @@ export class Container {
     }, 6 * 3600_000)
   }
 
-  /** One calendar for everything: subscriptions, interviews (→ vacancy), application follow-ups. */
+  /** One calendar for everything: each module adds its dated items; interview events open the vacancy. */
   private registerCalendarFeeds(): void {
-    const financeApi = this.finance
-    this.calendar.addFeedProvider((from, to) => {
-      const items: CalendarItem[] = []
-      const start = new Date(from)
-      for (let d = new Date(start.getFullYear(), start.getMonth(), 1); d.getTime() <= to; d.setMonth(d.getMonth() + 1)) {
-        const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        for (const s of financeApi.subscriptionMonth(month)) {
-          if (s.dueAt < from || s.dueAt > to) continue
-          items.push({
-            key: `subscription:${s.id}:${month}`,
-            source: 'subscription' as const,
-            ref: { type: 'event' as const, id: s.id },
-            route: `/finance/expenses?month=${month}`,
-            title: `Підписка: ${s.title} · ${s.amount} ${s.currency}`,
-            startAt: s.dueAt,
-            endAt: null,
-            allDay: true,
-            color: '#c98af0',
-            done: !!s.expenseId
-          })
-        }
-      }
-      return items
-    })
-    this.calendar.addFeedProvider((from, to) =>
-      this.jobs.appRepo
-        .listWhere([])
-        .filter((a) => a.followUpAt && a.followUpAt >= from && a.followUpAt <= to && !a.closedAt)
-        .map((a) => ({
-          key: `followup:${a.id}`,
-          source: 'followup' as const,
-          ref: { type: 'application' as const, id: a.id },
-          title: `Нагадати про себе: ${a.title}${a.companyName ? ` — ${a.companyName}` : ''}`,
-          startAt: a.followUpAt!,
-          endAt: null,
-          allDay: true,
-          color: '#3fbf9b',
-          done: false
-        }))
-    )
+    for (const m of [this.boards, this.crm, this.finance, this.jobs]) {
+      this.calendar.addFeedProvider((from, to) => m.calendarFeed(from, to))
+    }
     const stageRoute = (e: { sourceId: string | null }): Partial<CalendarItem> | null => {
       const appId = e.sourceId ? this.jobs.applicationOfStage(e.sourceId) : null
       return appId ? { source: 'interview', ref: { type: 'application', id: appId } } : null
     }
-    this.calendar.decorateSource('job_stage', stageRoute)
-    this.calendar.decorateSource('job_stage_deadline', stageRoute)
+    this.calendar.decorateSource(STAGE_SOURCE, stageRoute)
+    this.calendar.decorateSource(STAGE_DEADLINE_SOURCE, stageRoute)
   }
 
   private buildApi(): Api {
@@ -286,24 +245,8 @@ export class Container {
       finance: this.finance.api(),
       jobs: this.jobs.api(),
       devProjects: this.devProjects.api(),
-      github: {
-        status: async () => this.github.status(),
-        setToken: async (args) => {
-          this.github.setToken(githubTokenSchema.parse(args).token)
-          return this.github.status()
-        },
-        repos: async (args) => this.github.repos(this.devProjects.repoIndex(), !!args?.force),
-        issues: async (args) => this.github.issues(args?.repo, !!args?.force),
-        commits: async (args) => this.github.commits(this.devProjects.repoIndex(), args?.repo, !!args?.force)
-      },
-      review: {
-        get: async (args) => this.review.get(args?.weekStart),
-        saveNotes: async (input) => {
-          const { weekStart, summary, plan } = reviewNotesSchema.parse(input)
-          this.review.saveNotes(weekStart, { summary, plan })
-        },
-        list: async () => this.review.list()
-      },
+      github: this.github.api(() => this.devProjects.repoIndex()),
+      review: this.review.api(),
       capture: {
         info: async () => this.capture.info(),
         regenerateKey: async () => {
@@ -331,153 +274,30 @@ export class Container {
     importer.register('idea', createEach(modulesApi.ideas.create))
     importer.register('bookmark', createEach(modulesApi.bookmarks.create))
     importer.register('library', createEach(modulesApi.libraries.create))
-    const refArg = entityRefSchema
-    const snapshotArg = z.object({ row: z.record(z.string(), z.unknown()), tagIds: z.array(z.string().max(40)).max(200) })
+    const appApi = new AppApiFactory({
+      paths: this.paths,
+      config: this.config,
+      shortcuts: this.shortcuts,
+      updater: this.updater,
+      windows: this.windows,
+      dashboard: this.dashboard,
+      quickAdd
+    })
 
     return {
       ...modulesApi,
       importer: { run: async (args) => importer.run(args) },
-      tags: {
-        list: async () => this.tags.list(),
-        create: async (input) => this.tags.create(input),
-        update: async (args) => {
-          const { id, patch } = z.object({ id: idArg, patch: z.record(z.string(), z.unknown()) }).parse(args)
-          return this.tags.update(id, patch)
-        },
-        remove: async (id) => this.tags.remove(idArg.parse(id)),
-        entities: async (tagId) => this.tags.entities(idArg.parse(tagId))
-      },
-      links: {
-        list: async (ref) => this.links.list(refArg.parse(ref)),
-        create: async (input) => this.links.create(input),
-        remove: async (id) => this.links.remove(idArg.parse(id))
-      },
-      pins: {
-        list: async (kind) => this.pins.list(z.enum(PIN_KINDS).optional().parse(kind)),
-        toggle: async (args) => {
-          const { ref, kind } = z.object({ ref: refArg, kind: z.enum(PIN_KINDS) }).parse(args)
-          if (!this.registry.findRow(ref)) throw new UserError('Об’єкт не знайдено')
-          return this.pins.toggle(ref, kind)
-        },
-        state: async (ref) => this.pins.state(refArg.parse(ref)),
-        reorder: async (args) => {
-          const { kind, refs } = z.object({ kind: z.enum(PIN_KINDS), refs: z.array(refArg) }).parse(args)
-          this.pins.reorder(kind, refs)
-        }
-      },
-      search: {
-        query: async (q) => {
-          const query = searchQuerySchema.parse(q)
-          const hits = this.search.query(query)
-          const subtitles = new Map(this.registry.summarize(hits).map((s) => [`${s.type}:${s.id}`, s]))
-          return hits
-            .filter((h) => subtitles.has(`${h.type}:${h.id}`))
-            .map((h) => ({ ...h, ...subtitles.get(`${h.type}:${h.id}`)!, snippet: h.snippet, rank: h.rank }))
-        },
-        recent: async (limit) => this.dashboard.recent(z.number().int().min(1).max(50).optional().parse(limit))
-      },
-      records: {
-        snapshot: async (ref) => this.revisions.snapshot(refArg.parse(ref)),
-        changed: async (args) => this.revisions.changed(refArg.parse(args.ref), snapshotArg.parse(args.snapshot)),
-        revert: async (args) => {
-          const ref = refArg.parse(args.ref)
-          this.revisions.revert(ref, snapshotArg.parse(args.snapshot))
-          this.bus.dataChanged([ref.type])
-        }
-      },
-      trash: {
-        list: async (args) => {
-          const p = pageSchema.parse(args ?? {})
-          return this.trash.page(p.limit, p.offset)
-        },
-        count: async () => this.trash.count(),
-        restore: async (ref) => {
-          this.trash.restore(refArg.parse(ref))
-          this.bus.dataChanged('all')
-        },
-        purge: async (ref) => this.trash.purge(refArg.parse(ref)),
-        empty: async () => this.trash.empty(),
-        discardDraft: async (ref) => this.trash.discardDraft(refArg.parse(ref)),
-        discardNew: async (ref) => this.trash.discardNew(refArg.parse(ref))
-      },
-      files: {
-        list: async (ref) => this.attachments.list(refArg.parse(ref)),
-        add: async (args) => {
-          const { ref, source } = z.object({ ref: refArg, source: fileSourceSchema }).parse(args)
-          return this.attachments.add(ref, source)
-        },
-        remove: async (id) => this.attachments.remove(idArg.parse(id)),
-        open: async (id) => this.attachments.open(idArg.parse(id)),
-        reveal: async (id) => this.attachments.reveal(idArg.parse(id)),
-        // storage.resolve() throws for anything outside <data>/files, so only stored files can be opened.
-        openPath: async (path) => {
-          const abs = this.files.resolve(z.string().min(1).max(1000).parse(path))
-          const err = await shell.openPath(abs)
-          if (err) throw new Error(err)
-        },
-        clipboardHasImage: async () => this.files.clipboardHasImage()
-      },
-      backup: {
-        list: async () => this.backup.list(),
-        create: async (args) => this.backup.create(z.object({ saveAs: z.boolean() }).parse(args)),
-        restore: async (args) => this.backup.restore(z.object({ path: z.string().optional() }).parse(args ?? {}).path),
-        export: async (format) => this.exporter.export(z.enum(EXPORT_FORMATS).parse(format))
-      },
-      settings: {
-        get: async () => this.config.settings,
-        update: async (patch) => {
-          const s = this.config.updateSettings(settingsPatchSchema.parse(patch))
-          if (this.shortcuts.lastError) throw new UserError(this.shortcuts.lastError)
-          return s
-        },
-        info: async () => ({
-          version: app.getVersion(),
-          dataDir: this.paths.dataDir,
-          filesDir: this.paths.filesDir,
-          backupsDir: this.paths.backupsDir,
-          platform: process.platform,
-          lastBackupAt: this.config.lastBackupAt,
-          logFile: logFilePath(),
-          dbSizeBytes: (() => {
-            try {
-              return statSync(this.paths.dbFile).size
-            } catch {
-              return 0
-            }
-          })()
-        }),
-        openDataDir: async () => {
-          await shell.openPath(this.paths.dataDir)
-        },
-        openLogs: async () => {
-          await shell.openPath(dirname(logFilePath()))
-        }
-      },
-      updates: {
-        status: async () => this.updater.get(),
-        check: async () => this.updater.check(),
-        install: async () => this.updater.install()
-      },
-      app: {
-        dashboard: async () => this.dashboard.get(),
-        quickAdd: async (input) => quickAdd.add(input),
-        closeQuickAdd: async () => this.windows.hideQuickAdd(),
-        showMain: async (args) => {
-          const { route } = z.object({ route: z.string().max(500).optional() }).parse(args ?? {})
-          this.windows.showMain(route)
-        },
-        openExternal: async (url) => {
-          const u = z.string().url().parse(url)
-          if (!/^(https?|mailto):/i.test(u)) throw new UserError('Відкривати можна лише посилання http(s) і mailto')
-          await shell.openExternal(u)
-        },
-        copyText: async (text) => clipboard.writeText(z.string().max(5_000_000).parse(text)),
-        logError: async (args) => {
-          const e = z.object({ message: z.string().max(5000), stack: z.string().max(20_000).optional(), source: z.string().max(200).optional() }).parse(args)
-          log.error(`[renderer${e.source ? `:${e.source}` : ''}] ${e.message}${e.stack ? `\n${e.stack}` : ''}`)
-        },
-        setWindowTheme: async (theme) => this.windows.applyOverlay(z.enum(['light', 'dark']).parse(theme))
-      }
+      tags: this.tags.api(),
+      links: this.links.api(),
+      pins: this.pins.api(),
+      search: this.search.api((limit) => this.dashboard.recent(limit)),
+      records: this.revisions.api(this.bus),
+      trash: this.trash.api(this.bus),
+      files: this.attachments.api(),
+      backup: this.backup.api(this.exporter),
+      settings: appApi.settings(),
+      updates: appApi.updates(),
+      app: appApi.app()
     }
   }
 }

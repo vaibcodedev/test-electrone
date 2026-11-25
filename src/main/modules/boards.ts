@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNull, lte, max, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm'
 import type { BoardsApi, CardsApi } from '@shared/api'
 import {
   boardInputSchema,
@@ -16,11 +16,14 @@ import {
   type DueCard
 } from '@shared/domain/boards'
 import { z } from 'zod'
+import { pageSchema } from '@shared/domain/common'
+import type { CalendarItem } from '@shared/domain/calendar'
 import { boardColumns, boards, cardChecklist, cards } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { excerpt, newId, now, NotFoundError, startOfDay } from '../core/util'
-import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
+import { excerpt, newId, now, NotFoundError, startOfDay, UserError } from '../core/util'
+import { nextPosition, reorder } from '../core/ordering'
+import { idArg, orderedIds, splitTags, updateArgs, type ModuleContext } from './context'
 
 type BoardRow = typeof boards.$inferSelect
 type CardRow = typeof cards.$inferSelect
@@ -60,7 +63,8 @@ export class BoardsModule {
           .from(cards)
           .where(eq(cards.boardId, id))
           .all()
-          .map((c) => ({ type: 'card' as const, id: c.id }))
+          .map((c) => ({ type: 'card' as const, id: c.id })),
+      exportBody: (r) => this.exportBody(r.id)
     }
     const cardDescriptor: EntityDescriptor = {
       type: 'card',
@@ -68,7 +72,8 @@ export class BoardsModule {
       searchDoc: (r) => ({ title: r.title, body: r.description }),
       summary: (r) => ({ title: r.title, subtitle: PRIORITY_LABEL[r.priority] || undefined }),
       // Cards of a board in the trash stay deletedAt = null; this hides them from feeds, pins, links, search.
-      aliveWhere: CARD_ON_LIVE_BOARD
+      aliveWhere: CARD_ON_LIVE_BOARD,
+      onRestore: (r) => this.reattachCard(r as CardRow)
     }
     this.descriptors = [boardDescriptor, cardDescriptor]
     this.boardRepo = new SoftRepository<BoardRow, Board>(m.repo, boardDescriptor, (r, tags) => ({
@@ -114,10 +119,12 @@ export class BoardsModule {
     })
   }
 
-  listBoards(): BoardSummary[] {
+  listBoards(opts: { ids?: string[]; limit?: number; offset?: number } = {}): BoardSummary[] {
     const list = this.boardRepo.listWhere(
-      [],
-      [sql`${boards.archived} ASC`, sql`${boards.updatedAt} DESC`]
+      [opts.ids ? inArray(boards.id, opts.ids) : undefined],
+      [sql`${boards.archived} ASC`, sql`${boards.updatedAt} DESC`],
+      opts.limit,
+      opts.offset
     )
     if (!list.length) return []
     const todayStart = startOfDay(now())
@@ -130,7 +137,7 @@ export class BoardsModule {
       })
       .from(cards)
       .innerJoin(boardColumns, eq(boardColumns.id, cards.columnId))
-      .where(isNull(cards.deletedAt))
+      .where(and(isNull(cards.deletedAt), inArray(cards.boardId, list.map((b) => b.id))))
       .groupBy(cards.boardId)
       .all()
     const byBoard = new Map(stats.map((s) => [s.boardId, s]))
@@ -187,10 +194,49 @@ export class BoardsModule {
     }))
   }
 
+  /**
+   * A restored card whose column was deleted meanwhile («Видалити колонку разом з картками») would be
+   * invisible on its board: it goes to the end of the board's first column instead.
+   */
+  private reattachCard(card: CardRow): void {
+    if (this.db.select({ id: boardColumns.id }).from(boardColumns).where(eq(boardColumns.id, card.columnId)).get()) return
+    const first = this.columns(card.boardId)[0]
+    if (!first) throw new UserError('На дошці немає колонок — додайте колонку й відновіть картку ще раз')
+    this.db
+      .update(cards)
+      .set({
+        columnId: first.id,
+        position: this.nextCardPosition(first.id),
+        completedAt: first.isDone ? (card.completedAt ?? now()) : null
+      })
+      .where(eq(cards.id, card.id))
+      .run()
+  }
+
+  private nextCardPosition(columnId: string): number {
+    return nextPosition(this.m.db, cards.position, eq(cards.columnId, columnId), 1024)
+  }
+
   private column(id: string): BoardColumn {
     const col = this.db.select().from(boardColumns).where(eq(boardColumns.id, id)).get()
     if (!col) throw new NotFoundError('Колонка', id)
     return col
+  }
+
+  /** Markdown export: the board's columns with their cards as a task list. */
+  private exportBody(boardId: string): string[] {
+    const list = this.db
+      .select({ title: cards.title, columnId: cards.columnId })
+      .from(cards)
+      .where(and(eq(cards.boardId, boardId), isNull(cards.deletedAt)))
+      .orderBy(asc(cards.position))
+      .all()
+    return this.columns(boardId).flatMap((col) => [
+      `## ${col.title}`,
+      '',
+      ...list.filter((c) => c.columnId === col.id).map((c) => `- [${col.isDone ? 'x' : ' '}] ${c.title}`),
+      ''
+    ])
   }
 
   /* ───────── cards ───────── */
@@ -198,16 +244,11 @@ export class BoardsModule {
   createCard(input: z.input<typeof cardInputSchema>): Card {
     const [data, tagIds] = splitTags(cardInputSchema.parse(input))
     const col = this.column(data.columnId)
-    const last = this.db
-      .select({ m: max(cards.position) })
-      .from(cards)
-      .where(eq(cards.columnId, data.columnId))
-      .get()
     const card = this.cardRepo.insert(
       {
         ...data,
         boardId: col.boardId,
-        position: (last?.m ?? 0) + 1024,
+        position: this.nextCardPosition(data.columnId),
         completedAt: col.isDone ? now() : null
       },
       tagIds
@@ -306,12 +347,27 @@ export class BoardsModule {
     })
   }
 
+  /** Calendar feed: card deadlines (a card due at 00:00 is an all-day item). */
+  calendarFeed(from: number, to: number): CalendarItem[] {
+    return this.due({ from, to }).map((c) => ({
+      key: `card:${c.id}`,
+      source: 'card' as const,
+      ref: { type: 'card' as const, id: c.id },
+      title: c.title,
+      startAt: c.dueAt!,
+      endAt: null,
+      allDay: new Date(c.dueAt!).getHours() === 0 && new Date(c.dueAt!).getMinutes() === 0,
+      color: null,
+      done: c.columnIsDone
+    }))
+  }
+
   /* ───────── API ───────── */
 
   boardsApi(): BoardsApi {
     return {
-      list: async () => this.listBoards(),
-      get: async (id) => this.listBoards().find((b) => b.id === idArg.parse(id)) ?? null,
+      list: async (query) => this.listBoards(pageSchema.parse(query ?? {})),
+      get: async (id) => this.listBoards({ ids: [idArg.parse(id)] })[0] ?? null,
       create: async (input) => {
         const board = this.createBoard(input)
         return { ...board, cardCount: 0, doneCount: 0, overdueCount: 0 }
@@ -320,7 +376,7 @@ export class BoardsModule {
         const { id, patch } = updateArgs(boardPatchSchema).parse(args)
         const [data, tagIds] = splitTags(patch)
         this.boardRepo.patch(id, data, tagIds)
-        return this.listBoards().find((b) => b.id === id)!
+        return this.listBoards({ ids: [id] })[0]!
       },
       remove: async (id) => this.boardRepo.softDelete(idArg.parse(id)),
       details: async (id) => {
@@ -337,29 +393,21 @@ export class BoardsModule {
           .object({ boardId: idArg, input: columnInputSchema })
           .parse(args)
         this.boardRepo.rowOrThrow(boardId)
-        const last = this.db
-          .select({ m: max(boardColumns.position) })
-          .from(boardColumns)
-          .where(eq(boardColumns.boardId, boardId))
-          .get()
-        const col = { id: newId(), boardId, ...input, position: (last?.m ?? -1) + 1 }
+        const position = nextPosition(this.m.db, boardColumns.position, eq(boardColumns.boardId, boardId))
+        const col = { id: newId(), boardId, ...input, position }
         this.db.insert(boardColumns).values(col).run()
         this.boardRepo.touch(boardId)
         return col
       },
       updateColumn: async (args) => {
         const { id, patch } = updateArgs(columnPatchSchema).parse(args)
-        const col = this.db
-          .update(boardColumns)
-          .set(patch)
-          .where(eq(boardColumns.id, id))
-          .returning()
-          .get()
-        if (!col) throw new NotFoundError('Колонка', id)
-        if (patch.isDone !== undefined) {
+        const before = this.column(id)
+        const col = this.db.update(boardColumns).set(patch).where(eq(boardColumns.id, id)).returning().get()!
+        // Only a real flip re-stamps the cards; long-done cards keep their date (weekly review counts by it).
+        if (patch.isDone !== undefined && patch.isDone !== before.isDone) {
           this.db
             .update(cards)
-            .set({ completedAt: patch.isDone ? now() : null })
+            .set({ completedAt: patch.isDone ? sql`coalesce(${cards.completedAt}, ${now()})` : null })
             .where(eq(cards.columnId, id))
             .run()
         }
@@ -370,14 +418,17 @@ export class BoardsModule {
           .object({ id: idArg, moveCardsTo: idArg.nullable() })
           .parse(args)
         const col = this.column(id)
+        const target = moveCardsTo ? this.column(moveCardsTo) : null
+        if (target && (target.id === id || target.boardId !== col.boardId)) {
+          throw new UserError('Картки можна перенести лише в іншу колонку цієї дошки')
+        }
         this.m.db.tx(() => {
           const ids = this.db
             .select({ id: cards.id })
             .from(cards)
             .where(and(eq(cards.columnId, id), isNull(cards.deletedAt)))
             .all()
-          if (moveCardsTo) {
-            const target = this.column(moveCardsTo)
+          if (target) {
             this.db
               .update(cards)
               .set({ columnId: target.id, completedAt: target.isDone ? now() : null })
@@ -391,16 +442,8 @@ export class BoardsModule {
         this.boardRepo.touch(col.boardId)
       },
       reorderColumns: async (args) => {
-        const { boardId, ids } = z.object({ boardId: idArg, ids: z.array(idArg) }).parse(args)
-        this.m.db.tx(() => {
-          ids.forEach((id, i) => {
-            this.db
-              .update(boardColumns)
-              .set({ position: i })
-              .where(and(eq(boardColumns.id, id), eq(boardColumns.boardId, boardId)))
-              .run()
-          })
-        })
+        const { boardId, ids } = z.object({ boardId: idArg, ids: orderedIds }).parse(args)
+        reorder(this.m.db, boardColumns, boardColumns.id, ids, eq(boardColumns.boardId, boardId))
       }
     }
   }
@@ -450,12 +493,8 @@ export class BoardsModule {
           .object({ cardId: idArg, text: z.string().trim().min(1).max(1000) })
           .parse(args)
         this.cardRepo.rowOrThrow(cardId)
-        const last = this.db
-          .select({ m: max(cardChecklist.position) })
-          .from(cardChecklist)
-          .where(eq(cardChecklist.cardId, cardId))
-          .get()
-        const entry = { id: newId(), cardId, text, done: false, position: (last?.m ?? 0) + 1 }
+        const position = nextPosition(this.m.db, cardChecklist.position, eq(cardChecklist.cardId, cardId))
+        const entry = { id: newId(), cardId, text, done: false, position }
         this.db.insert(cardChecklist).values(entry).run()
         this.cardRepo.touch(cardId)
         return entry
@@ -485,16 +524,8 @@ export class BoardsModule {
           .run()
       },
       reorderChecks: async (args) => {
-        const { cardId, ids } = z.object({ cardId: idArg, ids: z.array(idArg) }).parse(args)
-        this.m.db.tx(() => {
-          ids.forEach((id, i) => {
-            this.db
-              .update(cardChecklist)
-              .set({ position: i })
-              .where(and(eq(cardChecklist.id, id), eq(cardChecklist.cardId, cardId)))
-              .run()
-          })
-        })
+        const { cardId, ids } = z.object({ cardId: idArg, ids: orderedIds }).parse(args)
+        reorder(this.m.db, cardChecklist, cardChecklist.id, ids, eq(cardChecklist.cardId, cardId))
       }
     }
   }

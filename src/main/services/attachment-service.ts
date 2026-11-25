@@ -1,13 +1,25 @@
 import { shell } from 'electron'
 import { and, asc, eq } from 'drizzle-orm'
+import { z } from 'zod'
+import type { FilesApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
-import type { EntityRef } from '@shared/domain/common'
-import type { FileSource } from '@shared/domain/designs'
+import { entityRefSchema, idSchema, type EntityRef } from '@shared/domain/common'
+import { fileSourceSchema, type FileSource } from '@shared/domain/designs'
 import type { Attachment } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { attachments } from '../db/schema'
-import { newId, now, NotFoundError } from '../core/util'
+import { newId, now, NotFoundError, UserError } from '../core/util'
+import { log } from '../core/logger'
 import type { FileStorage } from './file-storage'
+
+/** Opens a stored file in its default app; shell's English error goes to the log, the user gets a plain reason. */
+export async function openStoredFile(abs: string): Promise<void> {
+  const err = await shell.openPath(abs)
+  if (err) {
+    log.warn('[files] openPath', abs, err)
+    throw new UserError('Не вдалося відкрити файл — можливо, його видалено або перейменовано')
+  }
+}
 
 /** Files attached to any entity. */
 export class AttachmentService {
@@ -54,8 +66,7 @@ export class AttachmentService {
   }
 
   async open(id: string): Promise<void> {
-    const err = await shell.openPath(this.storage.resolve(this.find(id).path))
-    if (err) throw new Error(err)
+    await openStoredFile(this.storage.resolve(this.find(id).path))
   }
 
   reveal(id: string): void {
@@ -70,5 +81,21 @@ export class AttachmentService {
       .delete(attachments)
       .where(and(eq(attachments.entityType, ref.type), eq(attachments.entityId, ref.id)))
       .run()
+  }
+
+  api(): FilesApi {
+    return {
+      list: async (ref) => this.list(entityRefSchema.parse(ref)),
+      add: async (args) => {
+        const { ref, source } = z.object({ ref: entityRefSchema, source: fileSourceSchema }).parse(args)
+        return this.add(ref, source)
+      },
+      remove: async (id) => this.remove(idSchema.parse(id)),
+      open: async (id) => this.open(idSchema.parse(id)),
+      reveal: async (id) => this.reveal(idSchema.parse(id)),
+      // storage.resolve() throws for anything outside <data>/files, so only stored files can be opened.
+      openPath: async (path) => openStoredFile(this.storage.resolve(z.string().min(1).max(1000).parse(path))),
+      clipboardHasImage: async () => this.storage.clipboardHasImage()
+    }
   }
 }

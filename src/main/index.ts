@@ -1,9 +1,9 @@
-import { app, BrowserWindow, nativeTheme, session } from 'electron'
+import { app, BrowserWindow, dialog, nativeTheme, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { Container } from './container'
-import { setupLogging } from './core/logger'
+import { log, logFilePath, setupLogging } from './core/logger'
 import { registerRpc } from './ipc/rpc'
 import { handleAppProtocol, handleFileProtocol, registerSchemes } from './system/protocols'
 import { applyAutostart, launchedHidden } from './system/autostart'
@@ -36,8 +36,22 @@ if (!app.requestSingleInstanceLock()) {
     session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission))
 
     const c = new Container(icon)
+    try {
+      c.init()
+    } catch (e) {
+      // A locked/corrupt database or a failed migration: say so and exit instead of hanging in the
+      // background with the single-instance lock (every next launch would just do nothing).
+      log.error('[startup] init failed', e)
+      dialog.showErrorBox(
+        'Vault не запустився',
+        `Не вдалося відкрити базу даних: ${(e as Error).message}
+
+Дані не змінено. Резервні копії — у папці ${c.paths.backupsDir}, журнал — ${logFilePath()}.`
+      )
+      app.exit(1)
+      return
+    }
     container = c
-    c.init()
 
     nativeTheme.themeSource = c.config.settings.theme
     c.config.onSettingsChange((s) => {
@@ -51,9 +65,19 @@ if (!app.requestSingleInstanceLock()) {
     const s = c.config.settings
     applyAutostart(s.launchAtLogin)
     const hidden = launchedHidden() && s.startHidden
-    c.windows.createMain({ show: !hidden })
+    const main = c.windows.createMain({ show: !hidden })
     c.tray.create()
-    c.shortcuts.register()
+    if (!c.shortcuts.register()) {
+      log.warn('[shortcut]', c.shortcuts.lastError)
+      // The renderer subscribes to toasts after its first render, a moment after the page has loaded.
+      main.webContents.once('did-finish-load', () =>
+        setTimeout(() => {
+          if (c.shortcuts.lastError) {
+            c.bus.emit('toast', { kind: 'error', message: `${c.shortcuts.lastError} — змініть його в «Налаштуваннях»` })
+          }
+        }, 1500)
+      )
+    }
     c.reminders.start()
     c.backup.startAuto()
     c.updater.startAuto()
@@ -73,7 +97,7 @@ if (!app.requestSingleInstanceLock()) {
 
   app.on('will-quit', () => {
     container?.reminders.stop()
-    container?.devProjects.killAll()
+    container?.scripts.killAll()
     container?.capture.stop()
     container?.backup.stop()
     container?.updater.stop()

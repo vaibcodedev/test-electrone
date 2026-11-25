@@ -104,7 +104,8 @@ export class KnowledgeModule {
       table: claudeItems,
       draft: { titleField: 'title', contentFields: ['summary', 'content', 'url'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.summary}\n${r.content}` }),
-      summary: (r) => ({ title: r.title, subtitle: CLAUDE_LABEL[r.kind as ClaudeKind] })
+      summary: (r) => ({ title: r.title, subtitle: CLAUDE_LABEL[r.kind as ClaudeKind] }),
+      systemFields: ['copyCount']
     }
     const library: EntityDescriptor = {
       type: 'library',
@@ -121,7 +122,8 @@ export class KnowledgeModule {
       table: snippets,
       draft: { titleField: 'title', contentFields: ['description', 'code'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.description}\n${r.code}` }),
-      summary: (r) => ({ title: r.title, subtitle: r.language })
+      summary: (r) => ({ title: r.title, subtitle: r.language }),
+      systemFields: ['copyCount']
     }
     const fix: EntityDescriptor = {
       type: 'fix',

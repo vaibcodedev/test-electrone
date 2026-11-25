@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, max, sql } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { pageSchema } from '@shared/domain/common'
 import type { ChecklistsApi } from '@shared/api'
@@ -16,9 +16,11 @@ import {
 } from '@shared/domain/checklists'
 import { checklistItems, checklists } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
+import { seedOnce, type SeedLedger } from '../core/config-store'
 import type { EntityDescriptor } from '../core/registry'
 import { newId, now, NotFoundError, UserError } from '../core/util'
-import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
+import { nextPosition, reorder } from '../core/ordering'
+import { idArg, orderedIds, splitTags, updateArgs, type ModuleContext } from './context'
 import { CHECKLIST_SEEDS } from './checklist-seeds'
 
 type ChecklistRow = typeof checklists.$inferSelect
@@ -101,9 +103,11 @@ export class ChecklistsModule {
   }
 
   /** Creates the built-in templates once, on an empty database. */
-  seedIfEmpty(): void {
-    const any = this.db.select({ id: checklists.id }).from(checklists).limit(1).get()
-    if (any) return
+  seedIfEmpty(ledger: SeedLedger): void {
+    seedOnce(ledger, 'checklists', () => !!this.db.select({ id: checklists.id }).from(checklists).limit(1).get(), () => this.seed())
+  }
+
+  private seed(): void {
     this.m.db.tx(() => {
       for (const seed of CHECKLIST_SEEDS) {
         const list = this.repo.insert({
@@ -254,17 +258,12 @@ export class ChecklistsModule {
       addItem: async (input) => {
         const data = checklistItemInputSchema.parse(input)
         repo.rowOrThrow(data.checklistId)
-        const last = this.db
-          .select({ m: max(checklistItems.position) })
-          .from(checklistItems)
-          .where(eq(checklistItems.checklistId, data.checklistId))
-          .get()
         const item = {
           ...data,
           id: newId(),
           done: false,
           doneAt: null,
-          position: (last?.m ?? 0) + 1
+          position: nextPosition(this.m.db, checklistItems.position, eq(checklistItems.checklistId, data.checklistId))
         }
         this.db.insert(checklistItems).values(item).run()
         this.reindex(data.checklistId)
@@ -299,17 +298,9 @@ export class ChecklistsModule {
       },
       reorderItems: async (args) => {
         const { checklistId, ids } = z
-          .object({ checklistId: idArg, ids: z.array(idArg) })
+          .object({ checklistId: idArg, ids: orderedIds })
           .parse(args)
-        this.m.db.tx(() => {
-          ids.forEach((id, i) => {
-            this.db
-              .update(checklistItems)
-              .set({ position: i })
-              .where(and(eq(checklistItems.id, id), eq(checklistItems.checklistId, checklistId)))
-              .run()
-          })
-        })
+        reorder(this.m.db, checklistItems, checklistItems.id, ids, eq(checklistItems.checklistId, checklistId))
       }
     }
   }

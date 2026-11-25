@@ -1,6 +1,7 @@
 import { and, eq, or } from 'drizzle-orm'
+import type { LinksApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
-import type { EntityRef } from '@shared/domain/common'
+import { entityRefSchema, idSchema, type EntityRef } from '@shared/domain/common'
 import { linkInputSchema, type LinkedEntity, type LinkInput } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { entityLinks } from '../db/schema'
@@ -84,5 +85,13 @@ export class LinkService {
         )
       )
       .run()
+  }
+
+  api(): LinksApi {
+    return {
+      list: async (ref) => this.list(entityRefSchema.parse(ref)),
+      create: async (input) => this.create(input),
+      remove: async (id) => this.remove(idSchema.parse(id))
+    }
   }
 }

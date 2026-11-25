@@ -1,5 +1,6 @@
 import { and, eq, isNotNull, isNull, lt, desc, count as sqlCount } from 'drizzle-orm'
-import type { EntityRef } from '@shared/domain/common'
+import type { TrashApi } from '@shared/api'
+import { entityRefSchema, pageSchema, type EntityRef } from '@shared/domain/common'
 import type { TrashItem } from '@shared/domain/system'
 import type { DbContext } from '../db/client'
 import { hasTraces } from '../core/traces'
@@ -11,6 +12,7 @@ import type { PinService } from './pin-service'
 import type { AttachmentService } from './attachment-service'
 import type { SearchIndex } from './search-index'
 import type { FileStorage } from './file-storage'
+import type { EventBus } from '../core/event-bus'
 
 export const TRASH_TTL_MS = 30 * DAY_MS
 
@@ -104,7 +106,10 @@ export class TrashService {
       // A card whose board is still in the trash would vanish (hidden by aliveWhere) while the UI says «restored».
       if (d.aliveWhere && !this.registry.findRow(ref))
         throw new UserError('Спершу відновіть дошку, до якої належить ця картка')
-      return restored
+      if (!d.onRestore) return restored
+      // The hook may change the row itself (a card moved to another column): index what it left.
+      d.onRestore(restored)
+      return this.registry.findRow(ref) ?? restored
     })
     this.cleaners.search.indexRow(ref.type, row)
     for (const dep of d.dependents?.(ref.id) ?? []) {
@@ -188,7 +193,7 @@ export class TrashService {
     return count
   }
 
-  /** Called on startup and daily: removes everything older than 30 days. */
+  /** Called on startup and every 6 hours: removes everything older than 30 days. */
   purgeExpired(): number {
     const cutoff = now() - TRASH_TTL_MS
     let count = 0
@@ -204,5 +209,23 @@ export class TrashService {
       }
     }
     return count
+  }
+
+  api(bus: EventBus): TrashApi {
+    return {
+      list: async (args) => {
+        const p = pageSchema.parse(args ?? {})
+        return this.page(p.limit, p.offset)
+      },
+      count: async () => this.count(),
+      restore: async (ref) => {
+        this.restore(entityRefSchema.parse(ref))
+        bus.dataChanged('all')
+      },
+      purge: async (ref) => this.purge(entityRefSchema.parse(ref)),
+      empty: async () => this.empty(),
+      discardDraft: async (ref) => this.discardDraft(entityRefSchema.parse(ref)),
+      discardNew: async (ref) => this.discardNew(entityRefSchema.parse(ref))
+    }
   }
 }

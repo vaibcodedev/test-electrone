@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+import { ENTITY_META } from '@shared/entity-types'
 
 export const newId = (): string => randomUUID()
 export const now = (): number => Date.now()
@@ -54,10 +55,18 @@ export function defined<T extends object>(obj: T): Partial<T> {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
+/**
+ * A record that's gone (deleted in another window, purged from the trash…). `what` is an entity type
+ * (shown as its label) or a ready Ukrainian noun; the id goes to the log only (see rpc), not to the toast.
+ */
 export class NotFoundError extends Error {
   readonly code = 'NOT_FOUND'
-  constructor(what: string, id: string) {
-    super(`${what}: не знайдено (${id})`)
+  constructor(
+    what: string,
+    readonly id: string
+  ) {
+    const label = (ENTITY_META as Record<string, { label: string } | undefined>)[what]?.label ?? what
+    super(`${label}: запис не знайдено — можливо, його видалено`)
   }
 }
 
@@ -123,3 +132,6 @@ export function overlapMinutes(
   if (overlap <= 0) return 0
   return Math.round((minutes * overlap) / span)
 }
+
+/** Share in percent with one decimal (66.7); 0 when there is nothing to divide by. */
+export const pct = (a: number, b: number): number => (b ? Math.round((a / b) * 1000) / 10 : 0)

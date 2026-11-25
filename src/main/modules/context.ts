@@ -22,6 +22,9 @@ export interface ModuleContext {
 
 export const idArg = z.string().min(1).max(64)
 
+/** Ids in a new manual order (drag and drop); bounded, since it arrives over IPC. */
+export const orderedIds = z.array(idArg).max(1000)
+
 /** Parses `{ id, patch }` update arguments with the module's patch schema. */
 export function updateArgs<T extends z.ZodType>(patch: T) {
   return z.object({ id: idArg, patch })

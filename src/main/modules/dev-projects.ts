@@ -1,13 +1,12 @@
 /**
  * «Мои проекты»: local folders with package.json/git. Opens them in VS Code / Cursor / terminal,
  * runs package.json scripts with live logs (only scripts that exist in package.json — no arbitrary commands),
- * and reads git status. Child processes are killed when the app quits.
+ * and reads git status (git: services/git-client, processes: system/script-runner).
  */
 import { dialog, BrowserWindow, shell } from 'electron'
-import { spawn, execFile, type ChildProcess } from 'child_process'
+import { spawn } from 'child_process'
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { basename, join } from 'path'
-import { promisify } from 'util'
 import { asc, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import type { DevProjectsApi } from '@shared/api'
@@ -18,29 +17,19 @@ import {
   runScriptSchema,
   type DevProject,
   type Editor,
-  type GitInfo,
-  type LogChunk,
   type PackageManager,
   type RunningScript
 } from '@shared/domain/dev'
 import { devProjects } from '../db/schema'
 import { newId, now, NotFoundError, UserError } from '../core/util'
+import { githubRepoOf, type GitClient } from '../services/git-client'
+import type { ScriptRunner } from '../system/script-runner'
 import { idArg, updateArgs, type ModuleContext } from './context'
 
-const execFileAsync = promisify(execFile)
 const IS_WIN = process.platform === 'win32'
-const MAX_LINES = 3000
-// eslint-disable-next-line no-control-regex
-const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]/g
-const LOCAL_URL = /(https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):\d+[^\s'"]*)/
 const SCRIPT_NAME = /^[\w:.\-@/]+$/
 
 type Row = typeof devProjects.$inferSelect
-
-interface Run extends RunningScript {
-  child: ChildProcess | null
-  lines: LogChunk[]
-}
 
 function readPackage(
   path: string
@@ -81,91 +70,12 @@ function detectFramework(deps: Record<string, string>): string | null {
   return null
 }
 
-/** owner/repo from a GitHub remote URL (https or ssh). */
-export function githubRepoOf(remote: string | null): string {
-  if (!remote) return ''
-  const m = remote.match(/github\.com[:/]([^/\s]+)\/([^/\s]+?)(?:\.git)?$/i)
-  return m ? `${m[1]}/${m[2]}` : ''
-}
-
-/** Short cache: lists refresh after every mutation; three git processes per project each time is too much. */
-const gitCache = new Map<string, { at: number; out: string | null }>()
-const GIT_TTL_MS = 15_000
-
-async function git(path: string, args: string[]): Promise<string | null> {
-  const key = `${path}|${args.join(' ')}`
-  const hit = gitCache.get(key)
-  if (hit && Date.now() - hit.at < GIT_TTL_MS) return hit.out
-  let out: string | null = null
-  try {
-    // A scanned folder may come from an untrusted archive: its .git/config must not run commands.
-    const { stdout } = await execFileAsync(
-      'git',
-      ['-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=', '-C', path, ...args],
-      { timeout: 4000, windowsHide: true }
-    )
-    out = stdout
-  } catch {
-    out = null
-  }
-  gitCache.set(key, { at: Date.now(), out })
-  return out
-}
-
-export async function gitInfo(path: string): Promise<GitInfo | null> {
-  if (!existsSync(join(path, '.git'))) return null
-  const [status, log, remote] = await Promise.all([
-    git(path, ['status', '--porcelain=v2', '--branch']),
-    git(path, ['log', '-1', '--format=%H%x1f%s%x1f%an%x1f%ct']),
-    git(path, ['remote', 'get-url', 'origin'])
-  ])
-  let branch: string | null = null
-  let ahead = 0
-  let behind = 0
-  let dirty = 0
-  for (const line of (status ?? '').split('\n')) {
-    if (line.startsWith('# branch.head ')) branch = line.slice(14).trim()
-    else if (line.startsWith('# branch.ab ')) {
-      const m = line.match(/\+(\d+) -(\d+)/)
-      if (m) {
-        ahead = Number(m[1])
-        behind = Number(m[2])
-      }
-    } else if (line.trim() && !line.startsWith('#')) dirty++
-  }
-  const [hash, message, author, ct] = (log ?? '').trim().split('\u001f')
-  return {
-    branch,
-    dirty,
-    ahead,
-    behind,
-    lastCommit: hash ? { hash, message, author, at: Number(ct) * 1000 } : null,
-    remoteUrl: remote?.trim() || null
-  }
-}
-
-/** Commits in all projects between two dates (for the weekly review). */
-export async function commitsBetween(paths: string[], from: number, to: number): Promise<number> {
-  let total = 0
-  for (const p of paths) {
-    const out = await git(p, [
-      'log',
-      '--all',
-      `--since=${new Date(from).toISOString()}`,
-      `--until=${new Date(to).toISOString()}`,
-      '--oneline'
-    ])
-    if (out) total += out.split('\n').filter(Boolean).length
-  }
-  return total
-}
-
 export class DevProjectsModule {
-  private readonly runs = new Map<string, Run>()
-  private flushTimer: NodeJS.Timeout | null = null
-  private pending: LogChunk[] = []
-
-  constructor(private readonly m: ModuleContext) {}
+  constructor(
+    private readonly m: ModuleContext,
+    private readonly gitClient: GitClient,
+    private readonly scripts: ScriptRunner
+  ) {}
 
   private get db() {
     return this.m.db.orm
@@ -185,7 +95,7 @@ export class DevProjectsModule {
   async describe(r: Row): Promise<DevProject> {
     const exists = existsSync(r.path)
     const pkg = exists ? readPackage(r.path) : null
-    const g = exists ? await gitInfo(r.path) : null
+    const g = exists ? await this.gitClient.info(r.path) : null
     return {
       ...r,
       editor: r.editor as Editor,
@@ -195,9 +105,7 @@ export class DevProjectsModule {
       framework: pkg ? detectFramework(pkg.deps) : null,
       git: g,
       githubRepo: r.githubRepo || githubRepoOf(g?.remoteUrl ?? null),
-      running: [...this.runs.values()]
-        .filter((x) => x.projectId === r.id && x.status === 'running')
-        .map((x) => this.publicRun(x))
+      running: this.scripts.running(r.id)
     }
   }
 
@@ -218,126 +126,17 @@ export class DevProjectsModule {
     return out
   }
 
-  /* ───────── processes ───────── */
-
-  private publicRun(r: Run): RunningScript {
-    return {
-      runId: r.runId,
-      projectId: r.projectId,
-      script: r.script,
-      pid: r.pid,
-      startedAt: r.startedAt,
-      status: r.status,
-      exitCode: r.exitCode,
-      url: r.url
-    }
-  }
-
-  private push(run: Run, text: string, stream: LogChunk['stream']): void {
-    const clean = text.replace(ANSI, '')
-    if (!run.url) {
-      const m = clean.match(LOCAL_URL)
-      if (m) {
-        run.url = m[1].replace('0.0.0.0', 'localhost')
-        this.m.bus.emit('dev:status', this.publicRun(run))
-      }
-    }
-    const chunk = { runId: run.runId, text: clean, stream }
-    run.lines.push(chunk)
-    if (run.lines.length > MAX_LINES) run.lines.splice(0, run.lines.length - MAX_LINES)
-    this.pending.push(chunk)
-    if (!this.flushTimer) {
-      // Batch log events (~10/s) so a chatty dev server can't flood IPC.
-      this.flushTimer = setTimeout(() => {
-        this.flushTimer = null
-        const batch = this.pending
-        this.pending = []
-        if (batch.length) this.m.bus.emit('dev:log', batch)
-      }, 100)
-    }
-  }
-
-  private kill(run: Run): void {
-    const child = run.child
-    if (!child?.pid) return
-    if (IS_WIN) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true })
-    else {
-      try {
-        process.kill(-child.pid, 'SIGTERM')
-      } catch {
-        child.kill('SIGTERM')
-      }
-    }
-  }
-
-  killAll(): void {
-    for (const r of this.runs.values()) if (r.status === 'running') this.kill(r)
-  }
-
-  runningCount(): number {
-    return [...this.runs.values()].filter((r) => r.status === 'running').length
-  }
-
   private start(projectId: string, script: string): RunningScript {
     const p = this.row(projectId)
     this.validFolder(p.path)
     const pkg = readPackage(p.path)
     if (!pkg || !(script in pkg.scripts))
       throw new UserError(`У package.json немає скрипту «${script}»`)
-    if (!SCRIPT_NAME.test(script)) throw new UserError('Неприпустима назва скрипту')
-    const already = [...this.runs.values()].find(
-      (r) => r.projectId === projectId && r.script === script && r.status === 'running'
-    )
-    if (already) return this.publicRun(already)
-    const pm = detectPm(p.path) ?? 'npm'
-    const run: Run = {
-      runId: newId(),
-      projectId,
-      script,
-      pid: null,
-      startedAt: now(),
-      status: 'running',
-      exitCode: null,
-      url: null,
-      child: null,
-      lines: []
-    }
-    this.runs.set(run.runId, run)
     // On Windows the script runs through a shell: only plain script names (package.json keys).
-    if (!/^[\w:.@/-]+$/.test(script)) throw new UserError(`Назва скрипта «${script}» містить недозволені символи`)
-    this.push(run, `$ ${pm} run ${script}\n`, 'sys')
-    // Windows needs a shell for npm.cmd; with shell the command goes as one string (args + shell is DEP0190).
-    // Safe: pm comes from detectPm, the script name was checked above.
-    const child = (IS_WIN ? spawn(`${pm} run ${script}`, { shell: true, cwd: p.path, windowsHide: true, env: { ...process.env, FORCE_COLOR: '0', BROWSER: 'none' } }) : spawn(pm, ['run', script], {
-      cwd: p.path,
-      shell: false,
-      detached: !IS_WIN,
-      windowsHide: true,
-      env: { ...process.env, FORCE_COLOR: '0', BROWSER: 'none' }
-    }))
-    run.child = child
-    run.pid = child.pid ?? null
-    child.stdout?.on('data', (d: Buffer) => this.push(run, d.toString(), 'out'))
-    child.stderr?.on('data', (d: Buffer) => this.push(run, d.toString(), 'err'))
-    child.on('error', (e) => {
-      run.status = 'failed'
-      this.push(run, `Не вдалося запустити: ${e.message}\n`, 'sys')
-      this.m.bus.emit('dev:status', this.publicRun(run))
-    })
-    child.on('exit', (code) => {
-      run.status = code === 0 || code === null ? 'exited' : 'failed'
-      run.exitCode = code
-      run.child = null
-      this.push(run, `\nПроцес завершено (код ${code ?? '—'})\n`, 'sys')
-      this.m.bus.emit('dev:status', this.publicRun(run))
-    })
-    this.db
-      .update(devProjects)
-      .set({ lastOpenedAt: now() })
-      .where(eq(devProjects.id, projectId))
-      .run()
-    this.m.bus.emit('dev:status', this.publicRun(run))
-    return this.publicRun(run)
+    if (!SCRIPT_NAME.test(script)) throw new UserError(`Назва скрипта «${script}» містить недозволені символи`)
+    const run = this.scripts.start({ projectId, script, cwd: p.path, pm: detectPm(p.path) ?? 'npm' })
+    this.db.update(devProjects).set({ lastOpenedAt: now() }).where(eq(devProjects.id, projectId)).run()
+    return run
   }
 
   /* ───────── open in … ───────── */
@@ -449,7 +248,7 @@ export class DevProjectsModule {
       create: async (input) => {
         const data = devProjectInputSchema.parse(input)
         this.validFolder(data.path)
-        const g = await gitInfo(data.path)
+        const g = await this.gitClient.info(data.path)
         const ts = now()
         const row = this.db
           .insert(devProjects)
@@ -479,8 +278,7 @@ export class DevProjectsModule {
       },
       remove: async (id) => {
         const pid = idArg.parse(id)
-        for (const r of this.runs.values())
-          if (r.projectId === pid && r.status === 'running') this.kill(r)
+        this.scripts.killProject(pid)
         this.db.delete(devProjects).where(eq(devProjects.id, pid)).run()
       },
       pickFolder: async () => {
@@ -502,18 +300,10 @@ export class DevProjectsModule {
         const { projectId, script } = runScriptSchema.parse(args)
         return this.start(projectId, script)
       },
-      stop: async (runId) => {
-        const run = this.runs.get(z.string().parse(runId))
-        if (run?.status === 'running') this.kill(run)
-      },
-      runs: async () =>
-        [...this.runs.values()]
-          .map((r) => this.publicRun(r))
-          .sort((a, b) => b.startedAt - a.startedAt),
-      logs: async (runId) => this.runs.get(z.string().parse(runId))?.lines ?? [],
-      clearFinished: async () => {
-        for (const [id, r] of this.runs) if (r.status !== 'running') this.runs.delete(id)
-      }
+      stop: async (runId) => this.scripts.stop(z.string().parse(runId)),
+      runs: async () => this.scripts.list(),
+      logs: async (runId) => this.scripts.logs(z.string().parse(runId)),
+      clearFinished: async () => this.scripts.clearFinished()
     }
   }
 }

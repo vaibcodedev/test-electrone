@@ -1,9 +1,10 @@
 import { and, eq, gte, isNotNull, isNull, lte, sql } from 'drizzle-orm'
+import type { ReviewApi } from '@shared/api'
 import { CARD_ON_LIVE_BOARD } from '../modules/boards'
 import type { EntitySummary } from '@shared/domain/common'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import type { Currency } from '@shared/domain/crm'
-import type { WeekMetric, WeekSection, WeekSnapshot, WeeklyReview } from '@shared/domain/review'
+import { reviewNotesSchema, type WeekMetric, type WeekSection, type WeekSnapshot, type WeeklyReview } from '@shared/domain/review'
 import { ENTITY_META } from '@shared/entity-types'
 import type { DbContext } from '../db/client'
 import {
@@ -12,7 +13,6 @@ import {
   bookmarks,
   cards,
   checklistItems,
-  creditTxs,
   expenses,
   ideas,
   interviewQuestions,
@@ -31,7 +31,7 @@ import type { BoardsModule } from '../modules/boards'
 import type { JobsModule } from '../modules/jobs'
 import type { FreelanceModule } from '../modules/freelance'
 import type { DevProjectsModule } from '../modules/dev-projects'
-import { commitsBetween } from '../modules/dev-projects'
+import type { GitClient } from './git-client'
 
 const add = (m: MoneyByCurrency, c: Currency, v: number): void => {
   m[c] = Math.round(((m[c] ?? 0) + v) * 100) / 100
@@ -48,6 +48,7 @@ export class WeeklyReviewService {
       jobs: JobsModule
       freelance: FreelanceModule
       dev: DevProjectsModule
+      git: GitClient
     }
   ) {}
 
@@ -88,7 +89,7 @@ export class WeeklyReviewService {
       .from(applications)
       .where(and(isNull(applications.deletedAt), inRange(applications.appliedAt)))
       .all()
-    const commits = await commitsBetween(this.mods.dev.paths(), from, to)
+    const commits = await this.mods.git.commitsBetween(this.mods.dev.paths(), from, to)
     return {
       cardsDone: this.count(cards, and(isNull(cards.deletedAt), CARD_ON_LIVE_BOARD, inRange(cards.completedAt))),
       checksDone: this.count(checklistItems, inRange(checklistItems.doneAt)),
@@ -101,7 +102,15 @@ export class WeeklyReviewService {
       credits: sentProposals.reduce((s, p) => s + p.credits + p.boostCredits, 0),
       applications: sentApps.length,
       appReplies: this.count(applications, and(isNull(applications.deletedAt), inRange(applications.repliedAt))),
-      interviews: this.count(applicationStages, and(inRange(applicationStages.at), sql`${applicationStages.kind} != 'test_task'`)),
+      // Stages of vacancies in the trash don't count.
+      interviews: this.count(
+        applicationStages,
+        and(
+          inRange(applicationStages.at),
+          sql`${applicationStages.kind} != 'test_task'`,
+          sql`${applicationStages.applicationId} IN (SELECT ${applications.id} FROM ${applications} WHERE ${applications.deletedAt} IS NULL)`
+        )
+      ),
       offers: this.count(applications, and(isNull(applications.deletedAt), eq(applications.status, 'offer'), inRange(applications.updatedAt))),
       words: this.count(wordReviews, inRange(wordReviews.reviewedAt)),
       questions: this.count(interviewQuestions, and(isNull(interviewQuestions.deletedAt), inRange(interviewQuestions.lastReviewedAt))),
@@ -119,7 +128,6 @@ export class WeeklyReviewService {
     for (const w of this.db.select().from(withdrawals).where(and(gte(withdrawals.at, from), lte(withdrawals.at, to))).all()) add(exp, w.currency as Currency, w.fee)
     const profit: MoneyByCurrency = { ...net }
     for (const [c, v] of Object.entries(exp)) add(profit, c as Currency, -(v ?? 0))
-    void creditTxs
     return { net, expenses: exp, profit }
   }
 
@@ -243,5 +251,16 @@ export class WeeklyReviewService {
       .orderBy(sql`${weeklyReviews.weekStart} DESC`)
       .all()
       .map((r) => ({ weekStart: r.weekStart, hasNotes: !!(r.summary || r.plan) }))
+  }
+
+  api(): ReviewApi {
+    return {
+      get: async (args) => this.get(args?.weekStart),
+      saveNotes: async (input) => {
+        const { weekStart, summary, plan } = reviewNotesSchema.parse(input)
+        this.saveNotes(weekStart, { summary, plan })
+      },
+      list: async () => this.list()
+    }
   }
 }

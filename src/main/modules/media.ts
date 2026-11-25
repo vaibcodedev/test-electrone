@@ -1,6 +1,6 @@
 import { pageSchema } from '@shared/domain/common'
 /** Visual modules: UI components (code + live preview + cover) and design references with moodboards. */
-import { and, asc, eq, inArray, isNull, max, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import type { ComponentsApi, DesignsApi, MoodboardsApi } from '@shared/api'
 import {
@@ -30,7 +30,9 @@ import {
 import { designs, moodboardItems, moodboards, uiComponents } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
 import type { EntityDescriptor } from '../core/registry'
-import { idArg, splitTags, updateArgs, type ModuleContext } from './context'
+import { NotFoundError } from '../core/util'
+import { nextPosition, reorder } from '../core/ordering'
+import { idArg, orderedIds, splitTags, updateArgs, type ModuleContext } from './context'
 import { createCrudApi } from './crud'
 import { hostOf } from './knowledge'
 
@@ -77,7 +79,8 @@ export class MediaModule {
       table: uiComponents,
       searchDoc: (r) => ({ title: r.title, body: `${r.description}\n${r.code}` }),
       summary: (r) => ({ title: r.title, subtitle: r.language.toUpperCase() }),
-      onPurge: (r) => m.files.remove(r.coverPath)
+      onPurge: (r) => m.files.remove(r.coverPath),
+      fileFields: { coverPath: [] }
     }
     const design: EntityDescriptor = {
       type: 'design',
@@ -90,7 +93,8 @@ export class MediaModule {
         title: r.title || hostOf(r.sourceUrl) || 'Без назви',
         subtitle: DESIGN_KIND_LABEL[r.kind as DesignKind]
       }),
-      onPurge: (r) => m.files.remove(r.imagePath)
+      onPurge: (r) => m.files.remove(r.imagePath),
+      fileFields: { imagePath: ['imageWidth', 'imageHeight', 'colors'] }
     }
     const moodboard: EntityDescriptor = {
       type: 'moodboard',
@@ -273,8 +277,13 @@ export class MediaModule {
 
   /* ───────── moodboards ───────── */
 
-  private moodboardSummaries(ids?: string[]): Moodboard[] {
-    const list = this.moodboardRepo.listWhere(ids ? [inArray(moodboards.id, ids)] : [])
+  private moodboardSummaries(opts: { ids?: string[]; limit?: number; offset?: number } = {}): Moodboard[] {
+    const list = this.moodboardRepo.listWhere(
+      [opts.ids ? inArray(moodboards.id, opts.ids) : undefined],
+      undefined,
+      opts.limit,
+      opts.offset
+    )
     if (!list.length) return []
     const items = this.db
       .select({ moodboardId: moodboardItems.moodboardId, path: designs.imagePath })
@@ -307,13 +316,13 @@ export class MediaModule {
   moodboardsApi(): MoodboardsApi {
     const repo = this.moodboardRepo
     const one = (id: string): Moodboard => {
-      const found = this.moodboardSummaries([id])[0]
-      if (!found) throw new Error('Добірку не знайдено')
+      const found = this.moodboardSummaries({ ids: [id] })[0]
+      if (!found) throw new NotFoundError('Добірка', id)
       return found
     }
     return {
-      list: async () => this.moodboardSummaries(),
-      get: async (id) => this.moodboardSummaries([idArg.parse(id)])[0] ?? null,
+      list: async (query) => this.moodboardSummaries(pageSchema.parse(query ?? {})),
+      get: async (id) => this.moodboardSummaries({ ids: [idArg.parse(id)] })[0] ?? null,
       create: async (input: MoodboardInput) => {
         const [data, tagIds] = splitTags(moodboardInputSchema.parse(input))
         return one(repo.insert(data, tagIds).id)
@@ -326,7 +335,7 @@ export class MediaModule {
       },
       remove: async (id) => repo.softDelete(idArg.parse(id)),
       details: async (id) => {
-        const board = this.moodboardSummaries([idArg.parse(id)])[0]
+        const board = this.moodboardSummaries({ ids: [idArg.parse(id)] })[0]
         if (!board) return null
         const rows = this.db
           .select({ id: moodboardItems.designId })
@@ -345,20 +354,15 @@ export class MediaModule {
       },
       addDesigns: async (args) => {
         const { moodboardId, designIds } = z
-          .object({ moodboardId: idArg, designIds: z.array(idArg) })
+          .object({ moodboardId: idArg, designIds: orderedIds })
           .parse(args)
         repo.rowOrThrow(moodboardId)
-        const last = this.db
-          .select({ m: max(moodboardItems.position) })
-          .from(moodboardItems)
-          .where(eq(moodboardItems.moodboardId, moodboardId))
-          .get()
-        let pos = last?.m ?? 0
+        let pos = nextPosition(this.m.db, moodboardItems.position, eq(moodboardItems.moodboardId, moodboardId))
         this.m.db.tx(() => {
           for (const designId of designIds) {
             this.db
               .insert(moodboardItems)
-              .values({ moodboardId, designId, position: ++pos })
+              .values({ moodboardId, designId, position: pos++ })
               .onConflictDoNothing()
               .run()
           }
@@ -379,22 +383,9 @@ export class MediaModule {
       },
       reorder: async (args) => {
         const { moodboardId, designIds } = z
-          .object({ moodboardId: idArg, designIds: z.array(idArg) })
+          .object({ moodboardId: idArg, designIds: orderedIds })
           .parse(args)
-        this.m.db.tx(() => {
-          designIds.forEach((designId, i) => {
-            this.db
-              .update(moodboardItems)
-              .set({ position: i })
-              .where(
-                and(
-                  eq(moodboardItems.moodboardId, moodboardId),
-                  eq(moodboardItems.designId, designId)
-                )
-              )
-              .run()
-          })
-        })
+        reorder(this.m.db, moodboardItems, moodboardItems.designId, designIds, eq(moodboardItems.moodboardId, moodboardId))
       }
     }
   }

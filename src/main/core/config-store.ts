@@ -16,6 +16,10 @@ interface ConfigShape {
   /** Encrypted secrets (github token…) and generated keys (capture token). */
   secrets: Record<string, string>
   lastWeeklyReview: string | null
+  /** Day (dayKey) the evening job-boards reminder was last shown: once a day, restarts included. */
+  lastJobNudge: string | null
+  /** Seed sets already created once (checklist templates, platforms…): deleted seeds never come back. */
+  seeded: string[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -40,7 +44,9 @@ const DEFAULTS: ConfigShape = {
   window: { width: 1360, height: 860, maximized: false },
   lastBackupAt: null,
   secrets: {},
-  lastWeeklyReview: null
+  lastWeeklyReview: null,
+  lastJobNudge: null,
+  seeded: []
 }
 
 type Listener = (settings: Settings) => void
@@ -67,7 +73,9 @@ export class ConfigStore {
         window: { ...DEFAULTS.window, ...raw.window },
         lastBackupAt: typeof raw.lastBackupAt === 'number' ? raw.lastBackupAt : null,
         secrets: raw.secrets && typeof raw.secrets === 'object' ? raw.secrets : {},
-        lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null
+        lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null,
+        lastJobNudge: typeof raw.lastJobNudge === 'string' ? raw.lastJobNudge : null,
+        seeded: Array.isArray(raw.seeded) ? raw.seeded.filter((x): x is string => typeof x === 'string') : []
       }
     } catch {
       return structuredClone(DEFAULTS)
@@ -131,6 +139,25 @@ export class ConfigStore {
     this.scheduleWrite()
   }
 
+  get lastJobNudge(): string | null {
+    return this.data.lastJobNudge
+  }
+
+  set lastJobNudge(day: string | null) {
+    this.data.lastJobNudge = day
+    this.scheduleWrite()
+  }
+
+  isSeeded(key: string): boolean {
+    return this.data.seeded.includes(key)
+  }
+
+  markSeeded(key: string): void {
+    if (this.isSeeded(key)) return
+    this.data.seeded.push(key)
+    this.scheduleWrite()
+  }
+
   get lastBackupAt(): number | null {
     return this.data.lastBackupAt
   }
@@ -139,4 +166,17 @@ export class ConfigStore {
     this.data.lastBackupAt = ts
     this.scheduleWrite()
   }
+}
+
+/** Remembers which seed sets were created (ConfigStore implements it). */
+export type SeedLedger = Pick<ConfigStore, 'isSeeded' | 'markSeeded'>
+
+/**
+ * Seeds a set once per installation. A non-empty table counts as seeded (databases from before the
+ * ledger), so templates the user deleted aren't re-created on a later start once the trash is emptied.
+ */
+export function seedOnce(ledger: SeedLedger, key: string, hasRows: () => boolean, seed: () => void): void {
+  if (ledger.isSeeded(key)) return
+  if (!hasRows()) seed()
+  ledger.markSeeded(key)
 }
