@@ -33,12 +33,15 @@ import { idArg, type ModuleContext } from '../context'
 import type { CredentialRow } from './shared'
 
 /** Decrypted extra secrets of one credential: 2FA, SSH key… and the values of the secret «Інше» pairs by name. */
-type StoredSecrets = Partial<Record<CredentialSecretField, string>> & { pairs?: Record<string, string> }
+type StoredSecrets = Partial<Record<CredentialSecretField, string>> & {
+  pairs?: Record<string, string>
+}
 
 /** `fields` JSON as stored: the kind's non-secret fields + `$secrets` — names of the stored extra secrets. */
 type StoredFields = Record<string, unknown> & { $secrets?: string[] }
 
-const isKind = (k: string): k is CredentialKind => (CREDENTIAL_KINDS as readonly string[]).includes(k)
+const isKind = (k: string): k is CredentialKind =>
+  (CREDENTIAL_KINDS as readonly string[]).includes(k)
 
 function readJson(text: string): StoredFields {
   try {
@@ -87,7 +90,11 @@ export class Credentials {
   private payments(ids: string[]): Map<string, CredentialPayment> {
     const out = new Map<string, CredentialPayment>()
     if (!ids.length) return out
-    for (const s of this.db.select().from(subscriptions).where(inArray(subscriptions.id, ids)).all()) {
+    for (const s of this.db
+      .select()
+      .from(subscriptions)
+      .where(inArray(subscriptions.id, ids))
+      .all()) {
       out.set(s.id, {
         id: s.id,
         title: s.title,
@@ -220,7 +227,9 @@ export class Credentials {
       stored.pairs = next
     }
     if (touchesSecrets) {
-      const set = Object.keys(stored).filter((k) => k !== 'pairs' && stored[k as CredentialSecretField])
+      const set = Object.keys(stored).filter(
+        (k) => k !== 'pairs' && stored[k as CredentialSecretField]
+      )
       fields.$secrets = set
       const empty = !set.length && !Object.keys(stored.pairs ?? {}).length
       values.secrets = empty ? '' : this.m.secrets.encrypt(JSON.stringify(stored))
@@ -248,7 +257,11 @@ export class Credentials {
    */
   calendarFeed(from: number, to: number): CalendarItem[] {
     const rows = this.db
-      .select({ c: credentials, projectDeleted: projects.deletedAt, clientDeleted: clients.deletedAt })
+      .select({
+        c: credentials,
+        projectDeleted: projects.deletedAt,
+        clientDeleted: clients.deletedAt
+      })
       .from(credentials)
       .leftJoin(projects, eq(projects.id, credentials.projectId))
       .leftJoin(clients, eq(clients.id, credentials.clientId))
@@ -318,9 +331,16 @@ export class Credentials {
         const raw = z.object({ id: idArg, patch: z.unknown() }).parse(args)
         const current = this.find(raw.id)
         const patch = credentialPatchSchema.parse(withKind(raw.patch, current.kind))
+        // «Для»: an access moves between the client and its projects, but always belongs to someone.
+        const projectId = patch.projectId !== undefined ? patch.projectId : current.projectId
+        const clientId = patch.clientId !== undefined ? patch.clientId : current.clientId
+        if (!projectId && !clientId) throw new UserError('Доступ має належати клієнту або проєкту')
         const row = this.db
           .update(credentials)
-          .set({ ...this.write(patch.kind, patch as Record<string, unknown>, current), updatedAt: now() })
+          .set({
+            ...this.write(patch.kind, patch as Record<string, unknown>, current),
+            updatedAt: now()
+          })
           .where(eq(credentials.id, raw.id))
           .returning()
           .get()
@@ -340,7 +360,9 @@ export class Credentials {
         this.reindexOwner(row)
       },
       reveal: async (arg) => {
-        const ref = credentialSecretRefSchema.parse(typeof arg === 'string' ? { id: arg, field: 'secret' } : arg)
+        const ref = credentialSecretRefSchema.parse(
+          typeof arg === 'string' ? { id: arg, field: 'secret' } : arg
+        )
         return this.secretValue(this.find(ref.id), ref.field)
       },
       copy: async (arg) => {
@@ -348,7 +370,10 @@ export class Credentials {
         const row = this.find(ref.id)
         const value =
           ref.field === 'connectionWithPassword'
-            ? connectionString(this.toCredential(row, new Map()), this.m.secrets.decrypt(row.secret))
+            ? connectionString(
+                this.toCredential(row, new Map()),
+                this.m.secrets.decrypt(row.secret)
+              )
             : this.secretValue(row, ref.field)
         if (!value) throw new UserError('Цей секрет не збережено — копіювати нічого')
         if (!this.clipboard) throw new UserError('Буфер обміну зараз недоступний')

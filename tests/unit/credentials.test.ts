@@ -46,7 +46,11 @@ describe('kinds and schemas', () => {
   it('each kind requires its minimum (requiredOf drives «Додати»)', () => {
     expect(requiredOf(credentialSchemas.account)).toEqual({ label: true })
     expect(requiredOf(credentialSchemas.server)).toEqual({ label: true, host: true })
-    expect(requiredOf(credentialSchemas.database)).toEqual({ label: true, engine: true, host: true })
+    expect(requiredOf(credentialSchemas.database)).toEqual({
+      label: true,
+      engine: true,
+      host: true
+    })
     expect(requiredOf(credentialSchemas.ftp)).toEqual({ label: true, host: true })
     expect(requiredOf(credentialSchemas.apiKey)).toEqual({ label: true, secret: true })
     expect(requiredOf(credentialSchemas.mail)).toEqual({ label: true, host: true })
@@ -71,16 +75,18 @@ describe('kinds and schemas', () => {
   })
 
   it('main lines, the SSH command and the DB string', () => {
-    const c = (over: Partial<Credential>): Pick<Credential, 'kind' | 'url' | 'login' | 'fields'> => ({
+    const c = (
+      over: Partial<Credential>
+    ): Pick<Credential, 'kind' | 'url' | 'login' | 'fields'> => ({
       kind: 'account',
       url: '',
       login: '',
       fields: {},
       ...over
     })
-    expect(credentialMainLine(c({ kind: 'server', login: 'root', fields: { host: '1.2.3.4' } }))).toBe(
-      'root@1.2.3.4:22'
-    )
+    expect(
+      credentialMainLine(c({ kind: 'server', login: 'root', fields: { host: '1.2.3.4' } }))
+    ).toBe('root@1.2.3.4:22')
     expect(credentialMainLine(c({ login: 'admin@site.com', url: 'https://site.com' }))).toBe(
       'admin@site.com'
     )
@@ -91,7 +97,9 @@ describe('kinds and schemas', () => {
     })
     expect(credentialMainLine(db)).toBe('postgres://app@db.local:5432/shop')
     expect(connectionString(db, 'p@ss')).toBe('postgres://app:p%40ss@db.local:5432/shop')
-    expect(sshCommand({ login: 'root', fields: { host: 'h', port: 2222 } })).toBe('ssh -p 2222 root@h')
+    expect(sshCommand({ login: 'root', fields: { host: 'h', port: 2222 } })).toBe(
+      'ssh -p 2222 root@h'
+    )
     expect(sshCommand({ login: 'root', fields: { host: 'h', keyPath: 'C:\\My keys\\id' } })).toBe(
       'ssh -p 22 -i "C:\\My keys\\id" root@h'
     )
@@ -129,7 +137,18 @@ describe('2FA codes', () => {
   // RFC 4226 Appendix D: the key "12345678901234567890", counters 0…9.
   const key = new TextEncoder().encode('12345678901234567890')
   it('HOTP matches RFC 4226', () => {
-    const expected = ['755224', '287082', '359152', '969429', '338314', '254676', '287922', '162583', '399871', '520489']
+    const expected = [
+      '755224',
+      '287082',
+      '359152',
+      '969429',
+      '338314',
+      '254676',
+      '287922',
+      '162583',
+      '399871',
+      '520489'
+    ]
     expect(expected.map((_, i) => hotp(key, i))).toEqual(expected)
   })
 
@@ -152,8 +171,12 @@ describe('2FA codes', () => {
     for (const [t, s1, s256, s512] of vectors) {
       const at = t * 1000
       expect(totp({ key: keys.sha1, digits: 8, period: 30, algorithm: 'sha1' }, at).code).toBe(s1)
-      expect(totp({ key: keys.sha256, digits: 8, period: 30, algorithm: 'sha256' }, at).code).toBe(s256)
-      expect(totp({ key: keys.sha512, digits: 8, period: 30, algorithm: 'sha512' }, at).code).toBe(s512)
+      expect(totp({ key: keys.sha256, digits: 8, period: 30, algorithm: 'sha256' }, at).code).toBe(
+        s256
+      )
+      expect(totp({ key: keys.sha512, digits: 8, period: 30, algorithm: 'sha512' }, at).code).toBe(
+        s512
+      )
     }
     expect(totp({ key, digits: 6, period: 30, algorithm: 'sha1' }, 59_000).expiresAt).toBe(60_000)
   })
@@ -264,7 +287,9 @@ describe('secrets stay out of list, export and search', () => {
     const { projectId } = await seed()
     expect(v.search.query({ text: 'hetzner' }).map((h) => h.id)).toContain(projectId)
     expect(v.search.query({ text: 'SECRETKEY' })).toEqual([])
-    const doc = v.registry.get('project').searchDoc(v.registry.findRow({ type: 'project', id: projectId })!)
+    const doc = v.registry
+      .get('project')
+      .searchDoc(v.registry.findRow({ type: 'project', id: projectId })!)
     for (const s of [PASSWORD, KEY, PAIR]) expect(doc.body).not.toContain(s)
   })
 })
@@ -298,7 +323,13 @@ describe('terms in the calendar', () => {
   it('an API key reminds 14 and 3 days before and on the day; an owner in the trash hides it', async () => {
     const p = await v.api.projects.create({ title: 'Сайт' })
     const term = new Date(2027, 2, 20, 12).getTime()
-    await api().create({ kind: 'apiKey', projectId: p.id, label: 'Stripe', secret: 'sk_x', expiresAt: term })
+    await api().create({
+      kind: 'apiKey',
+      projectId: p.id,
+      label: 'Stripe',
+      secret: 'sk_x',
+      expiresAt: term
+    })
     const feed = v.crm
       .calendarFeed(addDays(term, -30), addDays(term, 1))
       .filter((i) => i.source === 'credential')
@@ -306,7 +337,11 @@ describe('terms in the calendar', () => {
     expect(feed[0].title).toBe('Через 14 днів спливає ключ «Stripe»')
     expect(feed[0].ref).toEqual({ type: 'project', id: p.id })
     await v.api.projects.remove(p.id)
-    expect(v.crm.calendarFeed(addDays(term, -30), addDays(term, 1)).filter((i) => i.source === 'credential')).toEqual([])
+    expect(
+      v.crm
+        .calendarFeed(addDays(term, -30), addDays(term, 1))
+        .filter((i) => i.source === 'credential')
+    ).toEqual([])
   })
 })
 
@@ -330,7 +365,10 @@ describe('payment of an access', () => {
     expect(await fin.subscriptions()).toHaveLength(1)
     await api().setPayment({ id: c.id, subscriptionId: sub.id })
     await fin.removeSubscription(sub.id)
-    expect((await api().list({ projectId: p.id }))[0]).toMatchObject({ subscriptionId: null, payment: null })
+    expect((await api().list({ projectId: p.id }))[0]).toMatchObject({
+      subscriptionId: null,
+      payment: null
+    })
   })
 
   it('the next payment date: this month if the day is ahead, else the next one', () => {
@@ -338,10 +376,12 @@ describe('payment of an access', () => {
     const base = { period: 'monthly' as const, billingMonth: 0, active: true, startedAt: null }
     expect(dayKey(nextBillingAt({ ...base, billingDay: 28 }, at)!)).toBe('2026-11-28')
     expect(dayKey(nextBillingAt({ ...base, billingDay: 3 }, at)!)).toBe('2026-12-03')
-    expect(dayKey(nextBillingAt({ ...base, billingDay: 31 }, new Date(2027, 1, 1).getTime())!)).toBe('2027-02-28')
-    expect(dayKey(nextBillingAt({ ...base, period: 'yearly', billingMonth: 1, billingDay: 10 }, at)!)).toBe(
-      '2027-02-10'
-    )
+    expect(
+      dayKey(nextBillingAt({ ...base, billingDay: 31 }, new Date(2027, 1, 1).getTime())!)
+    ).toBe('2027-02-28')
+    expect(
+      dayKey(nextBillingAt({ ...base, period: 'yearly', billingMonth: 1, billingDay: 10 }, at)!)
+    ).toBe('2027-02-10')
     expect(nextBillingAt({ ...base, billingDay: 3, active: false }, at)).toBeNull()
   })
 })
@@ -395,10 +435,50 @@ describe('credentials table', () => {
       login: 'app',
       secret: 'pw'
     })
-    const row = v.db.orm.select().from(credentials).all().find((r) => r.id === c.id)!
+    const row = v.db.orm
+      .select()
+      .from(credentials)
+      .all()
+      .find((r) => r.id === c.id)!
     expect(row.kind).toBe('database')
     expect(JSON.parse(row.fields)).toMatchObject({ engine: 'mysql', host: 'db', port: null })
     expect(row.secrets).toBe('')
     expect(c.fields).toMatchObject({ engine: 'mysql', host: 'db' })
+  })
+})
+
+describe('accesses on the client page', () => {
+  it('client details hold its own accesses and those of its live projects; one can move between them', async () => {
+    const client = await v.api.clients.create({ name: 'Bloom' })
+    const p1 = await v.api.projects.create({ title: 'Магазин', clientId: client.id })
+    const p2 = await v.api.projects.create({ title: 'Лендінг', clientId: client.id })
+    const own = await api().create({ kind: 'account', clientId: client.id, label: 'Пошта клієнта' })
+    const ofProject = await api().create({
+      kind: 'server',
+      projectId: p1.id,
+      label: 'VPS магазину',
+      host: '1.2.3.4'
+    })
+    await api().create({ kind: 'account', projectId: p2.id, label: 'Адмінка лендінгу' })
+    await v.api.projects.remove(p2.id)
+
+    const details = (await v.api.clients.details(client.id))!
+    expect(details.credentials.map((c) => c.label).sort()).toEqual(
+      ['VPS магазину', 'Пошта клієнта'].sort()
+    )
+    // Stored once: the project page shows the very same record.
+    expect((await v.api.projects.details(p1.id))!.credentials.map((c) => c.id)).toEqual([
+      ofProject.id
+    ])
+
+    // «Для»: to the whole client and back; never to nobody.
+    const moved = await api().update({
+      id: ofProject.id,
+      patch: { kind: 'server', clientId: client.id, projectId: null }
+    })
+    expect(moved).toMatchObject({ clientId: client.id, projectId: null })
+    await expect(
+      api().update({ id: own.id, patch: { kind: 'account', clientId: null } })
+    ).rejects.toThrow(/належати/)
   })
 })

@@ -35,18 +35,27 @@ export function SubscriptionDialog({
   open,
   onOpenChange,
   subscription,
-  month
+  month,
+  prefill,
+  payerChoice,
+  onSaved
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   subscription?: Subscription | null
   /** Month the list is showing: a new subscription starts from it, not from the beginning of time. */
   month: string
+  /** A new one made from somewhere else (an access's «+ Оплата»): its name and link. */
+  prefill?: { title?: string; url?: string }
+  /** «Хто платить: Я / Клієнт» on top — the access's payment, where a client often pays. */
+  payerChoice?: boolean
+  /** After it was saved (the access links the new subscription). */
+  onSaved?: (subscription: Subscription) => void | Promise<unknown>
 }): ReactElement {
   const s = subscription
   const id = useId()
   const fields = useInvalidFields()
-  const [title, setTitle] = useState(s?.title ?? '')
+  const [title, setTitle] = useState(s?.title ?? prefill?.title ?? '')
   const [titleTouched, setTitleTouched] = useState(false)
   const [amount, setAmount] = useState<number | null>(s?.amount ?? null)
   const [amountTouched, setAmountTouched] = useState(false)
@@ -58,9 +67,10 @@ export function SubscriptionDialog({
     String(s?.billingMonth ?? Number(month.slice(5)) - 1)
   )
   const [category, setCategory] = useState<ExpenseCategory>(s?.category ?? 'subscription')
-  const [url, setUrl] = useState(s?.url ?? '')
+  const [url, setUrl] = useState(s?.url ?? prefill?.url ?? '')
   const [note, setNote] = useState(s?.note ?? '')
   const [active, setActive] = useState(s?.active ?? true)
+  const [ownExpense, setOwnExpense] = useState(s?.ownExpense ?? true)
   const create = useApiMutation('finance', 'createSubscription', {
     successMessage: 'Підписку додано'
   })
@@ -78,7 +88,8 @@ export function SubscriptionDialog({
     category,
     url: normalizeUrl(url),
     note,
-    active
+    active,
+    ownExpense
   }
   const titleMissing = titleTouched && !payload.title
 
@@ -110,11 +121,26 @@ export function SubscriptionDialog({
       values={s ? payload : undefined}
       onSubmit={async () => {
         // startedAt only on create: a patch without it keeps the stored value (patchOf).
-        if (s) await update.mutateAsync({ id: s.id, patch: payload })
-        else await create.mutateAsync({ ...payload, startedAt: monthRange(month)[0] })
+        const saved = s
+          ? await update.mutateAsync({ id: s.id, patch: payload })
+          : await create.mutateAsync({ ...payload, startedAt: monthRange(month)[0] })
+        await onSaved?.(saved)
         onOpenChange(false)
       }}
     >
+      {payerChoice && (
+        <Field label="Хто платить">
+          <Segmented
+            className="w-fit"
+            value={ownExpense ? 'me' : 'client'}
+            onChange={(v) => setOwnExpense(v === 'me')}
+            options={[
+              { value: 'me', label: 'Я' },
+              { value: 'client', label: 'Клієнт' }
+            ]}
+          />
+        </Field>
+      )}
       <Field
         label="Назва"
         required={SUB_REQ.title}
@@ -222,6 +248,22 @@ export function SubscriptionDialog({
           className="min-h-14"
         />
       </Field>
+      <div className="flex items-start gap-3">
+        <Switch
+          id={`${id}-own`}
+          checked={ownExpense}
+          onCheckedChange={setOwnExpense}
+          aria-describedby={`${id}-own-hint`}
+        />
+        <div className="flex flex-col gap-0.5">
+          <Label htmlFor={`${id}-own`} className="text-body text-foreground">
+            Враховувати в моїх витратах
+          </Label>
+          <p id={`${id}-own-hint`} className="text-caption text-muted-foreground">
+            Вимкніть, якщо платить клієнт: підписка лишиться в списку й календарі, але не в сумах.
+          </p>
+        </div>
+      </div>
       {/* Only when editing: a new one switched off would vanish from the list right after «додано». */}
       {s && (
         <div className="flex items-center gap-3">

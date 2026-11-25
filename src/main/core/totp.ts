@@ -26,7 +26,10 @@ export function hotp(
  * RFC 6238 TOTP at `at` (ms): the code and when it stops being valid. Main returns only this, never the key: the
  * renderer counts down to `expiresAt` and asks again.
  */
-export function totp(p: OtpParams, at = Date.now()): { code: string; expiresAt: number; period: number } {
+export function totp(
+  p: OtpParams,
+  at = Date.now()
+): { code: string; expiresAt: number; period: number } {
   const step = p.period * 1000
   const counter = Math.floor(at / step)
   return {

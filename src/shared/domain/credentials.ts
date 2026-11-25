@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { MAX } from './limits'
 import { idSchema, timestampSchema, urlSchema, patchOf } from './common'
 import { isLikelyOtpSecret, OTP_ERROR } from '../totp'
+import { hostOf } from '../url'
 
 export const CREDENTIAL_KINDS = [
   'account',
@@ -99,10 +100,12 @@ export const CREDENTIAL_COLUMNS = [
 
 export const HOST_ERROR = 'Вкажіть домен або IP — без пробілів і без https://'
 
+/** A domain or IP as a host field takes it: no spaces, no scheme, no path. Empty passes (optional field). */
+export const isLikelyHost = (v: string): boolean =>
+  !/\s/.test(v) && !v.includes('://') && !v.includes('/')
 /** A host name is at most 253 characters (RFC 1035); an IP fits too. */
-const isHost = (v: string): boolean => !/\s/.test(v) && !v.includes('://') && !v.includes('/')
-const hostSchema = z.string().trim().max(253).refine(isHost, HOST_ERROR)
-const requiredHost = z.string().trim().min(1).max(253).refine(isHost, HOST_ERROR)
+const hostSchema = z.string().trim().max(253).refine(isLikelyHost, HOST_ERROR)
+const requiredHost = z.string().trim().min(1).max(253).refine(isLikelyHost, HOST_ERROR)
 const portSchema = z.number().int().min(1).max(65_535)
 const optionalPort = portSchema.nullable().default(null)
 
@@ -366,17 +369,11 @@ export const CLIPBOARD_CLEAR_SECONDS = 30
 
 /* ───────────── Derived lines (card, quick actions) ───────────── */
 
-function urlHost(url: string): string {
-  if (!url) return ''
-  try {
-    return new URL(/^[a-z][a-z\d+.-]*:/i.test(url) ? url : `https://${url}`).hostname
-  } catch {
-    return ''
-  }
-}
+const urlHost = (url: string): string => hostOf(url) ?? ''
 
 /** IPv6 goes in brackets inside a URL or `user@host`. */
-const hostPart = (host: string): string => (host.includes(':') && !host.startsWith('[') ? `[${host}]` : host)
+const hostPart = (host: string): string =>
+  host.includes(':') && !host.startsWith('[') ? `[${host}]` : host
 
 type Line = Pick<Credential, 'kind' | 'url' | 'login' | 'fields'>
 
@@ -396,7 +393,10 @@ export function sshCommand(c: Pick<Credential, 'login' | 'fields'>): string {
  * The database URL: `postgres://user@host:5432/db`; with `password` (only main passes it, for «з паролем») — after
  * the user. SQL Server takes the JDBC-like `sqlserver://host:port;database=…` that its drivers read.
  */
-export function connectionString(c: Pick<Credential, 'login' | 'fields'>, password?: string): string {
+export function connectionString(
+  c: Pick<Credential, 'login' | 'fields'>,
+  password?: string
+): string {
   const f = c.fields
   const engine = f.engine ?? 'postgresql'
   const port = f.port ?? DB_DEFAULT_PORT[engine]
