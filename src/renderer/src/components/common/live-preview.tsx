@@ -72,10 +72,12 @@ export function LivePreview({
         sandbox="allow-scripts"
         className="min-h-0 w-full flex-1 border-0 bg-white"
       />
-      {showStatus && status && (
-        <Badge variant={status.ok ? 'success' : 'destructive'} className="absolute top-2 left-2" title={status.error}>
-          {status.ok ? <CheckCircle2 /> : <AlertTriangle />}
-          {status.ok ? 'Рендериться' : 'Помилка'}
+      {/* On a card plate: a tinted status badge didn't read on the white, dark and grid backgrounds of the
+          preview. Empty code has nothing to report (the preview reports ok for it). */}
+      {showStatus && status && code.trim() && (
+        <Badge variant="soft" className="absolute top-2 left-2 bg-card text-foreground shadow-sm" title={status.error}>
+          {status.ok ? <CheckCircle2 className="text-success" /> : <AlertTriangle className="text-destructive" />}
+          {status.ok ? 'Працює' : 'Помилка'}
         </Badge>
       )}
     </div>

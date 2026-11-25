@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from 'react'
+import type { ComponentProps, ReactElement, ReactNode } from 'react'
 import { fmtPercent } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -30,7 +30,7 @@ export function Funnel({ steps }: { steps: FunnelStep[] }): ReactElement {
           <span className="text-right text-body tabular-nums">
             <span className="font-medium">{s.value}</span>
             {i > 0 && base > 0 && (
-              <span className="ml-1.5 text-muted-foreground">{Math.round((s.value / base) * 100)}%</span>
+              <span className="ml-1.5 text-muted-foreground">{fmtPercent((s.value / base) * 100)}</span>
             )}
           </span>
         </div>
@@ -48,6 +48,21 @@ export function WithRate({ value, rate }: { value: number; rate: number }): Reac
   )
 }
 
+/**
+ * A table row that opens something: focusable, Enter / Space like a click. Not role="button" (clickableProps):
+ * the row must stay a row, or the table loses its cells for screen readers.
+ */
+const rowProps = (open: () => void): ComponentProps<'tr'> => ({
+  tabIndex: 0,
+  className: 'cursor-pointer',
+  onClick: open,
+  onKeyDown: (e) => {
+    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+    e.preventDefault()
+    open()
+  }
+})
+
 export interface FunnelColumn<R> {
   header: ReactNode
   cell: (row: R) => ReactNode
@@ -63,7 +78,8 @@ export function FunnelTable<R extends { key: string; label: string }>({
   rows,
   columns,
   groupHeader,
-  empty = 'Поки немає даних за період.'
+  empty = 'Поки немає даних за період.',
+  onRowClick
 }: {
   title: string
   description: string
@@ -72,6 +88,8 @@ export function FunnelTable<R extends { key: string; label: string }>({
   /** Header of the group column; empty by default — the card title already names it. */
   groupHeader?: string
   empty?: string
+  /** Rows open something (the platform's stats): clickable and reachable with Tab, Enter / Space. */
+  onRowClick?: (row: R) => void
 }): ReactElement {
   return (
     <Card>
@@ -96,8 +114,10 @@ export function FunnelTable<R extends { key: string; label: string }>({
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.key}>
-                  <TableCell className="max-w-48 truncate font-medium">{r.label}</TableCell>
+                <TableRow key={r.key} {...(onRowClick && rowProps(() => onRowClick(r)))}>
+                  <TableCell className="max-w-48 truncate font-medium" title={r.label}>
+                    {r.label}
+                  </TableCell>
                   {columns.map((c, i) => (
                     <TableCell key={i} className="text-right tabular-nums">
                       {c.cell(r)}

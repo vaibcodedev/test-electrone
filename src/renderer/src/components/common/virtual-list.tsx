@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { cn } from '@/lib/utils'
 import { Spinner } from '@/components/ui/spinner'
@@ -38,15 +38,6 @@ function useEntering(signature: string): (index: number, key: string) => { class
       : index < 10 && performance.now() - state.since < ENTER_WINDOW_MS
         ? { className: 'animate-enter', style: { animationDelay: `${Math.min(index, 8) * 18}ms` } }
         : {}
-}
-
-/** Grid cell wrapper carrying the enter animation; stretches its card to the row height. */
-function EnterCell({ className, style, children }: { className?: string; style?: CSSProperties; children: ReactNode }): ReactElement {
-  return (
-    <div className={cn('flex flex-1 flex-col [&>*]:flex-1', className)} style={style}>
-      {children}
-    </div>
-  )
 }
 
 interface InfiniteProps {
@@ -250,14 +241,19 @@ export function VirtualGrid<T>({
               style={{ transform: `translateY(${row.start}px)`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`, gap }}
             >
               {row.index < rows ? (
-                slice.map((item, i) => (
-                  // min-w-0: a grid item never grows past its column (a long unbroken word used to push a card
-                  // wider than the window); the card itself decides how to truncate.
-                  // flex chain: the cell is stretched by the row, the card fills it — cards of a row are one height.
-                  <div key={getKey(item)} className="flex min-w-0 flex-col">
-                    <EnterCell {...entering(start + i, getKey(item))}>{renderItem(item, start + i)}</EnterCell>
-                  </div>
-                ))
+                slice.map((item, i) => {
+                  const key = getKey(item)
+                  // The enter animation sits on the cell itself: the row carries the virtualizer's transform.
+                  const e = entering(start + i, key)
+                  return (
+                    // min-w-0: a grid item never grows past its column (a long unbroken word used to push a card
+                    // wider than the window); the card itself decides how to truncate.
+                    // flex chain: the cell is stretched by the row, the card fills it — cards of a row are one height.
+                    <div key={key} className={cn('flex min-w-0 flex-col [&>*]:flex-1', e.className)} style={e.style}>
+                      {renderItem(item, start + i)}
+                    </div>
+                  )
+                })
               ) : (
                 <ListEnd loading={!!hasMore} total={items.length} />
               )}

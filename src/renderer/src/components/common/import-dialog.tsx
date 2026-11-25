@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
 import { useDroppedFiles } from '@/hooks/use-file-drop'
-import { plural } from '@/lib/format'
+import { fmtNumber, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -81,6 +81,7 @@ export function ImportDialog({
   const reset = (): void => {
     setRaw('')
     setFileName(null)
+    setTab('text')
   }
   // Every way out («Скасувати», Esc, ✕, after import) leaves a clean dialog for the next time.
   const close = (): void => {
@@ -211,8 +212,9 @@ export function ImportDialog({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {parsed.titles.slice(0, 8).map((t, i) => (
-                <Badge key={i} variant="soft" className="max-w-64 truncate">
-                  {t}
+                // truncate on the inline-flex badge cut the text without «…»: it goes on an inner span.
+                <Badge key={i} variant="soft" className="max-w-64 min-w-0 justify-start" title={t}>
+                  <span className="truncate">{t}</span>
                 </Badge>
               ))}
               {parsed.titles.length > 8 && <Badge variant="soft">ще {parsed.titles.length - 8}</Badge>}
@@ -233,10 +235,24 @@ export function ImportDialog({
   )
 }
 
-/** Copies data in the same JSON format the import accepts (to hand it to an AI for improvement). */
-export async function copyAsJson(data: unknown, what: string): Promise<void> {
-  await api.app.copyText(JSON.stringify(data, null, 2))
-  toast.success(`${what} скопійовано як JSON`)
+/**
+ * Copies data in the same JSON format the import accepts (to hand it to an AI for improvement). Never throws:
+ * a failure is a toast plus the error log.
+ */
+export function copyAsJson(data: unknown, what: string): Promise<void> {
+  return copyLoadedJson(() => data, what)
+}
+
+/** Loading the data (a full list from the server) and copying it fail the same way: one toast, one log entry. */
+async function copyLoadedJson(load: () => unknown | Promise<unknown>, what: string): Promise<void> {
+  try {
+    const data = await load()
+    await api.app.copyText(JSON.stringify(data, null, 2))
+    toast.success(Array.isArray(data) ? `${what} (${fmtNumber(data.length)}) скопійовано як JSON` : `${what} скопійовано як JSON`)
+  } catch (e) {
+    toast.error('Не вдалося скопіювати')
+    reportError(e, 'import:copyJson')
+  }
 }
 
 /** «Імпорт з JSON» header button + its dialog. Sits left of the page's primary (lime) button. */
@@ -252,12 +268,23 @@ export function ImportButton({ kind, onImported }: { kind: ImportKind; onImporte
   )
 }
 
-/** Small header action: copy what's listed now as import-compatible JSON. */
-export function CopyJsonButton({ getData, what, disabled }: { getData: () => unknown; what: string; disabled?: boolean }) {
+/**
+ * Small header action: copy records as import-compatible JSON. `getData` may be async — a paged list should
+ * fetch everything, not copy only the 100 rows loaded so far.
+ */
+export function CopyJsonButton({
+  getData,
+  what,
+  disabled
+}: {
+  getData: () => unknown | Promise<unknown>
+  what: string
+  disabled?: boolean
+}) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Копіювати як JSON" disabled={disabled} onClick={() => void copyAsJson(getData(), what)}>
+        <Button variant="ghost" size="icon" aria-label="Копіювати як JSON" disabled={disabled} onClick={() => void copyLoadedJson(getData, what)}>
           <Braces />
         </Button>
       </TooltipTrigger>

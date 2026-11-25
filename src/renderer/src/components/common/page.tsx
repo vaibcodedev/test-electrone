@@ -3,9 +3,10 @@
  * (Empty, InputGroup, ToggleGroup, Progress, Field, Kbd) — no hand-made controls.
  */
 import { useId, type ReactElement, type ReactNode } from 'react'
-import { Search, X } from 'lucide-react'
+import { RotateCcw, Search, SearchX, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { fmtNumber } from '@/lib/format'
 import { useReadOnly } from './detail-mode'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
@@ -14,6 +15,7 @@ import { Progress } from '@/components/ui/progress'
 import { Field as UiField, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
 import { Kbd as UiKbd } from '@/components/ui/kbd'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 /** Page title block: big display type, optional subtitle and actions on the right. */
 export function PageHeader({
@@ -30,14 +32,15 @@ export function PageHeader({
   children?: ReactNode
 }) {
   return (
-    <header data-slot="page-header" className={cn('flex flex-col gap-4 px-8 pt-7 pb-5', className)}>
+    // shrink-0: in a short window the Page column must not squeeze the header (the filters drew over the list).
+    <header data-slot="page-header" className={cn('flex shrink-0 flex-col gap-4 px-8 pt-7 pb-5', className)}>
       <div className="flex items-start justify-between gap-6">
-        <div className="min-w-0">
-          <h1 className="font-display text-title max-w-[18ch] text-balance">{title}</h1>
-          {subtitle && <div className="mt-2 text-body text-muted-foreground">{subtitle}</div>}
-        </div>
+        <h1 className="font-display text-title max-w-[18ch] min-w-0 text-balance">{title}</h1>
         {actions && <div className="flex shrink-0 items-center gap-2 pt-1">{actions}</div>}
       </div>
+      {/* Under the title row, not beside the actions: four header buttons no longer squeeze it onto two
+          lines. -mt-2 keeps the 8px from the title. */}
+      {subtitle && <div className="-mt-2 max-w-[80ch] text-body text-muted-foreground">{subtitle}</div>}
       {children}
     </header>
   )
@@ -54,8 +57,9 @@ export function Page({ children, className }: { children: ReactNode; className?:
 
 /**
  * Empty state (shadcn Empty): says what to do next, with the action right there. `cta` is the usual
- * action — a soft button (the lime one stays in the page header: one accent per screen); `action` is
- * for anything else.
+ * action — a soft button (the lime one stays in the page header: one accent per screen); `variant: 'lime'`
+ * only on a screen whose header has no lime button (focus screen, empty moodboard). `action` is for
+ * anything else, e.g. a `subtle` button when the empty state sits inside a surface card.
  */
 export function EmptyState({
   icon: Icon,
@@ -69,7 +73,7 @@ export function EmptyState({
   title: string
   hint?: ReactNode
   action?: ReactNode
-  cta?: { label: string; icon?: LucideIcon; onClick: () => void }
+  cta?: { label: string; icon?: LucideIcon; onClick: () => void; disabled?: boolean; variant?: 'soft' | 'lime' }
   className?: string
 }) {
   const CtaIcon = cta?.icon
@@ -77,7 +81,8 @@ export function EmptyState({
     <Empty className={cn('py-14', className)}>
       <EmptyHeader>
         {Icon && (
-          <EmptyMedia variant="icon" className="size-14 rounded-full bg-surface">
+          // A tint, not bg-surface: the circle stays visible on card and inside a surface card alike.
+          <EmptyMedia variant="icon" className="size-14 rounded-full bg-foreground/7">
             <Icon className="size-6 text-muted-foreground" />
           </EmptyMedia>
         )}
@@ -87,7 +92,7 @@ export function EmptyState({
       {(action || cta) && (
         <EmptyContent>
           {cta && (
-            <Button variant="soft" onClick={cta.onClick}>
+            <Button variant={cta.variant ?? 'soft'} disabled={cta.disabled} onClick={cta.onClick}>
               {CtaIcon && <CtaIcon />}
               {cta.label}
             </Button>
@@ -96,6 +101,30 @@ export function EmptyState({
         </EmptyContent>
       )}
     </Empty>
+  )
+}
+
+/** Empty result of filters or search: one pattern on every list (docs/design-system.md → Пустые состояния). */
+export function NoResults({
+  icon,
+  hint,
+  onReset,
+  className
+}: {
+  icon?: LucideIcon
+  /** Built from the conditions that are really active. */
+  hint?: ReactNode
+  onReset: () => void
+  className?: string
+}): ReactElement {
+  return (
+    <EmptyState
+      icon={icon ?? SearchX}
+      title="Нічого не знайдено"
+      hint={hint}
+      cta={{ label: 'Скинути фільтри', icon: RotateCcw, onClick: onReset }}
+      className={className}
+    />
   )
 }
 
@@ -114,8 +143,9 @@ export function SearchInput({
   autoFocus?: boolean
 }) {
   return (
-    // Same height as chips and sm buttons in the filter row (docs/design-system.md → Ряд фильтров).
-    <InputGroup className={cn('h-8', className)}>
+    // Same height as chips and sm buttons in the filter row and one width on every screen
+    // (docs/design-system.md → Ряд фильтров); shrinks instead of overflowing a narrow row.
+    <InputGroup className={cn('h-8 w-72 max-w-full shrink', className)}>
       <InputGroupAddon>
         <Search />
       </InputGroupAddon>
@@ -125,6 +155,8 @@ export function SearchInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        // The placeholder disappears while typing; the field keeps its name.
+        aria-label={placeholder}
         onKeyDown={(e) => {
           if (e.key === 'Escape' && value) {
             e.stopPropagation()
@@ -134,9 +166,14 @@ export function SearchInput({
       />
       {value && (
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Очистити" onClick={() => onChange('')}>
-            <X />
-          </InputGroupButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Очистити пошук" onClick={() => onChange('')}>
+                <X />
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent>Очистити · Esc</TooltipContent>
+          </Tooltip>
         </InputGroupAddon>
       )}
     </InputGroup>
@@ -147,6 +184,8 @@ export interface ChipOption<T extends string> {
   value: T
   label: string
   count?: number
+  /** Colour class of a dot before the label (`bg-chart-2`): the legend of the same dots in the rows. */
+  dot?: string
 }
 
 const ALL = '__all__'
@@ -157,6 +196,8 @@ const NEUTRAL_CHIP = 'on:bg-foreground/12 on:text-foreground on:font-medium on:f
 /**
  * Pill filter chips (shadcn ToggleGroup, variant "chip": selected = lime). `allLabel` adds a "show all" chip.
  * `tone="neutral"` — the second and further groups of a filter row (docs/design-system.md → Переключатели).
+ * A chip with `count: 0` is hidden unless it is selected, and a row with nothing to pick is not drawn at all:
+ * no «Djinni 0 · DOU 0» above an empty state (docs/design-system.md → Ряд фильтров).
  */
 export function FilterChips<T extends string>({
   options,
@@ -165,7 +206,8 @@ export function FilterChips<T extends string>({
   allLabel,
   className,
   size = 'sm',
-  tone = 'accent'
+  tone = 'accent',
+  label
 }: {
   options: ChipOption<T>[]
   value: T | undefined
@@ -174,8 +216,12 @@ export function FilterChips<T extends string>({
   className?: string
   size?: 'sm' | 'xs' | 'default'
   tone?: 'accent' | 'neutral'
+  /** Name of the group for screen readers («Майданчик», «Стадія»). */
+  label?: string
 }) {
   const itemClass = tone === 'neutral' ? NEUTRAL_CHIP : undefined
+  const visible = options.filter((o) => o.count === undefined || o.count > 0 || o.value === value)
+  if (!visible.length && value === undefined) return null
   return (
     <ToggleGroup
       type="single"
@@ -187,19 +233,26 @@ export function FilterChips<T extends string>({
         onChange(v === ALL ? undefined : (v as T))
       }}
       className={className}
+      aria-label={label}
     >
       {allLabel && (
         <ToggleGroupItem value={ALL} className={itemClass}>
           {allLabel}
         </ToggleGroupItem>
       )}
-      {options.map((o) => (
+      {visible.map((o) => (
         <ToggleGroupItem key={o.value} value={o.value} className={itemClass}>
+          {o.dot && <span aria-hidden className={cn('size-2 shrink-0 rounded-full', o.dot)} />}
           {/* A long label (folder name) ends with «…» instead of pushing the rest of the row down. */}
           <span className="max-w-[24ch] truncate" title={o.label}>
             {o.label}
           </span>
-          {o.count !== undefined && <span className="shrink-0 tabular-nums opacity-55">{o.count}</span>}
+          {/* muted, not opacity-55: a faded count fell below 4.5:1 in the light theme. */}
+          {o.count !== undefined && (
+            <span className="shrink-0 tabular-nums text-muted-foreground in-data-[state=on]:text-current in-data-[state=on]:opacity-70">
+              {o.count}
+            </span>
+          )}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -226,7 +279,7 @@ export function FilterBar({
     <div className={cn('flex flex-col gap-2', className)}>
       <div className="flex flex-wrap items-center gap-2">
         {chips && <div className="flex min-w-0 flex-wrap items-center gap-2">{chips}</div>}
-        {trailing && <div className="ml-auto flex shrink-0 items-center gap-2">{trailing}</div>}
+        {trailing && <div className="ml-auto flex max-w-full min-w-0 items-center gap-2">{trailing}</div>}
       </div>
       {secondary}
     </div>
@@ -256,11 +309,22 @@ export function Segmented<T extends string>({
       onValueChange={(v) => v && onChange(v as T)}
       className={className}
     >
-      {options.map((o) => (
-        <ToggleGroupItem key={o.value} value={o.value} title={o.title} aria-label={o.title}>
-          {o.label}
-        </ToggleGroupItem>
-      ))}
+      {options.map((o) => {
+        const item = (
+          <ToggleGroupItem key={o.value} value={o.value} aria-label={o.title}>
+            {o.label}
+          </ToggleGroupItem>
+        )
+        // An icon-only segment explains itself in a Tooltip, like every icon button (docs/design-system.md → Кнопки).
+        return o.title ? (
+          <Tooltip key={o.value}>
+            <TooltipTrigger asChild>{item}</TooltipTrigger>
+            <TooltipContent>{o.title}</TooltipContent>
+          </Tooltip>
+        ) : (
+          item
+        )
+      })}
     </ToggleGroup>
   )
 }
@@ -312,6 +376,30 @@ export function SegmentBar({
   )
 }
 
+/**
+ * Character counter of a long field (docs/design-system.md → Формы): appears after 80% of the limit and
+ * turns warn from 90%. Field and MarkdownField share it, so both behave the same.
+ */
+export function CharCount({
+  length,
+  max,
+  className
+}: {
+  length: number
+  max?: number
+  className?: string
+}): ReactElement | null {
+  if (!max || length < max * 0.8) return null
+  return (
+    <span
+      className={cn('shrink-0 text-meta tabular-nums', length >= max * 0.9 ? 'text-warn' : 'text-muted-foreground', className)}
+      aria-live="polite"
+    >
+      {fmtNumber(length)} / {fmtNumber(max)}
+    </span>
+  )
+}
+
 /** Labelled form field (shadcn Field + FieldLabel). */
 export function Field({
   label,
@@ -338,26 +426,20 @@ export function Field({
   // A control without an id to point at still gets a name: the group is labelled instead. With htmlFor the
   // control itself is labelled, and naming the group too would give two elements the same label.
   const labelId = useId()
+  // In view mode the control is text without that id (LinkInput, NumberInput): the label names the group.
+  const forId = viewMode ? undefined : htmlFor
   if (viewMode) error = undefined
-  const near = count?.max ? count.length >= count.max * 0.8 : false
   return (
     <UiField
       className={cn('min-w-0 gap-2', className)}
       data-invalid={error ? true : undefined}
-      aria-labelledby={htmlFor ? undefined : labelId}
+      aria-labelledby={forId ? undefined : labelId}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <FieldLabel id={labelId} htmlFor={htmlFor}>
+        <FieldLabel id={labelId} htmlFor={forId}>
           {label}
         </FieldLabel>
-        {near && count?.max && (
-          <span
-            className={cn('text-meta tabular-nums', count.length >= count.max ? 'text-warn' : 'text-muted-foreground')}
-            aria-live="polite"
-          >
-            {count.length} / {count.max}
-          </span>
-        )}
+        {count && <CharCount length={count.length} max={count.max} />}
       </div>
       {children}
       {error ? (

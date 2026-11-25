@@ -42,7 +42,10 @@ export function NumberField({
   unit,
   placeholder,
   className,
-  onValidityChange
+  onValidityChange,
+  disabled,
+  autoFocus,
+  error
 }: {
   /** Ties the label to the input (click on the label focuses it). */
   id?: string
@@ -65,6 +68,10 @@ export function NumberField({
    * block its submit button instead of silently saving the old value. Reports `false` on unmount.
    */
   onValidityChange?: (invalid: boolean) => void
+  disabled?: boolean
+  autoFocus?: boolean
+  /** The caller's own error (a pair «від» > «до»…): shown under the field and marks the input invalid. */
+  error?: ReactNode
 }) {
   const readOnly = useReadOnly()
   const autoId = useId()
@@ -116,7 +123,7 @@ export function NumberField({
       htmlFor={inputId}
       className={className}
       hint={hint}
-      error={notNumber ? NOT_A_NUMBER : outOfRange ? rangeText(min, max, unit) : undefined}
+      error={error ?? (notNumber ? NOT_A_NUMBER : outOfRange ? rangeText(min, max, unit) : undefined)}
     >
       <InputGroup>
         <InputGroupInput
@@ -125,8 +132,9 @@ export function NumberField({
           step={step}
           value={text}
           placeholder={placeholder}
-          aria-label={label}
-          aria-invalid={invalid || undefined}
+          disabled={disabled}
+          autoFocus={autoFocus}
+          aria-invalid={invalid || !!error || undefined}
           className="tabular-nums"
           onChange={(e) => onChange(e.target.value)}
           onBlur={commit}

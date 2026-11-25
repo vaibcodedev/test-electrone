@@ -7,6 +7,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useReadOnly } from './detail-mode-context'
 
+/** cmdk filter: a case-insensitive substring of the label (any alphabet). */
+const matchLabel = (_value: string, search: string, keywords?: string[]): number => {
+  const q = search.trim().toLocaleLowerCase('uk')
+  return !q || keywords?.some((k) => k.toLocaleLowerCase('uk').includes(q)) ? 1 : 0
+}
+
 export interface ComboboxOption {
   value: string
   label: string
@@ -30,6 +36,8 @@ export function Combobox({
   onCreate,
   clearable,
   clearLabel = 'Без значення',
+  maxLength,
+  disabled,
   className
 }: {
   id?: string
@@ -46,6 +54,9 @@ export function Combobox({
   /** Adds a first item that resets the value to null. */
   clearable?: boolean
   clearLabel?: string
+  /** Limit of the search text when it can become a new value (`creatable`), from the schema. */
+  maxLength?: number
+  disabled?: boolean
   className?: string
 }): ReactElement {
   const viewMode = useReadOnly()
@@ -65,20 +76,25 @@ export function Combobox({
       <span data-empty />
     )
 
-  const pick = (next: string | null): void => {
-    onChange(next)
+  const close = (): void => {
     setOpen(false)
     setSearch('')
   }
+  const pick = (next: string | null): void => {
+    onChange(next)
+    close()
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // Esc or a click outside also forgets the search: the next open starts with the full list.
+    <Popover open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
       <PopoverTrigger asChild>
         <Button
           id={id}
           variant="soft"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className={cn(
             // Looks like an input (same border/tint as Input), not like a button.
             'w-full justify-between rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/40 hover:bg-foreground/[0.04]',
@@ -94,18 +110,20 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 rounded-2xl p-0" align="start">
-        <Command>
-          <CommandInput value={search} onValueChange={setSearch} placeholder={searchPlaceholder} />
+        {/* Items are matched by their label (keywords), not by value: an id must neither match the search nor
+            merge two options with the same label. */}
+        <Command filter={matchLabel}>
+          <CommandInput value={search} onValueChange={setSearch} placeholder={searchPlaceholder} maxLength={maxLength} />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {clearable && value && !text && (
-                <CommandItem value="__none__" onSelect={() => pick(null)}>
+                <CommandItem value="__none__" keywords={[clearLabel]} onSelect={() => pick(null)}>
                   <X /> {clearLabel}
                 </CommandItem>
               )}
               {options.map((o) => (
-                <CommandItem key={o.value} value={o.label} onSelect={() => pick(o.value)}>
+                <CommandItem key={o.value} value={o.value} keywords={[o.label]} onSelect={() => pick(o.value)}>
                   <span className="flex-1 truncate">{o.label}</span>
                   {o.value === value && <Check />}
                 </CommandItem>
@@ -113,9 +131,11 @@ export function Combobox({
               {creatable && onCreate && text && !exact && (
                 <CommandItem
                   value={`__create__${text}`}
+                  keywords={[text]}
                   onSelect={() => {
+                    // onCreate sets the value itself: pick(value) here sent the old value right after it.
                     onCreate(text)
-                    pick(value)
+                    close()
                   }}
                 >
                   <Plus /> Створити «{text}»

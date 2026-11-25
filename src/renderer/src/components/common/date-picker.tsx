@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
  * (the official shadcn "date and time picker" pattern). Values are epoch ms or null.
  */
 export function DatePicker({
+  id,
   value,
   onChange,
   withTime = false,
@@ -27,6 +28,8 @@ export function DatePicker({
   min,
   invalid
 }: {
+  /** Ties a Field label (htmlFor) to the trigger. */
+  id?: string
   value: number | null
   onChange: (value: number | null) => void
   withTime?: boolean
@@ -77,6 +80,7 @@ export function DatePicker({
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id={id}
             variant="soft"
             size={size}
             aria-invalid={invalid || undefined}

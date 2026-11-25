@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
@@ -55,7 +55,11 @@ function HeaderStub({ actions = 1, chips = 0 }: { actions?: number; chips?: numb
           {Array.from({ length: chips }, (_, i) => (
             <Skeleton key={i} className={cn('h-8 rounded-full', i === 0 ? 'w-14' : 'w-24')} />
           ))}
-          <Skeleton className="ml-auto h-9 w-60 rounded-full" />
+          {/* TagFilter + SearchInput (h-8 w-72), as in FilterBar: the row doesn't jump when the page arrives. */}
+          <div className="ml-auto flex gap-2">
+            <Skeleton className="h-8 w-24 rounded-full" />
+            <Skeleton className="h-8 w-72 rounded-full" />
+          </div>
         </div>
       )}
     </div>
@@ -83,10 +87,13 @@ export function CardSkeleton({ height = 220, className }: { height?: number; cla
   )
 }
 
-function ListLayout() {
+/** `header: false` — the page has already drawn its PageHeader, only the body is loading. */
+type LayoutProps = { header: boolean }
+
+function ListLayout({ header }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      <HeaderStub chips={5} />
+      {header && <HeaderStub chips={5} />}
       <div className="flex flex-col gap-1.5">
         {Array.from({ length: 7 }, (_, i) => (
           <RowSkeleton key={i} />
@@ -96,10 +103,10 @@ function ListLayout() {
   )
 }
 
-function GridLayout() {
+function GridLayout({ header }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      <HeaderStub chips={4} />
+      {header && <HeaderStub chips={4} />}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
         {Array.from({ length: 8 }, (_, i) => (
           <CardSkeleton key={i} />
@@ -109,10 +116,10 @@ function GridLayout() {
   )
 }
 
-function BoardLayout() {
+function BoardLayout({ header }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      <HeaderStub actions={2} />
+      {header && <HeaderStub actions={2} />}
       <div className="flex gap-3 overflow-hidden">
         {[4, 2, 3, 1].map((cards, i) => (
           <div key={i} className="flex w-[288px] shrink-0 flex-col gap-2 rounded-3xl bg-surface p-2">
@@ -127,10 +134,10 @@ function BoardLayout() {
   )
 }
 
-function CalendarLayout() {
+function CalendarLayout({ header }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      <HeaderStub actions={3} />
+      {header && <HeaderStub actions={3} />}
       <div className="grid grid-cols-7 gap-1.5">
         {Array.from({ length: 35 }, (_, i) => (
           <Skeleton key={i} className="h-[92px] rounded-2xl" />
@@ -157,10 +164,10 @@ function DashboardLayout() {
   )
 }
 
-function OverviewLayout() {
+function OverviewLayout({ header }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      <HeaderStub actions={2} />
+      {header && <HeaderStub actions={2} />}
       <div className="grid grid-cols-4 gap-3">
         {Array.from({ length: 4 }, (_, i) => (
           <Skeleton key={i} className="h-28 rounded-3xl" />
@@ -176,10 +183,10 @@ function OverviewLayout() {
   )
 }
 
-function FormLayout() {
+function FormLayout({ header }: LayoutProps) {
   return (
     <div className="flex max-w-4xl flex-col gap-5">
-      <HeaderStub actions={0} />
+      {header && <HeaderStub actions={0} />}
       {[2, 3, 4].map((rows, i) => (
         <div key={i} className="flex flex-col gap-2 rounded-3xl bg-surface p-5">
           <Skeleton className="mb-1 h-4 w-32 rounded-full" />
@@ -243,7 +250,7 @@ function FocusLayout() {
   )
 }
 
-const LAYOUTS: Record<SkeletonKind, () => ReactNode> = {
+const LAYOUTS: Record<SkeletonKind, (props: LayoutProps) => ReactNode> = {
   list: ListLayout,
   grid: GridLayout,
   board: BoardLayout,
@@ -256,12 +263,44 @@ const LAYOUTS: Record<SkeletonKind, () => ReactNode> = {
 }
 
 /** Suspense fallback for a lazy page chunk, shaped like the page that is loading. */
-export function PageSkeleton({ kind = 'list', delay = 150 }: { kind?: SkeletonKind; delay?: number }) {
+export function PageSkeleton({
+  kind = 'list',
+  delay = 150,
+  header = true
+}: {
+  kind?: SkeletonKind
+  delay?: number
+  /** false: no title stub (the header is already on screen). */
+  header?: boolean
+}) {
   const Layout = LAYOUTS[kind] ?? ListLayout
   return (
     <Delayed delay={delay}>
       <div className="h-full min-h-0 animate-page overflow-hidden px-8 pt-7 pb-8" aria-busy="true" aria-label="Завантаження сторінки">
-        <Layout />
+        <Layout header={header} />
+      </div>
+    </Delayed>
+  )
+}
+
+/**
+ * The body of a page whose PageHeader is already drawn (/dev): the same layouts without the title stub and
+ * without the page padding — it goes inside PageBody.
+ */
+export function BodySkeleton({
+  kind = 'list',
+  delay = 150,
+  className
+}: {
+  kind?: SkeletonKind
+  delay?: number
+  className?: string
+}): ReactElement {
+  const Layout = LAYOUTS[kind] ?? ListLayout
+  return (
+    <Delayed delay={delay}>
+      <div className={cn('animate-page', className)} aria-busy="true" aria-label="Завантаження">
+        <Layout header={false} />
       </div>
     </Delayed>
   )

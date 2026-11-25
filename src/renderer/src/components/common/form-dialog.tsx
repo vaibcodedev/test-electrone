@@ -27,6 +27,7 @@ export function FormDialog({
   onSubmit,
   invalid = false,
   pending = false,
+  invalidReason,
   className
 }: {
   open: boolean
@@ -41,6 +42,11 @@ export function FormDialog({
   invalid?: boolean
   /** The mutation is running. */
   pending?: boolean
+  /**
+   * Why the submit is disabled when no field shows it (an empty required name): «Вкажіть назву дошки».
+   * Shown left of the buttons while `invalid` (docs/design-system.md → Кнопки).
+   */
+  invalidReason?: string
   /** Width of the dialog, e.g. `sm:max-w-[560px]`. */
   className?: string
 }): ReactElement {
@@ -61,6 +67,11 @@ export function FormDialog({
         >
           <FieldGroup className="gap-4">{children}</FieldGroup>
           <DialogFooter>
+            {invalid && invalidReason && (
+              <p className="mr-auto self-center text-caption text-muted-foreground" aria-live="polite">
+                {invalidReason}
+              </p>
+            )}
             <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
               {cancelLabel}
             </Button>

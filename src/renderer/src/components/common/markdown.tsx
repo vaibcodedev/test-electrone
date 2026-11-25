@@ -6,10 +6,10 @@ import rehypeHighlight from 'rehype-highlight'
 import { Eye, Image as ImageIcon, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useReadOnly } from './detail-mode'
+import { useDetailMode, useReadOnly } from './detail-mode-context'
 import { Textarea } from '@/components/ui/textarea'
 import { FieldLabel } from '@/components/ui/field'
-import { Segmented } from './page'
+import { CharCount, Segmented } from './page'
 import { CopyButton } from './copy-button'
 
 function Pre(props: ComponentProps<'pre'>) {
@@ -112,12 +112,13 @@ export function MarkdownField({
   /** From the schema (limitsOf); the counter appears in the label row after 80%. */
   maxLength?: number
 }) {
-  // The counter appears after 80% of the limit (docs/design-system.md → Формы) and turns warn near it.
-  const near = maxLength ? value.length >= maxLength * 0.8 : false
   const viewMode = useReadOnly()
+  // A record has its own view mode (it has `save`); outside one (week review, «Про дошку») there is none.
+  const inRecord = !!useDetailMode().save
   const id = useId()
-  // «Редагувати» means writing: the field opens on «Текст» (reading is what view mode is for).
-  const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? 'edit')
+  // In record editing «Редагувати» means writing, so the field opens on «Текст». Outside a record a filled
+  // field opens on «Перегляд»: otherwise its text (and «- [ ]» checkboxes) would only ever show as raw markdown.
+  const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? (inRecord || !value.trim() ? 'edit' : 'preview'))
   // Record view mode: rendered text only; an empty field disappears.
   if (viewMode) {
     if (!value.trim()) return null
@@ -133,18 +134,17 @@ export function MarkdownField({
       {/* Label row has the label's height: the compact toggle (h-7, -my-1) must not push the control down,
           so label → control is 8px like every other Field (docs/design-system.md → Формы). */}
       <div className="flex items-center justify-between gap-2">
-        {label ? <FieldLabel htmlFor={mode === 'edit' ? id : undefined}>{label}</FieldLabel> : <span />}
-        {near && (
-          <span
-            className={cn('ml-auto text-meta tabular-nums', value.length >= maxLength! * 0.9 ? 'text-warn' : 'text-muted-foreground')}
-            aria-live="polite"
-          >
-            {value.length.toLocaleString('uk-UA')} / {maxLength!.toLocaleString('uk-UA')}
-          </span>
+        {label ? (
+          <FieldLabel htmlFor={mode === 'edit' ? id : undefined} className="min-w-0">
+            {label}
+          </FieldLabel>
+        ) : (
+          <span />
         )}
+        <CharCount length={value.length} max={maxLength} className="ml-auto" />
         <Segmented
           size="xs"
-          className="-my-1 h-7 p-0.5 [&>button]:h-6 [&>button]:px-2.5 [&>button]:text-meta"
+          className="-my-1 h-7 shrink-0 p-0.5 [&>button]:h-6 [&>button]:px-2.5 [&>button]:text-meta"
           value={mode}
           onChange={setMode}
           options={[

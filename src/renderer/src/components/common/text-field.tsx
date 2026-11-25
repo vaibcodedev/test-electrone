@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 
@@ -106,9 +107,14 @@ export function LinkInput({
       />
       {canOpen && (
         <InputGroupAddon align="inline-end">
-          <InputGroupButton size="icon-xs" className="rounded-full" aria-label={openLabel} onClick={() => void openUrl(draft)}>
-            <ExternalLink />
-          </InputGroupButton>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <InputGroupButton size="icon-xs" className="rounded-full" aria-label={openLabel} onClick={() => void openUrl(draft)}>
+                <ExternalLink />
+              </InputGroupButton>
+            </TooltipTrigger>
+            <TooltipContent>{openLabel}</TooltipContent>
+          </Tooltip>
         </InputGroupAddon>
       )}
     </InputGroup>

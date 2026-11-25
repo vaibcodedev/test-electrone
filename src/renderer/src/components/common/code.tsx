@@ -197,24 +197,16 @@ export function CodeEditor({
 
   return (
     <div className={cn('relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-[var(--code-bg)]', className)}>
-      {!readOnly && (
+      {/* Only where Prettier can format: for plain text a disabled button just took a strip above the code. */}
+      {formattable && (
         <div className="flex justify-end px-2 pt-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              {/* span: a disabled button doesn't fire pointer events, the tooltip still has to explain why */}
-              <span tabIndex={formattable ? -1 : 0}>
-                <Button
-                  type="button"
-                  variant="code"
-                  size="xs"
-                  disabled={!formattable || formatting}
-                  onClick={() => void runFormat()}
-                >
-                  <Wand2 /> Форматувати
-                </Button>
-              </span>
+              <Button type="button" variant="code" size="xs" disabled={formatting} onClick={() => void runFormat()}>
+                <Wand2 /> Форматувати
+              </Button>
             </TooltipTrigger>
-            <TooltipContent>{formattable ? 'Prettier · Shift+Alt+F' : 'Форматування недоступне для цієї мови'}</TooltipContent>
+            <TooltipContent>Prettier · Shift+Alt+F</TooltipContent>
           </Tooltip>
         </div>
       )}
@@ -301,7 +293,7 @@ export function CodeBlock({
   return (
     <pre
       className={cn(
-        'selectable overflow-x-auto rounded-2xl bg-[var(--code-bg)] p-4 font-mono text-caption leading-relaxed text-[var(--code-fg)]',
+        'selectable overflow-x-auto overflow-y-hidden rounded-2xl bg-[var(--code-bg)] p-4 font-mono text-caption leading-relaxed text-[var(--code-fg)]',
         className
       )}
     >

@@ -2,14 +2,18 @@ import type { ReactElement } from 'react'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import { COMPACT_FROM, fmtMoney, fmtMoneyCompact } from '@/lib/format'
 import { moneyEntries } from '@/lib/money'
-
-// eslint-disable-next-line react-refresh/only-export-components -- modules import it next to MoneyLines
-export { moneyEntries }
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-/** Never wider than its tile: a long sum ends with «…» (the exact amount is in the tooltip). */
-const FIT = 'inline-block max-w-full truncate align-bottom tabular-nums'
+// Kept until crm-overview imports it from '@/lib/money' (the one place to take it from).
+// eslint-disable-next-line react-refresh/only-export-components -- re-export, not a component
+export { moneyEntries }
+
+/**
+ * Never wider than its tile: a long sum ends with «…» (the exact amount is in the tooltip). overflow-x: clip
+ * cuts only sideways — `truncate` (overflow: hidden) also cut the comma tail and «р» below 1em in big type.
+ */
+const FIT = 'inline-block max-w-full overflow-x-clip text-ellipsis whitespace-nowrap align-bottom tabular-nums'
 
 /**
  * A money amount for stat tiles: big sums are shortened («55 млн USD») so they never overflow the tile,
@@ -40,6 +44,8 @@ type MoneyLinesProps = {
   value: MoneyByCurrency | undefined
   className?: string
   sign?: boolean
+  /** Background of the tile: on `ink` the empty phrase is `text-ink-muted`. */
+  tone?: 'surface' | 'ink'
 } & (
   | {
       /**
@@ -53,11 +59,30 @@ type MoneyLinesProps = {
 )
 
 /** Money per currency, one line each (we never convert between currencies). */
-export function MoneyLines({ value, className, emptyLabel = '—', sign = false, compact = false }: MoneyLinesProps): ReactElement {
+export function MoneyLines({
+  value,
+  className,
+  emptyLabel = '—',
+  sign = false,
+  compact = false,
+  tone = 'surface'
+}: MoneyLinesProps): ReactElement {
   const entries = moneyEntries(value)
   if (!entries.length)
     return (
-      <span className={cn(className, compact && 'font-sans text-body font-normal tracking-normal text-muted-foreground')}>
+      // The phrase of a compact tile wins over the caller's number classes (text-headline, colour): it is
+      // a sentence, not a sum.
+      <span
+        className={
+          compact
+            ? cn(
+                className,
+                'font-sans text-body font-normal tracking-normal',
+                tone === 'ink' ? 'text-ink-muted' : 'text-muted-foreground'
+              )
+            : className
+        }
+      >
         {emptyLabel}
       </span>
     )
