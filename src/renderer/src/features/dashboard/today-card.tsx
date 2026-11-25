@@ -62,7 +62,9 @@ export function TodayCard({
               key={c.id}
               to={ENTITY_META.card.route(c.id)}
               // On ink the lime ring is invisible in the dark theme (≈1,1:1): focus takes the ink-foreground colour.
-              className="rounded-xl text-ink-foreground hover:bg-ink-foreground/8 focus-visible:border-ink-foreground focus-visible:ring-ink-foreground/60"
+              // [button]:hover — the same variant as Item's own bg-surface hover, so tailwind-merge replaces it
+              // (a plain hover: lost to it, and the row turned into a dark pill with dark text).
+              className="rounded-xl text-ink-foreground [button]:hover:bg-ink-foreground/8 focus-visible:border-ink-foreground focus-visible:ring-ink-foreground/60"
             >
               <ItemMedia>
                 <span className={cn('size-2 rounded-full', PRIORITY_DOT[c.priority])} />
