@@ -26,9 +26,9 @@ const queryCache = new QueryCache({
     reportError(error, `query:${String(query.queryKey[0])}.${String(query.queryKey[1])}`)
     toast.error('Не вдалося завантажити дані', {
       id: 'query-error',
-      // The only way to retry: it stays until closed (4 s was too short to reach it, even with Alt+T).
-      duration: Infinity,
-      closeButton: true,
+      // 12 s, paused while hovered: long enough to reach «Повторити». A toast that stayed until closed piled up
+      // under later ones and needed sonner's corner ✕, which doesn't fit the design.
+      duration: 12_000,
       description: error instanceof Error ? error.message : String(error),
       action: {
         label: 'Повторити',

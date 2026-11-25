@@ -25,14 +25,23 @@ function trustedSender(event: IpcMainInvokeEvent): boolean {
 export function registerRpc(api: Api, bus: EventBus): void {
   ipcMain.handle(RPC_CHANNEL, async (event, path: unknown, arg: unknown): Promise<RpcResult> => {
     if (!trustedSender(event)) return { ok: false, error: 'Untrusted sender', code: 'FORBIDDEN' }
-    if (typeof path !== 'string') return { ok: false, error: 'Bad path' }
+    // A renderer and a main from different builds (dev reload, an unfinished update): the person needs a next
+    // step in plain words, the technical name goes to the log.
+    const restart =
+      'Ця дія зараз недоступна — перезапустіть Vault. Подробиці в журналі: Налаштування → Дані → «Відкрити журнал»'
+    if (typeof path !== 'string') {
+      log.warn('[rpc] bad path', path)
+      return { ok: false, error: restart }
+    }
     const [ns, method] = path.split('.') as [keyof Api, string]
     const target = Object.hasOwn(api, ns)
       ? (api[ns] as unknown as Record<string, unknown>)
       : undefined
     const fn = target && Object.hasOwn(target, method) ? target[method] : undefined
-    if (typeof fn !== 'function')
-      return { ok: false, error: `Unknown method ${path}`, code: 'NOT_FOUND' }
+    if (typeof fn !== 'function') {
+      log.warn(`[rpc] unknown method ${path}`)
+      return { ok: false, error: restart, code: 'NOT_FOUND' }
+    }
     try {
       const data = await (fn as (a: unknown) => unknown).call(target, arg)
       const types = changedTypes(ns, method, data)
