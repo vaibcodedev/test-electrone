@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import type { EntityRef } from '@shared/domain/common'
 import type { Mention } from '@shared/domain/mentions'
@@ -8,6 +8,7 @@ import { ENTITY_ICON } from '@/app/navigation'
 import { clickableProps } from '@/lib/clickable'
 import { plural } from '@/lib/format'
 import { useApi } from '@/lib/query'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { Button } from '@/components/ui/button'
 import {
   Item,
@@ -23,14 +24,19 @@ import { useDetailMode } from './detail-mode-context'
 
 /** Rows shown before «Показати ще»: the aside also holds tags, links and files. */
 const FIRST = 5
+/** One empty list for every render while loading: usePresenceList compares the array itself. */
+const NO_MENTIONS: Mention[] = []
 
 /**
  * «Згадки»: records whose text links here with «[[», each with the words around the link. Computed from the texts,
  * so there is nothing to add or remove by hand (that is «Зв’язки»). No mentions — no section, in both modes.
  */
 export function MentionsPanel({ entity }: { entity: EntityRef }): ReactElement | null {
-  const { data: mentions = [], isError, refetch } = useApi('mentions', 'list', entity)
+  const { data: mentions = NO_MENTIONS, isError, refetch } = useApi('mentions', 'list', entity)
   const [all, setAll] = useState(false)
+  // Hooks before the early returns. Rows past five unfold and fold (usePresenceList) instead of jumping.
+  const shown = useMemo(() => (all ? mentions : mentions.slice(0, FIRST)), [all, mentions])
+  const rows = usePresenceList(shown, refKey)
   // A failed load is said in place, not passed off as «no mentions».
   if (isError)
     return (
@@ -45,14 +51,15 @@ export function MentionsPanel({ entity }: { entity: EntityRef }): ReactElement |
       </section>
     )
   if (!mentions.length) return null
-  const shown = all ? mentions : mentions.slice(0, FIRST)
   const rest = mentions.length - shown.length
   return (
     <section className="flex flex-col gap-2">
       <SectionLabel>Згадки</SectionLabel>
       <div className="-mx-2.5 flex flex-col">
-        {shown.map((m) => (
-          <MentionRow key={refKey(m)} mention={m} />
+        {rows.map((entry) => (
+          <div key={entry.key} {...presenceProps(entry)}>
+            <MentionRow mention={entry.item} />
+          </div>
         ))}
       </div>
       {(rest > 0 || (all && mentions.length > FIRST)) && (

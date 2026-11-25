@@ -1,6 +1,7 @@
-import { useState, type ReactElement } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { Plus, Unlink } from 'lucide-react'
 import type { EntityRef, EntitySummary } from '@shared/domain/common'
+import type { LinkedEntity } from '@shared/domain/system'
 import { refKey } from '@shared/wikilinks'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useEntitySearch } from '@/hooks/use-entity-search'
@@ -18,6 +19,7 @@ import { EntityRow, useOpenEntity } from './entity-link'
 import { EntityOption } from './entity-options'
 import { IconAction } from './icon-action'
 import { SectionLabel } from './section-label'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
 
 const LINKS_HINT =
@@ -25,16 +27,20 @@ const LINKS_HINT =
 
 /** Rows shown before «Показати ще», as in «Згадки»: a dozen links pushed a board's designs a screen down. */
 const FIRST = 5
+/** One empty list for every render while loading: usePresenceList compares the array itself. */
+const NO_LINKS: LinkedEntity[] = []
 
 /** Links between any objects: idea → project → board → snippets → designs. */
 export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
   const viewMode = useReadOnly()
   const mode = useDetailMode()
   const openEntity = useOpenEntity()
-  const { data: links = [] } = useApi('links', 'list', entity)
+  const { data: links = NO_LINKS } = useApi('links', 'list', entity)
   const remove = useApiMutation('links', 'remove')
   const [all, setAll] = useState(false)
-  const shown = all ? links : links.slice(0, FIRST)
+  // Memoised: usePresenceList compares the array itself; rows past five unfold and fold instead of jumping.
+  const shown = useMemo(() => (all ? links : links.slice(0, FIRST)), [all, links])
+  const rows = usePresenceList(shown, (l) => l.linkId)
   const rest = links.length - shown.length
   return (
     <section className="flex flex-col gap-2">
@@ -47,28 +53,29 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
         )
       ) : (
         <div className="-mx-2.5 flex flex-col">
-          {shown.map((l) => (
-            <EntityRow
-              key={l.linkId}
-              item={l}
-              onOpen={() =>
-                mode.editing && mode.confirmClose
-                  ? mode.confirmClose(() => openEntity(l))
-                  : openEntity(l)
-              }
-              trailing={
-                <IconAction
-                  label="Прибрати зв’язок"
-                  className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    remove.mutate(l.linkId)
-                  }}
-                >
-                  <Unlink />
-                </IconAction>
-              }
-            />
+          {rows.map(({ item: l, ...entry }) => (
+            <div key={l.linkId} {...presenceProps({ ...entry, item: l })}>
+              <EntityRow
+                item={l}
+                onOpen={() =>
+                  mode.editing && mode.confirmClose
+                    ? mode.confirmClose(() => openEntity(l))
+                    : openEntity(l)
+                }
+                trailing={
+                  <IconAction
+                    label="Прибрати зв’язок"
+                    className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      remove.mutate(l.linkId)
+                    }}
+                  >
+                    <Unlink />
+                  </IconAction>
+                }
+              />
+            </div>
           ))}
         </div>
       )}

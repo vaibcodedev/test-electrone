@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { ArrowUpRight, Bug, Copy, Package, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
+import type { PaletteColor } from '@shared/colors'
 import type { CopiedItem } from '@shared/api'
 import { api } from '@/lib/api'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -21,22 +22,79 @@ import { CardEmptyText, ListCard } from '@/components/common/list-card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle
+} from '@/components/ui/item'
 import { Skeleton } from '@/components/ui/skeleton'
 
-const SECTIONS: { type: EntityType; label: string; path: string }[] = [
-  { type: 'note', label: 'Нотатки', path: '/notes' },
-  { type: 'claude', label: 'Claude', path: '/claude' },
-  { type: 'snippet', label: 'Сніпети', path: '/snippets' },
-  { type: 'component', label: 'Компоненти', path: '/components' },
-  { type: 'library', label: 'JS-бібліотеки', path: '/libraries' },
-  { type: 'fix', label: 'Помилки й рішення', path: '/fixes' }
+/**
+ * `color` — the section's own hue from the shared palette (never lime: that is the screen's one accent), tinting
+ * its icon so six tiles don't read as one grey block; `hint` — what goes there, said while the section is empty.
+ */
+const SECTIONS: {
+  type: EntityType
+  label: string
+  path: string
+  color: PaletteColor
+  hint: string
+}[] = [
+  {
+    type: 'note',
+    label: 'Нотатки',
+    path: '/notes',
+    color: '#5aa9f0',
+    hint: 'Домовленості, процеси, чернетки'
+  },
+  {
+    type: 'claude',
+    label: 'Claude',
+    path: '/claude',
+    color: '#c98af0',
+    hint: 'Промти й вдалі відповіді'
+  },
+  {
+    type: 'snippet',
+    label: 'Сніпети',
+    path: '/snippets',
+    color: '#7c8cf8',
+    hint: 'Шматки коду під рукою'
+  },
+  {
+    type: 'component',
+    label: 'Компоненти',
+    path: '/components',
+    color: '#3fbf9b',
+    hint: 'UI з живим превью'
+  },
+  {
+    type: 'library',
+    label: 'JS-бібліотеки',
+    path: '/libraries',
+    color: '#f5a524',
+    hint: 'Пакети з нотатками'
+  },
+  {
+    type: 'fix',
+    label: 'Помилки й рішення',
+    path: '/fixes',
+    color: '#f06b6b',
+    hint: 'Помилка → як вирішили'
+  }
 ]
 
 const KNOWLEDGE_TYPES = new Set<EntityType>(SECTIONS.map((s) => s.type))
 
 /** Section tiles: count + name, one neutral `tile` each. `counts` is undefined while the dashboard loads. */
-function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> | undefined }): ReactElement {
+function SectionCards({
+  counts
+}: {
+  counts: Partial<Record<EntityType, number>> | undefined
+}): ReactElement {
   const navigate = useNavigate()
   return (
     <div className="stagger grid grid-cols-3 gap-3 xl:grid-cols-6">
@@ -50,8 +108,14 @@ function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> 
             className="group tile h-31 justify-between gap-0 rounded-3xl p-4"
           >
             <span className="flex items-center justify-between">
-              <span className="grid size-9 place-items-center rounded-xl bg-foreground/[0.07]">
-                <Icon className="size-4 text-muted-foreground" />
+              <span
+                className="grid size-9 place-items-center rounded-xl"
+                style={{
+                  background: `color-mix(in oklab, ${s.color} 18%, transparent)`,
+                  color: s.color
+                }}
+              >
+                <Icon className="size-4" />
               </span>
               <ArrowUpRight className="size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
             </span>
@@ -59,12 +123,19 @@ function SectionCards({ counts }: { counts: Partial<Record<EntityType, number>> 
               {!counts ? (
                 <Skeleton className="h-7 w-10" />
               ) : count ? (
-                <span className="font-display block text-headline leading-none tabular-nums">{count}</span>
+                <span className="font-display block text-headline leading-none tabular-nums">
+                  {count}
+                </span>
               ) : (
-                // A tile without data says so in words (§8): six big «0» read as broken statistics.
-                <span className="flex h-7 items-end text-caption text-muted-foreground">поки порожньо</span>
+                // A tile without data says what belongs there (§8): six big «0» read as broken statistics, six
+                // «поки порожньо» as a grey wall.
+                <span className="flex h-7 items-end text-caption text-muted-foreground">
+                  {s.hint}
+                </span>
               )}
-              <span className="mt-1 block text-body font-medium text-muted-foreground">{s.label}</span>
+              <span className="mt-1 block truncate text-body font-semibold text-foreground">
+                {s.label}
+              </span>
             </span>
           </Card>
         )
@@ -100,7 +171,15 @@ const CHIP_STUBS = (
  * A list card with no rows to show: stubs while the query loads, an error with «Повторити», and only then
  * the empty phrase — otherwise the card claimed there was nothing while the data was still on its way.
  */
-function NoRows({ query, stubs = ROW_STUBS, children }: { query: ListQuery; stubs?: ReactNode; children: ReactNode }): ReactElement {
+function NoRows({
+  query,
+  stubs = ROW_STUBS,
+  children
+}: {
+  query: ListQuery
+  stubs?: ReactNode
+  children: ReactNode
+}): ReactElement {
   if (query.isLoading) return <>{stubs}</>
   if (query.isError)
     return (
@@ -124,7 +203,10 @@ function MostCopied(): ReactElement {
   const copy = async (x: CopiedItem): Promise<void> => {
     let text: string | undefined
     try {
-      text = x.type === 'snippet' ? (await api.snippets.get(x.id))?.code : (await api.claude.get(x.id))?.content
+      text =
+        x.type === 'snippet'
+          ? (await api.snippets.get(x.id))?.code
+          : (await api.claude.get(x.id))?.content
     } catch (e) {
       reportError(e, 'copy')
     }
@@ -167,7 +249,9 @@ function MostCopied(): ReactElement {
         </ItemGroup>
       ) : (
         <NoRows query={top}>
-          <CardEmptyText>Копіюйте сніпети й промти кнопкою — найпотрібніші зберуться тут.</CardEmptyText>
+          <CardEmptyText>
+            Копіюйте сніпети й промти кнопкою — найпотрібніші зберуться тут.
+          </CardEmptyText>
         </NoRows>
       )}
     </ListCard>
@@ -195,7 +279,10 @@ export function KnowledgeOverviewPage(): ReactElement {
 
   const newNote = (): void => {
     if (createNote.isPending) return
-    createNote.mutate({ title: 'Нова нотатка', folder: '' }, { onSuccess: (n) => navigate(ENTITY_META.note.route(n.id)) })
+    createNote.mutate(
+      { title: 'Нова нотатка', folder: '' },
+      { onSuccess: (n) => navigate(ENTITY_META.note.route(n.id)) }
+    )
   }
 
   return (
@@ -221,16 +308,27 @@ export function KnowledgeOverviewPage(): ReactElement {
                     <EntityRow
                       key={`${r.type}:${r.id}`}
                       item={r}
-                      trailing={<span className="text-meta text-muted-foreground">{fmtRelative(r.updatedAt)}</span>}
+                      trailing={
+                        <span className="text-meta text-muted-foreground">
+                          {fmtRelative(r.updatedAt)}
+                        </span>
+                      }
                     />
                   ))}
                 </div>
               ) : (
                 <NoRows query={recentQuery}>
                   <div className="flex flex-col items-start gap-3">
-                    <CardEmptyText>Тут з’являться останні змінені записи з усіх розділів знань.</CardEmptyText>
+                    <CardEmptyText>
+                      Тут з’являться останні змінені записи з усіх розділів знань.
+                    </CardEmptyText>
                     {counts && total === 0 && (
-                      <Button variant="subtle" size="xs" disabled={createNote.isPending} onClick={newNote}>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        disabled={createNote.isPending}
+                        onClick={newNote}
+                      >
                         <Plus /> Створити нотатку
                       </Button>
                     )}
@@ -255,14 +353,24 @@ export function KnowledgeOverviewPage(): ReactElement {
                   {openFixes.map((f) => (
                     <EntityRow
                       key={f.id}
-                      item={{ type: 'fix', id: f.id, title: f.title, subtitle: f.context || undefined, updatedAt: f.updatedAt }}
+                      item={{
+                        type: 'fix',
+                        id: f.id,
+                        title: f.title,
+                        subtitle: f.context || undefined,
+                        updatedAt: f.updatedAt
+                      }}
                     />
                   ))}
                 </div>
               ) : (
                 // The phrase depends on the counts too: «Усе вирішено» flashed while the list was still loading.
                 <NoRows
-                  query={{ isLoading: fixes.isLoading || fixCounts.isLoading, isError: fixes.isError, refetch: fixes.refetch }}
+                  query={{
+                    isLoading: fixes.isLoading || fixCounts.isLoading,
+                    isError: fixes.isError,
+                    refetch: fixes.refetch
+                  }}
                 >
                   <CardEmptyText>
                     {allResolved
@@ -299,7 +407,9 @@ export function KnowledgeOverviewPage(): ReactElement {
                 </div>
               ) : (
                 <NoRows query={libs} stubs={CHIP_STUBS}>
-                  <CardEmptyText>Позначте бібліотеку статусом «Хочу спробувати» — список збереться тут.</CardEmptyText>
+                  <CardEmptyText>
+                    Позначте бібліотеку статусом «Хочу спробувати» — список збереться тут.
+                  </CardEmptyText>
                 </NoRows>
               )}
             </ListCard>
