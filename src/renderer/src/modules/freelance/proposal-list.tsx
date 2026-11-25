@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Award, BadgeCheck } from 'lucide-react'
 import type { Proposal } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { daysSince, fmtDate, fmtMoney, plural } from '@/lib/format'
+import { fmtMoney } from '@/lib/format'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -14,7 +14,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL } from './proposal-labels'
+import { PROPOSAL_STATUS_BADGE, PROPOSAL_STATUS_LABEL, sentLabel } from './proposal-labels'
 
 /** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
 const COL = {
@@ -87,7 +87,6 @@ export function ProposalList({
           )
         }
         renderItem={(p) => {
-          const days = daysSince(p.sentAt, now)
           return (
             <Table className="table-fixed">
               <TableBody>
@@ -141,13 +140,7 @@ export function ProposalList({
                   <TableCell
                     className={cn(COL.sent, 'pr-4 text-right text-muted-foreground tabular-nums')}
                   >
-                    {p.sentAt
-                      ? days !== null && days < 7
-                        ? days === 0
-                          ? 'сьогодні'
-                          : `${days} ${plural(days, ['день', 'дні', 'днів'])} тому`
-                        : fmtDate(p.sentAt, 'd MMMM')
-                      : '—'}
+                    {p.sentAt ? sentLabel(p.sentAt, now) : '—'}
                   </TableCell>
                 </TableRow>
               </TableBody>

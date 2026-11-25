@@ -13,9 +13,9 @@ import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { EmptyState, Field, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { FormDialog } from '@/components/common/form-dialog'
+import { SectionLabel } from '@/components/common/section-label'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
 import { GOAL_METRIC_LABEL, GOAL_PERIOD_LABEL } from './g2-labels'
 import { GoalCard } from './goal-card'
@@ -99,9 +100,10 @@ function GoalDialog({
   }
 
   const rate = isRateMetric(form.metric)
+  // Money even for «Усі платформи»: the progress is then counted in USD (formatGoalValue).
   const unit =
     form.metric === 'net_income'
-      ? platformList.find((p) => p.id === form.platformId)?.currency
+      ? (platformList.find((p) => p.id === form.platformId)?.currency ?? 'USD')
       : rate
         ? '%'
         : undefined
@@ -167,6 +169,7 @@ function GoalDialog({
           integer={form.metric !== 'net_income' && !rate}
           unit={unit}
           value={form.target}
+          hint={form.target === null ? 'Вкажіть ціль' : undefined}
           onCommit={(target) => setForm((f) => ({ ...f, target }))}
           onValidityChange={numbers.report('target')}
         />
@@ -189,12 +192,16 @@ function GoalDialog({
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Назва (необов’язково)" htmlFor="goal-title">
+      {/* The generated name is a hint, not a placeholder: a placeholder read as an already typed value. */}
+      <Field
+        label="Назва (необов’язково)"
+        htmlFor="goal-title"
+        hint={`Порожньо — «${goalTitle(form)}»`}
+      >
         <Input
           id="goal-title"
           value={form.title}
           maxLength={TITLE_MAX}
-          placeholder={goalTitle(form)}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
         />
       </Field>
@@ -213,27 +220,32 @@ function GoalMenu({ goal }: { goal: Goal }): ReactElement {
   const remove = useApiMutation('goals', 'remove', { successMessage: 'Ціль видалено' })
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-xs" aria-label="Дії з ціллю">
-            <MoreHorizontal />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setEditing(true)}>
-            <Pencil /> Змінити
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => update.mutate({ id: goal.id, patch: { active: !goal.active } })}
-          >
-            {goal.active ? <Pause /> : <Play />} {goal.active ? 'Призупинити' : 'Відновити'}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
-            <Trash2 /> Видалити
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <Tooltip>
+        <DropdownMenu>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-xs" aria-label="Дії з ціллю">
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setEditing(true)}>
+              <Pencil /> Змінити
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => update.mutate({ id: goal.id, patch: { active: !goal.active } })}
+            >
+              {goal.active ? <Pause /> : <Play />} {goal.active ? 'Призупинити' : 'Відновити'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
+              <Trash2 /> Видалити
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <TooltipContent>Дії з ціллю</TooltipContent>
+      </Tooltip>
       <GoalDialog goal={goal} open={editing} onOpenChange={setEditing} />
       {/* Looks like common Confirm, which can't be opened from a menu item: it owns its trigger. */}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
@@ -292,12 +304,8 @@ export function GoalsPage() {
           <EmptyState
             icon={Target}
             title="Цілей поки немає"
-            hint="Наприклад: 10 відгуків на тиждень або $3000 на руки за місяць."
-            action={
-              <Button variant="soft" onClick={() => setCreateOpen(true)}>
-                <Plus /> Поставити ціль
-              </Button>
-            }
+            hint="Наприклад: 10 відгуків на тиждень або 3 000 USD на руки за місяць."
+            cta={{ label: 'Поставити ціль', icon: Plus, onClick: () => setCreateOpen(true) }}
           />
         ) : progress.length > 0 ? (
           <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3">
@@ -322,14 +330,16 @@ export function GoalsPage() {
         )}
         {inactive.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h2 className="text-caption font-semibold text-muted-foreground">На паузі</h2>
+            <SectionLabel>На паузі</SectionLabel>
+            {/* Quieter by colour, not by opacity: a faded row fell below 4.5:1. */}
             {inactive.map((g) => (
-              <Card key={g.id} className="flex-row items-center gap-3 px-5 py-3 opacity-70">
-                <span className="flex-1 truncate text-body">{goalTitle(g)}</span>
+              <Card key={g.id} className="flex-row items-center gap-3 px-5 py-3">
+                <span className="flex-1 truncate text-body text-muted-foreground">
+                  {goalTitle(g)}
+                </span>
                 <span className="text-caption text-muted-foreground">
                   ціль {formatGoalValue(g.metric, g.target, platformCurrency(g.platformId))}
                 </span>
-                <Badge variant="soft">На паузі</Badge>
                 <GoalMenu goal={g} />
               </Card>
             ))}

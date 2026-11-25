@@ -53,7 +53,11 @@ export function CalculatorPage() {
   }, [saved, subsUsd])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(input))
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(input))
+    } catch {
+      /* storage unavailable (private window, blocked, full): the calculator still works for this session */
+    }
   }, [input])
 
   const r = calculateRate(input)
@@ -169,7 +173,10 @@ export function CalculatorPage() {
           <div className="flex flex-col gap-4">
             <Card className="bg-ink text-ink-foreground">
               <CardHeader>
-                <CardTitle className="text-ink-muted">Ставка за годину</CardTitle>
+                {/* A stat label (muted over the number), not a card title: CardTitle is never grey. */}
+                <CardDescription className="text-body font-medium text-ink-muted">
+                  Ставка за годину
+                </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-2">
                 <div className="font-display text-display leading-none tabular-nums">
@@ -233,8 +240,11 @@ export function CalculatorPage() {
                   <div className="font-display text-headline leading-none tabular-nums">
                     {usd(fixedBase)}
                   </div>
+                  {/* Each sum stays whole: the range used to break right after the dash. */}
                   <div className="mt-1 text-caption text-muted-foreground">
-                    Із запасом 15–20% на правки: {usd(fixedBase * 1.15)} – {usd(fixedBase * 1.2)}
+                    <div>Із запасом 15–20% на правки:</div>
+                    <span className="whitespace-nowrap">{usd(fixedBase * 1.15)}</span> –{' '}
+                    <span className="whitespace-nowrap">{usd(fixedBase * 1.2)}</span>
                   </div>
                 </div>
               </CardContent>

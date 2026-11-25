@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { Award, BellRing, Kanban, List, Plus } from 'lucide-react'
 import { proposalInputSchema, type Platform, type Proposal } from '@shared/domain/freelance'
@@ -17,10 +17,15 @@ import {
   InputGroupButton,
   InputGroupInput
 } from '@/components/ui/input-group'
-import { EmptyState, FilterChips, SearchInput, Segmented } from '@/components/common/page'
+import {
+  EmptyState,
+  FilterBar,
+  FilterChips,
+  SearchInput,
+  Segmented
+} from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { ProposalBoard } from './proposal-board'
-import { useNewParam } from './use-new-param'
 import { ProposalList } from './proposal-list'
 import { ProposalEditorSheet } from './proposal-editor'
 
@@ -28,8 +33,11 @@ const TITLE_MAX = limitsOf(proposalInputSchema).jobTitle
 
 type View = 'kanban' | 'list'
 
-/** Lime «+ Відгук» with a one-field popover; `open` is controlled so the overview (`?new=1`) and the empty state can open it. */
-function NewProposalButton({
+/**
+ * Lime «+ Відгук» with a one-field popover. It lives in the platform page header (`N` presses it there);
+ * `open` is controlled so the overview (`?new=1`) and the empty state can open it.
+ */
+export function NewProposalButton({
   platform,
   open,
   onOpenChange,
@@ -39,7 +47,7 @@ function NewProposalButton({
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated: (p: Proposal) => void
-}) {
+}): ReactElement {
   const [title, setTitle] = useState('')
   const create = useApiMutation('proposals', 'create', {
     onSuccess: (p) => {
@@ -92,7 +100,9 @@ function NewProposalButton({
           </InputGroupAddon>
         </InputGroup>
         <p className="mt-2 px-1 text-caption text-muted-foreground">
-          Решту — ставку, конекти, клієнта — заповніть у картці.
+          {platform.creditsName
+            ? `Решту — ставку, ${platform.creditsName}, клієнта — заповніть у картці.`
+            : 'Решту — ставку й клієнта — заповніть у картці.'}
         </p>
       </PopoverContent>
     </Popover>
@@ -143,17 +153,20 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
   )
 }
 
-/** «Отклики» tab: kanban/list of proposals with filters, follow-up banner and the editor sheet. */
-export function ProposalsTab({ platform }: { platform: Platform }) {
+/** «Відгуки» tab: kanban/list of proposals with filters, follow-up banner and the editor sheet. */
+export function ProposalsTab({
+  platform,
+  onNew
+}: {
+  platform: Platform
+  onNew: () => void
+}): ReactElement {
   const view = (useUi((s) => s.views.proposals) as View | undefined) ?? 'kanban'
   const setView = useUi((s) => s.setView)
   const [search, setSearch] = useState('')
   const [niche, setNiche] = useState<string | undefined>()
   const [starred, setStarred] = useState(false)
   const [openId, setOpenId] = useOpenParam()
-  const [newOpen, setNewOpen] = useState(false)
-  // «+ Відгук» on the overview lands here with ?new=1.
-  useNewParam(() => setNewOpen(true))
   const term = useDebounced(search.trim())
   const base = { platformId: platform.id, search: term || undefined }
   // Kanban needs every card (and the niche chips count them); the list view pages through the server.
@@ -176,42 +189,50 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Вакансія, клієнт, текст відгуку"
-          className="w-72"
-        />
-        <Toggle
-          variant="chip"
-          size="sm"
-          pressed={starred}
-          onPressedChange={setStarred}
-          aria-label="Лише сильні"
-        >
-          <Award /> Сильні
-        </Toggle>
-        <div className="flex-1" />
-        <Segmented
-          className="w-fit"
-          value={view}
-          onChange={(v) => setView('proposals', v)}
-          options={[
-            { value: 'kanban', label: <Kanban />, title: 'Канбан' },
-            { value: 'list', label: <List />, title: 'Список' }
-          ]}
-        />
-        <NewProposalButton
-          platform={platform}
-          open={newOpen}
-          onOpenChange={setNewOpen}
-          onCreated={(p) => setOpenId(p.id)}
-        />
-      </div>
-      {niches.length > 0 && (
-        <FilterChips options={niches} value={niche} onChange={setNiche} allLabel="Усі типи" />
-      )}
+      <FilterBar
+        chips={
+          <Toggle
+            variant="chip"
+            size="sm"
+            pressed={starred}
+            onPressedChange={setStarred}
+            aria-label="Лише сильні"
+          >
+            <Award /> Сильні
+          </Toggle>
+        }
+        trailing={
+          <>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Вакансія, клієнт, текст відгуку"
+              className="w-72"
+            />
+            <Segmented
+              className="w-fit"
+              value={view}
+              onChange={(v) => setView('proposals', v)}
+              options={[
+                { value: 'kanban', label: <Kanban />, title: 'Канбан' },
+                { value: 'list', label: <List />, title: 'Список' }
+              ]}
+            />
+          </>
+        }
+        secondary={
+          niches.length > 0 && (
+            <FilterChips
+              tone="neutral"
+              options={niches}
+              value={niche}
+              onChange={setNiche}
+              allLabel="Усі типи"
+              label="Тип завдання"
+            />
+          )
+        }
+      />
       <StaleBanner platformId={platform.id} onOpen={setOpenId} />
 
       <div className="min-h-0 flex-1">
@@ -219,11 +240,7 @@ export function ProposalsTab({ platform }: { platform: Platform }) {
           <EmptyState
             title="Відгуків поки немає"
             hint="Додавайте кожен відгук — так стане видно, які завдання й тексти приносять контракти."
-            action={
-              <Button variant="subtle" onClick={() => setNewOpen(true)}>
-                <Plus /> Додати відгук
-              </Button>
-            }
+            cta={{ label: 'Додати відгук', icon: Plus, onClick: onNew }}
           />
         ) : view === 'kanban' ? (
           <ProposalBoard

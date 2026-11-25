@@ -1,6 +1,6 @@
 import { useState, type RefObject } from 'react'
 import { useNavigate } from 'react-router'
-import { Award, FileText, Handshake, Trash2, X } from 'lucide-react'
+import { Award, FileText, Handshake } from 'lucide-react'
 import {
   PROPOSAL_STATUSES,
   proposalInputSchema,
@@ -10,7 +10,6 @@ import {
 } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
 import {
-  EditToggle,
   guardSheet,
   RecordMode,
   useModeRef,
@@ -28,13 +27,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Toggle } from '@/components/ui/toggle'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Field } from '@/components/common/page'
-import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import { Field, Kbd } from '@/components/common/page'
+import { InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
-import { PinButtons } from '@/components/common/pin-buttons'
 import { Choice } from '../crm/parts'
 import { PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { HireDialog } from './hire-dialog'
@@ -43,6 +41,7 @@ import { PreChecklist } from './pre-checklist'
 import { TemplatePicker } from './template-picker'
 import { ProposalBidSection } from './proposal-bid-section'
 import { ProposalClientSection } from './proposal-client-section'
+import { DisabledHint } from './disabled-hint'
 
 const PROPOSAL_L = limitsOf(proposalInputSchema)
 
@@ -79,8 +78,16 @@ function Editor({
   )
   const [notes, setNotes] = useAutosave(p.notes, (v) => patch({ notes: v }))
   const hasChecklist = platform.preChecklist.length > 0
-  // Nothing written yet: in view mode the text section is empty, so its separator goes too.
+  // Nothing written yet: view mode says so in the text section instead of showing nothing.
   const noTexts = !p.coverLetter.trim() && !p.jobDescription.trim() && !p.notes.trim()
+  const noClient =
+    !p.clientName &&
+    !p.clientCountry &&
+    p.clientRating == null &&
+    p.clientSpent == null &&
+    p.clientHireRate == null &&
+    !p.proposalsOnJob &&
+    !p.paymentVerified
   // Click opens the proposal for reading; «Редагувати» switches it to editing.
   const mode = useRecordMode(p.id, 'proposal')
   usePublishMode(modeRef, mode)
@@ -88,56 +95,46 @@ function Editor({
   return (
     <RecordMode mode={mode}>
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-          <PinButtons entity={{ type: 'proposal', id: p.id }} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Toggle
-                size="sm"
-                pressed={p.starred}
-                onPressedChange={(starred) => patch({ starred })}
-                aria-label="Сильний відгук"
-                className="h-8 gap-1.5 rounded-full bg-surface px-3 text-caption on:bg-warn/15 on:text-warn"
-              >
-                <Award /> Сильний
-              </Toggle>
-            </TooltipTrigger>
-            <TooltipContent>Сильний відгук — використати ще раз</TooltipContent>
-          </Tooltip>
-          <div className="flex-1" />
-          {p.projectId ? (
-            <Button size="sm" variant="soft" onClick={() => navigate(`/projects/${p.projectId}`)}>
-              <Handshake /> Відкрити контракт
-            </Button>
-          ) : (
-            <Button size="sm" variant="lime" onClick={() => setHireOpen(true)}>
-              <Handshake /> Контракт
-            </Button>
-          )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                data-edit-only
-                aria-label="У кошик"
-                onClick={() => remove.mutate(p.id)}
-              >
-                <Trash2 />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>У кошик</TooltipContent>
-          </Tooltip>
-          <EditToggle mode={mode} onClose={onClose} />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Закрити" onClick={() => (mode.confirmClose ? mode.confirmClose(onClose) : onClose())}>
-                <X />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Закрити · Esc</TooltipContent>
-          </Tooltip>
-        </div>
+        {/* The record header order (DS §8): pins → «Сильний» · contract → trash → edit → ✕. */}
+        <RecordActions
+          entity={{ type: 'proposal', id: p.id }}
+          mode={mode}
+          extra={
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    size="sm"
+                    pressed={p.starred}
+                    onPressedChange={(starred) => patch({ starred })}
+                    aria-label="Сильний відгук"
+                    className="h-8 gap-1.5 rounded-full bg-surface px-3 text-caption on:bg-warn/15 on:text-warn"
+                  >
+                    <Award /> Сильний
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent>Сильний відгук — використати ще раз</TooltipContent>
+              </Tooltip>
+              <span className="flex-1" />
+              {p.projectId ? (
+                <Button
+                  size="sm"
+                  variant="soft"
+                  onClick={() => navigate(`/projects/${p.projectId}`)}
+                >
+                  <Handshake /> Відкрити контракт
+                </Button>
+              ) : (
+                <Button size="sm" variant="lime" onClick={() => setHireOpen(true)}>
+                  <Handshake /> Контракт
+                </Button>
+              )}
+            </>
+          }
+          onDelete={() => remove.mutate(p.id)}
+          onClose={onClose}
+          className="border-b border-border px-4 py-2.5"
+        />
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <SheetTitle className="sr-only">{p.jobTitle}</SheetTitle>
@@ -161,8 +158,13 @@ function Editor({
                 }))}
               />
             </Field>
-            <Field label="Тип завдання">
-              <NicheCombobox value={p.niche} onChange={(niche) => patch({ niche })} />
+            <Field label="Тип завдання" htmlFor={`niche-${p.id}`}>
+              <NicheCombobox
+                id={`niche-${p.id}`}
+                value={p.niche}
+                maxLength={PROPOSAL_L.niche}
+                onChange={(niche) => patch({ niche })}
+              />
             </Field>
             <Field label="Надіслано">
               <DatePicker
@@ -183,13 +185,22 @@ function Editor({
 
           <Separator className="my-6" />
           <ProposalBidSection proposal={p} platform={platform} patch={patch} />
+          {/* Nothing about the client yet: while reading, the section would only say «—». */}
+          <div data-edit-only={noClient || undefined}>
+            <Separator className="my-6" />
+            <ProposalClientSection proposal={p} platform={platform} patch={patch} />
+          </div>
           <Separator className="my-6" />
-          <ProposalClientSection proposal={p} platform={platform} patch={patch} />
-          <Separator className="my-6" data-edit-only={(noTexts && !hasChecklist) || undefined} />
           <PreChecklist platform={platform} proposal={p} patch={patch} />
-          {hasChecklist && <Separator className="my-6" data-edit-only={noTexts || undefined} />}
+          {hasChecklist && <Separator className="my-6" />}
 
           <section className="flex flex-col gap-4">
+            {noTexts && !mode.editing && (
+              <p className="text-body text-muted-foreground">
+                Тексту відгуку ще немає. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб вставити
+                шаблон або написати свій.
+              </p>
+            )}
             <div data-edit-only>
               <TemplatePicker key={p.id} proposal={p} patch={patch} />
             </div>
@@ -202,14 +213,18 @@ function Editor({
               minHeight="200px"
             />
             <div className="flex gap-2" data-edit-only>
-              <Button
-                variant="soft"
-                size="sm"
-                disabled={!p.coverLetter.trim() || toTemplate.isPending}
-                onClick={() => toTemplate.mutate(p.id)}
+              <DisabledHint
+                reason={!p.coverLetter.trim() ? 'Спочатку напишіть текст відгуку' : undefined}
               >
-                <FileText /> Зробити шаблоном
-              </Button>
+                <Button
+                  variant="soft"
+                  size="sm"
+                  disabled={!p.coverLetter.trim() || toTemplate.isPending}
+                  onClick={() => toTemplate.mutate(p.id)}
+                >
+                  <FileText /> Зробити шаблоном
+                </Button>
+              </DisabledHint>
             </div>
             <MarkdownField
               label="Опис вакансії"
@@ -231,7 +246,10 @@ function Editor({
           </section>
 
           <div className="mt-6 flex flex-col gap-6">
-            <section className="flex flex-col gap-2">
+            <section
+              className="flex flex-col gap-2"
+              data-edit-only={p.tags.length === 0 || undefined}
+            >
               <SectionLabel>Мітки</SectionLabel>
               <TagPicker value={p.tags} onChange={(tagIds) => patch({ tagIds })} />
             </section>

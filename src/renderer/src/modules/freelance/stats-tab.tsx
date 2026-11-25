@@ -65,7 +65,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
   const cols = columns(platform.creditsName)
   const weekly = stats.weekly.map((w) => ({
     ...w,
-    label: format(parseISO(w.week), 'd MMM', { locale: LOCALE })
+    label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }).replace('.', '')
   }))
 
   return (

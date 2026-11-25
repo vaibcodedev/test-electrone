@@ -1,6 +1,6 @@
 import type { Goal, GoalMetric } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { fmtMoney, fmtPercent } from '@/lib/format'
+import { fmtMoney, fmtNumber, fmtPercent } from '@/lib/format'
 import { GOAL_METRIC_LABEL } from './g2-labels'
 
 /** `currency` — from `GoalProgress.currency` (server picks it); USD only when nothing is known. */
@@ -11,7 +11,7 @@ export function formatGoalValue(
 ): string {
   if (metric === 'net_income') return fmtMoney(value, currency ?? 'USD')
   if (metric === 'reply_rate' || metric === 'hire_rate') return fmtPercent(value)
-  return String(Math.round(value))
+  return fmtNumber(Math.round(value))
 }
 
 export function goalTitle(g: Pick<Goal, 'title' | 'metric' | 'period'>): string {

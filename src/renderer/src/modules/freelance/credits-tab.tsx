@@ -13,12 +13,12 @@ import { NumberInput } from '@/components/common/number-input'
 import { NumberField } from '@/components/common/number-field'
 import { StatTile } from '@/components/common/stat-tile'
 import { MoneyValue } from '@/components/common/money-value'
-import { IconAction } from '@/components/common/icon-action'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { fmtDate, fmtMoney, fmtNumber } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { InputGroup, InputGroupAddon, InputGroupText } from '@/components/ui/input-group'
 import {
   Table,
@@ -31,6 +31,7 @@ import {
 import { DatePicker } from '@/components/common/date-picker'
 import { EmptyState, Field, Segmented } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
+import { EmptyValue } from '../crm/parts'
 
 const NOTE_MAX = limitsOf(creditTxInputSchema).note
 const CREDIT_R = rangesOf(creditTxInputSchema)
@@ -44,11 +45,6 @@ const KIND_LABEL: Record<CreditKind, string> = {
   refund: 'Повернення',
   adjust: 'Коригування'
 }
-
-/** A tile with nothing to count yet says so in words instead of a big «0» or «—». */
-const phrase = (text: string): ReactNode => (
-  <span className="text-body font-normal text-muted-foreground">{text}</span>
-)
 
 const AMOUNT_ID = 'credit-amount'
 
@@ -94,7 +90,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
       },
       {
         onSuccess: () => {
-          toast.success(`Додано ${amountNum} ${name.toLowerCase()}`)
+          toast.success(`Додано ${amountNum} — ${name}`)
           setAmount(null)
           setCost(null)
           setNote('')
@@ -115,17 +111,23 @@ export function CreditsTab({ platform }: { platform: Platform }) {
         <StatTile label="Витрачено" value={s?.spent ?? 0} hint="на відгуки з бустом" />
         <StatTile
           label="Середня ціна"
-          value={s?.avgCreditPrice ? money(s.avgCreditPrice) : phrase('ще немає купівель')}
+          value={
+            s?.avgCreditPrice ? money(s.avgCreditPrice) : <EmptyValue>ще немає купівель</EmptyValue>
+          }
           hint={s?.avgCreditPrice ? 'за одиницю' : undefined}
         />
         <StatTile
           label="На контракт"
-          value={s?.creditsPerContract ? s.creditsPerContract : phrase('ще немає контрактів')}
+          value={
+            s?.creditsPerContract ? s.creditsPerContract : <EmptyValue>ще немає контрактів</EmptyValue>
+          }
           hint={s?.creditsPerContract ? `${name.toLowerCase()} на 1 контракт` : undefined}
         />
         <StatTile
           label="Ціна контракту"
-          value={s?.costPerContract ? money(s.costPerContract) : phrase('ще немає контрактів')}
+          value={
+            s?.costPerContract ? money(s.costPerContract) : <EmptyValue>ще немає контрактів</EmptyValue>
+          }
           hint={s?.costPerContract ? `контрактів: ${s.contracts}` : undefined}
         />
       </div>
@@ -140,7 +142,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           <form
-            // One baseline: labels above, every control h-9 on bg-card (the card itself is surface).
+            // One baseline: labels above, every control h-9 with the standard field look.
             className="grid grid-cols-[auto_140px_170px_190px_minmax(0,1fr)_auto] items-end gap-3"
             onSubmit={(e) => {
               e.preventDefault()
@@ -168,7 +170,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
               onValidityChange={setAmountBad}
             />
             <Field label="Вартість">
-              <InputGroup className="bg-card">
+              <InputGroup>
                 <NumberInput
                   data-slot="input-group-control"
                   className={GROUP_CONTROL}
@@ -180,7 +182,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
                   onChange={setCost}
                   placeholder={
                     kind === 'purchase' && amountNum > 0
-                      ? `≈ ${(amountNum * platform.creditPrice).toFixed(2)}`
+                      ? `≈ ${fmtNumber(amountNum * platform.creditPrice)}`
                       : '0'
                   }
                 />
@@ -190,16 +192,10 @@ export function CreditsTab({ platform }: { platform: Platform }) {
               </InputGroup>
             </Field>
             <Field label="Дата">
-              <DatePicker
-                value={at}
-                onChange={setAt}
-                clearable={false}
-                className="[&_button]:bg-card"
-              />
+              <DatePicker value={at} onChange={setAt} clearable={false} />
             </Field>
             <Field label="Коментар">
               <Input
-                className="bg-card"
                 value={note}
                 maxLength={NOTE_MAX}
                 onChange={(e) => setNote(e.target.value)}
@@ -210,7 +206,10 @@ export function CreditsTab({ platform }: { platform: Platform }) {
               <Plus /> Додати
             </Button>
           </form>
-          {reason && amount !== null && <p className="text-caption text-warn">{reason}</p>}
+          {/* An out-of-range amount already says so under the field. */}
+          {reason && amount !== null && !amountBad && (
+            <p className="text-caption text-warn">{reason}</p>
+          )}
           {reason && amount === null && (
             <p className="text-caption text-muted-foreground">{reason}, щоб додати запис.</p>
           )}
@@ -221,11 +220,11 @@ export function CreditsTab({ platform }: { platform: Platform }) {
         <EmptyState
           title="Поповнень поки немає"
           hint={`Запишіть першу купівлю ${name}, щоб бачити ціну одного контракту.`}
-          action={
-            <Button variant="subtle" onClick={() => document.getElementById(AMOUNT_ID)?.focus()}>
-              <Plus /> Записати купівлю
-            </Button>
-          }
+          cta={{
+            label: 'Записати купівлю',
+            icon: Plus,
+            onClick: () => document.getElementById(AMOUNT_ID)?.focus()
+          }}
         />
       ) : (
         <Card className="py-2">
@@ -267,18 +266,27 @@ export function CreditsTab({ platform }: { platform: Platform }) {
                     {t.note || '—'}
                   </TableCell>
                   <TableCell className="pr-5 text-right">
-                    <Confirm
-                      title="Видалити запис?"
-                      description="Баланс перерахується."
-                      onConfirm={() => remove.mutate(t.id)}
-                    >
-                      <IconAction
-                        label="Видалити запис"
-                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
+                    {/* Tooltip > Confirm > trigger: both hang on one button, so the tooltip doesn't pop up
+                        again when the confirmation returns focus to it. */}
+                    <Tooltip>
+                      <Confirm
+                        title="Видалити запис?"
+                        description="Баланс перерахується."
+                        onConfirm={() => remove.mutate(t.id)}
                       >
-                        <Trash2 />
-                      </IconAction>
-                    </Confirm>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label="Видалити запис"
+                            className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </TooltipTrigger>
+                      </Confirm>
+                      <TooltipContent>Видалити запис</TooltipContent>
+                    </Tooltip>
                   </TableCell>
                 </TableRow>
               ))}

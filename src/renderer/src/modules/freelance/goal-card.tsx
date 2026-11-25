@@ -76,15 +76,21 @@ export function GoalCard({
               : '[&>[data-slot=progress-indicator]]:bg-chart-1'
           )}
         />
-        <p className={cn('text-caption', done ? 'text-success' : 'text-muted-foreground')}>
-          {done
-            ? `Виконано: ${formatGoalValue(g.metric, g.current, g.currency)} з ${formatGoalValue(g.metric, g.target, g.currency)}`
-            : `Ще ${formatGoalValue(g.metric, remaining, g.currency)} · ${
-                daysAfterToday > 0
-                  ? `залишилось ${daysLeft} ${plural(daysLeft, ['день', 'дні', 'днів'])}`
-                  : 'останній день'
-              }`}
-        </p>
+        {/* Done: the number and the badge already say it; only an overshoot is worth a line. */}
+        {done ? (
+          g.current > g.target && (
+            <p className="text-caption text-success">
+              Перевиконано на {formatGoalValue(g.metric, g.current - g.target, g.currency)}
+            </p>
+          )
+        ) : (
+          <p className="text-caption text-muted-foreground">
+            Ще {formatGoalValue(g.metric, remaining, g.currency)} ·{' '}
+            {daysAfterToday > 0
+              ? `залишилось ${daysLeft} ${plural(daysLeft, ['день', 'дні', 'днів'])}`
+              : 'останній день'}
+          </p>
+        )}
         <div className="flex flex-wrap items-center gap-1.5 text-meta text-muted-foreground">
           <span>
             {GOAL_PERIOD_LABEL[g.period]}: {periodRange(g.periodStart, g.periodEnd)}

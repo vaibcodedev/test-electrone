@@ -4,20 +4,28 @@ import { redFlagInputSchema, type RedFlag, type RedFlagPatch } from '@shared/dom
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { countLabel, mdPreview } from '@/lib/format'
+import { mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ItemDescription } from '@/components/ui/item'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
   EmptyState,
+  FilterBar,
+  NoResults,
   Page,
   PageBody,
   PageHeader,
-  SearchInput,
-  Segmented
+  SearchInput
 } from '@/components/common/page'
 import {
   DetailPane,
@@ -68,12 +76,12 @@ function SeverityBadge({ severity, active }: { severity: number; active?: boolea
   )
 }
 
-const SEVERITY_OPTIONS = [1, 2, 3].map((n) => ({
-  value: String(n) as '1' | '2' | '3',
-  label: SEVERITY_LABEL[n]
-}))
+const SEVERITY_OPTIONS = [1, 2, 3].map((n) => ({ value: String(n), label: SEVERITY_LABEL[n] }))
 
-/** Coloured badge while reading (the record's main signal); a full-width segmented choice while editing. */
+/**
+ * Coloured badge while reading (the record's main signal). While editing — a Select: three segments
+ * don't fit the narrow aside column (docs/design-system.md → Переключатели).
+ */
 function SeverityField({ severity, onChange }: { severity: number; onChange: (v: number) => void }): ReactElement {
   const readOnly = useReadOnly()
   return (
@@ -83,13 +91,25 @@ function SeverityField({ severity, onChange }: { severity: number; onChange: (v:
           <SeverityBadge severity={severity} />
         </div>
       ) : (
-        <Segmented
-          className="w-full [&>[data-slot=toggle-group-item]]:flex-1"
-          size="xs"
-          value={String(severity) as '1' | '2' | '3'}
-          onChange={(v) => onChange(Number(v))}
-          options={SEVERITY_OPTIONS}
-        />
+        <Select value={String(severity)} onValueChange={(v) => onChange(Number(v))}>
+          <SelectTrigger size="sm" className="w-full" aria-label="Наскільки серйозно">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SEVERITY_OPTIONS.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                <span
+                  aria-hidden
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    SEVERITY_DOT[SEVERITY_VARIANT[Number(o.value)]]
+                  )}
+                />
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
     </Block>
   )
@@ -157,30 +177,31 @@ export function RedFlagsPage() {
   const list = useInfiniteApi('redflags', 'list', { search: q || undefined })
   const create = useApiMutation('redflags', 'create', { onSuccess: (f) => setOpen(f.id) })
   const { data: current } = useApi('redflags', 'get', open ?? '', { enabled: !!open })
+  const add = (): void => create.mutate({ title: 'Новий прапорець' })
 
   return (
     <Page>
       <PageHeader
         title="Червоні прапорці"
-        subtitle={
-          list.items.length
-            ? `${countLabel(list.items.length, list.hasMore, ['прапорець', 'прапорці', 'прапорців'])} · яких клієнтів і вакансій краще оминати`
-            : 'Яких клієнтів і вакансій краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці.'
-        }
+        subtitle="Ознаки клієнтів і вакансій, яких краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці."
         actions={
           <>
             <ImportButton kind="redflag" onImported={(id) => id && setOpen(id)} />
-            <Button variant="lime" onClick={() => create.mutate({ title: 'Новий прапорець' })}>
+            <Button variant="lime" onClick={add}>
               <Plus /> Прапорець
             </Button>
           </>
         }
       >
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Шукати за ознаками"
-          className="w-72"
+        <FilterBar
+          trailing={
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Шукати за ознаками"
+              className="w-72"
+            />
+          }
         />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
@@ -196,13 +217,20 @@ export function RedFlagsPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (search ? (
+                  <NoResults
+                    hint={`За запитом «${search.trim()}» прапорців немає.`}
+                    onReset={() => setSearch('')}
+                  />
+                ) : (
                   <EmptyState
                     icon={Flag}
-                    title={search ? 'Нічого не знайдено' : 'Прапорців немає'}
-                    hint={search ? undefined : 'Запишіть ознаку проблемного клієнта, щойно на неї натрапите.'}
+                    title="Прапорців немає"
+                    hint="Запишіть ознаку проблемного клієнта, щойно на неї натрапите."
+                    cta={{ label: 'Додати прапорець', icon: Plus, onClick: add }}
                   />
-                )
+                ))
               }
               renderItem={(f) => (
                 <ListItem active={f.id === open} onClick={() => setOpen(f.id)}>

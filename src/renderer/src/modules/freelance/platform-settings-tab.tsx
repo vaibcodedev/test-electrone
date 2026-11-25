@@ -72,14 +72,17 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }): React
                 placeholder="Connects; порожньо — безкоштовні"
               />
             </Field>
-            <NumberField
-              label="Ціна одного при купівлі"
-              value={platform.creditPrice}
-              onCommit={(v) => patch({ creditPrice: v ?? 0 })}
-              unit={platform.currency}
-              step={0.01}
-              {...PLATFORM_R.creditPrice}
-            />
+            {/* Only for paid bids: appears as soon as their name is typed. */}
+            {creditsName.trim() && (
+              <NumberField
+                label="Ціна одного при купівлі"
+                value={platform.creditPrice}
+                onCommit={(v) => patch({ creditPrice: v ?? 0 })}
+                unit={platform.currency}
+                step={0.01}
+                {...PLATFORM_R.creditPrice}
+              />
+            )}
           </div>
           <Field label="Колір">
             <ColorSwatches value={platform.color} onChange={(color) => patch({ color })} />

@@ -2,11 +2,12 @@ import { forwardRef, type ComponentProps } from 'react'
 import { Award, BadgeCheck, Coins, Star } from 'lucide-react'
 import type { Proposal } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { daysSince, fmtMoney, plural } from '@/lib/format'
+import { fmtMoney, fmtNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { sentLabel } from './proposal-labels'
 
 /** Compact proposal tile used on the kanban (composed of shadcn Card + Badge). */
 export const ProposalCard = forwardRef<
@@ -22,7 +23,6 @@ export const ProposalCard = forwardRef<
   { proposal: p, currency, now, dragging, creditsName, className, ...rest },
   ref
 ) {
-  const days = daysSince(p.sentAt, now)
   const credits = p.credits + p.boostCredits
   return (
     <Card
@@ -70,24 +70,18 @@ export const ProposalCard = forwardRef<
         )}
       </div>
       <div className="flex items-center gap-2 text-meta text-muted-foreground">
-        {days !== null ? (
-          <span>
-            {days === 0 ? 'сьогодні' : `${days} ${plural(days, ['день', 'дні', 'днів'])} тому`}
-          </span>
-        ) : (
-          <span>не надіслано</span>
-        )}
+        <span>{p.sentAt ? sentLabel(p.sentAt, now) : 'не надіслано'}</span>
         <span className="ml-auto flex items-center gap-1.5">
+          {/* A title, not a Tooltip: the card is a button, a nested span can't take focus. */}
           {p.clientRating !== null && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="flex items-center gap-0.5">
-                  <Star className="size-3" />
-                  {p.clientRating.toLocaleString('uk-UA', { maximumFractionDigits: 1 })}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Рейтинг клієнта</TooltipContent>
-            </Tooltip>
+            <span
+              className="flex items-center gap-0.5"
+              title="Рейтинг клієнта"
+              aria-label={`Рейтинг клієнта ${fmtNumber(p.clientRating)}`}
+            >
+              <Star className="size-3" aria-hidden />
+              {fmtNumber(p.clientRating)}
+            </span>
           )}
           {p.paymentVerified && (
             <BadgeCheck className="size-3.5 text-success" aria-label="Оплату верифіковано" />

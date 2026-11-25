@@ -1,4 +1,5 @@
 import type { BidType, PlatformKind, ProposalStatus } from '@shared/domain/freelance'
+import { daysSince, fmtDayFull, plural } from '@/lib/format'
 import type { badgeVariants } from '@/components/ui/badge'
 import type { VariantProps } from 'class-variance-authority'
 
@@ -38,7 +39,7 @@ export const PROPOSAL_STATUS_BADGE: Record<ProposalStatus, BadgeVariant> = {
   replied: 'info',
   interview: 'info',
   offer: 'warn',
-  hired: 'lime',
+  hired: 'success',
   declined: 'destructive',
   no_reply: 'outline',
   withdrawn: 'outline',
@@ -67,3 +68,23 @@ export const PLATFORM_COLORS = [
   '#14160f',
   '#9a9f93'
 ]
+
+/** Spoken names of the swatches: a screen reader used to read «#14a800». */
+export const PLATFORM_COLOR_NAME: Record<string, string> = {
+  '#14a800': 'Зелений',
+  '#2f7dd1': 'Синій',
+  '#f5a524': 'Жовтий',
+  '#e5484d': 'Червоний',
+  '#8e4ec6': 'Фіолетовий',
+  '#3fbf9b': 'Бірюзовий',
+  '#14160f': 'Чорний',
+  '#9a9f93': 'Сірий'
+}
+
+/** When a proposal went out: «сьогодні», «3 дні тому» within a week, then the date (with the year if not this one). */
+export function sentLabel(ts: number, now: number): string {
+  const d = daysSince(ts, now) ?? 0
+  if (d === 0) return 'сьогодні'
+  if (d < 7) return `${d} ${plural(d, ['день', 'дні', 'днів'])} тому`
+  return fmtDayFull(ts)
+}

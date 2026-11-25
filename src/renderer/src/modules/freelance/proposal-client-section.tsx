@@ -11,6 +11,7 @@ import { NumberField } from '@/components/common/number-field'
 import { TextField } from '@/components/common/text-field'
 import { Field } from '@/components/common/page'
 import { SectionLabel } from '@/components/common/master-detail'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { CountryCombobox } from '../crm/country-combobox'
@@ -28,6 +29,7 @@ export function ProposalClientSection({
   platform: Platform
   patch: (p: ProposalPatch) => void
 }): ReactElement {
+  const readOnly = useReadOnly()
   return (
     <section className="flex flex-col gap-4">
       <SectionLabel>Клієнт</SectionLabel>
@@ -38,12 +40,15 @@ export function ProposalClientSection({
           value={p.clientName}
           onSave={(clientName) => patch({ clientName })}
         />
-        <Field label="Країна">
-          <CountryCombobox
-            value={p.clientCountry}
-            onChange={(clientCountry) => patch({ clientCountry })}
-          />
-        </Field>
+        {/* CountryCombobox shows «—» for an empty value while reading, so the field is left out here. */}
+        {!(readOnly && !p.clientCountry) && (
+          <Field label="Країна">
+            <CountryCombobox
+              value={p.clientCountry}
+              onChange={(clientCountry) => patch({ clientCountry })}
+            />
+          </Field>
+        )}
         <NumberField
           label="Рейтинг"
           value={p.clientRating}
@@ -75,17 +80,27 @@ export function ProposalClientSection({
           placeholder="Наприклад, 20–50"
         />
       </div>
-      <div className="flex items-center gap-2.5">
-        <Switch
-          id={`verified-${p.id}`}
-          checked={!!p.paymentVerified}
-          onCheckedChange={(paymentVerified) => patch({ paymentVerified })}
-        />
-        <Label htmlFor={`verified-${p.id}`} className="text-body font-normal text-foreground">
-          Оплату верифіковано
-        </Label>
-        {p.paymentVerified && <BadgeCheck className="size-4 text-success" />}
-      </div>
+      {/* While reading only the positive fact is shown: a locked «off» switch read as a warning. */}
+      {readOnly ? (
+        p.paymentVerified && (
+          <span className="flex items-center gap-1.5 text-body">
+            <BadgeCheck className="size-4 text-success" aria-hidden />
+            Оплату верифіковано
+          </span>
+        )
+      ) : (
+        <div className="flex items-center gap-2.5">
+          <Switch
+            id={`verified-${p.id}`}
+            checked={!!p.paymentVerified}
+            onCheckedChange={(paymentVerified) => patch({ paymentVerified })}
+          />
+          <Label htmlFor={`verified-${p.id}`} className="text-body font-normal text-foreground">
+            Оплату верифіковано
+          </Label>
+          {p.paymentVerified && <BadgeCheck className="size-4 text-success" />}
+        </div>
+      )}
     </section>
   )
 }

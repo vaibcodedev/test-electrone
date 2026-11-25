@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { Archive, ArchiveRestore, Handshake } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
@@ -16,8 +17,10 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { EmptyState, Page, PageHeader } from '@/components/common/page'
+import { useOpenParam } from '@/components/common/master-detail'
 import { BILLING_LABEL, PROJECT_STATUS_BADGE, PROJECT_STATUS_LABEL } from '../crm/labels'
-import { ProposalsTab } from './proposal-tab'
+import { NewProposalButton, ProposalsTab } from './proposal-tab'
+import { useNewParam } from './use-new-param'
 import { CreditsTab } from './credits-tab'
 import { StatsTab } from './stats-tab'
 import { PlatformSettingsTab } from './platform-settings-tab'
@@ -102,6 +105,10 @@ export function PlatformPage() {
     enabled: !!platformId
   })
   const update = useApiMutation('platforms', 'update', { successMessage: 'Платформа знову в меню' })
+  const [, setOpenId] = useOpenParam()
+  // «+ Відгук» sits in the page header (where `N` looks for it); the overview lands here with ?new=1.
+  const [newOpen, setNewOpen] = useState(false)
+  useNewParam(() => setNewOpen(true))
 
   if (isLoading) {
     return (
@@ -158,6 +165,16 @@ export function PlatformPage() {
               ? 'В архіві'
               : `Комісія за замовчуванням ${platform.defaultFeePercent}%${platform.creditsName ? ` · ${platform.creditsName} по ${fmtMoney(platform.creditPrice, platform.currency)}` : ''}`
           }
+          actions={
+            tab === 'proposals' && (
+              <NewProposalButton
+                platform={platform}
+                open={newOpen}
+                onOpenChange={setNewOpen}
+                onCreated={(p) => setOpenId(p.id)}
+              />
+            )
+          }
         >
           <TabsList className="w-fit">
             {tabs.map((t) => (
@@ -182,7 +199,7 @@ export function PlatformPage() {
         )}
         <div className="min-h-0 flex-1 overflow-hidden px-8 pb-6">
           <TabsContent value="proposals" className="h-full">
-            <ProposalsTab platform={platform} />
+            <ProposalsTab platform={platform} onNew={() => setNewOpen(true)} />
           </TabsContent>
           <TabsContent value="contracts" className="h-full overflow-y-auto">
             <ContractsTab platform={platform} />

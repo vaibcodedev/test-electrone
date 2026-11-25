@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
 import { Choice } from '../crm/parts'
+import { DisabledHint } from './disabled-hint'
 
 /** «Шаблон відгуку»: pick a proposal template and paste its text into the cover letter. */
 export function TemplatePicker({
@@ -40,19 +41,25 @@ export function TemplatePicker({
           options={templates.map((t) => ({ value: t.id, label: t.title }))}
         />
       </Field>
-      {proposal.coverLetter.trim() ? (
+      {!tpl ? (
+        <DisabledHint reason="Оберіть шаблон зі списку">
+          <Button variant="soft" disabled>
+            <FileText /> Вставити
+          </Button>
+        </DisabledHint>
+      ) : proposal.coverLetter.trim() ? (
         <Confirm
           title="Замінити текст відгуку?"
           description="Поточний текст буде замінено шаблоном."
           confirmLabel="Замінити"
           onConfirm={insert}
         >
-          <Button variant="soft" disabled={!tpl}>
+          <Button variant="soft">
             <FileText /> Вставити
           </Button>
         </Confirm>
       ) : (
-        <Button variant="soft" disabled={!tpl} onClick={insert}>
+        <Button variant="soft" onClick={insert}>
           <FileText /> Вставити
         </Button>
       )}

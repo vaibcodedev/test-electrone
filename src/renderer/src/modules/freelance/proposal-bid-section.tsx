@@ -52,7 +52,11 @@ export function ProposalBidSection({
           {...R.feePercent}
           step={0.5}
           onCommit={(feePercent) => patch({ feePercent })}
-          hint={`За замовчуванням ${platform.defaultFeePercent}% — з налаштувань платформи`}
+          hint={
+            platform.kind === 'upwork'
+              ? `Точну комісію Upwork видно під час відгуку. Порожньо — ${platform.defaultFeePercent}% з налаштувань платформи`
+              : `Порожньо — ${platform.defaultFeePercent}% з налаштувань платформи`
+          }
           unit="%"
         />
         {platform.creditsName && (
@@ -74,11 +78,6 @@ export function ProposalBidSection({
           </div>
         )}
       </div>
-      {platform.kind === 'upwork' && (
-        <p data-edit-only className="text-caption text-muted-foreground">
-          Точну комісію Upwork видно під час відгуку — запишіть її сюди, вона перейде в контракт.
-        </p>
-      )}
     </section>
   )
 }

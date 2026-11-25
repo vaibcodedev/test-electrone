@@ -1,15 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { format, startOfDay, subDays } from 'date-fns'
-import {
-  AlertTriangle,
-  ArchiveRestore,
-  ArrowRight,
-  BellRing,
-  ChevronDown,
-  Plus,
-  Target
-} from 'lucide-react'
+import { AlertTriangle, ArchiveRestore, ArrowRight, ChevronDown, Plus } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -24,14 +16,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Item,
   ItemActions,
@@ -48,12 +33,25 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
 import { MoneyValue } from '@/components/common/money-value'
 import { StatTile } from '@/components/common/stat-tile'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
+import { SectionLabel } from '@/components/common/section-label'
+import { EmptyValue } from '../crm/parts'
 import { GoalCard } from './goal-card'
 
 const LOW_CREDITS = 30
+
+/** Two row-shaped placeholders: an empty-list phrase appears only after the data has loaded. */
+function RowsSkeleton(): ReactElement {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Skeleton className="h-10 rounded-2xl" />
+      <Skeleton className="h-10 rounded-2xl" />
+    </div>
+  )
+}
 
 const newProposalUrl = (platformId: string): string =>
   `/freelance/p/${platformId}?tab=proposals&new=1`
@@ -101,10 +99,11 @@ function NewProposalAction({ platforms }: { platforms: Platform[] }): ReactEleme
   )
 }
 
-function CreditsRow({ platform }: { platform: Platform }) {
+function CreditsRow({ platform }: { platform: Platform }): ReactElement {
   const navigate = useNavigate()
   const { data: s } = useApi('credits', 'summary', { platformId: platform.id })
-  if (!s) return null
+  // Same height as the row: the balance card doesn't jump when the numbers arrive.
+  if (!s) return <Skeleton className="h-[60px] rounded-2xl" />
   // A platform that never had credits isn't «running low» — it just hasn't started.
   const started = s.spent > 0 || s.balance > 0
   const low = started && s.balance < LOW_CREDITS
@@ -128,8 +127,9 @@ function CreditsRow({ platform }: { platform: Platform }) {
           </span>
           <span className="text-meta text-muted-foreground">{platform.creditsName}</span>
         </div>
+        {/* soft, not subtle: the row itself is bg-card, where subtle wouldn't read as a button. */}
         <Button
-          variant="subtle"
+          variant="soft"
           size="xs"
           onClick={() => navigate(`/freelance/p/${platform.id}?tab=credits`)}
         >
@@ -157,8 +157,8 @@ export function FreelanceOverviewPage() {
       document.getElementById('archived')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [hash, archived.length])
   const { data: goals = [] } = useApi('goals', 'progress')
-  const { data: stats } = useApi('freelance', 'stats', { from })
-  const { data: stale = [] } = useApi('proposals', 'stale', { days: 3 })
+  const { data: stats, isLoading: statsLoading } = useApi('freelance', 'stats', { from })
+  const { data: stale = [], isLoading: staleLoading } = useApi('proposals', 'stale', { days: 3 })
   const { data: active = [] } = useApi('projects', 'list', { status: 'active' })
   const { data: month } = useApi('finance', 'month', { month: monthKey })
 
@@ -166,6 +166,11 @@ export function FreelanceOverviewPage() {
   const platformName = (id: string | null): string | undefined =>
     platformList.find((p) => p.id === id)?.name
   const withCredits = platformList.filter((p) => p.creditsName)
+  const showCredits = withCredits.length > 0
+  // The column sums paid bids (credits + boost), so it is named after the credits, not «відгуки».
+  const creditsHead = withCredits.length === 1 ? withCredits[0].creditsName : 'Витрачено кредитів'
+  const paysCredits = (platformId: string): boolean => withCredits.some((p) => p.id === platformId)
+  const go = (platformId: string): void => void navigate(`/freelance/p/${platformId}?tab=stats`)
   const netEntries = Object.entries(month?.net ?? {}) as [Currency, number][]
   const totals = stats?.totals
 
@@ -191,9 +196,7 @@ export function FreelanceOverviewPage() {
                   ))}
                 </div>
               ) : (
-                <span className="text-body font-normal text-ink-muted">
-                  Оплат цього місяця ще немає
-                </span>
+                <EmptyValue className="text-ink-muted">Оплат цього місяця ще немає</EmptyValue>
               )
             }
             hint={`${contracts.length} ${plural(contracts.length, [
@@ -213,7 +216,9 @@ export function FreelanceOverviewPage() {
               )}
             </CardHeader>
             <CardContent>
-              {!stats || stats.byPlatform.length === 0 ? (
+              {statsLoading ? (
+                <RowsSkeleton />
+              ) : !stats || stats.byPlatform.length === 0 ? (
                 <p className="text-body text-muted-foreground">
                   За останні 30 днів відгуків не було.
                 </p>
@@ -226,17 +231,26 @@ export function FreelanceOverviewPage() {
                       <TableHead className="text-right">Відповіді</TableHead>
                       <TableHead className="text-right">Інтерв’ю</TableHead>
                       <TableHead className="text-right">Контракти</TableHead>
-                      <TableHead className="text-right">Платні відгуки</TableHead>
+                      {showCredits && <TableHead className="text-right">{creditsHead}</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {stats.byPlatform.map((r) => (
-                      <TableRow
-                        key={r.key}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/freelance/p/${r.key}?tab=stats`)}
-                      >
-                        <TableCell className="font-medium">{r.label}</TableCell>
+                      <TableRow key={r.key} className="cursor-pointer" onClick={() => go(r.key)}>
+                        <TableCell className="font-medium">
+                          {/* The row opens on click; the name is the way in from the keyboard. */}
+                          <Button
+                            variant="link"
+                            className="font-medium text-foreground no-underline hover:underline"
+                            aria-label={`Статистика ${r.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              go(r.key)
+                            }}
+                          >
+                            {r.label}
+                          </Button>
+                        </TableCell>
                         <TableCell className="text-right tabular-nums">{r.sent}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {r.replied}{' '}
@@ -246,7 +260,15 @@ export function FreelanceOverviewPage() {
                         <TableCell className="text-right tabular-nums">
                           {r.hired} <span className="text-muted-foreground">· {fmtPercent(r.hireRate)}</span>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{r.credits}</TableCell>
+                        {showCredits && (
+                          <TableCell className="text-right tabular-nums">
+                            {paysCredits(r.key) ? (
+                              r.credits
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                     {totals && stats.byPlatform.length > 1 && (
@@ -266,7 +288,11 @@ export function FreelanceOverviewPage() {
                             · {fmtPercent(totals.hireRate)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">{totals.credits}</TableCell>
+                        {showCredits && (
+                          <TableCell className="text-right tabular-nums">
+                            {totals.credits}
+                          </TableCell>
+                        )}
                       </TableRow>
                     )}
                   </TableBody>
@@ -280,23 +306,16 @@ export function FreelanceOverviewPage() {
             <CardHeader>
               <CardTitle>Час нагадати</CardTitle>
               <CardDescription>Відгуки без відповіді понад 3 дні.</CardDescription>
-              <CardAction>
-                <BellRing className="size-4 text-muted-foreground" />
-              </CardAction>
             </CardHeader>
             <CardContent>
-              {stale.length === 0 ? (
+              {staleLoading ? (
+                <RowsSkeleton />
+              ) : stale.length === 0 ? (
                 <p className="text-body text-muted-foreground">Нікого не треба наздоганяти.</p>
               ) : (
                 <ItemGroup className="gap-1.5">
                   {stale.slice(0, 8).map((p) => (
-                    <Item
-                      key={p.id}
-                      asChild
-                      size="xs"
-                      variant="muted"
-                      className="cursor-pointer bg-card hover:ring-1 hover:ring-border"
-                    >
+                    <Item key={p.id} asChild size="xs" variant="muted" className="bg-card">
                       <button
                         type="button"
                         className="w-full text-left"
@@ -322,7 +341,11 @@ export function FreelanceOverviewPage() {
 
           <Card className="col-span-6">
             <CardHeader>
-              <CardTitle>Баланс конектів</CardTitle>
+              <CardTitle>
+                {withCredits.length === 1
+                  ? `Баланс: ${withCredits[0].creditsName}`
+                  : 'Баланс кредитів'}
+              </CardTitle>
               <CardDescription>Попередження, коли лишилося менше {LOW_CREDITS}.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -341,11 +364,16 @@ export function FreelanceOverviewPage() {
           </Card>
 
           {/* Goals */}
-          <div className="col-span-12 flex items-center justify-between pt-2">
-            <h2 className="text-body font-semibold">Цілі</h2>
-            <Button variant="subtle" size="xs" onClick={() => navigate('/freelance/goals')}>
-              <Target /> Усі цілі
-            </Button>
+          <div className="col-span-12 pt-2">
+            <SectionLabel
+              action={
+                <Button variant="soft" size="xs" onClick={() => navigate('/freelance/goals')}>
+                  Усі цілі <ArrowRight />
+                </Button>
+              }
+            >
+              Цілі
+            </SectionLabel>
           </div>
           {goals.length === 0 ? (
             <Card className="col-span-12">
@@ -372,7 +400,7 @@ export function FreelanceOverviewPage() {
 
           {archived.length > 0 && (
             <section id="archived" className="col-span-12 flex scroll-mt-4 flex-col gap-2 pt-2">
-              <h2 className="text-body font-semibold">Архівні платформи</h2>
+              <SectionLabel>Архівні платформи</SectionLabel>
               <ItemGroup className="gap-1.5">
                 {archived.map((p) => (
                   <Item key={p.id} variant="muted" size="sm">

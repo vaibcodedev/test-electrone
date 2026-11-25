@@ -10,7 +10,6 @@ import {
 import { useApiMutation } from '@/lib/query'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { useUi } from '@/stores/ui-store'
-import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -146,10 +145,8 @@ export function PlatformDialogHost(): ReactElement {
           <Label
             key={k}
             htmlFor={`kind-${k}`}
-            className={cn(
-              'flex cursor-pointer flex-col items-start gap-1 rounded-2xl bg-surface p-3 text-foreground ring-1 ring-transparent transition-colors',
-              kind === k && 'ring-2 ring-foreground'
-            )}
+            // DS «Выбор режима с пояснением»: no fill until chosen; the chosen one is a light tint + thin ring.
+            className="flex cursor-pointer flex-col items-start gap-1 rounded-2xl p-3 text-foreground transition-colors hover:bg-foreground/5 has-data-[state=checked]:bg-surface has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-foreground/15"
           >
             <span className="flex w-full items-center gap-2 text-body font-medium">
               <RadioGroupItem id={`kind-${k}`} value={k} />

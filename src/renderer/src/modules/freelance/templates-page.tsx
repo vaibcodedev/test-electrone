@@ -11,25 +11,20 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
-import { fmtPercent } from '@/lib/format'
+import { capitalize, fmtPercent, plural } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ItemDescription } from '@/components/ui/item'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Field, FieldLabel } from '@/components/ui/field'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
+import { FormDialog } from '@/components/common/form-dialog'
 import {
   EmptyState,
+  FilterBar,
   FilterChips,
+  NoResults,
   Page,
   PageBody,
   PageHeader,
@@ -44,59 +39,59 @@ import {
   MasterDetail,
   useOpenParam
 } from '@/components/common/master-detail'
-import {
-  AutoTitle,
-  Block,
-  EditorStack,
-  EnumSelect,
-  InputField,
-  TextareaBlock
-} from '../claude/editor-kit'
+import { AutoTitle, Block, EditorStack, EnumSelect, TextareaBlock } from '../claude/editor-kit'
 import { fillTemplate, SITUATION_LABEL, templateVariables, variableLabel } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
 import { DisabledHint } from './disabled-hint'
+import { NicheCombobox } from './niche-combobox'
 
 const TPL_L = limitsOf(templateInputSchema)
 const SITUATION_OPTIONS = TEMPLATE_SITUATIONS.map((s) => ({ value: s, label: SITUATION_LABEL[s] }))
 
-/** Asks for {variables}, shows the filled text and copies it. */
-function CopyTemplateDialog({
-  template,
-  trigger
+/**
+ * «Копіювати»: asks for the {variables}, shows the filled text and copies it. A plain button opens the
+ * dialog (no DialogTrigger asChild: it would replace the button's data-slot, and the edit-mode rule
+ * «only «Зберегти» stays lime» would miss it).
+ */
+function CopyTemplateButton({
+  template
 }: {
   template: Pick<MessageTemplate, 'id' | 'title' | 'body'>
-  trigger: React.ReactNode
-}) {
+}): ReactElement {
   const vars = useMemo(() => templateVariables(template.body), [template.body])
   const [values, setValues] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
   const markCopied = useApiMutation('templates', 'markCopied')
   const filled = fillTemplate(template.body, values)
 
+  const onOpenChange = (o: boolean): void => {
+    setOpen(o)
+    if (!o) setValues({})
+  }
   const doCopy = async (): Promise<void> => {
     await copyText(filled, 'Шаблон скопійовано')
     markCopied.mutate(template.id)
-    setOpen(false)
+    onOpenChange(false)
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o)
-        if (!o) setValues({})
-      }}
-    >
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{template.title}</DialogTitle>
-          <DialogDescription>
-            {vars.length
-              ? 'Заповніть змінні — порожні лишаться у фігурних дужках.'
-              : 'Змінних немає, текст скопіюється як є.'}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Button variant="lime" size="sm" onClick={() => setOpen(true)}>
+        <Copy /> Копіювати
+      </Button>
+      <FormDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        title={template.title}
+        description={
+          vars.length
+            ? 'Заповніть змінні — порожні лишаться у фігурних дужках.'
+            : 'Змінних немає, текст скопіюється як є.'
+        }
+        submitLabel="Копіювати текст"
+        onSubmit={doCopy}
+        className="sm:max-w-2xl"
+      >
         {vars.length > 0 && (
           <div className="grid grid-cols-2 gap-3">
             {vars.map((v, i) => (
@@ -111,30 +106,22 @@ function CopyTemplateDialog({
                   autoFocus={i === 0}
                   value={values[v] ?? ''}
                   onChange={(e) => setValues((s) => ({ ...s, [v]: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && void doCopy()}
                 />
               </Field>
             ))}
           </div>
         )}
         <Field className="gap-1.5">
-          <FieldLabel>Вийде</FieldLabel>
+          <FieldLabel htmlFor="template-filled">Вийде</FieldLabel>
           <Textarea
+            id="template-filled"
             readOnly
             value={filled}
             className="max-h-72 min-h-32 text-body leading-relaxed"
           />
         </Field>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>
-            Скасувати
-          </Button>
-          <Button variant="lime" onClick={() => void doCopy()}>
-            <Copy /> Копіювати текст
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </FormDialog>
+    </>
   )
 }
 
@@ -164,11 +151,11 @@ function TemplateVariables({ body }: { body: string }): ReactElement | null {
   const vars = templateVariables(body)
   if (!readOnly || !vars.length) return null
   return (
-    <div className="-mt-2 flex flex-wrap items-center gap-1.5">
+    <div className="-mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
       <span className="text-caption text-muted-foreground">Змінні:</span>
       {vars.map((v) => (
-        <Badge key={v} variant="soft">
-          {variableLabel(v)}
+        <Badge key={v} variant="soft" className="max-w-full min-w-0 justify-start" title={`{${v}}`}>
+          <span className="truncate">{variableLabel(v)}</span>
         </Badge>
       ))}
     </div>
@@ -192,14 +179,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
       }}
       headerExtra={
         t.body.trim() ? (
-          <CopyTemplateDialog
-            template={t}
-            trigger={
-              <Button variant="lime" size="sm">
-                <Copy /> Копіювати
-              </Button>
-            }
-          />
+          <CopyTemplateButton template={t} />
         ) : (
           <DisabledHint reason="Додайте текст, щоб копіювати">
             <Button variant="lime" size="sm" disabled>
@@ -225,13 +205,14 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
               ariaLabel="Ситуація"
             />
           </Block>
-          <InputField
-            label="Тип завдання"
-            value={t.niche}
-            maxLength={TPL_L.niche}
-            onSave={(niche) => save({ niche })}
-            placeholder="Next.js, верстка, боти…"
-          />
+          <Block label="Тип завдання" htmlFor={`niche-${t.id}`}>
+            <NicheCombobox
+              id={`niche-${t.id}`}
+              value={t.niche}
+              maxLength={TPL_L.niche}
+              onChange={(niche) => save({ niche })}
+            />
+          </Block>
           <StatBadges t={t} />
         </EntityAside>
       }
@@ -287,6 +268,15 @@ export function TemplatesPage() {
   const list = useInfiniteApi('templates', 'list', { situation, search: term || undefined })
   const create = useApiMutation('templates', 'create', { onSuccess: (t) => setOpen(t.id) })
   const current = all.find((t) => t.id === open)
+  const add = (): void =>
+    create.mutate({ title: 'Новий шаблон', situation: situation ?? 'proposal' })
+  const filtered = !!search.trim() || !!situation
+  const filterHint = [
+    search.trim() && `За запитом «${search.trim()}»`,
+    situation && `у ситуації «${SITUATION_LABEL[situation]}»`
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const counts = all.reduce<Partial<Record<TemplateSituation, number>>>((acc, t) => {
     acc[t.situation] = (acc[t.situation] ?? 0) + 1
@@ -301,34 +291,33 @@ export function TemplatesPage() {
         actions={
           <>
             <ImportButton kind="template" onImported={(id) => id && setOpen(id)} />
-            <Button
-              variant="lime"
-              onClick={() =>
-                create.mutate({ title: 'Новий шаблон', situation: situation ?? 'proposal' })
-              }
-            >
+            <Button variant="lime" onClick={add}>
               <Plus /> Шаблон
             </Button>
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Шукати в шаблонах"
-            className="w-64"
-          />
-          {/* Only situations that have templates: a zero chip always leads to an empty list. */}
-          <FilterChips
-            allLabel="Усі"
-            value={situation}
-            onChange={setSituation}
-            options={SITUATION_OPTIONS.filter(
-              (o) => (counts[o.value] ?? 0) > 0 || o.value === situation
-            ).map((o) => ({ ...o, count: counts[o.value] ?? 0 }))}
-          />
-        </div>
+        <FilterBar
+          chips={
+            // Only situations that have templates; no lone «Усі» chip above an empty base.
+            all.length > 0 && (
+              <FilterChips
+                allLabel="Усі"
+                value={situation}
+                onChange={setSituation}
+                options={SITUATION_OPTIONS.map((o) => ({ ...o, count: counts[o.value] ?? 0 }))}
+              />
+            )
+          }
+          trailing={
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Шукати в шаблонах"
+              className="w-72"
+            />
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -344,13 +333,23 @@ export function TemplatesPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (filtered ? (
+                  <NoResults
+                    hint={`${capitalize(filterHint)} шаблонів немає.`}
+                    onReset={() => {
+                      setSearch('')
+                      setSituation(undefined)
+                    }}
+                  />
+                ) : (
                   <EmptyState
                     icon={MessageSquareQuote}
-                    title={search ? 'Нічого не знайдено' : 'Шаблонів поки немає'}
+                    title="Шаблонів поки немає"
                     hint="Збережіть вдалий відгук чи відповідь клієнтові, щоб не писати його заново."
+                    cta={{ label: 'Додати шаблон', icon: Plus, onClick: add }}
                   />
-                )
+                ))
               }
               renderItem={(t) => (
                 <ListItem active={t.id === open} onClick={() => setOpen(t.id)}>
@@ -378,7 +377,15 @@ export function TemplatesPage() {
                       )}
                     </div>
                     {t.usedIn > 0 && (
-                      <Badge variant={t.id === open ? 'lime' : 'soft'} className="shrink-0">
+                      // The row is a button: a title, not a Tooltip. On the ink row — a tint, not lime.
+                      <Badge
+                        variant="soft"
+                        className={cn(
+                          'shrink-0',
+                          t.id === open && 'bg-ink-foreground/12 text-ink-foreground'
+                        )}
+                        title={`Контракти: ${t.hired} з ${t.usedIn} ${plural(t.usedIn, ['відгуку', 'відгуків', 'відгуків'])}`}
+                      >
                         {fmtPercent((t.hired / t.usedIn) * 100)}
                       </Badge>
                     )}

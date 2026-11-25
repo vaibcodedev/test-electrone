@@ -1,11 +1,13 @@
 import { useRef, useState, type ReactElement } from 'react'
+import { useNavigate } from 'react-router'
 import { BriefcaseBusiness, ClipboardCopy, ImagePlus, Plus } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { caseInputSchema, type CasePatch, type PortfolioCase } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { countLabel, mdPreview } from '@/lib/format'
+import { capitalize, mdPreview } from '@/lib/format'
+import { clickableProps } from '@/lib/clickable'
 import { limitsOf } from '@/lib/limits'
 import { fileUrl, isImageFile, toFileSources } from '@/lib/files'
 import { cn } from '@/lib/utils'
@@ -23,7 +25,9 @@ import {
 } from '@/components/ui/select'
 import {
   EmptyState,
+  FilterBar,
   FilterChips,
+  NoResults,
   Page,
   PageBody,
   PageHeader,
@@ -38,15 +42,9 @@ import {
   MasterDetail,
   useOpenParam
 } from '@/components/common/master-detail'
-import {
-  AutoMarkdown,
-  AutoTitle,
-  Block,
-  EditorStack,
-  InputField,
-  TextareaBlock
-} from '../claude/editor-kit'
+import { AutoMarkdown, AutoTitle, Block, EditorStack, TextareaBlock } from '../claude/editor-kit'
 import { DisabledHint } from './disabled-hint'
+import { NicheCombobox } from './niche-combobox'
 
 const CASE_L = limitsOf(caseInputSchema)
 
@@ -72,7 +70,7 @@ const NO_PROJECT = '__none__'
  * Cover screenshot. Rendered inside DetailPane, so it sees the record mode: drop, Ctrl+V and
  * «Вибрати файл» work only while editing; in view mode only the image itself is shown.
  */
-function CaseCover({ c }: { c: PortfolioCase }): ReactElement {
+function CaseCover({ c }: { c: PortfolioCase }): ReactElement | null {
   const readOnly = useReadOnly()
   const fileRef = useRef<HTMLInputElement>(null)
   const setCover = useApiMutation('cases', 'setCover', { successMessage: 'Обкладинку оновлено' })
@@ -81,6 +79,8 @@ function CaseCover({ c }: { c: PortfolioCase }): ReactElement {
   }
   const { isOver, props } = useFileDrop(onFiles, { accept: isImageFile })
   usePasteFiles(onFiles, !readOnly)
+  // Nothing to show while reading: no empty wrapper in the stack (it added a gap above the title).
+  if (readOnly && !c.coverPath) return null
   return (
     <div {...(readOnly ? {} : props)}>
       <input
@@ -111,7 +111,6 @@ function CaseCover({ c }: { c: PortfolioCase }): ReactElement {
         </>
       ) : (
         <Empty
-          data-edit-only
           className={cn(
             'gap-3 border border-dashed border-input p-6 md:p-6',
             isOver && 'border-ring bg-lime-soft'
@@ -130,10 +129,62 @@ function CaseCover({ c }: { c: PortfolioCase }): ReactElement {
   )
 }
 
+/**
+ * «Проєкт»: while reading, the linked project is a link to it and no link hides the field; while editing,
+ * a Select whose «Не пов’язано» is a placeholder (an item would read as a value).
+ */
+function CaseProject({
+  projectId,
+  onChange
+}: {
+  projectId: string | null
+  onChange: (projectId: string | null) => void
+}): ReactElement {
+  const readOnly = useReadOnly()
+  const navigate = useNavigate()
+  const { data: projectList = [] } = useApi('projects', 'list')
+  const project = projectList.find((p) => p.id === projectId)
+  return (
+    <Block label="Проєкт">
+      {readOnly ? (
+        project ? (
+          <span data-view>
+            <Button
+              variant="link"
+              className="no-underline hover:underline"
+              onClick={() => navigate(`/projects/${project.id}`)}
+            >
+              {project.title}
+            </Button>
+          </span>
+        ) : (
+          <span data-empty />
+        )
+      ) : (
+        <Select
+          value={projectId ?? ''}
+          onValueChange={(v) => onChange(v === NO_PROJECT ? null : v)}
+        >
+          <SelectTrigger className="w-full" aria-label="Проєкт">
+            <SelectValue placeholder="Не пов’язано" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_PROJECT}>Не пов’язано</SelectItem>
+            {projectList.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </Block>
+  )
+}
+
 function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
   const update = useApiMutation('cases', 'update')
   const remove = useApiMutation('cases', 'remove', { successMessage: 'Переміщено в кошик' })
-  const { data: projectList = [] } = useApi('projects', 'list')
   const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
   const entity = { type: 'case' as const, id: c.id }
   // Without any text the copy would be just the title: the button waits for content.
@@ -170,21 +221,23 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           createdAt={c.createdAt}
           updatedAt={c.updatedAt}
         >
-          <InputField
-            label="Тип завдання"
-            value={c.niche}
-            maxLength={CASE_L.niche}
-            onSave={(niche) => save({ niche })}
-            placeholder="Next.js, Shopify…"
-          />
-          <InputField
+          <Block label="Тип завдання" htmlFor={`niche-${c.id}`}>
+            <NicheCombobox
+              id={`niche-${c.id}`}
+              value={c.niche}
+              maxLength={CASE_L.niche}
+              onChange={(niche) => save({ niche })}
+            />
+          </Block>
+          {/* Textareas, not inputs: a long value wraps while reading instead of ending in «…». */}
+          <TextareaBlock
             label="Клієнт / індустрія"
             value={c.client}
             maxLength={CASE_L.client}
             onSave={(client) => save({ client })}
             placeholder="E-commerce, SaaS…"
           />
-          <InputField
+          <TextareaBlock
             label="Стек"
             value={c.stack}
             maxLength={CASE_L.stack}
@@ -198,24 +251,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
             onSave={(url) => save({ url })}
             openLabel="Відкрити кейс"
           />
-          <Block label="Проєкт">
-            <Select
-              value={c.projectId ?? NO_PROJECT}
-              onValueChange={(v) => save({ projectId: v === NO_PROJECT ? null : v })}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_PROJECT}>Не пов’язано</SelectItem>
-                {projectList.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Block>
+          <CaseProject projectId={c.projectId} onChange={(projectId) => save({ projectId })} />
         </EntityAside>
       }
     >
@@ -293,42 +329,48 @@ export function PortfolioPage() {
   const create = useApiMutation('cases', 'create', { onSuccess: (c) => setOpen(c.id) })
   const { data: current } = useApi('cases', 'get', open ?? '', { enabled: !!open })
   const niches = [...new Set(sample.map((c) => c.niche).filter(Boolean))]
+  const add = (): void => create.mutate({ title: 'Новий кейс' })
+  const filterHint = [
+    search.trim() && `За запитом «${search.trim()}»`,
+    niche && `з типом «${niche}»`
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <Page>
       <PageHeader
         title="Портфоліо"
-        subtitle={
-          list.items.length
-            ? `${countLabel(list.items.length, list.hasMore, ['кейс', 'кейси', 'кейсів'])} · завдання, результат, скриншоти й англійський текст для відгуків`
-            : 'Кейси: завдання, що зроблено, результат, скриншоти й готовий англійський текст для профілю та відгуків.'
-        }
+        subtitle="Кейси: завдання, що зроблено, результат, скриншоти й англійський текст для профілю та відгуків."
         actions={
-          <Button variant="lime" onClick={() => create.mutate({ title: 'Новий кейс' })}>
+          <Button variant="lime" onClick={add}>
             <Plus /> Кейс
           </Button>
         }
       >
-        <div className="flex flex-wrap items-center gap-2">
-          {niches.length > 0 && (
-            <FilterChips
-              allLabel="Усі"
-              value={niche}
-              onChange={setNiche}
-              options={niches.map((n) => ({ value: n, label: n }))}
+        <FilterBar
+          chips={
+            niches.length > 0 && (
+              <FilterChips
+                allLabel="Усі"
+                value={niche}
+                onChange={setNiche}
+                options={niches.map((n) => ({ value: n, label: n }))}
+              />
+            )
+          }
+          trailing={
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Шукати в кейсах"
+              className="w-72"
             />
-          )}
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder="Шукати в кейсах"
-            className="ml-auto w-64"
-          />
-        </div>
+          }
+        />
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
-          listSize="38%"
           list={
             <VirtualGrid
               className="pr-1"
@@ -341,32 +383,27 @@ export function PortfolioPage() {
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
               empty={
-                !list.isLoading && (
+                !list.isLoading &&
+                (search.trim() || niche ? (
+                  <NoResults
+                    hint={`${capitalize(filterHint)} кейсів немає.`}
+                    onReset={() => {
+                      setSearch('')
+                      setNiche(undefined)
+                    }}
+                  />
+                ) : (
                   <EmptyState
                     icon={BriefcaseBusiness}
-                    title={search || niche ? 'Нічого не знайдено' : 'Кейсів поки немає'}
-                    hint={search || niche ? undefined : 'Додайте завершений проєкт — знадобиться для відгуків і профілю.'}
-                    action={
-                      !search && !niche && (
-                        <Button variant="soft" onClick={() => create.mutate({ title: 'Новий кейс' })}>
-                          <Plus /> Додати кейс
-                        </Button>
-                      )
-                    }
+                    title="Кейсів поки немає"
+                    hint="Додайте завершений проєкт — знадобиться для відгуків і профілю."
+                    cta={{ label: 'Додати кейс', icon: Plus, onClick: add }}
                   />
-                )
+                ))
               }
               renderItem={(c) => (
                 <Card
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setOpen(c.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      setOpen(c.id)
-                    }
-                  }}
+                  {...clickableProps(() => setOpen(c.id))}
                   className={cn(
                     // Same tile language as Дизайни: a surface frame, so a dark cover never melts into the page.
                     'tile h-full gap-0 overflow-hidden bg-surface p-1.5',
