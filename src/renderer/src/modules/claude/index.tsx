@@ -213,6 +213,8 @@ function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void
           }
           minHeight="280px"
           maxLength={LIMITS.content}
+          // The prompt is the record itself: it is never folded.
+          fold={false}
         />
       </EditorStack>
     </DetailPane>

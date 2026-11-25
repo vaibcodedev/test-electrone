@@ -164,12 +164,16 @@ export function MarkdownField({
   const [mode, setMode] = useState<'edit' | 'preview'>(
     defaultMode ?? (inRecord || !value.trim() ? 'edit' : 'preview')
   )
+  // Longer than the limit (stored before the limit was lowered): an error in either tab, so the record can't be
+  // saved with it (useHoldWhileInvalid reads `data-invalid`).
+  const over = !!maxLength && value.length > maxLength
   // Record view mode: rendered text only; an empty field disappears.
   if (viewMode) {
     if (!value.trim()) return null
     return (
       <div data-has-content className={cn('flex flex-col gap-2', className)}>
         {label && <FieldLabel>{label}</FieldLabel>}
+        {/* Folded at 24rem with «Показати повністю» (no inner scroll while reading); the text wraps (Markdown). */}
         <ShowMore enabled={fold && 'auto'} collapsedClass="max-h-96 overflow-hidden">
           <Markdown source={value} />
         </ShowMore>
@@ -177,8 +181,12 @@ export function MarkdownField({
     )
   }
   return (
-    // group/field: the «N / max» counter (CharCount) shows while the text is being written.
-    <div className={cn('group/field flex flex-col gap-2', className)}>
+    // group/field: the «N / max» counter (CharCount) shows while the text is being written. min-w-0: a parent flex
+    // row never widens for the text.
+    <div
+      data-invalid={over || undefined}
+      className={cn('group/field flex min-w-0 flex-col gap-2', className)}
+    >
       {/* Label row has the label's height: the compact toggle (h-7, -my-1.5 → 16px in flow, below the
           label's ≈17px) must not push the control down, so label → control is 8px like every other Field
           (docs/design-system.md → Формы). */}
@@ -233,12 +241,16 @@ export function MarkdownField({
           maxLength={maxLength}
           minHeight={minHeight}
           labelledBy={label ? `${id}-label` : undefined}
+          invalid={over}
         />
       ) : (
         // «Перегляд» shows the text as it will read: no box, flush with the label. A bg-surface box with px-5 was
-        // invisible on a surface card and left only a stray 20px indent.
+        // invisible on a surface card and left only a stray 20px indent. As tall as the editor at most
+        // (min(50vh, 26rem)), then it scrolls inside: a long text no longer stretched the page; a word longer than
+        // the line wraps (Markdown) instead of scrolling sideways.
         <div
-          className="cursor-text"
+          data-md-preview
+          className="max-h-[min(50vh,26rem)] min-w-0 cursor-text overflow-y-auto"
           style={{ minHeight: `calc(${minHeight} / 2)` }}
           onDoubleClick={() => setMode('edit')}
           title="Подвійний клік — редагувати"
