@@ -14,6 +14,9 @@ const Toaster = (props: ToasterProps): ReactElement => {
       position="bottom-right"
       containerAriaLabel="Сповіщення"
       offset={chat ? { right: chat + 44, bottom: 24 } : undefined}
+      // Most toasts carry «Відкрити» / «Скасувати»: sonner's 4 s ran out before the pointer reached the corner.
+      // Hover still pauses it; error toasts set their own 8–12 s.
+      duration={6000}
       className="toaster group"
       icons={{
         success: <CircleCheck className="size-4 text-success" />,

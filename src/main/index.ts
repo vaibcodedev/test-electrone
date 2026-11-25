@@ -174,16 +174,19 @@ if (!gotLock) {
     if (!c.shortcuts.register()) {
       log.warn('[shortcut]', c.shortcuts.lastError)
       // The renderer subscribes to toasts after its first render, a moment after the page has loaded.
-      main.webContents.once('did-finish-load', () =>
-        setTimeout(() => {
-          if (c.shortcuts.lastError) {
-            c.bus.emit('toast', {
-              kind: 'error',
-              message: `${c.shortcuts.lastError} — змініть її: Налаштування → Система → «Швидке додавання»`
-            })
-          }
-        }, 1500)
-      )
+      // Unpackaged runs (npm run dev, e2e) only log it: the installed Vault next to them holds the hotkey anyway,
+      // and a toast on every start stacked over the ones a test clicks.
+      if (app.isPackaged)
+        main.webContents.once('did-finish-load', () =>
+          setTimeout(() => {
+            if (c.shortcuts.lastError) {
+              c.bus.emit('toast', {
+                kind: 'error',
+                message: `${c.shortcuts.lastError} — змініть її: Налаштування → Система → «Швидке додавання»`
+              })
+            }
+          }, 1500)
+        )
     }
     c.reminders.start()
     c.backup.startAuto()
