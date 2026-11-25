@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowUpRight, Plus, SquareKanban } from 'lucide-react'
+import { Plus, SquareKanban } from 'lucide-react'
 import { boardInputSchema, type BoardSummary } from '@shared/domain/boards'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { EmptyState, Field, Page, PageBody, PageHeader, SegmentBar } from '@/components/common/page'
+import { FormDialog } from '@/components/common/form-dialog'
 import { TagList } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
@@ -30,33 +30,24 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
     }
   })
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="font-display text-heading">Нова дошка</DialogTitle>
-          <DialogDescription>Колонки «Беклог → У роботі → Ревʼю → Готово» створяться самі, їх можна змінити.</DialogDescription>
-        </DialogHeader>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (title.trim()) create.mutate({ title: title.trim(), description })
-          }}
-        >
-          <Field label="Назва" count={{ length: title.length, max: LIMITS.title }}>
-            <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Наприклад, Bloom Store — редизайн" />
-          </Field>
-          <Field label="Опис">
-            <Textarea value={description} maxLength={LIMITS.description} onChange={(e) => setDescription(e.target.value)} placeholder="Необовʼязково" />
-          </Field>
-          <DialogFooter>
-            <Button type="submit" variant="lime" disabled={!title.trim() || create.isPending}>
-              Створити дошку
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Нова дошка"
+      description="Колонки «Беклог → У роботі → Ревʼю → Готово» створяться самі, їх можна змінити."
+      submitLabel="Створити дошку"
+      invalid={!title.trim()}
+      pending={create.isPending}
+      onSubmit={() => create.mutate({ title: title.trim(), description })}
+      className="sm:max-w-md"
+    >
+      <Field label="Назва" count={{ length: title.length, max: LIMITS.title }}>
+        <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} placeholder="Наприклад, Bloom Store — редизайн" />
+      </Field>
+      <Field label="Опис (необовʼязково)">
+        <Textarea value={description} maxLength={LIMITS.description} onChange={(e) => setDescription(e.target.value)} placeholder="Мета, посилання, домовленості…" />
+      </Field>
+    </FormDialog>
   )
 }
 
@@ -69,16 +60,13 @@ function BoardTile({ board }: { board: BoardSummary }) {
       )}
     >
       <Link to={`/boards/${board.id}`} className="absolute inset-0 rounded-3xl outline-none" aria-label={board.title} />
-      <div className="flex items-start justify-between gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-card">
-          <ArrowUpRight className="size-4 transition-transform group-hover:rotate-45" />
-        </span>
-        <div className="flex gap-1">
+      {(board.overdueCount > 0 || board.archived) && (
+        <div className="mb-4 flex justify-end gap-1">
           {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} прострочено</Badge>}
           {board.archived && <Badge variant="outline">Архів</Badge>}
         </div>
-      </div>
-      <CardTitle className="font-display mt-4 line-clamp-2 text-stat-sm leading-tight font-normal text-foreground">
+      )}
+      <CardTitle title={board.title} className="font-display line-clamp-2 text-stat-sm leading-tight font-normal text-foreground">
         {board.title}
       </CardTitle>
       {board.description && (

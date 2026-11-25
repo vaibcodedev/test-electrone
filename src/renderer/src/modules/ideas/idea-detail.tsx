@@ -3,16 +3,16 @@ import { SquareKanban, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { IDEA_STATUSES, ideaInputSchema, type Idea, type IdeaPatch, type IdeaStatus } from '@shared/domain/ideas'
 import { limitsOf } from '@/lib/limits'
-
-const LIMITS = limitsOf(ideaInputSchema)
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { DetailPane, EntityAside, InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
-import { Field, Segmented } from '@/components/common/page'
+import { Field } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
+
+const LIMITS = limitsOf(ideaInputSchema)
 
 /** Editor for a single idea. Keyed by id by the parent so autosave flushes on switch. */
 export function IdeaDetail({ id, onClose }: { id: string; onClose: () => void }) {
@@ -79,18 +79,20 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
               </SelectContent>
             </Select>
           </Field>
+          {/* Words, not «•••» dots: the dots read as a «more» menu. A Select like «Статус» fits the narrow aside. */}
           <Field label="Важливість">
-            <Segmented
-              className="w-full [&>*]:flex-1"
-              value={String(idea.impact)}
-              onChange={(v) => patch({ impact: Number(v) })}
-              options={[0, 1, 2, 3].map((n) => ({
-                value: String(n),
-                label: n === 0 ? '—' : '●'.repeat(n),
-                title: IMPACT_LABEL[n]
-              }))}
-            />
-            <span className="text-meta text-muted-foreground">{IMPACT_LABEL[idea.impact]}</span>
+            <Select value={String(idea.impact)} onValueChange={(v) => patch({ impact: Number(v) })}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {IMPACT_LABEL.map((label, n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
         </EntityAside>
       }

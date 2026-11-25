@@ -18,16 +18,23 @@ import { useUi } from '@/stores/ui-store'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { Page, Segmented } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EventDialog } from './event-dialog'
-import { groupByDay, itemColor, SOURCE_LABEL } from './items'
+import { groupByDay, itemColor, sourceColor, SOURCE_LABEL } from './items'
 import { MonthView, WeekView } from './views'
 
 type View = 'month' | 'week'
 const WEEK = { weekStartsOn: 1 as const, locale: LOCALE }
 
+/** «23–29 листопада 2026», across months «30 листопада – 6 грудня 2026»: full month names, no «лист.». */
+function weekTitle(from: Date, to: Date): string {
+  const end = format(to, 'd MMMM yyyy', { locale: LOCALE })
+  return from.getMonth() === to.getMonth()
+    ? `${format(from, 'd')}–${end}`
+    : `${format(from, 'd MMMM', { locale: LOCALE })} – ${end}`
+}
 
 export function CalendarPage() {
   const navigate = useNavigate()
@@ -57,33 +64,35 @@ export function CalendarPage() {
     else navigate(ENTITY_META[item.ref.type].route(item.ref.id))
   }
 
-  const title =
-    view === 'week'
-      ? `${format(from, 'd MMM', { locale: LOCALE })} — ${format(to, 'd MMM yyyy', { locale: LOCALE })}`
-      : capitalize(format(cursor, 'LLLL yyyy', { locale: LOCALE }))
+  const title = view === 'week' ? weekTitle(from, to) : capitalize(format(cursor, 'LLLL yyyy', { locale: LOCALE }))
 
-  const legend = (Object.keys(SOURCE_LABEL) as CalendarItem['source'][]).filter((s) => items.some((i) => i.source === s))
+  // The legend shows the colour the grid actually uses; events vary by the user's choice, so they keep the default.
+  const legend = (Object.keys(SOURCE_LABEL) as CalendarItem['source'][]).flatMap((s) => {
+    const sample = items.find((i) => i.source === s)
+    return sample ? [{ source: s, color: s === 'event' ? sourceColor(s) : itemColor(sample) }] : []
+  })
 
   return (
     <Page>
-      <header className="flex items-end justify-between gap-6 px-8 pt-7 pb-5">
+      {/* data-slot: the global N presses the lime «Подія» here, like in any PageHeader. */}
+      <header data-slot="page-header" className="flex items-end justify-between gap-6 px-8 pt-7 pb-5">
         <div>
           <h1 className="font-display text-title">{title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
-            {legend.length ? (
-              legend.map((s) => (
-                <Badge key={s} variant="soft" className="font-normal text-muted-foreground">
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ background: itemColor({ source: s, color: null } as CalendarItem) }}
-                  />
-                  {SOURCE_LABEL[s]}
-                </Badge>
-              ))
-            ) : (
-              <span>Події, дедлайни, оплати, підписки та співбесіди — в одному місці.</span>
-            )}
-          </div>
+          {legend.length ? (
+            // A plain legend, not badges: it explains colours and isn't a filter.
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-meta text-muted-foreground">
+              {legend.map((l) => (
+                <span key={l.source} className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full ring-1 ring-foreground/20" style={{ background: l.color }} />
+                  {SOURCE_LABEL[l.source]}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-caption text-muted-foreground">
+              Події, дедлайни, оплати, підписки та співбесіди — в одному місці.
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Segmented<View>
@@ -95,15 +104,30 @@ export function CalendarPage() {
             onChange={(v) => setView('calendar', v)}
           />
           <ButtonGroup>
-            <Button variant="soft" size="icon-sm" onClick={() => step(-1)} aria-label="Назад (←)">
-              <ChevronLeft />
-            </Button>
-            <Button variant="soft" size="sm" onClick={() => setCursor(new Date())} title="Сьогодні (T)">
-              Сьогодні
-            </Button>
-            <Button variant="soft" size="icon-sm" onClick={() => step(1)} aria-label="Вперед (→)">
-              <ChevronRight />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="soft" size="icon-sm" onClick={() => step(-1)} aria-label="Назад (←)">
+                  <ChevronLeft />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Назад · ←</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="soft" size="sm" onClick={() => setCursor(new Date())}>
+                  Сьогодні
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>До сьогодні · T</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="soft" size="icon-sm" onClick={() => step(1)} aria-label="Вперед (→)">
+                  <ChevronRight />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Вперед · →</TooltipContent>
+            </Tooltip>
           </ButtonGroup>
           <Button variant="lime" onClick={() => setNewDate(new Date())}>
             <Plus /> Подія

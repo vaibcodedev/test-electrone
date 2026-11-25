@@ -6,7 +6,6 @@ import {
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
-  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -24,7 +23,8 @@ import { CSS } from '@dnd-kit/utilities'
 import { MoveRight, Plus, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
 import type { BoardColumn, BoardDetails, Card } from '@shared/domain/boards'
 import { useApiMutation } from '@/lib/query'
-import { cn } from '@/lib/utils'
+import { useHotkey } from '@/hooks/use-hotkey'
+import { DropZone } from '@/components/common/drop-zone'
 import { Button } from '@/components/ui/button'
 import { Card as UiCard } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
@@ -70,19 +70,25 @@ function SortableCard({
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-    <CardTile
-      ref={setNodeRef}
-      card={card}
-      done={done}
-      dragging={isDragging}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onOpen()
-      }}
-      {...attributes}
-      {...listeners}
-    />
+        <CardTile
+          ref={setNodeRef}
+          card={card}
+          done={done}
+          dragging={isDragging}
+          style={{ transform: CSS.Translate.toString(transform), transition }}
+          onClick={onOpen}
+          {...attributes}
+          {...listeners}
+          // After the spread: dnd-kit's own onKeyDown would replace this one. Enter opens, Space picks up.
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onOpen()
+              return
+            }
+            listeners?.onKeyDown?.(e)
+          }}
+        />
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
         <ContextMenuItem onSelect={onOpen}>
@@ -113,8 +119,17 @@ function SortableCard({
   )
 }
 
-function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string }) {
-  const [open, setOpen] = useState(false)
+function QuickAddCard({
+  boardId,
+  columnId,
+  open,
+  onOpenChange
+}: {
+  boardId: string
+  columnId: string
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [title, setTitle] = useState('')
   const create = useApiMutation('cards', 'create')
   if (!open) {
@@ -122,10 +137,10 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => setOpen(true)}
+        onClick={() => onOpenChange(true)}
         className="w-full justify-start rounded-xl px-2 text-caption font-normal text-muted-foreground hover:bg-card hover:text-foreground"
       >
-        <Plus /> Картка
+        <Plus /> Додати картку
       </Button>
     )
   }
@@ -138,17 +153,18 @@ function QuickAddCard({ boardId, columnId }: { boardId: string; columnId: string
       placeholder="Назва картки, Enter — зберегти"
       onChange={(e) => setTitle(e.target.value)}
       onBlur={() => {
-        if (!title.trim()) setOpen(false)
+        if (!title.trim()) onOpenChange(false)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()
-          if (title.trim()) create.mutate({ boardId, columnId, title: title.trim() })
-          setTitle('')
+          if (!title.trim() || create.isPending) return
+          // Cleared only after the server accepted it; the field stays open for the next card.
+          create.mutate({ boardId, columnId, title: title.trim() }, { onSuccess: () => setTitle('') })
         }
         if (e.key === 'Escape') {
           setTitle('')
-          setOpen(false)
+          onOpenChange(false)
         }
       }}
       aria-label="Назва нової картки"
@@ -164,28 +180,26 @@ function Column({
   columns,
   cardIds,
   cardsById,
-  onOpen
+  onOpen,
+  adding,
+  onAddingChange
 }: {
   column: BoardColumn
   columns: BoardColumn[]
   cardIds: string[]
   cardsById: Map<string, Card>
   onOpen: (id: string) => void
+  adding: boolean
+  onAddingChange: (open: boolean) => void
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.id })
   // Big columns render in pages of 30 (the column scrolls on its own); «Ще N» shows the next page.
   const [limit, setLimit] = useState(COLUMN_PAGE)
   const shownIds = cardIds.length > limit ? cardIds.slice(0, limit) : cardIds
   const hidden = cardIds.length - shownIds.length
   return (
-    <UiCard
-      className={cn(
-        'max-h-full w-[288px] shrink-0 gap-0 rounded-3xl p-2 transition-colors',
-        isOver && 'bg-accent'
-      )}
-    >
+    <UiCard className="max-h-full w-[288px] shrink-0 gap-0 rounded-3xl p-2">
       <ColumnHeader column={column} count={cardIds.length} columns={columns} />
-      <div ref={setNodeRef} className="flex min-h-12 flex-1 flex-col gap-2 overflow-y-auto px-0.5 py-1">
+      <DropZone id={column.id} className="min-h-12 overflow-y-auto px-0.5 py-1">
         <SortableContext items={shownIds} strategy={verticalListSortingStrategy}>
           {shownIds.map((id) => {
             const card = cardsById.get(id)
@@ -199,9 +213,9 @@ function Column({
             Ще {Math.min(hidden, COLUMN_PAGE)} з {hidden}
           </Button>
         )}
-      </div>
+      </DropZone>
       <div className="pt-1">
-        <QuickAddCard boardId={column.boardId} columnId={column.id} />
+        <QuickAddCard boardId={column.boardId} columnId={column.id} open={adding} onOpenChange={onAddingChange} />
       </div>
     </UiCard>
   )
@@ -251,6 +265,12 @@ function AddColumn({ boardId }: { boardId: string }) {
 export function KanbanView({ details, onOpenCard }: { details: BoardDetails; onOpenCard: (id: string) => void }) {
   const [layout, setLayout] = useState<Layout>(() => buildLayout(details))
   const [activeId, setActiveId] = useState<string | null>(null)
+  // Column whose «Додати картку» field is open; N opens the first one (the board has no lime header button).
+  const [quickAdd, setQuickAdd] = useState<string | null>(null)
+  useHotkey('n', () => {
+    // Not behind an open card sheet or dialog.
+    if (!document.querySelector('[role="dialog"][data-state="open"]')) setQuickAdd(details.columns[0]?.id ?? null)
+  })
   const move = useApiMutation('cards', 'move', { onError: () => setLayout(buildLayout(details)) })
 
   useEffect(() => {
@@ -262,7 +282,11 @@ export function KanbanView({ details, onOpenCard }: { details: BoardDetails; onO
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    // Space picks a card up; Enter is left to open it.
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space'] }
+    })
   )
 
   const containerOf = (id: string, l: Layout = layout): string | undefined =>
@@ -335,6 +359,8 @@ export function KanbanView({ details, onOpenCard }: { details: BoardDetails; onO
             cardIds={layout[col.id] ?? []}
             cardsById={cardsById}
             onOpen={onOpenCard}
+            adding={quickAdd === col.id}
+            onAddingChange={(open) => setQuickAdd(open ? col.id : null)}
           />
         ))}
         <AddColumn boardId={details.board.id} />

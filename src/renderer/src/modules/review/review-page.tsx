@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { MoneyLines } from '@/modules/finance/parts'
 import { useNavigate, useSearchParams } from 'react-router'
 import { addDays, format, startOfWeek } from 'date-fns'
 import { ArchiveRestore, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Minus, NotebookPen } from 'lucide-react'
@@ -7,7 +6,7 @@ import type { Currency } from '@shared/domain/crm'
 import { reviewNotesSchema, type WeekMetric, type WeekSection, type WeekSnapshot } from '@shared/domain/review'
 import { limitsOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
-import { LOCALE, fmtDay, fmtMinutes, fmtMoney, plural } from '@/lib/format'
+import { LOCALE, dayKey, fmtDay, fmtMinutes, fmtMoneyCompact, fmtPercent, plural } from '@/lib/format'
 import { useAutosave } from '@/hooks/use-autosave'
 import { cn } from '@/lib/utils'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
@@ -22,10 +21,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { MoneyLines } from '@/modules/finance/parts'
 
 const NOTES_L = limitsOf(reviewNotesSchema)
-const toKey = (d: Date): string => format(d, 'yyyy-MM-dd')
-const currentWeekKey = (): string => toKey(startOfWeek(new Date(), { weekStartsOn: 1 }))
+const currentWeekKey = (): string => dayKey(startOfWeek(new Date(), { weekStartsOn: 1 }))
 const parseKey = (key: string): Date => new Date(`${key}T00:00:00`)
 
 function weekLabel(key: string): string {
@@ -34,12 +33,12 @@ function weekLabel(key: string): string {
   const sameMonth = from.getMonth() === to.getMonth()
   return sameMonth
     ? `${format(from, 'd', { locale: LOCALE })}–${format(to, 'd MMMM', { locale: LOCALE })}`
-    : `${format(from, 'd MMM', { locale: LOCALE })} – ${format(to, 'd MMM', { locale: LOCALE })}`
+    : `${format(from, 'd MMMM', { locale: LOCALE })} – ${format(to, 'd MMMM', { locale: LOCALE })}`
 }
 
 function fmtValue(m: Pick<WeekMetric, 'unit'>, v: number): string {
   if (m.unit === 'minutes') return fmtMinutes(v)
-  if (m.unit === 'percent') return `${v}%`
+  if (m.unit === 'percent') return fmtPercent(v)
   return String(v)
 }
 
@@ -50,7 +49,8 @@ function headline(s: WeekSnapshot): string {
   const cards = metric('cardsDone')
   if (cards) parts.push(`${cards} ${plural(cards, ['завдання', 'завдання', 'завдань'])}`)
   const net = Object.entries(s.money.net).find(([, v]) => (v ?? 0) > 0)
-  if (net) parts.push(`${fmtMoney(net[1] ?? 0, net[0] as Currency)} на руки`)
+  // Compact like the «На руки» tile below («100 млн USD»); the exact sum is in that tile's tooltip.
+  if (net) parts.push(`${fmtMoneyCompact(net[1] ?? 0, net[0] as Currency)} на руки`)
   const interviews = metric('interviews')
   if (interviews) parts.push(`${interviews} ${plural(interviews, ['співбесіда', 'співбесіди', 'співбесід'])}`)
   const sent = metric('proposals') + metric('applications')
@@ -85,22 +85,31 @@ function Delta({ m }: { m: WeekMetric }) {
   )
 }
 
+const isEmpty = (section: WeekSection): boolean => section.metrics.every((m) => !m.value && !m.previous)
+
 function SectionCard({ section }: { section: WeekSection }) {
-  const empty = section.metrics.every((m) => !m.value && !m.previous)
   return (
-    <Card className={cn(section.metrics.length > 3 ? 'col-span-6' : 'col-span-4', empty && 'opacity-70')}>
+    <Card>
       <CardHeader>
         <CardTitle>{section.title}</CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-3">
-        {section.metrics.map((m) => (
-          <div key={m.key} className="flex flex-col gap-1.5 rounded-2xl bg-card p-3">
-            <span className="text-caption text-muted-foreground">{m.label}</span>
-            <span className="font-display text-headline leading-none tabular-nums">{fmtValue(m, m.value)}</span>
-            <Delta m={m} />
-          </div>
-        ))}
-      </CardContent>
+      {isEmpty(section) ? (
+        // A wall of «0 — як минулого» tiles says nothing; one line does.
+        <CardContent>
+          <p className="text-body text-muted-foreground">Цього тижня тут нічого</p>
+        </CardContent>
+      ) : (
+        <CardContent className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+          {section.metrics.map((m) => (
+            <div key={m.key} className="flex flex-col justify-between gap-1.5 rounded-2xl bg-card p-3">
+              {/* Two lines reserved: numbers of neighbouring tiles stay on one baseline. */}
+              <span className="line-clamp-2 min-h-[2lh] text-caption text-muted-foreground">{m.label}</span>
+              <span className="font-display text-headline leading-none tabular-nums">{fmtValue(m, m.value)}</span>
+              {(m.value !== 0 || m.previous !== 0) && <Delta m={m} />}
+            </div>
+          ))}
+        </CardContent>
+      )}
     </Card>
   )
 }
@@ -154,7 +163,7 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
             label="План на наступний тиждень"
             value={p}
             onChange={setP}
-            placeholder="- [ ] 10 відгуків на Djinni&#10;- [ ] Доробити редизайн Bloom"
+            placeholder="Що хочете встигнути? Рядок із «- [ ]» стане пунктом із галочкою"
             maxLength={NOTES_L.plan}
             minHeight="160px"
           />
@@ -208,24 +217,34 @@ export function ReviewPage() {
   const isCurrent = week === currentWeekKey()
   const { data, isLoading } = useApi('review', 'get', isCurrent ? {} : { weekStart: week }, KEEP_PERIOD)
   const setWeek = (key: string): void => setParams(key === currentWeekKey() ? {} : { week: key }, { replace: true })
-  const shift = (days: number): void => setWeek(toKey(addDays(parseKey(week), days)))
+  const shift = (days: number): void => setWeek(dayKey(addDays(parseKey(week), days)))
   const snapshot = data?.snapshot
   const title = useMemo(() => (snapshot ? headline(snapshot) : ''), [snapshot])
+  const quiet = !!snapshot && snapshot.sections.every(isEmpty)
+  const previousWeek = dayKey(addDays(parseKey(currentWeekKey()), -7))
 
   return (
     <Page>
       <PageHeader
         title="Підсумки тижня"
-        subtitle={`${isCurrent ? 'Поточний тиждень' : 'Тиждень'}: ${weekLabel(week)}`}
+        subtitle={isCurrent ? 'Поточний тиждень' : week === previousWeek ? 'Минулий тиждень' : 'Тиждень з архіву'}
         actions={
           <>
             <ButtonGroup>
               <Button variant="soft" size="icon" aria-label="Попередній тиждень" onClick={() => shift(-7)}>
                 <ChevronLeft />
               </Button>
-              <Button variant="soft" className="min-w-36" onClick={() => setWeek(currentWeekKey())}>
-                {weekLabel(week)}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* span: a disabled button gets no hover, and the tooltip still explains the click. */}
+                  <span tabIndex={isCurrent ? 0 : -1}>
+                    <Button variant="soft" className="min-w-36" disabled={isCurrent} onClick={() => setWeek(currentWeekKey())}>
+                      {weekLabel(week)}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{isCurrent ? 'Це поточний тиждень' : 'До поточного тижня'}</TooltipContent>
+              </Tooltip>
               <Button variant="soft" size="icon" aria-label="Наступний тиждень" disabled={isCurrent} onClick={() => shift(7)}>
                 <ChevronRight />
               </Button>
@@ -245,11 +264,18 @@ export function ReviewPage() {
           <div className="stagger grid grid-cols-12 gap-3">
             <div className="col-span-12 pb-2">
               <h2 className="font-display max-w-[28ch] text-title leading-[1.08] text-balance">{title}</h2>
+              {quiet && (
+                <p className="mt-2 text-caption text-muted-foreground">
+                  Цифри збираються із закритих карток, відгуків, нотаток і повторень за тиждень.
+                </p>
+              )}
             </div>
 
-            {snapshot.sections.map((s) => (
-              <SectionCard key={s.id} section={s} />
-            ))}
+            <div className="col-span-12 grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-3">
+              {snapshot.sections.map((s) => (
+                <SectionCard key={s.id} section={s} />
+              ))}
+            </div>
 
             <MoneyCard money={snapshot.money} />
 

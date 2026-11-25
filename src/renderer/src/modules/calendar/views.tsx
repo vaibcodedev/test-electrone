@@ -6,13 +6,12 @@ import { useCallback, useState } from 'react'
 import { eachDayOfInterval, format, isSameMonth, isToday } from 'date-fns'
 import { Plus } from 'lucide-react'
 import type { CalendarItem } from '@shared/domain/calendar'
-import { LOCALE } from '@/lib/format'
+import { capitalize, dayKey, LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { itemColor, SOURCE_LABEL, timeOnDay } from './items'
-import { dayKey } from '@/lib/format'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 /** Month cell geometry (px) for the «how many lines fit» count: padding, day header, one item line, gap. */
@@ -32,9 +31,18 @@ function useCellCapacity(rows: number): [(el: HTMLDivElement | null) => void, nu
   return [ref, Math.max(1, Math.floor((room + CELL.gap) / (CELL.line + CELL.gap)))]
 }
 
-
-/** A single item inside a month cell. */
-function ItemChip({ item, day, onOpen }: { item: CalendarItem; day: Date; onOpen: (item: CalendarItem) => void }) {
+/** A single item inside a month cell. `dim` — a day of the neighbouring month: quieter text, still readable. */
+function ItemChip({
+  item,
+  day,
+  onOpen,
+  dim
+}: {
+  item: CalendarItem
+  day: Date
+  onOpen: (item: CalendarItem) => void
+  dim?: boolean
+}) {
   const time = timeOnDay(item, day).short
   return (
     <Button
@@ -47,7 +55,8 @@ function ItemChip({ item, day, onOpen }: { item: CalendarItem; day: Date; onOpen
       title={`${SOURCE_LABEL[item.source]}: ${item.title}`}
       className={cn(
         'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card active:translate-y-0',
-        item.done && 'text-muted-foreground line-through'
+        (item.done || dim) && 'text-muted-foreground',
+        item.done && 'line-through'
       )}
     >
       <span className="h-3 w-1 shrink-0 rounded-full" style={{ background: itemColor(item) }} />
@@ -84,7 +93,7 @@ function MoreItems({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 p-2" onClick={(e) => e.stopPropagation()}>
-        <div className="px-1.5 pb-1.5 text-caption font-semibold capitalize">{format(day, 'EEEE, d MMMM', { locale: LOCALE })}</div>
+        <div className="px-1.5 pb-1.5 text-caption font-semibold">{capitalize(format(day, 'EEEE, d MMMM', { locale: LOCALE }))}</div>
         <div className="flex max-h-72 flex-col gap-0.5 overflow-y-auto">
           {items.map((item) => (
             <ItemChip key={item.key} item={item} day={day} onOpen={onOpen} />
@@ -107,7 +116,8 @@ export function MonthView({
   from: Date
   to: Date
   byDay: Map<string, CalendarItem[]>
-  onDayClick: (day: Date) => void
+  /** Without it the grid is read-only: no «+ Нова подія», cells don't react to clicks (a board's deadlines). */
+  onDayClick?: (day: Date) => void
   onItemClick: (item: CalendarItem) => void
 }) {
   const days = eachDayOfInterval({ start: from, end: to })
@@ -116,8 +126,8 @@ export function MonthView({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid grid-cols-7 gap-1.5 pb-1.5">
-        {WEEKDAYS.map((d, i) => (
-          <div key={d} className={cn('px-2 text-caption text-muted-foreground', i >= 5 && 'text-muted-foreground/70')}>
+        {WEEKDAYS.map((d) => (
+          <div key={d} className="px-2 text-caption text-muted-foreground">
             {d}
           </div>
         ))}
@@ -130,11 +140,13 @@ export function MonthView({
           return (
             <Card
               key={day.toISOString()}
-              onClick={() => onDayClick(day)}
+              onClick={onDayClick && (() => onDayClick(day))}
               className={cn(
                 // overflow-clip (not hidden): never becomes a scroll container, so no flash of a scrollbar on click.
-                'group min-h-[92px] cursor-pointer gap-0.5 overflow-clip rounded-2xl p-2 transition-colors',
-                inMonth ? 'bg-surface/60 hover:bg-surface' : 'bg-transparent opacity-55 hover:bg-surface/50',
+                'group min-h-[92px] gap-0.5 overflow-clip rounded-2xl p-2 transition-colors',
+                onDayClick && 'cursor-pointer',
+                // Neighbouring month: no fill and a muted number instead of opacity, so titles keep their contrast.
+                inMonth ? 'bg-surface/60 hover:bg-surface' : 'bg-transparent hover:bg-surface/50',
                 today && 'bg-surface ring-1 ring-lime/70 ring-inset'
               )}
             >
@@ -144,24 +156,27 @@ export function MonthView({
                   className={cn(
                     // text-box trims the font's ascender/descender gap, so digits sit in the optical center.
                     'grid size-6 place-items-center rounded-full text-caption leading-none tabular-nums [text-box:trim-both_cap_alphabetic]',
+                    !inMonth && 'text-muted-foreground',
                     today && 'bg-lime font-semibold text-lime-foreground'
                   )}
                   aria-current={today ? 'date' : undefined}
                 >
                   {format(day, 'd')}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  aria-label={`Нова подія ${format(day, 'd MMMM', { locale: LOCALE })}`}
-                  className="text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDayClick(day)
-                  }}
-                >
-                  <Plus />
-                </Button>
+                {onDayClick && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Нова подія ${format(day, 'd MMMM', { locale: LOCALE })}`}
+                    className="text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDayClick(day)
+                    }}
+                  >
+                    <Plus />
+                  </Button>
+                )}
               </div>
               {(() => {
                 // Lines are counted from the real cell height: a fixed 3 overflowed short cells into the rounded corner.
@@ -170,7 +185,7 @@ export function MonthView({
                 return (
                   <>
                     {shown.map((item) => (
-                      <ItemChip key={item.key} item={item} day={day} onOpen={onItemClick} />
+                      <ItemChip key={item.key} item={item} day={day} onOpen={onItemClick} dim={!inMonth} />
                     ))}
                     {rest > 0 && <MoreItems day={day} items={items} count={rest} onOpen={onItemClick} />}
                   </>
@@ -227,6 +242,7 @@ export function WeekView({
                 <Button
                   key={item.key}
                   variant="ghost"
+                  title={item.title}
                   onClick={() => onItemClick(item)}
                   className={cn(
                     // Full column width, a calm radius, bar + time + title: reads like an agenda row.
@@ -237,7 +253,9 @@ export function WeekView({
                   {/* A real bar, not an inset shadow: on a rounded item the shadow bent into a crescent. */}
                   <span className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full" style={{ background: itemColor(item) }} />
                   <span className="text-meta text-muted-foreground tabular-nums">{timeOnDay(item, day).long}</span>
-                  <span className={cn('text-caption leading-snug font-medium', item.done && 'line-through')}>{item.title}</span>
+                  <span className={cn('line-clamp-3 text-caption leading-snug font-medium', item.done && 'line-through')}>
+                    {item.title}
+                  </span>
                 </Button>
               ))}
               <Button

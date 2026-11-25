@@ -1,12 +1,8 @@
 import { useState, type RefObject } from 'react'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Plus, SquareKanban, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { cardInputSchema, PRIORITIES, type BoardColumn, type CardDetails, type CardPatch, type ChecklistEntry, type Priority } from '@shared/domain/boards'
 import { limitsOf } from '@/lib/limits'
-
-const LIMITS = limitsOf(cardInputSchema)
-/** Card checklist entry text limit (validated in main: boards.addChecklistItem, max 1000). */
-const ENTRY_MAX = 1000
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime } from '@/lib/format'
@@ -19,7 +15,9 @@ import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownField } from '@/components/common/markdown'
-import { Field, SegmentBar } from '@/components/common/page'
+import { EmptyState, Field, SegmentBar } from '@/components/common/page'
+import { RowSkeleton } from '@/components/common/page-skeleton'
+import { IconAction } from '@/components/common/icon-action'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
 import { PinButtons } from '@/components/common/pin-buttons'
@@ -29,12 +27,19 @@ import {
   RecordMode,
   useModeRef,
   usePublishMode,
+  useReadOnly,
   useRecordMode,
   type DetailMode
 } from '@/components/common/detail-mode'
 import { AttachmentsPanel } from '@/components/common/attachments'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
+import { DueChip } from './card-tile'
+
+const LIMITS = limitsOf(cardInputSchema)
+/** Card checklist entry text limit (validated in main: boards.addChecklistItem, max 1000). */
+const ENTRY_MAX = 1000
 
 function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
   const update = useApiMutation('cards', 'updateCheck')
@@ -57,15 +62,15 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
           entry.done && 'text-muted-foreground'
         )}
       />
-      <Button
-        variant="ghost"
-        size="icon-xs"
+      {/* Hidden until hover, but shown as soon as the keyboard reaches the row (WCAG 2.4.7). */}
+      <IconAction
+        label="Видалити пункт"
+        data-edit-only
         onClick={() => remove.mutate(entry.id)}
-        className="text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-        aria-label="Видалити пункт"
+        className="text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 hover:text-destructive"
       >
         <X />
-      </Button>
+      </IconAction>
     </li>
   )
 }
@@ -73,7 +78,10 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
 function Checklist({ card }: { card: CardDetails }) {
   const [text, setText] = useState('')
   const add = useApiMutation('cards', 'addCheck')
+  const readOnly = useReadOnly()
   const done = card.checklist.filter((c) => c.done).length
+  // While reading, a card without a checklist shows no empty «Чек-лист» heading.
+  if (readOnly && card.checklist.length === 0) return null
   return (
     <section className="flex flex-col gap-2">
       <div>
@@ -81,7 +89,7 @@ function Checklist({ card }: { card: CardDetails }) {
           action={
             card.checklist.length > 0 && (
               <span className="text-caption text-muted-foreground tabular-nums">
-                {done}/{card.checklist.length}
+                Готово {done} з {card.checklist.length}
               </span>
             )
           }
@@ -96,6 +104,7 @@ function Checklist({ card }: { card: CardDetails }) {
         ))}
       </ul>
       <form
+        data-edit-only
         className="flex items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
@@ -163,75 +172,84 @@ function CardEditor({
         </Tooltip>
       </div>
       <RecordMode mode={mode}>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-        <SheetTitle className="sr-only">{card.title}</SheetTitle>
-        <SheetDescription className="sr-only">Редагування картки</SheetDescription>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Назва картки" maxLength={LIMITS.title} className="text-headline" />
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <SheetTitle className="sr-only">{card.title}</SheetTitle>
+          <SheetDescription className="sr-only">Редагування картки</SheetDescription>
+          <InlineTitle value={title} onChange={setTitle} placeholder="Назва картки" maxLength={LIMITS.title} className="text-headline" />
 
-        <div className="mt-5 grid grid-cols-2 gap-4">
-          <Field label="Колонка">
-            <Select value={card.columnId} onValueChange={(columnId) => patch({ columnId })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {columns.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Пріоритет">
-            <Select value={card.priority} onValueChange={(v) => patch({ priority: v as Priority })}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITIES.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    <span className={cn('size-2 rounded-full', PRIORITY_DOT[p])} />
-                    {PRIORITY_LABEL[p]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Дедлайн" className="col-span-2">
-            <DatePicker withTime value={card.dueAt} onChange={(dueAt) => patch({ dueAt })} placeholder="Без дедлайну" />
-          </Field>
-        </div>
+          <div className="mt-5 grid grid-cols-2 gap-4">
+            <Field label="Колонка">
+              <Select value={card.columnId} onValueChange={(columnId) => patch({ columnId })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {columns.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Пріоритет">
+              <Select value={card.priority} onValueChange={(v) => patch({ priority: v as Priority })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      <span className={cn('size-2 rounded-full', PRIORITY_DOT[p])} />
+                      {PRIORITY_LABEL[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {mode.editing ? (
+              <Field label="Дедлайн" className="col-span-2">
+                <DatePicker withTime value={card.dueAt} onChange={(dueAt) => patch({ dueAt })} placeholder="Без дедлайну" />
+              </Field>
+            ) : (
+              card.dueAt && (
+                // Same chip as on the kanban: an overdue deadline is red here too.
+                <Field label="Дедлайн" className="col-span-2">
+                  <DueChip dueAt={card.dueAt} done={columns.find((c) => c.id === card.columnId)?.isDone ?? false} />
+                </Field>
+              )
+            )}
+          </div>
 
-        <section className="mt-5 flex flex-col gap-2">
-          <SectionLabel>Мітки</SectionLabel>
-          <TagPicker value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
-        </section>
+          <section className="mt-5 flex flex-col gap-2">
+            <SectionLabel>Мітки</SectionLabel>
+            <TagPicker value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
+          </section>
 
-        <section className="mt-5">
-          <MarkdownField
-            label="Опис"
-            value={description}
-            onChange={setDescription}
-            placeholder="Опис, посилання, деталі…"
-            maxLength={LIMITS.description}
-            minHeight="160px"
-          />
-        </section>
+          <section className="mt-5">
+            <MarkdownField
+              label="Опис"
+              value={description}
+              onChange={setDescription}
+              placeholder="Опис, посилання, деталі…"
+              maxLength={LIMITS.description}
+              minHeight="160px"
+            />
+          </section>
 
-        <div className="mt-6">
-          <Checklist card={card} />
-        </div>
+          <div className="mt-6">
+            <Checklist card={card} />
+          </div>
 
-        <div className="mt-6 flex flex-col gap-6">
-          <LinksPanel entity={{ type: 'card', id: card.id }} />
-          <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
-          <div className="text-meta text-muted-foreground">
-            Створено {fmtDateTime(card.createdAt)}
-            {card.completedAt && ` · виконано ${fmtDateTime(card.completedAt)}`}
+          <div className="mt-6 flex flex-col gap-6">
+            <LinksPanel entity={{ type: 'card', id: card.id }} />
+            <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
+            <div className="text-meta text-muted-foreground">
+              Створено {fmtDateTime(card.createdAt)}
+              {card.completedAt && ` · виконано ${fmtDateTime(card.completedAt)}`}
+            </div>
           </div>
         </div>
-      </div>
       </RecordMode>
     </div>
   )
@@ -239,18 +257,48 @@ function CardEditor({
 
 /** Right-side card editor, opened by ?card=<id>. */
 export function CardSheet({ cardId, columns, onClose }: { cardId: string | null; columns: BoardColumn[]; onClose: () => void }) {
-  const { data: card } = useApi('cards', 'get', cardId ?? '', { enabled: !!cardId })
+  const { data: card, isLoading } = useApi('cards', 'get', cardId ?? '', { enabled: !!cardId })
   const modeRef = useModeRef()
   const guard = guardSheet(modeRef, onClose)
   return (
     <Sheet open={!!cardId} onOpenChange={guard.onOpenChange}>
-      <SheetContent onEscapeKeyDown={guard.onEscapeKeyDown} side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-[560px]">
+      <SheetContent
+        onEscapeKeyDown={guard.onEscapeKeyDown}
+        // Focus the sheet itself: the first button («Закріпити») lit up with a ring and a tooltip on open.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault()
+          ;(e.currentTarget as HTMLElement).focus()
+        }}
+        side="right"
+        showCloseButton={false}
+        className="w-full gap-0 p-0 sm:max-w-[560px]"
+      >
         {card && card.id === cardId ? (
           <CardEditor key={card.id} card={card} columns={columns} onClose={onClose} modeRef={modeRef} />
         ) : (
           <>
             <SheetTitle className="sr-only">Картка</SheetTitle>
-            <SheetDescription className="sr-only">Завантаження</SheetDescription>
+            <SheetDescription className="sr-only">{isLoading ? 'Завантаження' : 'Картку не знайдено'}</SheetDescription>
+            {isLoading ? (
+              <div className="flex flex-col gap-3 p-6">
+                <Skeleton className="h-8 w-2/3" />
+                <RowSkeleton />
+                <RowSkeleton />
+              </div>
+            ) : (
+              cardId && (
+                <EmptyState
+                  icon={SquareKanban}
+                  title="Картку не знайдено"
+                  hint="Можливо, вона в кошику."
+                  action={
+                    <Button variant="soft" onClick={onClose}>
+                      Закрити
+                    </Button>
+                  }
+                />
+              )
+            )}
           </>
         )}
       </SheetContent>

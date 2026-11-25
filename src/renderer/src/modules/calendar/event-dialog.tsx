@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Check, Trash2 } from 'lucide-react'
 import { eventInputSchema, RECURRENCES, type CalendarEvent, type EventInput, type Recurrence } from '@shared/domain/calendar'
 import { limitsOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TAG_COLORS } from '@/components/common/tags'
 
 const LIMITS = limitsOf(eventInputSchema)
@@ -28,7 +29,7 @@ const REMINDERS: { value: string; label: string }[] = [
 ]
 
 const SECOND_REMINDERS: { value: string; label: string }[] = [
-  { value: 'none', label: 'Ні' },
+  { value: 'none', label: 'Без другого нагадування' },
   { value: '60', label: 'За 1 годину' },
   { value: '180', label: 'За 3 години' },
   { value: '1440', label: 'За день' },
@@ -45,6 +46,18 @@ const RECURRENCE_LABEL: Record<Recurrence, string> = {
 
 /** Sentinel for "default colour" in the swatch ToggleGroup (null in the API). */
 const DEFAULT_COLOR = 'default'
+
+/** Swatch names for screen readers and tooltips (a hex code says nothing). Keys follow TAG_COLORS. */
+const COLOR_NAME: Record<string, string> = {
+  [DEFAULT_COLOR]: 'Лаймовий (типовий)',
+  '#7c8cf8': 'Синій',
+  '#f5a524': 'Помаранчевий',
+  '#f06b6b': 'Червоний',
+  '#3fbf9b': 'Бірюзовий',
+  '#c98af0': 'Бузковий',
+  '#5aa9f0': 'Блакитний',
+  '#9a9f93': 'Сірий'
+}
 
 interface FormState {
   title: string
@@ -126,9 +139,11 @@ export function EventDialog({
   const { startAt, endAt } = form
   const endBeforeStart = endAt !== null && startAt !== null && endAt < startAt
   const invalid = !form.title.trim() || startAt === null || endBeforeStart
+  const swatch = form.color ?? DEFAULT_COLOR
 
   const save = (): void => {
-    if (invalid || startAt === null) return
+    // Enter can't be disabled like the button: a second submit while saving would create a duplicate.
+    if (invalid || startAt === null || create.isPending || update.isPending) return
     const input: EventInput = {
       title: form.title.trim(),
       description: form.description,
@@ -148,12 +163,13 @@ export function EventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl p-6 sm:max-w-[540px]">
+      {/* Never taller than the window: the fields scroll, the footer with «Зберегти» stays in view. */}
+      <DialogContent className="max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)] rounded-3xl p-6 sm:max-w-[540px]">
         <DialogHeader>
           <DialogTitle className="font-display text-heading">{event ? 'Подія' : 'Нова подія'}</DialogTitle>
         </DialogHeader>
         <form
-          className="flex flex-col gap-4"
+          className="-mx-6 -my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-1"
           onSubmit={(e) => {
             e.preventDefault()
             save()
@@ -264,18 +280,25 @@ export function EventDialog({
           <Field label="Колір">
             <ToggleGroup
               type="single"
-              value={form.color ?? DEFAULT_COLOR}
+              value={swatch}
               onValueChange={(v) => v && set('color', v === DEFAULT_COLOR ? null : v)}
               spacing={1.5}
             >
               {[DEFAULT_COLOR, ...TAG_COLORS.slice(1)].map((c) => (
-                <ToggleGroupItem
-                  key={c}
-                  value={c}
-                  aria-label={c === DEFAULT_COLOR ? 'За замовчуванням' : c}
-                  className="size-7 min-w-7 rounded-full p-0 ring-offset-2 ring-offset-card hover:opacity-90 on:ring-2 on:ring-foreground"
-                  style={{ background: c === DEFAULT_COLOR ? 'var(--lime)' : c }}
-                />
+                <Tooltip key={c}>
+                  <TooltipTrigger asChild>
+                    <ToggleGroupItem
+                      value={c}
+                      aria-label={COLOR_NAME[c] ?? c}
+                      className="size-7 min-w-7 rounded-full p-0 ring-offset-2 ring-offset-card hover:opacity-90 on:ring-2 on:ring-foreground"
+                      style={{ background: c === DEFAULT_COLOR ? 'var(--lime)' : c }}
+                    >
+                      {/* The chosen swatch is marked by a tick too, not only by its ring. */}
+                      {swatch === c && <Check className="size-3.5 text-black/70" />}
+                    </ToggleGroupItem>
+                  </TooltipTrigger>
+                  <TooltipContent>{COLOR_NAME[c] ?? c}</TooltipContent>
+                </Tooltip>
               ))}
             </ToggleGroup>
           </Field>
@@ -286,15 +309,17 @@ export function EventDialog({
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               placeholder="Порядок денний, посилання на дзвінок"
+              className="max-h-[40vh]"
             />
           </Field>
-          <DialogFooter className="items-center gap-2 pt-1 sm:justify-between">
+          <DialogFooter className="sticky bottom-0 items-center gap-2 bg-card pt-1 pb-0.5 sm:justify-between">
             {event ? (
               <Button
                 type="button"
                 variant="ghost"
                 // Flush-left: the icon lines up with the fields above; hover tint is the only background.
                 className="-ml-3 text-muted-foreground hover:text-destructive"
+                disabled={remove.isPending}
                 onClick={() => remove.mutate(event.id, { onSuccess: () => onOpenChange(false) })}
               >
                 <Trash2 /> У кошик

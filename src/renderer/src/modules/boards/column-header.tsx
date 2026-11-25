@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { plural } from '@/lib/format'
+import { Field } from '@/components/common/page'
 
 /** Column title with rename / "done column" toggle / delete (with choice where cards go). */
 export function ColumnHeader({ column, count, columns }: { column: BoardColumn; count: number; columns: BoardColumn[] }) {
@@ -24,9 +25,16 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
   const [title, setTitle] = useState(column.title)
   const [deleting, setDeleting] = useState(false)
   const others = columns.filter((c) => c.id !== column.id)
-  const [target, setTarget] = useState<string>(others[0]?.id ?? '')
+  const [target, setTarget] = useState('')
+  // Computed on render: a column added after mount, or the chosen one deleted meanwhile, can't leave a stale target.
+  const moveTo = others.some((c) => c.id === target) ? target : (others[0]?.id ?? '')
   const update = useApiMutation('boards', 'updateColumn')
   const remove = useApiMutation('boards', 'removeColumn', { successMessage: 'Колонку видалено' })
+
+  const removeColumn = (moveCardsTo: string | null): void => {
+    remove.mutate({ id: column.id, moveCardsTo })
+    setDeleting(false)
+  }
 
   const commit = (): void => {
     setEditing(false)
@@ -89,7 +97,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
             checked={column.isDone}
             onCheckedChange={(isDone) => update.mutate({ id: column.id, patch: { isDone: !!isDone } })}
           >
-            Колонка готових
+            Картки тут — виконані
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(true)}>
@@ -109,40 +117,37 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
             </DialogDescription>
           </DialogHeader>
           {count > 0 && others.length > 0 && (
-            <Select value={target} onValueChange={setTarget}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Куди перенести картки" />
-              </SelectTrigger>
-              <SelectContent>
-                {others.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Field label="Куди перенести картки">
+              <Select value={moveTo} onValueChange={setTarget}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {others.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
           )}
           <DialogFooter className="gap-2">
-            {count > 0 && (
-              <Button
-                variant="soft"
-                onClick={() => {
-                  remove.mutate({ id: column.id, moveCardsTo: null })
-                  setDeleting(false)
-                }}
-              >
-                Видалити з картками
+            {count > 0 && moveTo ? (
+              <>
+                {/* The safe choice is the main button; losing the cards is the red one. */}
+                <Button variant="destructive" onClick={() => removeColumn(null)}>
+                  <Trash2 /> Видалити разом із картками
+                </Button>
+                <Button variant="default" onClick={() => removeColumn(moveTo)}>
+                  Перенести й видалити
+                </Button>
+              </>
+            ) : (
+              <Button variant="destructive" onClick={() => removeColumn(null)}>
+                <Trash2 /> Видалити
               </Button>
             )}
-            <Button
-              variant="destructive"
-              onClick={() => {
-                remove.mutate({ id: column.id, moveCardsTo: count && target ? target : null })
-                setDeleting(false)
-              }}
-            >
-              {count && others.length ? 'Перенести й видалити' : 'Видалити'}
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

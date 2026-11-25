@@ -1,17 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Rocket } from 'lucide-react'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtDate } from '@/lib/format'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { Choice } from '@/modules/crm/parts'
@@ -50,46 +41,33 @@ export function LaunchDialog({
   }, [open, template])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl sm:max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle className="font-display text-heading">Запустити прогін</DialogTitle>
-          <DialogDescription>
-            Створюється копія шаблону, у якій можна позначати пункти. Шаблон не змінюється.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (template && title.trim())
-              instantiate.mutate({ templateId: template.id, title: title.trim(), projectId })
-          }}
-        >
-          <Field label="Назва прогону">
-            <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
-          </Field>
-          <Field label="Проєкт">
-            <Choice
-              value={projectId}
-              none="Без проєкту"
-              onChange={setProjectId}
-              options={projects.map((p) => ({
-                value: p.id,
-                label: p.clientName ? `${p.title} — ${p.clientName}` : p.title
-              }))}
-            />
-          </Field>
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Скасувати
-            </Button>
-            <Button type="submit" variant="lime" disabled={!title.trim() || instantiate.isPending}>
-              <Rocket /> Запустити
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Запустити прогін"
+      description="Створюється копія шаблону, у якій можна позначати пункти. Шаблон не змінюється."
+      submitLabel="Запустити"
+      invalid={!title.trim() || !template}
+      pending={instantiate.isPending}
+      onSubmit={() => {
+        if (template) instantiate.mutate({ templateId: template.id, title: title.trim(), projectId })
+      }}
+      className="sm:max-w-[480px]"
+    >
+      <Field label="Назва прогону">
+        <Input autoFocus value={title} maxLength={LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
+      </Field>
+      <Field label="Проєкт">
+        <Choice
+          value={projectId}
+          none="Без проєкту"
+          onChange={setProjectId}
+          options={projects.map((p) => ({
+            value: p.id,
+            label: p.clientName ? `${p.title} — ${p.clientName}` : p.title
+          }))}
+        />
+      </Field>
+    </FormDialog>
   )
 }

@@ -1,14 +1,18 @@
 import type { CalendarItem } from '@shared/domain/calendar'
 import { dayKey } from '@/lib/format'
 
+/**
+ * Fallback colours (chart tokens, contrast-checked). Payments, projects, subscriptions, interviews and follow-ups
+ * bring their own from main (blue-violet, orange, lilac, teal), so cards take olive, not another blue.
+ */
 const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
   event: 'var(--lime)',
-  card: 'var(--info)',
-  payment: 'var(--warn)',
-  project: 'var(--success)',
-  interview: 'var(--info)',
-  subscription: 'var(--warn)',
-  followup: 'var(--success)'
+  card: 'var(--chart-1)',
+  payment: 'var(--chart-3)',
+  project: 'var(--chart-4)',
+  interview: 'var(--chart-5)',
+  subscription: 'var(--chart-3)',
+  followup: 'var(--muted-foreground)'
 }
 
 export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
@@ -21,10 +25,13 @@ export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
   followup: 'Нагадати про себе'
 }
 
+export function sourceColor(source: CalendarItem['source']): string {
+  return SOURCE_COLOR[source]
+}
+
 export function itemColor(item: CalendarItem): string {
   return item.color ?? SOURCE_COLOR[item.source]
 }
-
 
 /** Groups items by every local day they touch (multi-day events appear on each day). */
 export function groupByDay(items: CalendarItem[]): Map<string, CalendarItem[]> {

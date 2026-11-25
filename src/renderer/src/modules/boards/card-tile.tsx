@@ -62,7 +62,7 @@ export const CardTile = forwardRef<
           {card.dueAt && <DueChip dueAt={card.dueAt} done={done} />}
           {card.checklistTotal > 0 && (
             <Badge
-              variant={card.checklistDone === card.checklistTotal ? 'lime' : 'soft'}
+              variant={card.checklistDone === card.checklistTotal ? 'success' : 'soft'}
               className={cn('h-5 px-2 text-meta', card.checklistDone !== card.checklistTotal && 'text-muted-foreground')}
             >
               <ListChecks />

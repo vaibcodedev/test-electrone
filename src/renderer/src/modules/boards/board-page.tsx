@@ -8,6 +8,7 @@ import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useUi } from '@/stores/ui-store'
 import { EmptyState, Page, Segmented } from '@/components/common/page'
+import { PageSkeleton } from '@/components/common/page-skeleton'
 import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
 import { MarkdownField } from '@/components/common/markdown'
@@ -33,6 +34,8 @@ import { ListView } from './list-view'
 import { CalendarView } from './calendar-view'
 import { CardSheet } from './card-sheet'
 
+const LIMITS = limitsOf(boardInputSchema)
+
 function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boolean; onOpenChange: (o: boolean) => void }) {
   const update = useApiMutation('boards', 'update')
   const patch = (p: BoardPatch): void => update.mutate({ id: board.id, patch: p })
@@ -48,7 +51,7 @@ function BoardInfoSheet({ board, open, onOpenChange }: { board: Board; open: boo
             value={description}
             onChange={setDescription}
             placeholder="Мета, посилання, домовленості…"
-            maxLength={limitsOf(boardInputSchema).description}
+            maxLength={LIMITS.description}
             minHeight="160px"
           />
           <section className="flex flex-col gap-2">
@@ -80,7 +83,14 @@ function BoardHeader({ board }: { board: Board }) {
   return (
     <header className="flex items-start gap-4 px-8 pt-6 pb-4">
       <div className="min-w-0 flex-1">
-        <InlineTitle value={title} onChange={setTitle} className="font-display text-stat leading-none" />
+        {/* Two lines at rest so a long name never pushes the kanban down; the whole name while editing it. */}
+        <InlineTitle
+          value={title}
+          onChange={setTitle}
+          maxLength={LIMITS.title}
+          placeholder="Назва дошки"
+          className="max-h-[calc(2.2em+0.5rem)] overflow-hidden text-headline leading-[1.1] focus-visible:max-h-[50vh] focus-visible:overflow-y-auto"
+        />
         {board.archived && <Badge variant="outline" className="mt-2">В архіві</Badge>}
       </div>
       <div className="flex shrink-0 items-center gap-2 pt-1">
@@ -134,7 +144,7 @@ export function BoardPage() {
   const view = (useUi((s) => s.views.board) as BoardView | undefined) ?? 'kanban'
   const [cardId, setCardId] = useCardParam()
 
-  if (isLoading) return null
+  if (isLoading) return <PageSkeleton kind="board" />
   if (!details) {
     return (
       <EmptyState

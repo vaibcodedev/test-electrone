@@ -1,119 +1,124 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { ArrowUpRight, FileJson, ListChecks, Plus, Rocket } from 'lucide-react'
+import { ListChecks, Plus, Rocket } from 'lucide-react'
 import type { Checklist } from '@shared/domain/checklists'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { fmtRelative, plural } from '@/lib/format'
-import {
-  EmptyState,
-  FilterChips,
-  Page,
-  PageHeader,
-  SearchInput,
-  SegmentBar
-} from '@/components/common/page'
+import { fmtRelative, mdPreview, plural } from '@/lib/format'
+import { EmptyState, Page, PageHeader, SearchInput, SegmentBar, Segmented } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
+import { ImportButton } from '@/components/common/import-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Item } from '@/components/ui/item'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { cn } from '@/lib/utils'
+import { Progress } from '@/components/ui/progress'
 import { LaunchDialog } from './launch-dialog'
-import { ImportDialog } from '@/components/common/import-dialog'
 
 type Tab = 'template' | 'run'
 
+function TabLabel({ label, count }: { label: string; count?: number }): ReactElement {
+  return (
+    <>
+      {label}
+      {count !== undefined && <span className="text-muted-foreground tabular-nums">{count}</span>}
+    </>
+  )
+}
+
 function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => void }) {
   const navigate = useNavigate()
+  const open = (): void => {
+    void navigate(`/checklists/${item.id}`)
+  }
   return (
     <Card
       role="button"
       tabIndex={0}
-      onClick={() => navigate(`/checklists/${item.id}`)}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`/checklists/${item.id}`)}
-      // Fixed order top-down (icon → title → description), button pinned to the bottom: titles line up
+      onClick={open}
+      onKeyDown={(e) => e.key === 'Enter' && open()}
+      // Fixed order top-down (count → title → description), button pinned to the bottom: titles line up
       // across a row whether a card has a description or not.
       className="group tile h-full min-h-[190px] gap-0 p-5"
     >
-      <div className="flex items-start justify-between gap-3">
-        {/* Icon chip: lighter square, so it never reads as a second dark pill next to «Запустити». */}
-        <Avatar className="size-10 rounded-xl">
-          <AvatarFallback className="rounded-xl bg-foreground/[0.07] text-muted-foreground">
-            <ListChecks className="size-4" />
-          </AvatarFallback>
-        </Avatar>
-        <span className="text-caption text-muted-foreground tabular-nums">
-          {item.total} {plural(item.total, ['пункт', 'пункти', 'пунктів'])}
-        </span>
-      </div>
-      <div className="mt-4 min-w-0">
-        <div className="font-display line-clamp-2 text-stat-sm leading-tight">{item.title}</div>
+      <span className="text-caption text-muted-foreground tabular-nums">
+        {item.total} {plural(item.total, ['пункт', 'пункти', 'пунктів'])}
+      </span>
+      <div className="mt-3 min-w-0">
+        <div title={item.title} className="font-display line-clamp-2 text-stat-sm leading-tight">
+          {item.title}
+        </div>
         {item.description && (
-          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">
-            {item.description}
-          </p>
+          <p className="mt-1 line-clamp-2 text-caption text-muted-foreground">{mdPreview(item.description)}</p>
         )}
         <TagList tags={item.tags} className="mt-2" />
       </div>
       <div className="mt-auto pt-4">
+        {/* An empty template would launch a «0 з 0» run: lead to adding items instead. */}
         <Button
           variant="subtle"
           size="sm"
           onClick={(e) => {
             e.stopPropagation()
-            onLaunch()
+            if (item.total === 0) open()
+            else onLaunch()
           }}
         >
-          <Rocket /> Запустити
+          {item.total === 0 ? (
+            <>
+              <Plus /> Додати пункти
+            </>
+          ) : (
+            <>
+              <Rocket /> Запустити
+            </>
+          )}
         </Button>
       </div>
     </Card>
   )
 }
 
+/** Up to this many items a run's bar has one segment per item (docs/design-system.md → Прогресс). */
+const SEGMENTS_MAX = 8
+
 function RunCard({ item }: { item: Checklist }) {
   const navigate = useNavigate()
+  const open = (): void => {
+    void navigate(`/checklists/${item.id}`)
+  }
   const complete = item.total > 0 && item.done === item.total
   return (
-    <Item
-      asChild
-      className={cn(
-        'group min-h-[150px] flex-col flex-nowrap items-stretch justify-between rounded-3xl p-5 text-left',
-        // Own hover: Item's default hover tint turned the ink card grey while the text stayed ink-coloured.
-        complete ? 'bg-lime text-lime-foreground hover:bg-lime/90' : 'bg-ink text-ink-foreground hover:bg-ink/90'
-      )}
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => e.key === 'Enter' && open()}
+      className="tile h-full min-h-[150px] gap-0 p-5"
     >
-      <button type="button" onClick={() => navigate(`/checklists/${item.id}`)}>
-        <div className="flex items-start justify-between gap-3">
-          <span className={cn('text-caption', complete ? 'opacity-70' : 'text-ink-muted')}>
-            {complete ? 'Готово' : 'У процесі'} · {fmtRelative(item.updatedAt)}
-          </span>
-          <ArrowUpRight className="size-4 opacity-60 transition-transform group-hover:rotate-45" />
-        </div>
-        <div>
-          <div className="truncate text-lead font-medium">{item.title}</div>
-          <div className="mt-3 flex items-center gap-3">
-            <SegmentBar
-              value={item.done}
-              total={Math.max(1, item.total)}
-              segments={Math.min(8, Math.max(3, item.total))}
-              tone={complete ? 'ink' : 'lime'}
-              className="flex-1"
-            />
-            <span className="text-caption tabular-nums">
-              {item.done}/{item.total}
-            </span>
-          </div>
-        </div>
-      </button>
-    </Item>
+      <div className="flex items-center gap-2">
+        <Badge variant={complete ? 'success' : 'info'}>{complete ? 'Готово' : 'У процесі'}</Badge>
+        <span className="min-w-0 truncate text-meta text-muted-foreground">{fmtRelative(item.updatedAt)}</span>
+      </div>
+      <div title={item.title} className="mt-3 line-clamp-2 text-lead font-medium">
+        {item.title}
+      </div>
+      <div className="mt-auto flex flex-col gap-1.5 pt-4">
+        {item.total > 0 &&
+          (item.total <= SEGMENTS_MAX ? (
+            <SegmentBar value={item.done} total={item.total} segments={item.total} />
+          ) : (
+            <Progress value={(item.done / item.total) * 100} className="h-1.5" />
+          ))}
+        <span className="min-w-0 truncate text-meta text-muted-foreground">
+          {item.total ? `Готово ${item.done} з ${item.total}` : 'Поки без пунктів'}
+        </span>
+      </div>
+    </Card>
   )
 }
 
 export function ChecklistsPage() {
-  const [importOpen, setImportOpen] = useState(false)
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'runs' ? 'run' : 'template'
   const [search, setSearch] = useState('')
@@ -126,8 +131,6 @@ export function ChecklistsPage() {
   const create = useApiMutation('checklists', 'create', {
     onSuccess: (c) => navigate(`/checklists/${c.id}`)
   })
-  const templates = counts?.template
-  const runs = counts?.run
 
   return (
     <Page>
@@ -136,11 +139,10 @@ export function ChecklistsPage() {
         subtitle="Шаблони для повторюваних процесів: запуск магазину, деплой, SEO. Кожен запуск — окремий прогін із галочками."
         actions={
           <>
-            <Button variant="soft" onClick={() => setImportOpen(true)}>
-              <FileJson /> Імпорт з JSON
-            </Button>
+            <ImportButton kind="checklist" onImported={(id) => id && navigate(`/checklists/${id}`)} />
             <Button
               variant="lime"
+              disabled={create.isPending}
               onClick={() => create.mutate({ title: 'Новий чек-лист', kind: 'template' })}
             >
               <Plus /> Шаблон
@@ -149,16 +151,18 @@ export function ChecklistsPage() {
         }
       >
         <div className="flex flex-wrap items-center gap-3">
-          <FilterChips<Tab>
+          <Segmented<Tab>
             options={[
-              { value: 'template', label: 'Шаблони', count: templates },
-              { value: 'run', label: 'Прогони', count: runs }
+              { value: 'template', label: <TabLabel label="Шаблони" count={counts?.template} /> },
+              { value: 'run', label: <TabLabel label="Прогони" count={counts?.run} /> }
             ]}
             value={tab}
             onChange={(v) => setParams(v === 'run' ? { tab: 'runs' } : {}, { replace: true })}
           />
-          <SearchInput value={search} onChange={setSearch} className="w-64" />
-          <TagFilter value={tagId} onChange={setTagId} />
+          <div className="ml-auto flex items-center gap-2">
+            <TagFilter value={tagId} onChange={setTagId} />
+            <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" className="w-64" />
+          </div>
         </div>
       </PageHeader>
       <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
@@ -196,12 +200,6 @@ export function ChecklistsPage() {
         />
       </div>
       <LaunchDialog template={launch} open={!!launch} onOpenChange={(o) => !o && setLaunch(null)} />
-      <ImportDialog
-        kind="checklist"
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={(id) => id && navigate(`/checklists/${id}`)}
-      />
     </Page>
   )
 }
