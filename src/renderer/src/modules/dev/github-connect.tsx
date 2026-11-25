@@ -5,7 +5,13 @@ import { toast } from 'sonner'
 import { useApi, useApiMutation } from '@/lib/query'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Field } from '@/components/common/page'
 import { Confirm } from '@/components/common/confirm'
 import { cn } from '@/lib/utils'
@@ -21,8 +27,17 @@ const TOKEN_STEPS = [
   'Натисніть «Generate token», скопіюйте його й вставте сюди.'
 ]
 
-/** Token field — saves it encrypted with the OS keychain. */
-export function GithubTokenField({ compact }: { compact?: boolean }): ReactElement {
+/**
+ * Token field — saves it encrypted with the OS keychain. `submitVariant="subtle"` in Settings: «Підключити» is
+ * the main action of /dev/github, but not of the settings screen, which has no single main action.
+ */
+export function GithubTokenField({
+  compact,
+  submitVariant = 'lime'
+}: {
+  compact?: boolean
+  submitVariant?: 'lime' | 'subtle'
+}): ReactElement {
   const [token, setToken] = useState('')
   const [missing, setMissing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -64,6 +79,8 @@ export function GithubTokenField({ compact }: { compact?: boolean }): ReactEleme
             autoComplete="off"
             value={token}
             aria-invalid={missing || undefined}
+            // Field gives the message under the control these ids (`${htmlFor}-error` / `-hint`).
+            aria-describedby={missing ? 'github-token-error' : 'github-token-hint'}
             onChange={(e) => {
               setToken(e.target.value)
               setMissing(false)
@@ -72,7 +89,7 @@ export function GithubTokenField({ compact }: { compact?: boolean }): ReactEleme
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
         </InputGroup>
-        <Button variant="lime" disabled={save.isPending} onClick={submit}>
+        <Button variant={submitVariant} disabled={save.isPending} onClick={submit}>
           Підключити
         </Button>
       </div>

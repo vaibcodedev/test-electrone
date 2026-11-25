@@ -18,7 +18,7 @@ interface Session {
 
 export interface ReviewSession {
   loading: boolean
-  /** The queue never loaded (a failed refetch over a loaded queue doesn't end the session). */
+  /** This visit's queue didn't load (a failed refetch once the session has started doesn't end it). */
   error: Error | null
   retry: () => void
   index: number
@@ -37,7 +37,7 @@ export interface ReviewSession {
 }
 
 /**
- * State of one flashcard session: the queue (words graded «Не згадав» come back at its end), the open card,
+ * State of one flashcard session: the queue (words graded «Не згадали» come back at its end), the open card,
  * answers per grade, and practice beyond the norm.
  */
 export function useReviewSession(): ReviewSession {
@@ -59,8 +59,9 @@ export function useReviewSession(): ReviewSession {
 
   // The queue is copied once, from this visit's own fetch (not a cached one from the last visit). Every answer is
   // a write and refetches all queries: read live, the queue shrank to the words still due under the index and
-  // skipped every other word.
-  if (session === null && initial && isFetchedAfterMount) {
+  // skipped every other word. A failed fetch counts as fetched too: then the cached queue of the last visit is
+  // stale, and the page shows the error instead of starting on it.
+  if (session === null && initial && isFetchedAfterMount && !error) {
     setSession({ words: initial, unique: initial.length, extra: false })
   }
 
@@ -105,7 +106,7 @@ export function useReviewSession(): ReviewSession {
 
   return {
     loading: isLoading || queue === null,
-    error: initial === undefined ? error : null,
+    error: session === null ? error : null,
     retry: () => void refetch(),
     index,
     current,

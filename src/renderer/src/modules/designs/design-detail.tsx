@@ -1,12 +1,25 @@
 import { useRef, useState, type ReactElement } from 'react'
-import { RefreshCw, Replace } from 'lucide-react'
-import { DESIGN_KINDS, designInputSchema, type Design, type DesignKind, type DesignPatch } from '@shared/domain/designs'
+import { toast } from 'sonner'
+import { Maximize2, RefreshCw, Replace } from 'lucide-react'
+import {
+  DESIGN_KINDS,
+  designInputSchema,
+  type Design,
+  type DesignKind,
+  type DesignPatch
+} from '@shared/domain/designs'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
+import { api } from '@/lib/api'
 import { toFileSources } from '@/lib/files'
 import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
-import { DetailPane, EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import {
+  DetailPane,
+  EntityAside,
+  InlineTitle,
+  SectionLabel
+} from '@/components/common/master-detail'
 import { Field, Segmented } from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
 import { copyText } from '@/components/common/copy-button'
@@ -16,7 +29,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IconAction } from '@/components/common/icon-action'
-import { AddToMoodboard, DesignMedia, KIND_LABEL } from './shared'
+import { AddToMoodboard, DesignMedia } from './shared'
+import { KIND_LABEL, designTitle } from './labels'
 import { MEDIA_ACCEPT, fillPalette, isVideoPath } from './media'
 
 const LIMITS = limitsOf(designInputSchema)
@@ -24,7 +38,15 @@ const LIMITS = limitsOf(designInputSchema)
 /** idle — nothing tried in this pane yet; busy — extracting; failed — tried and got no colours. */
 type PaletteState = 'idle' | 'busy' | 'failed'
 
-function Swatches({ colors, state, onRecalc }: { colors: string[]; state: PaletteState; onRecalc: () => void }): ReactElement | null {
+function Swatches({
+  colors,
+  state,
+  onRecalc
+}: {
+  colors: string[]
+  state: PaletteState
+  onRecalc: () => void
+}): ReactElement | null {
   const readOnly = useReadOnly()
   // Nothing to show while reading: the empty section hides like any empty field.
   if (!colors.length && readOnly) return null
@@ -34,7 +56,10 @@ function Swatches({ colors, state, onRecalc }: { colors: string[]; state: Palett
     ) : (
       <span className="flex items-center gap-1 text-caption text-muted-foreground">
         {state === 'failed' ? 'Не вдалося визначити кольори' : 'Кольори ще не визначено'}
-        <IconAction label={state === 'failed' ? 'Спробувати ще' : 'Визначити кольори'} onClick={onRecalc}>
+        <IconAction
+          label={state === 'failed' ? 'Спробувати ще' : 'Визначити кольори'}
+          onClick={onRecalc}
+        >
           <RefreshCw />
         </IconAction>
       </span>
@@ -44,7 +69,12 @@ function Swatches({ colors, state, onRecalc }: { colors: string[]; state: Palett
       <SectionLabel
         action={
           colors.length > 0 && (
-            <IconAction label="Перерахувати палітру" data-edit-only disabled={state === 'busy'} onClick={onRecalc}>
+            <IconAction
+              label="Перерахувати палітру"
+              data-edit-only
+              disabled={state === 'busy'}
+              onClick={onRecalc}
+            >
               <RefreshCw />
             </IconAction>
           )
@@ -63,7 +93,10 @@ function Swatches({ colors, state, onRecalc }: { colors: string[]; state: Palett
                   aria-label={`Скопіювати ${c}`}
                   onClick={() => void copyText(c, `${c} скопійовано`)}
                 >
-                  <span className="size-10 rounded-xl ring-1 ring-border" style={{ background: c }} />
+                  <span
+                    className="size-10 rounded-xl ring-1 ring-border"
+                    style={{ background: c }}
+                  />
                   <span className="font-mono text-meta font-normal text-muted-foreground">{c}</span>
                 </Button>
               </TooltipTrigger>
@@ -78,9 +111,32 @@ function Swatches({ colors, state, onRecalc }: { colors: string[]; state: Palett
   )
 }
 
+/** Reading, an untitled design is named the way its tile, search and pins name it (site or «Без назви»). */
+function DesignTitle({
+  design,
+  value,
+  onChange
+}: {
+  design: Design
+  value: string
+  onChange: (v: string) => void
+}): ReactElement {
+  const readOnly = useReadOnly()
+  return (
+    <InlineTitle
+      value={value}
+      onChange={onChange}
+      placeholder={readOnly ? designTitle(design) : 'Назва або сайт'}
+      maxLength={LIMITS.title}
+    />
+  )
+}
+
 function Editor({ design, onClose }: { design: Design; onClose: () => void }): ReactElement {
   const update = useApiMutation('designs', 'update')
-  const remove = useApiMutation('designs', 'remove', { successMessage: 'Дизайн переміщено в кошик' })
+  const remove = useApiMutation('designs', 'remove', {
+    successMessage: 'Дизайн переміщено в кошик'
+  })
   const replace = useApiMutation('designs', 'replaceImage', {
     successMessage: 'Картинку замінено',
     // A new image starts without a palette (the server clears it): extract it right away, through the same
@@ -93,19 +149,31 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
   const [notes, setNotes] = useAutosave(design.notes, (notes) => save({ notes }))
   const [palette, setPalette] = useState<PaletteState>('idle')
   const fileInput = useRef<HTMLInputElement>(null)
+  /** Only the latest extraction sets the state: one for a replaced image ends without colours and must not say «Не вдалося». */
+  const latest = useRef(0)
   const video = !!design.imagePath && isVideoPath(design.imagePath)
 
-  // The write itself refreshes the queries (data:changed), no invalidateAll here.
+  // The write itself refreshes the queries (data:changed). The same image twice shares one extraction
+  // (fillPalette), and one started for a replaced image never writes its colours.
   const recalc = async (target: Pick<Design, 'id' | 'imagePath'> = design): Promise<void> => {
-    if (palette === 'busy') return
+    const call = ++latest.current
     setPalette('busy')
+    let next: PaletteState
     try {
-      const colors = await fillPalette(target)
-      setPalette(colors.length ? 'idle' : 'failed')
+      next = (await fillPalette(target)).length ? 'idle' : 'failed'
     } catch (e) {
       reportError(e, 'designs:palette')
-      setPalette('failed')
+      next = 'failed'
     }
+    if (call === latest.current) setPalette(next)
+  }
+
+  const openImage = (): void => {
+    if (!design.imagePath) return
+    api.files.openPath(design.imagePath).catch((e) => {
+      reportError(e, 'designs:open')
+      toast.error(video ? 'Не вдалося відкрити відео' : 'Не вдалося відкрити картинку')
+    })
   }
 
   return (
@@ -127,13 +195,32 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
           files={false}
         >
           {/* A video has no palette to extract. */}
-          {!video && design.imagePath && <Swatches colors={design.colors} state={palette} onRecalc={() => void recalc()} />}
+          {!video && design.imagePath && (
+            <Swatches colors={design.colors} state={palette} onRecalc={() => void recalc()} />
+          )}
         </EntityAside>
       }
     >
       <div className="flex flex-col gap-5">
         <Card className="group relative gap-0 overflow-hidden bg-surface p-2">
-          <DesignMedia path={design.imagePath} className="max-h-[45vh] w-full rounded-2xl object-contain" />
+          {/* A tall page screenshot stays a preview here; the full size opens in the system viewer. The click is a
+              mouse shortcut, the keyboard has «Відкрити картинку» in the corner. */}
+          <div className="cursor-zoom-in" onClick={openImage}>
+            <DesignMedia
+              path={design.imagePath}
+              alt={designTitle(design)}
+              className="max-h-[38vh] w-full rounded-2xl object-contain"
+            />
+          </div>
+          {design.imagePath && (
+            <IconAction
+              label={video ? 'Відкрити відео' : 'Відкрити картинку'}
+              className="absolute top-3 right-3 bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
+              onClick={openImage}
+            >
+              <Maximize2 />
+            </IconAction>
+          )}
           <input
             ref={fileInput}
             type="file"
@@ -145,18 +232,18 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
               e.target.value = ''
             }}
           />
-          {/* Edit only: a new file changes the record, and «Скасувати» could not bring the old one back. */}
+          {/* Edit only: a new file changes the record (DS §8). */}
           <Button
             data-edit-only
             variant="soft"
             size="sm"
-            className="absolute right-3 bottom-3 bg-card opacity-0 shadow-sm group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
+            className="absolute right-3 bottom-3 bg-card opacity-0 shadow-sm group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"
             onClick={() => fileInput.current?.click()}
           >
             <Replace /> Замінити
           </Button>
         </Card>
-        <InlineTitle value={title} onChange={setTitle} placeholder="Назва або сайт" maxLength={LIMITS.title} />
+        <DesignTitle design={design} value={title} onChange={setTitle} />
         <Field label="Тип">
           {/* Six options: xs, and a narrow pane wraps them instead of overflowing. */}
           <Segmented<DesignKind>
@@ -188,7 +275,13 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
   )
 }
 
-export function DesignDetail({ id, onClose }: { id: string; onClose: () => void }): ReactElement | null {
+export function DesignDetail({
+  id,
+  onClose
+}: {
+  id: string
+  onClose: () => void
+}): ReactElement | null {
   const { data } = useApi('designs', 'get', id)
   if (!data) return null
   return <Editor key={data.id} design={data} onClose={onClose} />

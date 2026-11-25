@@ -1,27 +1,42 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react'
-import { FolderGit2, FolderPlus, FolderSearch, X } from 'lucide-react'
+import { FolderGit2, FolderPlus, FolderSearch } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useMainEvent } from '@/hooks/use-main-events'
-import { EmptyState, FilterBar, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import {
+  EmptyState,
+  FilterBar,
+  FilterChips,
+  NoResults,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput
+} from '@/components/common/page'
 import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 import { useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { ProjectCard } from './project-card'
 import { ProjectSheet } from './project-sheet'
 import { ScanImportDialog, type ScanResult } from './scan-import-dialog'
 import { LogsPanel } from './logs-panel'
 import { folderName } from './dev-shared'
-import { presentChips } from '../claude/chips'
+import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
 
 const ONLY = ['favorite', 'running'] as const
-const ONLY_LABEL: Record<(typeof ONLY)[number], string> = { favorite: 'Обрані', running: 'Запущені' }
+const ONLY_LABEL: Record<(typeof ONLY)[number], string> = {
+  favorite: 'Обрані',
+  running: 'Запущені'
+}
 
 /** «Мои проекты»: local repos with editor buttons, script runner and live logs. */
 export function DevProjectsPage(): ReactElement {
-  const { data: projects = [], isLoading } = useApi('devProjects', 'list', undefined, { refetchInterval: 30_000 })
+  const { data: projects = [], isLoading } = useApi('devProjects', 'list', undefined, {
+    refetchInterval: 30_000
+  })
   const { data: runs = [] } = useApi('devProjects', 'runs')
   const [openId, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
@@ -38,12 +53,18 @@ export function DevProjectsPage(): ReactElement {
       (p) =>
         (only !== 'favorite' || p.favorite) &&
         (only !== 'running' || p.running.length > 0) &&
-        (!q || [p.name, p.path, p.framework ?? '', p.githubRepo].some((v) => v.toLowerCase().includes(q)))
+        (!q ||
+          [p.name, p.path, p.framework ?? '', p.githubRepo].some((v) =>
+            v.toLowerCase().includes(q)
+          ))
     )
   }, [projects, search, only])
   const onlyChips = presentChips(
     ONLY,
-    { favorite: projects.filter((p) => p.favorite).length, running: projects.filter((p) => p.running.length > 0).length },
+    {
+      favorite: projects.filter((p) => p.favorite).length,
+      running: projects.filter((p) => p.running.length > 0).length
+    },
     (v) => ONLY_LABEL[v],
     only
   )
@@ -53,7 +74,7 @@ export function DevProjectsPage(): ReactElement {
     setOnly(undefined)
   }
 
-  const addFolder = async (): Promise<void> => {
+  const addProject = async (): Promise<void> => {
     const path = await api.devProjects.pickFolder()
     if (!path) return
     try {
@@ -87,7 +108,7 @@ export function DevProjectsPage(): ReactElement {
           </div>
         </Delayed>
       ) : projects.length === 0 ? (
-        // «Додати папку» (lime, N) is in the header: the empty state offers the other way in.
+        // «Додати проєкт» (lime, N) is in the header: the empty state offers the other way in.
         <EmptyState
           icon={FolderGit2}
           title="Додайте свої проєкти"
@@ -96,18 +117,15 @@ export function DevProjectsPage(): ReactElement {
         />
       ) : filtered.length === 0 ? (
         only === 'favorite' && !search.trim() ? (
-          <EmptyState title="Обраних поки немає" hint="Натисніть зірочку на картці проєкту — він з’явиться тут." />
-        ) : (
           <EmptyState
-            title="Нічого не знайдено"
-            hint={[search.trim() && `За запитом «${search.trim()}» нічого немає.`, only && 'Спробуйте зняти фільтри.']
-              .filter(Boolean)
-              .join(' ')}
-            action={
-              <Button variant="soft" onClick={resetFilters}>
-                <X /> Скинути фільтри
-              </Button>
-            }
+            title="Обраних поки немає"
+            hint="Натисніть зірочку на картці проєкту — він з’явиться тут."
+          />
+        ) : (
+          <NoResults
+            icon={FolderGit2}
+            hint={noResultsHint(search, !!only)}
+            onReset={resetFilters}
           />
         )
       ) : (
@@ -129,20 +147,39 @@ export function DevProjectsPage(): ReactElement {
           <>
             {/* On an empty page the same action is the empty state's button. */}
             {projects.length > 0 && (
-              <Button variant="soft" onClick={() => void importFolder()}>
-                <FolderSearch /> Імпорт із папки
-              </Button>
+              // Both buttons start with a folder picker: the tooltip says this one adds every repository inside.
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="soft" onClick={() => void importFolder()}>
+                    <FolderSearch /> Імпорт із папки
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Знайти всі репозиторії в папці</TooltipContent>
+              </Tooltip>
             )}
-            <Button variant="lime" onClick={() => void addFolder()}>
-              <FolderPlus /> Додати папку
+            {/* Named by the result: one folder becomes one project (the toast says «Додано проєкт …»). */}
+            <Button variant="lime" onClick={() => void addProject()}>
+              <FolderPlus /> Додати проєкт
             </Button>
           </>
         }
       >
         {projects.length > 0 && (
           <FilterBar
-            chips={onlyChips.length > 0 && <FilterChips allLabel="Усі" value={only} onChange={setOnly} options={onlyChips} />}
-            trailing={<SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" className="w-72" />}
+            chips={
+              onlyChips.length > 0 && (
+                <FilterChips
+                  label="Показати"
+                  allLabel="Усі"
+                  value={only}
+                  onChange={setOnly}
+                  options={onlyChips}
+                />
+              )
+            }
+            trailing={
+              <SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" />
+            }
           />
         )}
       </PageHeader>
@@ -161,7 +198,10 @@ export function DevProjectsPage(): ReactElement {
         list
       )}
 
-      <ProjectSheet project={projects.find((p) => p.id === openId) ?? null} onClose={() => setOpen(null)} />
+      <ProjectSheet
+        project={projects.find((p) => p.id === openId) ?? null}
+        onClose={() => setOpen(null)}
+      />
       <ScanImportDialog scan={scan} onClose={() => setScan(null)} />
     </Page>
   )

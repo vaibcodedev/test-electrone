@@ -1,39 +1,30 @@
-import { useEffect, useEffectEvent, useRef } from 'react'
+import { useEffect, useEffectEvent } from 'react'
 import type { Design } from '@shared/domain/designs'
-import { invalidateAll } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
-import { fillPalette, isVideoPath } from './media'
+import { fillPalette, isVideoPath, paletteTried } from './media'
 
 /**
  * Background catch-up for designs saved without a palette (older records, the browser extension):
- * one image per idle slot, each id tried once per session, then the gallery refreshes.
+ * one image per idle slot, each id tried once per session (shared with the import and the pane).
+ * Each write refreshes the gallery itself (data:changed).
  */
 export function usePaletteBackfill(items: Design[]): void {
-  const tried = useRef(new Set<string>())
   const missing = items.filter((d) => !d.colors.length && d.imagePath && !isVideoPath(d.imagePath))
   // The list array is rebuilt on every render: restart only when the set of designs without colours changes.
   const key = missing.map((d) => d.id).join(',')
-  const untried = useEffectEvent(() => missing.filter((d) => !tried.current.has(d.id)))
+  const untried = useEffectEvent(() => missing.filter((d) => !paletteTried.has(d.id)))
 
   useEffect(() => {
     const queue = untried()
     if (!queue.length) return
-    for (const d of queue) tried.current.add(d.id)
+    for (const d of queue) paletteTried.add(d.id)
     let cancelled = false
     let handle = 0
-    let filled = 0
-    const flush = (): void => {
-      if (filled) invalidateAll()
-      filled = 0
-    }
     const next = (): void => {
       if (cancelled) return
       const d = queue.shift()
-      if (!d) return flush()
+      if (!d) return
       fillPalette(d)
-        .then((colors) => {
-          if (colors.length) filled++
-        })
         .catch((e) => reportError(e, 'designs:palette'))
         .finally(() => {
           if (!cancelled) handle = requestIdleCallback(next)
@@ -44,8 +35,7 @@ export function usePaletteBackfill(items: Design[]): void {
       cancelled = true
       cancelIdleCallback(handle)
       // Whatever wasn't reached gets another try on the next run.
-      for (const d of queue) tried.current.delete(d.id)
-      flush()
+      for (const d of queue) paletteTried.delete(d.id)
     }
   }, [key])
 }

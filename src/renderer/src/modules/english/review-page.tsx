@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { GradeButtons, PracticeMore, ReviewCard, SessionSummary } from './review-parts'
 import { useReviewSession } from './use-review-session'
 
-/** Focused flashcard session. Words graded «Не згадав» return at the end of the same session. */
+/** Focused flashcard session. Words graded «Не згадали» return at the end of the same session. */
 export function ReviewPage(): ReactElement {
   const navigate = useNavigate()
   const { data: stats, error: statsError, refetch: refetchStats } = useApi('english', 'stats')
@@ -62,21 +62,31 @@ export function ReviewPage(): ReactElement {
     body = (
       <div className="text-center">
         <div className="font-display text-title">На сьогодні все</div>
-        <p className="mt-2 text-body text-muted-foreground">Слова повернуться, коли настане час повторення.</p>
+        <p className="mt-2 text-body text-muted-foreground">
+          Слова повернуться, коли настане час повторення.
+        </p>
         <PracticeMore onStart={startExtra} onExit={exit} />
       </div>
     )
   } else if (s.finished) {
     body = (
       <div className="flex w-full max-w-lg animate-enter flex-col items-center text-center">
-        <SessionSummary extra={s.extra} uniqueTotal={s.uniqueTotal} done={s.done} results={s.results} />
+        <SessionSummary
+          extra={s.extra}
+          uniqueTotal={s.uniqueTotal}
+          done={s.done}
+          results={s.results}
+        />
         <PracticeMore onStart={startExtra} onExit={exit} />
       </div>
     )
   } else if (s.current) {
     body = (
       // Keyed by word: every next card enters with the same short motion.
-      <div key={`${s.current.id}:${s.index}`} className="flex w-full max-w-2xl animate-enter flex-col gap-4">
+      <div
+        key={`${s.current.id}:${s.index}`}
+        className="flex w-full max-w-2xl animate-enter flex-col gap-4"
+      >
         <ReviewCard word={s.current} revealed={s.revealed} onReveal={s.reveal} />
         <GradeButtons revealed={s.revealed} busy={s.busy} onGrade={(g) => void s.grade(g)} />
       </div>
@@ -91,7 +101,12 @@ export function ReviewPage(): ReactElement {
         </Button>
         {s.total > 0 && (
           <div className="flex flex-1 items-center gap-3">
-            <SegmentBar value={s.done} total={s.total} segments={Math.min(s.total, 12)} className="flex-1" />
+            <SegmentBar
+              value={s.done}
+              total={s.total}
+              segments={Math.min(s.total, 12)}
+              className="flex-1"
+            />
             <span className="shrink-0 text-meta text-muted-foreground tabular-nums">
               Готово {s.done} з {s.total}
             </span>

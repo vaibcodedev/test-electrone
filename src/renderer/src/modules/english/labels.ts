@@ -15,12 +15,16 @@ export const STAGE_LABEL_ONE: Record<WordStage, string> = {
   mastered: 'Вивчене'
 }
 
-/** Stage dot / bar segment colour (full class strings: Tailwind can't see interpolated names). */
+/**
+ * Stage dot in the rows and the stage chips (full class strings: Tailwind can't see interpolated names). The same
+ * tones as STAGE_BADGE: one stage, one colour. `*-fill`, not the text tokens: those are darkened for text, and a
+ * «Вчу» dot in the light theme read as brown.
+ */
 export const STAGE_COLOR: Record<WordStage, string> = {
   new: 'bg-muted-foreground/50',
-  learning: 'bg-warn',
-  review: 'bg-info',
-  mastered: 'bg-chart-1'
+  learning: 'bg-warn-fill',
+  review: 'bg-info-fill',
+  mastered: 'bg-success-fill'
 }
 
 /** Stage badge in the record header: «Вивчене» is a success, not a second lime accent next to the page's one. */

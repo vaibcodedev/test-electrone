@@ -2,13 +2,9 @@ import { useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { Check, ImagePlus, LayoutGrid, Plus } from 'lucide-react'
-import type { Design, DesignKind, FileSource, Moodboard } from '@shared/domain/designs'
-import { api } from '@/lib/api'
+import type { FileSource, Moodboard } from '@shared/domain/designs'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fileUrl, toFileSources } from '@/lib/files'
-import { hostOf, plural } from '@/lib/format'
-import { normalizeUrl } from '@/lib/open-url'
-import { reportError } from '@/lib/error-reporting'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,58 +19,8 @@ import {
 } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
 import { clickableProps } from '@/lib/clickable'
-import { MEDIA_ACCEPT, fillPalette, isVideoPath } from './media'
-
-export const KIND_LABEL: Record<DesignKind, string> = {
-  site: 'Сайт',
-  landing: 'Лендинг',
-  shop: 'Магазин',
-  app: 'Застосунок',
-  dashboard: 'Дашборд',
-  other: 'Інше'
-}
-
-export function designTitle(d: Pick<Design, 'title' | 'sourceUrl'>): string {
-  // A link saved without a scheme still names the design by its site.
-  return d.title || (d.sourceUrl ? hostOf(normalizeUrl(d.sourceUrl)) : '') || 'Без назви'
-}
-
-/**
- * Imports images as designs (drop, paste, file picker, clipboard), then fills their palettes in the
- * background: the import (and `onCreated`, e.g. adding them to a moodboard) doesn't wait for the canvas.
- * Every write refreshes the queries itself (data:changed).
- */
-export function useImportImages(onCreated?: (designs: Design[]) => Promise<void> | void): {
-  importSources: (sources: FileSource[]) => Promise<void>
-  busy: boolean
-} {
-  const [busy, setBusy] = useState(false)
-  const run = async (sources: FileSource[]): Promise<void> => {
-    if (!sources.length) return
-    setBusy(true)
-    const created: Design[] = []
-    try {
-      for (const source of sources) {
-        try {
-          created.push(await api.designs.importImage({ source }))
-        } catch (e) {
-          toast.error((e as Error).message)
-        }
-      }
-      if (created.length) {
-        await onCreated?.(created)
-        const n = created.length
-        toast.success(n === 1 ? 'Картинку додано' : `Додано ${n} ${plural(n, ['картинку', 'картинки', 'картинок'])}`)
-      }
-    } finally {
-      setBusy(false)
-      void (async () => {
-        for (const d of created) await fillPalette(d).catch((e) => reportError(e, 'designs:palette'))
-      })()
-    }
-  }
-  return { importSources: run, busy }
-}
+import { MEDIA_ACCEPT, isVideoPath } from './media'
+import { designCount } from './labels'
 
 /** Hidden file input triggered by a shadcn Button. */
 export function PickImagesButton({
@@ -123,9 +69,21 @@ export function DesignMedia({
 }): ReactElement {
   if (!path) return <div className={cn('aspect-video bg-surface', className)} />
   if (isVideoPath(path)) {
-    return <video src={fileUrl(path)} className={className} muted loop autoPlay={autoPlay} preload="metadata" playsInline />
+    return (
+      <video
+        src={fileUrl(path)}
+        className={className}
+        muted
+        loop
+        autoPlay={autoPlay}
+        preload="metadata"
+        playsInline
+      />
+    )
   }
-  return <img src={fileUrl(path)} alt={alt} loading="lazy" draggable={false} className={className} />
+  return (
+    <img src={fileUrl(path)} alt={alt} loading="lazy" draggable={false} className={className} />
+  )
 }
 
 /** Cover mosaic of up to four images (shadcn Card). */
@@ -149,33 +107,55 @@ export function MoodboardTile({ board }: { board: Moodboard }): ReactElement {
             p ? (
               <DesignMedia key={i} path={p} className="size-full object-cover" />
             ) : (
-              <div key={i} className="size-full bg-card" style={board.color ? { background: `${board.color}33` } : undefined} />
+              <div
+                key={i}
+                className="size-full bg-card"
+                style={board.color ? { background: `${board.color}33` } : undefined}
+              />
             )
           )}
         </div>
       )}
       <div className="flex items-center justify-between gap-2 px-1.5 pb-0.5">
-        <span className="truncate text-caption font-medium" title={board.title}>
+        <span className="truncate text-body font-semibold" title={board.title}>
           {board.title}
         </span>
-        <span className="text-caption text-muted-foreground tabular-nums">{board.itemCount}</span>
+        {/* An empty board already says «Порожня» in the preview: no «0» next to it. */}
+        {board.itemCount > 0 && <TileCount n={board.itemCount} />}
       </div>
     </Card>
   )
 }
 
-/** Popover: add a design to one of the moodboards (or a new one). */
+/** The bare number of designs on a tile, named in full on hover and for screen readers. */
+function TileCount({ n }: { n: number }): ReactElement {
+  const phrase = designCount(n)
+  return (
+    <span className="shrink-0 text-caption text-muted-foreground tabular-nums" title={phrase}>
+      <span aria-hidden>{n}</span>
+      <span className="sr-only">{phrase}</span>
+    </span>
+  )
+}
+
+/** Popover: add a design to one of the moodboards (or a new one); a board that has it already takes it out. */
 export function AddToMoodboard({ designId }: { designId: string }): ReactElement {
   const [open, setOpen] = useState(false)
-  const [added, setAdded] = useState<Set<string>>(new Set())
-  const { data: boards = [] } = useApi('moodboards', 'list', undefined, { enabled: open })
+  // `contains` comes from the server: the tick survives reopening the pane, not just this session.
+  const { data: boards = [] } = useApi('moodboards', 'list', { designId }, { enabled: open })
   const add = useApiMutation('moodboards', 'addDesigns')
+  const takeOut = useApiMutation('moodboards', 'removeDesign')
   const create = useApiMutation('moodboards', 'create')
   // Failures are toasted by the mutations; the awaits below only stop on them.
   const addTo = async (board: Pick<Moodboard, 'id' | 'title'>): Promise<void> => {
     await add.mutateAsync({ moodboardId: board.id, designIds: [designId] })
-    setAdded((s) => new Set(s).add(board.id))
-    toast.success(`Додано в «${board.title}»`)
+    toast.success(`Дизайн додано в «${board.title}»`)
+  }
+  const toggle = async (board: Moodboard): Promise<void> => {
+    if (add.isPending || takeOut.isPending) return
+    if (!board.contains) return addTo(board)
+    await takeOut.mutateAsync({ moodboardId: board.id, designId })
+    toast.success(`Дизайн прибрано з «${board.title}»`)
   }
   const addToNew = async (): Promise<void> => {
     if (create.isPending) return
@@ -195,16 +175,26 @@ export function AddToMoodboard({ designId }: { designId: string }): ReactElement
             {boards.length > 0 && (
               <CommandGroup heading="Добірки">
                 {boards.map((b) => (
-                  <CommandItem key={b.id} value={`${b.title}-${b.id}`} onSelect={() => void addTo(b).catch(() => undefined)}>
-                    {/* A board without its own colour gets the neutral board icon, not a row of lime dots. */}
-                    {b.color ? (
-                      <span className="size-2 rounded-full" style={{ background: b.color }} />
-                    ) : (
-                      <LayoutGrid className="text-muted-foreground" />
-                    )}
+                  <CommandItem
+                    key={b.id}
+                    value={`${b.title}-${b.id}`}
+                    onSelect={() => void toggle(b).catch(() => undefined)}
+                  >
+                    {/* One marker slot: a colour dot and the board icon keep the titles on one line. A board without
+                        its own colour gets the neutral icon, not a row of lime dots. */}
+                    <span className="grid size-4 shrink-0 place-items-center">
+                      {b.color ? (
+                        <span className="size-2.5 rounded-full" style={{ background: b.color }} />
+                      ) : (
+                        <LayoutGrid className="size-3.5 text-muted-foreground" />
+                      )}
+                    </span>
                     <span className="flex-1 truncate">{b.title}</span>
-                    {added.has(b.id) ? (
-                      <Check className="size-3.5" />
+                    {b.contains ? (
+                      <>
+                        <Check className="size-3.5" aria-hidden />
+                        <span className="sr-only">(вже в добірці)</span>
+                      </>
                     ) : (
                       <span className="text-meta text-muted-foreground">{b.itemCount}</span>
                     )}
@@ -214,7 +204,11 @@ export function AddToMoodboard({ designId }: { designId: string }): ReactElement
             )}
             <CommandSeparator />
             <CommandGroup>
-              <CommandItem value="__new__" disabled={create.isPending} onSelect={() => void addToNew().catch(() => undefined)}>
+              <CommandItem
+                value="__new__"
+                disabled={create.isPending}
+                onSelect={() => void addToNew().catch(() => undefined)}
+              >
                 <Plus /> Нова добірка
               </CommandItem>
             </CommandGroup>
@@ -225,7 +219,13 @@ export function AddToMoodboard({ designId }: { designId: string }): ReactElement
   )
 }
 
-export function DropOverlay({ show, label = 'Відпустіть, щоб додати картинки' }: { show: boolean; label?: string }): ReactElement | null {
+export function DropOverlay({
+  show,
+  label = 'Відпустіть, щоб додати картинки'
+}: {
+  show: boolean
+  label?: string
+}): ReactElement | null {
   if (!show) return null
   return (
     <div className="pointer-events-none absolute inset-3 z-30 grid place-items-center rounded-3xl border-2 border-dashed border-ring bg-lime-soft/80 backdrop-blur-sm">

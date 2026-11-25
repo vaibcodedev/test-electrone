@@ -6,7 +6,16 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
-import { EmptyState, FilterBar, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import {
+  EmptyState,
+  FilterBar,
+  FilterChips,
+  NoResults,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput
+} from '@/components/common/page'
 import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
@@ -14,20 +23,16 @@ import { ButtonGroup } from '@/components/ui/button-group'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Card } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { clickableProps } from '@/lib/clickable'
 import { DesignDetail } from './design-detail'
-import {
-  DesignMedia,
-  DropOverlay,
-  MoodboardTile,
-  PickImagesButton,
-  designTitle,
-  KIND_LABEL,
-  useImportImages
-} from './shared'
+import { DesignMedia, DropOverlay, MoodboardTile, PickImagesButton } from './shared'
+import { KIND_LABEL, designTitle } from './labels'
+import { useImportImages } from './use-import-images'
 import { isMediaFile } from './media'
 import { usePaletteBackfill } from './use-palette-backfill'
+import { noResultsHint } from '@/components/common/filter-helpers'
 
 /** Hex → [r, g, b]. */
 function rgb(hex: string): [number, number, number] {
@@ -71,14 +76,32 @@ function ColorFilter({
       <ButtonGroup>
         <PopoverTrigger asChild>
           <Button variant="soft" size="sm" className={chosen}>
-            {value ? <span className="size-3.5 rounded-full ring-1 ring-foreground/30" style={{ background: value }} /> : <Palette />}
+            {value ? (
+              <span
+                className="size-3.5 rounded-full ring-1 ring-foreground/30"
+                style={{ background: value }}
+              />
+            ) : (
+              <Palette />
+            )}
             Колір
           </Button>
         </PopoverTrigger>
         {value && (
-          <Button variant="soft" size="icon-sm" className={chosen} aria-label="Скинути колір" onClick={() => onChange(undefined)}>
-            <X />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="soft"
+                size="icon-sm"
+                className={chosen}
+                aria-label="Скинути колір"
+                onClick={() => onChange(undefined)}
+              >
+                <X />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Скинути колір</TooltipContent>
+          </Tooltip>
         )}
       </ButtonGroup>
       <PopoverContent align="start" className="w-auto rounded-2xl p-3">
@@ -103,19 +126,16 @@ function ColorFilter({
               aria-label={c}
               className="size-8 min-w-8 p-0 hover:bg-transparent on:bg-transparent on:ring-2 on:ring-foreground on:ring-offset-2 on:ring-offset-popover"
             >
-              <span className="size-7 rounded-full ring-1 ring-border transition-transform hover:scale-110" style={{ background: c }} />
+              <span
+                className="size-7 rounded-full ring-1 ring-border transition-transform hover:scale-110"
+                style={{ background: c }}
+              />
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
       </PopoverContent>
     </Popover>
   )
-}
-
-/** Says what actually hides the results: the search text, the filters or both. */
-function noResultsHint(search: string, filters: boolean): string {
-  const q = search.trim()
-  return [q && `За запитом «${q}» нічого немає.`, filters && 'Спробуйте зняти фільтри.'].filter(Boolean).join(' ')
 }
 
 export function DesignsPage(): ReactElement | null {
@@ -159,8 +179,9 @@ export function DesignsPage(): ReactElement | null {
       items={list.items}
       loading={list.isLoading}
       getKey={(d) => d.id}
-      minColumnWidth={open ? 180 : 220}
-      rowHeight={open ? 190 : 230}
+      // Two columns beside an open design: the list gets ~34% of the page, two 180 px columns didn't fit.
+      minColumnWidth={open ? 150 : 220}
+      rowHeight={open ? 180 : 230}
       gap={12}
       hasMore={list.hasMore}
       loadingMore={list.loadingMore}
@@ -176,16 +197,24 @@ export function DesignsPage(): ReactElement | null {
             d.id === open && 'bg-accent outline-2 -outline-offset-2 outline-ring'
           )}
         >
-          <DesignMedia path={d.imagePath} alt={designTitle(d)} className="block aspect-[4/3] w-full rounded-[18px] object-cover object-top" />
+          <DesignMedia
+            path={d.imagePath}
+            alt={designTitle(d)}
+            className="block aspect-[4/3] w-full rounded-[18px] object-cover object-top"
+          />
           <div className="flex min-w-0 items-center gap-2 px-1.5 pt-2 pb-0.5">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-caption font-medium">{designTitle(d)}</div>
+              <div className="truncate text-body font-semibold">{designTitle(d)}</div>
               <div className="truncate text-meta text-muted-foreground">{KIND_LABEL[d.kind]}</div>
             </div>
             {d.colors.length > 0 && (
               <span className="flex shrink-0 -space-x-1" aria-hidden>
                 {d.colors.slice(0, 4).map((c) => (
-                  <span key={c} className="size-3 rounded-full ring-2 ring-surface" style={{ background: c }} />
+                  <span
+                    key={c}
+                    className="size-3 rounded-full ring-2 ring-surface"
+                    style={{ background: c }}
+                  />
                 ))}
               </span>
             )}
@@ -204,14 +233,24 @@ export function DesignsPage(): ReactElement | null {
           subtitle="Перетягніть картинки у вікно або вставте скриншот через Ctrl+V."
           actions={
             <>
-              <Button variant="soft" disabled={busy} onClick={() => void importSources([{ kind: 'clipboard' }])}>
+              <Button
+                variant="soft"
+                disabled={busy}
+                onClick={() => void importSources([{ kind: 'clipboard' }])}
+              >
                 <Clipboard /> З буфера
               </Button>
-              <PickImagesButton onSources={(s) => void importSources(s)} label="Завантажити" variant="lime" disabled={busy} />
+              <PickImagesButton
+                onSources={(s) => void importSources(s)}
+                label="Завантажити"
+                variant="lime"
+                disabled={busy}
+              />
             </>
           }
         >
-          {(boards.length > 0 || !filtered) && (
+          {/* An empty gallery shows no lone «Нова добірка» over its empty state: there is nothing to collect yet. */}
+          {(boards.length > 0 || (!filtered && !galleryEmpty)) && (
             <div className="-mx-1 flex gap-2.5 overflow-x-auto overflow-y-hidden px-1 pb-1">
               {boards.map((b) => (
                 <MoodboardTile key={b.id} board={b} />
@@ -235,6 +274,7 @@ export function DesignsPage(): ReactElement | null {
             <FilterBar
               chips={
                 <FilterChips
+                  label="Тип"
                   allLabel="Усі"
                   options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
                   value={kind}
@@ -245,7 +285,7 @@ export function DesignsPage(): ReactElement | null {
                 <>
                   <TagFilter value={tagId} onChange={setTagId} />
                   <ColorFilter palette={palette} value={color} onChange={setColor} />
-                  <SearchInput value={search} onChange={setSearch} className="w-72" />
+                  <SearchInput value={search} onChange={setSearch} />
                 </>
               }
             />
@@ -253,31 +293,35 @@ export function DesignsPage(): ReactElement | null {
         </PageHeader>
         <PageBody className="flex min-h-0 flex-col">
           {!list.isLoading && list.items.length === 0 ? (
-            <EmptyState
-              icon={Image}
-              title={filtered ? 'Нічого не знайдено' : 'Галерея порожня'}
-              hint={
-                filtered
-                  ? noResultsHint(search, !!(kind || color || tagId))
-                  : 'Перетягніть сюди скриншоти сайтів, лендингів і магазинів — або вставте з буфера Ctrl+V.'
-              }
-              action={
-                filtered ? (
-                  <Button variant="soft" onClick={resetFilters}>
-                    <X /> Скинути фільтри
-                  </Button>
-                ) : (
-                  // A file picker, not a plain click: hence `action` with the picker button, soft like any cta.
-                  <PickImagesButton onSources={(s) => void importSources(s)} label="Вибрати картинки" disabled={busy} />
-                )
-              }
-            />
+            filtered ? (
+              <NoResults
+                icon={Image}
+                hint={noResultsHint(search, !!(kind || color || tagId))}
+                onReset={resetFilters}
+              />
+            ) : (
+              <EmptyState
+                icon={Image}
+                title="Галерея порожня"
+                hint="Скриншоти сайтів, лендингів і магазинів — щоб брати з них кольори й ідеї."
+                // A file picker, not a plain click: hence `action` with the picker button, soft like any cta.
+                action={
+                  <PickImagesButton
+                    onSources={(s) => void importSources(s)}
+                    label="Завантажити"
+                    disabled={busy}
+                  />
+                }
+              />
+            )
           ) : (
             // Default list width: at 38% the pane got narrower than @2xl and put the title, kind and palette
             // under the image, below the fold.
             <MasterDetail
               list={gallery}
-              detail={open ? <DesignDetail key={open} id={open} onClose={() => setOpen(null)} /> : null}
+              detail={
+                open ? <DesignDetail key={open} id={open} onClose={() => setOpen(null)} /> : null
+              }
             />
           )}
         </PageBody>

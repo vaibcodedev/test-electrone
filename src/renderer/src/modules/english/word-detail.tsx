@@ -1,13 +1,19 @@
-import { useId, useMemo, type ReactNode, type ReactElement } from 'react'
+import { useId, useMemo, type KeyboardEvent, type ReactNode, type ReactElement } from 'react'
 import { WORD_KINDS, wordInputSchema, type Word, type WordPatch } from '@shared/domain/english'
 import { limitsOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime, fmtDay, easeLabel, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { DetailPane, EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
+import {
+  DetailPane,
+  EntityAside,
+  InlineTitle,
+  SectionLabel
+} from '@/components/common/master-detail'
 import { Field, Segmented } from '@/components/common/page'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { EditHintText } from '@/components/common/detail-mode'
 import { StatCell } from '@/components/common/stat-tile'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -17,9 +23,22 @@ import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL_ONE } from './labels'
 
 const LIMITS = limitsOf(wordInputSchema)
 
+/** One-line fields shown in a Textarea (a long value wraps while reading): Enter adds no line break, as in InlineTitle. */
+const noEnter = (e: KeyboardEvent): void => {
+  if (e.key === 'Enter') e.preventDefault()
+}
+const oneLine = (v: string): string => v.replace(/\n/g, ' ')
+
 type Form = Pick<
   Word,
-  'term' | 'translation' | 'kind' | 'transcription' | 'example' | 'exampleTranslation' | 'context' | 'notes'
+  | 'term'
+  | 'translation'
+  | 'kind'
+  | 'transcription'
+  | 'example'
+  | 'exampleTranslation'
+  | 'context'
+  | 'notes'
 >
 
 function toForm(w: Word): Form {
@@ -47,9 +66,9 @@ function Repetition({ word }: { word: Word }): ReactElement {
       ) : (
         <div className="grid grid-cols-2 gap-1.5">
           <StatCell
-            label="Повторити"
+            label="Наступне"
             value={fmtDay(word.dueAt) || '—'}
-            hint={`Коли слово знову зʼявиться в тренуванні: ${fmtDateTime(word.dueAt)}.`}
+            hint={`Коли слово знову з’явиться в тренуванні: ${fmtDateTime(word.dueAt)}.`}
           />
           <StatCell
             label="Інтервал"
@@ -58,16 +77,28 @@ function Repetition({ word }: { word: Word }): ReactElement {
                 ? 'менше дня'
                 : `${Math.round(word.intervalDays)} ${plural(Math.round(word.intervalDays), ['день', 'дні', 'днів'])}`
             }
-            hint="Скільки днів між повторами зараз. Згадали — інтервал росте, забули — знову короткий."
+            hint="Скільки днів між повтореннями зараз. Згадали — інтервал росте, забули — знову короткий."
           />
-          <StatCell label="Поспіль" value={String(word.repetitions)} hint="Скільки разів поспіль ви згадали слово без помилки." />
-          <StatCell label="Помилок" value={String(word.lapses)} hint="Скільки разів слово забулося й повернулося на початок." />
+          <StatCell
+            label="Поспіль"
+            value={String(word.repetitions)}
+            hint="Скільки разів поспіль ви згадали слово без помилки."
+          />
+          <StatCell
+            label="Помилок"
+            value={String(word.lapses)}
+            hint="Скільки разів слово забулося й повернулося на початок."
+          />
           <StatCell
             label="Дається"
             value={easeLabel(word.ease)}
             hint="Наскільки легко дається слово за вашими відповідями. Що важче, то частіше воно трапляється."
           />
-          <StatCell label="Останній раз" value={fmtDay(word.lastReviewedAt)} hint="Коли ви востаннє повторювали це слово." />
+          <StatCell
+            label="Останній раз"
+            value={fmtDay(word.lastReviewedAt)}
+            hint="Коли ви востаннє повторювали це слово."
+          />
         </div>
       )}
     </section>
@@ -75,10 +106,14 @@ function Repetition({ word }: { word: Word }): ReactElement {
 }
 
 /** The term is required: an emptied one isn't saved (the rest of the form still is) and says so while editing. */
-function TermError({ empty }: { empty: boolean }): ReactElement | null {
+function TermError({ id, empty }: { id: string; empty: boolean }): ReactElement | null {
   const readOnly = useReadOnly()
   if (!empty || readOnly) return null
-  return <FieldError className="text-caption">Введіть слово або фразу</FieldError>
+  return (
+    <FieldError id={id} className="text-caption">
+      Введіть слово або фразу
+    </FieldError>
+  )
 }
 
 /**
@@ -103,7 +138,8 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
     const { term, ...rest } = next
     update.mutate({ id: word.id, patch: (term.trim() ? next : rest) as WordPatch })
   })
-  const set = <K extends keyof Form>(key: K, value: Form[K]): void => setForm({ ...form, [key]: value })
+  const set = <K extends keyof Form>(key: K, value: Form[K]): void =>
+    setForm({ ...form, [key]: value })
   const entity = { type: 'word' as const, id: word.id }
   const id = useId()
 
@@ -116,6 +152,11 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
         onClose()
       }}
       headerExtra={<Badge variant={STAGE_BADGE[word.stage]}>{STAGE_LABEL_ONE[word.stage]}</Badge>}
+      emptyHint={
+        <>
+          Перекладу й прикладу поки немає. <EditHintText />
+        </>
+      }
       aside={
         <EntityAside
           entity={entity}
@@ -131,8 +172,15 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
     >
       <div className="flex flex-col gap-5">
         <div>
-          <InlineTitle value={form.term} onChange={(v) => set('term', v)} placeholder="Слово" maxLength={LIMITS.term} />
-          <TermError empty={!form.term.trim()} />
+          <InlineTitle
+            value={form.term}
+            onChange={(v) => set('term', v)}
+            placeholder="Слово"
+            maxLength={LIMITS.term}
+            invalid={!form.term.trim()}
+            describedBy={form.term.trim() ? undefined : `${id}-term-error`}
+          />
+          <TermError id={`${id}-term-error`} empty={!form.term.trim()} />
         </div>
         <Field label="Транскрипція" htmlFor={`${id}-tr`}>
           <Input
@@ -151,7 +199,8 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
             rows={1}
             value={form.translation}
             maxLength={LIMITS.translation}
-            onChange={(e) => set('translation', e.target.value)}
+            onKeyDown={noEnter}
+            onChange={(e) => set('translation', oneLine(e.target.value))}
             placeholder="Як це українською"
             className="min-h-9"
           />
@@ -172,7 +221,10 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
               placeholder="Речення, де ви це побачили"
             />
           </Field>
-          <Field label="Переклад прикладу" count={{ length: form.exampleTranslation.length, max: LIMITS.exampleTranslation }}>
+          <Field
+            label="Переклад прикладу"
+            count={{ length: form.exampleTranslation.length, max: LIMITS.exampleTranslation }}
+          >
             <Textarea
               value={form.exampleTranslation}
               maxLength={LIMITS.exampleTranslation}
@@ -187,13 +239,19 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
             rows={1}
             value={form.context}
             maxLength={LIMITS.context}
-            onChange={(e) => set('context', e.target.value)}
+            onKeyDown={noEnter}
+            onChange={(e) => set('context', oneLine(e.target.value))}
             placeholder="Напр.: PR, документація, чат"
             className="min-h-9"
           />
         </Field>
         <Field label="Нотатки" count={{ length: form.notes.length, max: LIMITS.notes }}>
-          <Textarea value={form.notes} maxLength={LIMITS.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Синоніми, нюанси вживання" />
+          <Textarea
+            value={form.notes}
+            maxLength={LIMITS.notes}
+            onChange={(e) => set('notes', e.target.value)}
+            placeholder="Синоніми, нюанси вживання"
+          />
         </Field>
       </div>
     </DetailPane>

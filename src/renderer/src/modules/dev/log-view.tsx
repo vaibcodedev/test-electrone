@@ -23,7 +23,10 @@ function appendChunks(rows: Row[], open: { current: boolean }, chunks: LogChunk[
       const isLast = i === parts.length - 1
       if (isLast && part === '') return
       if (i === 0 && open.current && next.length) {
-        next[next.length - 1] = { text: next[next.length - 1].text + part, stream: next[next.length - 1].stream }
+        next[next.length - 1] = {
+          text: next[next.length - 1].text + part,
+          stream: next[next.length - 1].stream
+        }
       } else next.push({ text: part, stream: c.stream })
     })
     open.current = !c.text.endsWith('\n')
@@ -84,10 +87,13 @@ export function LogView({ runId, className }: { runId: string; className?: strin
         const el = e.currentTarget
         stick.current = el.scrollTop + el.clientHeight >= el.scrollHeight - ROW_HEIGHT * 2
       }}
-      className={cn('selectable min-h-0 overflow-auto rounded-xl bg-[var(--code-bg)] font-mono text-caption text-[var(--code-fg)]', className)}
+      className={cn(
+        'selectable min-h-0 overflow-auto rounded-xl bg-(--code-bg) font-mono text-caption text-(--code-fg)',
+        className
+      )}
     >
       {rows.length === 0 ? (
-        <div className="p-3 text-[var(--code-muted)]">Лог порожній…</div>
+        <div className="p-3 text-(--code-muted)">Лог порожній…</div>
       ) : (
         <div className="relative min-w-full" style={{ height: virtualizer.getTotalSize() }}>
           {virtualizer.getVirtualItems().map((v) => {
@@ -97,8 +103,8 @@ export function LogView({ runId, className }: { runId: string; className?: strin
                 key={v.key}
                 className={cn(
                   'absolute top-0 left-0 w-full px-3 leading-[18px] whitespace-pre',
-                  row.stream === 'err' && 'text-[#ff9a9a]',
-                  row.stream === 'sys' && 'text-[var(--code-keyword)]'
+                  row.stream === 'err' && 'text-(--code-invalid)',
+                  row.stream === 'sys' && 'text-(--code-keyword)'
                 )}
                 style={{ height: ROW_HEIGHT, transform: `translateY(${v.start}px)` }}
               >

@@ -1,14 +1,21 @@
 import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, Lock, X } from 'lucide-react'
+import { ArrowRight, FolderGit2, Lock } from 'lucide-react'
 import { openUrl } from '@/lib/open-url'
 import { useApi } from '@/lib/query'
 import { fmtRelative } from '@/lib/format'
-import { EmptyState, SearchInput } from '@/components/common/page'
+import { EmptyState, NoResults, SearchInput } from '@/components/common/page'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import { GithubLoadError } from './github-load-error'
 
 /** Your repositories: the name opens GitHub, «Локально» opens the project folder added to Vault. */
@@ -22,7 +29,7 @@ export function ReposTab(): ReactElement | null {
   if (!repos) return error ? <GithubLoadError error={error} onRetry={() => void refetch()} /> : null
   return (
     <div className="flex flex-col gap-3">
-      <SearchInput value={search} onChange={setSearch} placeholder="Знайти репозиторій" className="max-w-sm" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Знайти репозиторій" />
       {list.length > 0 && (
         <Table>
           <TableHeader>
@@ -40,7 +47,11 @@ export function ReposTab(): ReactElement | null {
               <TableRow key={r.fullName}>
                 <TableCell className="max-w-[360px]">
                   <div className="flex items-center gap-1.5">
-                    <Button variant="link" className="font-medium no-underline hover:underline" onClick={() => openUrl(r.url)}>
+                    <Button
+                      variant="link"
+                      className="font-medium no-underline hover:underline"
+                      onClick={() => openUrl(r.url)}
+                    >
                       {r.fullName}
                     </Button>
                     {r.private && (
@@ -50,20 +61,33 @@ export function ReposTab(): ReactElement | null {
                     )}
                     {r.fork && <Badge variant="soft">форк</Badge>}
                   </div>
-                  {r.description && <div className="truncate text-caption text-muted-foreground">{r.description}</div>}
+                  {r.description && (
+                    <div className="truncate text-caption text-muted-foreground">
+                      {r.description}
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="text-muted-foreground">{r.language ?? '—'}</TableCell>
                 <TableCell className="text-right tabular-nums">{r.stars}</TableCell>
                 <TableCell className="text-right tabular-nums">{r.openIssues}</TableCell>
-                <TableCell className="text-muted-foreground">{r.pushedAt ? fmtRelative(r.pushedAt) : '—'}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {r.pushedAt ? fmtRelative(r.pushedAt) : '—'}
+                </TableCell>
                 <TableCell>
                   {r.localProjectId ? (
                     // Neutral in a repeated row: the screen keeps one lime action.
-                    <Button size="xs" variant="subtle" onClick={() => navigate(`/dev?open=${r.localProjectId}`)}>
+                    <Button
+                      size="xs"
+                      variant="subtle"
+                      onClick={() => navigate(`/dev?open=${r.localProjectId}`)}
+                    >
                       Локально <ArrowRight />
                     </Button>
                   ) : (
-                    <span className="text-caption text-muted-foreground" title="Додайте папку репозиторію в «Мої проєкти» — зв’язок визначиться за git remote">
+                    <span
+                      className="text-caption text-muted-foreground"
+                      title="Додайте папку репозиторію в «Мої проєкти» — зв’язок визначиться за git remote"
+                    >
                       немає папки
                     </span>
                   )}
@@ -75,17 +99,16 @@ export function ReposTab(): ReactElement | null {
       )}
       {list.length === 0 &&
         (repos.length && q ? (
-          <EmptyState
-            title="Нічого не знайдено"
+          <NoResults
+            icon={FolderGit2}
             hint={`За запитом «${search.trim()}» репозиторіїв немає.`}
-            action={
-              <Button variant="soft" onClick={() => setSearch('')}>
-                <X /> Скинути пошук
-              </Button>
-            }
+            onReset={() => setSearch('')}
           />
         ) : (
-          <EmptyState title="Репозиторіїв немає" hint="Перевірте, що токен має доступ до потрібних репозиторіїв." />
+          <EmptyState
+            title="Репозиторіїв немає"
+            hint="Перевірте, що токен має доступ до потрібних репозиторіїв."
+          />
         ))}
     </div>
   )

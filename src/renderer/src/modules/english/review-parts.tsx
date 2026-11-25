@@ -11,16 +11,62 @@ import { Card } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { GradeCounts } from './use-review-session'
 
-/** Four equal neutral buttons; only the label colour carries the meaning (no single loud one). */
-const GRADES: { grade: ReviewGrade; label: string; hint: string; text: string; hover: string; tile: string }[] = [
-  { grade: 0, label: 'Не згадав', hint: 'покажу ще раз', text: 'text-destructive', hover: 'hover:bg-destructive/12', tile: 'bg-destructive/12 text-destructive' },
-  { grade: 1, label: 'Насилу', hint: 'повторимо скоро', text: 'text-warn', hover: 'hover:bg-warn/15', tile: 'bg-warn/15 text-warn' },
-  { grade: 2, label: 'Згадав', hint: 'за планом', text: 'text-foreground', hover: 'hover:bg-accent', tile: '' },
-  { grade: 3, label: 'Легко', hint: 'не скоро', text: 'text-success', hover: 'hover:bg-success/15', tile: 'bg-success/15 text-success' }
+/**
+ * Four equal neutral buttons; only the label colour carries the meaning (no single loud one). Labels without
+ * gender (glossary «Статусы»), and every hint says one thing in one voice: when the word comes back.
+ */
+const GRADES: {
+  grade: ReviewGrade
+  label: string
+  hint: string
+  text: string
+  hover: string
+  tile: string
+}[] = [
+  {
+    grade: 0,
+    label: 'Не згадали',
+    hint: 'ще в цій сесії',
+    text: 'text-destructive',
+    hover: 'hover:bg-destructive/12',
+    tile: 'bg-destructive/12 text-destructive'
+  },
+  {
+    grade: 1,
+    label: 'Насилу',
+    hint: 'скоро',
+    text: 'text-warn',
+    hover: 'hover:bg-warn/15',
+    tile: 'bg-warn/15 text-warn'
+  },
+  {
+    grade: 2,
+    label: 'Згадали',
+    hint: 'за планом',
+    text: 'text-foreground',
+    hover: 'hover:bg-accent',
+    tile: ''
+  },
+  {
+    grade: 3,
+    label: 'Легко',
+    hint: 'нескоро',
+    text: 'text-success',
+    hover: 'hover:bg-success/15',
+    tile: 'bg-success/15 text-success'
+  }
 ]
 
 /** The flashcard: the term first, translation and example after «Показати відповідь» (or Space). */
-export function ReviewCard({ word, revealed, onReveal }: { word: Word; revealed: boolean; onReveal: () => void }): ReactElement {
+export function ReviewCard({
+  word,
+  revealed,
+  onReveal
+}: {
+  word: Word
+  revealed: boolean
+  onReveal: () => void
+}): ReactElement {
   return (
     <Card
       onClick={onReveal}
@@ -31,17 +77,27 @@ export function ReviewCard({ word, revealed, onReveal }: { word: Word; revealed:
       )}
     >
       {word.context && (
-        <Badge variant="soft" className="max-w-full text-caption font-normal text-muted-foreground">
+        <Badge
+          variant="soft"
+          truncate
+          className="max-w-full text-caption font-normal text-muted-foreground"
+        >
           {word.context}
         </Badge>
       )}
       <div className="font-display max-w-full text-display">{word.term}</div>
-      {word.transcription && <div className="text-lead text-muted-foreground">{word.transcription}</div>}
+      {word.transcription && (
+        <div className="text-lead text-muted-foreground">{word.transcription}</div>
+      )}
       {revealed ? (
         <div className="selectable mt-3 flex max-w-xl animate-enter flex-col items-center gap-2.5">
           <div className="text-stat-sm font-medium">{word.translation || '—'}</div>
-          {word.example && <div className="text-lead text-foreground/85 italic">«{word.example}»</div>}
-          {word.exampleTranslation && <div className="text-body text-muted-foreground">{word.exampleTranslation}</div>}
+          {word.example && (
+            <div className="text-lead text-foreground/85 italic">«{word.example}»</div>
+          )}
+          {word.exampleTranslation && (
+            <div className="text-body text-muted-foreground">{word.exampleTranslation}</div>
+          )}
         </div>
       ) : (
         <div className="mt-5 flex flex-col items-center gap-2.5">
@@ -65,7 +121,15 @@ export function ReviewCard({ word, revealed, onReveal }: { word: Word; revealed:
 }
 
 /** Grade row after the answer is open; before that a placeholder of the same height (nothing jumps). */
-export function GradeButtons({ revealed, busy, onGrade }: { revealed: boolean; busy: boolean; onGrade: (g: ReviewGrade) => void }): ReactElement {
+export function GradeButtons({
+  revealed,
+  busy,
+  onGrade
+}: {
+  revealed: boolean
+  busy: boolean
+  onGrade: (g: ReviewGrade) => void
+}): ReactElement {
   if (!revealed)
     return (
       <div className="flex h-16 items-center justify-center text-caption text-muted-foreground">
@@ -115,7 +179,9 @@ export function SessionSummary({
           <PartyPopper className="size-7" />
         </AvatarFallback>
       </Avatar>
-      <div className="font-display text-title mt-5">{extra ? 'Тренування завершено' : 'Сесію завершено'}</div>
+      <div className="font-display text-title mt-5">
+        {extra ? 'Тренування завершено' : 'Сесію завершено'}
+      </div>
       <p className="mt-2 text-body text-muted-foreground">
         {uniqueTotal} {plural(uniqueTotal, ['слово', 'слова', 'слів'])}, відповідей: {done}
       </p>
@@ -132,10 +198,18 @@ export function SessionSummary({
 }
 
 /** Practice beyond the norm (doesn't shift the schedule) and the way back. */
-export function PracticeMore({ onStart, onExit }: { onStart: (limit: number) => void; onExit: () => void }): ReactElement {
+export function PracticeMore({
+  onStart,
+  onExit
+}: {
+  onStart: (limit: number) => void
+  onExit: () => void
+}): ReactElement {
   return (
     <div className="mt-6 flex flex-col items-center gap-3">
-      <span className="text-caption text-muted-foreground">Потренуватися понад норму — розклад повторень не збиватиметься</span>
+      <span className="text-caption text-muted-foreground">
+        Потренуватися понад норму — розклад повторень не збиватиметься
+      </span>
       <ButtonGroup>
         <Button variant="soft" onClick={() => onStart(10)}>
           Ще 10

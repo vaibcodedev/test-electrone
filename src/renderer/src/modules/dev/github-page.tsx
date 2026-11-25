@@ -39,9 +39,10 @@ export function GithubPage(): ReactElement {
         api.github.commits({ repo: commitsRepo, force: true })
       ])
     } catch (e) {
-      // Rate limit, network, a revoked token: the tabs would quietly show the old cache otherwise.
+      // Rate limit, network, a revoked token: the tabs would quietly show the old cache otherwise. The rpc
+      // message is already a sentence for a person: no «Не вдалося оновити:» glued in front of it.
       reportError(e, 'github:refresh')
-      toast.error(`Не вдалося оновити: ${(e as Error).message}`)
+      toast.error((e as Error).message)
     } finally {
       invalidateAll()
       setRefreshing(false)
@@ -53,14 +54,20 @@ export function GithubPage(): ReactElement {
   if (!status?.connected) {
     return (
       <Page>
-        <PageHeader title="GitHub" subtitle="Репозиторії, відкриті issues й останні коміти в одному місці." />
+        <PageHeader
+          title="GitHub"
+          subtitle="Репозиторії, відкриті issues й останні коміти в одному місці."
+        />
         <PageBody>
           <Card className="max-w-2xl">
             <CardHeader>
               <CardTitle className="text-lead text-foreground">Підключіть GitHub</CardTitle>
               <CardDescription className="text-caption">
-                Потрібен fine-grained токен лише на читання. Vault нічого не змінює у ваших репозиторіях.
-                {status?.error && <span className="mt-1 block text-destructive">{status.error}</span>}
+                Потрібен fine-grained токен лише на читання. Vault нічого не змінює у ваших
+                репозиторіях.
+                {status?.error && (
+                  <span className="mt-1 block text-destructive">{status.error}</span>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -80,10 +87,14 @@ export function GithubPage(): ReactElement {
           <span className="flex items-center gap-2">
             <Avatar className="size-5">
               {status.avatarUrl && <AvatarImage src={status.avatarUrl} alt="" />}
-              <AvatarFallback className="text-meta">{status.login?.slice(0, 1).toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="text-meta">
+                {status.login?.slice(0, 1).toUpperCase()}
+              </AvatarFallback>
             </Avatar>
             {status.name ? `${status.name} · ` : ''}@{status.login}
-            {status.rateRemaining !== null && <Badge variant="soft">запитів залишилося: {status.rateRemaining}</Badge>}
+            {status.rateRemaining !== null && (
+              <Badge variant="soft">Залишилося запитів: {status.rateRemaining}</Badge>
+            )}
           </span>
         }
         actions={

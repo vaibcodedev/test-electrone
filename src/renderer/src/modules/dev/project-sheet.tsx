@@ -15,10 +15,34 @@ import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from '@/components/ui/item'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput
+} from '@/components/ui/input-group'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle
+} from '@/components/ui/item'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from '@/components/ui/sheet'
 import { defaultScript } from './dev-shared'
 
 const AUTO = '__auto'
@@ -26,16 +50,28 @@ const LIMITS = limitsOf(devProjectInputSchema)
 /** Empty or owner/repo; invalid values are shown with an error and not saved. */
 const repoOk = (v: string): boolean => !v.trim() || /^[\w.-]+\/[\w.-]+$/.test(v.trim())
 
-function Editor({ project: p, onClose }: { project: DevProject; onClose: () => void }): ReactElement {
+function Editor({
+  project: p,
+  onClose
+}: {
+  project: DevProject
+  onClose: () => void
+}): ReactElement {
   const update = useApiMutation('devProjects', 'update')
   const open = useApiMutation('devProjects', 'open')
-  const remove = useApiMutation('devProjects', 'remove', { successMessage: 'Проєкт прибрано з Vault' })
+  const remove = useApiMutation('devProjects', 'remove', {
+    successMessage: 'Проєкт прибрано з Vault'
+  })
   const run = useApiMutation('devProjects', 'run')
   const stop = useApiMutation('devProjects', 'stop')
-  const save = (patch: Parameters<typeof update.mutate>[0]['patch']): void => update.mutate({ id: p.id, patch })
+  const save = (patch: Parameters<typeof update.mutate>[0]['patch']): void =>
+    update.mutate({ id: p.id, patch })
   const [name, setName] = useAutosave(p.name, (v) => v.trim() && save({ name: v.trim() }))
   const [notes, setNotes] = useAutosave(p.notes, (v) => save({ notes: v }))
-  const [repo, setRepo] = useAutosave(p.githubRepo, (v) => repoOk(v) && save({ githubRepo: v.trim() }))
+  const [repo, setRepo] = useAutosave(
+    p.githubRepo,
+    (v) => repoOk(v) && save({ githubRepo: v.trim() })
+  )
   const scripts = Object.keys(p.scripts)
   const auto = defaultScript({ ...p, mainScript: '' })
 
@@ -47,11 +83,18 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
         <InputGroup>
           {/* Clipped from the left with «…»: the folder's own name at the end is what tells projects apart.
               text-left: rtl alone pushed a short path that fits against the buttons. */}
-          <span className="min-w-0 flex-1 truncate px-3 text-left text-body" title={p.path} dir="rtl">
+          <span
+            className="min-w-0 flex-1 truncate px-3 text-left text-body"
+            title={p.path}
+            dir="rtl"
+          >
             <bdi>{p.path}</bdi>
           </span>
           <InputGroupAddon align="inline-end">
-            <InputGroupButton size="xs" onClick={() => open.mutate({ projectId: p.id, target: 'folder' })}>
+            <InputGroupButton
+              size="xs"
+              onClick={() => open.mutate({ projectId: p.id, target: 'folder' })}
+            >
               <FolderOpen /> Відкрити
             </InputGroupButton>
             <InputGroupButton
@@ -73,7 +116,7 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Редактор за замовчуванням">
+        <Field label="Типовий редактор">
           <Segmented<Editor>
             value={p.editor}
             onChange={(editor) => save({ editor })}
@@ -84,7 +127,10 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
           />
         </Field>
         <Field label="Кнопка «Запустити»">
-          <Select value={p.mainScript && p.mainScript in p.scripts ? p.mainScript : AUTO} onValueChange={(v) => save({ mainScript: v === AUTO ? '' : v })}>
+          <Select
+            value={p.mainScript && p.mainScript in p.scripts ? p.mainScript : AUTO}
+            onValueChange={(v) => save({ mainScript: v === AUTO ? '' : v })}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -100,7 +146,10 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
         </Field>
       </div>
 
-      <Field label="Репозиторій GitHub (owner/repo)" error={repoOk(repo) ? undefined : 'Формат: owner/repo, наприклад vercel/next.js'}>
+      <Field
+        label="Репозиторій GitHub (owner/repo)"
+        error={repoOk(repo) ? undefined : 'Формат: owner/repo, наприклад vercel/next.js'}
+      >
         <InputGroup>
           <InputGroupInput
             value={repo}
@@ -112,7 +161,11 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
           />
           {repo && repoOk(repo) && (
             <InputGroupAddon align="inline-end">
-              <InputGroupButton size="icon-xs" aria-label="Відкрити на GitHub" onClick={() => openUrl(`https://github.com/${repo}`)}>
+              <InputGroupButton
+                size="icon-xs"
+                aria-label="Відкрити на GitHub"
+                onClick={() => openUrl(`https://github.com/${repo}`)}
+              >
                 <ExternalLink />
               </InputGroupButton>
             </InputGroupAddon>
@@ -123,7 +176,9 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
       <section className="flex flex-col gap-2">
         <SectionLabel>Скрипти package.json</SectionLabel>
         {scripts.length === 0 ? (
-          <p className="text-caption text-muted-foreground">У папці немає package.json або в ньому немає скриптів.</p>
+          <p className="text-caption text-muted-foreground">
+            У папці немає package.json або в ньому немає скриптів.
+          </p>
         ) : (
           <ItemGroup className="gap-1">
             {scripts.map((s) => {
@@ -132,7 +187,9 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
                 <Item key={s} size="xs" variant="muted">
                   <ItemContent className="min-w-0 gap-0">
                     <ItemTitle className="font-mono text-caption">{s}</ItemTitle>
-                    <ItemDescription className="truncate font-mono text-meta">{p.scripts[s]}</ItemDescription>
+                    <ItemDescription className="truncate font-mono text-meta">
+                      {p.scripts[s]}
+                    </ItemDescription>
                   </ItemContent>
                   <ItemActions>
                     {r ? (
@@ -140,7 +197,12 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
                         <Square /> Зупинити
                       </Button>
                     ) : (
-                      <Button size="xs" variant="soft" className="bg-card" onClick={() => run.mutate({ projectId: p.id, script: s })}>
+                      <Button
+                        size="xs"
+                        variant="soft"
+                        className="bg-card"
+                        onClick={() => run.mutate({ projectId: p.id, script: s })}
+                      >
                         <Play /> Запустити
                       </Button>
                     )}
@@ -152,7 +214,14 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
         )}
       </section>
 
-      <MarkdownField label="Нотатки" value={notes} onChange={setNotes} placeholder="Як запускати, змінні оточення, доступи до стендів…" minHeight="120px" maxLength={LIMITS.notes} />
+      <MarkdownField
+        label="Нотатки"
+        value={notes}
+        onChange={setNotes}
+        placeholder="Як запускати, змінні оточення, доступи до стендів…"
+        minHeight="120px"
+        maxLength={LIMITS.notes}
+      />
 
       <Field label="Додано">
         <Input readOnly value={fmtDateTime(p.createdAt)} />
@@ -167,7 +236,10 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
           onClose()
         }}
       >
-        <Button variant="ghost" className="-ml-3 self-start text-muted-foreground hover:text-destructive">
+        <Button
+          variant="ghost"
+          className="-ml-3 self-start text-muted-foreground hover:text-destructive"
+        >
           <Trash2 /> Прибрати з Vault
         </Button>
       </Confirm>
@@ -176,7 +248,13 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
 }
 
 /** Project details in a right sheet (?open=id). */
-export function ProjectSheet({ project, onClose }: { project: DevProject | null; onClose: () => void }): ReactElement {
+export function ProjectSheet({
+  project,
+  onClose
+}: {
+  project: DevProject | null
+  onClose: () => void
+}): ReactElement {
   return (
     <Sheet open={!!project} onOpenChange={(o) => !o && onClose()}>
       <SheetContent className="w-[520px] overflow-y-auto sm:max-w-[520px]">
@@ -184,7 +262,9 @@ export function ProjectSheet({ project, onClose }: { project: DevProject | null;
           <SheetTitle className="sr-only">Проєкт</SheetTitle>
           <SheetDescription className="sr-only">Налаштування локального проєкту</SheetDescription>
         </SheetHeader>
-        <div className="px-6 pb-6">{project && <Editor key={project.id} project={project} onClose={onClose} />}</div>
+        <div className="px-6 pb-6">
+          {project && <Editor key={project.id} project={project} onClose={onClose} />}
+        </div>
       </SheetContent>
     </Sheet>
   )

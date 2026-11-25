@@ -1,19 +1,38 @@
-import { useMemo, useState, type ReactElement } from 'react'
-import { Bookmark as BookmarkIcon, Plus, X } from 'lucide-react'
-import { BOOKMARK_KINDS, BOOKMARK_STATUSES, type BookmarkKind, type BookmarkStatus } from '@shared/domain/bookmarks'
+import { useState, type ReactElement } from 'react'
+import { Bookmark as BookmarkIcon, Plus } from 'lucide-react'
+import {
+  BOOKMARK_KINDS,
+  BOOKMARK_STATUSES,
+  type BookmarkKind,
+  type BookmarkStatus
+} from '@shared/domain/bookmarks'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { accelToKeys, DEFAULT_QUICK_ADD } from '@/app/shortcuts'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { EmptyState, FilterBar, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  EmptyState,
+  FilterBar,
+  FilterChips,
+  NoResults,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput
+} from '@/components/common/page'
 import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { ImportButton } from '@/components/common/import-dialog'
-import { countBy } from '../claude/editor-kit'
-import { presentChips } from '../claude/chips'
+import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
 import { BookmarkDetail } from './bookmark-detail'
 import { BookmarkRow } from './bookmark-row'
 import { KIND_LABEL, STATUS_LABEL } from './labels'
@@ -28,21 +47,23 @@ export function BookmarksPage(): ReactElement | null {
   const [openId, setOpen] = useOpenParam()
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId }
-  // Full list only feeds the chip counters; the rendered list is paged + virtualized.
-  const { data: all = [], isPending: allPending } = useApi('bookmarks', 'list', base)
+  // The chip counters are counted by the server: statuses within the chosen kind, kinds over all of them.
+  const { data: counts, isPending: countsPending } = useApi('bookmarks', 'counts', {
+    ...base,
+    kind
+  })
   const list = useInfiniteApi('bookmarks', 'list', { ...base, kind, status })
   const { data: openItem } = useApi('bookmarks', 'get', openId ?? '', { enabled: !!openId })
   const { data: settings } = useApi('settings', 'get')
   const create = useApiMutation('bookmarks', 'create')
 
-  const byKind = kind ? all.filter((b) => b.kind === kind) : all
-  const statusCounts = useMemo(() => countBy(byKind, (b) => b.status), [byKind])
-  const kindCounts = useMemo(() => countBy(all, (b) => b.kind), [all])
+  const statusCounts = counts?.byStatus ?? {}
+  const kindCounts = counts?.byKind ?? {}
   const usedKinds = BOOKMARK_KINDS.filter((k) => kindCounts[k])
 
   const filtered = !!(search.trim() || tagId || status || kind)
   // No row of filters over an empty base (it stays while the counts load: nothing jumps).
-  const showFilters = allPending || all.length > 0 || filtered
+  const showFilters = countsPending || usedKinds.length > 0 || filtered
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
@@ -51,7 +72,11 @@ export function BookmarksPage(): ReactElement | null {
   }
   const addBookmark = async (): Promise<void> => {
     if (create.isPending) return
-    const created = await create.mutateAsync({ title: 'Нова закладка', kind: kind ?? 'article', status: status ?? 'queue' })
+    const created = await create.mutateAsync({
+      title: 'Нова закладка',
+      kind: kind ?? 'article',
+      status: status ?? 'queue'
+    })
     setOpen(created.id)
   }
 
@@ -64,7 +89,11 @@ export function BookmarksPage(): ReactElement | null {
           <>
             <ImportButton kind="bookmark" onImported={(id) => id && setOpen(id)} />
             {/* A failure is toasted by the mutation. */}
-            <Button variant="lime" disabled={create.isPending} onClick={() => void addBookmark().catch(() => undefined)}>
+            <Button
+              variant="lime"
+              disabled={create.isPending}
+              onClick={() => void addBookmark().catch(() => undefined)}
+            >
               <Plus /> Закладка
             </Button>
           </>
@@ -74,16 +103,27 @@ export function BookmarksPage(): ReactElement | null {
           <FilterBar
             chips={
               <FilterChips
+                label="Статус"
                 allLabel="Усі"
                 value={status}
                 onChange={setStatus}
-                options={presentChips(BOOKMARK_STATUSES, statusCounts, (s) => STATUS_LABEL[s], status)}
+                options={presentChips(
+                  BOOKMARK_STATUSES,
+                  statusCounts,
+                  (s) => STATUS_LABEL[s],
+                  status
+                )}
               />
             }
             trailing={
               <>
                 {(usedKinds.length > 1 || kind) && (
-                  <Select value={kind ?? ALL_KINDS} onValueChange={(v) => setKind(v === ALL_KINDS ? undefined : (v as BookmarkKind))}>
+                  <Select
+                    value={kind ?? ALL_KINDS}
+                    onValueChange={(v) =>
+                      setKind(v === ALL_KINDS ? undefined : (v as BookmarkKind))
+                    }
+                  >
                     <SelectTrigger size="sm" className="w-44" aria-label="Тип">
                       <SelectValue />
                     </SelectTrigger>
@@ -98,7 +138,11 @@ export function BookmarksPage(): ReactElement | null {
                   </Select>
                 )}
                 <TagFilter value={tagId} onChange={setTagId} />
-                <SearchInput value={search} onChange={setSearch} placeholder="Назва, сайт, нотатки" className="w-72" />
+                <SearchInput
+                  value={search}
+                  onChange={setSearch}
+                  placeholder="Назва, сайт, нотатки"
+                />
               </>
             }
           />
@@ -119,20 +163,10 @@ export function BookmarksPage(): ReactElement | null {
               empty={
                 !list.isLoading &&
                 (filtered ? (
-                  <EmptyState
+                  <NoResults
                     icon={BookmarkIcon}
-                    title="Нічого не знайдено"
-                    hint={[
-                      search.trim() && `За запитом «${search.trim()}» нічого немає.`,
-                      (tagId || status || kind) && 'Спробуйте зняти фільтри.'
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    action={
-                      <Button variant="soft" onClick={resetFilters}>
-                        <X /> Скинути фільтри
-                      </Button>
-                    }
+                    hint={noResultsHint(search, !!(tagId || status || kind))}
+                    onReset={resetFilters}
                   />
                 ) : (
                   <EmptyState
@@ -146,7 +180,10 @@ export function BookmarksPage(): ReactElement | null {
                     }}
                     hint={
                       <>
-                        Збережіть статтю чи курс на потім — тут або з будь-якого екрана через швидке додавання{' '}
+                        Збережіть статтю чи курс на потім — тут або з{' '}
+                        {/* Kept whole: the line used to break at the hyphen («з будь-» / «якого екрана»). */}
+                        <span className="whitespace-nowrap">будь-якого</span> екрана через швидке
+                        додавання{' '}
                         <KbdGroup>
                           {accelToKeys(settings?.quickAddShortcut || DEFAULT_QUICK_ADD).map((k) => (
                             <Kbd key={k}>{k}</Kbd>
@@ -158,10 +195,16 @@ export function BookmarksPage(): ReactElement | null {
                   />
                 ))
               }
-              renderItem={(b) => <BookmarkRow bookmark={b} active={b.id === openId} onOpen={() => setOpen(b.id)} />}
+              renderItem={(b) => (
+                <BookmarkRow bookmark={b} active={b.id === openId} onOpen={() => setOpen(b.id)} />
+              )}
             />
           }
-          detail={openId && openItem ? <BookmarkDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} /> : null}
+          detail={
+            openId && openItem ? (
+              <BookmarkDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </PageBody>
     </Page>

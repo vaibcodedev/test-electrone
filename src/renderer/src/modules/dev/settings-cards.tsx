@@ -18,11 +18,19 @@ export function GithubSettingsCard(): ReactElement {
   const navigate = useNavigate()
   const { data: status } = useApi('github', 'status')
   return (
-    <SettingsSection id="github" title="GitHub" hint="Репозиторії, issues і коміти в розділі «Розробка → GitHub». Токен лише на читання.">
+    <SettingsSection
+      id="github"
+      title="GitHub"
+      hint="Репозиторії, issues і коміти в розділі «Розробка → GitHub». Токен лише на читання."
+    >
       {status?.connected ? (
         <SettingsRow
           label={`Підключено як @${status.login}`}
-          hint={status.rateRemaining !== null ? `Залишилося запитів: ${status.rateRemaining}` : undefined}
+          hint={
+            status.rateRemaining !== null
+              ? `Залишилося запитів: ${status.rateRemaining}`
+              : undefined
+          }
         >
           <Button size="sm" variant="soft" onClick={() => navigate('/dev/github')}>
             Відкрити
@@ -32,8 +40,12 @@ export function GithubSettingsCard(): ReactElement {
       ) : (
         <>
           {status?.error && <p className="text-caption text-destructive">{status.error}</p>}
-          <GithubTokenField compact />
-          <Button variant="link" className="self-start text-caption" onClick={() => navigate('/dev/github')}>
+          <GithubTokenField compact submitVariant="subtle" />
+          <Button
+            variant="link"
+            className="self-start text-caption"
+            onClick={() => navigate('/dev/github')}
+          >
             Як створити токен — покроковий гайд
           </Button>
         </>
@@ -55,7 +67,9 @@ export function ExtensionSettingsCard(): ReactElement | null {
   const { data: settings } = useApi('settings', 'get')
   const { data: info } = useApi('capture', 'info')
   const save = useApiMutation('settings', 'update')
-  const regenerate = useApiMutation('capture', 'regenerateKey', { successMessage: 'Новий ключ створено — оновіть його в розширенні' })
+  const regenerate = useApiMutation('capture', 'regenerateKey', {
+    successMessage: 'Новий ключ створено — оновіть його в розширенні'
+  })
   if (!settings) return null
   return (
     <SettingsSection
@@ -64,7 +78,10 @@ export function ExtensionSettingsCard(): ReactElement | null {
       hint="Зберігайте сайти, дизайни, бібліотеки, компоненти й вакансії однією кнопкою — з посиланням і скриншотом. Зв’язок лише локальний (127.0.0.1) за секретним ключем."
     >
       {/* Labelled switch: a click on the title toggles it, and a screen reader names it. */}
-      <SettingsRow label="Приймати дані з розширення" hint={`Порт ${info?.port ?? settings.capturePort}`}>
+      <SettingsRow
+        label="Приймати дані з розширення"
+        hint={`Порт ${info?.port ?? settings.capturePort}`}
+      >
         {(id) => (
           <>
             {info && (
@@ -72,14 +89,23 @@ export function ExtensionSettingsCard(): ReactElement | null {
                 {info.running ? 'приймає' : settings.captureEnabled ? 'не запущено' : 'вимкнено'}
               </Badge>
             )}
-            <Switch id={id} checked={settings.captureEnabled} onCheckedChange={(captureEnabled) => save.mutate({ captureEnabled })} />
+            <Switch
+              id={id}
+              checked={settings.captureEnabled}
+              onCheckedChange={(captureEnabled) => save.mutate({ captureEnabled })}
+            />
           </>
         )}
       </SettingsRow>
       {info && (
         <InputGroup className="bg-card">
           <InputGroupAddon>Ключ</InputGroupAddon>
-          <InputGroupInput readOnly value={info.token} className="font-mono text-caption" />
+          <InputGroupInput
+            readOnly
+            value={info.token}
+            aria-label="Ключ розширення"
+            className="font-mono text-caption"
+          />
           <InputGroupAddon align="inline-end">
             <CopyButton text={info.token} variant="ghost" size="xs" />
             {/* A new key breaks the link with an extension already set up: ask first. */}
@@ -90,7 +116,7 @@ export function ExtensionSettingsCard(): ReactElement | null {
               tone="default"
               onConfirm={() => regenerate.mutate(undefined)}
             >
-              <IconAction label="Згенерувати новий ключ">
+              <IconAction label="Створити новий ключ">
                 <RefreshCw />
               </IconAction>
             </Confirm>
