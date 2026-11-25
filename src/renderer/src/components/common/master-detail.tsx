@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode,
+  type RefObject
+} from 'react'
 import { MAX } from '@shared/domain/limits'
 import { DRAFT_TITLES } from '@shared/entity-types'
 import { useSearchParams } from 'react-router'
@@ -22,6 +30,7 @@ import {
   useDetailMode,
   useReadOnly,
   useRecordMode,
+  usePublishMode,
   type DetailMode
 } from './detail-mode'
 import { PinButtons } from './pin-buttons'
@@ -263,7 +272,8 @@ export function DetailPane({
   aside,
   className,
   emptyHint = DEFAULT_EMPTY_HINT,
-  footer
+  footer,
+  modeRef
 }: {
   entity: EntityRef
   onClose: () => void
@@ -279,12 +289,15 @@ export function DetailPane({
    * title. Note: a filled field inside (data-has-content, data-view, an image) hides the hint like the body's own.
    */
   footer?: ReactNode
+  /** In a Dialog or Sheet: the overlay reads the mode through it (guardSheet — Esc leaves editing first). */
+  modeRef?: RefObject<DetailMode | null>
 }) {
   const leaving = useUi((s) => !!s.leaving[entity.id])
   const setLeaving = useUi((s) => s.setLeaving)
   // View first; a record created a moment ago opens straight in edit mode. Snapshot → «Скасувати».
   const mode = useRecordMode(entity.id, entity.type)
   const { editing } = mode
+  usePublishMode(modeRef, mode)
 
   // Set by «У кошик»: the pane's unmount hands focus to the next row instead of dropping it on <body>.
   const refocus = useRef<(() => void) | null>(null)
@@ -471,9 +484,7 @@ export function EntityAside({
   return (
     <div className="flex flex-col gap-6">
       {children}
-      {tags && onTagsChange && (
-        <TagsSection value={tags} onChange={onTagsChange} entity={entity} />
-      )}
+      {tags && onTagsChange && <TagsSection value={tags} onChange={onTagsChange} entity={entity} />}
       <LinksPanel entity={entity} />
       {files && <AttachmentsPanel entity={entity} />}
       {(createdAt || edited) && (
@@ -519,9 +530,7 @@ export function ListItem({
         aria-current={active || undefined}
       >
         {/* overflow-wrap: one long word (a pasted URL, «аааа…») wraps instead of widening the row. */}
-        <div className={cn('w-full min-w-0 wrap-anywhere', top && 'flex flex-col')}>
-          {children}
-        </div>
+        <div className={cn('w-full min-w-0 wrap-anywhere', top && 'flex flex-col')}>{children}</div>
       </button>
     </Item>
   )

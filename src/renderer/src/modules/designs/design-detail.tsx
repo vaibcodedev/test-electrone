@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactElement } from 'react'
+import { useRef, useState, type ReactElement, type RefObject } from 'react'
 import { toast } from 'sonner'
-import { Maximize2, RefreshCw, Replace } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Maximize2, RefreshCw, Replace } from 'lucide-react'
 import {
   DESIGN_KINDS,
   designInputSchema,
@@ -24,6 +24,8 @@ import { Field, Segmented } from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
 import { copyText } from '@/components/common/copy-button'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import type { DetailMode } from '@/components/common/detail-mode'
+import { ButtonGroup } from '@/components/ui/button-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -132,7 +134,52 @@ function DesignTitle({
   )
 }
 
-function Editor({ design, onClose }: { design: Design; onClose: () => void }): ReactElement {
+/** Neighbours in the gallery for ← / → (DesignDialog); null at either end. */
+export interface DesignNav {
+  prev: string | null
+  next: string | null
+  go: (id: string | null) => void
+}
+
+/** «‹ ›» in the header: the same steps as ← / →, for the mouse; hidden while editing (the record is held). */
+function NavButtons({ nav }: { nav: DesignNav }): ReactElement | null {
+  const reading = useReadOnly()
+  if (!reading) return null
+  return (
+    <ButtonGroup aria-label="Інші дизайни">
+      <IconAction
+        size="icon-sm"
+        label="Попередній дизайн"
+        shortcut="←"
+        disabled={!nav.prev}
+        onClick={() => nav.go(nav.prev)}
+      >
+        <ChevronLeft />
+      </IconAction>
+      <IconAction
+        size="icon-sm"
+        label="Наступний дизайн"
+        shortcut="→"
+        disabled={!nav.next}
+        onClick={() => nav.go(nav.next)}
+      >
+        <ChevronRight />
+      </IconAction>
+    </ButtonGroup>
+  )
+}
+
+function Editor({
+  design,
+  onClose,
+  modeRef,
+  nav
+}: {
+  design: Design
+  onClose: () => void
+  modeRef?: RefObject<DetailMode | null>
+  nav?: DesignNav
+}): ReactElement {
   const update = useApiMutation('designs', 'update')
   const remove = useApiMutation('designs', 'remove', {
     successMessage: 'Дизайн переміщено в кошик'
@@ -179,12 +226,20 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
   return (
     <DetailPane
       entity={{ type: 'design', id: design.id }}
+      modeRef={modeRef}
+      // The dialog is the frame: no second border, shadow or slide-in of a side pane.
+      className="animate-none rounded-none border-0 shadow-none"
       onClose={onClose}
       onDelete={() => {
         remove.mutate(design.id)
         onClose()
       }}
-      headerExtra={<AddToMoodboard designId={design.id} />}
+      headerExtra={
+        <>
+          {nav && <NavButtons nav={nav} />}
+          <AddToMoodboard designId={design.id} />
+        </>
+      }
       aside={
         <EntityAside
           entity={{ type: 'design', id: design.id }}
@@ -202,14 +257,15 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
       }
     >
       <div className="flex flex-col gap-5">
-        <Card className="group relative gap-0 overflow-hidden bg-surface p-2">
+        {/* p-2.5: Card's 28px corner minus 10px is the picture's 18 (rounded-xl) — concentric corners. */}
+        <Card className="group relative gap-0 overflow-hidden bg-surface p-2.5">
           {/* A tall page screenshot stays a preview here; the full size opens in the system viewer. The click is a
               mouse shortcut, the keyboard has «Відкрити картинку» in the corner. */}
           <div className="cursor-zoom-in" onClick={openImage}>
             <DesignMedia
               path={design.imagePath}
               alt={designTitle(design)}
-              className="max-h-[38vh] w-full rounded-2xl object-contain"
+              className="max-h-[56vh] w-full rounded-xl object-contain"
             />
           </div>
           {design.imagePath && (
@@ -277,12 +333,16 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
 
 export function DesignDetail({
   id,
-  onClose
+  onClose,
+  modeRef,
+  nav
 }: {
   id: string
   onClose: () => void
+  modeRef?: RefObject<DetailMode | null>
+  nav?: DesignNav
 }): ReactElement | null {
   const { data } = useApi('designs', 'get', id)
   if (!data) return null
-  return <Editor key={data.id} design={data} onClose={onClose} />
+  return <Editor key={data.id} design={data} onClose={onClose} modeRef={modeRef} nav={nav} />
 }

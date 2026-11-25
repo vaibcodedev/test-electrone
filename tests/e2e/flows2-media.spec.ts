@@ -107,8 +107,13 @@ test.describe('дизайни: галерея, колір, добірка', () =
       .poll(async () => (await rpc('moodboards.details', board.id))?.designs?.length ?? 0)
       .toBe(1)
 
-    // «Скинути колір» brings the rest back.
-    await win.keyboard.press('Escape')
+    // The design is a dialog over the gallery: Esc closes the «У добірку» popover if it is still open, then the
+    // dialog itself; «Скинути колір» brings the rest back.
+    const dialog = win.getByRole('dialog')
+    await expect(async () => {
+      await win.keyboard.press('Escape')
+      await expect(dialog).toBeHidden({ timeout: 500 })
+    }).toPass()
     await win.getByRole('button', { name: 'Скинути колір' }).click()
     await expect(
       win.locator('[data-slot="card"]').filter({ hasText: 'Иконка Vault' }).first()

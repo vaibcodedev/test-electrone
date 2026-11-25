@@ -18,16 +18,15 @@ import {
 import { TagFilter } from '@/components/common/tags'
 import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { FavoriteMark } from '@/components/common/favorite-mark'
-import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
+import { useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Card } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
 import { clickableProps } from '@/lib/clickable'
-import { DesignDetail } from './design-detail'
+import { DesignDialog } from './design-dialog'
 import { DesignMedia, DropOverlay, PaletteStrip, PickImagesButton } from './shared'
 import { MoodboardStrip } from './moodboard-strip'
 import { KIND_LABEL, designTitle } from './labels'
@@ -180,23 +179,18 @@ export function DesignsPage(): ReactElement | null {
       items={list.items}
       loading={list.isLoading}
       getKey={(d) => d.id}
-      // Two columns beside an open design: the list gets ~34% of the page, two 180 px columns didn't fit.
-      minColumnWidth={open ? 150 : 220}
-      rowHeight={open ? 180 : 230}
+      // The design opens in a dialog over the gallery, so the grid keeps its full width.
+      minColumnWidth={220}
+      rowHeight={230}
       gap={12}
       hasMore={list.hasMore}
       loadingMore={list.loadingMore}
       onLoadMore={list.loadMore}
       renderItem={(d) => (
         <Card
-          {...clickableProps(() => setOpen(d.id === open ? null : d.id))}
-          aria-pressed={d.id === open}
-          className={cn(
-            // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
-            // Selection is an inset outline — an outer ring would be clipped by the scrolling grid.
-            'group tile relative block w-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 text-left',
-            d.id === open && 'bg-accent outline-2 -outline-offset-2 outline-ring'
-          )}
+          {...clickableProps(() => setOpen(d.id))}
+          // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
+          className="group tile relative block w-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 text-left"
         >
           <DesignMedia
             path={d.imagePath}
@@ -293,17 +287,16 @@ export function DesignsPage(): ReactElement | null {
               />
             )
           ) : (
-            // Default list width: at 38% the pane got narrower than @2xl and put the title, kind and palette
-            // under the image, below the fold.
-            <MasterDetail
-              list={gallery}
-              detail={
-                open ? <DesignDetail key={open} id={open} onClose={() => setOpen(null)} /> : null
-              }
-            />
+            gallery
           )}
         </PageBody>
       </div>
+      <DesignDialog
+        id={open}
+        ids={list.items.map((d) => d.id)}
+        onOpen={setOpen}
+        onClose={() => setOpen(null)}
+      />
     </Page>
   )
 }
