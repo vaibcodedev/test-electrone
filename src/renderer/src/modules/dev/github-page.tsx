@@ -1,5 +1,6 @@
 import { useState, type ReactElement } from 'react'
 import { CircleDot, GitCommitHorizontal, RefreshCw, Star } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { invalidateAll, useApi } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
@@ -31,13 +32,20 @@ export function GithubPage(): ReactElement {
    */
   const refresh = async (): Promise<void> => {
     setRefreshing(true)
-    await Promise.all([
-      api.github.repos({ force: true }),
-      api.github.issues({ repo: issuesRepo, force: true }),
-      api.github.commits({ repo: commitsRepo, force: true })
-    ]).catch((e) => reportError(e, 'github:refresh'))
-    invalidateAll()
-    setRefreshing(false)
+    try {
+      await Promise.all([
+        api.github.repos({ force: true }),
+        api.github.issues({ repo: issuesRepo, force: true }),
+        api.github.commits({ repo: commitsRepo, force: true })
+      ])
+    } catch (e) {
+      // Rate limit, network, a revoked token: the tabs would quietly show the old cache otherwise.
+      reportError(e, 'github:refresh')
+      toast.error(`Не вдалося оновити: ${(e as Error).message}`)
+    } finally {
+      invalidateAll()
+      setRefreshing(false)
+    }
   }
 
   if (isLoading) return <PageSkeleton kind="list" />

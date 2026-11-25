@@ -18,6 +18,9 @@ interface Session {
 
 export interface ReviewSession {
   loading: boolean
+  /** The queue never loaded (a failed refetch over a loaded queue doesn't end the session). */
+  error: Error | null
+  retry: () => void
   index: number
   current: Word | undefined
   total: number
@@ -38,7 +41,7 @@ export interface ReviewSession {
  * answers per grade, and practice beyond the norm.
  */
 export function useReviewSession(): ReviewSession {
-  const { data: initial, isLoading } = useApi('english', 'queue', 50, { staleTime: Infinity, refetchOnMount: 'always' })
+  const { data: initial, isLoading, error, refetch } = useApi('english', 'queue', 50, { staleTime: Infinity, refetchOnMount: 'always' })
   const [session, setSession] = useState<Session | null>(null)
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
@@ -85,6 +88,8 @@ export function useReviewSession(): ReviewSession {
 
   return {
     loading: isLoading || queue === null,
+    error: initial === undefined ? error : null,
+    retry: () => void refetch(),
     index,
     current,
     total,

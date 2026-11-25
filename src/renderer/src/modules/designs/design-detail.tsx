@@ -2,7 +2,7 @@ import { useRef, useState, type ReactElement } from 'react'
 import { RefreshCw, Replace } from 'lucide-react'
 import { DESIGN_KINDS, designInputSchema, type Design, type DesignKind, type DesignPatch } from '@shared/domain/designs'
 import { limitsOf } from '@/lib/limits'
-import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation } from '@/lib/query'
 import { toFileSources } from '@/lib/files'
 import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
@@ -83,11 +83,10 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
   const remove = useApiMutation('designs', 'remove', { successMessage: 'Дизайн переміщено в кошик' })
   const replace = useApiMutation('designs', 'replaceImage', {
     successMessage: 'Картинку замінено',
-    // A new image starts without a palette (the server clears it): extract it right away.
-    onSuccess: (d) =>
-      void fillPalette(d)
-        .then((colors) => colors.length && invalidateAll())
-        .catch((e) => reportError(e, 'designs:palette'))
+    // A new image starts without a palette (the server clears it): extract it right away, through the same
+    // state as the button (no second extraction, «Не вдалося…» on failure). `d`, not `design`: the closure
+    // still holds the old image path.
+    onSuccess: (d) => void recalc(d)
   })
   const save = (patch: DesignPatch): void => update.mutate({ id: design.id, patch })
   const [title, setTitle] = useAutosave(design.title, (title) => save({ title }))
@@ -96,11 +95,12 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
   const fileInput = useRef<HTMLInputElement>(null)
   const video = !!design.imagePath && isVideoPath(design.imagePath)
 
-  const recalc = async (): Promise<void> => {
+  // The write itself refreshes the queries (data:changed), no invalidateAll here.
+  const recalc = async (target: Pick<Design, 'id' | 'imagePath'> = design): Promise<void> => {
+    if (palette === 'busy') return
     setPalette('busy')
     try {
-      const colors = await fillPalette(design)
-      if (colors.length) invalidateAll()
+      const colors = await fillPalette(target)
       setPalette(colors.length ? 'idle' : 'failed')
     } catch (e) {
       reportError(e, 'designs:palette')
@@ -133,7 +133,7 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
     >
       <div className="flex flex-col gap-5">
         <Card className="group relative gap-0 overflow-hidden bg-surface p-2">
-          <DesignMedia path={design.imagePath} className="max-h-[60vh] w-full rounded-2xl object-contain" />
+          <DesignMedia path={design.imagePath} className="max-h-[45vh] w-full rounded-2xl object-contain" />
           <input
             ref={fileInput}
             type="file"
@@ -145,7 +145,9 @@ function Editor({ design, onClose }: { design: Design; onClose: () => void }): R
               e.target.value = ''
             }}
           />
+          {/* Edit only: a new file changes the record, and «Скасувати» could not bring the old one back. */}
           <Button
+            data-edit-only
             variant="soft"
             size="sm"
             className="absolute right-3 bottom-3 bg-card opacity-0 shadow-sm group-hover:opacity-100 hover:bg-card focus-visible:opacity-100"

@@ -6,7 +6,7 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterBar, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
@@ -64,17 +64,19 @@ function ColorFilter({
   const [open, setOpen] = useState(false)
   const colors = useMemo(() => distinctColors(palette), [palette])
   if (!colors.length) return null
+  // Chosen = the neutral tint of a chosen tag (TagFilter): lime stays with the kind chips, the screen's filter.
+  const chosen = value ? 'bg-foreground/12 font-medium hover:bg-foreground/16' : undefined
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <ButtonGroup>
         <PopoverTrigger asChild>
-          <Button variant={value ? 'default' : 'soft'} size="sm">
-            {value ? <span className="size-3.5 rounded-full ring-1 ring-current/30" style={{ background: value }} /> : <Palette />}
+          <Button variant="soft" size="sm" className={chosen}>
+            {value ? <span className="size-3.5 rounded-full ring-1 ring-foreground/30" style={{ background: value }} /> : <Palette />}
             Колір
           </Button>
         </PopoverTrigger>
         {value && (
-          <Button variant="default" size="icon-sm" aria-label="Скинути колір" onClick={() => onChange(undefined)}>
+          <Button variant="soft" size="icon-sm" className={chosen} aria-label="Скинути колір" onClick={() => onChange(undefined)}>
             <X />
           </Button>
         )}
@@ -137,6 +139,7 @@ export function DesignsPage(): ReactElement | null {
   usePaletteBackfill(list.items)
 
   const filtered = !!(search || kind || color || tagId)
+  const galleryEmpty = !list.isLoading && !list.items.length && !filtered
   const resetFilters = (): void => {
     setSearch('')
     setKind(undefined)
@@ -227,17 +230,26 @@ export function DesignsPage(): ReactElement | null {
               </Button>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput value={search} onChange={setSearch} className="w-64" />
-            <FilterChips
-              allLabel="Усі"
-              options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
-              value={kind}
-              onChange={setKind}
+          {/* An empty gallery has nothing to filter: no row of filters over «Галерея порожня». */}
+          {!galleryEmpty && (
+            <FilterBar
+              chips={
+                <FilterChips
+                  allLabel="Усі"
+                  options={DESIGN_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+                  value={kind}
+                  onChange={setKind}
+                />
+              }
+              trailing={
+                <>
+                  <TagFilter value={tagId} onChange={setTagId} />
+                  <ColorFilter palette={palette} value={color} onChange={setColor} />
+                  <SearchInput value={search} onChange={setSearch} className="w-72" />
+                </>
+              }
             />
-            <TagFilter value={tagId} onChange={setTagId} />
-            <ColorFilter palette={palette} value={color} onChange={setColor} />
-          </div>
+          )}
         </PageHeader>
         <PageBody className="flex min-h-0 flex-col">
           {!list.isLoading && list.items.length === 0 ? (
@@ -250,16 +262,20 @@ export function DesignsPage(): ReactElement | null {
                   : 'Перетягніть сюди скриншоти сайтів, лендингів і магазинів — або вставте з буфера Ctrl+V.'
               }
               action={
-                filtered && (
+                filtered ? (
                   <Button variant="soft" onClick={resetFilters}>
                     <X /> Скинути фільтри
                   </Button>
+                ) : (
+                  // A file picker, not a plain click: hence `action` with the picker button, soft like any cta.
+                  <PickImagesButton onSources={(s) => void importSources(s)} label="Вибрати картинки" disabled={busy} />
                 )
               }
             />
           ) : (
+            // Default list width: at 38% the pane got narrower than @2xl and put the title, kind and palette
+            // under the image, below the fold.
             <MasterDetail
-              listSize="38%"
               list={gallery}
               detail={open ? <DesignDetail key={open} id={open} onClose={() => setOpen(null)} /> : null}
             />

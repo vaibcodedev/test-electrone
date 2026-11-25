@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useMainEvent } from '@/hooks/use-main-events'
-import { EmptyState, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterBar, FilterChips, Page, PageBody, PageHeader, SearchInput } from '@/components/common/page'
 import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
 import { useOpenParam } from '@/components/common/master-detail'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,10 @@ import { ProjectSheet } from './project-sheet'
 import { ScanImportDialog, type ScanResult } from './scan-import-dialog'
 import { LogsPanel } from './logs-panel'
 import { folderName } from './dev-shared'
+import { presentChips } from '../claude/chips'
+
+const ONLY = ['favorite', 'running'] as const
+const ONLY_LABEL: Record<(typeof ONLY)[number], string> = { favorite: 'Обрані', running: 'Запущені' }
 
 /** «Мои проекты»: local repos with editor buttons, script runner and live logs. */
 export function DevProjectsPage(): ReactElement {
@@ -21,7 +25,7 @@ export function DevProjectsPage(): ReactElement {
   const { data: runs = [] } = useApi('devProjects', 'runs')
   const [openId, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
-  const [only, setOnly] = useState<'favorite' | 'running' | undefined>()
+  const [only, setOnly] = useState<(typeof ONLY)[number] | undefined>()
   const [scan, setScan] = useState<ScanResult | null>(null)
 
   // Process started/stopped/url detected → refresh cards and run tabs.
@@ -37,8 +41,12 @@ export function DevProjectsPage(): ReactElement {
         (!q || [p.name, p.path, p.framework ?? '', p.githubRepo].some((v) => v.toLowerCase().includes(q)))
     )
   }, [projects, search, only])
-  const favorites = projects.filter((p) => p.favorite).length
-  const runningCount = projects.filter((p) => p.running.length > 0).length
+  const onlyChips = presentChips(
+    ONLY,
+    { favorite: projects.filter((p) => p.favorite).length, running: projects.filter((p) => p.running.length > 0).length },
+    (v) => ONLY_LABEL[v],
+    only
+  )
 
   const resetFilters = (): void => {
     setSearch('')
@@ -83,12 +91,8 @@ export function DevProjectsPage(): ReactElement {
         <EmptyState
           icon={FolderGit2}
           title="Додайте свої проєкти"
-          hint="Вкажіть папку, де лежать усі репозиторії, — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер. Або натисніть «Додати папку» вгорі."
-          action={
-            <Button variant="soft" onClick={() => void importFolder()}>
-              <FolderSearch /> Імпорт із папки
-            </Button>
-          }
+          hint="Вкажіть папку, де лежать усі репозиторії, — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер."
+          cta={{ label: 'Імпорт із папки', icon: FolderSearch, onClick: () => void importFolder() }}
         />
       ) : filtered.length === 0 ? (
         only === 'favorite' && !search.trim() ? (
@@ -123,9 +127,12 @@ export function DevProjectsPage(): ReactElement {
         subtitle="Локальні репозиторії: відкрити в редакторі, запустити скрипт, переглянути лог."
         actions={
           <>
-            <Button variant="soft" onClick={() => void importFolder()}>
-              <FolderSearch /> Імпорт із папки
-            </Button>
+            {/* On an empty page the same action is the empty state's button. */}
+            {projects.length > 0 && (
+              <Button variant="soft" onClick={() => void importFolder()}>
+                <FolderSearch /> Імпорт із папки
+              </Button>
+            )}
             <Button variant="lime" onClick={() => void addFolder()}>
               <FolderPlus /> Додати папку
             </Button>
@@ -133,18 +140,10 @@ export function DevProjectsPage(): ReactElement {
         }
       >
         {projects.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <FilterChips
-              allLabel="Усі"
-              value={only}
-              onChange={setOnly}
-              options={[
-                { value: 'favorite', label: 'Обрані', count: favorites },
-                { value: 'running', label: 'Запущені', count: runningCount }
-              ]}
-            />
-            <SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" className="ml-auto max-w-sm" />
-          </div>
+          <FilterBar
+            chips={onlyChips.length > 0 && <FilterChips allLabel="Усі" value={only} onChange={setOnly} options={onlyChips} />}
+            trailing={<SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" className="w-72" />}
+          />
         )}
       </PageHeader>
 

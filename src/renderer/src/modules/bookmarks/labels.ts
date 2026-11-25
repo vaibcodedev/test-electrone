@@ -6,7 +6,7 @@ export const STATUS_LABEL: Record<BookmarkStatus, string> = {
   queue: 'У черзі',
   in_progress: 'Читаю',
   done: 'Прочитано',
-  dropped: 'Покинув'
+  dropped: 'Покинуто'
 }
 
 /** Status reads at a glance: queue neutral, reading in progress blue, read green, dropped muted. */

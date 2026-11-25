@@ -5,6 +5,7 @@ import { invalidateAll, useApi } from '@/lib/query'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { EmptyState, SegmentBar } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
+import { LoadError } from '@/features/route-error'
 import { Button } from '@/components/ui/button'
 import { GradeButtons, PracticeMore, ReviewCard, SessionSummary } from './review-parts'
 import { useReviewSession } from './use-review-session'
@@ -12,7 +13,7 @@ import { useReviewSession } from './use-review-session'
 /** Focused flashcard session. Words graded «Не згадав» return at the end of the same session. */
 export function ReviewPage(): ReactElement {
   const navigate = useNavigate()
-  const { data: stats } = useApi('english', 'stats')
+  const { data: stats, error: statsError, refetch: refetchStats } = useApi('english', 'stats')
   const s = useReviewSession()
 
   const exit = (): void => {
@@ -28,6 +29,17 @@ export function ReviewPage(): ReactElement {
   useHotkey('3', () => void s.grade(2), { enabled: s.revealed })
   useHotkey('4', () => void s.grade(3), { enabled: s.revealed })
 
+  // A failed load must not leave the skeleton on forever.
+  if (s.error || (statsError && !stats))
+    return (
+      <LoadError
+        title="Не вдалося завантажити тренування"
+        onRetry={() => {
+          if (s.error) s.retry()
+          if (statsError) void refetchStats()
+        }}
+      />
+    )
   if (s.loading || !stats) return <PageSkeleton kind="focus" />
 
   const startExtra = (limit: number): void => void s.startExtra(limit)
@@ -78,12 +90,12 @@ export function ReviewPage(): ReactElement {
           <ArrowLeft /> До словника
         </Button>
         {s.total > 0 && (
-          <>
+          <div className="flex flex-1 items-center gap-3">
             <SegmentBar value={s.done} total={s.total} segments={Math.min(s.total, 12)} className="flex-1" />
-            <span className="w-16 text-right text-body text-muted-foreground tabular-nums">
-              {Math.min(s.done + (s.finished ? 0 : 1), s.total)}/{s.total}
+            <span className="shrink-0 text-meta text-muted-foreground tabular-nums">
+              Готово {s.done} з {s.total}
             </span>
-          </>
+          </div>
         )}
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center">{body}</div>

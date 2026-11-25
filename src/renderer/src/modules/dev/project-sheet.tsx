@@ -45,8 +45,9 @@ function Editor({ project: p, onClose }: { project: DevProject; onClose: () => v
 
       <Field label="Папка">
         <InputGroup>
-          {/* Clipped from the left with «…»: the folder's own name at the end is what tells projects apart. */}
-          <span className="min-w-0 flex-1 truncate px-3 text-body" title={p.path} dir="rtl">
+          {/* Clipped from the left with «…»: the folder's own name at the end is what tells projects apart.
+              text-left: rtl alone pushed a short path that fits against the buttons. */}
+          <span className="min-w-0 flex-1 truncate px-3 text-left text-body" title={p.path} dir="rtl">
             <bdi>{p.path}</bdi>
           </span>
           <InputGroupAddon align="inline-end">

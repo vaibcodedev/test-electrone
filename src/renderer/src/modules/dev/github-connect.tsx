@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useRef, useState, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import { ExternalLink, KeyRound, Unplug } from 'lucide-react'
 import { toast } from 'sonner'
@@ -24,6 +24,8 @@ const TOKEN_STEPS = [
 /** Token field — saves it encrypted with the OS keychain. */
 export function GithubTokenField({ compact }: { compact?: boolean }): ReactElement {
   const [token, setToken] = useState('')
+  const [missing, setMissing] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const save = useApiMutation('github', 'setToken', {
     onSuccess: (s) => {
       if (s.connected) toast.success(`GitHub підключено: ${s.login}`)
@@ -33,7 +35,13 @@ export function GithubTokenField({ compact }: { compact?: boolean }): ReactEleme
   })
   const submit = (): void => {
     // A second Enter while the first check is running would save twice and toast twice.
-    if (save.isPending || !token.trim()) return
+    if (save.isPending) return
+    // Not a disabled button: an empty field says why at the field instead.
+    if (!token.trim()) {
+      setMissing(true)
+      inputRef.current?.focus()
+      return
+    }
     save.mutate({ token: token.trim() })
   }
   return (
@@ -41,6 +49,7 @@ export function GithubTokenField({ compact }: { compact?: boolean }): ReactEleme
       label="Токен GitHub"
       htmlFor="github-token"
       hint="Зберігається зашифрованим ключем Windows і використовується лише для читання."
+      error={missing ? 'Вставте токен із GitHub' : undefined}
     >
       <div className="flex items-center gap-2">
         {/* bg-card: the field sits on a surface card, so it needs its own fill to read as an input. */}
@@ -50,15 +59,20 @@ export function GithubTokenField({ compact }: { compact?: boolean }): ReactEleme
           </InputGroupAddon>
           <InputGroupInput
             id="github-token"
+            ref={inputRef}
             type="password"
             autoComplete="off"
             value={token}
-            onChange={(e) => setToken(e.target.value)}
+            aria-invalid={missing || undefined}
+            onChange={(e) => {
+              setToken(e.target.value)
+              setMissing(false)
+            }}
             placeholder="Вставте токен github_pat_…"
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
         </InputGroup>
-        <Button variant="lime" disabled={!token.trim() || save.isPending} onClick={submit}>
+        <Button variant="lime" disabled={save.isPending} onClick={submit}>
           Підключити
         </Button>
       </div>

@@ -4,9 +4,9 @@ import { toast } from 'sonner'
 import { Check, ImagePlus, LayoutGrid, Plus } from 'lucide-react'
 import type { Design, DesignKind, FileSource, Moodboard } from '@shared/domain/designs'
 import { api } from '@/lib/api'
-import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation } from '@/lib/query'
 import { fileUrl, toFileSources } from '@/lib/files'
-import { hostOf } from '@/lib/format'
+import { hostOf, plural } from '@/lib/format'
 import { normalizeUrl } from '@/lib/open-url'
 import { reportError } from '@/lib/error-reporting'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -40,10 +40,14 @@ export function designTitle(d: Pick<Design, 'title' | 'sourceUrl'>): string {
 }
 
 /**
- * Imports images as designs (drop, paste, file picker, clipboard) and fills their palettes.
- * `onCreated` receives the created designs (e.g. to add them to a moodboard).
+ * Imports images as designs (drop, paste, file picker, clipboard), then fills their palettes in the
+ * background: the import (and `onCreated`, e.g. adding them to a moodboard) doesn't wait for the canvas.
+ * Every write refreshes the queries itself (data:changed).
  */
-export function useImportImages(onCreated?: (designs: Design[]) => Promise<void> | void) {
+export function useImportImages(onCreated?: (designs: Design[]) => Promise<void> | void): {
+  importSources: (sources: FileSource[]) => Promise<void>
+  busy: boolean
+} {
   const [busy, setBusy] = useState(false)
   const run = async (sources: FileSource[]): Promise<void> => {
     if (!sources.length) return
@@ -51,23 +55,22 @@ export function useImportImages(onCreated?: (designs: Design[]) => Promise<void>
     const created: Design[] = []
     try {
       for (const source of sources) {
-        let design: Design
         try {
-          design = await api.designs.importImage({ source })
+          created.push(await api.designs.importImage({ source }))
         } catch (e) {
           toast.error((e as Error).message)
-          continue
         }
-        created.push(design)
-        await fillPalette(design).catch((e) => reportError(e, 'designs:palette'))
       }
       if (created.length) {
         await onCreated?.(created)
-        toast.success(created.length === 1 ? 'Картинку додано' : `Додано картинок: ${created.length}`)
+        const n = created.length
+        toast.success(n === 1 ? 'Картинку додано' : `Додано ${n} ${plural(n, ['картинку', 'картинки', 'картинок'])}`)
       }
     } finally {
-      invalidateAll()
       setBusy(false)
+      void (async () => {
+        for (const d of created) await fillPalette(d).catch((e) => reportError(e, 'designs:palette'))
+      })()
     }
   }
   return { importSources: run, busy }
@@ -193,7 +196,12 @@ export function AddToMoodboard({ designId }: { designId: string }): ReactElement
               <CommandGroup heading="Добірки">
                 {boards.map((b) => (
                   <CommandItem key={b.id} value={`${b.title}-${b.id}`} onSelect={() => void addTo(b).catch(() => undefined)}>
-                    <span className="size-2 rounded-full" style={{ background: b.color ?? 'var(--lime)' }} />
+                    {/* A board without its own colour gets the neutral board icon, not a row of lime dots. */}
+                    {b.color ? (
+                      <span className="size-2 rounded-full" style={{ background: b.color }} />
+                    ) : (
+                      <LayoutGrid className="text-muted-foreground" />
+                    )}
                     <span className="flex-1 truncate">{b.title}</span>
                     {added.has(b.id) ? (
                       <Check className="size-3.5" />

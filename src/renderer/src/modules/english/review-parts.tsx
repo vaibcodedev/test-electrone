@@ -68,7 +68,7 @@ export function ReviewCard({ word, revealed, onReveal }: { word: Word; revealed:
 export function GradeButtons({ revealed, busy, onGrade }: { revealed: boolean; busy: boolean; onGrade: (g: ReviewGrade) => void }): ReactElement {
   if (!revealed)
     return (
-      <div className="flex h-16 items-center justify-center rounded-2xl border border-dashed border-foreground/12 text-caption text-muted-foreground">
+      <div className="flex h-16 items-center justify-center text-caption text-muted-foreground">
         Згадайте переклад, відкрийте відповідь і оцініть, наскільки легко він дався
       </div>
     )

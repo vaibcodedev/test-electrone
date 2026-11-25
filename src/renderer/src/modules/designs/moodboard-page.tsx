@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type ReactElement } from 'react'
+import { useId, useMemo, useState, type ReactElement } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import {
   DndContext,
@@ -11,7 +11,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowLeft, ArrowUpRight, Check, Image, LayoutGrid, Plus, Trash2, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Check, Image, LayoutGrid, Plus, X } from 'lucide-react'
 import { moodboardInputSchema, type Design, type MoodboardDetails, type MoodboardPatch } from '@shared/domain/designs'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -19,13 +19,11 @@ import { useAutosave } from '@/hooks/use-autosave'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
 import { EmptyState, Field, Page, PageBody, SearchInput } from '@/components/common/page'
-import { InlineTitle } from '@/components/common/master-detail'
-import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
+import { InlineTitle, RecordActions } from '@/components/common/master-detail'
+import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { PinButtons } from '@/components/common/pin-buttons'
 import { TagPicker } from '@/components/common/tags'
-import { Confirm } from '@/components/common/confirm'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -191,7 +189,7 @@ function AddDesignsDialog({
         </DialogHeader>
         <DesignPicker inBoard={inBoard} selected={selected} onSelectedChange={setSelected} />
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button variant="soft" onClick={() => onOpenChange(false)}>
             Скасувати
           </Button>
           <Button
@@ -220,7 +218,9 @@ function AddDesignsDialog({
 function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
   const navigate = useNavigate()
   const update = useApiMutation('moodboards', 'update')
-  const remove = useApiMutation('moodboards', 'remove', { successMessage: 'Добірку переміщено в кошик' })
+  const remove = useApiMutation('moodboards', 'remove', {
+    successMessage: 'Добірку переміщено в кошик — дизайни залишилися в галереї'
+  })
   const removeDesign = useApiMutation('moodboards', 'removeDesign')
   const reorder = useApiMutation('moodboards', 'reorder')
   const addDesigns = useApiMutation('moodboards', 'addDesigns', { silent: true })
@@ -232,9 +232,13 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
   const descriptionId = useId()
   const close = (): void => void navigate('/designs')
 
-  // Local order for instant feedback while dragging; follows server data otherwise.
+  // Local order for instant feedback while dragging; follows server data otherwise (synced during render).
   const [order, setOrder] = useState(board.designs.map((d) => d.id))
-  useEffect(() => setOrder(board.designs.map((d) => d.id)), [board.designs])
+  const [synced, setSynced] = useState(board.designs)
+  if (synced !== board.designs) {
+    setSynced(board.designs)
+    setOrder(board.designs.map((d) => d.id))
+  }
   const byId = useMemo(() => new Map(board.designs.map((d) => [d.id, d])), [board.designs])
 
   const sensors = useSensors(
@@ -266,27 +270,17 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
               <Button variant="ghost" size="sm" onClick={close}>
                 <ArrowLeft /> Дизайни
               </Button>
-              <div className="flex-1" />
-              <PinButtons entity={{ type: 'moodboard', id: board.id }} />
-              <Tooltip>
-                <Confirm
-                  title="Видалити добірку?"
-                  description="Самі дизайни залишаться в галереї."
-                  confirmLabel="У кошик"
-                  onConfirm={() => {
-                    remove.mutate(board.id)
-                    close()
-                  }}
-                >
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Видалити добірку">
-                      <Trash2 />
-                    </Button>
-                  </TooltipTrigger>
-                </Confirm>
-                <TooltipContent>Видалити добірку</TooltipContent>
-              </Tooltip>
-              <EditToggle mode={mode} onClose={close} />
+              {/* The record header of every editor: pin, trash (restorable, so no question), edit, ✕ — Esc closes. */}
+              <RecordActions
+                className="flex-1"
+                entity={{ type: 'moodboard', id: board.id }}
+                mode={mode}
+                onDelete={() => {
+                  remove.mutate(board.id)
+                  close()
+                }}
+                onClose={close}
+              />
             </div>
             <div className="flex items-end justify-between gap-6">
               <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -307,14 +301,13 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                 )}
                 <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} />
               </div>
-              {/* Quick actions: they fill the board and work in both modes. */}
-              <div className="flex shrink-0 gap-2">
+              {/* Quick actions: they fill the board and work in both modes. The slot makes N press «Додати
+                  дизайни»; it sits here, not on the whole header, so N never finds «Зберегти» while editing. */}
+              <div data-slot="page-header" className="flex shrink-0 gap-2">
                 <PickImagesButton onSources={(s) => void importSources(s)} label="Завантажити" disabled={busy} />
-                {!empty && (
-                  <Button variant="lime" onClick={() => setPickerOpen(true)}>
-                    <Plus /> Додати дизайни
-                  </Button>
-                )}
+                <Button variant="lime" onClick={() => setPickerOpen(true)}>
+                  <Plus /> Додати дизайни
+                </Button>
               </div>
             </div>
           </header>
@@ -325,12 +318,7 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
               icon={LayoutGrid}
               title="Добірка порожня"
               hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
-              // The header hides its lime button while the board is empty: one action, one accent.
-              action={
-                <Button variant="lime" onClick={() => setPickerOpen(true)}>
-                  <Plus /> Додати дизайни
-                </Button>
-              }
+              cta={{ label: 'Вибрати з галереї', icon: LayoutGrid, onClick: () => setPickerOpen(true) }}
             />
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

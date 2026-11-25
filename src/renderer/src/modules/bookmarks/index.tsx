@@ -13,6 +13,7 @@ import { TagFilter } from '@/components/common/tags'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { ImportButton } from '@/components/common/import-dialog'
 import { countBy } from '../claude/editor-kit'
+import { presentChips } from '../claude/chips'
 import { BookmarkDetail } from './bookmark-detail'
 import { BookmarkRow } from './bookmark-row'
 import { KIND_LABEL, STATUS_LABEL } from './labels'
@@ -28,7 +29,7 @@ export function BookmarksPage(): ReactElement | null {
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId }
   // Full list only feeds the chip counters; the rendered list is paged + virtualized.
-  const { data: all = [] } = useApi('bookmarks', 'list', base)
+  const { data: all = [], isPending: allPending } = useApi('bookmarks', 'list', base)
   const list = useInfiniteApi('bookmarks', 'list', { ...base, kind, status })
   const { data: openItem } = useApi('bookmarks', 'get', openId ?? '', { enabled: !!openId })
   const { data: settings } = useApi('settings', 'get')
@@ -40,6 +41,8 @@ export function BookmarksPage(): ReactElement | null {
   const usedKinds = BOOKMARK_KINDS.filter((k) => kindCounts[k])
 
   const filtered = !!(search.trim() || tagId || status || kind)
+  // No row of filters over an empty base (it stays while the counts load: nothing jumps).
+  const showFilters = allPending || all.length > 0 || filtered
   const resetFilters = (): void => {
     setSearch('')
     setTagId(undefined)
@@ -67,37 +70,39 @@ export function BookmarksPage(): ReactElement | null {
           </>
         }
       >
-        <FilterBar
-          chips={
-            <FilterChips
-              allLabel="Усі"
-              value={status}
-              onChange={setStatus}
-              options={BOOKMARK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s], count: statusCounts[s] ?? 0 }))}
-            />
-          }
-          trailing={
-            <>
-              {(usedKinds.length > 1 || kind) && (
-                <Select value={kind ?? ALL_KINDS} onValueChange={(v) => setKind(v === ALL_KINDS ? undefined : (v as BookmarkKind))}>
-                  <SelectTrigger size="sm" className="w-44" aria-label="Тип">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_KINDS}>Усі типи</SelectItem>
-                    {BOOKMARK_KINDS.filter((k) => kindCounts[k] || k === kind).map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {KIND_LABEL[k]} · {kindCounts[k] ?? 0}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Назва, сайт, нотатки" className="w-72" />
-            </>
-          }
-        />
+        {showFilters && (
+          <FilterBar
+            chips={
+              <FilterChips
+                allLabel="Усі"
+                value={status}
+                onChange={setStatus}
+                options={presentChips(BOOKMARK_STATUSES, statusCounts, (s) => STATUS_LABEL[s], status)}
+              />
+            }
+            trailing={
+              <>
+                {(usedKinds.length > 1 || kind) && (
+                  <Select value={kind ?? ALL_KINDS} onValueChange={(v) => setKind(v === ALL_KINDS ? undefined : (v as BookmarkKind))}>
+                    <SelectTrigger size="sm" className="w-44" aria-label="Тип">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_KINDS}>Усі типи</SelectItem>
+                      {BOOKMARK_KINDS.filter((k) => kindCounts[k] || k === kind).map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {KIND_LABEL[k]} · {kindCounts[k] ?? 0}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <TagFilter value={tagId} onChange={setTagId} />
+                <SearchInput value={search} onChange={setSearch} placeholder="Назва, сайт, нотатки" className="w-72" />
+              </>
+            }
+          />
+        )}
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
@@ -133,10 +138,15 @@ export function BookmarksPage(): ReactElement | null {
                   <EmptyState
                     icon={BookmarkIcon}
                     title="Закладок поки немає"
+                    cta={{
+                      label: 'Додати закладку',
+                      icon: Plus,
+                      disabled: create.isPending,
+                      onClick: () => void addBookmark().catch(() => undefined)
+                    }}
                     hint={
                       <>
-                        Збережіть статтю чи курс на потім — кнопкою «Закладка» вгорі або з будь-якого екрана через
-                        швидке додавання{' '}
+                        Збережіть статтю чи курс на потім — тут або з будь-якого екрана через швидке додавання{' '}
                         <KbdGroup>
                           {accelToKeys(settings?.quickAddShortcut || DEFAULT_QUICK_ADD).map((k) => (
                             <Kbd key={k}>{k}</Kbd>

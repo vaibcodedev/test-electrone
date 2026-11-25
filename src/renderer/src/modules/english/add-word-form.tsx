@@ -6,15 +6,17 @@ import { limitsOf } from '@/lib/limits'
 import { Field } from '@/components/common/page'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { FieldError } from '@/components/ui/field'
 
 const EMPTY = { term: '', translation: '', example: '', context: '' }
 const LIMITS = limitsOf(wordInputSchema)
 
+/** Same names as in the word card: what was typed here is recognised there. */
 const FIELDS: { key: keyof typeof EMPTY; label: string; placeholder: string }[] = [
-  { key: 'term', label: 'Слово', placeholder: 'rollout' },
-  { key: 'translation', label: 'Переклад', placeholder: 'викатка' },
-  { key: 'example', label: 'Речення', placeholder: "We'll do a staged rollout" },
-  { key: 'context', label: 'Джерело', placeholder: 'Slack' }
+  { key: 'term', label: 'Слово', placeholder: 'Напр.: rollout' },
+  { key: 'translation', label: 'Переклад', placeholder: 'Напр.: викатка' },
+  { key: 'example', label: 'Приклад', placeholder: "Напр.: We'll do a staged rollout" },
+  { key: 'context', label: 'Джерело', placeholder: 'Напр.: Slack, PR' }
 ]
 
 /**
@@ -26,12 +28,15 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }): ReactElement
   const [missingTerm, setMissingTerm] = useState(false)
   const termRef = useRef<HTMLInputElement>(null)
   const id = useId()
+  const errorId = `${id}-term-error`
   const create = useApiMutation('english', 'create', { successMessage: 'Слово додано' })
 
   const submit = (): void => {
     if (create.isPending) return
     if (!form.term.trim()) {
-      setMissingTerm(true)
+      // An untouched form (N, or «Додати» right away) just puts the cursor in «Слово»; the error is for a
+      // word that was really started without its term.
+      if (Object.values(form).some((v) => v.trim())) setMissingTerm(true)
       termRef.current?.focus()
       return
     }
@@ -45,7 +50,7 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }): ReactElement
   }
 
   return (
-    // Container query: on a narrow window «Речення» and «Джерело» move to a second line instead of clipping.
+    // Container query: on a narrow window «Приклад» and «Джерело» move to a second line instead of clipping.
     <div className="@container">
       <form
         className="grid grid-cols-2 items-end gap-2 rounded-3xl bg-surface p-3 @3xl:grid-cols-[1.1fr_1.1fr_1.6fr_1fr_auto]"
@@ -57,7 +62,7 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }): ReactElement
         {FIELDS.map(({ key, label, placeholder }) => {
           const invalid = key === 'term' && missingTerm
           return (
-            <Field key={key} label={label} htmlFor={`${id}-${key}`} error={invalid ? 'Введіть слово або фразу' : undefined}>
+            <Field key={key} label={label} htmlFor={`${id}-${key}`}>
               <Input
                 id={`${id}-${key}`}
                 ref={key === 'term' ? termRef : undefined}
@@ -65,7 +70,7 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }): ReactElement
                 maxLength={LIMITS[key]}
                 placeholder={placeholder}
                 aria-invalid={invalid || undefined}
-                className="bg-card"
+                aria-describedby={invalid ? errorId : undefined}
                 onChange={(e) => {
                   setForm((f) => ({ ...f, [key]: e.target.value }))
                   if (key === 'term' && e.target.value.trim()) setMissingTerm(false)
@@ -77,6 +82,12 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }): ReactElement
         <Button type="submit" variant="lime" disabled={create.isPending} className="col-span-2 justify-self-end @3xl:col-span-1">
           <Plus /> Додати
         </Button>
+        {/* Its own row under the fields: inside the «Слово» field it lifted that one above the rest (items-end). */}
+        {missingTerm && (
+          <FieldError id={errorId} className="col-span-full text-caption">
+            Введіть слово або фразу
+          </FieldError>
+        )}
       </form>
     </div>
   )

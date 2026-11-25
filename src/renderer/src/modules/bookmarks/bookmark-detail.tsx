@@ -1,5 +1,5 @@
 import { useId, type ReactElement } from 'react'
-import { ExternalLink, Star } from 'lucide-react'
+import { BookOpen, Check, ExternalLink } from 'lucide-react'
 import {
   BOOKMARK_KINDS,
   BOOKMARK_STATUSES,
@@ -12,16 +12,15 @@ import {
 import { openUrl } from '@/lib/open-url'
 import { useApiMutation } from '@/lib/query'
 import { fmtDate } from '@/lib/format'
-import { cn } from '@/lib/utils'
 import { isLikelyUrl, limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Field, Segmented } from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
+import { StarRating } from '@/components/common/star-rating'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { DetailPane, EntityAside } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
@@ -41,34 +40,8 @@ function ProgressSlider({ value, onSave }: { value: number; onSave: (value: numb
   )
 }
 
-function Rating({ value, onChange }: { value: number; onChange: (value: number) => void }): ReactElement {
-  return (
-    <ToggleGroup
-      type="single"
-      size="sm"
-      spacing={0.5}
-      aria-label="Оцінка"
-      value={value ? String(value) : ''}
-      onValueChange={(v) => onChange(v ? Number(v) : 0)}
-    >
-      {[1, 2, 3, 4, 5].map((n) => (
-        <ToggleGroupItem
-          key={n}
-          value={String(n)}
-          aria-label={`${n} з 5`}
-          title={`${n} з 5`}
-          className="size-8 min-w-8 px-0 on:bg-transparent"
-        >
-          {/* Same warm star as the list row: lime stays the screen's one accent. */}
-          <Star className={cn(n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')} />
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  )
-}
-
 /**
- * Progress and rating. Editing: slider and stars. Reading: a bar with «Готово N%» and «★ N з 5»; a value
+ * Progress and rating. Editing: slider and stars. Reading: a bar with «Готово N%» and static stars; a value
  * that isn't there yet (0) is not shown, and neither is the row when both are empty.
  */
 function ProgressAndRating({ item, onSave }: { item: Bookmark; onSave: (patch: BookmarkPatch) => void }): ReactElement | null {
@@ -87,10 +60,9 @@ function ProgressAndRating({ item, onSave }: { item: Bookmark; onSave: (patch: B
         )}
         {item.rating > 0 && (
           <Field label="Оцінка">
-            <span className="flex h-9 items-center gap-1.5 text-body tabular-nums">
-              <Star className="size-4 fill-warn text-warn" aria-hidden />
-              {item.rating} з 5
-            </span>
+            <div className="flex h-9 items-center">
+              <StarRating value={item.rating} onChange={(rating) => onSave({ rating })} />
+            </div>
           </Field>
         )}
       </div>
@@ -107,7 +79,7 @@ function ProgressAndRating({ item, onSave }: { item: Bookmark; onSave: (patch: B
         />
       </Field>
       <Field label="Оцінка">
-        <Rating value={item.rating} onChange={(rating) => onSave({ rating })} />
+        <StarRating value={item.rating} onChange={(rating) => onSave({ rating })} />
       </Field>
     </div>
   )
@@ -129,11 +101,24 @@ export function BookmarkDetail({ item, onClose }: { item: Bookmark; onClose: () 
         onClose()
       }}
       headerExtra={
-        isUrl(item.url) && (
-          <Button variant="soft" size="sm" onClick={() => openUrl(item.url)}>
-            <ExternalLink /> Відкрити
-          </Button>
-        )
+        <>
+          {isUrl(item.url) && (
+            <Button variant="soft" size="sm" onClick={() => openUrl(item.url)}>
+              <ExternalLink /> Відкрити
+            </Button>
+          )}
+          {/* The next reading step in one click, in either mode (a quick status change, docs → Просмотр). */}
+          {item.status === 'queue' && (
+            <Button variant="soft" size="sm" onClick={() => save({ status: 'in_progress' })}>
+              <BookOpen /> Почати читати
+            </Button>
+          )}
+          {item.status === 'in_progress' && (
+            <Button variant="soft" size="sm" onClick={() => save({ status: 'done' })}>
+              <Check /> Прочитано
+            </Button>
+          )}
+        </>
       }
       aside={
         <EntityAside

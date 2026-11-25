@@ -81,10 +81,17 @@ function TermError({ empty }: { empty: boolean }): ReactElement | null {
   return <FieldError className="text-caption">Введіть слово або фразу</FieldError>
 }
 
-/** Example and its translation side by side; while reading, a missing translation doesn't keep an empty column. */
+/**
+ * Example and its translation side by side once the pane is wide enough (a narrow one stacks them); while
+ * reading, a missing translation doesn't keep an empty column.
+ */
 function ExampleGrid({ wide, children }: { wide: boolean; children: ReactNode }): ReactElement {
   const readOnly = useReadOnly()
-  return <div className={cn('grid gap-3', (wide || !readOnly) && 'grid-cols-2')}>{children}</div>
+  return (
+    <div className="@container">
+      <div className={cn('grid gap-3', (wide || !readOnly) && '@md:grid-cols-2')}>{children}</div>
+    </div>
+  )
 }
 
 export function WordDetail({ word, onClose }: { word: Word; onClose: () => void }): ReactElement {
@@ -134,16 +141,19 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
             maxLength={LIMITS.transcription}
             onChange={(e) => set('transcription', e.target.value)}
             placeholder="Напр.: [ˈrəʊlaʊt]"
-            className="h-8 max-w-xs"
+            className="max-w-xs"
           />
         </Field>
+        {/* One line to start with, but a long translation wraps while reading instead of ending in «…». */}
         <Field label="Переклад" htmlFor={`${id}-translation`}>
-          <Input
+          <Textarea
             id={`${id}-translation`}
+            rows={1}
             value={form.translation}
             maxLength={LIMITS.translation}
             onChange={(e) => set('translation', e.target.value)}
             placeholder="Як це українською"
+            className="min-h-9"
           />
         </Field>
         <Field label="Тип">
@@ -171,12 +181,15 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
             />
           </Field>
         </ExampleGrid>
-        <Field label="Де трапилося">
-          <Input
+        <Field label="Джерело" htmlFor={`${id}-context`}>
+          <Textarea
+            id={`${id}-context`}
+            rows={1}
             value={form.context}
             maxLength={LIMITS.context}
             onChange={(e) => set('context', e.target.value)}
-            placeholder="Звідки: PR, документація, чат"
+            placeholder="Напр.: PR, документація, чат"
+            className="min-h-9"
           />
         </Field>
         <Field label="Нотатки" count={{ length: form.notes.length, max: LIMITS.notes }}>

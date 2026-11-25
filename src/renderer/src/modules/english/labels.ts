@@ -23,11 +23,12 @@ export const STAGE_COLOR: Record<WordStage, string> = {
   mastered: 'bg-chart-1'
 }
 
-export const STAGE_BADGE: Record<WordStage, 'soft' | 'info' | 'warn' | 'lime'> = {
+/** Stage badge in the record header: «Вивчене» is a success, not a second lime accent next to the page's one. */
+export const STAGE_BADGE: Record<WordStage, 'soft' | 'info' | 'warn' | 'success'> = {
   new: 'soft',
   learning: 'warn',
   review: 'info',
-  mastered: 'lime'
+  mastered: 'success'
 }
 
 export const KIND_LABEL: Record<WordKind, string> = {
