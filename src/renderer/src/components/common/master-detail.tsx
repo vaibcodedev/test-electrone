@@ -58,7 +58,7 @@ export function useOpenParam(): [string | null, (id: string | null) => void] {
 /** How long a switch A → B keeps A on screen while B loads; a record that never arrives (deleted) lets go. */
 const HOLD_MS = 1000
 const NOTHING_HELD = { node: null as ReactNode, open: null as string | null }
-/** The closing pane's exit motion (duration-150 below); nothing to wait for when motion is reduced. */
+/** The closing pane's exit motion (`--animate-pane-out`, 0.16s); nothing to wait for when motion is reduced. */
 const exitMs = (): number =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160
 /** Every parent is a flex box: auto lets the group stretch / grow into it, negative margins included. */
@@ -126,10 +126,9 @@ export function MasterDetail({
             inert={closing || undefined}
             className={cn(
               'flex min-h-0 min-w-0 flex-col p-1 pl-2.5',
-              // The mirror of animate-pane (fade + 6px to the side), from tw-animate-css; a reduced-motion
-              // setting drops the hold (exitMs) along with the motion.
-              closing &&
-                'pointer-events-none animate-out fade-out-0 slide-out-to-right-1.5 duration-150 ease-soft fill-mode-forwards'
+              // The mirror of animate-pane (fade + 6px to the side), held at its end until unmount; a
+              // reduced-motion setting drops the hold (exitMs) along with the motion.
+              closing && 'pointer-events-none animate-pane-out'
             )}
           >
             {shown}
