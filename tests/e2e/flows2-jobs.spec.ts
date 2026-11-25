@@ -132,3 +132,20 @@ test.describe('вакансія: компанія й етапи', () => {
     await expect(modeOf(sheet)).toHaveAttribute('data-detail-mode', 'view')
   })
 })
+
+test.describe('питання до співбесіди', () => {
+  test('«Додати питання» на порожньому банку відкриває чернетку, і вона лишається відкритою', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    for (const q of (await rpc('jobs.questions', {})) as { id: string }[])
+      await rpc('jobs.removeQuestion', q.id).catch(() => undefined)
+    await go('/jobs/questions')
+    await win.getByRole('button', { name: 'Додати питання' }).click()
+    const pane = win.locator('[data-detail-mode]').first()
+    await expect(pane).toHaveAttribute('data-detail-mode', 'edit')
+    // Still there a moment later: an untouched draft is discarded only when its pane really closes.
+    await win.waitForTimeout(1500)
+    await expect(pane).toBeVisible()
+  })
+})
