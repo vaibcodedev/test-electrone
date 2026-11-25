@@ -243,7 +243,11 @@ function Editor({
           </section>
 
           <div className="mt-6 flex flex-col gap-6">
-            <TagsSection value={p.tags} onChange={(tagIds) => patch({ tagIds })} />
+            <TagsSection
+              value={p.tags}
+              onChange={(tagIds) => patch({ tagIds })}
+              entity={{ type: 'proposal', id: p.id }}
+            />
             <LinksPanel entity={{ type: 'proposal', id: p.id }} />
             <div className="text-meta text-muted-foreground">
               Створено {fmtDateTime(p.createdAt)}

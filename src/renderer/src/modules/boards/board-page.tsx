@@ -66,7 +66,11 @@ function BoardInfoSheet({
             maxLength={LIMITS.description}
             minHeight="160px"
           />
-          <TagsSection value={board.tags} onChange={(tagIds) => patch({ tagIds })} />
+          <TagsSection
+            value={board.tags}
+            onChange={(tagIds) => patch({ tagIds })}
+            entity={{ type: 'board', id: board.id }}
+          />
           <LinksPanel entity={{ type: 'board', id: board.id }} />
           <AttachmentsPanel entity={{ type: 'board', id: board.id }} />
         </div>
