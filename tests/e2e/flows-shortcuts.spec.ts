@@ -150,7 +150,7 @@ test.describe('E і Esc у записі', () => {
     await win.keyboard.press('e')
     await expect(pane(win)).toHaveAttribute('data-detail-mode', 'edit')
     await pane(win).getByRole('radio', { name: 'Текст' }).click()
-    const body = pane(win).getByPlaceholder(/Пишіть у Markdown/)
+    const body = pane(win).getByRole('textbox', { name: 'Текст', exact: true })
     await body.fill('Новий текст, який не треба')
     // Esc right from the field (the focus is still there).
     await body.press('Escape')
