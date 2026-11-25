@@ -49,6 +49,11 @@ export interface AiPreset {
   model: string
   /** Other good models, named in the hint under the model field. */
   altModels?: string[]
+  /**
+   * Tried once when `model` is overloaded (503/529) after the retries, and only while the person left the model
+   * field empty — a model they chose is never swapped behind their back.
+   */
+  fallbackModel?: string
   needsKey: boolean
   /** «Отримати ключ» for cloud providers, the download page for local apps. */
   keyUrl: string | null
@@ -71,7 +76,9 @@ export const AI_PRESETS: readonly AiPreset[] = [
     group: 'free',
     protocol: 'openai',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-    model: 'gemini-3.1-flash-lite',
+    // 3.5 Flash-Lite: stable, free tier, Google's pick for new projects (aistudio.google.com/docs/models, 25.11.2026).
+    model: 'gemini-3.5-flash-lite',
+    fallbackModel: 'gemini-3.1-flash-lite',
     needsKey: true,
     keyUrl: 'https://aistudio.google.com/apikey',
     local: false,
@@ -146,6 +153,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     baseUrl: 'https://api.anthropic.com',
     model: 'claude-haiku-5-5',
     altModels: ['claude-sonnet-5-5'],
+    fallbackModel: 'claude-sonnet-5-5',
     needsKey: true,
     keyUrl: 'https://platform.claude.com/settings/keys',
     local: false,

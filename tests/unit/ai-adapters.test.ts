@@ -46,7 +46,7 @@ const noSleep = async (): Promise<void> => undefined
 const req = { system: 'sys', prompt: 'hello', maxTokens: 100, timeoutMs: 1000 }
 
 const chat = (content: string): Record<string, unknown> => ({
-  model: 'gemini-3.1-flash-lite',
+  model: 'gemini-3.5-flash-lite',
   choices: [{ message: { content }, finish_reason: 'stop' }],
   usage: { prompt_tokens: 12, completion_tokens: 3 }
 })
@@ -66,7 +66,7 @@ describe('OpenAI-compatible adapter', () => {
     const reply = await new OpenAiAdapter(new AiHttp(fetch, noSleep)).complete(conn('gemini'), req)
     expect(reply).toEqual({
       text: '{"tags":["shopify"]}',
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       inputTokens: 12,
       outputTokens: 3
     })
@@ -77,7 +77,7 @@ describe('OpenAI-compatible adapter', () => {
     expect(headers.authorization).toBe('Bearer sk-test-1234')
     const body = JSON.parse(String(fetch.calls[0].init.body))
     expect(body).toEqual({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       messages: [
         { role: 'system', content: 'sys' },
         { role: 'user', content: 'hello' }
@@ -124,12 +124,26 @@ describe('OpenAI-compatible adapter', () => {
     expect(fetch.calls).toHaveLength(1)
   })
 
-  it('a busy server is retried once, then explained', async () => {
-    const fetch = stub(json(503, {}), json(503, {}))
+  it('an overloaded server is retried twice (2 s, 5 s), then explained', async () => {
+    const fetch = stub(json(503, {}), json(503, {}), json(503, {}))
+    const waits: number[] = []
+    const text = await message(
+      new OpenAiAdapter(new AiHttp(fetch, async (ms) => void waits.push(ms))).complete(
+        conn('mistral'),
+        req
+      )
+    )
+    expect(text).toBe('Mistral зараз перевантажений — спробуйте за хвилину')
+    expect(fetch.calls).toHaveLength(3)
+    expect(waits).toEqual([2000, 5000])
+  })
+
+  it('another server error is retried once', async () => {
+    const fetch = stub(json(500, {}), json(500, {}))
     const text = await message(
       new OpenAiAdapter(new AiHttp(fetch, noSleep)).complete(conn('mistral'), req)
     )
-    expect(text).toBe('Mistral зараз перевантажений — спробуйте за хвилину')
+    expect(text).toBe('Mistral не відповів (код 500) — спробуйте пізніше')
     expect(fetch.calls).toHaveLength(2)
   })
 
@@ -263,7 +277,14 @@ describe('Anthropic adapter', () => {
     expect(
       await message(
         new AnthropicAdapter(
-          http(json(529, err('overloaded_error')), json(529, err('overloaded_error')))
+          new AiHttp(
+            stub(
+              json(529, err('overloaded_error')),
+              json(529, err('overloaded_error')),
+              json(529, err('overloaded_error'))
+            ),
+            noSleep
+          )
         ).complete(conn('anthropic'), req)
       )
     ).toBe('Claude зараз перевантажений — спробуйте за хвилину')

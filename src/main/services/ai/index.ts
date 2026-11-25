@@ -18,7 +18,13 @@ import {
 import type { EntityRef, Tag, TagWithUsage } from '@shared/domain/common'
 import { dayKey, NotFoundError, now as clock, UserError } from '../../core/util'
 import { log } from '../../core/logger'
-import type { AiAdapter, AiConnection, AiReply, AiRequest } from './adapter'
+import {
+  AiOverloadedError,
+  type AiAdapter,
+  type AiConnection,
+  type AiReply,
+  type AiRequest
+} from './adapter'
 import { buildTagPrompt, parseTagReply, TAG_SYSTEM, toSuggestions } from './tags'
 
 /** The slice of ConfigStore the service needs (ConfigStore implements it). */
@@ -210,10 +216,20 @@ export class AiService {
             `У ${conn.preset.short} не завантажено жодної моделі — завантажте модель і спробуйте ще раз`
           )
       }
-      const reply = await adapter.complete(
-        { ...conn, model },
-        { ...req, timeoutMs, signal: controller.signal }
-      )
+      const call = (m: string): ReturnType<typeof adapter.complete> =>
+        adapter.complete({ ...conn, model: m }, { ...req, timeoutMs, signal: controller.signal })
+      let reply: Awaited<ReturnType<typeof adapter.complete>>
+      try {
+        reply = await call(model)
+      } catch (e) {
+        // Still overloaded after the retries: the preset's spare model, once — only while the model field is
+        // empty (the preset's own choice), never instead of a model the person picked.
+        const spare = conn.preset.fallbackModel
+        if (!(e instanceof AiOverloadedError) || !spare || this.settings.model || spare === model)
+          throw e
+        log.warn(`[ai] ${conn.preset.id} ${model} overloaded, trying ${spare}`)
+        reply = await call(spare)
+      }
       const u = this.usage()
       this.deps.store.aiUsage = {
         day: u.day,

@@ -43,7 +43,13 @@ export interface AiAdapter {
 
 /** Busy or briefly failing servers: one more try after a short pause. 429 is not retried — it's a quota. */
 const RETRY_STATUSES = new Set([500, 502, 503, 504, 529])
+/** «High demand» (503 / Anthropic's 529) passes in seconds: two more tries, 2 s and 5 s apart. */
+const OVERLOAD_STATUSES = new Set([503, 529])
+const OVERLOAD_WAITS_MS = [2000, 5000]
 const MAX_RETRIES = 1
+
+/** The provider is overloaded: AiService may try the preset's fallback model before giving up. */
+export class AiOverloadedError extends UserError {}
 
 export function joinUrl(base: string, path: string): string {
   return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
@@ -125,7 +131,7 @@ export function httpError(
     return new UserError(`Ліміт запитів ${conn.preset.short} вичерпано — спробуйте${when}`)
   }
   if (status === 503 || status === 529)
-    return new UserError(`${who} зараз перевантажений — спробуйте за хвилину`)
+    return new AiOverloadedError(`${who} зараз перевантажений — спробуйте за хвилину`)
   if (status >= 500) return new UserError(`${who} не відповів (код ${status}) — спробуйте пізніше`)
   return new UserError(`${who} відхилив запит (код ${status}) — перевірте модель у налаштуваннях`)
 }
@@ -165,10 +171,15 @@ export class AiHttp {
           )
         }
       }
-      if (attempt < MAX_RETRIES && RETRY_STATUSES.has(res.status)) {
+      const overloaded = OVERLOAD_STATUSES.has(res.status)
+      const retries = overloaded ? OVERLOAD_WAITS_MS.length : MAX_RETRIES
+      if (attempt < retries && RETRY_STATUSES.has(res.status)) {
         const after = Number(res.headers.get('retry-after'))
+        const fallback = overloaded ? OVERLOAD_WAITS_MS[attempt] : 1000
         log.warn(`[ai] ${conn.preset.id} ${res.status}, retrying`)
-        await this.sleep(Number.isFinite(after) && after > 0 && after <= 5 ? after * 1000 : 1000)
+        await this.sleep(
+          Number.isFinite(after) && after > 0 && after <= 10 ? after * 1000 : fallback
+        )
         if (req.signal?.aborted) throw new UserError('Запит скасовано')
         continue
       }

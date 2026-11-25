@@ -13,7 +13,7 @@ import {
   type AiUsage
 } from '@shared/domain/ai'
 import { AiService, type AiStore } from '@main/services/ai'
-import type { AiAdapter, AiReply } from '@main/services/ai/adapter'
+import { AiOverloadedError, AiAdapter, AiReply } from '@main/services/ai/adapter'
 import { ConfigStore } from '@main/core/config-store'
 import { UserError } from '@main/core/util'
 
@@ -219,5 +219,34 @@ describe('AiService', () => {
     expect(() => ai.setKey({ key: 'two words' })).toThrow(UserError)
     ai.setKey({ key: 'Bearer sk-abcdef12' })
     expect(store.secrets['ai:gemini']).toBe('enc:sk-abcdef12')
+  })
+})
+
+describe('overloaded provider', () => {
+  it('tries the preset spare model once while the model field is empty', async () => {
+    const { ai, complete } = setup()
+    ai.setKey({ key: 'gemini-key-0001' })
+    ai.setConfig({ enabled: true })
+    complete.mockRejectedValueOnce(
+      new AiOverloadedError('Google Gemini зараз перевантажений — спробуйте за хвилину')
+    )
+    await ai.test()
+    expect(complete.mock.calls.map(([c]) => c.model)).toEqual([
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite'
+    ])
+  })
+
+  it('never swaps a model the person chose', async () => {
+    const { ai, complete } = setup()
+    ai.setKey({ key: 'gemini-key-0001' })
+    ai.setConfig({ enabled: true, model: 'gemini-3.8-flash' })
+    complete.mockRejectedValueOnce(
+      new AiOverloadedError('Google Gemini зараз перевантажений — спробуйте за хвилину')
+    )
+    expect(await reason(ai.test())).toBe(
+      'Google Gemini зараз перевантажений — спробуйте за хвилину'
+    )
+    expect(complete).toHaveBeenCalledTimes(1)
   })
 })
