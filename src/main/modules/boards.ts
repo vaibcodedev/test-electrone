@@ -18,6 +18,7 @@ import {
 } from '@shared/domain/boards'
 import { z } from 'zod'
 import { pageSchema } from '@shared/domain/common'
+import { fieldMax } from '@shared/domain/limits'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { boardColumns, boards, cardChecklist, cards } from '../db/schema'
 import type { Orm } from '../db/client'
@@ -59,6 +60,7 @@ export class BoardsModule {
       table: boards,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
       summary: (r) => ({ title: r.title, subtitle: excerpt(r.description) }),
+      textField: { column: 'description', max: fieldMax(boardInputSchema.shape.description) },
       dependents: (id) =>
         m.db.orm
           .select({ id: cards.id })
@@ -73,6 +75,7 @@ export class BoardsModule {
       table: cards,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
       summary: (r) => ({ title: r.title, subtitle: PRIORITY_LABEL[r.priority] || undefined }),
+      textField: { column: 'description', max: fieldMax(cardInputSchema.shape.description) },
       // Cards of a board in the trash stay deletedAt = null; this hides them from feeds, pins, links, search.
       aliveWhere: CARD_ON_LIVE_BOARD,
       parentHint: 'Спершу відновіть дошку, до якої належить ця картка',

@@ -14,6 +14,8 @@ export class AppPaths {
   readonly filesDir: string
   readonly backupsDir: string
   readonly configFile: string
+  /** «Чат ШІ» history: next to config.json, outside the database (never in backups or exports). */
+  readonly aiChatsFile: string
   readonly tmpDir: string
 
   constructor(root = join(app.getPath('userData'), 'data')) {
@@ -23,6 +25,7 @@ export class AppPaths {
     this.backupsDir = join(root, 'backups')
     this.tmpDir = join(root, '.tmp')
     this.configFile = join(app.getPath('userData'), 'config.json')
+    this.aiChatsFile = join(app.getPath('userData'), 'ai-chats.json')
     for (const dir of [this.dataDir, this.filesDir, this.backupsDir, this.tmpDir]) {
       mkdirSync(dir, { recursive: true })
     }

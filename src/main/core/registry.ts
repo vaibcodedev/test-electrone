@@ -61,6 +61,11 @@ export interface EntityDescriptor {
     restore(id: string, snap: unknown): void
     ignore?: string[]
   }
+  /**
+   * The record's main Markdown text and its limit (the module's schema): «Додати текст» of the chat ШІ appends
+   * to it. Types without it are never changed that way.
+   */
+  textField?: { column: string; max: number }
   /** Extra markdown appended to the record's file in the Markdown export (a board's columns and cards…). */
   exportBody?(row: AnyRow): string[]
   /**

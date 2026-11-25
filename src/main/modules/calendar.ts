@@ -13,6 +13,7 @@ import {
   type Recurrence
 } from '@shared/domain/calendar'
 import { pageSchema } from '@shared/domain/common'
+import { fieldMax } from '@shared/domain/limits'
 import { fmtDateTime, fmtDayFull } from '@shared/dates'
 import { events } from '../db/schema'
 import { SoftRepository } from '../core/soft-repository'
@@ -127,6 +128,7 @@ export class CalendarModule {
       type: 'event',
       table: events,
       searchDoc: (r) => ({ title: r.title, body: r.description }),
+      textField: { column: 'description', max: fieldMax(eventInputSchema.shape.description) },
       summary: (r) => ({
         title: r.title,
         subtitle: r.allDay ? fmtDayFull(r.startAt) : fmtDateTime(r.startAt)

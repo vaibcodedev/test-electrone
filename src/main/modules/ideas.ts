@@ -34,7 +34,8 @@ export class IdeasModule {
       type: 'idea',
       table: ideas,
       searchDoc: (r) => ({ title: r.title, body: r.body }),
-      summary: (r) => ({ title: r.title, subtitle: IDEA_STATUS_LABEL[r.status as IdeaStatus] })
+      summary: (r) => ({ title: r.title, subtitle: IDEA_STATUS_LABEL[r.status as IdeaStatus] }),
+      textField: { column: 'body', max: fieldMax(ideaInputSchema.shape.body) }
     }
     this.repo = new SoftRepository<IdeaRow, Idea>(m.repo, this.descriptor, (r, tags) => ({
       ...r,

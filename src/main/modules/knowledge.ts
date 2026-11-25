@@ -15,6 +15,7 @@ import type {
   SnippetsApi
 } from '@shared/api'
 import { chipCountsQuerySchema, type ChipCountsQuery } from '@shared/domain/common'
+import { fieldMax } from '@shared/domain/limits'
 import { hostOf } from '@shared/url'
 import {
   CLAUDE_KIND_LABEL,
@@ -100,6 +101,7 @@ export class KnowledgeModule {
       draft: { titleField: 'title', contentFields: ['summary', 'content', 'url'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.summary}\n${r.content}` }),
       summary: (r) => ({ title: r.title, subtitle: CLAUDE_KIND_LABEL[r.kind as ClaudeKind] }),
+      textField: { column: 'content', max: fieldMax(claudeInputSchema.shape.content) },
       systemFields: ['copyCount']
     }
     const library: EntityDescriptor = {
@@ -121,6 +123,7 @@ export class KnowledgeModule {
       draft: { titleField: 'title', contentFields: ['description', 'code'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.description}\n${r.code}` }),
       summary: (r) => ({ title: r.title, subtitle: r.language }),
+      textField: { column: 'description', max: fieldMax(snippetInputSchema.shape.description) },
       systemFields: ['copyCount']
     }
     const fix: EntityDescriptor = {
@@ -138,14 +141,16 @@ export class KnowledgeModule {
       table: bookmarks,
       draft: { titleField: 'title', contentFields: ['url', 'notes'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.url}\n${r.notes}` }),
-      summary: (r) => ({ title: r.title, subtitle: hostOf(r.url) })
+      summary: (r) => ({ title: r.title, subtitle: hostOf(r.url) }),
+      textField: { column: 'notes', max: fieldMax(bookmarkInputSchema.shape.notes) }
     }
     const note: EntityDescriptor = {
       type: 'note',
       table: notes,
       draft: { titleField: 'title', contentFields: ['body'] },
       searchDoc: (r) => ({ title: r.title, body: `${r.folder}\n${r.body}` }),
-      summary: (r) => ({ title: r.title, subtitle: r.folder || undefined })
+      summary: (r) => ({ title: r.title, subtitle: r.folder || undefined }),
+      textField: { column: 'body', max: fieldMax(noteInputSchema.shape.body) }
     }
     this.descriptors = [claude, library, snippet, fix, bookmark, note]
     this.noteRepo = new SoftRepository(m.repo, note, (r, tags) => ({ ...r, tags }))

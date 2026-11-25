@@ -48,6 +48,10 @@ import { AiService } from './services/ai'
 import { AiHttp } from './services/ai/adapter'
 import { AnthropicAdapter } from './services/ai/anthropic'
 import { OpenAiAdapter } from './services/ai/openai'
+import { ChatStore } from './services/ai/chat-store'
+import { AiChatService } from './services/ai/chat'
+import { AiActionRunner, type AiActionApi as AiActionRunnerApi } from './services/ai/actions'
+import { RegistryRecordWriter } from './services/ai/record-writer'
 import { GitClient } from './services/git-client'
 import { ScriptRunner } from './system/script-runner'
 import { WeeklyReviewService } from './services/weekly-review-service'
@@ -128,6 +132,7 @@ export class Container {
   readonly devProjects = new DevProjectsModule(this.moduleCtx, this.git, this.scripts)
   readonly github = new GithubService(this.config, this.secrets)
   readonly ai = this.createAi()
+  readonly aiChats = new ChatStore(this.paths.aiChatsFile)
   readonly review = new WeeklyReviewService(this.db, {
     finance: this.finance,
     calendar: this.calendar,
@@ -277,6 +282,7 @@ export class Container {
     step('updater', () => this.updater.stop())
     step('tray', () => this.tray.destroy())
     step('config', () => this.config.flush())
+    step('ai chats', () => this.aiChats.flush())
     step('db', () => this.db.close())
   }
 
@@ -295,6 +301,51 @@ export class Container {
         tagsOf: (ref) => this.tags.forMany(ref.type, [ref.id]).get(ref.id) ?? [],
         allTags: () => this.tags.list()
       }
+    })
+  }
+
+  /**
+   * «Чат ШІ»: reads the base through the registry and the search index (live records only), creates records
+   * through the module APIs, edits through the registry; every window hears about a change.
+   */
+  private createAiChat(api: AiActionRunnerApi): AiChatService {
+    const liveBoards = (): { id: string; title: string }[] =>
+      this.boards
+        .listBoards({ limit: 50 })
+        .filter((b) => !b.archived)
+        .map((b) => ({ id: b.id, title: b.title }))
+    return new AiChatService({
+      ai: this.ai,
+      history: this.aiChats,
+      base: {
+        record: (ref) => {
+          const row = this.registry.findRow(ref)
+          if (!row) return null
+          const doc = this.registry.get(ref.type).searchDoc(row)
+          return { ref: { type: ref.type, id: ref.id }, title: doc.title, body: doc.body }
+        },
+        search: (words, { any, limit }) => {
+          const hits = this.search.query({ text: words.join(' '), limit: limit * 2 }, { any })
+          return this.registry
+            .summarize(hits)
+            .slice(0, limit)
+            .map((s) => ({ type: s.type, id: s.id }))
+        },
+        boards: () => liveBoards().map((b) => b.title)
+      },
+      actions: new AiActionRunner({
+        api,
+        boards: { list: liveBoards, columns: (id) => this.boards.columns(id) },
+        records: new RegistryRecordWriter({
+          ctx: this.db,
+          registry: this.registry,
+          tags: this.tags,
+          search: this.search,
+          revisions: this.revisions,
+          trash: this.trash
+        })
+      }),
+      changed: (type) => this.bus.dataChanged([type])
     })
   }
 
@@ -445,6 +496,7 @@ export class Container {
 
     return {
       ...modulesApi,
+      aiChat: this.createAiChat(modulesApi).api(),
       importer: { run: async (args) => importer.run(args) },
       tags: this.tags.api(),
       links: this.links.api(),

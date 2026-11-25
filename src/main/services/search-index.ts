@@ -50,8 +50,9 @@ export class SearchIndex {
     this.stmt(DELETE_ONE).run(type, id)
   }
 
-  query(q: SearchQuery): SearchHit[] {
-    const match = toFtsQuery(q.text)
+  /** `any` — records with any of the words, best first (the chat's search over a question). */
+  query(q: SearchQuery, opts: { any?: boolean } = {}): SearchHit[] {
+    const match = toFtsQuery(q.text, opts.any)
     if (!match) return []
     const limit = q.limit ?? 40
     const typeFilter = q.types?.length
