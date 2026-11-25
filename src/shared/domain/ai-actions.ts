@@ -36,6 +36,20 @@ import { tagInputSchema } from './system'
 /** A local day or a local day and time, as the model writes it: 2026-11-26 or 2026-11-26T10:00. */
 export const LOCAL_WHEN = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?$/
 const when = z.string().trim().regex(LOCAL_WHEN)
+
+/** «2026-11-26» / «2026-11-26T10:00» as a local time; null for a day that doesn't exist (2026-02-31). */
+export function parseLocalWhen(text: string): { at: number; allDay: boolean } | null {
+  const m = LOCAL_WHEN.exec(text.trim())
+  if (!m) return null
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const h = m[4] === undefined ? 0 : Number(m[4])
+  const mi = m[5] === undefined ? 0 : Number(m[5])
+  if (y < 1970 || y > 2200 || h > 23 || mi > 59) return null
+  const date = new Date(y, mo - 1, d, h, mi, 0, 0)
+  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return null
+  return { at: date.getTime(), allDay: m[4] === undefined }
+}
+
 /** One «Додати текст» is at most a long text of its own; the record's own limit is checked on top of it. */
 export const APPEND_MAX = MAX.article
 export const TAGS_MAX = 10

@@ -10,7 +10,7 @@ import type { EntityRef } from '@shared/domain/common'
 import {
   AI_ACTIONS,
   EDIT_ACTIONS,
-  LOCAL_WHEN,
+  parseLocalWhen,
   type AiAction,
   type AiActionOf,
   type AiActionType
@@ -24,6 +24,8 @@ import { fmtWhen } from '@shared/dates'
 import { MAX } from '@shared/domain/limits'
 import { UserError } from '../../core/util'
 import type { AiRecordWriter } from './record-writer'
+
+export { parseLocalWhen }
 
 /** The module APIs the actions create records with. */
 export type AiActionApi = Pick<
@@ -77,19 +79,6 @@ export interface Applied {
 const FACT_CHARS = 300
 const fact = (label: string, value: string): { label: string; value: string }[] =>
   value.trim() ? [{ label, value: value.trim().slice(0, FACT_CHARS) }] : []
-
-/** «2026-11-26» / «2026-11-26T10:00» as a local time; null for a day that doesn't exist (2026-02-31). */
-export function parseLocalWhen(text: string): { at: number; allDay: boolean } | null {
-  const m = LOCAL_WHEN.exec(text.trim())
-  if (!m) return null
-  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
-  const h = m[4] === undefined ? 0 : Number(m[4])
-  const mi = m[5] === undefined ? 0 : Number(m[5])
-  if (y < 1970 || y > 2200 || h > 23 || mi > 59) return null
-  const date = new Date(y, mo - 1, d, h, mi, 0, 0)
-  if (date.getFullYear() !== y || date.getMonth() !== mo - 1 || date.getDate() !== d) return null
-  return { at: date.getTime(), allDay: m[4] === undefined }
-}
 
 const lower = (s: string): string => s.toLocaleLowerCase('uk').trim()
 

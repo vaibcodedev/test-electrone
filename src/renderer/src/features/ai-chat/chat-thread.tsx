@@ -145,7 +145,8 @@ function Failure({ failure }: { failure: Outgoing & { message: string } }): Reac
               void sendMessage({
                 text: failure.text,
                 context: failure.context,
-                search: failure.search
+                search: failure.search,
+                page: failure.page
               })
             }
           >
