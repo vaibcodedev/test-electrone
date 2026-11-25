@@ -22,15 +22,22 @@ export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
   cancelled: 'Скасовано'
 }
 
-export const PROJECT_STATUS_BADGE: Record<
-  ProjectStatus,
-  'lime' | 'soft' | 'warn' | 'success' | 'outline'
-> = {
-  lead: 'outline',
-  active: 'lime',
+type StatusBadge = 'soft' | 'info' | 'warn' | 'success'
+
+/** Status badge colours: lime stays the screen accent (docs/design-system.md → Бейджи). */
+export const PROJECT_STATUS_BADGE: Record<ProjectStatus, StatusBadge> = {
+  lead: 'soft',
+  active: 'info',
   paused: 'warn',
   done: 'success',
   cancelled: 'soft'
+}
+
+/** Client card badge; «Активний» is the usual state and gets none, «Не працювати» has AvoidBadge. */
+export const CLIENT_STATUS_BADGE: Partial<Record<ClientStatus, StatusBadge>> = {
+  lead: 'info',
+  paused: 'warn',
+  archived: 'soft'
 }
 
 export const BILLING_LABEL: Record<BillingType, string> = {
@@ -81,6 +88,9 @@ export const CURRENCY_SIGN: Record<Currency, string> = {
   PLN: 'zł',
   GBP: '£'
 }
+
+/** «No platform» in filters, selects and the record view. */
+export const NO_PLATFORM = 'Без платформи'
 
 /** A deadline / end date before the start date (project, stage). */
 export const DUE_BEFORE_START = 'Кінцева дата раніша за початок'

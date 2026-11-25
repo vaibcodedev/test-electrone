@@ -1,17 +1,17 @@
-import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { useState, type ReactElement } from 'react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   CURRENCIES,
   PAYMENT_STATUSES,
+  paymentInputSchema,
   type BillingType,
   type Currency,
   type Payment,
   type PaymentStatus
 } from '@shared/domain/crm'
 import { useApiMutation } from '@/lib/query'
-import { limitsOf } from '@/lib/limits'
-import { paymentInputSchema } from '@shared/domain/crm'
-import { fmtDate, fmtMoney } from '@/lib/format'
+import { limitsOf, rangesOf } from '@/lib/limits'
+import { fmtDay, fmtMoney } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -25,12 +25,17 @@ import {
 } from '@/components/ui/table'
 import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
+import { Confirm } from '@/components/common/confirm'
+import { IconAction } from '@/components/common/icon-action'
+import { NumberField } from '@/components/common/number-field'
+import { useDetailMode } from '@/components/common/detail-mode-context'
 import { cn } from '@/lib/utils'
-import { PAYMENT_STATUS_LABEL } from './labels'
-import { Choice, Meter, Section } from './parts'
-import { fmtAmount, numberOrZero } from './money'
+import { CURRENCY_SIGN, PAYMENT_STATUS_LABEL } from './labels'
+import { Choice, Section } from './parts'
+import { escapeCloses } from './inline-form'
 
 const NOTE_MAX = limitsOf(paymentInputSchema).note
+const AMOUNT_MAX = rangesOf(paymentInputSchema).amount?.max
 
 const STATUS_TONE: Record<PaymentStatus, string> = {
   expected: '',
@@ -44,6 +49,7 @@ function PaymentForm({
   currency,
   stage,
   remaining,
+  initial,
   onDone
 }: {
   projectId: string
@@ -51,50 +57,60 @@ function PaymentForm({
   stage: boolean
   /** Unallocated part of a fixed price (stages only); the amount can't exceed it in the project currency. */
   remaining?: number
+  /** Editing an existing payment instead of adding one. */
+  initial?: Payment
   onDone: () => void
-}) {
-  // The first stage starts with what is left to allocate.
-  const [amount, setAmount] = useState(() => (stage && remaining ? fmtAmount(remaining) : ''))
-  const [cur, setCur] = useState<Currency>(currency)
-  const [status, setStatus] = useState<PaymentStatus>('expected')
-  const [due, setDue] = useState<number | null>(null)
-  const [note, setNote] = useState('')
+}): ReactElement {
+  // A new first stage starts with what is left to allocate.
+  const [amount, setAmount] = useState<number | null>(
+    () => initial?.amount ?? (stage && remaining ? remaining : null)
+  )
+  const [cur, setCur] = useState<Currency>(initial?.currency ?? currency)
+  const [status, setStatus] = useState<PaymentStatus>(initial?.status ?? 'expected')
+  const [due, setDue] = useState<number | null>(initial?.dueAt ?? null)
+  const [note, setNote] = useState(initial?.note ?? '')
+  const what = stage ? 'Етап' : 'Оплату'
   const create = useApiMutation('payments', 'create', {
-    successMessage: stage ? 'Етап додано' : 'Оплату додано',
+    successMessage: `${what} додано`,
     onSuccess: onDone
   })
-  const value = numberOrZero(amount)
-  const limited = stage && remaining !== undefined && cur === currency
-  const over = limited && value > remaining
+  const update = useApiMutation('payments', 'update', {
+    successMessage: `${what} оновлено`,
+    onSuccess: onDone
+  })
+  const pending = create.isPending || update.isPending
+  // The payment being edited frees its own amount.
+  const left =
+    remaining === undefined
+      ? undefined
+      : remaining + (initial && initial.currency === currency && initial.status !== 'cancelled' ? initial.amount : 0)
+  const limited = stage && left !== undefined && cur === currency
+  const ready = !!amount && amount > 0 && !pending
   return (
     <Card className="p-4">
       <form
-        className="grid grid-cols-[minmax(150px,190px)_100px_170px_1fr] items-start gap-3"
+        className="grid grid-cols-[minmax(180px,220px)_100px_170px_1fr] items-start gap-3"
+        onKeyDown={escapeCloses(onDone)}
         onSubmit={(e) => {
           e.preventDefault()
-          if (value > 0 && !over && !create.isPending)
-            create.mutate({ projectId, amount: value, currency: cur, status, dueAt: due, note })
+          if (!ready || !amount) return
+          const values = { amount, currency: cur, status, dueAt: due, note }
+          if (initial) update.mutate({ id: initial.id, patch: values })
+          else create.mutate({ projectId, ...values })
         }}
       >
-        <Field
+        <NumberField
           label="Сума"
-          error={over ? `Більше, ніж лишилося: ${fmtMoney(remaining ?? 0, currency)}` : undefined}
-          hint={limited ? `Можна розподілити ще ${fmtMoney(remaining ?? 0, currency)}` : undefined}
-        >
-          <Input
-            autoFocus
-            inputMode="decimal"
-            className="bg-card tabular-nums"
-            value={amount}
-            aria-invalid={over || undefined}
-            onChange={(e) => setAmount(e.target.value)}
-            onBlur={() => setAmount(fmtAmount(value))}
-            placeholder="500"
-          />
-        </Field>
+          value={amount}
+          min={0}
+          max={limited ? left : AMOUNT_MAX}
+          unit={CURRENCY_SIGN[cur]}
+          placeholder="500"
+          hint={limited ? `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}` : 'Вкажіть суму'}
+          onCommit={setAmount}
+        />
         <Field label="Валюта">
           <Choice
-            className="bg-card"
             value={cur}
             onChange={(v) => v && setCur(v)}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
@@ -102,7 +118,6 @@ function PaymentForm({
         </Field>
         <Field label="Статус">
           <Choice
-            className="bg-card"
             value={status}
             onChange={(v) => v && setStatus(v)}
             options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
@@ -111,21 +126,20 @@ function PaymentForm({
         <Field label="Термін">
           <DatePicker value={due} onChange={setDue} placeholder="Без терміну" />
         </Field>
-        <Field label={stage ? 'Етап' : 'Коментар'} className="col-span-3">
+        <Field label={stage ? 'Етап' : 'Коментар'} className="col-span-4">
           <Input
-            className="bg-card"
             value={note}
             maxLength={NOTE_MAX}
             onChange={(e) => setNote(e.target.value)}
             placeholder={stage ? 'Передоплата 50% / Дизайн / Запуск' : 'За листопад'}
           />
         </Field>
-        <div className="flex justify-end gap-2">
+        <div className="col-span-4 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="lime" disabled={value <= 0 || over || create.isPending}>
-            Додати
+          <Button type="submit" variant="lime" disabled={!ready}>
+            {initial ? 'Зберегти' : 'Додати'}
           </Button>
         </div>
       </form>
@@ -133,16 +147,43 @@ function PaymentForm({
   )
 }
 
-function PaymentRow({ payment }: { payment: Payment }) {
+function PaymentRow({
+  payment,
+  stage,
+  currency,
+  remaining
+}: {
+  payment: Payment
+  stage: boolean
+  currency: Currency
+  remaining?: number
+}): ReactElement {
+  const [editing, setEditing] = useState(false)
   const update = useApiMutation('payments', 'update')
   const remove = useApiMutation('payments', 'remove')
+  if (editing)
+    return (
+      <TableRow className="hover:bg-transparent">
+        <TableCell colSpan={5} className="whitespace-normal">
+          <PaymentForm
+            projectId={payment.projectId}
+            currency={currency}
+            stage={stage}
+            remaining={remaining}
+            initial={payment}
+            onDone={() => setEditing(false)}
+          />
+        </TableCell>
+      </TableRow>
+    )
+  const what = stage ? 'етап' : 'оплату'
   return (
     <TableRow className={cn('group', payment.overdue && 'bg-destructive/5')}>
       <TableCell className="font-display text-heading tabular-nums">
         {fmtMoney(payment.amount, payment.currency)}
       </TableCell>
-      <TableCell className="max-w-0 truncate">
-        {payment.note || <span className="text-muted-foreground">—</span>}
+      <TableCell className="max-w-0 truncate" title={payment.note || undefined}>
+        {payment.note}
       </TableCell>
       <TableCell
         className={cn(
@@ -151,15 +192,18 @@ function PaymentRow({ payment }: { payment: Payment }) {
         )}
       >
         {payment.status === 'paid' && payment.paidAt
-          ? `оплачено ${fmtDate(payment.paidAt)}`
+          ? `оплачено ${fmtDay(payment.paidAt)}`
           : payment.dueAt
-            ? `${payment.overdue ? 'прострочено, термін ' : 'до '}${fmtDate(payment.dueAt)}`
+            ? `${payment.overdue ? 'прострочено, термін ' : 'до '}${fmtDay(payment.dueAt)}`
             : 'без терміну'}
       </TableCell>
       <TableCell className="w-[170px]">
         <Choice
           size="sm"
-          className={cn('bg-transparent hover:bg-card', STATUS_TONE[payment.status])}
+          className={cn(
+            'border-transparent bg-transparent shadow-none hover:bg-card dark:bg-transparent',
+            STATUS_TONE[payment.status]
+          )}
           value={payment.status}
           onChange={(s) =>
             s && s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })
@@ -167,17 +211,24 @@ function PaymentRow({ payment }: { payment: Payment }) {
           options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
         />
       </TableCell>
-      <TableCell className="w-10">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Видалити"
+      <TableCell className="w-16">
+        <span
           data-edit-only
-          className="opacity-0 group-hover:opacity-100 hover:text-destructive"
-          onClick={() => remove.mutate(payment.id)}
+          className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
         >
-          <Trash2 />
-        </Button>
+          <IconAction label={stage ? 'Змінити етап' : 'Змінити оплату'} onClick={() => setEditing(true)}>
+            <Pencil />
+          </IconAction>
+          <Confirm
+            title={`Видалити ${what} ${fmtMoney(payment.amount, payment.currency)}?`}
+            description="Відновити не можна."
+            onConfirm={() => remove.mutate(payment.id)}
+          >
+            <IconAction label={`Видалити ${what}`} className="hover:text-destructive">
+              <Trash2 />
+            </IconAction>
+          </Confirm>
+        </span>
       </TableCell>
     </TableRow>
   )
@@ -189,27 +240,30 @@ export function PaymentsSection({
   currency,
   payments,
   billing,
-  price,
-  paid
+  price
 }: {
   projectId: string
   currency: Currency
   payments: Payment[]
   billing: BillingType
   price: number
-  paid: number
-}) {
+}): ReactElement {
+  const mode = useDetailMode()
   const [adding, setAdding] = useState(false)
   const stages = billing === 'fixed'
   const planned = payments
     .filter((p) => p.status !== 'cancelled')
     .reduce((s, p) => s + (p.currency === currency ? p.amount : 0), 0)
+  const remaining = stages && price > 0 ? Math.max(0, price - planned) : undefined
+  const add = stages ? 'Додати етап' : 'Додати оплату'
   return (
     <Section
       title={stages ? 'Етапи оплати' : 'Оплати'}
       hint={
         stages && price > 0
-          ? `Оплачено ${fmtMoney(paid, currency)} з ${fmtMoney(price, currency)}${planned < price ? ` · не розподілено ${fmtMoney(price - planned, currency)}` : ''}`
+          ? planned < price
+            ? `Не розподілено ${fmtMoney(price - planned, currency)}`
+            : 'Усю вартість розподілено на етапи'
           : billing === 'retainer'
             ? 'Платежі за місяцями ретейнера'
             : undefined
@@ -222,7 +276,6 @@ export function PaymentsSection({
         )
       }
     >
-      {stages && price > 0 && <Meter value={paid} max={price} />}
       {stages && price > 0 && planned > price && (
         <p className="text-caption text-warn">
           Етапи на {fmtMoney(planned - price, currency)} більші за вартість проєкту — змініть
@@ -234,7 +287,7 @@ export function PaymentsSection({
           projectId={projectId}
           currency={currency}
           stage={stages}
-          remaining={stages && price > 0 ? Math.max(0, price - planned) : undefined}
+          remaining={remaining}
           onDone={() => setAdding(false)}
         />
       )}
@@ -245,25 +298,45 @@ export function PaymentsSection({
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-5">Сума</TableHead>
                 <TableHead>{stages ? 'Етап' : 'Коментар'}</TableHead>
-                <TableHead>Термін</TableHead>
+                <TableHead>Дата</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody className="[&_td:first-child]:pl-5">
               {payments.map((p) => (
-                <PaymentRow key={p.id} payment={p} />
+                <PaymentRow
+                  key={p.id}
+                  payment={p}
+                  stage={stages}
+                  currency={currency}
+                  remaining={remaining}
+                />
               ))}
             </TableBody>
           </Table>
         </Card>
       )}
       {!payments.length && !adding && (
-        <p className="text-body text-muted-foreground">
-          {stages
-            ? 'Розбийте вартість на етапи з термінами — прострочки з’являться на головній і в календарі.'
-            : 'Додайте очікувані платежі з терміном — прострочки з’являться на головній і в календарі.'}
-        </p>
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-body leading-relaxed text-muted-foreground">
+            {stages
+              ? 'Етапів ще немає. Розбийте вартість на етапи з термінами — прострочки з’являться на головній і в календарі.'
+              : 'Оплат ще немає. Додайте очікувані платежі з терміном — прострочки з’являться на головній і в календарі.'}
+          </p>
+          {!mode.editing && (
+            <Button
+              variant="soft"
+              size="sm"
+              onClick={() => {
+                mode.setEditing(true)
+                setAdding(true)
+              }}
+            >
+              <Plus /> {add}
+            </Button>
+          )}
+        </div>
       )}
     </Section>
   )

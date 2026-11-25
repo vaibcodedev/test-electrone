@@ -1,5 +1,9 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactElement, type ReactNode } from 'react'
+import { Trash2 } from 'lucide-react'
 import { BILLING_TYPES, type BillingType } from '@shared/domain/crm'
+import { Confirm } from '@/components/common/confirm'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Select,
   SelectContent,
@@ -13,13 +17,17 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { BILLING_INFO } from './labels'
 
-export interface ChoiceOption<T extends string> {
+interface ChoiceOption<T extends string> {
   value: T
   label: string
 }
 
-/** shadcn Select styled like the rest of the inputs. `none` adds an empty option. */
+/**
+ * shadcn Select with the standard field look (border + tint from ui/select, docs/design-system.md → Формы).
+ * `none` adds an empty option; `id` ties it to a Field label.
+ */
 export function Choice<T extends string>({
+  id,
   value,
   onChange,
   options,
@@ -28,6 +36,7 @@ export function Choice<T extends string>({
   none,
   size = 'default'
 }: {
+  id?: string
   value: T | null | undefined
   onChange: (value: T | null) => void
   options: ChoiceOption<T>[]
@@ -35,20 +44,14 @@ export function Choice<T extends string>({
   className?: string
   none?: string
   size?: 'default' | 'sm'
-}) {
+}): ReactElement {
   const NONE = '__none__'
   return (
     <Select
       value={value ?? (none ? NONE : undefined)}
       onValueChange={(v) => onChange(v === NONE ? null : (v as T))}
     >
-      <SelectTrigger
-        size={size}
-        className={cn(
-          'w-full rounded-xl border-transparent bg-surface text-body shadow-none dark:bg-surface',
-          className
-        )}
-      >
+      <SelectTrigger id={id} size={size} className={cn('w-full text-body', className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="rounded-xl">
@@ -60,6 +63,56 @@ export function Choice<T extends string>({
         ))}
       </SelectContent>
     </Select>
+  )
+}
+
+/**
+ * «У кошик» in a record header: icon button with a tooltip behind a confirmation. The tooltip trigger sits
+ * inside Confirm's trigger so both get the same button (icon-sm, like the header's other buttons).
+ */
+export function TrashButton({
+  title,
+  description,
+  onConfirm
+}: {
+  title: string
+  description: string
+  onConfirm: () => void
+}): ReactElement {
+  return (
+    <Tooltip>
+      <Confirm title={title} description={description} onConfirm={onConfirm}>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label="У кошик">
+            <Trash2 />
+          </Button>
+        </TooltipTrigger>
+      </Confirm>
+      <TooltipContent>У кошик</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/**
+ * A phrase in place of an empty stat value («ще немає оплат»): a zero would read as data
+ * (docs/design-system.md → Плитка статистики). Resets the stat's display font and size.
+ */
+export function EmptyValue({
+  children,
+  className
+}: {
+  children: ReactNode
+  className?: string
+}): ReactElement {
+  return (
+    <span
+      className={cn(
+        'font-sans text-body font-normal tracking-normal text-muted-foreground',
+        className
+      )}
+    >
+      {children}
+    </span>
   )
 }
 
@@ -76,7 +129,7 @@ export function Section({
   action?: ReactNode
   children: ReactNode
   className?: string
-}) {
+}): ReactElement {
   return (
     <section className={cn('flex flex-col gap-3', className)}>
       <div className="flex items-center justify-between gap-3">
@@ -100,7 +153,7 @@ export function Meter({
   value: number
   max: number
   className?: string
-}) {
+}): ReactElement {
   const ratio = max > 0 ? value / max : 0
   return (
     <Progress
@@ -116,13 +169,12 @@ export function Meter({
   )
 }
 
-/** Billing type chosen first: shadcn RadioGroup of choice cards. */
 /** One-line hint per billing type: short enough to never wrap next to the label. */
 const BILLING_HINT: Record<BillingType, string> = {
   fixed: 'оплата за весь проєкт',
   hourly: 'ставка за годину',
   retainer: 'щомісячна сума',
-  none: 'без грошей'
+  none: 'лише облік часу'
 }
 
 /**
@@ -133,15 +185,13 @@ const BILLING_HINT: Record<BillingType, string> = {
 export function BillingPicker({
   value,
   onChange,
-  compact,
   className
 }: {
   value: BillingType
   onChange: (value: BillingType) => void
-  compact?: boolean
   className?: string
-}) {
-  const idPrefix = `billing-${compact ? 'c' : 'f'}`
+}): ReactElement {
+  const idPrefix = useId()
   return (
     <RadioGroup
       value={value}
@@ -154,10 +204,11 @@ export function BillingPicker({
           htmlFor={`${idPrefix}-${b}`}
           className="flex min-w-0 cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 font-normal transition-colors hover:bg-foreground/5 has-data-[state=checked]:bg-card has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-foreground/15"
         >
+          {/* dark: variant too — ui/radio-group sets dark:bg-input/30, which a plain checked bg doesn't beat. */}
           <RadioGroupItem
             value={b}
             id={`${idPrefix}-${b}`}
-            className="data-[state=checked]:border-transparent data-[state=checked]:bg-lime [&_svg]:fill-lime-foreground [&_svg]:stroke-none"
+            className="data-[state=checked]:border-transparent data-[state=checked]:bg-lime dark:data-[state=checked]:bg-lime [&_svg]:fill-lime-foreground [&_svg]:stroke-none"
           />
           <span className="shrink-0 text-body font-medium whitespace-nowrap text-foreground">
             {BILLING_INFO[b].title}

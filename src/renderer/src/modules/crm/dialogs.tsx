@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import {
   clientInputSchema,
@@ -6,37 +6,49 @@ import {
   projectInputSchema,
   type BillingType,
   type ClientInput,
+  type ClientSummary,
   type Currency,
   type ProjectInput
 } from '@shared/domain/crm'
 import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
-import { NumberInput } from '@/components/common/number-input'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
-import { BILLING_INFO, DUE_BEFORE_START } from './labels'
+import { NumberField, useInvalidFields } from '@/components/common/number-field'
+import { BILLING_INFO, CURRENCY_SIGN, DUE_BEFORE_START } from './labels'
 import { BillingPicker, Choice } from './parts'
 import { amountPatch } from './money'
+import { ClientCombobox } from './client-combobox'
 import { ClientPlatformFields, FeeField, PlatformSelect, usePlatforms } from './platform-fields'
-import { useInvalidFields } from '@/components/common/number-field'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
 const PROJECT_L = limitsOf(projectInputSchema)
 const PROJECT_R = rangesOf(projectInputSchema)
+const REQUIRED = 'Обов’язкове поле'
 
-/** Amount input whose label follows the billing type; renders nothing for "none". */
-export function AmountField({
+const AMOUNT_PLACEHOLDER: Record<BillingType, string> = {
+  fixed: '1500',
+  hourly: '25',
+  retainer: '800',
+  none: ''
+}
+
+/** Amount whose label follows the billing type; renders nothing for "none". */
+function AmountField({
+  id,
   billing,
   value,
   onChange,
   currency,
   forClient,
-  max
+  max,
+  onValidityChange
 }: {
+  id: string
   billing: BillingType
   value: number
   onChange: (v: number) => void
@@ -44,22 +56,23 @@ export function AmountField({
   forClient?: boolean
   /** Max of the schema field this input edits (rate, fixedPrice, defaultRate). */
   max: number | undefined
-}) {
+  onValidityChange: (invalid: boolean) => void
+}): ReactElement | null {
   const label = BILLING_INFO[billing].amountLabel
   if (!label) return null
   return (
-    <Field
-      label={`${forClient && billing === 'fixed' ? 'Звичайний бюджет проєкту' : label}, ${currency}`}
-    >
-      <NumberInput
-        value={value || null}
-        allowEmpty
-        min={0}
-        max={max}
-        onChange={(v) => onChange(v ?? 0)}
-        placeholder="0"
-      />
-    </Field>
+    <NumberField
+      key={billing}
+      id={id}
+      label={forClient && billing === 'fixed' ? 'Типовий бюджет проєкту' : label}
+      value={value || null}
+      min={0}
+      max={max}
+      unit={CURRENCY_SIGN[currency]}
+      placeholder={AMOUNT_PLACEHOLDER[billing]}
+      onCommit={(v) => onChange(v ?? 0)}
+      onValidityChange={onValidityChange}
+    />
   )
 }
 
@@ -84,8 +97,9 @@ export function ClientDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-}) {
+}): ReactElement {
   const navigate = useNavigate()
+  const uid = useId()
   const [form, setForm] = useState<ClientInput>(EMPTY_CLIENT)
   const [emailBlurred, setEmailBlurred] = useState(false)
   const numbers = useInvalidFields()
@@ -112,8 +126,13 @@ export function ClientDialog({
       pending={create.isPending}
       onSubmit={() => create.mutate({ ...form, email: (form.email ?? '').trim() })}
     >
-      <Field label="Ім’я або назва">
+      <Field
+        label="Ім’я або назва"
+        htmlFor={`${uid}-name`}
+        hint={!form.name.trim() ? REQUIRED : undefined}
+      >
         <Input
+          id={`${uid}-name`}
           autoFocus
           value={form.name}
           maxLength={CLIENT_L.name}
@@ -122,16 +141,22 @@ export function ClientDialog({
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Компанія">
+        <Field label="Компанія" htmlFor={`${uid}-company`}>
           <Input
+            id={`${uid}-company`}
             value={form.company}
             maxLength={CLIENT_L.company}
             onChange={(e) => set({ company: e.target.value })}
             placeholder="Bloom Store"
           />
         </Field>
-        <Field label="Email" error={emailBlurred && !emailOk ? EMAIL_ERROR : undefined}>
+        <Field
+          label="Email"
+          htmlFor={`${uid}-email`}
+          error={emailBlurred && !emailOk ? EMAIL_ERROR : undefined}
+        >
           <Input
+            id={`${uid}-email`}
             type="email"
             value={form.email}
             maxLength={CLIENT_L.email}
@@ -142,8 +167,12 @@ export function ClientDialog({
           />
         </Field>
       </div>
-      <Field label="Звідки">
-        <PlatformSelect value={form.platformId} onChange={(platformId) => set({ platformId })} />
+      <Field label="Платформа" htmlFor={`${uid}-platform`}>
+        <PlatformSelect
+          id={`${uid}-platform`}
+          value={form.platformId}
+          onChange={(platformId) => set({ platformId })}
+        />
       </Field>
       {form.platformId && (
         <ClientPlatformFields
@@ -159,28 +188,63 @@ export function ClientDialog({
           onInvalidChange={numbers.report}
         />
       )}
-      <Field label="Як зазвичай працюєте">
+      <Field label="Типова оплата">
         <BillingPicker value={billing} onChange={(defaultBilling) => set({ defaultBilling })} />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Валюта">
+      <div className="grid grid-cols-2 items-start gap-3">
+        <Field label="Валюта" htmlFor={`${uid}-currency`}>
           <Choice
+            id={`${uid}-currency`}
             value={form.currency as Currency}
             onChange={(v) => v && set({ currency: v })}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
           />
         </Field>
         <AmountField
+          id={`${uid}-amount`}
           forClient
           billing={billing}
           value={form.defaultRate ?? 0}
           max={CLIENT_R.defaultRate?.max}
           onChange={(defaultRate) => set({ defaultRate })}
           currency={(form.currency ?? 'USD') as Currency}
+          onValidityChange={numbers.report('defaultRate')}
         />
       </div>
     </FormDialog>
   )
+}
+
+const emptyProject = (clientId: string | null): ProjectInput => ({
+  title: '',
+  clientId,
+  billing: 'fixed',
+  rate: 0,
+  fixedPrice: 0,
+  currency: 'USD',
+  budgetHours: 0,
+  startAt: null,
+  dueAt: null,
+  platformId: null,
+  feePercent: null
+})
+
+/**
+ * The chosen client's usual terms, applied only to the fields the person hasn't changed yet: picking a client
+ * after typing a price keeps the price. The amount (rate / fixed price) counts as one field.
+ */
+function withClientDefaults(
+  form: ProjectInput,
+  c: ClientSummary,
+  touched: ReadonlySet<keyof ProjectInput>
+): ProjectInput {
+  const next = { ...form }
+  if (!touched.has('billing')) next.billing = c.defaultBilling
+  if (!touched.has('currency')) next.currency = c.currency
+  if (!touched.has('platformId')) next.platformId = c.platformId
+  if (!touched.has('rate') && !touched.has('fixedPrice'))
+    Object.assign(next, amountPatch(c.defaultBilling, c.defaultRate))
+  return next
 }
 
 export function ProjectDialog({
@@ -191,40 +255,30 @@ export function ProjectDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   clientId?: string
-}) {
+}): ReactElement {
   const navigate = useNavigate()
-  const { data: clients = [] } = useApi('clients', 'list', undefined, { enabled: open })
-  const fromClient = (id: string | null | undefined): Partial<ProjectInput> => {
-    const c = clients.find((x) => x.id === id)
-    if (!c) return {}
-    return {
-      currency: c.currency,
-      billing: c.defaultBilling,
-      platformId: c.platformId,
-      ...amountPatch(c.defaultBilling, c.defaultRate)
-    }
-  }
-  const initial = (): ProjectInput => ({
-    title: '',
-    clientId: clientId ?? null,
-    billing: 'fixed',
-    rate: 0,
-    fixedPrice: 0,
-    currency: 'USD',
-    budgetHours: 0,
-    startAt: null,
-    dueAt: null,
-    platformId: null,
-    feePercent: null,
-    ...fromClient(clientId)
+  const uid = useId()
+  const [form, setForm] = useState<ProjectInput>(() => emptyProject(clientId ?? null))
+  const touched = useRef(new Set<keyof ProjectInput>())
+  const wasOpen = useRef(false)
+  // The client the dialog was opened for (client page): its terms arrive after the dialog opens.
+  const { data: ownerClient } = useApi('clients', 'get', clientId ?? '', {
+    enabled: open && !!clientId
   })
-  const [form, setForm] = useState<ProjectInput>(initial)
-  const clientsLoaded = clients.length > 0
   useEffect(() => {
-    if (!open) return
-    setForm(initial())
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opened / clients first arrive
-  }, [open, clientsLoaded])
+    if (!open) {
+      wasOpen.current = false
+      return
+    }
+    // Reset only when the dialog opens, not when data arrives: typed values stay.
+    if (!wasOpen.current) {
+      wasOpen.current = true
+      touched.current = new Set()
+      setForm(emptyProject(clientId ?? null))
+    }
+    if (ownerClient && ownerClient.id === clientId)
+      setForm((f) => (f.clientId === ownerClient.id ? withClientDefaults(f, ownerClient, touched.current) : f))
+  }, [open, ownerClient, clientId])
   const create = useApiMutation('projects', 'create', {
     successMessage: 'Проєкт створено',
     onSuccess: (p) => {
@@ -232,7 +286,17 @@ export function ProjectDialog({
       navigate(`/projects/${p.id}`)
     }
   })
-  const set = (patch: Partial<ProjectInput>): void => setForm((f) => ({ ...f, ...patch }))
+  const set = (patch: Partial<ProjectInput>): void => {
+    for (const k of Object.keys(patch)) touched.current.add(k as keyof ProjectInput)
+    setForm((f) => ({ ...f, ...patch }))
+  }
+  const pickClient = (c: ClientSummary | null): void => {
+    touched.current.add('clientId')
+    setForm((f) => {
+      const next = { ...f, clientId: c?.id ?? null }
+      return c ? withClientDefaults(next, c, touched.current) : next
+    })
+  }
   const billing = (form.billing ?? 'fixed') as BillingType
   const currency = (form.currency ?? 'USD') as Currency
   const platforms = usePlatforms()
@@ -247,7 +311,6 @@ export function ProjectDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Новий проєкт"
-      description="Спершу оберіть, як оплачується робота, — поля підлаштуються."
       submitLabel="Створити проєкт"
       className="sm:max-w-[560px]"
       invalid={!form.title.trim() || dueBeforeStart || numbers.invalid}
@@ -262,8 +325,13 @@ export function ProjectDialog({
         })
       }
     >
-      <Field label="Назва">
+      <Field
+        label="Назва"
+        htmlFor={`${uid}-title`}
+        hint={!form.title.trim() ? REQUIRED : undefined}
+      >
         <Input
+          id={`${uid}-title`}
           autoFocus
           value={form.title}
           maxLength={PROJECT_L.title}
@@ -271,20 +339,18 @@ export function ProjectDialog({
           placeholder="Редизайн магазину"
         />
       </Field>
-      <Field label="Клієнт">
-        <Choice
+      <Field label="Клієнт" htmlFor={`${uid}-client`}>
+        <ClientCombobox
+          id={`${uid}-client`}
           value={form.clientId ?? null}
-          none="Без клієнта"
-          onChange={(v) => set({ clientId: v, ...fromClient(v) })}
-          options={clients.map((c) => ({
-            value: c.id,
-            label: c.company ? `${c.name} — ${c.company}` : c.name
-          }))}
+          currentName={ownerClient && ownerClient.id === form.clientId ? ownerClient.name : undefined}
+          onChange={pickClient}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Платформа">
+      <div className="grid grid-cols-2 items-start gap-3">
+        <Field label="Платформа" htmlFor={`${uid}-platform`}>
           <PlatformSelect
+            id={`${uid}-platform`}
             value={form.platformId}
             onChange={(platformId) =>
               set({ platformId, feePercent: platformId ? form.feePercent : null })
@@ -303,10 +369,11 @@ export function ProjectDialog({
       <Field label="Оплата">
         <BillingPicker value={billing} onChange={(b) => set({ billing: b })} />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 items-start gap-3">
         {billing !== 'none' && (
-          <Field label="Валюта">
+          <Field label="Валюта" htmlFor={`${uid}-currency`}>
             <Choice
+              id={`${uid}-currency`}
               value={currency}
               onChange={(v) => v && set({ currency: v })}
               options={CURRENCIES.map((c) => ({ value: c, label: c }))}
@@ -314,23 +381,26 @@ export function ProjectDialog({
           </Field>
         )}
         <AmountField
+          id={`${uid}-amount`}
           billing={billing}
           currency={currency}
           value={billing === 'hourly' ? (form.rate ?? 0) : (form.fixedPrice ?? 0)}
           max={(billing === 'hourly' ? PROJECT_R.rate : PROJECT_R.fixedPrice)?.max}
           onChange={(v) => set(billing === 'hourly' ? { rate: v } : { fixedPrice: v })}
+          onValidityChange={numbers.report('amount')}
         />
         {billing === 'hourly' && (
-          <Field label="Бюджет, годин">
-            <NumberInput
-              value={form.budgetHours || null}
-              allowEmpty
-              {...PROJECT_R.budgetHours}
-              step={0.5}
-              onChange={(v) => set({ budgetHours: v ?? 0 })}
-              placeholder="без ліміту"
-            />
-          </Field>
+          <NumberField
+            id={`${uid}-budget`}
+            label="Бюджет"
+            unit="год"
+            value={form.budgetHours || null}
+            {...PROJECT_R.budgetHours}
+            step={0.5}
+            placeholder="без ліміту"
+            onCommit={(v) => set({ budgetHours: v ?? 0 })}
+            onValidityChange={numbers.report('budgetHours')}
+          />
         )}
         {billing === 'retainer' && (
           <Field label="Ретейнер з">

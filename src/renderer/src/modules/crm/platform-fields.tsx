@@ -1,4 +1,5 @@
 /** Freelance platform bits for clients and contracts (Upwork data, fee %, "на руки"). */
+import { useId, type ReactElement } from 'react'
 import { Link } from 'react-router'
 import { Flag } from 'lucide-react'
 import {
@@ -21,12 +22,12 @@ import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { Choice } from './parts'
-import { CURRENCY_SIGN } from './labels'
+import { CURRENCY_SIGN, NO_PLATFORM } from './labels'
 
 const CLIENT_R = rangesOf(clientInputSchema)
 const FEE_RANGE = rangesOf(projectInputSchema).feePercent
 
-export const FEE_HINT =
+const FEE_HINT =
   'Upwork: 0–15%, точну видно під час відгуку. Порожньо — комісія платформи за замовчуванням.'
 
 export function usePlatforms(): Platform[] {
@@ -34,33 +35,67 @@ export function usePlatforms(): Platform[] {
   return data
 }
 
-/** Parses "12.5" / "12,5" → number, "" → null. */
-export function numberOrNull(raw: string): number | null {
-  const v = raw.trim().replace(',', '.')
-  if (!v) return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
-
-/** «Откуда» — platform or «Напрямую». */
+/** Platform of a client or contract, or «Без платформи». */
 export function PlatformSelect({
+  id,
   value,
   onChange,
   className
 }: {
+  id?: string
   value: string | null | undefined
   onChange: (platformId: string | null) => void
   className?: string
-}) {
+}): ReactElement {
   const platforms = usePlatforms()
   return (
     <Choice
+      id={id}
       className={className}
       value={value ?? null}
-      none="Напряму"
+      none={NO_PLATFORM}
       onChange={onChange}
       options={platforms.map((p) => ({ value: p.id, label: p.name }))}
     />
+  )
+}
+
+/** Name and colour dot of a platform (the stored name wins: a deleted platform keeps its label). */
+function usePlatformLabel(
+  platformId: string | null,
+  name?: string | null
+): { label: string; dot: ReactElement } | null {
+  const platforms = usePlatforms()
+  if (!platformId) return null
+  const p = platforms.find((x) => x.id === platformId)
+  const label = name ?? p?.name
+  if (!label) return null
+  const dot = (
+    <span
+      className="size-1.5 shrink-0 rounded-full"
+      style={{ background: p?.color ?? 'var(--muted-foreground)' }}
+    />
+  )
+  return { label, dot }
+}
+
+/** Platform colour dot + name as text (rows, record view); nothing for an unknown platform. */
+export function PlatformName({
+  platformId,
+  name,
+  className
+}: {
+  platformId: string | null
+  name?: string | null
+  className?: string
+}): ReactElement | null {
+  const p = usePlatformLabel(platformId, name)
+  if (!p) return null
+  return (
+    <span className={cn('inline-flex min-w-0 items-center gap-1.5', className)}>
+      {p.dot}
+      <span className="truncate">{p.label}</span>
+    </span>
   )
 }
 
@@ -70,25 +105,19 @@ export function PlatformBadge({
 }: {
   platformId: string | null
   name?: string | null
-}) {
-  const platforms = usePlatforms()
-  if (!platformId) return null
-  const p = platforms.find((x) => x.id === platformId)
-  const label = name ?? p?.name
-  if (!label) return null
+}): ReactElement | null {
+  const p = usePlatformLabel(platformId, name)
+  if (!p) return null
   return (
     <Badge variant="outline" className="gap-1.5">
-      <span
-        className="size-1.5 rounded-full"
-        style={{ background: p?.color ?? 'var(--muted-foreground)' }}
-      />
-      {label}
+      {p.dot}
+      {p.label}
     </Badge>
   )
 }
 
 /** Destructive badge for clients marked «Не работать», pointing to the red flags list. */
-export function AvoidBadge({ className, link = true }: { className?: string; link?: boolean }) {
+export function AvoidBadge({ className, link = true }: { className?: string; link?: boolean }): ReactElement {
   if (!link) {
     return (
       <Badge variant="destructive" className={cn('gap-1', className)}>
@@ -110,7 +139,7 @@ export function AvoidBadge({ className, link = true }: { className?: string; lin
   )
 }
 
-export type ClientPlatformData = Pick<
+type ClientPlatformData = Pick<
   Client,
   'country' | 'rating' | 'totalSpent' | 'hireRate' | 'paymentVerified'
 >
@@ -127,16 +156,15 @@ export function ClientPlatformFields({
 }: {
   value: ClientPlatformData
   onChange: (patch: Partial<ClientPatch>) => void
-  /** @deprecated fields commit on blur in every context. */
-  saveOnBlur?: boolean
   currency?: string
   /** Dialog: per-field «out of range» flags (see useInvalidFields) to block the submit button. */
   onInvalidChange?: (field: string) => (invalid: boolean) => void
-}) {
+}): ReactElement {
   // Short labels + the unit inside the input (InputGroup addon): labels never wrap into different
   // heights, and `items-end` keeps the inputs on one line even if one does (docs/design-system.md → Формы).
   // Schema ranges (rating 0–5, hire rate 0–100…) — out-of-range values show an error and aren't saved.
   // Commit on blur works for both the autosaving page and the dialog state.
+  const verifiedId = useId()
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 items-end gap-3">
@@ -174,11 +202,11 @@ export function ClientPlatformFields({
       </div>
       <div className="flex h-9 items-center gap-2">
         <Switch
-          id="payment-verified"
+          id={verifiedId}
           checked={!!value.paymentVerified}
           onCheckedChange={(paymentVerified) => onChange({ paymentVerified })}
         />
-        <Label htmlFor="payment-verified" className="text-body font-normal text-foreground">
+        <Label htmlFor={verifiedId} className="text-body font-normal text-foreground">
           Оплату верифіковано
         </Label>
       </div>
@@ -195,12 +223,10 @@ export function FeeField({
 }: {
   value: number | null | undefined
   onChange: (feePercent: number | null) => void
-  /** @deprecated NumberField commits on blur in both cases. */
-  saveOnBlur?: boolean
   platformDefault?: number
   /** Dialog: the typed fee is out of range, block submit. */
   onInvalidChange?: (invalid: boolean) => void
-}) {
+}): ReactElement {
   return (
     <div className="flex flex-col gap-1.5">
       <NumberField
@@ -225,7 +251,7 @@ export function NetPaid({
 }: {
   project: ProjectSummary
   className?: string
-}) {
+}): ReactElement | null {
   if (!p.platformId || p.billing === 'none') return null
   return (
     <span className={cn('text-caption text-muted-foreground', className)}>

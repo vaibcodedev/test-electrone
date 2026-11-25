@@ -1,4 +1,9 @@
 /** Pure helpers of the manual time-entry form (unit-tested in tests/unit/time-range.test.ts). */
+import { format } from 'date-fns'
+import { timeEntryInputSchema, type TimeEntry } from '@shared/domain/crm'
+import { limitsOf } from '@/lib/limits'
+
+export const DESC_MAX = limitsOf(timeEntryInputSchema).description
 
 export interface EntryDraft {
   day: number
@@ -10,6 +15,28 @@ export interface EntryDraft {
 }
 
 export const startOfDayMs = (ts: number): number => new Date(ts).setHours(0, 0, 0, 0)
+
+export function emptyDraft(): EntryDraft {
+  return {
+    day: startOfDayMs(Date.now()),
+    from: '',
+    to: '',
+    minutes: '',
+    description: '',
+    billable: true
+  }
+}
+
+export function draftOf(e: TimeEntry): EntryDraft {
+  return {
+    day: startOfDayMs(e.startedAt),
+    from: format(e.startedAt, 'HH:mm'),
+    to: e.endedAt ? format(e.endedAt, 'HH:mm') : '',
+    minutes: '',
+    description: e.description,
+    billable: e.billable
+  }
+}
 
 /** Local wall-clock `HH:mm` on the given day (`dayOffset` days later — DST-safe calendar step). */
 export function combine(day: number, time: string, dayOffset = 0): number | null {
