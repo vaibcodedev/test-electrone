@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, Plus, Tag as TagIcon, X } from 'lucide-react'
-import type { Tag } from '@shared/domain/common'
+import type { EntityRef, Tag } from '@shared/domain/common'
 import { useApi, useApiMutation } from '@/lib/query'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -22,6 +22,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { PALETTE } from '@shared/colors'
 import { SectionLabel } from './section-label'
 import { IconAction } from './icon-action'
+import { SuggestTagsButton, TagSuggestionChips } from './tag-suggestions'
+import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
 
 /** Same limit as tagInputSchema.name — a new tag can be created right from the picker. */
 const TAG_NAME_MAX = limitsOf(tagInputSchema).name
@@ -220,23 +222,31 @@ export function TagPicker({
   )
 }
 
-/** «Мітки» section of a record column; while reading, a record without tags shows no section at all. */
+/**
+ * «Мітки» section of a record column; while reading, a record without tags shows no section at all. With
+ * `entity` and AI set up, editing adds «Запропонувати мітки» (see tag-suggestions).
+ */
 export function TagsSection({
   value,
   onChange,
+  entity,
   className
 }: {
   value: Tag[]
   onChange: (tagIds: string[]) => void
+  /** The record the tags belong to: AI reads its text to suggest tags. */
+  entity?: EntityRef
   /** Spacing from the section above (a sheet's mt-5); the empty-in-view rule stays the component's own. */
   className?: string
 }) {
   const viewMode = useReadOnly()
+  const suggestions = useTagSuggestions(entity, value, onChange, !viewMode)
   if (viewMode && !value.length) return null
   return (
     <section className={cn('flex flex-col gap-2', className)}>
-      <SectionLabel>Мітки</SectionLabel>
+      <SectionLabel action={<SuggestTagsButton state={suggestions} />}>Мітки</SectionLabel>
       <TagPicker value={value} onChange={onChange} />
+      <TagSuggestionChips state={suggestions} />
     </section>
   )
 }

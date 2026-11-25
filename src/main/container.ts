@@ -2,7 +2,7 @@
  * Composition root: builds every service once and wires them by constructor injection.
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
-import { app, session } from 'electron'
+import { app, net, session } from 'electron'
 import { dirname } from 'path'
 import { log, logFilePath } from './core/logger'
 import { openPathOrThrow } from './core/open-path'
@@ -42,6 +42,10 @@ import { FinanceModule } from './modules/finance'
 import { JobsModule, STAGE_DEADLINE_SOURCE, STAGE_SOURCE } from './modules/jobs'
 import { DevProjectsModule } from './modules/dev-projects'
 import { GithubService } from './services/github-service'
+import { AiService } from './services/ai'
+import { AiHttp } from './services/ai/adapter'
+import { AnthropicAdapter } from './services/ai/anthropic'
+import { OpenAiAdapter } from './services/ai/openai'
 import { GitClient } from './services/git-client'
 import { ScriptRunner } from './system/script-runner'
 import { WeeklyReviewService } from './services/weekly-review-service'
@@ -118,6 +122,7 @@ export class Container {
   readonly scripts = new ScriptRunner(this.bus)
   readonly devProjects = new DevProjectsModule(this.moduleCtx, this.git, this.scripts)
   readonly github = new GithubService(this.config, this.secrets)
+  readonly ai = this.createAi()
   readonly review = new WeeklyReviewService(this.db, {
     finance: this.finance,
     calendar: this.calendar,
@@ -257,6 +262,24 @@ export class Container {
     step('db', () => this.db.close())
   }
 
+  /** AI on the person's key: two wire formats over net.fetch, records read through the registry. */
+  private createAi(): AiService {
+    const http = new AiHttp((url, init) => net.fetch(url, init))
+    return new AiService({
+      store: this.config,
+      secrets: this.secrets,
+      adapters: { anthropic: new AnthropicAdapter(http), openai: new OpenAiAdapter(http) },
+      records: {
+        text: (ref) => {
+          const row = this.registry.findRow(ref)
+          return row ? this.registry.get(ref.type).searchDoc(row) : null
+        },
+        tagsOf: (ref) => this.tags.forMany(ref.type, [ref.id]).get(ref.id) ?? [],
+        allTags: () => this.tags.list()
+      }
+    })
+  }
+
   /** Opens the database (runs pending migrations, a safety copy is made before them). */
   openDb(): void {
     this.db.open()
@@ -342,6 +365,7 @@ export class Container {
       jobs: this.jobs.api(),
       devProjects: this.devProjects.api(),
       github: this.github.api(() => this.devProjects.repoIndex()),
+      ai: this.ai.api(),
       review: this.review.api(),
       capture: {
         info: async () => this.capture.info(),

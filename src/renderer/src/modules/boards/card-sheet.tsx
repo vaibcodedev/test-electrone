@@ -291,7 +291,11 @@ function CardEditor({
 
           <div className="mt-6 flex flex-col gap-6">
             {/* Same order as every record column: fields → мітки → зв’язки → файли. */}
-            <TagsSection value={card.tags} onChange={(tagIds) => patch({ tagIds })} />
+            <TagsSection
+              value={card.tags}
+              onChange={(tagIds) => patch({ tagIds })}
+              entity={{ type: 'card', id: card.id }}
+            />
             <LinksPanel entity={{ type: 'card', id: card.id }} />
             <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
             <div className="text-meta text-muted-foreground">

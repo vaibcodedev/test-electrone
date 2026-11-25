@@ -471,7 +471,9 @@ export function EntityAside({
   return (
     <div className="flex flex-col gap-6">
       {children}
-      {tags && onTagsChange && <TagsSection value={tags} onChange={onTagsChange} />}
+      {tags && onTagsChange && (
+        <TagsSection value={tags} onChange={onTagsChange} entity={entity} />
+      )}
       <LinksPanel entity={entity} />
       {files && <AttachmentsPanel entity={entity} />}
       {(createdAt || edited) && (

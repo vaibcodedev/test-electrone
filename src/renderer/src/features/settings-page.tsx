@@ -32,6 +32,7 @@ import { StorageSection } from './settings/storage-section'
 import { UpdatesSection } from './settings/updates-section'
 import { SandboxSection } from './settings/sandbox-section'
 import { isSandbox } from '@/lib/profile'
+import { AiSection } from './settings/ai-section'
 import { LoadError } from './route-error'
 
 const LIMITS = limitsOf(settingsSchema)
@@ -265,6 +266,7 @@ export function SettingsPage(): ReactElement {
 
           <SandboxSection />
 
+          <AiSection />
           <GithubSettingsCard />
           <ExtensionSettingsCard />
 
