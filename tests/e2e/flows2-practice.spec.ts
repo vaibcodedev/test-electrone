@@ -67,10 +67,9 @@ test.describe('чек-лист: шаблон → прогін', () => {
     // Launch: the run gets a dated name, the template stays a template.
     await win.getByRole('button', { name: 'Запустити прогін' }).click()
     const launch = win.getByRole('dialog', { name: 'Запустити прогін' })
-    // The label names the group, not the input (Field without htmlFor).
-    await expect(
-      launch.getByRole('group', { name: 'Назва прогону' }).getByRole('textbox')
-    ).toHaveValue(new RegExp(`^${title} — `))
+    await expect(launch.getByRole('textbox', { name: 'Назва прогону' })).toHaveValue(
+      new RegExp(`^${title} — `)
+    )
     await launch.getByRole('button', { name: 'Запустити', exact: true }).click()
     await expect(win.getByText('Прогін створено').first()).toBeVisible()
     await expect.poll(() => hashPath(win)).not.toBe(`/checklists/${templateId}`)
@@ -248,8 +247,11 @@ test.describe('англійська: слово → тренування', () =>
     const { win, rpc, go } = vault
     const before = (await rpc('english.stats')).total
     await go('/english')
-    await win.getByRole('textbox', { name: 'Переклад', exact: true }).fill('без слова')
-    await win.getByRole('button', { name: 'Додати', exact: true }).click()
+    const translation = win.getByRole('textbox', { name: 'Переклад', exact: true })
+    await translation.fill('без слова')
+    // «Слово» is required: «Додати» is off, and Enter adds nothing but says what is missing.
+    await expect(win.getByRole('button', { name: 'Додати', exact: true })).toBeDisabled()
+    await translation.press('Enter')
     await expect(win.getByText('Введіть слово або фразу')).toBeVisible()
     await expect(win.getByRole('textbox', { name: 'Слово', exact: true })).toBeFocused()
     await expect(win.getByRole('textbox', { name: 'Слово', exact: true })).toHaveAttribute(
