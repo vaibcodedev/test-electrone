@@ -72,11 +72,12 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
         aria-label={entry.text}
       />
       {/* A tick works in any mode: while reading, the text is the checkbox's label and toggles it too. */}
+      {/* px-2.5 in both modes: the text keeps its place on E, and the field's text doesn't touch its border. */}
       {readOnly ? (
         <Label
           htmlFor={cbId}
           className={cn(
-            'min-w-0 flex-1 cursor-pointer px-1 py-1.5 text-body leading-snug font-normal text-foreground wrap-anywhere',
+            'min-w-0 flex-1 cursor-pointer px-2.5 py-1.5 text-body leading-snug font-normal text-foreground wrap-anywhere',
             entry.done && 'text-muted-foreground'
           )}
         >
@@ -88,7 +89,7 @@ function ChecklistRow({ entry }: { entry: ChecklistEntry }) {
           maxLength={ENTRY_MAX}
           onChange={(e) => setText(e.target.value)}
           aria-label="Текст пункту"
-          className={cn('h-8 min-w-0 flex-1 px-1', entry.done && 'text-muted-foreground')}
+          className={cn('h-8 min-w-0 flex-1 px-2.5', entry.done && 'text-muted-foreground')}
         />
       )}
       {/* Hidden until hover, but shown as soon as the keyboard reaches the row (WCAG 2.4.7). */}
@@ -120,34 +121,36 @@ function Checklist({ card }: { card: CardDetails }) {
         {card.checklist.map((e) => (
           <ChecklistRow key={e.id} entry={e} />
         ))}
+        {/* The next item, laid out like the items: «+» where the checkboxes are and a field as wide as theirs. A
+            separate form with its own indent and a big «+» button looked detached. */}
+        <li data-edit-only className="flex items-center gap-2.5 rounded-xl px-2 py-1">
+          <Plus aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+          <form
+            className="flex min-w-0 flex-1 items-center gap-2.5"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!text.trim() || add.isPending) return
+              // Cleared only after the server accepted it: a rejected item stays in the field.
+              add.mutate({ cardId: card.id, text: text.trim() }, { onSuccess: () => setText('') })
+            }}
+          >
+            <Input
+              value={text}
+              maxLength={ENTRY_MAX}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Додати пункт"
+              aria-label="Новий пункт"
+              className="h-8 min-w-0 flex-1 px-2.5"
+            />
+            {/* Appears once there is something to add; Enter does the same. */}
+            {text.trim() && (
+              <Button type="submit" variant="soft" size="xs" disabled={add.isPending}>
+                Додати
+              </Button>
+            )}
+          </form>
+        </li>
       </ul>
-      <form
-        data-edit-only
-        // Under the item texts: checkbox width (1rem) + the row gap (gap-2.5).
-        className="flex items-center gap-2 pl-6.5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!text.trim() || add.isPending) return
-          // Cleared only after the server accepted it: a rejected item stays in the field.
-          add.mutate({ cardId: card.id, text: text.trim() }, { onSuccess: () => setText('') })
-        }}
-      >
-        <Input
-          value={text}
-          maxLength={ENTRY_MAX}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Додати пункт"
-        />
-        <Button
-          type="submit"
-          variant="soft"
-          size="icon"
-          disabled={!text.trim() || add.isPending}
-          aria-label="Додати пункт"
-        >
-          <Plus />
-        </Button>
-      </form>
     </section>
   )
 }
