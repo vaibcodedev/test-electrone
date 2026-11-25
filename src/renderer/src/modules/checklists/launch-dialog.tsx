@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fmtDate } from '@/lib/format'
+import { fmtDayFull } from '@/lib/format'
 import { FormDialog } from '@/components/common/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
@@ -10,6 +10,9 @@ import { checklistInputSchema } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
 
 const LIMITS = limitsOf(checklistInputSchema)
+
+/** «Деплой — 25 листопада»: the run is named after its template and the day it was started. */
+const runTitle = (template: string): string => `${template} — ${fmtDayFull(Date.now())}`
 
 /** Creates a run (a tickable copy) from a template, optionally tied to a project. */
 export function LaunchDialog({
@@ -33,12 +36,16 @@ export function LaunchDialog({
     }
   })
 
-  useEffect(() => {
+  // Reset once per opening, during render: `template` is a new object on every parent render, and a refetch
+  // while the dialog is open used to wipe the typed name (docs/design-system.md → Сброс формы диалога).
+  const [wasOpen, setWasOpen] = useState(false)
+  if (open !== wasOpen) {
+    setWasOpen(open)
     if (open && template) {
-      setTitle(`${template.title} — ${fmtDate(Date.now(), 'd MMM')}`)
+      setTitle(runTitle(template.title))
       setProjectId(null)
     }
-  }, [open, template])
+  }
 
   return (
     <FormDialog

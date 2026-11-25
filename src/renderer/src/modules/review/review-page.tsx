@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/components/ui/command'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { MoneyLines } from '@/modules/finance/parts'
+import { MoneyLines, moneyEntries } from '@/components/common/money-value'
 
 const NOTES_L = limitsOf(reviewNotesSchema)
 const currentWeekKey = (): string => dayKey(startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -93,26 +93,23 @@ function SectionCard({ section }: { section: WeekSection }) {
       <CardHeader>
         <CardTitle>{section.title}</CardTitle>
       </CardHeader>
-      {isEmpty(section) ? (
-        // A wall of «0 — як минулого» tiles says nothing; one line does.
-        <CardContent>
-          <p className="text-body text-muted-foreground">Цього тижня тут нічого</p>
-        </CardContent>
-      ) : (
-        <CardContent className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
-          {section.metrics.map((m) => (
-            <div key={m.key} className="flex flex-col justify-between gap-1.5 rounded-2xl bg-card p-3">
-              {/* Two lines reserved: numbers of neighbouring tiles stay on one baseline. */}
-              <span className="line-clamp-2 min-h-[2lh] text-caption text-muted-foreground">{m.label}</span>
-              <span className="font-display text-headline leading-none tabular-nums">{fmtValue(m, m.value)}</span>
-              {(m.value !== 0 || m.previous !== 0) && <Delta m={m} />}
-            </div>
-          ))}
-        </CardContent>
-      )}
+      {/* auto-fit collapses empty tracks: 5, 4 or 3 metrics fill one row with no holes. */}
+      <CardContent className="grid grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-3">
+        {section.metrics.map((m) => (
+          <div key={m.key} className="flex flex-col gap-1.5 rounded-2xl bg-card p-3">
+            {/* Two label lines and a fixed delta slot: numbers of neighbouring tiles stay on one line. */}
+            <span className="line-clamp-2 min-h-[2lh] text-caption text-muted-foreground">{m.label}</span>
+            <span className="font-display text-headline leading-[1.1] tabular-nums text-balance">{fmtValue(m, m.value)}</span>
+            <div className="mt-auto h-5">{(m.value !== 0 || m.previous !== 0) && <Delta m={m} />}</div>
+          </div>
+        ))}
+      </CardContent>
     </Card>
   )
 }
+
+const hasMoney = (money: WeekSnapshot['money']): boolean =>
+  [money.net, money.expenses, money.profit].some((v) => moneyEntries(v).length > 0)
 
 function MoneyCard({ money }: { money: WeekSnapshot['money'] }) {
   return (
@@ -121,19 +118,30 @@ function MoneyCard({ money }: { money: WeekSnapshot['money'] }) {
         <CardHeader>
           <CardTitle>На руки</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-headline leading-none"><MoneyLines value={money.net} compact /></CardContent>
+        <CardContent className="font-display text-headline leading-none">
+          <MoneyLines value={money.net} compact emptyLabel="Надходжень не було" />
+        </CardContent>
       </Card>
       <Card>
         <CardHeader>
           <CardTitle>Витрати</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-headline leading-none"><MoneyLines value={money.expenses} compact /></CardContent>
+        <CardContent className="font-display text-headline leading-none">
+          <MoneyLines value={money.expenses} compact emptyLabel="Витрат не було" />
+        </CardContent>
       </Card>
       <Card className="bg-ink text-ink-foreground">
         <CardHeader>
           <CardTitle className="text-ink-muted">Прибуток за тиждень</CardTitle>
         </CardHeader>
-        <CardContent className="font-display text-headline leading-none"><MoneyLines value={money.profit} compact /></CardContent>
+        <CardContent className="font-display text-headline leading-none">
+          {/* MoneyLines paints its empty phrase muted-foreground, unreadable on ink: this tile says it itself. */}
+          {moneyEntries(money.profit).length ? (
+            <MoneyLines value={money.profit} compact emptyLabel="" />
+          ) : (
+            <span className="font-sans text-body text-ink-muted">Прибутку ще немає</span>
+          )}
+        </CardContent>
       </Card>
     </div>
   )
@@ -220,7 +228,9 @@ export function ReviewPage() {
   const shift = (days: number): void => setWeek(dayKey(addDays(parseKey(week), days)))
   const snapshot = data?.snapshot
   const title = useMemo(() => (snapshot ? headline(snapshot) : ''), [snapshot])
-  const quiet = !!snapshot && snapshot.sections.every(isEmpty)
+  const filled = snapshot?.sections.filter((s) => !isEmpty(s)) ?? []
+  const unchanged = snapshot?.sections.filter(isEmpty) ?? []
+  const quiet = !!snapshot && filled.length === 0
   const previousWeek = dayKey(addDays(parseKey(currentWeekKey()), -7))
 
   return (
@@ -234,17 +244,22 @@ export function ReviewPage() {
               <Button variant="soft" size="icon" aria-label="Попередній тиждень" onClick={() => shift(-7)}>
                 <ChevronLeft />
               </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {/* span: a disabled button gets no hover, and the tooltip still explains the click. */}
-                  <span tabIndex={isCurrent ? 0 : -1}>
-                    <Button variant="soft" className="min-w-36" disabled={isCurrent} onClick={() => setWeek(currentWeekKey())}>
+              {/* Children stay direct Buttons: ButtonGroup joins only its direct children. The current week is a
+                  plain label (the subtitle already says «Поточний тиждень»); a past week jumps back on click. */}
+              {isCurrent ? (
+                <Button variant="soft" asChild className="pointer-events-none min-w-36">
+                  <span>{weekLabel(week)}</span>
+                </Button>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="soft" className="min-w-36" onClick={() => setWeek(currentWeekKey())}>
                       {weekLabel(week)}
                     </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{isCurrent ? 'Це поточний тиждень' : 'До поточного тижня'}</TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>До поточного тижня</TooltipContent>
+                </Tooltip>
+              )}
               <Button variant="soft" size="icon" aria-label="Наступний тиждень" disabled={isCurrent} onClick={() => shift(7)}>
                 <ChevronRight />
               </Button>
@@ -271,13 +286,21 @@ export function ReviewPage() {
               )}
             </div>
 
-            <div className="col-span-12 grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-3">
-              {snapshot.sections.map((s) => (
-                <SectionCard key={s.id} section={s} />
-              ))}
-            </div>
+            {filled.length > 0 && (
+              <div className="col-span-12 grid grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] gap-3">
+                {filled.map((s) => (
+                  <SectionCard key={s.id} section={s} />
+                ))}
+              </div>
+            )}
+            {/* A wall of identical «nothing here» cards says nothing; one line names the quiet sections. */}
+            {!quiet && unchanged.length > 0 && (
+              <p className="col-span-12 text-body text-muted-foreground">
+                Без змін цього тижня: {unchanged.map((s) => s.title).join(', ')}.
+              </p>
+            )}
 
-            <MoneyCard money={snapshot.money} />
+            {hasMoney(snapshot.money) && <MoneyCard money={snapshot.money} />}
 
             <Card className="col-span-5">
               <CardHeader>
@@ -310,7 +333,7 @@ export function ReviewPage() {
               </CardContent>
             </Card>
 
-            <Card className="col-span-4">
+            <Card className="col-span-3">
               <CardHeader>
                 <CardTitle>Зроблено</CardTitle>
               </CardHeader>
@@ -327,15 +350,15 @@ export function ReviewPage() {
               </CardContent>
             </Card>
 
-            <Card className="col-span-3">
+            <Card className="col-span-4">
               <CardHeader>
                 <CardTitle>Наступного тижня</CardTitle>
               </CardHeader>
               <CardContent>
                 {snapshot.upcoming.length ? (
-                  <ItemGroup className="gap-1">
+                  <ItemGroup className="-mx-2.5 gap-1">
                     {snapshot.upcoming.map((u, idx) => (
-                      <Item key={`${u.route}:${idx}`} asChild size="xs" className="cursor-pointer hover:bg-card">
+                      <Item key={`${u.route}:${idx}`} asChild size="xs" className="cursor-pointer hover:bg-(--tile-hover)">
                         <button type="button" className="w-full text-left" onClick={() => navigate(u.route)}>
                           <ItemContent className="min-w-0">
                             <ItemTitle className="w-full truncate font-normal">{u.title}</ItemTitle>

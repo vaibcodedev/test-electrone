@@ -7,6 +7,7 @@ import { useApi, useApiMutation } from '@/lib/query'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { EmptyState, Field, Page, PageBody, PageHeader, SegmentBar } from '@/components/common/page'
 import { FormDialog } from '@/components/common/form-dialog'
+import { PageSkeleton } from '@/components/common/page-skeleton'
 import { TagList } from '@/components/common/tags'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,20 +53,17 @@ function CreateBoardDialog({ open, onOpenChange }: { open: boolean; onOpenChange
 }
 
 function BoardTile({ board }: { board: BoardSummary }) {
+  const marked = board.overdueCount > 0 || board.archived || board.tags.length > 0
   return (
     <Card
       className={cn(
-        'group relative min-h-[188px] gap-0 p-5 transition-colors focus-within:ring-[3px] focus-within:ring-ring/40 hover:bg-(--tile-hover)',
+        // The overlay link takes the focus, so the tile draws the same inner ring that `tile` gives on focus-visible.
+        'tile group relative min-h-[188px] gap-0 p-5 has-[a:focus-visible]:shadow-[inset_0_0_0_2px_var(--ring)]',
         board.archived && 'opacity-55'
       )}
     >
       <Link to={`/boards/${board.id}`} className="absolute inset-0 rounded-3xl outline-none" aria-label={board.title} />
-      {(board.overdueCount > 0 || board.archived) && (
-        <div className="mb-4 flex justify-end gap-1">
-          {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} прострочено</Badge>}
-          {board.archived && <Badge variant="outline">Архів</Badge>}
-        </div>
-      )}
+      {/* The title is always first, so titles of one row line up whatever badges a board has. */}
       <CardTitle title={board.title} className="font-display line-clamp-2 text-stat-sm leading-tight font-normal text-foreground">
         {board.title}
       </CardTitle>
@@ -73,7 +71,13 @@ function BoardTile({ board }: { board: BoardSummary }) {
         <CardDescription className="mt-1 line-clamp-2 text-caption">{mdPreview(board.description)}</CardDescription>
       )}
       <div className="mt-auto pt-4">
-        {board.tags.length > 0 && <TagList tags={board.tags} max={3} className="relative mb-3" />}
+        {marked && (
+          <div className="relative mb-3 flex flex-wrap items-center gap-1.5">
+            {board.overdueCount > 0 && <Badge variant="destructive">{board.overdueCount} прострочено</Badge>}
+            {board.archived && <Badge variant="outline">Архів</Badge>}
+            {board.tags.length > 0 && <TagList tags={board.tags} max={3} />}
+          </div>
+        )}
         {/* One segment per card (up to 8), so the bar reads as "how many are done". */}
         {board.cardCount > 0 && (
           <SegmentBar value={board.doneCount} total={board.cardCount} segments={Math.min(board.cardCount, 8)} />
@@ -94,6 +98,8 @@ function BoardTile({ board }: { board: BoardSummary }) {
 export function BoardsPage() {
   const { data: boards = [], isLoading } = useApi('boards', 'list')
   const [creating, setCreating] = useState(false)
+  // The route's own skeleton (header + cards): an empty grid under a real header used to flash instead.
+  if (isLoading) return <PageSkeleton kind="grid" />
   return (
     <Page>
       <PageHeader
@@ -106,16 +112,13 @@ export function BoardsPage() {
         }
       />
       <PageBody>
-        {!isLoading && boards.length === 0 ? (
+        {/* Boards number in the dozens and boards.list has no paging, so a plain grid, not VirtualGrid. */}
+        {boards.length === 0 ? (
           <EmptyState
             icon={SquareKanban}
             title="Дошок поки немає"
             hint="Створіть дошку вручну або перетворіть ідею на дошку однією кнопкою."
-            action={
-              <Button variant="lime" onClick={() => setCreating(true)}>
-                <Plus /> Нова дошка
-              </Button>
-            }
+            cta={{ label: 'Нова дошка', icon: Plus, onClick: () => setCreating(true) }}
           />
         ) : (
           <div className="stagger grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">

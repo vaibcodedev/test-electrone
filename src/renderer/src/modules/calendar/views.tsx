@@ -10,6 +10,7 @@ import { capitalize, dayKey, LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { IconAction } from '@/components/common/icon-action'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { itemColor, SOURCE_LABEL, timeOnDay } from './items'
 
@@ -59,7 +60,8 @@ function ItemChip({
         item.done && 'line-through'
       )}
     >
-      <span className="h-3 w-1 shrink-0 rounded-full" style={{ background: itemColor(item) }} />
+      {/* The legend's outline: a lime «Подія» bar is invisible on card in the light theme without it. */}
+      <span className="h-3 w-1 shrink-0 rounded-full ring-1 ring-foreground/20" style={{ background: itemColor(item) }} />
       {time && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
       <span className="truncate">{item.title}</span>
     </Button>
@@ -146,7 +148,9 @@ export function MonthView({
                 'group min-h-[92px] gap-0.5 overflow-clip rounded-2xl p-2 transition-colors',
                 onDayClick && 'cursor-pointer',
                 // Neighbouring month: no fill and a muted number instead of opacity, so titles keep their contrast.
-                inMonth ? 'bg-surface/60 hover:bg-surface' : 'bg-transparent hover:bg-surface/50',
+                inMonth ? 'bg-surface/60' : 'bg-transparent',
+                // Only a clickable grid reacts to hover; the read-only one (a board's deadlines) stays still.
+                onDayClick && (inMonth ? 'hover:bg-surface' : 'hover:bg-surface/50'),
                 today && 'bg-surface ring-1 ring-lime/70 ring-inset'
               )}
             >
@@ -164,18 +168,16 @@ export function MonthView({
                   {format(day, 'd')}
                 </span>
                 {onDayClick && (
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Нова подія ${format(day, 'd MMMM', { locale: LOCALE })}`}
-                    className="text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                  <IconAction
+                    label={`Нова подія ${format(day, 'd MMMM', { locale: LOCALE })}`}
+                    className="text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation()
                       onDayClick(day)
                     }}
                   >
                     <Plus />
-                  </Button>
+                  </IconAction>
                 )}
               </div>
               {(() => {
@@ -251,7 +253,10 @@ export function WeekView({
                   )}
                 >
                   {/* A real bar, not an inset shadow: on a rounded item the shadow bent into a crescent. */}
-                  <span className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full" style={{ background: itemColor(item) }} />
+                  <span
+                    className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full ring-1 ring-foreground/20"
+                    style={{ background: itemColor(item) }}
+                  />
                   <span className="text-meta text-muted-foreground tabular-nums">{timeOnDay(item, day).long}</span>
                   <span className={cn('line-clamp-3 text-caption leading-snug font-medium', item.done && 'line-through')}>
                     {item.title}

@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 
 /** Up to this many items the bar has one segment per item (docs/design-system.md → Прогресс). */
-const PER_ITEM_MAX = 12
+export const PER_ITEM_MAX = 12
 
 /** Progress of a run: big count, a bar and «Готово X з Y». Lime only once everything is ticked. */
 export function RunProgress({ items }: { items: ChecklistItem[] }): ReactElement {

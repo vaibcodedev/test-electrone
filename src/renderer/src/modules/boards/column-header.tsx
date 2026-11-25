@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { MAX } from '@shared/domain/limits'
 import { Check, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import type { BoardColumn } from '@shared/domain/boards'
@@ -24,6 +24,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(column.title)
   const [deleting, setDeleting] = useState(false)
+  const cancelRef = useRef<HTMLButtonElement>(null)
   const others = columns.filter((c) => c.id !== column.id)
   const [target, setTarget] = useState('')
   // Computed on render: a column added after mount, or the chosen one deleted meanwhile, can't leave a stale target.
@@ -107,12 +108,21 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
       </DropdownMenu>
 
       <Dialog open={deleting} onOpenChange={setDeleting}>
-        <DialogContent className="rounded-3xl sm:max-w-md">
+        <DialogContent
+          className="rounded-3xl sm:max-w-md"
+          // Focus on the safe choice: Enter right after opening must not delete the column.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault()
+            cancelRef.current?.focus()
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Видалити колонку «{column.title}»?</DialogTitle>
             <DialogDescription>
               {count
-                ? `У колонці ${count} ${plural(count, ['картка', 'картки', 'карток'])}. Перенесіть їх в іншу колонку або відправте в кошик разом із колонкою.`
+                ? others.length > 0
+                  ? `У колонці ${count} ${plural(count, ['картка', 'картки', 'карток'])}. Перенесіть їх в іншу колонку або відправте в кошик разом із колонкою.`
+                  : `У колонці ${count} ${plural(count, ['картка', 'картки', 'карток'])} — ${plural(count, ['вона піде', 'вони підуть', 'вони підуть'])} у кошик разом із колонкою.`
                 : 'Колонка порожня.'}
             </DialogDescription>
           </DialogHeader>
@@ -133,6 +143,9 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
             </Field>
           )}
           <DialogFooter className="gap-2">
+            <Button ref={cancelRef} variant="soft" onClick={() => setDeleting(false)}>
+              Скасувати
+            </Button>
             {count > 0 && moveTo ? (
               <>
                 {/* The safe choice is the main button; losing the cards is the red one. */}

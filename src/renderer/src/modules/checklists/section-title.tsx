@@ -3,22 +3,17 @@ import { toast } from 'sonner'
 import type { ChecklistItem } from '@shared/domain/checklists'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
+import { useReadOnly } from '@/components/common/detail-mode'
 import { Input } from '@/components/ui/input'
 import { ITEM_LIMITS, NO_SECTION } from './use-checklist-order'
 
 /**
- * Section heading, renamable in place. Renaming «Без розділу» moves those items into a real section.
+ * Section heading, renamable in place while editing (plain text while reading). Renaming «Без розділу» moves
+ * those items into a real section.
  * Saves on blur / Enter; Esc restores. The parent keys sections by name, so a renamed one starts fresh.
  */
-export function SectionTitle({
-  checklistId,
-  section,
-  items
-}: {
-  checklistId: string
-  section: string
-  items: ChecklistItem[]
-}): ReactElement {
+export function SectionTitle({ section, items }: { section: string; items: ChecklistItem[] }): ReactElement {
+  const readOnly = useReadOnly()
   const [value, setValue] = useState(section)
   const commit = async (): Promise<void> => {
     const next = value.trim()
@@ -32,6 +27,7 @@ export function SectionTitle({
       setValue(section)
     }
   }
+  if (readOnly) return <h2 className="font-display px-1 text-heading">{section || NO_SECTION}</h2>
   return (
     <Input
       value={value}
@@ -39,7 +35,6 @@ export function SectionTitle({
       aria-label={`Назва розділу ${section || NO_SECTION}`}
       title="Натисніть, щоб перейменувати розділ"
       maxLength={ITEM_LIMITS.section}
-      data-checklist={checklistId}
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => void commit()}
       onKeyDown={(e) => {

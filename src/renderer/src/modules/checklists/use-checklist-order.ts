@@ -18,7 +18,7 @@ export const ITEM_LIMITS = limitsOf(checklistItemInputSchema)
 export const NO_SECTION = 'Без розділу'
 
 /** Groups items by section, keeping the order in which sections first appear. */
-export function groupBySection(items: ChecklistItem[]): [string, ChecklistItem[]][] {
+function groupBySection(items: ChecklistItem[]): [string, ChecklistItem[]][] {
   const map = new Map<string, ChecklistItem[]>()
   for (const item of items) map.set(item.section, [...(map.get(item.section) ?? []), item])
   return [...map.entries()]

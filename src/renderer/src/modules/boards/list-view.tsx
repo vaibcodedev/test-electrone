@@ -3,6 +3,7 @@ import type { BoardDetails } from '@shared/domain/boards'
 import { TagList } from '@/components/common/tags'
 import { SectionLabel } from '@/components/common/master-detail'
 import { cn } from '@/lib/utils'
+import { clickableProps } from '@/lib/clickable'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { DueChip } from './card-tile'
@@ -31,10 +32,7 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
                       {cards.map((c) => (
                         <TableRow
                           key={c.id}
-                          tabIndex={0}
-                          role="button"
-                          onClick={() => onOpenCard(c.id)}
-                          onKeyDown={(e) => e.key === 'Enter' && onOpenCard(c.id)}
+                          {...clickableProps(() => onOpenCard(c.id))}
                           className="border-border hover:bg-(--tile-hover)"
                         >
                           <TableCell className="w-6 pl-4">

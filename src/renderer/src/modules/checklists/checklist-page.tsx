@@ -1,17 +1,16 @@
-import { useState, type ReactElement } from 'react'
+import { useRef, useState, type ReactElement } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ArrowLeft, Plus, RotateCcw, Rocket, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Plus, RotateCcw, Rocket, X } from 'lucide-react'
 import { checklistInputSchema, type ChecklistPatch } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
-import { EntityAside, InlineTitle, SectionLabel } from '@/components/common/master-detail'
-import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
-import { PinButtons } from '@/components/common/pin-buttons'
+import { EntityAside, InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
+import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { CopyJsonButton } from '@/components/common/import-dialog'
 import { MarkdownField } from '@/components/common/markdown'
 import { Confirm } from '@/components/common/confirm'
@@ -52,6 +51,12 @@ function ChecklistView({ id }: { id: string }): ReactElement {
   const { items, groups, sensors, onDragEnd } = useChecklistOrder(id, data?.items)
   const [draftSections, setDraftSections] = useState<string[]>([])
   const [sectionName, setSectionName] = useState('')
+  const firstItem = useRef<HTMLInputElement>(null)
+  /** «Додати пункти» while reading: the add field exists only in edit mode, so switch first, then focus it. */
+  const startAdding = (): void => {
+    mode.setEditing(true)
+    requestAnimationFrame(() => firstItem.current?.focus())
+  }
 
   if (isLoading) return <PageSkeleton kind="detail" />
   if (!data) {
@@ -59,7 +64,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
       <EmptyState
         title="Чек-лист не знайдено"
         hint="Можливо, він у кошику."
-        action={<Button onClick={() => navigate('/checklists')}>До чек-листів</Button>}
+        cta={{ label: 'До чек-листів', onClick: () => navigate('/checklists') }}
       />
     )
   }
@@ -71,85 +76,86 @@ function ChecklistView({ id }: { id: string }): ReactElement {
     <RecordMode mode={mode}>
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-auto px-8 pt-6 pb-10">
-          <Button variant="link" asChild className="mb-4 flex w-fit text-caption text-muted-foreground no-underline hover:text-foreground hover:underline">
-            <Link to={listPath}>
-              <ArrowLeft className="size-3.5" /> {isRun ? 'Прогони' : 'Чек-листи'}
-            </Link>
-          </Button>
-
-          <div className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">
-              <Badge variant={isRun ? 'ink' : 'soft'} className="mb-2">
-                {isRun ? 'Прогін' : 'Шаблон'}
-              </Badge>
-              <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} className="text-headline" />
-            </div>
-            <div className="flex shrink-0 items-center gap-2 pt-7">
-              {isRun ? (
-                <Confirm
-                  title="Зняти всі позначки?"
-                  description="Усі пункти знову стануть невиконаними."
-                  confirmLabel="Скинути"
-                  onConfirm={() => reset.mutate(id)}
-                >
-                  <Button variant="soft">
-                    <RotateCcw /> Скинути
-                  </Button>
-                </Confirm>
-              ) : empty ? (
-                // A run of an empty template would be «0 з 0»: say what to do first.
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0} className="rounded-full">
-                      <Button variant="lime" disabled>
-                        <Rocket /> Запустити прогін
+          {/* Actions get their own row in the DS §8 order (RecordActions); the title below takes the whole column. */}
+          <div className="mb-4 flex items-center gap-4">
+            <Button
+              variant="link"
+              asChild
+              className="flex w-fit shrink-0 text-caption text-muted-foreground no-underline hover:text-foreground hover:underline"
+            >
+              <Link to={listPath}>
+                <ArrowLeft className="size-3.5" /> {isRun ? 'Прогони' : 'Чек-листи'}
+              </Link>
+            </Button>
+            <RecordActions
+              className="flex-1"
+              entity={{ type: 'checklist', id }}
+              mode={mode}
+              extra={
+                <>
+                  {isRun ? (
+                    <Confirm
+                      title="Зняти всі позначки?"
+                      description="Усі пункти знову стануть невиконаними."
+                      confirmLabel="Скинути"
+                      onConfirm={() => reset.mutate(id)}
+                    >
+                      <Button variant="soft">
+                        <RotateCcw /> Скинути
                       </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>Спершу додайте пункти</TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button variant="lime" onClick={() => setLaunchOpen(true)}>
-                  <Rocket /> Запустити прогін
-                </Button>
-              )}
-              <EditToggle mode={mode} onClose={() => navigate(listPath)} />
-              <CopyJsonButton
-                what="Чек-лист"
-                getData={() => ({
-                  title: data.title,
-                  description: data.description,
-                  sections: groups.map(([section, list]) => ({
-                    title: section,
-                    items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
-                  }))
-                })}
-              />
-              <PinButtons entity={{ type: 'checklist', id }} />
-              <Tooltip>
-                <Confirm
-                  title="Видалити чек-лист?"
-                  description="Він піде в кошик на 30 днів."
-                  onConfirm={() => remove.mutate(id)}
-                >
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="У кошик">
-                      <Trash2 />
+                    </Confirm>
+                  ) : empty ? (
+                    // A run of an empty template would be «0 з 0»: say what to do first.
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0} className="rounded-full">
+                          <Button variant="lime" disabled>
+                            <Rocket /> Запустити прогін
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Спершу додайте пункти: «Редагувати» або E</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button variant="lime" onClick={() => setLaunchOpen(true)}>
+                      <Rocket /> Запустити прогін
                     </Button>
-                  </TooltipTrigger>
-                </Confirm>
-                <TooltipContent>У кошик</TooltipContent>
-              </Tooltip>
-            </div>
+                  )}
+                  <CopyJsonButton
+                    what="Чек-лист"
+                    getData={() => ({
+                      title: data.title,
+                      description: data.description,
+                      sections: groups.map(([section, list]) => ({
+                        title: section,
+                        items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
+                      }))
+                    })}
+                  />
+                </>
+              }
+              onDelete={() => remove.mutate(id)}
+              onClose={() => navigate(listPath)}
+            />
           </div>
+
+          <Badge variant={isRun ? 'ink' : 'soft'} className="mb-2">
+            {isRun ? 'Прогін' : 'Шаблон'}
+          </Badge>
+          <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} />
 
           {isRun && <RunProgress items={items} />}
 
           <div className="mt-5">
             <MarkdownField
+              label={isRun ? 'Нотатки' : 'Опис'}
               value={description}
               onChange={setDescription}
-              placeholder="Коли й навіщо використовувати цей чек-лист"
+              placeholder={
+                isRun
+                  ? 'Що важливо саме цього разу: версія, середовище, хто перевіряє'
+                  : 'Коли й навіщо використовувати цей чек-лист'
+              }
               maxLength={LIMITS.description}
               minHeight="100px"
             />
@@ -161,7 +167,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
                 {groups.map(([section, list]) => (
                   <section key={section || NO_SECTION}>
                     <div className="mb-1.5 flex items-baseline justify-between px-2">
-                      <SectionTitle checklistId={id} section={section} items={list} />
+                      <SectionTitle section={section} items={list} />
                       {isRun && (
                         <span className="text-caption text-muted-foreground tabular-nums">
                           {list.filter((i) => i.done).length} з {list.length}
@@ -180,15 +186,20 @@ function ChecklistView({ id }: { id: string }): ReactElement {
             </SortableContext>
           </DndContext>
 
-          {/* Empty checklist: what it's for, then a field for the first item. */}
+          {/* Empty checklist: what it's for, then a field for the first item; while reading — a way to get there. */}
           {groups.length === 0 && draftSections.length === 0 && (
-            <div className="flex flex-col gap-2">
-              {!isRun && (
-                <p className="px-2 text-body text-muted-foreground">
-                  Додайте кроки, які повторюєте щоразу, — потім запускайте прогін.
+            <div className="flex flex-col items-start gap-2">
+              {(!isRun || !mode.editing) && (
+                <p className="text-body text-muted-foreground">
+                  {isRun ? 'Пунктів поки немає.' : 'Додайте кроки, які повторюєте щоразу, — потім запускайте прогін.'}
                 </p>
               )}
-              <AddItem checklistId={id} section="" />
+              {!mode.editing && (
+                <Button variant="soft" size="sm" onClick={startAdding}>
+                  <Plus /> Додати пункти
+                </Button>
+              )}
+              <AddItem checklistId={id} section="" inputRef={firstItem} />
             </div>
           )}
           {draftSections
@@ -228,8 +239,8 @@ function ChecklistView({ id }: { id: string }): ReactElement {
               className="max-w-sm"
               aria-label="Назва нового розділу"
             />
-            <Button type="submit" variant="subtle" disabled={!sectionName.trim()}>
-              <Plus /> Розділ
+            <Button type="submit" variant="soft" disabled={!sectionName.trim()}>
+              <Plus /> Додати розділ
             </Button>
           </form>
         </div>
@@ -245,7 +256,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
             {isRun && data.templateId && (
               <section className="flex flex-col gap-1">
                 <SectionLabel>Шаблон</SectionLabel>
-                <Button variant="link" size="sm" asChild className="w-fit">
+                <Button variant="subtle" size="xs" asChild className="w-fit">
                   <Link to={`/checklists/${data.templateId}`}>Відкрити вихідний шаблон</Link>
                 </Button>
               </section>

@@ -6,14 +6,16 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { fmtRelative, mdPreview, plural } from '@/lib/format'
-import { EmptyState, Page, PageHeader, SearchInput, SegmentBar, Segmented } from '@/components/common/page'
+import { EmptyState, FilterBar, Page, PageHeader, SearchInput, SegmentBar, Segmented } from '@/components/common/page'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { ImportButton } from '@/components/common/import-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { clickableProps } from '@/lib/clickable'
 import { LaunchDialog } from './launch-dialog'
+import { PER_ITEM_MAX } from './run-progress'
 
 type Tab = 'template' | 'run'
 
@@ -33,10 +35,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
   }
   return (
     <Card
-      role="button"
-      tabIndex={0}
-      onClick={open}
-      onKeyDown={(e) => e.key === 'Enter' && open()}
+      {...clickableProps(open)}
       // Fixed order top-down (count → title → description), button pinned to the bottom: titles line up
       // across a row whether a card has a description or not.
       className="group tile h-full min-h-[190px] gap-0 p-5"
@@ -79,9 +78,6 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
   )
 }
 
-/** Up to this many items a run's bar has one segment per item (docs/design-system.md → Прогресс). */
-const SEGMENTS_MAX = 8
-
 function RunCard({ item }: { item: Checklist }) {
   const navigate = useNavigate()
   const open = (): void => {
@@ -89,12 +85,7 @@ function RunCard({ item }: { item: Checklist }) {
   }
   const complete = item.total > 0 && item.done === item.total
   return (
-    <Card
-      role="button"
-      tabIndex={0}
-      onClick={open}
-      onKeyDown={(e) => e.key === 'Enter' && open()}
-      className="tile h-full min-h-[150px] gap-0 p-5"
+    <Card {...clickableProps(open)} className="tile h-full min-h-[150px] gap-0 p-5"
     >
       <div className="flex items-center gap-2">
         <Badge variant={complete ? 'success' : 'info'}>{complete ? 'Готово' : 'У процесі'}</Badge>
@@ -105,7 +96,7 @@ function RunCard({ item }: { item: Checklist }) {
       </div>
       <div className="mt-auto flex flex-col gap-1.5 pt-4">
         {item.total > 0 &&
-          (item.total <= SEGMENTS_MAX ? (
+          (item.total <= PER_ITEM_MAX ? (
             <SegmentBar value={item.done} total={item.total} segments={item.total} />
           ) : (
             <Progress value={(item.done / item.total) * 100} className="h-1.5" />
@@ -126,6 +117,8 @@ export function ChecklistsPage() {
   const [launch, setLaunch] = useState<{ id: string; title: string } | null>(null)
   const navigate = useNavigate()
   const q = useDebounced(search.trim())
+  const filtered = !!(q || tagId)
+  const what = tab === 'template' ? 'шаблонів' : 'прогонів'
   const page = useInfiniteApi('checklists', 'list', { kind: tab, search: q || undefined, tagId })
   const { data: counts } = useApi('checklists', 'counts')
   const create = useApiMutation('checklists', 'create', {
@@ -150,20 +143,24 @@ export function ChecklistsPage() {
           </>
         }
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <Segmented<Tab>
-            options={[
-              { value: 'template', label: <TabLabel label="Шаблони" count={counts?.template} /> },
-              { value: 'run', label: <TabLabel label="Прогони" count={counts?.run} /> }
-            ]}
-            value={tab}
-            onChange={(v) => setParams(v === 'run' ? { tab: 'runs' } : {}, { replace: true })}
-          />
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" className="w-64" />
-          </div>
-        </div>
+        <FilterBar
+          chips={
+            <Segmented<Tab>
+              options={[
+                { value: 'template', label: <TabLabel label="Шаблони" count={counts?.template} /> },
+                { value: 'run', label: <TabLabel label="Прогони" count={counts?.run} /> }
+              ]}
+              value={tab}
+              onChange={(v) => setParams(v === 'run' ? { tab: 'runs' } : {}, { replace: true })}
+            />
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" className="w-72" />
+            </>
+          }
+        />
       </PageHeader>
       <div className="flex min-h-0 flex-1 flex-col px-8 pb-6">
         <VirtualGrid
@@ -183,19 +180,40 @@ export function ChecklistsPage() {
             )
           }
           empty={
-            !page.isLoading && (
+            !page.isLoading &&
+            (filtered ? (
               <EmptyState
                 icon={ListChecks}
-                title={search || tagId ? 'Нічого не знайдено' : tab === 'template' ? 'Шаблонів немає' : 'Прогонів поки немає'}
-                hint={
-                  search || tagId
-                    ? undefined
-                    : tab === 'template'
-                      ? 'Створіть шаблон — список кроків, який ви повторюєте від проєкту до проєкту.'
-                      : 'Відкрийте шаблон і натисніть «Запустити» — зʼявиться прогін, у якому можна ставити галочки.'
-                }
+                title="Нічого не знайдено"
+                hint={q ? `Немає ${what} за запитом «${q}».` : `Немає ${what} з вибраною міткою.`}
+                cta={{
+                  label: 'Скинути фільтри',
+                  onClick: () => {
+                    setSearch('')
+                    setTagId(undefined)
+                  }
+                }}
               />
-            )
+            ) : tab === 'template' ? (
+              <EmptyState
+                icon={ListChecks}
+                title="Шаблонів поки немає"
+                hint="Створіть шаблон — список кроків, який ви повторюєте від проєкту до проєкту."
+                cta={{
+                  label: 'Створити шаблон',
+                  icon: Plus,
+                  disabled: create.isPending,
+                  onClick: () => create.mutate({ title: 'Новий чек-лист', kind: 'template' })
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={ListChecks}
+                title="Прогонів поки немає"
+                hint="Відкрийте шаблон і натисніть «Запустити» — зʼявиться прогін, у якому можна ставити галочки."
+                cta={{ label: 'До шаблонів', onClick: () => setParams({}, { replace: true }) }}
+              />
+            ))
           }
         />
       </div>

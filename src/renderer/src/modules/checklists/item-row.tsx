@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useId, useState, type ReactElement } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
@@ -9,6 +9,7 @@ import { IconAction } from '@/components/common/icon-action'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { ITEM_LIMITS } from './use-checklist-order'
 
@@ -26,6 +27,7 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(item.text)
   const [hint, setHint] = useState(item.hint)
+  const cbId = useId()
 
   /** Starts from the current server text: it may have changed since the last edit. */
   const startEditing = (): void => {
@@ -53,23 +55,27 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        'group flex items-start gap-3 rounded-2xl px-2 py-2 hover:bg-surface',
+        'group relative flex items-start gap-3 rounded-2xl px-2 py-2',
+        // A template step while reading has nothing to press: no hover tint there.
+        (!readOnly || isRun) && 'hover:bg-surface',
         isDragging && 'z-10 bg-card shadow-lg ring-1 ring-border'
       )}
     >
+      {/* Out of the flow, in the page's left padding: the text doesn't jump right when editing starts. */}
       <Button
         variant="ghost"
         size="icon-xs"
         data-edit-only
         {...attributes}
         {...listeners}
-        className={cn('mt-0.5 cursor-grab active:cursor-grabbing', ROW_ACTION)}
+        className={cn('absolute top-2.5 -left-7 cursor-grab active:cursor-grabbing', ROW_ACTION)}
         aria-label="Перетягнути"
       >
         <GripVertical />
       </Button>
       {isRun ? (
         <Checkbox
+          id={cbId}
           checked={item.done}
           onCheckedChange={(v) => update.mutate({ id: item.id, patch: { done: v === true } })}
           aria-label={item.text}
@@ -80,7 +86,14 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
       )}
       <div className="min-w-0 flex-1">
         {readOnly ? (
-          <div className="flex flex-col">{label}</div>
+          isRun ? (
+            // A tick works while reading: the text is the checkbox's label and toggles it too.
+            <Label htmlFor={cbId} className="flex cursor-pointer flex-col items-start gap-0 leading-normal font-normal text-foreground">
+              {label}
+            </Label>
+          ) : (
+            <div className="flex flex-col">{label}</div>
+          )
         ) : editing ? (
           <div
             className="flex flex-col gap-1.5"

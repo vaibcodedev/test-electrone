@@ -25,10 +25,6 @@ export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
   followup: 'Нагадати про себе'
 }
 
-export function sourceColor(source: CalendarItem['source']): string {
-  return SOURCE_COLOR[source]
-}
-
 export function itemColor(item: CalendarItem): string {
   return item.color ?? SOURCE_COLOR[item.source]
 }

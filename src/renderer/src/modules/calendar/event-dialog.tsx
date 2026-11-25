@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Check, Trash2 } from 'lucide-react'
 import { eventInputSchema, RECURRENCES, type CalendarEvent, type EventInput, type Recurrence } from '@shared/domain/calendar'
 import { limitsOf } from '@/lib/limits'
@@ -30,7 +30,7 @@ const REMINDERS: { value: string; label: string }[] = [
 
 const SECOND_REMINDERS: { value: string; label: string }[] = [
   { value: 'none', label: 'Без другого нагадування' },
-  { value: '60', label: 'За 1 годину' },
+  { value: '60', label: 'За годину' },
   { value: '180', label: 'За 3 години' },
   { value: '1440', label: 'За день' },
   { value: '2880', label: 'За 2 дні' }
@@ -87,7 +87,10 @@ function fromEvent(e: CalendarEvent): FormState {
 
 function blank(date: Date): FormState {
   const start = new Date(date)
-  if (start.getHours() === 0) start.setHours(10, 0, 0, 0)
+  // A day picked in the grid comes as midnight → 10:00. «Подія» in the header passes «now»: round up to the
+  // next half hour, so the event and its «за 15 хвилин» reminder aren't already in the past.
+  if (start.getHours() === 0 && start.getMinutes() === 0) start.setHours(10, 0, 0, 0)
+  else start.setMinutes(Math.ceil(start.getMinutes() / 30) * 30, 0, 0)
   return {
     title: '',
     description: '',
@@ -126,24 +129,39 @@ export function EventDialog({
   date?: Date | null
 }) {
   const [form, setForm] = useState<FormState>(() => (event ? fromEvent(event) : blank(date ?? new Date())))
+  const [titleError, setTitleError] = useState<string>()
   const create = useApiMutation('events', 'create', { successMessage: 'Подію додано' })
   const update = useApiMutation('events', 'update', { successMessage: 'Збережено' })
   const remove = useApiMutation('events', 'remove', { successMessage: 'Подію переміщено в кошик' })
 
-  useEffect(() => {
-    if (open) setForm(event ? fromEvent(event) : blank(date ?? new Date()))
-  }, [open, event, date])
+  // Reset once per opening (or when another event is opened), during render: a refetch of `event` while the
+  // dialog is open must not wipe what was typed (docs/design-system.md → Сброс формы диалога).
+  const session = open ? (event?.id ?? 'new') : ''
+  const [lastSession, setLastSession] = useState(session)
+  if (session !== lastSession) {
+    setLastSession(session)
+    if (open) {
+      setForm(event ? fromEvent(event) : blank(date ?? new Date()))
+      setTitleError(undefined)
+    }
+  }
 
   const linked = !!event?.sourceType
   const set = <K extends keyof FormState>(key: K, value: FormState[K]): void => setForm((f) => ({ ...f, [key]: value }))
   const { startAt, endAt } = form
   const endBeforeStart = endAt !== null && startAt !== null && endAt < startAt
-  const invalid = !form.title.trim() || startAt === null || endBeforeStart
+  // An empty title doesn't disable «Додати»: pressing it says what's missing at the field.
+  const invalid = startAt === null || endBeforeStart
   const swatch = form.color ?? DEFAULT_COLOR
 
   const save = (): void => {
     // Enter can't be disabled like the button: a second submit while saving would create a duplicate.
     if (invalid || startAt === null || create.isPending || update.isPending) return
+    if (!form.title.trim()) {
+      setTitleError('Введіть назву події')
+      document.getElementById('event-title')?.focus()
+      return
+    }
     const input: EventInput = {
       title: form.title.trim(),
       description: form.description,
@@ -169,19 +187,29 @@ export function EventDialog({
           <DialogTitle className="font-display text-heading">{event ? 'Подія' : 'Нова подія'}</DialogTitle>
         </DialogHeader>
         <form
-          className="-mx-6 -my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-1"
+          // gutter auto: the global stable gutter made the right margin 40px against 30px on the left.
+          className="-mx-6 -my-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-1 [scrollbar-gutter:auto]"
           onSubmit={(e) => {
             e.preventDefault()
             save()
           }}
         >
-          <Field label="Назва" htmlFor="event-title" count={{ length: form.title.length, max: LIMITS.title }}>
+          <Field
+            label="Назва"
+            htmlFor="event-title"
+            count={{ length: form.title.length, max: LIMITS.title }}
+            error={titleError}
+          >
             <Input
               id="event-title"
               autoFocus
               value={form.title}
               maxLength={LIMITS.title}
-              onChange={(e) => set('title', e.target.value)}
+              aria-invalid={!!titleError || undefined}
+              onChange={(e) => {
+                set('title', e.target.value)
+                setTitleError(undefined)
+              }}
               placeholder="Дзвінок, дедлайн, нагадування…"
               className="h-11 text-lead"
               readOnly={linked}
@@ -233,7 +261,11 @@ export function EventDialog({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Нагадування">
-              <Select value={form.remind} onValueChange={(v) => set('remind', v)}>
+              {/* No first reminder → no second one either. */}
+              <Select
+                value={form.remind}
+                onValueChange={(v) => setForm((f) => ({ ...f, remind: v, remind2: v === 'none' ? 'none' : f.remind2 }))}
+              >
                 <SelectTrigger className="w-full rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
@@ -246,20 +278,23 @@ export function EventDialog({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Друге нагадування">
-              <Select value={form.remind2} onValueChange={(v) => set('remind2', v)}>
-                <SelectTrigger className="w-full rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SECOND_REMINDERS.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            {/* An old event may hold a second reminder without a first one: it stays visible until cleared. */}
+            {(form.remind !== 'none' || form.remind2 !== 'none') && (
+              <Field label="Друге нагадування">
+                <Select value={form.remind2} onValueChange={(v) => set('remind2', v)}>
+                  <SelectTrigger className="w-full rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SECOND_REMINDERS.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Повтор">
@@ -309,10 +344,10 @@ export function EventDialog({
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               placeholder="Порядок денний, посилання на дзвінок"
-              className="max-h-[40vh]"
             />
           </Field>
-          <DialogFooter className="sticky bottom-0 items-center gap-2 bg-card pt-1 pb-0.5 sm:justify-between">
+          {/* -mb-1 covers the form's bottom py-1, so nothing scrolls into view under the footer. */}
+          <DialogFooter className="sticky bottom-0 -mb-1 items-center gap-2 bg-card pt-3 pb-1 sm:justify-between">
             {event ? (
               <Button
                 type="button"

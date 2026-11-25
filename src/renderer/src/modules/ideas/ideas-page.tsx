@@ -8,17 +8,17 @@ import { useHotkey } from '@/hooks/use-hotkey'
 import { accelToKeys, DEFAULT_QUICK_ADD } from '@/app/shortcuts'
 import { VirtualList } from '@/components/common/virtual-list'
 import { fmtRelative } from '@/lib/format'
-import { EmptyState, FilterChips, Page, PageHeader, SearchInput } from '@/components/common/page'
+import { EmptyState, FilterBar, FilterChips, Page, PageHeader, SearchInput } from '@/components/common/page'
 import { ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { cn } from '@/lib/utils'
 import { ImportButton } from '@/components/common/import-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { IDEA_STATUS_BADGE, IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
 import { IdeaDetail } from './idea-detail'
+import { presentChips } from '../claude/chips'
 
 function NewIdeaInput({ onCreated, inputRef }: { onCreated: (id: string) => void; inputRef: Ref<HTMLInputElement> }) {
   const [title, setTitle] = useState('')
@@ -115,7 +115,19 @@ export function IdeasPage() {
     return c
   }, [ideas])
 
-  const filtered = !!(search.trim() || status || tagId)
+  const statusChips = presentChips(IDEA_STATUSES, counts, (s) => IDEA_STATUS_LABEL[s], status)
+  // The debounced query, not the raw text: otherwise «Нічого не знайдено» flashed before the server answered.
+  const filtered = !!(q || status || tagId)
+  const resetFilters = (): void => {
+    setSearch('')
+    setStatus(undefined)
+    setTagId(undefined)
+  }
+  const noResultHint = q
+    ? `Немає ідей за запитом «${q}».`
+    : status
+      ? `Немає ідей зі статусом «${IDEA_STATUS_LABEL[status]}»${tagId ? ' і вибраною міткою' : ''}.`
+      : 'Немає ідей з вибраною міткою.'
 
   return (
     <Page>
@@ -124,18 +136,19 @@ export function IdeasPage() {
         subtitle="Записуйте все, що спадає на думку. Дозрілу ідею — однією кнопкою в дошку."
         actions={<ImportButton kind="idea" onImported={(id) => id && setOpen(id)} />}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterChips
-            allLabel="Усі"
-            value={status}
-            onChange={setStatus}
-            options={IDEA_STATUSES.map((s) => ({ value: s, label: IDEA_STATUS_LABEL[s], count: counts[s] ?? 0 }))}
-          />
-          <div className="ml-auto flex items-center gap-2">
-            <TagFilter value={tagId} onChange={setTagId} />
-            <SearchInput value={search} onChange={setSearch} placeholder="Пошук ідей" className="w-60" />
-          </div>
-        </div>
+        <FilterBar
+          chips={
+            statusChips.length > 0 && (
+              <FilterChips allLabel="Усі" value={status} onChange={setStatus} options={statusChips} />
+            )
+          }
+          trailing={
+            <>
+              <TagFilter value={tagId} onChange={setTagId} />
+              <SearchInput value={search} onChange={setSearch} placeholder="Пошук ідей" className="w-72" />
+            </>
+          }
+        />
       </PageHeader>
       <div className="flex min-h-0 flex-1 px-8 pb-6">
         <MasterDetail
@@ -158,20 +171,8 @@ export function IdeasPage() {
                       <EmptyState
                         icon={Lightbulb}
                         title="Нічого не знайдено"
-                        hint="Спробуйте інший запит або скиньте фільтри."
-                        action={
-                          <Button
-                            variant="subtle"
-                            size="sm"
-                            onClick={() => {
-                              setSearch('')
-                              setStatus(undefined)
-                              setTagId(undefined)
-                            }}
-                          >
-                            Скинути фільтри
-                          </Button>
-                        }
+                        hint={noResultHint}
+                        cta={{ label: 'Скинути фільтри', onClick: resetFilters }}
                       />
                     ) : (
                       <EmptyState

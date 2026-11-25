@@ -81,9 +81,10 @@ function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
           </Field>
           {/* Words, not «•••» dots: the dots read as a «more» menu. A Select like «Статус» fits the narrow aside. */}
           <Field label="Важливість">
-            <Select value={String(idea.impact)} onValueChange={(v) => patch({ impact: Number(v) })}>
+            {/* «Не оцінена» is a placeholder, not a value: view mode hides the field (globals.css). */}
+            <Select value={idea.impact ? String(idea.impact) : ''} onValueChange={(v) => patch({ impact: Number(v) })}>
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue placeholder={IMPACT_LABEL[0]} />
               </SelectTrigger>
               <SelectContent>
                 {IMPACT_LABEL.map((label, n) => (

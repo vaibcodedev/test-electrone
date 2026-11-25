@@ -11,6 +11,7 @@ import { EmptyState, Page, Segmented } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { InlineTitle, SectionLabel } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
+import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagPicker } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
@@ -79,20 +80,20 @@ function BoardHeader({ board }: { board: Board }) {
     }
   })
   const [title, setTitle] = useAutosave(board.title, (t) => t.trim() && update.mutate({ id: board.id, patch: { title: t.trim() } }))
+  // Only the title follows view/edit: the kanban and the view switch work in any mode.
+  const mode = useRecordMode(board.id, 'board')
 
   return (
     <header className="flex items-start gap-4 px-8 pt-6 pb-4">
-      <div className="min-w-0 flex-1">
-        {/* Two lines at rest so a long name never pushes the kanban down; the whole name while editing it. */}
-        <InlineTitle
-          value={title}
-          onChange={setTitle}
-          maxLength={LIMITS.title}
-          placeholder="Назва дошки"
-          className="max-h-[calc(2.2em+0.5rem)] overflow-hidden text-headline leading-[1.1] focus-visible:max-h-[50vh] focus-visible:overflow-y-auto"
-        />
-        {board.archived && <Badge variant="outline" className="mt-2">В архіві</Badge>}
-      </div>
+      <RecordMode mode={mode}>
+        <div className="min-w-0 flex-1">
+          {/* Two lines while reading so a long name never pushes the kanban down; the whole name while editing. */}
+          <InlineTitle value={title} onChange={setTitle} maxLength={LIMITS.title} placeholder="Назва дошки"
+            className={mode.editing ? undefined : 'line-clamp-2'}
+          />
+          {board.archived && <Badge variant="outline" className="mt-2">В архіві</Badge>}
+        </div>
+      </RecordMode>
       <div className="flex shrink-0 items-center gap-2 pt-1">
         <Segmented
           value={view}
@@ -100,6 +101,7 @@ function BoardHeader({ board }: { board: Board }) {
           options={BOARD_VIEWS.map((v) => ({ value: v.value, label: v.label }))}
         />
         <PinButtons entity={{ type: 'board', id: board.id }} />
+        <EditToggle mode={mode} />
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="soft" size="icon-sm" aria-label="Про дошку" onClick={() => setInfoOpen(true)}>

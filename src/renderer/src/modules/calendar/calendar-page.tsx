@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EventDialog } from './event-dialog'
-import { groupByDay, itemColor, sourceColor, SOURCE_LABEL } from './items'
+import { groupByDay, itemColor, SOURCE_LABEL } from './items'
 import { MonthView, WeekView } from './views'
 
 type View = 'month' | 'week'
@@ -69,7 +69,7 @@ export function CalendarPage() {
   // The legend shows the colour the grid actually uses; events vary by the user's choice, so they keep the default.
   const legend = (Object.keys(SOURCE_LABEL) as CalendarItem['source'][]).flatMap((s) => {
     const sample = items.find((i) => i.source === s)
-    return sample ? [{ source: s, color: s === 'event' ? sourceColor(s) : itemColor(sample) }] : []
+    return sample ? [{ source: s, color: itemColor(s === 'event' ? { ...sample, color: null } : sample) }] : []
   })
 
   return (
