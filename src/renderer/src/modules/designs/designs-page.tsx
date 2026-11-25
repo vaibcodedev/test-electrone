@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactElement } from 'react'
-import { Clipboard, FolderOpen, Image, Palette, X } from 'lucide-react'
+import { Clipboard, FolderOpen, Image, Palette, Trash2, X } from 'lucide-react'
 import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
-import { useApi, useInfiniteApi } from '@/lib/query'
+import { useApi, useInfiniteApi, useApiMutation } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { useFileDrop, usePastedFiles } from '@/hooks/use-file-drop'
@@ -28,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { clickableProps } from '@/lib/clickable'
 import { revealStoredFile } from '@/lib/files'
 import { IconAction } from '@/components/common/icon-action'
+import { toastTrashed } from '@/components/common/trash-toast'
 import { DesignDialog } from './design-dialog'
 import { DesignMedia, DropOverlay, PaletteStrip, PickImagesButton } from './shared'
 import { MoodboardStrip } from './moodboard-strip'
@@ -158,6 +159,10 @@ export function DesignsPage(): ReactElement | null {
     60
   )
   const { data: palette = [] } = useApi('designs', 'palette')
+  // Quick delete from the tile: to the trash without a question, «Скасувати» in the toast brings it back.
+  const remove = useApiMutation('designs', 'remove', {
+    onSuccess: (_r, id) => toastTrashed('Дизайн переміщено в кошик', { type: 'design', id })
+  })
   const { importSources, busy } = useImportImages((created) => {
     if (created.length === 1) setOpen(created[0].id)
   })
@@ -220,16 +225,27 @@ export function DesignsPage(): ReactElement | null {
           </Card>
           {/* Next to the card, not in it: a button inside the role=button tile would be nested controls. Over the
             picture's corner (tile 24 − 6 frame = picture 18; 12px in clears its curve), shown on hover and focus. */}
-          {d.imagePath && (
+          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-focus-within/design:opacity-100 group-hover/design:opacity-100">
+            {d.imagePath && (
+              <IconAction
+                label="Показати в папці"
+                size="icon-sm"
+                className="bg-card shadow-sm hover:bg-card"
+                onClick={() => void revealStoredFile(d.imagePath!)}
+              >
+                <FolderOpen />
+              </IconAction>
+            )}
             <IconAction
-              label="Показати в папці"
+              label="У кошик"
               size="icon-sm"
-              className="absolute top-3 right-3 bg-card opacity-0 shadow-sm group-focus-within/design:opacity-100 group-hover/design:opacity-100 hover:bg-card focus-visible:opacity-100"
-              onClick={() => void revealStoredFile(d.imagePath!)}
+              className="bg-card shadow-sm hover:bg-card hover:text-destructive"
+              disabled={remove.isPending}
+              onClick={() => remove.mutate(d.id)}
             >
-              <FolderOpen />
+              <Trash2 />
             </IconAction>
-          )}
+          </div>
         </div>
       )}
     />

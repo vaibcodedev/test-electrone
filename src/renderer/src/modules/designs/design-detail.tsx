@@ -22,6 +22,7 @@ import {
   InlineTitle,
   SectionLabel
 } from '@/components/common/master-detail'
+import { toastTrashed } from '@/components/common/trash-toast'
 import { Field, Segmented } from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
 import { copyText } from '@/components/common/copy-button'
@@ -184,7 +185,7 @@ function Editor({
 }): ReactElement {
   const update = useApiMutation('designs', 'update')
   const remove = useApiMutation('designs', 'remove', {
-    successMessage: 'Дизайн переміщено в кошик'
+    onSuccess: (_r, id) => toastTrashed('Дизайн переміщено в кошик', { type: 'design', id })
   })
   const replace = useApiMutation('designs', 'replaceImage', {
     successMessage: 'Картинку замінено',
