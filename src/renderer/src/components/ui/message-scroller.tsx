@@ -1,10 +1,7 @@
 import * as React from 'react'
-import {
-  MessageScroller as MessageScrollerPrimitive,
-  useMessageScroller,
-  useMessageScrollerScrollable,
-  useMessageScrollerVisibility
-} from '@shadcn/react/message-scroller'
+// The escape-hatch hooks (useMessageScroller…) are imported from the package itself: a component file exports
+// components only (fast refresh).
+import { MessageScroller as MessageScrollerPrimitive } from '@shadcn/react/message-scroller'
 import { ArrowDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,14 +12,14 @@ import { Button } from '@/components/ui/button'
 
 function MessageScrollerProvider(
   props: React.ComponentProps<typeof MessageScrollerPrimitive.Provider>
-) {
+): React.ReactElement {
   return <MessageScrollerPrimitive.Provider {...props} />
 }
 
 function MessageScroller({
   className,
   ...props
-}: React.ComponentProps<typeof MessageScrollerPrimitive.Root>) {
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Root>): React.ReactElement {
   return (
     <MessageScrollerPrimitive.Root
       data-slot="message-scroller"
@@ -38,7 +35,7 @@ function MessageScroller({
 function MessageScrollerViewport({
   className,
   ...props
-}: React.ComponentProps<typeof MessageScrollerPrimitive.Viewport>) {
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Viewport>): React.ReactElement {
   return (
     <MessageScrollerPrimitive.Viewport
       data-slot="message-scroller-viewport"
@@ -54,7 +51,7 @@ function MessageScrollerViewport({
 function MessageScrollerContent({
   className,
   ...props
-}: React.ComponentProps<typeof MessageScrollerPrimitive.Content>) {
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Content>): React.ReactElement {
   return (
     <MessageScrollerPrimitive.Content
       data-slot="message-scroller-content"
@@ -68,7 +65,7 @@ function MessageScrollerItem({
   className,
   scrollAnchor = false,
   ...props
-}: React.ComponentProps<typeof MessageScrollerPrimitive.Item>) {
+}: React.ComponentProps<typeof MessageScrollerPrimitive.Item>): React.ReactElement {
   return (
     <MessageScrollerPrimitive.Item
       data-slot="message-scroller-item"
@@ -91,7 +88,7 @@ function MessageScrollerButton({
   size = 'icon-sm',
   ...props
 }: React.ComponentProps<typeof MessageScrollerPrimitive.Button> &
-  Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>) {
+  Pick<React.ComponentProps<typeof Button>, 'variant' | 'size'>): React.ReactElement | null {
   return (
     <MessageScrollerPrimitive.Button
       data-slot="message-scroller-button"
@@ -124,8 +121,5 @@ export {
   MessageScrollerViewport,
   MessageScrollerContent,
   MessageScrollerItem,
-  MessageScrollerButton,
-  useMessageScroller,
-  useMessageScrollerScrollable,
-  useMessageScrollerVisibility
+  MessageScrollerButton
 }

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 // shadcn `bubble` (registry, chat rules): the surface of a message. Restyled: state layers and the tile layer
 // instead of the primary/secondary fills (docs/design-system.md §5), the tile radius 18 (rounded-xl), type roles.
 
-function BubbleGroup({ className, ...props }: React.ComponentProps<'div'>) {
+function BubbleGroup({ className, ...props }: React.ComponentProps<'div'>): React.ReactElement {
   return (
     <div
       data-slot="bubble-group"
@@ -50,7 +50,7 @@ function Bubble({
 }: React.ComponentProps<'div'> &
   VariantProps<typeof bubbleVariants> & {
     align?: 'start' | 'end'
-  }) {
+  }): React.ReactElement {
   return (
     <div
       data-slot="bubble"
@@ -68,7 +68,7 @@ function BubbleContent({
   ...props
 }: React.ComponentProps<'div'> & {
   asChild?: boolean
-}) {
+}): React.ReactElement {
   const Comp = asChild ? Slot.Root : 'div'
 
   return (

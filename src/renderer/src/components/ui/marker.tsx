@@ -27,7 +27,7 @@ function Marker({
 }: React.ComponentProps<'div'> &
   VariantProps<typeof markerVariants> & {
     asChild?: boolean
-  }) {
+  }): React.ReactElement {
   const Comp = asChild ? Slot.Root : 'div'
 
   return (
@@ -40,7 +40,7 @@ function Marker({
   )
 }
 
-function MarkerIcon({ className, ...props }: React.ComponentProps<'span'>) {
+function MarkerIcon({ className, ...props }: React.ComponentProps<'span'>): React.ReactElement {
   return (
     <span
       data-slot="marker-icon"
@@ -51,7 +51,7 @@ function MarkerIcon({ className, ...props }: React.ComponentProps<'span'>) {
   )
 }
 
-function MarkerContent({ className, ...props }: React.ComponentProps<'span'>) {
+function MarkerContent({ className, ...props }: React.ComponentProps<'span'>): React.ReactElement {
   return (
     <span
       data-slot="marker-content"
@@ -64,4 +64,4 @@ function MarkerContent({ className, ...props }: React.ComponentProps<'span'>) {
   )
 }
 
-export { Marker, MarkerIcon, MarkerContent, markerVariants }
+export { Marker, MarkerIcon, MarkerContent }

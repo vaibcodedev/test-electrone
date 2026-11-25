@@ -10,6 +10,7 @@ import {
   Plus,
   RotateCcw,
   Settings,
+  Sparkles,
   Sun,
   Tags,
   Trash2
@@ -129,6 +130,10 @@ export function CommandPalette(): ReactElement {
   // «Обране» under «Нещодавні»: a record may be in both, their cmdk values differ.
   const { data: favAll = [] } = useApi('pins', 'list', 'favorite', { enabled: open && !query })
   const favs = favAll.slice(0, FAV_LIMIT)
+  // «Спитати ШІ: …» only once AI is switched on (the chat itself explains a missing key).
+  const { data: aiStatus } = useApi('ai', 'status', undefined, { enabled: open })
+  const askAi = useUi((s) => s.askAi)
+  const offerAi = !!query && !!aiStatus?.settings.enabled
 
   const grouped = useMemo(() => {
     const map = new Map<EntityType, SearchHit[]>()
@@ -270,6 +275,7 @@ export function CommandPalette(): ReactElement {
     ...(failed ? [VALUE.action('retry')] : []),
     ...(placesFirst ? placeValues : []),
     ...hitValues,
+    ...(offerAi ? [VALUE.action('ask-ai')] : []),
     ...(offerAdd ? [VALUE.action('add-idea')] : []),
     ...(!query ? recent.map(VALUE.recent) : []),
     ...(!query ? favs.map(VALUE.fav) : []),
@@ -380,6 +386,22 @@ export function CommandPalette(): ReactElement {
           )
         })}
 
+        {offerAi && (
+          <CommandGroup heading="ШІ">
+            <CommandItem
+              value={VALUE.action('ask-ai')}
+              onSelect={() => {
+                dropReturnFocus()
+                close()
+                askAi(query)
+              }}
+            >
+              <Sparkles />
+              <span className="min-w-0 flex-1 truncate">Спитати ШІ: {query}</span>
+            </CommandItem>
+          </CommandGroup>
+        )}
+
         {offerAdd && (
           <CommandGroup heading="Нічого не знайдено">
             <CommandItem
@@ -435,7 +457,9 @@ export function CommandPalette(): ReactElement {
                   <span className="min-w-0 flex-1 truncate" title={r.title}>
                     {r.title}
                   </span>
-                  <CommandShortcut className="tracking-normal">{ENTITY_META[r.type].label}</CommandShortcut>
+                  <CommandShortcut className="tracking-normal">
+                    {ENTITY_META[r.type].label}
+                  </CommandShortcut>
                 </CommandItem>
               )
             })}

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { GO_TO, isSidebarToggle } from '@/app/shortcuts'
+import { GO_TO, isAiChatToggle, isSidebarToggle } from '@/app/shortcuts'
 import { useNavVisibility } from '@/hooks/use-nav-visibility'
 import { useUi } from '@/stores/ui-store'
 import {
@@ -59,6 +59,12 @@ export function useGlobalShortcuts(): void {
       if (isSidebarToggle(e)) {
         e.preventDefault()
         useUi.getState().toggleSidebar()
+        return
+      }
+      // The chat on the right, from anywhere (a field too): Ctrl+J again closes it.
+      if (isAiChatToggle(e)) {
+        e.preventDefault()
+        useUi.getState().toggleAiChat()
         return
       }
 

@@ -30,6 +30,7 @@ import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts'
 import { AppSidebar } from './sidebar'
 import { SidebarToggle } from './sidebar-toggle'
 import { SandboxBadge } from './sandbox-badge'
+import { AiChatToggle, ChatLayout } from '@/features/ai-chat/chat-layout'
 
 const PlatformDialogHost = lazy(async () => ({
   default: (await import('@/modules/freelance')).PlatformDialogHost
@@ -114,7 +115,11 @@ function TitleBar(): ReactElement {
           <Kbd>K</Kbd>
         </KbdGroup>
       </Button>
-      <SandboxBadge className="mr-2 ml-auto" />
+      {/* Right end, over the column the chat opens in; the badge (test mode) sits before it. */}
+      <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">
+        <SandboxBadge />
+        <AiChatToggle />
+      </div>
     </div>
   )
 }
@@ -157,15 +162,20 @@ export function AppShell(): ReactElement {
       <TitleBar />
       <div className="flex min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5">
         <AppSidebar />
-        <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
-          {/* Keyed by path: every page enters with the same short fade-up. Tabs of one hub share the key, so
+        <ChatLayout>
+          <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
+            {/* Keyed by path: every page enters with the same short fade-up. Tabs of one hub share the key, so
               switching a tab doesn't fade the same header and tab row out and in again. */}
-          <div key={handle?.hub ?? pathname} className="flex min-h-0 flex-1 animate-page flex-col">
-            <Suspense fallback={<PageSkeleton kind={skeleton} filters={handle?.filters} />}>
-              <Outlet />
-            </Suspense>
-          </div>
-        </main>
+            <div
+              key={handle?.hub ?? pathname}
+              className="flex min-h-0 flex-1 animate-page flex-col"
+            >
+              <Suspense fallback={<PageSkeleton kind={skeleton} filters={handle?.filters} />}>
+                <Outlet />
+              </Suspense>
+            </div>
+          </main>
+        </ChatLayout>
       </div>
       <CommandPalette />
       <QuickAddDialog />

@@ -24,6 +24,7 @@ import {
   sourcesBlock
 } from '@main/services/ai/chat-prompt'
 import { UserError } from '@main/core/util'
+import { recordFromLocation } from '@/features/ai-chat/context'
 import { openVault, type Vault } from './support/vault'
 
 vi.mock('electron', async () => (await import('./support/electron-mock')).electronMock)
@@ -177,6 +178,22 @@ describe('the context', () => {
     })
     expect(parseLocalWhen('2026-02-31')).toBeNull()
     expect(parseLocalWhen('завтра')).toBeNull()
+  })
+})
+
+describe('the context chip', () => {
+  it('finds the open record from the URL the way search and links open it', () => {
+    expect(recordFromLocation('/ideas', '?open=abc')).toEqual({ type: 'idea', id: 'abc' })
+    expect(recordFromLocation('/notes', '?open=n1&tag=x')).toEqual({ type: 'note', id: 'n1' })
+    expect(recordFromLocation('/clients/c1', '')).toEqual({ type: 'client', id: 'c1' })
+    expect(recordFromLocation('/designs/boards/m1', '')).toEqual({ type: 'moodboard', id: 'm1' })
+    expect(recordFromLocation('/freelance/proposal/p1', '')).toEqual({ type: 'proposal', id: 'p1' })
+    // A card opens as a sheet over its board: the card is what the person looks at.
+    expect(recordFromLocation('/boards/b1', '?card=k1')).toEqual({ type: 'card', id: 'k1' })
+    expect(recordFromLocation('/boards/b1', '')).toEqual({ type: 'board', id: 'b1' })
+    expect(recordFromLocation('/ideas', '')).toBeNull()
+    expect(recordFromLocation('/', '')).toBeNull()
+    expect(recordFromLocation('/english/review', '')).toBeNull()
   })
 })
 

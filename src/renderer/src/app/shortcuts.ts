@@ -42,6 +42,19 @@ export function isSidebarToggle(
   return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !e.repeat && e.code === 'KeyB'
 }
 
+/** Ctrl+J: the «Чат ШІ» panel on the right (VS Code opens its panel with the same key). */
+export const AI_CHAT_SHORTCUT: ShortcutDef = {
+  keys: ['Ctrl', 'J'],
+  label: 'Чат ШІ: відкрити / закрити'
+}
+
+/** Ctrl+J by the physical key: works on the Ukrainian layout («о») and in fields, not on auto-repeat. */
+export function isAiChatToggle(
+  e: Pick<KeyboardEvent, 'code' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'repeat'>
+): boolean {
+  return (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !e.repeat && e.code === 'KeyJ'
+}
+
 /** G-then-letter navigation (Linear-style). Letter → route. */
 export const GO_TO: Record<string, { route: string; label: string }> = {
   h: { route: '/', label: 'Головна' },
@@ -73,6 +86,7 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
         },
         { keys: ['Ctrl', ','], label: 'Налаштування' },
         SIDEBAR_SHORTCUT,
+        AI_CHAT_SHORTCUT,
         { keys: ['Ctrl', '/'], label: 'Ця довідка (або ?)' },
         { keys: ['Alt', '1…9'], label: 'Розділи в порядку бічної панелі' },
         { keys: ['[', ']'], label: 'Назад / вперед' }
@@ -115,6 +129,15 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
         { keys: ['Enter'], label: 'Зберегти' },
         { keys: ['Tab'], label: 'Змінити тип' },
         { keys: ['Shift', 'Enter'], label: 'Новий рядок' }
+      ]
+    },
+    {
+      // features/ai-chat: the composer and the panel.
+      title: 'Чат ШІ',
+      items: [
+        { keys: ['Enter'], label: 'Надіслати' },
+        { keys: ['Shift', 'Enter'], label: 'Новий рядок' },
+        { keys: ['Esc'], label: 'Зупинити відповідь або закрити панель' }
       ]
     },
     {

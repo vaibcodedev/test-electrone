@@ -25,7 +25,9 @@ const Toaster = (props: ToasterProps) => {
           // A long record title used to stretch the toast to half the screen, «Відкрити» ended up mid-height.
           title: 'line-clamp-2',
           description: 'line-clamp-3',
-          actionButton: 'rounded-full! bg-lime! text-lime-foreground!'
+          actionButton: 'rounded-full! bg-lime! text-lime-foreground!',
+          // «Скасувати» next to «Відкрити» (chat ШІ actions): a neutral state layer, the lime stays with the action.
+          cancelButton: 'rounded-full! bg-foreground/8! text-foreground!'
         }
       }}
       {...props}
