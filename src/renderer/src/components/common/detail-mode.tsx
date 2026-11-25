@@ -1,9 +1,11 @@
 import { CurrentRecordContext } from '@/hooks/use-current-record'
 import {
+  Fragment,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactElement,
   type ReactNode,
   type RefObject
@@ -22,8 +24,15 @@ import type { RecordSnapshot } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import { api } from '@/lib/api'
 import { reportError } from '@/lib/error-reporting'
-import { flushAndSettle, invalidateAll } from '@/lib/query'
-import { resetAllAutosaves } from '@/hooks/use-autosave'
+import { flushAndSettle, invalidateAll, mutationsSettled } from '@/lib/query'
+import { EditSession, hasUnsaved, saveBlockOf } from '@/lib/edit-session'
+import {
+  dropUnsentAutosaves,
+  flushAllAutosaves,
+  hasPendingAutosaves,
+  resetAllAutosaves
+} from '@/hooks/use-autosave'
+import { useHoldWhileInvalid } from '@/hooks/use-hold-while-invalid'
 import { Check, Pencil, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -40,12 +49,15 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { useUi } from '@/stores/ui-store'
+import { DisabledHint } from './disabled-hint'
 
 /**
  * Mode state for a record editor: view first, edit right away for a record created a moment ago.
  * Editing is a transaction from the user's point of view: fields autosave (nothing is lost on a crash),
  * but «Зберегти» confirms, «Скасувати» reverts to the snapshot taken on «Редагувати» — and a record created
  * in this session disappears entirely. Leaving with unsaved changes asks «Зберегти зміни?».
+ * «Зберегти» is off until there is something to save and while a field shows an error (EditSession): an
+ * invalid value is never autosaved, and leaving without saving brings back the stored values.
  */
 export function useRecordMode(id: string, type?: EntityType): DetailMode {
   // Peek during render, take after commit: a render React throws away (Suspense while the record loads) must
@@ -58,10 +70,10 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
   // State, not a ref: the context must see «no longer fresh» after «Зберегти», or a title re-mounted on E
   // would select itself again.
   const [fresh, setFresh] = useState(isNew)
+  // Bumped when changes are thrown away: the record body remounts (DetailPane, RecordMode).
+  const [epoch, setEpoch] = useState(0)
   // The snapshot is a promise: «Скасувати» pressed before it arrived waits for it instead of reverting nothing.
   const snap = useRef<Promise<RecordSnapshot | null>>(Promise.resolve(null))
-  // Open inline forms (holdOpen): a ref, not state — registering one must not rebuild the mode for everyone.
-  const openForms = useRef(new Map<symbol, string | undefined>())
 
   useEffect(() => {
     if (!editing || !type) {
@@ -76,6 +88,33 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     })
   }, [editing, id, type])
 
+  // One session per mounted editor: its hold functions stay the same, so effects that take them don't re-run.
+  const [session] = useState(
+    () =>
+      new EditSession({
+        pending: hasPendingAutosaves,
+        settled: mutationsSettled,
+        onValid: flushAllAutosaves
+      })
+  )
+  // Does the record differ from the snapshot? null — no type or no snapshot: typing alone decides.
+  useEffect(() => {
+    session.setCheck(async () => {
+      const s = await snap.current
+      if (!type || !s) return null
+      return api.records.changed({ ref: { type, id }, snapshot: s }).catch((e) => {
+        reportError(e, 'detail-mode:changed')
+        return null
+      })
+    })
+  }, [id, type, session])
+  const view = useSyncExternalStore(session.subscribe, session.getView)
+  useEffect(() => {
+    if (!editing) return
+    session.start()
+    return () => session.stop()
+  }, [editing, session])
+
   return useMemo<DetailMode>(() => {
     const ref = type ? { type, id } : null
     // Unsaved-edit failures from the last flush (server rejected a field): saving must not pretend success.
@@ -84,8 +123,9 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     const hasChanges = async (): Promise<boolean> => {
       // Wait for the saves to land: otherwise «changed» is asked before the last keystrokes reach main.
       lastFailed = (await flushAndSettle()).failed
-      // An open inline form is an unsaved change: leaving asks instead of dropping what was typed in it.
-      if (openForms.current.size) return true
+      // An open inline form, a field with an error or a value it holds back is an unsaved change: leaving asks
+      // instead of dropping what was typed.
+      if (hasUnsaved({ ...session.getView(), changed: false }) || hasPendingAutosaves()) return true
       const s = await snap.current
       if (!ref || !s) return false
       return api.records.changed({ ref, snapshot: s }).catch((e) => {
@@ -93,6 +133,8 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         return false
       })
     }
+    /** The reason «Зберегти» can't go through whatever changed: a field with an error, an open inline form. */
+    const blocked = (): string | undefined => saveBlockOf(session.getView(), true)
     const save = async (): Promise<boolean> => {
       const changed = await hasChanges()
       if (lastFailed > 0) {
@@ -100,10 +142,11 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         toast.error('Не все збережено — виправте поле з помилкою й натисніть «Зберегти» ще раз')
         return false
       }
-      if (openForms.current.size) {
-        // Leaving edit mode closes inline forms: «Зберегти» would drop the typed stage / login and say «Збережено».
-        const what = [...openForms.current.values()].find(Boolean)
-        toast.warning(`Спершу додайте або скасуйте ${what ?? 'відкриту форму'}`)
+      const block = blocked()
+      if (block) {
+        // The button is off then; this is for the question «Зберегти зміни?» and any other caller. Leaving edit
+        // mode would close an inline form with the typed stage, or keep an error nobody can see in view mode.
+        toast.warning(block)
         return false
       }
       if (fresh && ref) {
@@ -113,6 +156,8 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
       }
       setFresh(false)
       setEditing(false)
+      // A value the module didn't store (an emptied title) shows the stored one again.
+      dropUnsentAutosaves()
       if (changed || fresh) toast.success('Збережено')
       return true
     }
@@ -121,6 +166,13 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
           // Pending saves must land before the revert, or they'd arrive after it and undo it.
           await flushAndSettle()
           const s = await snap.current
+          // Nothing to take back (an entry added and kept, a word typed and erased): leave quietly — a revert
+          // would say «Зміни скасовано» about nothing.
+          if (s && !fresh && !(await hasChanges())) {
+            dropUnsentAutosaves()
+            setEditing(false)
+            return true
+          }
           if (s) {
             try {
               await api.records.revert({ ref, snapshot: s })
@@ -130,8 +182,11 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
               reportError(e, 'detail-mode:revert')
               return false
             }
-            resetAllAutosaves()
           }
+          // Every field shows the stored value again: drafts of the editor's autosaves (including values an error
+          // held back) and, by remounting the body, whatever the fields typed into their own state.
+          resetAllAutosaves()
+          setEpoch((n) => n + 1)
           // A record created a moment ago and then cancelled shouldn't stay as an empty leftover.
           if (fresh) {
             const discarded = await api.trash.discardNew(ref).catch((e) => {
@@ -174,6 +229,7 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     const exit = (close?: () => void): void => {
       void hasChanges().then((changed) => {
         if (!changed) {
+          dropUnsentAutosaves()
           if (!fresh) return setEditing(false)
           return void dropDraft().then((gone) => {
             setFresh(false)
@@ -185,7 +241,12 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
           })
         }
         // A variable, not a literal: `fresh` changes the dialog's description (CloseConfirmHost).
-        const ask = { keep: () => void save(), discard: () => void cancel?.(close), fresh }
+        const ask = {
+          keep: () => void save(),
+          discard: () => void cancel?.(close),
+          fresh,
+          blocked: blocked()
+        }
         useUi.getState().askClose(ask)
       })
     }
@@ -203,19 +264,28 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
           // A rejected field or a failed revert keeps the record open, so the typed text isn't lost.
           keep: () => void save().then((ok) => ok && close()),
           discard: () => void cancel?.().then((ok) => ok && close()),
-          fresh
+          fresh,
+          blocked: blocked()
         }
         useUi.getState().askClose(ask)
       })
     }
-    const holdOpen = (what?: string): (() => void) => {
-      const key = Symbol()
-      openForms.current.set(key, what)
-      return () => void openForms.current.delete(key)
-    }
     const record = type ? { id, type } : undefined
-    return { editing, setEditing, fresh, save, cancel, exit, confirmClose, holdOpen, record }
-  }, [editing, fresh, id, type])
+    return {
+      editing,
+      setEditing,
+      fresh,
+      save,
+      cancel,
+      exit,
+      confirmClose,
+      holdOpen: session.holdOpen,
+      holdInvalid: session.holdInvalid,
+      saveBlock: editing ? saveBlockOf(view, fresh) : undefined,
+      epoch,
+      record
+    }
+  }, [editing, fresh, id, type, session, view, epoch])
 }
 
 /** Wrap a custom record editor (sheet, page) so its fields follow the view/edit mode. */
@@ -226,11 +296,14 @@ export function RecordMode({ mode, children }: { mode: DetailMode; children: Rea
     () => (mode.record ? { type: mode.record.type, id: mode.record.id } : null),
     [mode.record?.type, mode.record?.id]
   )
+  // A field with an error inside holds «Зберегти» (and the autosaves) until it is fixed.
+  const [root, setRoot] = useState<HTMLDivElement | null>(null)
+  useHoldWhileInvalid(root, mode.editing ? mode.holdInvalid : undefined)
   return (
     <DetailModeContext.Provider value={mode}>
       <CurrentRecordContext.Provider value={current}>
-        <div data-detail-mode={mode.editing ? 'edit' : 'view'} className="contents">
-          {children}
+        <div ref={setRoot} data-detail-mode={mode.editing ? 'edit' : 'view'} className="contents">
+          <Fragment key={mode.epoch}>{children}</Fragment>
         </div>
       </CurrentRecordContext.Provider>
     </DetailModeContext.Provider>
@@ -240,6 +313,8 @@ export function RecordMode({ mode, children }: { mode: DetailMode; children: Rea
 /**
  * «Редагувати» in view mode; «Скасувати» + «Зберегти» while editing. E edits, Esc leaves editing
  * (asks «Зберегти зміни?» when something changed). `onClose` closes the record after cancelling a new one.
+ * «Зберегти» is off — with the reason in its tooltip (DisabledHint) — until something changed, while a field shows
+ * an error and while an inline form is open.
  */
 export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () => void }) {
   if (!mode.editing)
@@ -253,6 +328,7 @@ export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () =
         <TooltipContent>Редагувати · E</TooltipContent>
       </Tooltip>
     )
+  const block = mode.saveBlock
   return (
     <span className="flex items-center gap-1">
       {/* Esc target for the global shortcut layer: invisible, but not display:none (offsetParent check). */}
@@ -278,20 +354,29 @@ export function EditToggle({ mode, onClose }: { mode: DetailMode; onClose?: () =
           </TooltipContent>
         </Tooltip>
       )}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="lime"
-            size="sm"
-            data-save
-            onClick={() => void (mode.save ? mode.save() : mode.setEditing(false))}
-          >
+      {block ? (
+        // Off with the reason on hover and on focus: a disabled button gets neither, its wrapper does.
+        <DisabledHint reason={block}>
+          <Button variant="lime" size="sm" data-save disabled>
             <Check /> Зберегти
           </Button>
-        </TooltipTrigger>
-        {/* No «· Esc»: Esc leaves editing and asks «Зберегти зміни?», it doesn't save. */}
-        <TooltipContent>Зберегти й повернутися до перегляду</TooltipContent>
-      </Tooltip>
+        </DisabledHint>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="lime"
+              size="sm"
+              data-save
+              onClick={() => void (mode.save ? mode.save() : mode.setEditing(false))}
+            >
+              <Check /> Зберегти
+            </Button>
+          </TooltipTrigger>
+          {/* No «· Esc»: Esc leaves editing and asks «Зберегти зміни?», it doesn't save. */}
+          <TooltipContent>Зберегти й повернутися до перегляду</TooltipContent>
+        </Tooltip>
+      )}
     </span>
   )
 }
@@ -325,21 +410,30 @@ export function EditHint({
   )
 }
 
-/** «Зберегти зміни?» dialog for exit / confirmClose; mounted once in AppShell. Esc = keep editing. */
+/**
+ * «Зберегти зміни?» dialog for exit / confirmClose; mounted once in AppShell. Esc = keep editing. While a field shows
+ * an error (or an inline form is open) «Зберегти» is off with the reason, and the text says Esc goes back to fix it.
+ */
 export function CloseConfirmHost() {
   const ask = useUi((s) => s.closeAsk)
   const clear = useUi((s) => s.askClose)
   // A record created a moment ago isn't reverted by «Не зберігати» but not created at all (exit / confirmClose).
-  const fresh = !!ask && 'fresh' in ask && ask.fresh === true
+  const fresh = ask?.fresh === true
+  const blocked = ask?.blocked
+  const discard = fresh
+    ? '«Не зберігати» не створить запис.'
+    : '«Не зберігати» поверне все як було до «Редагувати».'
   return (
     <AlertDialog open={!!ask} onOpenChange={(o) => !o && clear(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Зберегти зміни?</AlertDialogTitle>
           <AlertDialogDescription>
-            {fresh
-              ? 'Запис ще не збережено. «Не зберігати» його не створить.'
-              : 'Запис змінено, але зміни ще не збережено. «Не зберігати» поверне все як було до «Редагувати».'}
+            {blocked
+              ? `${blocked}, щоб зберегти: Esc поверне до правки. ${discard}`
+              : fresh
+                ? `Запис ще не збережено. ${discard}`
+                : `Запис змінено, але зміни ще не збережено. ${discard}`}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -351,14 +445,20 @@ export function CloseConfirmHost() {
           >
             Не зберігати
           </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              ask?.keep()
-              clear(null)
-            }}
-          >
-            Зберегти
-          </AlertDialogAction>
+          {blocked ? (
+            <DisabledHint reason={blocked}>
+              <AlertDialogAction disabled>Зберегти</AlertDialogAction>
+            </DisabledHint>
+          ) : (
+            <AlertDialogAction
+              onClick={() => {
+                ask?.keep()
+                clear(null)
+              }}
+            >
+              Зберегти
+            </AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

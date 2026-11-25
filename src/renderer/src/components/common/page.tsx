@@ -487,8 +487,9 @@ export function SegmentBar({
 
 /**
  * Character counter of a long field (docs/design-system.md → Формы): appears after 80% of the limit and
- * turns warn from 90%. Field and MarkdownField share it, so both behave the same. It is announced only from
- * 90%: a live counter from 80% made a screen reader read a number after every key.
+ * turns warn from 90%, destructive past the limit (a stored text longer than today's limit: it can't be saved
+ * until shortened, and the field counts as an error). Field and MarkdownField share it, so both behave the same.
+ * It is announced only from 90%: a live counter from 80% made a screen reader read a number after every key.
  */
 export function CharCount({
   length,
@@ -502,11 +503,12 @@ export function CharCount({
   if (!max) return null
   const near = length >= max * 0.8
   const warn = length >= max * 0.9
+  const over = length > max
   return (
     <span
       className={cn(
         'shrink-0 text-meta tabular-nums',
-        warn ? 'text-warn' : 'text-muted-foreground',
+        over ? 'text-destructive' : warn ? 'text-warn' : 'text-muted-foreground',
         // The limit is visible while you type in the field, and always once it gets close.
         !near && 'invisible group-focus-within/field:visible',
         className
@@ -559,15 +561,18 @@ export function Field({
     setReported((p) => (p && p.length === length && p.max === max ? p : { length, max }))
   }, [])
   const describedBy = forId && (error ? `${forId}-error` : hint ? `${forId}-hint` : undefined)
-  const control = useMemo(
-    () => ({ id: forId, describedBy, invalid: !!error, count: report }),
-    [forId, describedBy, error, report]
-  )
   const shown = count ?? reported
+  // Longer than the limit (stored before the limit was lowered): an error like any other — the record can't be
+  // saved with it, and the red counter says by how much.
+  const over = !viewMode && !!shown?.max && shown.length > shown.max
+  const control = useMemo(
+    () => ({ id: forId, describedBy, invalid: !!error || over, count: report }),
+    [forId, describedBy, error, over, report]
+  )
   return (
     <UiField
       className={cn('min-w-0 gap-2', className)}
-      data-invalid={error ? true : undefined}
+      data-invalid={error || over ? true : undefined}
       aria-labelledby={forId ? undefined : labelId}
     >
       <div className="flex items-baseline justify-between gap-3">
