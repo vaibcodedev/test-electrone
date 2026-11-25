@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { Pin } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
@@ -9,26 +9,31 @@ import { CardEmptyText, ListCard } from '@/components/common/list-card'
 import { Button } from '@/components/ui/button'
 import { ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { RowLink } from './row-link'
 
 const LIST_LIMIT = 7
+const pinKey = (p: DashboardData['pinned'][number]): string => `${p.kind}:${p.type}:${p.id}`
 
 /** Records pinned to the home page (★ is the section's own order, not here); past seven the rest unfolds in place. */
 export function PinnedCard({ pinned }: Pick<DashboardData, 'pinned'>): ReactElement {
   const [expanded, setExpanded] = useState(false)
   const all = pinned
-  const shown = expanded ? all : all.slice(0, LIST_LIMIT)
+  // Memoised (usePresenceList compares the array): «Ще N» unfolds the rest in place, «Згорнути» folds it away.
+  const shown = useMemo(() => (expanded ? all : all.slice(0, LIST_LIMIT)), [expanded, all])
+  const rows = usePresenceList(shown, pinKey)
   return (
     <ListCard title="Закріплено" className="col-span-4">
       {all.length ? (
         <>
           <div className="-mx-2.5 flex flex-col">
-            {shown.map((p) => (
-              <EntityRow
-                key={`${p.kind}:${p.type}:${p.id}`}
-                item={p}
-                trailing={<Pin className="size-3.5 text-muted-foreground" />}
-              />
+            {rows.map((entry) => (
+              <div key={entry.key} {...presenceProps(entry)}>
+                <EntityRow
+                  item={entry.item}
+                  trailing={<Pin className="size-3.5 text-muted-foreground" />}
+                />
+              </div>
             ))}
           </div>
           {all.length > LIST_LIMIT && (

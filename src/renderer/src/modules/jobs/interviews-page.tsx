@@ -17,9 +17,13 @@ import { EventDate } from '@/components/common/event-date'
 import { STAGE_KIND_LABEL, STAGE_STATUS_LABEL, STAGE_STATUS_VARIANT, stageDate, stageRowText } from './labels'
 import { askToSchedule, needsSchedule, ScheduleStageHost } from './schedule-stage'
 import { Delayed, RowSkeleton } from '@/components/common/page-skeleton'
+import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 
 /** History is a range: 30 at a time, «Показати раніші» adds the next 30 (docs/design-system.md → Формы). */
 const PAST_STEP = 30
+/** One empty history for every render while loading: usePresenceList compares the array itself. */
+const NO_PAST: StageWithApplication[] = []
+const stageKey = (s: StageWithApplication): string => s.id
 /** Upcoming stages and undated vacancies load this many; a cut list says so instead of looking complete. */
 const LIMIT = 100
 
@@ -104,7 +108,9 @@ export function InterviewsPage(): ReactElement {
   const interviewQ = useApi('jobs', 'list', { status: 'interview', limit: LIMIT, offset: 0 })
   const testQ = useApi('jobs', 'list', { status: 'test', limit: LIMIT, offset: 0 })
   const upcoming = upcomingQ.data ?? []
-  const past = pastQ.data ?? []
+  const past = pastQ.data ?? NO_PAST
+  // «Показати раніші» unfolds the next 30 under the list instead of dropping them in.
+  const pastRows = usePresenceList(past, stageKey)
   const inInterview = interviewQ.data ?? []
   const inTest = testQ.data ?? []
   // The empty state waits for all four: otherwise it flashes while the history is still loading.
@@ -208,9 +214,14 @@ export function InterviewsPage(): ReactElement {
                   {/* Counted over the loaded part only, so a cut history doesn't pretend it is the total. */}
                   {!pastCut && (passed > 0 || failed > 0) && ` — пройдено ${passed}, не пройдено ${failed}`}
                 </h2>
-                <ItemGroup className="gap-2">
-                  {past.map((s) => (
-                    <StageItem key={s.id} stage={s} past />
+                {/* The 8px between rows is inside each row (pb-2): a gap would stay while a row unfolds and jump. */}
+                <ItemGroup className="-mb-2">
+                  {pastRows.map((row) => (
+                    <div key={row.key} {...presenceProps(row)}>
+                      <div className="pb-2">
+                        <StageItem stage={row.item} past />
+                      </div>
+                    </div>
                   ))}
                 </ItemGroup>
                 {pastCut && (
