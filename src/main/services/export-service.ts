@@ -15,6 +15,7 @@ import type { LinkService } from './link-service'
 import { collectFiles } from './backup-service'
 import { dayKey, now, slugify } from '../core/util'
 import { fmtDateTime } from '@shared/dates'
+import { markdownLink, refKey, replaceWikiLinks } from '@shared/wikilinks'
 
 const enc = new TextEncoder()
 
@@ -30,6 +31,26 @@ function yamlValue(v: unknown): string {
 
 function iso(ts: unknown): string | null {
   return typeof ts === 'number' && ts > 0 ? new Date(ts).toISOString() : null
+}
+
+/** An exported record: its file in the zip and its title. */
+interface ExportedFile {
+  path: string
+  title: string
+}
+
+/**
+ * Record links in a text («[[», `[Назва](vault:note/<id>)`) as the export writes them: in the body a link to the
+ * exported file (every file sits one folder deep, so `../<folder>/<file>.md` — Obsidian and Markdown viewers
+ * follow it) under the record's current title; in the frontmatter just the title; a record that isn't exported
+ * (in the trash, deleted for good) keeps the label from the text.
+ */
+function readableLinks(text: string, files: Map<string, ExportedFile>, asLink: boolean): string {
+  return replaceWikiLinks(text, (m) => {
+    const file = files.get(refKey(m.ref))
+    if (!file) return m.label
+    return asLink ? markdownLink(file.title, `../${file.path}`) : file.title
+  })
 }
 
 /** Exports everything so data is never locked inside the app: one JSON file or a zip of Markdown files. */
@@ -82,7 +103,7 @@ export class ExportService {
     }
   }
 
-  private markdownFor(type: EntityType, row: AnyRow): string {
+  private markdownFor(type: EntityType, row: AnyRow, files: Map<string, ExportedFile>): string {
     const d = this.registry.get(type)
     const { title } = d.summary(row)
     const tagNames = (this.tags.forMany(type, [row.id]).get(row.id) ?? []).map((t) => t.name)
@@ -100,24 +121,30 @@ export class ExportService {
         body.push(
           `## ${key}`,
           '',
-          isCode ? `\`\`\`${row.language ?? ''}\n${value}\n\`\`\`` : value,
+          isCode
+            ? `\`\`\`${row.language ?? ''}\n${value}\n\`\`\``
+            : readableLinks(value, files, true),
           ''
         )
       } else if (key.endsWith('Path') && typeof value === 'string') {
         front.push(`${key}: ${yamlValue(value)}`)
         body.push(`![](../files/${value})`, '')
       } else {
-        front.push(`${key}: ${yamlValue(value)}`)
+        const text = typeof value === 'string' ? readableLinks(value, files, false) : value
+        front.push(`${key}: ${yamlValue(text)}`)
       }
     }
     if (tagNames.length) front.push(`tags: ${yamlValue(tagNames)}`)
     if (links.length) body.push('## Зв’язки', '', ...links.map((l) => `- ${l}`), '')
-    body.push(...(d.exportBody?.(row) ?? []))
+    body.push(...(d.exportBody?.(row) ?? []).map((line) => readableLinks(line, files, true)))
     return `---\n${front.join('\n')}\n---\n\n${body.join('\n')}`
   }
 
   async markdownZip(): Promise<Uint8Array> {
     const entries: AsyncZippable = {}
+    // File names first: a record's text may link to any other record (readableLinks).
+    const files = new Map<string, ExportedFile>()
+    const records: { type: EntityType; row: AnyRow; path: string }[] = []
     for (const d of this.registry.all()) {
       const rows = this.ctx.orm
         .select()
@@ -127,12 +154,16 @@ export class ExportService {
       const folder = slugify(ENTITY_META[d.type].plural, d.type)
       const used = new Set<string>()
       for (const row of rows) {
-        let name = slugify(d.summary(row).title, d.type)
+        const { title } = d.summary(row)
+        let name = slugify(title, d.type)
         while (used.has(name)) name = `${name}-${row.id.slice(0, 4)}`
         used.add(name)
-        entries[`${folder}/${name}.md`] = enc.encode(this.markdownFor(d.type, row))
+        const path = `${folder}/${name}.md`
+        files.set(refKey({ type: d.type, id: row.id }), { path, title })
+        records.push({ type: d.type, row, path })
       }
     }
+    for (const r of records) entries[r.path] = enc.encode(this.markdownFor(r.type, r.row, files))
     entries['README.md'] = enc.encode(
       `# Vault export\n\nЕкспортовано ${fmtDateTime(now())}.\nКожна папка — модуль, кожен файл — запис із frontmatter. Зображення лежать у files/.\n`
     )

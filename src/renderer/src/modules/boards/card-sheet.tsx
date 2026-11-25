@@ -1,4 +1,4 @@
-import { useId, useState, type RefObject } from 'react'
+import { useId, useMemo, useState, type RefObject } from 'react'
 import { Plus, SquareKanban, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -36,6 +36,8 @@ import { RowSkeleton } from '@/components/common/page-skeleton'
 import { IconAction } from '@/components/common/icon-action'
 import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
+import { MentionsPanel } from '@/components/common/mentions-panel'
+import { CurrentRecordContext } from '@/hooks/use-current-record'
 import {
   guardSheet,
   RecordMode,
@@ -180,6 +182,8 @@ function CardEditor({
   )
 
   const mode = useRecordMode(card.id, 'card')
+  // The «[[» menu of the description leaves the card itself out.
+  const self = useMemo(() => ({ type: 'card' as const, id: card.id }), [card.id])
   usePublishMode(modeRef, mode)
   const sparse = !card.description.trim() && card.checklist.length === 0 && !card.dueAt
   return (
@@ -275,14 +279,16 @@ function CardEditor({
           )}
 
           <section className="mt-5">
-            <MarkdownField
-              label="Опис"
-              value={description}
-              onChange={setDescription}
-              placeholder="Опис, посилання, деталі…"
-              maxLength={LIMITS.description}
-              minHeight="160px"
-            />
+            <CurrentRecordContext.Provider value={self}>
+              <MarkdownField
+                label="Опис"
+                value={description}
+                onChange={setDescription}
+                placeholder="Опис, посилання, деталі…"
+                maxLength={LIMITS.description}
+                minHeight="160px"
+              />
+            </CurrentRecordContext.Provider>
           </section>
 
           <div className="mt-6">
@@ -297,6 +303,7 @@ function CardEditor({
               entity={{ type: 'card', id: card.id }}
             />
             <LinksPanel entity={{ type: 'card', id: card.id }} />
+            <MentionsPanel entity={{ type: 'card', id: card.id }} />
             <AttachmentsPanel entity={{ type: 'card', id: card.id }} />
             <div className="text-meta text-muted-foreground">
               Створено {fmtDateTime(card.createdAt)}

@@ -33,6 +33,7 @@ import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
 import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
+import { MentionsPanel } from '@/components/common/mentions-panel'
 import { Choice } from '@/components/common/choice'
 import { PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { HireDialog } from './hire-dialog'
@@ -249,6 +250,7 @@ function Editor({
               entity={{ type: 'proposal', id: p.id }}
             />
             <LinksPanel entity={{ type: 'proposal', id: p.id }} />
+            <MentionsPanel entity={{ type: 'proposal', id: p.id }} />
             <div className="text-meta text-muted-foreground">
               Створено {fmtDateTime(p.createdAt)}
               {p.repliedAt && ` · відповіли ${fmtDateTime(p.repliedAt)}`}

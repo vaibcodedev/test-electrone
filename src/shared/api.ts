@@ -249,6 +249,7 @@ import type {
   TrashItem,
   UpdateStatus
 } from './domain/system'
+import type { Mention, ResolvedLink } from './domain/mentions'
 
 /** Standard CRUD surface shared by most modules (Interface Segregation: modules add their own extras). */
 export interface CrudApi<TEntity, TInput, TPatch, TQuery = void> {
@@ -723,6 +724,14 @@ export interface LinksApi {
   remove(linkId: string): Promise<void>
 }
 
+/** Record links typed with «[[» in Markdown fields (separate from the manual «Зв’язки» of LinksApi). */
+export interface MentionsApi {
+  /** «Згадки»: live records whose text links to this one, recently changed first, with the words around it. */
+  list(ref: EntityRef): Promise<Mention[]>
+  /** Current title and state of the records a text links to (links are resolved by id when they render). */
+  resolve(refs: EntityRef[]): Promise<ResolvedLink[]>
+}
+
 export interface PinsApi {
   list(kind?: PinKind): Promise<PinnedEntity[]>
   /** Live records with the mark, type + id only (★ marks in lists, the «Обране» chip). */
@@ -892,6 +901,7 @@ export interface Api {
   capture: CaptureApi
   tags: TagsApi
   links: LinksApi
+  mentions: MentionsApi
   pins: PinsApi
   search: SearchApi
   trash: TrashApi

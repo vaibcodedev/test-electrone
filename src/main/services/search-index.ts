@@ -2,6 +2,7 @@ import type { Database, Statement } from 'better-sqlite3'
 import type { SearchApi } from '@shared/api'
 import type { EntitySummary } from '@shared/domain/common'
 import type { EntityType } from '@shared/entity-types'
+import { readableSnippet } from '@shared/wikilinks'
 import {
   recentQuerySchema,
   searchQuerySchema,
@@ -115,7 +116,8 @@ export class SearchIndex {
           .map((h) => ({
             ...h,
             ...found.get(`${h.type}:${h.id}`)!,
-            snippet: h.snippet,
+            // A record link in the text («[[») reads as its label, not as `](vault:note/1b9d…)`.
+            snippet: readableSnippet(h.snippet),
             rank: h.rank
           }))
       },

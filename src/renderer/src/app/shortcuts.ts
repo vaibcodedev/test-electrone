@@ -116,6 +116,16 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
         { keys: ['Tab'], label: 'Змінити тип' },
         { keys: ['Shift', 'Enter'], label: 'Новий рядок' }
       ]
+    },
+    {
+      // The «[[» menu of every Markdown field (components/common/markdown-textarea.tsx).
+      title: 'Посилання в тексті',
+      items: [
+        { keys: ['[['], label: 'Список записів для посилання (у будь-якому полі Markdown)' },
+        { keys: ['↑', '↓'], label: 'Вибрати запис' },
+        { keys: ['Enter'], label: 'Вставити посилання (або Tab)' },
+        { keys: ['Esc'], label: 'Закрити список' }
+      ]
     }
   ]
 }

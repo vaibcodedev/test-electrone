@@ -96,18 +96,34 @@ export const test = base.extend<{ vault: Vault; noErrors: void }, { vaultWorker:
     // A closing Radix dialog keeps aria-hidden on the rest of the page, and getByRole doesn't see the
     // sidebar button through it: wait until no dialog is left (a nested one needs a second Escape).
     const dialogs = win.locator('[role="dialog"], [role="alertdialog"]')
-    for (let i = 0; i < 3 && (await dialogs.count()) > 0; i++) {
+    // A record left in «Редагувати» with changes answers Esc with «Зберегти зміни?»: drop the changes, or the
+    // question stays over the next test's page and blocks its clicks.
+    const ask = win.getByRole('alertdialog', { name: 'Зберегти зміни?' })
+    const discard = async (): Promise<void> => {
+      if ((await ask.count()) > 0)
+        await ask
+          .getByRole('button', { name: 'Не зберігати' })
+          .click()
+          .catch(() => undefined)
+    }
+    for (let i = 0; i < 4 && (await dialogs.count()) > 0; i++) {
+      await discard()
+      if ((await dialogs.count()) === 0) break
       await win.keyboard.press('Escape').catch(() => undefined)
       await expect(dialogs)
         .toHaveCount(0, { timeout: 2_000 })
         .catch(() => undefined)
     }
     await win.keyboard.press('Escape').catch(() => undefined)
+    await discard()
     // One window for the whole run: a test that folded the sidebar or hid sections must not change the next one.
     // The fold state is read from the sidebar's data-state, not from a button's accessible name.
     const folded = win.locator('[data-slot="app-sidebar"][data-state="collapsed"]')
     if ((await folded.count()) > 0) {
-      await win.getByRole('button', { name: 'Розгорнути бічну панель', exact: true }).first().click()
+      await win
+        .getByRole('button', { name: 'Розгорнути бічну панель', exact: true })
+        .first()
+        .click()
       await expect(folded).toHaveCount(0)
     }
     const s = await vaultWorker.rpc('settings.get')
