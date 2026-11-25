@@ -15,7 +15,7 @@ export type Priority = (typeof PRIORITIES)[number]
 
 export const boardInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(20_000).default(''),
+  description: z.string().max(MAX.article).default(''),
   color: hexColorSchema.default(null),
   projectId: idSchema.nullable().default(null),
   ...withTagIds
@@ -63,7 +63,7 @@ export const cardInputSchema = z.object({
   boardId: idSchema,
   columnId: idSchema,
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(100_000).default(''),
+  description: z.string().max(MAX.article).default(''),
   priority: z.enum(PRIORITIES).default('none'),
   dueAt: timestampSchema.nullable().default(null),
   ...withTagIds

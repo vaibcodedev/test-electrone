@@ -16,7 +16,7 @@ export type Recurrence = (typeof RECURRENCES)[number]
 
 export const eventInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  description: z.string().max(20_000).default(''),
+  description: z.string().max(MAX.note).default(''),
   startAt: timestampSchema,
   endAt: timestampSchema.nullable().default(null),
   allDay: z.boolean().default(false),

@@ -17,6 +17,8 @@ import { X } from 'lucide-react'
 import { useAutosave } from '@/hooks/use-autosave'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { FieldError } from '@/components/ui/field'
+import { overLimitText } from '@/lib/limits'
 import {
   Select,
   SelectContent,
@@ -125,16 +127,22 @@ export function AutoCode({
   // (globals.css → empty fields) and the pane's «only a title» hint can show.
   if (readOnly && !draft.trim()) return <div data-empty hidden />
   return (
-    <CodeEditor
-      value={draft}
-      onChange={setDraft}
-      language={language}
-      lineNumbers={lineNumbers}
-      minHeight={minHeight}
-      placeholder={placeholder}
-      maxLength={maxLength}
-      className="rounded-xl"
-    />
+    <>
+      <CodeEditor
+        value={draft}
+        onChange={setDraft}
+        language={language}
+        lineNumbers={lineNumbers}
+        minHeight={minHeight}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className="rounded-xl"
+      />
+      {/* Code stored before the limit was lowered: it opens and can be shortened, nothing is cut. */}
+      {!readOnly && maxLength !== undefined && draft.length > maxLength && (
+        <FieldError className="text-caption">{overLimitText(draft.length, maxLength)}</FieldError>
+      )}
+    </>
   )
 }
 

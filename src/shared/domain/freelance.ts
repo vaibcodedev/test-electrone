@@ -6,7 +6,10 @@
 import { z } from 'zod'
 import { MAX } from './limits'
 import {
+  clientRatingSchema,
+  clientSpentSchema,
   hexColorSchema,
+  hireRateSchema,
   idSchema,
   timestampSchema,
   urlSchema,
@@ -42,7 +45,7 @@ export const platformInputSchema = z.object({
   defaultFeePercent: z.number().min(0).max(100).default(0),
   /** Checklist shown before sending a proposal on this platform. */
   preChecklist: z.array(preCheckSchema).max(30).default([]),
-  notes: z.string().max(20_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   archived: z.boolean().default(false)
 })
 export const platformPatchSchema = patchOf(platformInputSchema)
@@ -101,37 +104,68 @@ export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
 export const BID_TYPES = ['fixed', 'hourly'] as const
 export type BidType = (typeof BID_TYPES)[number]
 
+/** Upwork's own «Proposals» buckets on a job post, stored as these short strings. */
+export const PROPOSAL_COUNTS = ['<5', '5–10', '10–15', '15–20', '20–50', '50+'] as const
+export type ProposalCount = (typeof PROPOSAL_COUNTS)[number]
+
+export const PROPOSAL_COUNT_LABEL: Record<ProposalCount, string> = {
+  '<5': 'Менше 5',
+  '5–10': '5–10',
+  '10–15': '10–15',
+  '15–20': '15–20',
+  '20–50': '20–50',
+  '50+': '50+'
+}
+
+/**
+ * The bucket an old free-text value means — «20 to 50», «20-50», «Less than 5», «менше 5», «50+» — or null when it
+ * matches none (it is then kept and shown as it was written).
+ */
+export function proposalCountOf(text: string): ProposalCount | null {
+  const t = text.trim().toLowerCase().replace(/\s+/g, ' ')
+  if (!t) return null
+  if (/^(<\s*5|less than 5|менше 5|меньше 5|до 5)$/.test(t)) return '<5'
+  if (/^50\s*\+$|^50 (or more|і більше|и более)$/.test(t)) return '50+'
+  const m = /^(\d+)\s*(?:[-–—]|to|до)\s*(\d+)$/.exec(t)
+  const pair = m ? `${m[1]}–${m[2]}` : ''
+  return (PROPOSAL_COUNTS as readonly string[]).includes(pair) ? (pair as ProposalCount) : null
+}
+
 export const proposalInputSchema = z.object({
   platformId: idSchema,
   jobTitle: z.string().trim().min(1).max(MAX.title),
   jobUrl: urlSchema.default(''),
-  jobDescription: z.string().max(100_000).default(''),
+  jobDescription: z.string().max(MAX.jobPost).default(''),
   /** Type of task: "Next.js", "Вёрстка", "Боты"… (free text with suggestions). */
-  niche: z.string().trim().max(100).default(''),
+  niche: z.string().trim().max(MAX.label).default(''),
   status: z.enum(PROPOSAL_STATUSES).default('sent'),
   sentAt: timestampSchema.nullable().default(null),
   credits: z.number().int().min(0).max(1000).default(0),
   boostCredits: z.number().int().min(0).max(1000).default(0),
   bidType: z.enum(BID_TYPES).default('fixed'),
-  bidAmount: z.number().min(0).max(10_000_000).default(0),
+  /** One bid: an hourly rate or a fixed price (a million is far past any real job post). */
+  bidAmount: z.number().min(0).max(1_000_000).default(0),
   /** Service fee % shown at bidding time (Upwork shows the exact one only then). */
   feePercent: z.number().min(0).max(100).nullable().default(null),
-  coverLetter: z.string().max(50_000).default(''),
+  coverLetter: z.string().max(MAX.letter).default(''),
   templateId: idSchema.nullable().default(null),
   clientId: idSchema.nullable().default(null),
-  clientName: z.string().max(200).default(''),
+  clientName: z.string().max(MAX.name).default(''),
   clientCountry: z.string().max(100).default(''),
-  clientRating: z.number().min(0).max(5).nullable().default(null),
-  clientSpent: z.number().min(0).max(100_000_000).nullable().default(null),
-  clientHireRate: z.number().min(0).max(100).nullable().default(null),
+  clientRating: clientRatingSchema.nullable().default(null),
+  clientSpent: clientSpentSchema.nullable().default(null),
+  clientHireRate: hireRateSchema.nullable().default(null),
   paymentVerified: z.boolean().nullable().default(null),
-  /** Competition shown on the job, e.g. "20 to 50". */
-  proposalsOnJob: z.string().max(40).default(''),
+  /**
+   * Competition shown on the job: one of Upwork's buckets, or '' — not set. A free text written before the choice
+   * («20 to 50») stays in the record and is shown as it was; only a bucket can be saved now.
+   */
+  proposalsOnJob: z.union([z.enum(PROPOSAL_COUNTS), z.literal('')]).default(''),
   /** Ids of pre-checklist items that were ticked. */
   checks: z.array(z.string().max(40)).max(30).default([]),
   /** Marks a strong proposal worth reusing. */
   starred: z.boolean().default(false),
-  notes: z.string().max(50_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   ...withTagIds
 })
 export const proposalPatchSchema = patchOf(proposalInputSchema.omit({ platformId: true }))
@@ -264,12 +298,12 @@ export const templateInputSchema = z.object({
   situation: z.enum(TEMPLATE_SITUATIONS).default('proposal'),
   title: z.string().trim().min(1).max(MAX.title),
   /** What the client says / when to use it (for small talk: the client's phrase). */
-  trigger: z.string().max(2000).default(''),
+  trigger: z.string().max(MAX.short).default(''),
   /** Template text; {variables} are filled in when copying. */
-  body: z.string().max(50_000).default(''),
+  body: z.string().max(MAX.letter).default(''),
   /** Native-language note: what it means / when not to use. */
-  note: z.string().max(5000).default(''),
-  niche: z.string().max(100).default(''),
+  note: z.string().max(MAX.note).default(''),
+  niche: z.string().max(MAX.label).default(''),
   ...withTagIds
 })
 export const templatePatchSchema = patchOf(templateInputSchema)
@@ -294,15 +328,15 @@ export interface MessageTemplate extends EntityBase, WithTags {
 
 export const caseInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
-  niche: z.string().max(100).default(''),
-  client: z.string().max(200).default(''),
-  problem: z.string().max(20_000).default(''),
-  whatDone: z.string().max(50_000).default(''),
-  result: z.string().max(20_000).default(''),
-  stack: z.string().max(500).default(''),
+  niche: z.string().max(MAX.label).default(''),
+  client: z.string().max(MAX.name).default(''),
+  problem: z.string().max(MAX.note).default(''),
+  whatDone: z.string().max(MAX.article).default(''),
+  result: z.string().max(MAX.note).default(''),
+  stack: z.string().max(MAX.line).default(''),
   url: urlSchema.default(''),
   /** Ready-to-paste English text for the platform portfolio. */
-  textEn: z.string().max(50_000).default(''),
+  textEn: z.string().max(MAX.letter).default(''),
   projectId: idSchema.nullable().default(null),
   ...withTagIds
 })
@@ -329,9 +363,9 @@ export interface PortfolioCase extends EntityBase, WithTags {
 export const redFlagInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
   /** How to recognise it in a job post / chat. */
-  signs: z.string().max(20_000).default(''),
+  signs: z.string().max(MAX.note).default(''),
   /** What to do: skip, ask, raise price… */
-  action: z.string().max(20_000).default(''),
+  action: z.string().max(MAX.note).default(''),
   severity: z.number().int().min(1).max(3).default(2),
   ...withTagIds
 })

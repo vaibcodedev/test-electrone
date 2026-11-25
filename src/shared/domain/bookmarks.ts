@@ -14,7 +14,7 @@ export const bookmarkInputSchema = z.object({
   status: z.enum(BOOKMARK_STATUSES).default('queue'),
   progress: z.number().int().min(0).max(100).default(0),
   rating: z.number().int().min(0).max(5).default(0),
-  notes: z.string().max(100_000).default(''),
+  notes: z.string().max(MAX.note).default(''),
   ...withTagIds
 })
 export const bookmarkPatchSchema = patchOf(bookmarkInputSchema)

@@ -1,6 +1,9 @@
 import type { ReactElement } from 'react'
 import { BadgeCheck } from 'lucide-react'
 import {
+  PROPOSAL_COUNT_LABEL,
+  PROPOSAL_COUNTS,
+  proposalCountOf,
   proposalInputSchema,
   type Platform,
   type Proposal,
@@ -10,6 +13,7 @@ import { limitsOf, rangesOf } from '@/lib/limits'
 import { NumberField } from '@/components/common/number-field'
 import { TextField } from '@/components/common/text-field'
 import { Field } from '@/components/common/page'
+import { BucketField } from '@/components/common/bucket-field'
 import { SectionLabel } from '@/components/common/master-detail'
 import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Switch } from '@/components/ui/switch'
@@ -52,9 +56,9 @@ export function ProposalClientSection({
         </Field>
         <NumberField
           label="Рейтинг"
-          value={p.clientRating}
+          // An old 0 means «no rating yet»: shown empty, not as an error.
+          value={p.clientRating || null}
           {...R.clientRating}
-          step={0.1}
           onCommit={(clientRating) => patch({ clientRating })}
           placeholder="Напр.: 4,9"
           unit="★"
@@ -64,6 +68,7 @@ export function ProposalClientSection({
           value={p.clientSpent}
           {...R.clientSpent}
           onCommit={(clientSpent) => patch({ clientSpent })}
+          placeholder="Напр.: 25 000"
           unit={platform.currency}
         />
         <NumberField
@@ -71,14 +76,18 @@ export function ProposalClientSection({
           value={p.clientHireRate}
           {...R.clientHireRate}
           onCommit={(clientHireRate) => patch({ clientHireRate })}
+          placeholder="Напр.: 70"
           unit="%"
         />
-        <TextField
+        <BucketField
+          id={`proposals-on-job-${p.id}`}
           label="Відгуків на вакансію"
-          maxLength={PROPOSAL_L.proposalsOnJob}
           value={p.proposalsOnJob}
-          onSave={(proposalsOnJob) => patch({ proposalsOnJob })}
-          placeholder="Напр.: 20–50"
+          buckets={PROPOSAL_COUNTS}
+          labels={PROPOSAL_COUNT_LABEL}
+          bucketOf={proposalCountOf}
+          placeholder="Як на сторінці вакансії"
+          onChange={(proposalsOnJob) => patch({ proposalsOnJob })}
         />
       </div>
       {/* While reading only the positive fact is shown: a locked «off» switch read as a warning. */}

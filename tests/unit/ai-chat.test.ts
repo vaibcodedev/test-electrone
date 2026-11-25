@@ -28,6 +28,8 @@ import { FreelanceModule } from '@main/modules/freelance'
 import { z } from 'zod'
 import { aiActionSchema, withEdits } from '@shared/domain/ai-actions'
 import { APP_SECTIONS, appMapPrompt, sectionAt } from '@shared/app-map'
+import { checklistItemInputSchema } from '@shared/domain/checklists'
+import { fieldMax, MAX } from '@shared/domain/limits'
 import { GUIDE, HOME, HUBS, REVIEW } from '@/app/navigation'
 import { recordFromLocation } from '@/features/ai-chat/context'
 import { openVault, type Vault } from './support/vault'
@@ -91,7 +93,7 @@ describe('the answer', () => {
   it('at most five actions; longer titles than the module allows are refused', () => {
     const many = Array.from({ length: 7 }, (_, i) => ({ type: 'create_idea', title: `І${i}` }))
     expect(parseChatReply(block({ actions: many })).actions).toHaveLength(5)
-    const long = parseChatReply(block([{ type: 'create_idea', title: 'x'.repeat(501) }]))
+    const long = parseChatReply(block([{ type: 'create_idea', title: 'x'.repeat(MAX.title + 1) }]))
     expect(long.actions).toEqual([])
     expect(long.skipped).toBe(1)
   })
@@ -355,7 +357,8 @@ describe('actions on the base', () => {
     const event = await v.api.events.create({
       title: 'Подія',
       startAt: Date.now(),
-      description: 'x'.repeat(19_990)
+      // A description just under the event's own limit (MAX.note): 100 more characters can't fit.
+      description: 'x'.repeat(MAX.note - 10)
     })
     await expect(
       runner.apply({ type: 'append_text', text: 'y'.repeat(100) }, { type: 'event', id: event.id })

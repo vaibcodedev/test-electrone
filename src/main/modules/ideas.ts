@@ -1,6 +1,6 @@
 import { chipCountsQuerySchema, pageSchema, type ChipCountsQuery } from '@shared/domain/common'
 import { fieldMax, MAX } from '@shared/domain/limits'
-import { boardInputSchema } from '@shared/domain/boards'
+import { boardInputSchema, cardInputSchema } from '@shared/domain/boards'
 import { and, asc, eq, sql, type SQL } from 'drizzle-orm'
 import type { IdeasApi } from '@shared/api'
 import {
@@ -21,6 +21,8 @@ import type { BoardsModule } from './boards'
 type IdeaRow = typeof ideas.$inferSelect
 
 const BOARD_DESCRIPTION_MAX = fieldMax(boardInputSchema.shape.description)
+// An idea written before the limits were tightened may be longer than a card takes: the card gets the start.
+const CARD_DESCRIPTION_MAX = fieldMax(cardInputSchema.shape.description)
 
 export class IdeasModule {
   readonly repo: SoftRepository<IdeaRow, Idea>
@@ -101,7 +103,7 @@ export class IdeasModule {
               boardId: board.id,
               columnId: firstColumn.id,
               title: `Розібрати ідею: ${idea.title}`.slice(0, MAX.title),
-              description: idea.body
+              description: idea.body.slice(0, CARD_DESCRIPTION_MAX)
             })
           }
           this.repo.patch(idea.id, { boardId: board.id, status: 'in_progress' })

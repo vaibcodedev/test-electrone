@@ -1,7 +1,14 @@
 import { useRef, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { Building2, Plus, Star } from 'lucide-react'
-import { companyInputSchema, type Company, type CompanyPatch } from '@shared/domain/jobs'
+import {
+  COMPANY_SIZE_LABEL,
+  COMPANY_SIZES,
+  companyInputSchema,
+  companySizeOf,
+  type Company,
+  type CompanyPatch
+} from '@shared/domain/jobs'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { countLabel, plural } from '@/lib/format'
@@ -30,6 +37,7 @@ import {
 import { MarkdownField } from '@/components/common/markdown'
 import { LinkInput, TextField } from '@/components/common/text-field'
 import { StarRating } from '@/components/common/star-rating'
+import { BucketField } from '@/components/common/bucket-field'
 import { APP_STATUS_LABEL, appStatusVariant, salaryLabel } from './labels'
 import { AskedQuestions } from './application-questions'
 import { FavoriteMark } from '@/components/common/favorite-mark'
@@ -135,7 +143,16 @@ function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () 
           <LinkInput value={c.reviewsUrl} onSave={(reviewsUrl) => patch({ reviewsUrl })} placeholder="Сторінка на DOU або Glassdoor" />
         </Field>
         <TextField label="Стек" value={c.stack} onSave={(stack) => patch({ stack })} placeholder="Напр.: React, Node.js, AWS" className="col-span-2" maxLength={LIMITS.stack} />
-        <TextField label="Розмір" value={c.size} onSave={(size) => patch({ size })} placeholder="Напр.: 50–200 людей" maxLength={LIMITS.size} />
+        <BucketField
+          id={`company-size-${c.id}`}
+          label="Розмір"
+          value={c.size}
+          buckets={COMPANY_SIZES}
+          labels={COMPANY_SIZE_LABEL}
+          bucketOf={companySizeOf}
+          placeholder="Скільки людей"
+          onChange={(size) => patch({ size })}
+        />
         <TextField label="Де" value={c.location} onSave={(location) => patch({ location })} placeholder="Напр.: Київ, віддалено" maxLength={LIMITS.location} />
       </div>
       <Field label="Контакти HR і команди" className="mt-4" count={{ length: contacts.length, max: LIMITS.contacts }}>

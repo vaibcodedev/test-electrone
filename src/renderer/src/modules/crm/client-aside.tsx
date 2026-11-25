@@ -10,7 +10,7 @@ import {
   type Client,
   type ClientPatch
 } from '@shared/domain/crm'
-import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
+import { EMAIL_ERROR, isLikelyEmail, isLikelyPhone, PHONE_ERROR } from '@shared/domain/common'
 import { openUrl } from '@/lib/open-url'
 import { useApi } from '@/lib/query'
 import { limitsOf, rangesOf } from '@/lib/limits'
@@ -167,38 +167,53 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
 }
 
 const CONTACT_FIELDS: {
-  key: 'company' | 'phone' | 'messenger'
+  key: 'company' | 'messenger'
   label: string
   placeholder: string
 }[] = [
   { key: 'company', label: 'Компанія', placeholder: 'Напр.: Acme Studio' },
-  { key: 'phone', label: 'Телефон', placeholder: '+380…' },
   { key: 'messenger', label: 'Месенджер', placeholder: 'Telegram @username' }
 ]
 
-/** Email saved on blur; a value that isn't an email stays in the field with an error and isn't saved. */
-function EmailField({
+/**
+ * A contact saved on blur after a loose check (email, phone): a value that fails stays in the field with an error
+ * and isn't saved. An old value is never re-checked unless it is edited (per-field patches).
+ */
+function CheckedField({
+  label,
   value,
-  onSave
+  onSave,
+  check,
+  error,
+  type,
+  placeholder,
+  maxLength
 }: {
+  label: string
   value: string
   onSave: (v: string) => void
+  check: (v: string) => boolean
+  error: string
+  type: 'email' | 'tel'
+  placeholder: string
+  maxLength?: number
 }): ReactElement {
   const [bad, setBad] = useState(false)
   const id = useId()
   return (
-    <Field label="Email" htmlFor={id} error={bad ? EMAIL_ERROR : undefined}>
+    <Field label={label} htmlFor={id} error={bad ? error : undefined}>
       <Input
         id={id}
-        type="email"
+        type={type}
+        inputMode={type}
         defaultValue={value}
-        placeholder="name@company.com"
-        maxLength={CLIENT_L.email}
+        placeholder={placeholder}
+        maxLength={maxLength}
         aria-invalid={bad || undefined}
-        onChange={(e) => bad && setBad(!isLikelyEmail(e.target.value))}
+        onChange={(e) => bad && setBad(!check(e.target.value))}
         onBlur={(e) => {
           const v = e.target.value.trim()
-          if (!isLikelyEmail(v)) return setBad(true)
+          if (!check(v)) return setBad(true)
           setBad(false)
           if (v !== value) onSave(v)
         }}
@@ -215,7 +230,7 @@ export function ContactsEdit({
   patch: (p: ClientPatch) => void
 }): ReactElement {
   const uid = useId()
-  const [company, ...rest] = CONTACT_FIELDS
+  const [company, messenger] = CONTACT_FIELDS
   const text = (f: (typeof CONTACT_FIELDS)[number]): ReactElement => {
     const id = f.key === 'company' ? COMPANY_ID : `${uid}-${f.key}`
     return (
@@ -233,8 +248,27 @@ export function ContactsEdit({
   return (
     <>
       {text(company)}
-      <EmailField value={c.email} onSave={(email) => patch({ email })} />
-      {rest.map(text)}
+      <CheckedField
+        label="Email"
+        type="email"
+        value={c.email}
+        placeholder="name@company.com"
+        maxLength={CLIENT_L.email}
+        check={isLikelyEmail}
+        error={EMAIL_ERROR}
+        onSave={(email) => patch({ email })}
+      />
+      <CheckedField
+        label="Телефон"
+        type="tel"
+        value={c.phone}
+        placeholder="+380 67 123 45 67"
+        maxLength={CLIENT_L.phone}
+        check={isLikelyPhone}
+        error={PHONE_ERROR}
+        onSave={(phone) => patch({ phone })}
+      />
+      {text(messenger)}
       <LinkInput
         label="Сайт"
         value={c.website}
@@ -253,7 +287,7 @@ export function SourceView({ c }: { c: Client }): ReactElement {
   // The group is already called «Платформа»: its name goes first on its own, not as a «Платформа» row.
   const details =
     !!c.country ||
-    c.rating !== null ||
+    !!c.rating ||
     c.totalSpent !== null ||
     c.hireRate !== null ||
     c.paymentVerified !== null
@@ -271,7 +305,8 @@ export function SourceView({ c }: { c: Client }): ReactElement {
       {details && (
         <InfoList>
           {c.country && <InfoRow label="Країна">{c.country}</InfoRow>}
-          {c.rating !== null && <InfoRow label="Рейтинг">{`★ ${fmtNumber(c.rating)}`}</InfoRow>}
+          {/* 0 is «no rating yet» (old records): the rating is 1–5. */}
+          {!!c.rating && <InfoRow label="Рейтинг">{`★ ${fmtNumber(c.rating)}`}</InfoRow>}
           {c.totalSpent !== null && (
             <InfoRow label="Витрачено">{fmtMoney(c.totalSpent, c.currency)}</InfoRow>
           )}

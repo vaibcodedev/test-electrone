@@ -53,12 +53,12 @@ export async function seedSparse(rpc) {
   return ids
 }
 
-/** Extreme content: 500-char titles, one 150-char word, huge sums, long links. Returns type → id. */
+/** Extreme content: titles at the limit (MAX.title = 200), one 150-char word, huge sums, long links. Returns type → id. */
 export async function seedMonsters(rpc) {
   const ids = {}
   const put = (type, rec) => rec?.id && (ids[type] = rec.id)
   const WORD = 'Суперкалiфраджилiстiкекспiалiдоцiозний'.repeat(4)
-  const LONG = `${WORD} ${'дуже довга назва запису '.repeat(25)}`.slice(0, 490)
+  const LONG = `${WORD} ${'дуже довга назва запису '.repeat(25)}`.slice(0, 195)
   const BODY = `${WORD}\n\n${'Довгий абзац тексту для перевірки переносу й обрізання. '.repeat(40)}`
   const URL = `https://example.com/${'very-long-path-segment-'.repeat(12)}?q=${'x'.repeat(60)}`
   const t = Date.now()
@@ -99,8 +99,8 @@ export async function seedMonsters(rpc) {
   put('checklist', await rpc('checklists.create', { kind: 'template', title: LONG, description: BODY.slice(0, 5000) }))
   put('moodboard', await rpc('moodboards.create', { title: LONG }))
   put('event', await rpc('events.create', { title: LONG, description: BODY.slice(0, 5000), startAt: t + 3_600_000 }))
-  await rpc('finance.createSubscription', { title: LONG.slice(0, 290), amount: 999_999, billingDay: 3 })
-  await rpc('finance.createExpense', { title: LONG.slice(0, 290), amount: 99_999_999, at: t })
+  await rpc('finance.createSubscription', { title: LONG, amount: 999_999, billingDay: 3 })
+  await rpc('finance.createExpense', { title: LONG, amount: 99_999_999, at: t })
   const board = await rpc('boards.create', { title: LONG, description: BODY.slice(0, 5000) })
   put('board', board)
   if (board) {
