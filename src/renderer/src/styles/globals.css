@@ -3,6 +3,8 @@
 @import '@fontsource-variable/onest';
 @import '@fontsource-variable/jetbrains-mono';
 @import './code.css';
+/* Agent skills (.agents/skills: shadcn examples) are not app code: their classes must not reach the bundle. */
+@source not '../../../../.agents';
 
 /* "Selected" state of shadcn Toggle / ToggleGroupItem. Radix Tooltip (asChild) overwrites data-state on its
    trigger with "closed", so a Toggle inside a tooltip never matched data-[state=on]; aria-pressed survives.

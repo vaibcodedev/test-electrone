@@ -6,7 +6,7 @@
 
 1. **Документация только актуальная.** Перед использованием любого API библиотеки (Electron, electron-vite, electron-builder, electron-updater, Drizzle, better-sqlite3, React 19, React Router 8, TanStack Query, Zustand, Tailwind v4, shadcn, dnd-kit, CodeMirror, zod 4…) — сверяйся через **Context7** (`resolve-library-id` → `query-docs`). Версии в проекте свежие (Electron 44, Vite 8, TS 5.9, zod 4), память может врать — пример: в Electron 44 `clipboard` асинхронный (W3C API), `clipboard.readImage()` нет.
 2. **Скилы — использовать все подходящие**, не изобретать процесс заново:
-   - **`shadcn/ui` — обязательно** при любой работе с компонентами интерфейса: выбор компонента, добавление (`npx shadcn@latest add`), композиция, варианты и темизация. Если скил не установлен — сначала установить (или попросить пользователя) и только потом браться за UI;
+   - **`shadcn` (скил shadcn/ui) — обязательно** при любой работе с компонентами интерфейса: выбор компонента, добавление (`npx shadcn@latest add`), композиция, варианты и темизация. Лежит в репозитории: `.agents/skills/shadcn` (для Claude Code подключён ссылкой `.claude/skills/shadcn`; если ссылки нет — `New-Item -ItemType Junction -Path .claude\skills\shadcn -Target <корень>\.agents\skills\shadcn`). Агенту без доступа к скилу — прочитать `.agents/skills/shadcn/SKILL.md` и `rules/*.md` перед UI-правками;
    - `frontend-design` — перед любой новой/переделываемой UI-частью;
    - `ui-design-review:ui-review` / `ui-design-review:ui-polish` — ревью и полировка экранов по скриншотам;
    - `design:accessibility-review` — контраст, фокус, клавиатура;

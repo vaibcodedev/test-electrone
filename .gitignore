@@ -11,3 +11,8 @@ playwright-report
 
 # personal Claude Code settings
 .claude/settings.local.json
+
+# Claude Code: the shadcn skill is linked here from .agents/skills (junction), worktrees and locks are local
+.claude/skills/shadcn
+.claude/worktrees/
+.claude/scheduled_tasks.lock
