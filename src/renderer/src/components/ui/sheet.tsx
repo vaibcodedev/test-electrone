@@ -31,10 +31,13 @@ function SheetOverlay({
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
   return (
+    // z-40, one below the content: Radix gives the overlay and the content separate portals, so a sheet reopened
+    // during its close animation re-mounts the overlay AFTER the content and, at an equal z-index, it covered
+    // the sheet and swallowed the next click. Page layers stop at z-30; dialogs over a sheet are z-50.
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
+        "fixed inset-0 z-40 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0",
         className
       )}
       {...props}

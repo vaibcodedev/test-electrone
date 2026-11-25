@@ -7,6 +7,8 @@ import { createContext, useContext, type ReactNode } from 'react'
 export interface DetailMode {
   editing: boolean
   setEditing: (editing: boolean) => void
+  /** Created a moment ago: opens in edit mode with the title focused (docs/quality-pass.md §3). */
+  fresh?: boolean
   /** «Зберегти»: flush autosaves and return to view mode. false — a field was rejected, still editing. */
   save?: () => Promise<boolean>
   /**

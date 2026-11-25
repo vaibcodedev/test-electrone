@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 /** Flushers of every mounted autosave field. */
 const flushers = new Set<() => void>()
+/** Draft resetters of every mounted autosave field. */
+const resetters = new Set<() => void>()
 let saving = 0
 
 /** true while an autosave field hands its value to `save`: mutations started right now are autosaves. */
@@ -15,6 +17,15 @@ export function isAutosaving(): boolean {
  */
 export function flushAllAutosaves(): void {
   for (const f of flushers) f()
+}
+
+/**
+ * Every field shows its server value again. Called after «Скасувати» reverted a record: the revert can bring
+ * the same value the query already held (typed text saved and reverted before any refetch), and a draft that
+ * only follows *changes* of `value` would keep showing the cancelled text.
+ */
+export function resetAllAutosaves(): void {
+  for (const r of resetters) r()
 }
 
 /**
@@ -32,7 +43,9 @@ export function useAutosave<T>(value: T, save: (next: T) => void, delay = 600): 
     saveRef.current = save
   })
 
+  const latest = useRef(value)
   useEffect(() => {
+    latest.current = value
     if (pending.current === null) setDraft(value)
   }, [value])
 
@@ -58,6 +71,19 @@ export function useAutosave<T>(value: T, save: (next: T) => void, delay = 600): 
       flush()
     }
   }, [flush])
+
+  useEffect(() => {
+    const reset = (): void => {
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = null
+      pending.current = null
+      setDraft(latest.current)
+    }
+    resetters.add(reset)
+    return () => {
+      resetters.delete(reset)
+    }
+  }, [])
 
   const update = useCallback(
     (next: T) => {

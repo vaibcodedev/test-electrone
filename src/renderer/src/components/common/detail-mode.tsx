@@ -14,6 +14,7 @@ import type { EntityType } from '@shared/entity-types'
 import { api } from '@/lib/api'
 import { reportError } from '@/lib/error-reporting'
 import { flushAndSettle, invalidateAll } from '@/lib/query'
+import { resetAllAutosaves } from '@/hooks/use-autosave'
 import { Check, Pencil, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -36,7 +37,12 @@ import { useUi } from '@/stores/ui-store'
  * in this session disappears entirely. Leaving with unsaved changes asks «Зберегти зміни?».
  */
 export function useRecordMode(id: string, type?: EntityType): DetailMode {
-  const [isNew] = useState(() => useUi.getState().takeCreated(id))
+  // Peek during render, take after commit: a render React throws away (Suspense while the record loads) must
+  // not eat the one-shot flag, or the mounted editor opens a just-created record in view mode.
+  const [isNew] = useState(() => !!useUi.getState().justCreated[id])
+  useEffect(() => {
+    if (isNew) useUi.getState().takeCreated(id)
+  }, [id, isNew])
   const [editing, setEditing] = useState(isNew)
   const fresh = useRef(isNew)
   // The snapshot is a promise: «Скасувати» pressed before it arrived waits for it instead of reverting nothing.
@@ -93,6 +99,7 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
               toast.error(`Не вдалося скасувати: ${(e as Error).message}`)
               return false
             }
+            resetAllAutosaves()
           }
           // A record created a moment ago and then cancelled shouldn't stay as an empty leftover.
           if (fresh.current) {
@@ -133,8 +140,8 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
         })
       })
     }
-    return { editing, setEditing, save, cancel, exit, confirmClose }
-  }, [editing, id, type])
+    return { editing, setEditing, fresh: isNew, save, cancel, exit, confirmClose }
+  }, [editing, id, isNew, type])
 }
 
 /** Wrap a custom record editor (sheet, page) so its fields follow the view/edit mode. */

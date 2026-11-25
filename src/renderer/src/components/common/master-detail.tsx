@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type ReactElement, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import { MAX } from '@shared/domain/limits'
 import { Kbd } from '@/components/ui/kbd'
 import { useSearchParams } from 'react-router'
@@ -17,7 +17,7 @@ import { useUi } from '@/stores/ui-store'
 import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
-import { DetailModeContext, EditToggle, useReadOnly, useRecordMode, type DetailMode } from './detail-mode'
+import { DetailModeContext, EditToggle, useDetailMode, useReadOnly, useRecordMode, type DetailMode } from './detail-mode'
 import { PinButtons } from './pin-buttons'
 import { TagPicker } from './tags'
 import { LinksPanel } from './links-panel'
@@ -95,6 +95,16 @@ export function InlineTitle({
   maxLength?: number
 }) {
   const readOnly = useReadOnly()
+  const { fresh } = useDetailMode()
+  const field = useRef<HTMLTextAreaElement>(null)
+  const focused = useRef(false)
+  useEffect(() => {
+    // A record created a moment ago: type its name right away, replacing the default («Нова нотатка»).
+    if (!fresh || readOnly || focused.current || !field.current) return
+    focused.current = true
+    field.current.focus({ preventScroll: true })
+    field.current.select()
+  }, [fresh, readOnly])
   if (readOnly) {
     return (
       // A 500-character title used to fill the whole screen: 4 lines while reading, all of it when editing.
@@ -111,6 +121,7 @@ export function InlineTitle({
   return (
     <div className="group/title relative -mx-2">
       <Textarea
+        ref={field}
         rows={1}
         value={value}
         placeholder={placeholder}
