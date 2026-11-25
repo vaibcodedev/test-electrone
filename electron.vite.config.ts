@@ -2,8 +2,17 @@ import { resolve } from 'path'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import type { Plugin } from 'vite'
 
 const shared = resolve('src/shared')
+
+/** The CSP allows the dev server's HMR origins only while developing: the packaged window talks to itself alone. */
+const stripDevCsp: Plugin = {
+  name: 'vault-strip-dev-csp',
+  apply: 'build',
+  transformIndexHtml: (html, ctx) =>
+    ctx.filename.endsWith('index.html') ? html.replace(' ws://localhost:* http://localhost:*', '') : html
+}
 
 export default defineConfig({
   main: {
@@ -27,7 +36,7 @@ export default defineConfig({
         '@shared': shared
       }
     },
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), stripDevCsp],
     server: {
       // The component preview iframe is sandboxed (opaque origin) and needs CORS in dev.
       cors: true
