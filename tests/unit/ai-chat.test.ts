@@ -77,6 +77,12 @@ describe('the answer', () => {
     expect(code.text).toContain('{"a": 1}')
   })
 
+  it('an image in the answer becomes a link: nothing loads from a stranger’s server by itself', () => {
+    expect(parseChatReply('Ось ![схема](https://evil.example/p.png?d=1 "t") і все').text).toBe(
+      'Ось [схема](https://evil.example/p.png?d=1) і все'
+    )
+  })
+
   it('at most five actions; longer titles than the module allows are refused', () => {
     const many = Array.from({ length: 7 }, (_, i) => ({ type: 'create_idea', title: `І${i}` }))
     expect(parseChatReply(block({ actions: many })).actions).toHaveLength(5)

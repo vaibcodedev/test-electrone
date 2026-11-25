@@ -225,13 +225,21 @@ function actionList(json: string): unknown[] | null {
 /**
  * The answer → text to show + valid actions + how many were dropped. Reasoning in <think> goes, the action
  * block is cut out of the text (a plain ```json block at the very end counts too: some models ignore the name).
+ * An image the model put in (`![](https://…)`) becomes a plain link: loading it would tell a stranger's server
+ * that the answer was read — and a record text in the context could have asked for exactly that.
  */
 export function parseChatReply(reply: string): {
   text: string
   actions: AiAction[]
   skipped: number
 } {
-  let text = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim()
+  let text = reply
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(
+      /!\[([^\]\n]*)\]\(([^)\s]+)[^)]*\)/g,
+      (_, alt: string, url: string) => `[${alt || url}](${url})`
+    )
+    .trim()
   let raw: unknown[] = []
   const m = FENCE.exec(text) ?? JSON_FENCE.exec(text)
   if (m) {

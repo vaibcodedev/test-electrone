@@ -190,7 +190,7 @@ export default function AiChatPanel({ onClose }: { onClose: () => void }): React
   return (
     <section
       id="ai-chat"
-      aria-labelledby="ai-chat-title"
+      aria-label="Чат ШІ"
       className="panel flex h-full min-h-0 flex-col overflow-hidden"
       onKeyDown={onKeyDown}
     >
