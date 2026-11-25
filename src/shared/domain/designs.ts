@@ -68,6 +68,14 @@ export const fileSourceSchema = z.discriminatedUnion('kind', [
 ])
 export type FileSource = z.infer<typeof fileSourceSchema>
 
+/** The clipboard's image, read for a preview before it is imported (the import then sends these same bytes). */
+export interface ClipboardImage {
+  data: Uint8Array
+  mime: string
+  width: number | null
+  height: number | null
+}
+
 export const moodboardInputSchema = z.object({
   title: z.string().trim().min(1).max(MAX.title),
   description: z.string().max(5000).default(''),

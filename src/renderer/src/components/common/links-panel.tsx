@@ -72,9 +72,16 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
           ))}
         </div>
       )}
-      {rest > 0 && (
-        <Button variant="link" size="xs" className="self-start" onClick={() => setAll(true)}>
-          Показати ще {rest}
+      {/* Opened — it folds back too: «Показати ще» was a one-way door. */}
+      {(rest > 0 || (all && links.length > FIRST)) && (
+        <Button
+          variant="link"
+          size="xs"
+          className="self-start"
+          aria-expanded={all}
+          onClick={() => setAll(!all)}
+        >
+          {all ? 'Згорнути' : `Показати ще ${rest}`}
         </Button>
       )}
     </section>

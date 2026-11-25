@@ -99,7 +99,8 @@ export class AttachmentService {
           this.storage.resolve(z.string().min(1).max(1000).parse(path)),
           FILE_OPEN_ERROR
         ),
-      clipboardHasImage: async () => this.storage.clipboardHasImage()
+      clipboardHasImage: async () => this.storage.clipboardHasImage(),
+      clipboardImage: async () => this.storage.clipboardImage()
     }
   }
 }

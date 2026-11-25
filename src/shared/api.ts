@@ -58,6 +58,7 @@ import type {
   UiComponent
 } from './domain/components'
 import type {
+  ClipboardImage,
   Design,
   DesignCountsQuery,
   DesignInput,
@@ -790,6 +791,8 @@ export interface FilesApi {
   openPath(path: string): Promise<void>
   /** True if the system clipboard currently holds an image. */
   clipboardHasImage(): Promise<boolean>
+  /** The clipboard's image for a preview («З буфера» asks before adding); null when there is none. */
+  clipboardImage(): Promise<ClipboardImage | null>
 }
 
 export interface BackupApi {

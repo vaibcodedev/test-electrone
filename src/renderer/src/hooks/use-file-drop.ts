@@ -7,7 +7,10 @@ import { isEditableTarget } from '@/lib/dom'
  * Drag & drop of files onto an element. Returns props to spread and an `isOver` flag.
  * `onFiles` receives API-ready sources (absolute path for disk files, bytes for browser drags).
  */
-export function useFileDrop(onFiles: (sources: FileSource[]) => void, opts: { accept?: (f: File) => boolean } = {}) {
+export function useFileDrop(
+  onFiles: (sources: FileSource[]) => void,
+  opts: { accept?: (f: File) => boolean } = {}
+) {
   return useDroppedFiles(async (files) => onFiles(await toFileSources(files)), opts)
 }
 
@@ -18,7 +21,10 @@ export function useFileDrop(onFiles: (sources: FileSource[]) => void, opts: { ac
 export function useDroppedFiles(
   onFiles: (files: File[]) => void,
   opts: { accept?: (f: File) => boolean } = {}
-): { isOver: boolean; props: Record<'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop', (e: DragEvent) => void> } {
+): {
+  isOver: boolean
+  props: Record<'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop', (e: DragEvent) => void>
+} {
   const [isOver, setOver] = useState(false)
   const depth = useRef(0)
   const props = {
@@ -52,18 +58,23 @@ export function useDroppedFiles(
  * Screenshots copied from the OS arrive as File objects without a path → sent as bytes.
  */
 export function usePasteFiles(onFiles: (sources: FileSource[]) => void, enabled = true): void {
+  usePastedFiles(async (files) => onFiles(await toFileSources(files)), enabled)
+}
+
+/** Same as usePasteFiles, but hands over the File objects (to preview them before importing). */
+export function usePastedFiles(onFiles: (files: File[]) => void, enabled = true): void {
   const ref = useRef(onFiles)
   useEffect(() => {
     ref.current = onFiles
   })
   useEffect(() => {
     if (!enabled) return
-    const onPaste = async (e: ClipboardEvent): Promise<void> => {
+    const onPaste = (e: ClipboardEvent): void => {
       if (isEditableTarget(e.target)) return
       const files = Array.from(e.clipboardData?.files ?? [])
       if (!files.length) return
       e.preventDefault()
-      ref.current(await toFileSources(files))
+      ref.current(files)
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)

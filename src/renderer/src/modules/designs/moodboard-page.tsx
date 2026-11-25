@@ -29,7 +29,7 @@ import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useDebounced } from '@/hooks/use-debounced'
-import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
+import { useFileDrop, usePastedFiles } from '@/hooks/use-file-drop'
 import { EmptyState, Field, Page, PageBody, SearchInput } from '@/components/common/page'
 import { InlineTitle, RecordActions } from '@/components/common/master-detail'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
@@ -57,6 +57,8 @@ import { cn } from '@/lib/utils'
 import { DesignMedia, DropOverlay, PickImagesButton } from './shared'
 import { designCount, designTitle } from './labels'
 import { DesignDialog } from './design-dialog'
+import { useImportPreview } from './use-import-preview'
+import { useWrapGrid } from './use-wrap-grid'
 import { useImportImages } from './use-import-images'
 import { isMediaFile } from './media'
 import { FavoriteMark } from '@/components/common/favorite-mark'
@@ -317,6 +319,8 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
   const [openDesign, setOpenDesign] = useOpenParam()
   // A drag ends with a click on the same tile: it must not open the design it just moved.
   const dragged = useRef(false)
+  const { gridRef, headerRef, asideRef, gridStyle, headerStyle, asideStyle, mainStyle } =
+    useWrapGrid()
 
   // Local order for instant feedback while dragging; follows server data otherwise (synced during render).
   const [order, setOrder] = useState(board.designs.map((d) => d.id))
@@ -346,7 +350,9 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
     await addDesigns.mutateAsync({ moodboardId: board.id, designIds: created.map((d) => d.id) })
   })
   const { isOver, props } = useFileDrop((s) => void importSources(s), { accept: isMediaFile })
-  usePasteFiles((s) => void importSources(s))
+  // Ctrl+V asks first, with the picture shown (like «З буфера» in the gallery); a drop is instant.
+  const preview = useImportPreview(importSources, 'Додати в добірку')
+  usePastedFiles((files) => void preview.fromFiles(files))
   const empty = order.length === 0
 
   /** The ✕ sits next to «Відкрити» and works while reading: the toast can undo it, back to the same place. */
@@ -413,67 +419,84 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
             />
           </div>
           <PageBody>
-            <header className="flex flex-wrap items-start gap-x-10 gap-y-6 pt-2 pb-6">
-              <div className="flex min-w-72 flex-1 flex-col gap-3">
-                <InlineTitle
-                  value={title}
-                  onChange={setTitle}
-                  maxLength={LIMITS.title}
-                  className="text-title"
-                />
-                {mode.editing ? (
-                  <Field label="Опис" htmlFor={descriptionId}>
-                    <Textarea
-                      id={descriptionId}
-                      value={description}
-                      maxLength={LIMITS.description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Напр.: темні дашборди для CRM"
-                      className="min-h-0"
-                    />
-                  </Field>
-                ) : (
-                  description && (
-                    <p className="text-body whitespace-pre-line text-muted-foreground wrap-anywhere">
-                      {description}
-                    </p>
-                  )
-                )}
-                <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} />
-              </div>
-              {/* The record aside's column (w-72 ≈ DetailPane's): «Зв’язати» stays next to its label, long lists
-                  scroll with the page. A link made from a bookmark or a design shows here too. */}
-              <aside className="flex w-72 shrink-0 flex-col gap-6">
-                <LinksPanel entity={{ type: 'moodboard', id: board.id }} />
-                <MentionsPanel entity={{ type: 'moodboard', id: board.id }} />
-              </aside>
-            </header>
-            {empty ? (
-              <EmptyState
-                icon={LayoutGrid}
-                title="Добірка порожня"
-                hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
-                cta={{ label: 'Додати дизайни', icon: Plus, onClick: () => setPickerOpen(true) }}
-              />
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={() => {
-                  dragged.current = true
-                }}
-                onDragEnd={(e) => {
-                  onDragEnd(e)
-                  setTimeout(() => {
-                    dragged.current = false
-                  })
-                }}
-                onDragCancel={() => {
+            {/* One grid for the header, the aside and the designs: the designs flow around the aside (useWrapGrid). */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={() => {
+                dragged.current = true
+              }}
+              onDragEnd={(e) => {
+                onDragEnd(e)
+                setTimeout(() => {
                   dragged.current = false
-                }}
+                })
+              }}
+              onDragCancel={() => {
+                dragged.current = false
+              }}
+            >
+              <div
+                ref={gridRef}
+                className="grid grid-flow-row-dense items-start gap-3 pt-2"
+                style={gridStyle}
               >
-                <SortableContext items={order} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
+                <header
+                  ref={headerRef}
+                  className="flex min-w-0 flex-col gap-3 pr-4 pb-3"
+                  style={headerStyle}
+                >
+                  <InlineTitle
+                    value={title}
+                    onChange={setTitle}
+                    maxLength={LIMITS.title}
+                    className="text-title"
+                  />
+                  {mode.editing ? (
+                    <Field label="Опис" htmlFor={descriptionId}>
+                      <Textarea
+                        id={descriptionId}
+                        value={description}
+                        maxLength={LIMITS.description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Напр.: темні дашборди для CRM"
+                        className="min-h-0"
+                      />
+                    </Field>
+                  ) : (
+                    description && (
+                      <p className="text-body whitespace-pre-line text-muted-foreground wrap-anywhere">
+                        {description}
+                      </p>
+                    )
+                  )}
+                  <TagPicker value={board.tags} onChange={(tagIds) => save({ tagIds })} />
+                </header>
+                {/* The record aside's column: «Зв’язати» next to its label; long lists fold to five. A link made
+                    from a bookmark or a design shows here too. */}
+                <aside
+                  ref={asideRef}
+                  className="flex min-w-0 flex-col gap-6 px-1 pb-3"
+                  style={asideStyle}
+                >
+                  <LinksPanel entity={{ type: 'moodboard', id: board.id }} />
+                  <MentionsPanel entity={{ type: 'moodboard', id: board.id }} />
+                </aside>
+                {empty ? (
+                  <div style={mainStyle}>
+                    <EmptyState
+                      icon={LayoutGrid}
+                      title="Добірка порожня"
+                      hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
+                      cta={{
+                        label: 'Додати дизайни',
+                        icon: Plus,
+                        onClick: () => setPickerOpen(true)
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <SortableContext items={order} strategy={rectSortingStrategy}>
                     {order.map((id) => {
                       const d = byId.get(id)
                       if (!d) return null
@@ -488,13 +511,14 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                         />
                       )
                     })}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
+                  </SortableContext>
+                )}
+              </div>
+            </DndContext>
           </PageBody>
         </RecordMode>
       </div>
+      {preview.dialog}
       <DesignDialog
         id={openDesign}
         ids={order}

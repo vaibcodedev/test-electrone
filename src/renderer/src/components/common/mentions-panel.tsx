@@ -55,9 +55,15 @@ export function MentionsPanel({ entity }: { entity: EntityRef }): ReactElement |
           <MentionRow key={refKey(m)} mention={m} />
         ))}
       </div>
-      {rest > 0 && (
-        <Button variant="link" size="xs" className="self-start" onClick={() => setAll(true)}>
-          Показати ще {rest}
+      {(rest > 0 || (all && mentions.length > FIRST)) && (
+        <Button
+          variant="link"
+          size="xs"
+          className="self-start"
+          aria-expanded={all}
+          onClick={() => setAll(!all)}
+        >
+          {all ? 'Згорнути' : `Показати ще ${rest}`}
         </Button>
       )}
     </section>

@@ -438,3 +438,39 @@ test.describe('добірка: дизайн відкривається на мі
     await expect.poll(() => hashPath(win)).toBe(`/designs/boards/${board.id}`)
   })
 })
+
+test.describe('вставка з буфера', () => {
+  test('Ctrl+V показує превью: «Скасувати» нічого не додає, «Додати в галерею» — додає', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const count = async (): Promise<number> => ((await rpc('designs.list', {})) as unknown[]).length
+    await go('/designs')
+    const paste = (): Promise<void> =>
+      win.evaluate(async () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 640
+        canvas.height = 400
+        const ctx = canvas.getContext('2d')!
+        ctx.fillStyle = '#e8930c'
+        ctx.fillRect(0, 0, 640, 400)
+        const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'))
+        const dt = new DataTransfer()
+        dt.items.add(new File([blob], 'screenshot.png', { type: 'image/png' }))
+        window.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt }))
+      })
+    const before = await count()
+    const dialog = win.getByRole('dialog', { name: 'Додати картинку?' })
+
+    await paste()
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('640 × 400')
+    await dialog.getByRole('button', { name: 'Скасувати' }).click()
+    await expect(dialog).toBeHidden()
+    expect(await count()).toBe(before)
+
+    await paste()
+    await dialog.getByRole('button', { name: 'Додати в галерею' }).click()
+    await expect.poll(count).toBe(before + 1)
+  })
+})

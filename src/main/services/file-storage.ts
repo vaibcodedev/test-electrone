@@ -1,7 +1,7 @@
 import { clipboard, nativeImage } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, extname, join, normalize, relative, sep } from 'path'
-import type { FileSource } from '@shared/domain/designs'
+import type { ClipboardImage, FileSource } from '@shared/domain/designs'
 import { newId, UserError } from '../core/util'
 
 export interface StoredFile {
@@ -97,22 +97,18 @@ export class FileStorage {
         return this.describe(rel, source.name || `file${ext}`, source.data.byteLength)
       }
       case 'clipboard': {
-        const items = await clipboard.read()
-        const item = items.find((i) => i.types.some((t) => t.startsWith('image/')))
-        const type = item?.types.find((t) => t.startsWith('image/'))
-        if (!item || !type) throw new UserError('У буфері обміну немає зображення')
-        const blob = (await item.getType(type)) as Blob
-        const bytes = new Uint8Array(await blob.arrayBuffer())
-        const { rel, abs } = this.allocate(EXT_BY_MIME[type] ?? '.png')
-        writeFileSync(abs, bytes)
-        const size = nativeImage.createFromBuffer(Buffer.from(bytes)).getSize()
+        const image = await this.clipboardImage()
+        if (!image) throw new UserError('У буфері обміну немає зображення')
+        const ext = EXT_BY_MIME[image.mime] ?? '.png'
+        const { rel, abs } = this.allocate(ext)
+        writeFileSync(abs, image.data)
         return {
           path: rel,
-          originalName: 'clipboard' + (EXT_BY_MIME[type] ?? '.png'),
-          mime: type,
-          size: bytes.byteLength,
-          width: size.width || null,
-          height: size.height || null
+          originalName: 'clipboard' + ext,
+          mime: image.mime,
+          size: image.data.byteLength,
+          width: image.width,
+          height: image.height
         }
       }
     }
@@ -164,6 +160,19 @@ export class FileStorage {
     } catch {
       /* already gone */
     }
+  }
+
+  /** The clipboard's first image (Electron 44: the async W3C clipboard), or null when it holds none. */
+  async clipboardImage(): Promise<ClipboardImage | null> {
+    const items = await clipboard.read()
+    const item = items.find((i) => i.types.some((t) => t.startsWith('image/')))
+    const mime = item?.types.find((t) => t.startsWith('image/'))
+    if (!item || !mime) return null
+    const blob = (await item.getType(mime)) as Blob
+    const data = new Uint8Array(await blob.arrayBuffer())
+    if (data.byteLength > MAX_SIZE) throw new UserError('Картинка в буфері більша за 300 МБ')
+    const size = nativeImage.createFromBuffer(Buffer.from(data)).getSize()
+    return { data, mime, width: size.width || null, height: size.height || null }
   }
 
   async clipboardHasImage(): Promise<boolean> {

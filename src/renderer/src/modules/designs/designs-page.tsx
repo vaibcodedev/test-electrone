@@ -4,7 +4,7 @@ import { DESIGN_KINDS, type DesignKind } from '@shared/domain/designs'
 import { useApi, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
-import { useFileDrop, usePasteFiles } from '@/hooks/use-file-drop'
+import { useFileDrop, usePastedFiles } from '@/hooks/use-file-drop'
 import {
   EmptyState,
   FilterBar,
@@ -31,6 +31,7 @@ import { DesignMedia, DropOverlay, PaletteStrip, PickImagesButton } from './shar
 import { MoodboardStrip } from './moodboard-strip'
 import { KIND_LABEL, designTitle } from './labels'
 import { useImportImages } from './use-import-images'
+import { useImportPreview } from './use-import-preview'
 import { isMediaFile } from './media'
 import { usePaletteBackfill } from './use-palette-backfill'
 import { noResultsHint } from '@/components/common/filter-helpers'
@@ -159,7 +160,9 @@ export function DesignsPage(): ReactElement | null {
     if (created.length === 1) setOpen(created[0].id)
   })
   const { isOver, props } = useFileDrop((s) => void importSources(s), { accept: isMediaFile })
-  usePasteFiles((s) => void importSources(s))
+  // Ctrl+V and «З буфера» show what is about to be added first; a drop is instant (the person sees it).
+  const preview = useImportPreview(importSources, 'Додати в галерею')
+  usePastedFiles((files) => void preview.fromFiles(files))
   usePaletteBackfill(list.items)
 
   const filtered = !!(search || kind || color || tagId || favorite)
@@ -222,11 +225,7 @@ export function DesignsPage(): ReactElement | null {
           subtitle="Перетягніть картинки у вікно або вставте скриншот через Ctrl+V."
           actions={
             <>
-              <Button
-                variant="soft"
-                disabled={busy}
-                onClick={() => void importSources([{ kind: 'clipboard' }])}
-              >
+              <Button variant="soft" disabled={busy} onClick={() => void preview.fromClipboard()}>
                 <Clipboard /> З буфера
               </Button>
               <PickImagesButton
@@ -291,6 +290,7 @@ export function DesignsPage(): ReactElement | null {
           )}
         </PageBody>
       </div>
+      {preview.dialog}
       <DesignDialog
         id={open}
         ids={list.items.map((d) => d.id)}
