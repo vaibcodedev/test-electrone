@@ -29,6 +29,8 @@ import { DatePicker } from '@/components/common/date-picker'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { NumberField } from '@/components/common/number-field'
+import { DisabledHint } from '@/components/common/disabled-hint'
+import { NO_CHANGES } from '@/lib/edit-session'
 import { EditableScope, useDetailMode } from '@/components/common/detail-mode-context'
 import { cn } from '@/lib/utils'
 import { CURRENCY_SIGN, PAYMENT_STATUS_LABEL } from './labels'
@@ -100,6 +102,14 @@ function PaymentForm({
   // the button is off and the field says how to fix it.
   const full = limited && left === 0
   const blocked = full && !initial
+  // Editing: «Зберегти» waits for a change.
+  const unchanged =
+    !!initial &&
+    amount === initial.amount &&
+    cur === initial.currency &&
+    status === initial.status &&
+    due === initial.dueAt &&
+    note === initial.note
   return (
     <Card className="p-4">
       <form
@@ -107,7 +117,7 @@ function PaymentForm({
         onKeyDown={escapeCloses(onDone)}
         onSubmit={(e) => {
           e.preventDefault()
-          if (amountBad || pending || blocked) return
+          if (amountBad || pending || blocked || unchanged) return
           const value = amountRef.current
           if (!value) {
             setTried(true)
@@ -174,9 +184,15 @@ function PaymentForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="subtle" disabled={amountBad || pending || blocked}>
-            {initial ? 'Зберегти' : 'Додати'}
-          </Button>
+          <DisabledHint reason={unchanged ? NO_CHANGES : undefined}>
+            <Button
+              type="submit"
+              variant="subtle"
+              disabled={amountBad || pending || blocked || unchanged}
+            >
+              {initial ? 'Зберегти' : 'Додати'}
+            </Button>
+          </DisabledHint>
         </div>
       </form>
     </Card>

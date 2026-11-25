@@ -126,6 +126,7 @@ function GoalDialog({
       className="sm:max-w-md"
       invalid={noTarget || numbers.invalid}
       pending={pending}
+      values={goal ? form : undefined}
       onSubmit={submit}
     >
       <Field label="Що рахуємо">

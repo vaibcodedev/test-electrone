@@ -106,6 +106,7 @@ export function SubscriptionDialog({
         fields.invalid
       }
       pending={create.isPending || update.isPending}
+      values={s ? payload : undefined}
       onSubmit={async () => {
         // startedAt only on create: a patch without it keeps the stored value (patchOf).
         if (s) await update.mutateAsync({ id: s.id, patch: payload })

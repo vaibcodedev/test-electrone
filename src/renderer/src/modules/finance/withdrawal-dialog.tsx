@@ -122,6 +122,7 @@ export function WithdrawalDialog({
       submitLabel={w ? 'Зберегти' : 'Додати виведення'}
       invalid={!(payload.amount > 0) || rateBad || feeBad || fields.invalid}
       pending={create.isPending || update.isPending}
+      values={w ? payload : undefined}
       onSubmit={async () => {
         if (w) await update.mutateAsync({ id: w.id, patch: payload })
         else await create.mutateAsync(payload)
