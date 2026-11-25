@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/item'
 import { Spinner } from '@/components/ui/spinner'
 import { useOpenEntity } from '@/components/common/entity-link'
+import { IconAction } from '@/components/common/icon-action'
 import { fmtTitle } from '@/lib/format'
 import { missingField, summaryOf, toEdits, withRaw } from './action-text'
 import { Teaser } from './action-view'
@@ -64,10 +65,8 @@ export const ActionCard = memo(function ActionCard({
     setDialog(m)
   }
   const labelId = `ai-action-${proposal.id}`
-  const compact =
-    status === 'applied'
-      ? `${edit ? 'Змінено' : 'Створено'}: ${typeLabel} «${fmtTitle(result?.title ?? title)}»`
-      : `Скасовано: ${typeLabel} «${fmtTitle(title)}»`
+  const verdict = status === 'applied' ? (edit ? 'Змінено' : 'Створено') : 'Скасовано'
+  const what = `${typeLabel} «${fmtTitle(status === 'applied' ? (result?.title ?? title) : title)}»`
 
   return (
     <Item
@@ -77,7 +76,7 @@ export const ActionCard = memo(function ActionCard({
       aria-labelledby={labelId}
       data-ai-action={action.type}
       data-status={status}
-      className="items-start gap-x-3 gap-y-2 rounded-xl bg-card"
+      className="items-start gap-x-3 gap-y-0 rounded-xl bg-card"
     >
       <ItemMedia variant="icon" className="bg-foreground/7">
         <Icon />
@@ -94,8 +93,10 @@ export const ActionCard = memo(function ActionCard({
         </ItemContent>
       ) : (
         <ItemContent className="min-w-0 justify-center self-center">
-          <ItemTitle id={labelId} className="w-full font-normal" title={compact}>
-            <span className="truncate">{compact}</span>
+          <ItemTitle id={labelId} className="w-full font-normal" title={`${verdict}: ${what}`}>
+            <span className="line-clamp-2">
+              <span className="text-muted-foreground">{verdict}:</span> {what}
+            </span>
           </ItemTitle>
         </ItemContent>
       )}
@@ -122,9 +123,10 @@ export const ActionCard = memo(function ActionCard({
         </ItemActions>
       )}
       {/* Applying or cancelling folds the teaser and the buttons away (Collapsible's own height motion). */}
-      <Collapsible open={pending} className="basis-full">
+      <Collapsible open={pending} className="min-w-0 basis-full">
         <CollapsibleContent>
-          <div className="flex flex-col gap-2.5 pl-11">
+          {/* The gap to the title lives inside (mt-2): a row gap would stay under the folded line. */}
+          <div className="mt-2 flex min-w-0 flex-col gap-2.5 pl-11">
             <Teaser action={action} />
             {problem && (
               <p className="flex items-start gap-1.5 text-caption text-destructive" role="status">
@@ -132,7 +134,7 @@ export const ActionCard = memo(function ActionCard({
                 {problem}
               </p>
             )}
-            <ItemFooter className="flex-wrap justify-end gap-1.5">
+            <ItemFooter className="justify-end gap-1">
               <Button
                 variant="ghost"
                 size="sm"
@@ -142,14 +144,18 @@ export const ActionCard = memo(function ActionCard({
               >
                 Скасувати
               </Button>
-              <Button ref={viewButton} variant="ghost" size="sm" onClick={() => show('view')}>
+              {/* Icons with tooltips: four labelled buttons don't fit a 300 px panel in one row. */}
+              <IconAction
+                ref={viewButton}
+                label="Переглянути"
+                size="icon-sm"
+                onClick={() => show('view')}
+              >
                 <Eye />
-                Переглянути
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => show('edit')}>
+              </IconAction>
+              <IconAction label="Змінити" size="icon-sm" onClick={() => show('edit')}>
                 <Pencil />
-                Змінити
-              </Button>
+              </IconAction>
               <Button
                 variant="soft"
                 size="sm"

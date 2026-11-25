@@ -63,7 +63,8 @@ export function ActionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="grid max-h-[min(88vh,52rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl"
+        // Anchored at the top: switching «Перегляд» / «Змінити» changes the height, the header must not jump.
+        className="top-[8vh] grid max-h-[84vh] translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl"
         onCloseAutoFocus={(e) => {
           if (returnFocus.current?.isConnected) {
             e.preventDefault()
