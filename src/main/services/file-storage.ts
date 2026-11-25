@@ -162,6 +162,17 @@ export class FileStorage {
     }
   }
 
+  /** Size in bytes of a stored file; null when it is gone or the path is not inside the files folder. */
+  sizeOf(relPath: string | null): number | null {
+    if (!relPath) return null
+    try {
+      const st = statSync(this.resolve(relPath))
+      return st.isFile() ? st.size : null
+    } catch {
+      return null
+    }
+  }
+
   /** The clipboard's first image (Electron 44: the async W3C clipboard), or null when it holds none. */
   async clipboardImage(): Promise<ClipboardImage | null> {
     const items = await clipboard.read()

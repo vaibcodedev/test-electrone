@@ -306,6 +306,7 @@ export class Container {
     housekeep('freelance seeds', () => this.freelance.seedIfEmpty(this.config))
     housekeep('job seeds', () => this.jobs.seedIfEmpty(this.config))
     housekeep('job tidy', () => this.jobs.tidy())
+    housekeep('design file sizes', () => this.media.backfillImageBytes())
     this.registerCalendarFeeds()
     housekeep('trash purge', () => this.trash.purgeExpired())
     housekeep('stale drafts', () => this.trash.purgeStaleDrafts())

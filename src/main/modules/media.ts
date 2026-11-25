@@ -80,6 +80,26 @@ export class MediaModule {
     Omit<Moodboard, 'itemCount' | 'previewPaths' | 'favorite'>
   >
 
+  /**
+   * Designs imported before their file size was stored get it from the disk once, at start: a cheap stat per
+   * row, only for rows without it, so later starts do nothing. A missing file stays null (the tile omits it).
+   */
+  backfillImageBytes(): number {
+    const rows = this.db
+      .select({ id: designs.id, imagePath: designs.imagePath })
+      .from(designs)
+      .where(and(isNull(designs.imageBytes), sql`${designs.imagePath} IS NOT NULL`))
+      .all()
+    let filled = 0
+    for (const r of rows) {
+      const bytes = this.m.files.sizeOf(r.imagePath)
+      if (bytes === null) continue
+      this.db.update(designs).set({ imageBytes: bytes }).where(eq(designs.id, r.id)).run()
+      filled++
+    }
+    return filled
+  }
+
   constructor(private readonly m: ModuleContext) {
     const component: EntityDescriptor = {
       type: 'component',
@@ -106,7 +126,7 @@ export class MediaModule {
         subtitle: DESIGN_KIND_LABEL[r.kind as DesignKind]
       }),
       onPurge: (r) => m.files.remove(r.imagePath),
-      fileFields: { imagePath: ['imageWidth', 'imageHeight', 'colors'] }
+      fileFields: { imagePath: ['imageWidth', 'imageHeight', 'imageBytes', 'colors'] }
     }
     const moodboard: EntityDescriptor = {
       type: 'moodboard',
@@ -242,7 +262,7 @@ export class MediaModule {
       create: async (input) => {
         const [data, tagIds] = splitTags(designInputSchema.parse(input))
         return repo.insert(
-          { ...data, imagePath: null, imageWidth: null, imageHeight: null },
+          { ...data, imagePath: null, imageWidth: null, imageHeight: null, imageBytes: null },
           tagIds
         )
       },
@@ -272,7 +292,8 @@ export class MediaModule {
             title: title === 'clipboard' ? '' : title,
             imagePath: stored.path,
             imageWidth: stored.width,
-            imageHeight: stored.height
+            imageHeight: stored.height,
+            imageBytes: stored.size
           },
           tagIds
         )
@@ -285,6 +306,7 @@ export class MediaModule {
           imagePath: stored.path,
           imageWidth: stored.width,
           imageHeight: stored.height,
+          imageBytes: stored.size,
           colors: []
         })
         this.m.files.remove(current.imagePath)

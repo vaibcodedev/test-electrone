@@ -1,0 +1,1 @@
+ALTER TABLE `designs` ADD `image_bytes` integer;

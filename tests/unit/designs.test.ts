@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { openVault, type Vault } from './support/vault'
 import { PinService } from '@main/services/pin-service'
 import { designTitleOf } from '@shared/design-title'
+import { eq } from 'drizzle-orm'
+import { designs } from '@main/db/schema'
 
 vi.mock('electron', async () => (await import('./support/electron-mock')).electronMock)
 vi.mock('@main/core/logger', async () => (await import('./support/electron-mock')).loggerMock)
@@ -28,6 +30,34 @@ describe('designs.setColors', () => {
     const d = await api.create({ title: 'Лендінг' })
     await expect(api.setColors({ id: d.id, colors: ['red'] })).rejects.toThrow()
     await expect(api.setColors({ id: 'missing', colors: [] })).rejects.toThrow()
+  })
+})
+
+describe('design file size', () => {
+  // webp: FileStorage only asks nativeImage (mocked empty here) for PNG and JPEG sizes.
+  const bytes = new Uint8Array(4321).fill(7)
+  const source = { kind: 'bytes' as const, name: 'shot.webp', mime: 'image/webp', data: bytes }
+
+  it('is stored on import and when the picture is replaced', async () => {
+    const api = v.media.designsApi()
+    const d = await api.importImage({ source })
+    expect(d.imageBytes).toBe(4321)
+    const replaced = await api.replaceImage({
+      id: d.id,
+      source: { ...source, data: new Uint8Array(99) }
+    })
+    expect(replaced.imageBytes).toBe(99)
+  })
+
+  it('is filled in once at start for designs imported before it was stored', async () => {
+    const api = v.media.designsApi()
+    const d = await api.importImage({ source })
+    v.db.orm.update(designs).set({ imageBytes: null }).where(eq(designs.id, d.id)).run()
+    expect((await api.get(d.id))?.imageBytes).toBeNull()
+    expect(v.media.backfillImageBytes()).toBe(1)
+    expect((await api.get(d.id))?.imageBytes).toBe(4321)
+    // Nothing left to fill: later starts do nothing.
+    expect(v.media.backfillImageBytes()).toBe(0)
   })
 })
 

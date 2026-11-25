@@ -29,7 +29,7 @@ import { clickableProps } from '@/lib/clickable'
 import { DesignDialog } from './design-dialog'
 import { DesignMedia, DropOverlay, PaletteStrip, PickImagesButton } from './shared'
 import { MoodboardStrip } from './moodboard-strip'
-import { KIND_LABEL, designTitle } from './labels'
+import { KIND_LABEL, designFileMeta, designTitle } from './labels'
 import { useImportImages } from './use-import-images'
 import { useImportPreview } from './use-import-preview'
 import { isMediaFile } from './media'
@@ -209,7 +209,10 @@ export function DesignsPage(): ReactElement | null {
               </span>
               <FavoriteMark entity={{ type: 'design', id: d.id }} />
             </div>
-            <div className="truncate text-meta text-muted-foreground">{KIND_LABEL[d.kind]}</div>
+            {/* «Сайт · PNG · 1440 × 900»: the kind, then the file's format and size. */}
+            <div className="truncate text-meta text-muted-foreground tabular-nums">
+              {[KIND_LABEL[d.kind], designFileMeta(d)].filter(Boolean).join(' · ')}
+            </div>
           </div>
         </Card>
       )}

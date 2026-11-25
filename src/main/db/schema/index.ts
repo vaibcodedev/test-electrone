@@ -6,7 +6,15 @@
  * - child rows (columns, checklist items, time entries…) cascade with their parent.
  * Full-text search lives in the FTS5 table `search_index` (custom migration, not modelled here).
  */
-import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import {
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex
+} from 'drizzle-orm/sqlite-core'
 
 const base = {
   id: text().primaryKey(),
@@ -207,7 +215,9 @@ export const designs = sqliteTable('designs', {
   colors: text({ mode: 'json' }).$type<string[]>().notNull().default([]),
   imagePath: text(),
   imageWidth: integer(),
-  imageHeight: integer()
+  imageHeight: integer(),
+  /** File size in bytes (the tile says «JPG · 1440 × 900 · 412 КБ»); older rows are filled in at start. */
+  imageBytes: integer()
 })
 
 export const moodboards = sqliteTable('moodboards', {
@@ -479,7 +489,10 @@ export const platforms = sqliteTable('platforms', {
   creditsName: text().notNull().default(''),
   creditPrice: real().notNull().default(0),
   defaultFeePercent: real().notNull().default(0),
-  preChecklist: text({ mode: 'json' }).$type<{ id: string; label: string }[]>().notNull().default([]),
+  preChecklist: text({ mode: 'json' })
+    .$type<{ id: string; label: string }[]>()
+    .notNull()
+    .default([]),
   notes: text().notNull().default(''),
   archived: integer({ mode: 'boolean' }).notNull().default(false),
   position: real().notNull().default(0),
@@ -520,7 +533,10 @@ export const proposals = sqliteTable(
     hiredAt: integer(),
     projectId: text()
   },
-  (t) => [index('proposals_platform_idx').on(t.platformId, t.status), index('proposals_sent_idx').on(t.sentAt)]
+  (t) => [
+    index('proposals_platform_idx').on(t.platformId, t.status),
+    index('proposals_sent_idx').on(t.sentAt)
+  ]
 )
 
 export const creditTxs = sqliteTable(
@@ -726,7 +742,10 @@ export const applications = sqliteTable(
     repliedAt: integer(),
     closedAt: integer()
   },
-  (t) => [index('applications_status_idx').on(t.status), index('applications_applied_idx').on(t.appliedAt)]
+  (t) => [
+    index('applications_status_idx').on(t.status),
+    index('applications_applied_idx').on(t.appliedAt)
+  ]
 )
 
 export const applicationStages = sqliteTable(

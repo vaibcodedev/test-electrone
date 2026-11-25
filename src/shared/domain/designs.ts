@@ -53,6 +53,8 @@ export interface Design extends EntityBase, WithTags {
   imagePath: string | null
   imageWidth: number | null
   imageHeight: number | null
+  /** File size in bytes; null until known (a design imported before it was stored, until the next start). */
+  imageBytes: number | null
 }
 
 /** A new file coming from drag&drop (absolute path), raw bytes, or the system clipboard. */

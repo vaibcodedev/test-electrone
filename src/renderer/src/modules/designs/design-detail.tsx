@@ -32,7 +32,7 @@ import { Card } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { IconAction } from '@/components/common/icon-action'
 import { AddToMoodboard, DesignMedia } from './shared'
-import { KIND_LABEL, designTitle } from './labels'
+import { KIND_LABEL, designFileMeta, designTitle } from './labels'
 import { MEDIA_ACCEPT, fillPalette, isVideoPath } from './media'
 
 const LIMITS = limitsOf(designInputSchema)
@@ -299,7 +299,14 @@ function Editor({
             <Replace /> Замінити
           </Button>
         </Card>
-        <DesignTitle design={design} value={title} onChange={setTitle} />
+        <div className="flex flex-col gap-1">
+          <DesignTitle design={design} value={title} onChange={setTitle} />
+          {designFileMeta(design) && (
+            <span className="text-caption text-muted-foreground tabular-nums">
+              {designFileMeta(design)}
+            </span>
+          )}
+        </div>
         <Field label="Тип">
           {/* Six options: xs, and a narrow pane wraps them instead of overflowing. */}
           <Segmented<DesignKind>
