@@ -29,7 +29,11 @@ export function GuidePage(): ReactElement {
     []
   )
   const openFaqById = useCallback((id: string) => setFaqOpen(id, true), [setFaqOpen])
-  const { scroller, active, jump } = useScrollSpy({ sectionIds: SECTION_IDS, faqIds: FAQ_IDS, openFaq: openFaqById })
+  const { scroller, active, jump } = useScrollSpy({
+    sectionIds: SECTION_IDS,
+    faqIds: FAQ_IDS,
+    openFaq: openFaqById
+  })
 
   const list = sections(<FaqList openIds={openFaq} setOpen={setFaqOpen} />)
 
@@ -46,12 +50,33 @@ export function GuidePage(): ReactElement {
       />
       {/* No bottom padding here: the text scrolls to the panel's edge instead of being cut 32px above it. */}
       <div className="flex min-h-0 flex-1 gap-6 px-8">
-        <nav className="w-56 shrink-0 overflow-y-auto pb-8" aria-label="Зміст">
+        {/* The contents list shows its scrollbar while hovered (the app-wide rule shows it only while scrolling):
+            a long list you point at should say that it scrolls. */}
+        <nav
+          className="w-56 shrink-0 overflow-y-auto pb-8 hover:[&::-webkit-scrollbar-thumb]:bg-foreground/20"
+          aria-label="Зміст"
+        >
           <ItemGroup className="gap-0.5">
             {list.map((s) => (
-              <Item key={s.id} asChild size="xs" variant={active === s.id ? 'active' : 'default'} className="rounded-full px-3">
-                <button type="button" className="w-full text-left" onClick={() => jump(s.id)} aria-current={active === s.id || undefined}>
-                  <s.icon className={cn('size-4 shrink-0', active === s.id ? 'text-ink-accent' : 'text-muted-foreground')} />
+              <Item
+                key={s.id}
+                asChild
+                size="xs"
+                variant={active === s.id ? 'active' : 'default'}
+                className="rounded-full px-3"
+              >
+                <button
+                  type="button"
+                  className="w-full text-left"
+                  onClick={() => jump(s.id)}
+                  aria-current={active === s.id || undefined}
+                >
+                  <s.icon
+                    className={cn(
+                      'size-4 shrink-0',
+                      active === s.id ? 'text-ink-accent' : 'text-muted-foreground'
+                    )}
+                  />
                   <ItemContent className="min-w-0">
                     <ItemTitle className="w-full truncate font-normal">{s.title}</ItemTitle>
                   </ItemContent>
@@ -74,7 +99,10 @@ export function GuidePage(): ReactElement {
                     </h2>
                     {s.route && (
                       <Button variant="subtle" size="xs" onClick={() => navigate(s.route!)}>
-                        {s.route.startsWith('/settings') ? 'Відкрити налаштування' : 'Відкрити розділ'} <ArrowRight />
+                        {s.route.startsWith('/settings')
+                          ? 'Відкрити налаштування'
+                          : 'Відкрити розділ'}{' '}
+                        <ArrowRight />
                       </Button>
                     )}
                   </div>
