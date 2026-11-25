@@ -63,7 +63,8 @@ export function ClientCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'w-full justify-between font-normal',
+            // Looks like an input, as the common Combobox does (it has no server search, hence the copy).
+            'w-full justify-between rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/40 hover:bg-foreground/[0.04]',
             !label && 'text-muted-foreground',
             className
           )}

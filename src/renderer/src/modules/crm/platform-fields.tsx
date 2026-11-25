@@ -9,12 +9,10 @@ import {
   type ClientPatch,
   type ProjectSummary
 } from '@shared/domain/crm'
-import type { Platform } from '@shared/domain/freelance'
-import { useApi } from '@/lib/query'
 import { rangesOf } from '@/lib/limits'
 import { NumberField } from '@/components/common/number-field'
 import { CountryCombobox } from './country-combobox'
-import { fmtMoney } from '@/lib/format'
+import { fmtMoney, fmtNumber, fmtPercent } from '@/lib/format'
 import { Field } from '@/components/common/page'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -23,35 +21,25 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { Choice } from './parts'
 import { CURRENCY_SIGN, NO_PLATFORM } from './labels'
+import { usePlatforms } from './use-platforms'
 
 const CLIENT_R = rangesOf(clientInputSchema)
 const FEE_RANGE = rangesOf(projectInputSchema).feePercent
-
-const FEE_HINT =
-  'Upwork: 0–15%, точну видно під час відгуку. Порожньо — комісія платформи за замовчуванням.'
-
-export function usePlatforms(): Platform[] {
-  const { data = [] } = useApi('platforms', 'list')
-  return data
-}
 
 /** Platform of a client or contract, or «Без платформи». */
 export function PlatformSelect({
   id,
   value,
-  onChange,
-  className
+  onChange
 }: {
   id?: string
   value: string | null | undefined
   onChange: (platformId: string | null) => void
-  className?: string
 }): ReactElement {
   const platforms = usePlatforms()
   return (
     <Choice
       id={id}
-      className={className}
       value={value ?? null}
       none={NO_PLATFORM}
       onChange={onChange}
@@ -117,7 +105,13 @@ export function PlatformBadge({
 }
 
 /** Destructive badge for clients marked «Не работать», pointing to the red flags list. */
-export function AvoidBadge({ className, link = true }: { className?: string; link?: boolean }): ReactElement {
+export function AvoidBadge({
+  className,
+  link = true
+}: {
+  className?: string
+  link?: boolean
+}): ReactElement {
   if (!link) {
     return (
       <Badge variant="destructive" className={cn('gap-1', className)}>
@@ -165,18 +159,23 @@ export function ClientPlatformFields({
   // Schema ranges (rating 0–5, hire rate 0–100…) — out-of-range values show an error and aren't saved.
   // Commit on blur works for both the autosaving page and the dialog state.
   const verifiedId = useId()
+  const countryId = useId()
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 items-end gap-3">
-        <Field label="Країна">
-          <CountryCombobox value={value.country} onChange={(country) => onChange({ country })} />
+        <Field label="Країна" htmlFor={countryId}>
+          <CountryCombobox
+            id={countryId}
+            value={value.country}
+            onChange={(country) => onChange({ country })}
+          />
         </Field>
         <NumberField
           label="Рейтинг"
           value={value.rating}
           {...CLIENT_R.rating}
           step={0.1}
-          placeholder="4.9"
+          placeholder="напр. 4,9"
           unit="★"
           onCommit={(rating) => onChange({ rating })}
           onValidityChange={onInvalidChange?.('rating')}
@@ -185,16 +184,16 @@ export function ClientPlatformFields({
           label="Витрачено"
           value={value.totalSpent}
           {...CLIENT_R.totalSpent}
-          placeholder="25000"
+          placeholder="напр. 25 000"
           unit={(CURRENCY_SIGN as Record<string, string>)[currency] ?? currency}
           onCommit={(totalSpent) => onChange({ totalSpent })}
           onValidityChange={onInvalidChange?.('totalSpent')}
         />
         <NumberField
-          label="Найм, %"
+          label="Найм"
           value={value.hireRate}
           {...CLIENT_R.hireRate}
-          placeholder="70"
+          placeholder="напр. 70"
           unit="%"
           onCommit={(hireRate) => onChange({ hireRate })}
           onValidityChange={onInvalidChange?.('hireRate')}
@@ -219,44 +218,45 @@ export function FeeField({
   value,
   onChange,
   platformDefault,
+  platformName,
   onInvalidChange
 }: {
   value: number | null | undefined
   onChange: (feePercent: number | null) => void
   platformDefault?: number
+  platformName?: string
   /** Dialog: the typed fee is out of range, block submit. */
   onInvalidChange?: (invalid: boolean) => void
 }): ReactElement {
+  const typical = platformDefault !== undefined && platformDefault > 0
   return (
-    <div className="flex flex-col gap-1.5">
-      <NumberField
-        label="Комісія платформи"
-        value={value}
-        {...FEE_RANGE}
-        step={0.5}
-        unit="%"
-        placeholder={platformDefault !== undefined ? `${platformDefault}` : '10'}
-        onCommit={onChange}
-        onValidityChange={onInvalidChange}
-      />
-      <span className="text-meta text-muted-foreground">{FEE_HINT}</span>
-    </div>
+    <NumberField
+      label="Комісія платформи"
+      value={value}
+      {...FEE_RANGE}
+      step={0.5}
+      unit="%"
+      placeholder={
+        platformDefault !== undefined ? `типово ${fmtNumber(platformDefault)}` : undefined
+      }
+      hint={
+        typical
+          ? `Порожньо — типова комісія ${platformName ?? 'платформи'}: ${fmtPercent(platformDefault)}`
+          : 'Порожньо — без комісії'
+      }
+      onCommit={onChange}
+      onValidityChange={onInvalidChange}
+    />
   )
 }
 
 /** "на руки 540 $ (−10%)" — paid amount after the platform fee. */
-export function NetPaid({
-  project: p,
-  className
-}: {
-  project: ProjectSummary
-  className?: string
-}): ReactElement | null {
+export function NetPaid({ project: p }: { project: ProjectSummary }): ReactElement | null {
   if (!p.platformId || p.billing === 'none') return null
   return (
-    <span className={cn('text-caption text-muted-foreground', className)}>
+    <span className="text-caption text-muted-foreground">
       на руки <span className="text-foreground">{fmtMoney(p.netPaidAmount, p.currency)}</span>
-      {p.effectiveFeePercent > 0 && ` (−${p.effectiveFeePercent}%)`}
+      {p.effectiveFeePercent > 0 && ` (−${fmtPercent(p.effectiveFeePercent)})`}
     </span>
   )
 }

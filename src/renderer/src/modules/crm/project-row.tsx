@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { CalendarDays } from 'lucide-react'
 import { differenceInCalendarDays } from 'date-fns'
 import type { ProjectSummary } from '@shared/domain/crm'
-import { fmtDay, fmtHours, fmtMoney, fmtMoneyCompact, plural } from '@/lib/format'
+import { fmtDay, fmtHours, fmtMoney, fmtMoneyCompact, fmtPercent, plural } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Item } from '@/components/ui/item'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -44,7 +44,9 @@ function ProjectMoney({ p }: { p: ProjectSummary }): ReactElement {
     line = (
       <>
         {fmtHours(p.trackedMinutes)}
-        {p.budgetHours > 0 && <span className="text-muted-foreground"> з {p.budgetHours} год</span>}
+        {p.budgetHours > 0 && (
+          <span className="text-muted-foreground"> з {fmtHours(p.budgetHours * 60)}</span>
+        )}
       </>
     )
     if (p.budgetHours > 0)
@@ -52,9 +54,9 @@ function ProjectMoney({ p }: { p: ProjectSummary }): ReactElement {
   } else if (p.billing === 'retainer') {
     line = (
       <>
-        {m(p.fixedPrice)}{' '}
+        {m(p.fixedPrice)}
         <span className="text-muted-foreground">
-          / міс · {p.retainerMonths} {plural(p.retainerMonths, ['місяць', 'місяці', 'місяців'])}
+          /міс · {p.retainerMonths} {plural(p.retainerMonths, ['місяць', 'місяці', 'місяців'])}
         </span>
       </>
     )
@@ -68,7 +70,8 @@ function ProjectMoney({ p }: { p: ProjectSummary }): ReactElement {
         <Tooltip>
           <TooltipTrigger asChild>{money}</TooltipTrigger>
           <TooltipContent>
-            На руки після комісії {p.effectiveFeePercent}%: {fmtMoney(p.netPaidAmount, p.currency)}
+            На руки після комісії {fmtPercent(p.effectiveFeePercent)}:{' '}
+            {fmtMoney(p.netPaidAmount, p.currency)}
           </TooltipContent>
         </Tooltip>
       ) : (
@@ -113,7 +116,7 @@ export function ProjectRow({
       <button
         type="button"
         onClick={() => navigate(`/projects/${project.id}`)}
-        className="grid min-h-[76px] w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_150px] items-center gap-6 px-5 py-4 text-left transition-colors hover:bg-(--tile-hover)"
+        className="grid min-h-[76px] w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_150px] items-center gap-6 px-5 py-4 text-left"
       >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-3">
@@ -124,16 +127,18 @@ export function ProjectRow({
               {PROJECT_STATUS_LABEL[project.status]}
             </Badge>
           </div>
-          <div className="mt-1 flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground">
+          {/* The platform's colour dot is its separator: no «·» before it. */}
+          <div className="mt-1 flex min-w-0 items-center gap-2.5 text-caption text-muted-foreground">
             <span className="truncate">
               {showClient && `${project.clientName ?? 'Без клієнта'} · `}
               {BILLING_LABEL[project.billing]}
             </span>
             {project.platformId && (
-              <span className="flex shrink-0 items-center gap-1.5">
-                ·
-                <PlatformName platformId={project.platformId} name={project.platformName} />
-              </span>
+              <PlatformName
+                platformId={project.platformId}
+                name={project.platformName}
+                className="shrink-0"
+              />
             )}
           </div>
         </div>

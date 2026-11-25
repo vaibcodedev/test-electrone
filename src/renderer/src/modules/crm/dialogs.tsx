@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactElement } from 'react'
+import { useId, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import {
   clientInputSchema,
@@ -18,11 +18,12 @@ import { Input } from '@/components/ui/input'
 import { Field } from '@/components/common/page'
 import { DatePicker } from '@/components/common/date-picker'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
-import { BILLING_INFO, CURRENCY_SIGN, DUE_BEFORE_START } from './labels'
+import { BILLING_AMOUNT_LABEL, CURRENCY_SIGN, DUE_BEFORE_START } from './labels'
 import { BillingPicker, Choice } from './parts'
 import { amountPatch } from './money'
 import { ClientCombobox } from './client-combobox'
-import { ClientPlatformFields, FeeField, PlatformSelect, usePlatforms } from './platform-fields'
+import { ClientPlatformFields, FeeField, PlatformSelect } from './platform-fields'
+import { usePlatforms } from './use-platforms'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
@@ -31,9 +32,9 @@ const PROJECT_R = rangesOf(projectInputSchema)
 const REQUIRED = 'Обов’язкове поле'
 
 const AMOUNT_PLACEHOLDER: Record<BillingType, string> = {
-  fixed: '1500',
-  hourly: '25',
-  retainer: '800',
+  fixed: 'напр. 1 500',
+  hourly: 'напр. 25',
+  retainer: 'напр. 800',
   none: ''
 }
 
@@ -58,7 +59,7 @@ function AmountField({
   max: number | undefined
   onValidityChange: (invalid: boolean) => void
 }): ReactElement | null {
-  const label = BILLING_INFO[billing].amountLabel
+  const label = BILLING_AMOUNT_LABEL[billing]
   if (!label) return null
   return (
     <NumberField
@@ -102,13 +103,20 @@ export function ClientDialog({
   const uid = useId()
   const [form, setForm] = useState<ClientInput>(EMPTY_CLIENT)
   const [emailBlurred, setEmailBlurred] = useState(false)
+  // Every opening starts empty, also after «Скасувати» (docs/design-system.md → Сброс формы диалога).
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setForm(EMPTY_CLIENT)
+      setEmailBlurred(false)
+    }
+  }
   const numbers = useInvalidFields()
   const create = useApiMutation('clients', 'create', {
     successMessage: 'Клієнта додано',
     onSuccess: (c) => {
       onOpenChange(false)
-      setForm(EMPTY_CLIENT)
-      setEmailBlurred(false)
       navigate(`/clients/${c.id}`)
     }
   })
@@ -242,8 +250,9 @@ function withClientDefaults(
   if (!touched.has('billing')) next.billing = c.defaultBilling
   if (!touched.has('currency')) next.currency = c.currency
   if (!touched.has('platformId')) next.platformId = c.platformId
-  if (!touched.has('rate') && !touched.has('fixedPrice'))
-    Object.assign(next, amountPatch(c.defaultBilling, c.defaultRate))
+  // The client's amount means a rate or a price only under the client's own billing type.
+  if (!touched.has('rate') && !touched.has('fixedPrice') && next.billing === c.defaultBilling)
+    Object.assign(next, amountPatch(next.billing, c.defaultRate))
   return next
 }
 
@@ -259,26 +268,29 @@ export function ProjectDialog({
   const navigate = useNavigate()
   const uid = useId()
   const [form, setForm] = useState<ProjectInput>(() => emptyProject(clientId ?? null))
-  const touched = useRef(new Set<keyof ProjectInput>())
-  const wasOpen = useRef(false)
+  const [touched, setTouched] = useState<ReadonlySet<keyof ProjectInput>>(() => new Set())
   // The client the dialog was opened for (client page): its terms arrive after the dialog opens.
   const { data: ownerClient } = useApi('clients', 'get', clientId ?? '', {
     enabled: open && !!clientId
   })
-  useEffect(() => {
-    if (!open) {
-      wasOpen.current = false
-      return
-    }
-    // Reset only when the dialog opens, not when data arrives: typed values stay.
-    if (!wasOpen.current) {
-      wasOpen.current = true
-      touched.current = new Set()
+  // Reset when the dialog opens, during render (docs/design-system.md → Сброс формы диалога); the owner's
+  // terms are applied once when they arrive, to the fields not typed yet.
+  const [wasOpen, setWasOpen] = useState(open)
+  const [appliedFor, setAppliedFor] = useState<string | null>(null)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setTouched(new Set())
       setForm(emptyProject(clientId ?? null))
+      setAppliedFor(null)
     }
-    if (ownerClient && ownerClient.id === clientId)
-      setForm((f) => (f.clientId === ownerClient.id ? withClientDefaults(f, ownerClient, touched.current) : f))
-  }, [open, ownerClient, clientId])
+  }
+  if (open && ownerClient && ownerClient.id === clientId && appliedFor !== ownerClient.id) {
+    setAppliedFor(ownerClient.id)
+    setForm((f) =>
+      f.clientId === ownerClient.id ? withClientDefaults(f, ownerClient, touched) : f
+    )
+  }
   const create = useApiMutation('projects', 'create', {
     successMessage: 'Проєкт створено',
     onSuccess: (p) => {
@@ -287,14 +299,14 @@ export function ProjectDialog({
     }
   })
   const set = (patch: Partial<ProjectInput>): void => {
-    for (const k of Object.keys(patch)) touched.current.add(k as keyof ProjectInput)
+    setTouched((t) => new Set([...t, ...(Object.keys(patch) as (keyof ProjectInput)[])]))
     setForm((f) => ({ ...f, ...patch }))
   }
   const pickClient = (c: ClientSummary | null): void => {
-    touched.current.add('clientId')
+    setTouched((t) => new Set([...t, 'clientId']))
     setForm((f) => {
       const next = { ...f, clientId: c?.id ?? null }
-      return c ? withClientDefaults(next, c, touched.current) : next
+      return c ? withClientDefaults(next, c, touched) : next
     })
   }
   const billing = (form.billing ?? 'fixed') as BillingType
@@ -343,7 +355,9 @@ export function ProjectDialog({
         <ClientCombobox
           id={`${uid}-client`}
           value={form.clientId ?? null}
-          currentName={ownerClient && ownerClient.id === form.clientId ? ownerClient.name : undefined}
+          currentName={
+            ownerClient && ownerClient.id === form.clientId ? ownerClient.name : undefined
+          }
           onChange={pickClient}
         />
       </Field>
@@ -361,6 +375,7 @@ export function ProjectDialog({
           <FeeField
             value={form.feePercent}
             platformDefault={platform?.defaultFeePercent}
+            platformName={platform?.name}
             onChange={(feePercent) => set({ feePercent })}
             onInvalidChange={numbers.report('feePercent')}
           />

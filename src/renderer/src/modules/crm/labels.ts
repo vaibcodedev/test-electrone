@@ -47,31 +47,20 @@ export const BILLING_LABEL: Record<BillingType, string> = {
   none: 'Без оплати'
 }
 
-/** Copy for the billing picker and the amount field that follows the chosen type. */
-export const BILLING_INFO: Record<
-  BillingType,
-  { title: string; description: string; amountLabel: string | null }
-> = {
-  fixed: {
-    title: 'Фіксована ціна',
-    description: 'Одна ціна, оплата етапами',
-    amountLabel: 'Вартість проєкту'
-  },
-  hourly: {
-    title: 'Погодинно',
-    description: 'Години × ставка',
-    amountLabel: 'Ставка за годину'
-  },
-  retainer: {
-    title: 'Ретейнер',
-    description: 'Фіксована сума на місяць',
-    amountLabel: 'Ретейнер на місяць'
-  },
-  none: {
-    title: 'Без оплати',
-    description: 'Власний проєкт, лише облік часу',
-    amountLabel: null
-  }
+/** One-line hint per billing type in the picker: short enough to never wrap next to the label. */
+export const BILLING_HINT: Record<BillingType, string> = {
+  fixed: 'за весь проєкт',
+  hourly: 'ставка за годину',
+  retainer: 'щомісячна сума',
+  none: 'лише облік часу'
+}
+
+/** Label of the amount field that follows the billing type; «Без оплати» has none. */
+export const BILLING_AMOUNT_LABEL: Record<BillingType, string | null> = {
+  fixed: 'Вартість проєкту',
+  hourly: 'Ставка за годину',
+  retainer: 'Ретейнер на місяць',
+  none: null
 }
 
 export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {

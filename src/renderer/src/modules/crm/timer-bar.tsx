@@ -120,7 +120,7 @@ export function StartBar({
       {(recent.length > 0 || otherRunning) && (
         <div className="flex flex-wrap items-center gap-1.5">
           {recent.map((r) => (
-            <Button key={r} variant="subtle" size="xs" className="max-w-56" onClick={() => go(r)}>
+            <Button key={r} variant="soft" size="xs" className="max-w-56" onClick={() => go(r)}>
               <Play className="size-3" />
               <span className="truncate">{r}</span>
             </Button>

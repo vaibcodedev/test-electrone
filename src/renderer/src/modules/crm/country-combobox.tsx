@@ -1,17 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Check, ChevronsUpDown, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList
-} from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
-import { useReadOnly } from '@/components/common/detail-mode'
+import { useMemo, type ReactElement } from 'react'
+import { Combobox } from '@/components/common/combobox'
 
 /** Codes Intl names that aren't countries (EU, UN, outlying/reserved regions). */
 const NOT_COUNTRIES = new Set(['EU', 'EZ', 'UN', 'ZZ', 'QO', 'AC', 'CP', 'DG', 'EA', 'IC', 'TA'])
@@ -36,72 +24,34 @@ function countryNames(): string[] {
 }
 
 /**
- * Searchable country picker (shadcn Popover + Command). Stores the name; an old free-text value
- * that isn't in the list is shown as-is and stays selectable.
+ * Searchable country picker over the common Combobox (field look, plain text while reading, an empty value
+ * hides the field). Stores the name; an old free-text value that isn't in the list stays selectable.
  */
 export function CountryCombobox({
+  id,
   value,
-  onChange,
-  placeholder = 'Оберіть країну'
+  onChange
 }: {
+  id?: string
   value: string
   onChange: (value: string) => void
-  placeholder?: string
-}) {
-  const readOnly = useReadOnly()
-  const [open, setOpen] = useState(false)
-  const list = useMemo(() => {
+}): ReactElement {
+  const options = useMemo(() => {
     const all = countryNames()
-    return value && !all.includes(value) ? [value, ...all] : all
+    const list = value && !all.includes(value) ? [value, ...all] : all
+    return list.map((n) => ({ value: n, label: n }))
   }, [value])
-  if (readOnly) return <span className="text-body">{value || '—'}</span>
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="soft"
-          role="combobox"
-          aria-expanded={open}
-          className={cn('w-full justify-between font-normal', !value && 'text-muted-foreground')}
-        >
-          <span className="truncate">{value || placeholder}</span>
-          <ChevronsUpDown className="opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 rounded-2xl p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Пошук країни…" />
-          <CommandList>
-            <CommandEmpty>Країну не знайдено</CommandEmpty>
-            <CommandGroup>
-              {value && (
-                <CommandItem
-                  value="__clear__"
-                  onSelect={() => {
-                    onChange('')
-                    setOpen(false)
-                  }}
-                >
-                  <X /> Не вказано
-                </CommandItem>
-              )}
-              {list.map((name) => (
-                <CommandItem
-                  key={name}
-                  value={name}
-                  onSelect={() => {
-                    onChange(name)
-                    setOpen(false)
-                  }}
-                >
-                  <span className="flex-1 truncate">{name}</span>
-                  {name === value && <Check />}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <Combobox
+      id={id}
+      value={value || null}
+      options={options}
+      onChange={(v) => onChange(v ?? '')}
+      clearable
+      clearLabel="Не вказано"
+      placeholder="Оберіть країну"
+      searchPlaceholder="Пошук країни…"
+      emptyText="Країну не знайдено"
+    />
   )
 }

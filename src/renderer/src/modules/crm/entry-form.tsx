@@ -29,7 +29,7 @@ export function EntryForm({
   onCancel: () => void
 }): ReactElement {
   const [d, setD] = useState(initial)
-  const billableId = useId()
+  const uid = useId()
   const set = (patch: Partial<EntryDraft>): void => setD((x) => ({ ...x, ...patch }))
   const range = toRange(d)
   const overnight = !!range && !!d.from && !!d.to && d.to < d.from
@@ -50,19 +50,26 @@ export function EntryForm({
             onChange={(v) => v && set({ day: startOfDayMs(v) })}
           />
         </Field>
-        <Field label="З" className="w-24">
+        <Field label="З" htmlFor={`${uid}-from`} className="w-24">
           <Input
+            id={`${uid}-from`}
             autoFocus
             type="time"
             value={d.from}
             onChange={(e) => set({ from: e.target.value })}
           />
         </Field>
-        <Field label="До" className="w-24">
-          <Input type="time" value={d.to} onChange={(e) => set({ to: e.target.value })} />
+        <Field label="До" htmlFor={`${uid}-to`} className="w-24">
+          <Input
+            id={`${uid}-to`}
+            type="time"
+            value={d.to}
+            onChange={(e) => set({ to: e.target.value })}
+          />
         </Field>
-        <Field label="або хвилин" className="w-24">
+        <Field label="або хвилин" htmlFor={`${uid}-minutes`} className="w-24">
           <NumberInput
+            id={`${uid}-minutes`}
             integer
             allowEmpty
             min={1}
@@ -73,8 +80,9 @@ export function EntryForm({
             placeholder="90"
           />
         </Field>
-        <Field label="Що робив" className="min-w-48 flex-1">
+        <Field label="Що робив" htmlFor={`${uid}-desc`} className="min-w-48 flex-1">
           <Input
+            id={`${uid}-desc`}
             value={d.description}
             maxLength={DESC_MAX}
             onChange={(e) => set({ description: e.target.value })}
@@ -84,11 +92,11 @@ export function EntryForm({
         {showBillable && (
           <UiField orientation="horizontal" className="h-9 w-auto gap-2">
             <Switch
-              id={billableId}
+              id={`${uid}-billable`}
               checked={d.billable}
               onCheckedChange={(billable) => set({ billable })}
             />
-            <FieldLabel htmlFor={billableId} className="text-foreground">
+            <FieldLabel htmlFor={`${uid}-billable`} className="text-foreground">
               Оплачувано
             </FieldLabel>
           </UiField>
@@ -97,7 +105,8 @@ export function EntryForm({
           <Button type="button" variant="ghost" onClick={onCancel}>
             Скасувати
           </Button>
-          <Button type="submit" variant="lime" disabled={!range || pending}>
+          {/* subtle, not lime: the form only exists while editing, and then CSS paints lime as the surface card. */}
+          <Button type="submit" variant="subtle" disabled={!range || pending}>
             {submitLabel}
           </Button>
         </div>

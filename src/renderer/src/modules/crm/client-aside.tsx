@@ -3,35 +3,42 @@
  * (RecordMode) the fields of the same groups.
  */
 import { useId, useState, type ReactNode, type ReactElement } from 'react'
-import { Copy, ExternalLink, Mail } from 'lucide-react'
+import { Copy, ExternalLink, Mail, Plus } from 'lucide-react'
 import {
   clientInputSchema,
   CURRENCIES,
   type BillingType,
   type Client,
-  type ClientPatch,
-  type ProjectSummary
+  type ClientPatch
 } from '@shared/domain/crm'
 import { EMAIL_ERROR, isLikelyEmail } from '@shared/domain/common'
 import { openUrl } from '@/lib/open-url'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import { fmtDay, fmtMoney, fmtPercent } from '@/lib/format'
+import { fmtMoney, fmtNumber, fmtPercent } from '@/lib/format'
 import { copyText } from '@/components/common/copy-button'
 import { SectionLabel } from '@/components/common/master-detail'
 import { IconAction } from '@/components/common/icon-action'
-import { NumberInput } from '@/components/common/number-input'
+import { NumberField } from '@/components/common/number-field'
+import { useDetailMode } from '@/components/common/detail-mode-context'
 import { LinkInput } from '@/components/common/text-field'
 import { Field } from '@/components/common/page'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { BILLING_INFO, NO_PLATFORM } from './labels'
-import { BillingPicker, Choice } from './parts'
+import { BILLING_AMOUNT_LABEL, BILLING_LABEL, CURRENCY_SIGN, NO_PLATFORM } from './labels'
+import { BillingPicker, Choice, InfoList, InfoRow } from './parts'
 import { ClientPlatformFields, PlatformName, PlatformSelect } from './platform-fields'
 
 const CLIENT_L = limitsOf(clientInputSchema)
 const CLIENT_R = rangesOf(clientInputSchema)
 
 /** Aside group: title + content. View/edit comes from the record mode (one «Редагувати» per record). */
-export function AsideGroup({ title, children }: { title: string; children: ReactNode }): ReactElement {
+export function AsideGroup({
+  title,
+  children
+}: {
+  title: string
+  children: ReactNode
+}): ReactElement {
   return (
     <section className="flex flex-col gap-3">
       <SectionLabel>{title}</SectionLabel>
@@ -40,42 +47,22 @@ export function AsideGroup({ title, children }: { title: string; children: React
   )
 }
 
-/** Definition list of label → value rows; empty values are skipped by the caller. */
-function InfoList({ children }: { children: ReactNode }): ReactElement {
-  return (
-    <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-body">
-      {children}
-    </dl>
-  )
-}
-
-function InfoRow({
-  label,
-  children,
-  actions
-}: {
-  label: string
-  children: ReactNode
-  actions?: ReactNode
-}): ReactElement {
-  return (
-    <>
-      <dt className="text-caption text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 items-center gap-1">
-        <span className="selectable min-w-0 truncate">{children}</span>
-        {actions && <span className="ml-auto flex shrink-0 items-center">{actions}</span>}
-      </dd>
-    </>
-  )
-}
-
-/** Є хоч один контакт. */
 const hasContacts = (c: Client): boolean =>
   !!(c.company || c.email || c.phone || c.messenger || c.website)
 
 export function ContactsView({ c }: { c: Client }): ReactElement {
+  const mode = useDetailMode()
+  // Same pattern as «Доступи» and «Етапи оплати»: the empty group offers the step that fills it.
+  // The aside is on card → soft.
   if (!hasContacts(c))
-    return <p className="text-caption text-muted-foreground">Контактів ще немає.</p>
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <p className="text-caption text-muted-foreground">Контактів ще немає.</p>
+        <Button variant="soft" size="xs" onClick={() => mode.setEditing(true)}>
+          <Plus /> Додати контакти
+        </Button>
+      </div>
+    )
   const copy = (text: string, message: string) => () => void copyText(text, message)
   return (
     <InfoList>
@@ -85,13 +72,18 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
           label="Email"
           actions={
             <>
-              <IconAction className="text-muted-foreground"
+              <IconAction
+                className="text-muted-foreground"
                 label={`Написати: ${c.email}`}
                 onClick={() => void openUrl(`mailto:${c.email}`)}
               >
                 <Mail />
               </IconAction>
-              <IconAction className="text-muted-foreground" label="Скопіювати пошту" onClick={copy(c.email, 'Пошту скопійовано')}>
+              <IconAction
+                className="text-muted-foreground"
+                label="Скопіювати пошту"
+                onClick={copy(c.email, 'Пошту скопійовано')}
+              >
                 <Copy />
               </IconAction>
             </>
@@ -104,7 +96,11 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
         <InfoRow
           label="Телефон"
           actions={
-            <IconAction className="text-muted-foreground" label="Скопіювати телефон" onClick={copy(c.phone, 'Телефон скопійовано')}>
+            <IconAction
+              className="text-muted-foreground"
+              label="Скопіювати телефон"
+              onClick={copy(c.phone, 'Телефон скопійовано')}
+            >
               <Copy />
             </IconAction>
           }
@@ -116,7 +112,11 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
         <InfoRow
           label="Месенджер"
           actions={
-            <IconAction className="text-muted-foreground" label="Скопіювати" onClick={copy(c.messenger, 'Скопійовано')}>
+            <IconAction
+              className="text-muted-foreground"
+              label="Скопіювати"
+              onClick={copy(c.messenger, 'Скопійовано')}
+            >
               <Copy />
             </IconAction>
           }
@@ -129,10 +129,15 @@ export function ContactsView({ c }: { c: Client }): ReactElement {
           label="Сайт"
           actions={
             <>
-              <IconAction className="text-muted-foreground" label="Відкрити сайт" onClick={() => void openUrl(c.website)}>
+              <IconAction
+                className="text-muted-foreground"
+                label="Відкрити сайт"
+                onClick={() => void openUrl(c.website)}
+              >
                 <ExternalLink />
               </IconAction>
-              <IconAction className="text-muted-foreground"
+              <IconAction
+                className="text-muted-foreground"
                 label="Скопіювати посилання"
                 onClick={copy(c.website, 'Посилання скопійовано')}
               >
@@ -159,7 +164,13 @@ const CONTACT_FIELDS: {
 ]
 
 /** Email saved on blur; a value that isn't an email stays in the field with an error and isn't saved. */
-function EmailField({ value, onSave }: { value: string; onSave: (v: string) => void }): ReactElement {
+function EmailField({
+  value,
+  onSave
+}: {
+  value: string
+  onSave: (v: string) => void
+}): ReactElement {
   const [bad, setBad] = useState(false)
   const id = useId()
   return (
@@ -183,7 +194,13 @@ function EmailField({ value, onSave }: { value: string; onSave: (v: string) => v
   )
 }
 
-export function ContactsEdit({ c, patch }: { c: Client; patch: (p: ClientPatch) => void }): ReactElement {
+export function ContactsEdit({
+  c,
+  patch
+}: {
+  c: Client
+  patch: (p: ClientPatch) => void
+}): ReactElement {
   const uid = useId()
   const [company, ...rest] = CONTACT_FIELDS
   const text = (f: (typeof CONTACT_FIELDS)[number]): ReactElement => (
@@ -216,25 +233,42 @@ export function ContactsEdit({ c, patch }: { c: Client; patch: (p: ClientPatch) 
 
 export function SourceView({ c }: { c: Client }): ReactElement {
   if (!c.platformId) return <p className="text-body">{NO_PLATFORM}</p>
+  // The group is already called «Платформа»: its name goes first on its own, not as a «Платформа» row.
+  const details =
+    !!c.country ||
+    c.rating !== null ||
+    c.totalSpent !== null ||
+    c.hireRate !== null ||
+    c.paymentVerified !== null
   return (
-    <InfoList>
-      <InfoRow label="Платформа">
-        <PlatformName platformId={c.platformId} />
-      </InfoRow>
-      {c.country && <InfoRow label="Країна">{c.country}</InfoRow>}
-      {c.rating !== null && <InfoRow label="Рейтинг">★ {c.rating}</InfoRow>}
-      {c.totalSpent !== null && (
-        <InfoRow label="Витрачено">{fmtMoney(c.totalSpent, c.currency)}</InfoRow>
+    <>
+      <PlatformName platformId={c.platformId} className="text-body font-medium" />
+      {details && (
+        <InfoList>
+          {c.country && <InfoRow label="Країна">{c.country}</InfoRow>}
+          {c.rating !== null && <InfoRow label="Рейтинг">★ {fmtNumber(c.rating)}</InfoRow>}
+          {c.totalSpent !== null && (
+            <InfoRow label="Витрачено">{fmtMoney(c.totalSpent, c.currency)}</InfoRow>
+          )}
+          {c.hireRate !== null && <InfoRow label="Найм">{fmtPercent(c.hireRate)}</InfoRow>}
+          {c.paymentVerified !== null && (
+            <InfoRow label="Оплата">
+              {c.paymentVerified ? 'верифікована' : 'не верифікована'}
+            </InfoRow>
+          )}
+        </InfoList>
       )}
-      {c.hireRate !== null && <InfoRow label="Найм">{fmtPercent(c.hireRate)}</InfoRow>}
-      {c.paymentVerified !== null && (
-        <InfoRow label="Оплата">{c.paymentVerified ? 'верифікована' : 'не верифікована'}</InfoRow>
-      )}
-    </InfoList>
+    </>
   )
 }
 
-export function SourceEdit({ c, patch }: { c: Client; patch: (p: ClientPatch) => void }): ReactElement {
+export function SourceEdit({
+  c,
+  patch
+}: {
+  c: Client
+  patch: (p: ClientPatch) => void
+}): ReactElement {
   return (
     <>
       <PlatformSelect value={c.platformId} onChange={(platformId) => patch({ platformId })} />
@@ -250,22 +284,21 @@ export function SourceEdit({ c, patch }: { c: Client; patch: (p: ClientPatch) =>
   )
 }
 
-/** «Ретейнер · 4 242 $ / міс», «Погодинно · 40 $ / год», «Фіксована ціна · бюджет 2 000 $». */
+/** «Ретейнер · 4 242 $/міс», «Погодинно · 40 $/год», «Фіксована ціна · бюджет 2 000 $». */
 export function BillingView({ c }: { c: Client }): ReactElement {
-  const info = BILLING_INFO[c.defaultBilling]
   const amount = c.defaultRate > 0 ? fmtMoney(c.defaultRate, c.currency) : null
   const suffix =
     !amount || c.defaultBilling === 'none'
       ? ''
       : c.defaultBilling === 'hourly'
-        ? ` · ${amount} / год`
+        ? ` · ${amount}/год`
         : c.defaultBilling === 'retainer'
-          ? ` · ${amount} / міс`
+          ? ` · ${amount}/міс`
           : ` · бюджет ${amount}`
   return (
     <div className="flex flex-col gap-1">
       <p className="text-body">
-        <span className="font-medium">{info.title}</span>
+        <span className="font-medium">{BILLING_LABEL[c.defaultBilling]}</span>
         {suffix}
       </p>
       <p className="text-caption text-muted-foreground">
@@ -275,16 +308,22 @@ export function BillingView({ c }: { c: Client }): ReactElement {
   )
 }
 
-export function BillingEdit({ c, patch }: { c: Client; patch: (p: ClientPatch) => void }): ReactElement {
+export function BillingEdit({
+  c,
+  patch
+}: {
+  c: Client
+  patch: (p: ClientPatch) => void
+}): ReactElement {
   const uid = useId()
-  const amountLabel = BILLING_INFO[c.defaultBilling].amountLabel
+  const amountLabel = BILLING_AMOUNT_LABEL[c.defaultBilling]
   return (
     <>
       <BillingPicker
         value={c.defaultBilling}
         onChange={(defaultBilling: BillingType) => patch({ defaultBilling })}
       />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 items-start gap-2">
         <Field label="Валюта" htmlFor={`${uid}-currency`}>
           <Choice
             id={`${uid}-currency`}
@@ -294,45 +333,18 @@ export function BillingEdit({ c, patch }: { c: Client; patch: (p: ClientPatch) =
           />
         </Field>
         {amountLabel && (
-          <Field
+          <NumberField
             key={`rate-${c.defaultBilling}`}
+            id={`${uid}-rate`}
             label={c.defaultBilling === 'fixed' ? 'Типовий бюджет' : amountLabel}
-            htmlFor={`${uid}-rate`}
-          >
-            <NumberInput
-              id={`${uid}-rate`}
-              value={c.defaultRate || null}
-              allowEmpty
-              {...CLIENT_R.defaultRate}
-              onChange={(v) => patch({ defaultRate: v ?? 0 })}
-            />
-          </Field>
+            value={c.defaultRate || null}
+            {...CLIENT_R.defaultRate}
+            unit={CURRENCY_SIGN[c.currency]}
+            onCommit={(v) => patch({ defaultRate: v ?? 0 })}
+          />
         )}
       </div>
       <p className="text-meta text-muted-foreground">Нові проєкти клієнта отримають ці умови.</p>
     </>
-  )
-}
-
-/** Project terms as text (view mode of the project page aside); price and platform are in the header. */
-export function ProjectTermsView({ project: p }: { project: ProjectSummary }): ReactElement {
-  return (
-    <InfoList>
-      {p.platformId && p.billing !== 'none' && (
-        <InfoRow label="Комісія">{fmtPercent(p.effectiveFeePercent)}</InfoRow>
-      )}
-      <InfoRow label="Оплата">{BILLING_INFO[p.billing].title}</InfoRow>
-      {p.billing === 'hourly' && p.budgetHours > 0 && (
-        <InfoRow label="Бюджет">{p.budgetHours} год</InfoRow>
-      )}
-      {p.startAt && (
-        <InfoRow label={p.billing === 'retainer' ? 'Ретейнер з' : 'Початок'}>
-          {fmtDay(p.startAt)}
-        </InfoRow>
-      )}
-      {p.dueAt && (
-        <InfoRow label={p.billing === 'retainer' ? 'До' : 'Дедлайн'}>{fmtDay(p.dueAt)}</InfoRow>
-      )}
-    </InfoList>
   )
 }

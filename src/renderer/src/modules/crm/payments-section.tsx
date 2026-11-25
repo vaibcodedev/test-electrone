@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useId, useRef, useState, type ReactElement } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   CURRENCIES,
@@ -32,7 +32,7 @@ import { useDetailMode } from '@/components/common/detail-mode-context'
 import { cn } from '@/lib/utils'
 import { CURRENCY_SIGN, PAYMENT_STATUS_LABEL } from './labels'
 import { Choice, Section } from './parts'
-import { escapeCloses } from './inline-form'
+import { escapeCloses, useInlineForm } from './inline-form'
 
 const NOTE_MAX = limitsOf(paymentInputSchema).note
 const AMOUNT_MAX = rangesOf(paymentInputSchema).amount?.max
@@ -61,10 +61,15 @@ function PaymentForm({
   initial?: Payment
   onDone: () => void
 }): ReactElement {
+  const uid = useId()
   // A new first stage starts with what is left to allocate.
   const [amount, setAmount] = useState<number | null>(
     () => initial?.amount ?? (stage && remaining ? remaining : null)
   )
+  // Enter commits the field and submits the form in one event: onSubmit reads the committed value from
+  // here, the state would still hold the old one.
+  const amountRef = useRef(amount)
+  const [amountBad, setAmountBad] = useState(false)
   const [cur, setCur] = useState<Currency>(initial?.currency ?? currency)
   const [status, setStatus] = useState<PaymentStatus>(initial?.status ?? 'expected')
   const [due, setDue] = useState<number | null>(initial?.dueAt ?? null)
@@ -83,9 +88,13 @@ function PaymentForm({
   const left =
     remaining === undefined
       ? undefined
-      : remaining + (initial && initial.currency === currency && initial.status !== 'cancelled' ? initial.amount : 0)
+      : remaining +
+        (initial && initial.currency === currency && initial.status !== 'cancelled'
+          ? initial.amount
+          : 0)
   const limited = stage && left !== undefined && cur === currency
-  const ready = !!amount && amount > 0 && !pending
+  // Nothing left to allocate: a range «Від 0 до 0» would reject any amount, so the hint says why instead.
+  const full = limited && left === 0
   return (
     <Card className="p-4">
       <form
@@ -93,31 +102,51 @@ function PaymentForm({
         onKeyDown={escapeCloses(onDone)}
         onSubmit={(e) => {
           e.preventDefault()
-          if (!ready || !amount) return
-          const values = { amount, currency: cur, status, dueAt: due, note }
+          if (amountBad || pending) return
+          const value = amountRef.current
+          // An empty sum: the button stays enabled (no reason to show), the cursor goes to the field.
+          if (!value) {
+            e.currentTarget.querySelector('input')?.focus()
+            return
+          }
+          const values = { amount: value, currency: cur, status, dueAt: due, note }
           if (initial) update.mutate({ id: initial.id, patch: values })
           else create.mutate({ projectId, ...values })
         }}
       >
         <NumberField
+          id={`${uid}-amount`}
+          autoFocus
           label="Сума"
           value={amount}
           min={0}
-          max={limited ? left : AMOUNT_MAX}
+          max={limited && !full ? left : AMOUNT_MAX}
           unit={CURRENCY_SIGN[cur]}
-          placeholder="500"
-          hint={limited ? `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}` : 'Вкажіть суму'}
-          onCommit={setAmount}
+          placeholder="напр. 500"
+          hint={
+            limited
+              ? full
+                ? 'Усю вартість уже розподілено — збільште вартість проєкту'
+                : `Можна розподілити ще ${fmtMoney(left ?? 0, currency)}`
+              : undefined
+          }
+          onCommit={(v) => {
+            amountRef.current = v
+            setAmount(v)
+          }}
+          onValidityChange={setAmountBad}
         />
-        <Field label="Валюта">
+        <Field label="Валюта" htmlFor={`${uid}-currency`}>
           <Choice
+            id={`${uid}-currency`}
             value={cur}
             onChange={(v) => v && setCur(v)}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
           />
         </Field>
-        <Field label="Статус">
+        <Field label="Статус" htmlFor={`${uid}-status`}>
           <Choice
+            id={`${uid}-status`}
             value={status}
             onChange={(v) => v && setStatus(v)}
             options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
@@ -126,8 +155,9 @@ function PaymentForm({
         <Field label="Термін">
           <DatePicker value={due} onChange={setDue} placeholder="Без терміну" />
         </Field>
-        <Field label={stage ? 'Етап' : 'Коментар'} className="col-span-4">
+        <Field label={stage ? 'Етап' : 'Коментар'} htmlFor={`${uid}-note`} className="col-span-4">
           <Input
+            id={`${uid}-note`}
             value={note}
             maxLength={NOTE_MAX}
             onChange={(e) => setNote(e.target.value)}
@@ -138,7 +168,8 @@ function PaymentForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="lime" disabled={!ready}>
+          {/* subtle, not lime: the form only exists while editing, and then CSS paints lime as the surface card. */}
+          <Button type="submit" variant="subtle" disabled={amountBad || pending}>
             {initial ? 'Зберегти' : 'Додати'}
           </Button>
         </div>
@@ -151,20 +182,23 @@ function PaymentRow({
   payment,
   stage,
   currency,
-  remaining
+  remaining,
+  showNote
 }: {
   payment: Payment
   stage: boolean
   currency: Currency
   remaining?: number
+  /** Some row has a note; otherwise the column isn't drawn (an empty column under «Етап»). */
+  showNote: boolean
 }): ReactElement {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useInlineForm()
   const update = useApiMutation('payments', 'update')
   const remove = useApiMutation('payments', 'remove')
   if (editing)
     return (
       <TableRow className="hover:bg-transparent">
-        <TableCell colSpan={5} className="whitespace-normal">
+        <TableCell colSpan={showNote ? 5 : 4} className="whitespace-normal">
           <PaymentForm
             projectId={payment.projectId}
             currency={currency}
@@ -182,9 +216,11 @@ function PaymentRow({
       <TableCell className="font-display text-heading tabular-nums">
         {fmtMoney(payment.amount, payment.currency)}
       </TableCell>
-      <TableCell className="max-w-0 truncate" title={payment.note || undefined}>
-        {payment.note}
-      </TableCell>
+      {showNote && (
+        <TableCell className="max-w-0 truncate" title={payment.note || undefined}>
+          {payment.note}
+        </TableCell>
+      )}
       <TableCell
         className={cn(
           'text-caption',
@@ -216,7 +252,10 @@ function PaymentRow({
           data-edit-only
           className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
         >
-          <IconAction label={stage ? 'Змінити етап' : 'Змінити оплату'} onClick={() => setEditing(true)}>
+          <IconAction
+            label={stage ? 'Змінити етап' : 'Змінити оплату'}
+            onClick={() => setEditing(true)}
+          >
             <Pencil />
           </IconAction>
           <Confirm
@@ -249,13 +288,14 @@ export function PaymentsSection({
   price: number
 }): ReactElement {
   const mode = useDetailMode()
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useInlineForm()
   const stages = billing === 'fixed'
   const planned = payments
     .filter((p) => p.status !== 'cancelled')
     .reduce((s, p) => s + (p.currency === currency ? p.amount : 0), 0)
   const remaining = stages && price > 0 ? Math.max(0, price - planned) : undefined
   const add = stages ? 'Додати етап' : 'Додати оплату'
+  const hasNotes = payments.some((p) => p.note)
   return (
     <Section
       title={stages ? 'Етапи оплати' : 'Оплати'}
@@ -297,7 +337,7 @@ export function PaymentsSection({
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-5">Сума</TableHead>
-                <TableHead>{stages ? 'Етап' : 'Коментар'}</TableHead>
+                {hasNotes && <TableHead>{stages ? 'Етап' : 'Коментар'}</TableHead>}
                 <TableHead>Дата</TableHead>
                 <TableHead>Статус</TableHead>
                 <TableHead />
@@ -311,6 +351,7 @@ export function PaymentsSection({
                   stage={stages}
                   currency={currency}
                   remaining={remaining}
+                  showNote={hasNotes}
                 />
               ))}
             </TableBody>

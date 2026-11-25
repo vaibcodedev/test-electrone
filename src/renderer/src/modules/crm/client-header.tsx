@@ -61,21 +61,26 @@ export function ClientHeader({
           )}
         </div>
       </div>
+      {/* docs/design-system.md → Шапка записи: pin → trash → «Редагувати». */}
       <div className="flex shrink-0 items-center gap-2 pt-2">
-        <EditToggle mode={mode} />
         <PinButtons entity={{ type: 'client', id: c.id }} />
         <TrashButton
           title="Видалити клієнта?"
           description="Клієнт піде в кошик на 30 днів. Проєкти залишаться без клієнта."
           onConfirm={onRemove}
         />
+        <EditToggle mode={mode} />
       </div>
     </div>
   )
 }
 
-/** Projects, paid, owed, hours: one bright tile at most — «Очікується» when something is owed. */
-export function ClientStats({ c }: { c: ClientSummary }): ReactElement {
+/**
+ * Projects, paid, owed, hours: one bright tile at most — «Очікується» when something is owed, and none
+ * while editing («Зберегти» is the only lime then). Sums use the smaller stat role: a quarter-width tile
+ * cut «600,00 U…» in text-headline.
+ */
+export function ClientStats({ c, editing }: { c: ClientSummary; editing: boolean }): ReactElement {
   const hours =
     c.trackedMinutes > 0 ? fmtHours(c.trackedMinutes) : <EmptyValue>ще не відстежено</EmptyValue>
   return (
@@ -89,7 +94,9 @@ export function ClientStats({ c }: { c: ClientSummary }): ReactElement {
         label="Оплачено"
         value={
           c.paidTotal > 0 ? (
-            <MoneyValue amount={c.paidTotal} currency={c.currency} />
+            <span className="text-stat-sm">
+              <MoneyValue amount={c.paidTotal} currency={c.currency} />
+            </span>
           ) : (
             <EmptyValue>ще немає оплат</EmptyValue>
           )
@@ -97,10 +104,12 @@ export function ClientStats({ c }: { c: ClientSummary }): ReactElement {
       />
       <StatTile
         label="Очікується"
-        tone={c.outstandingTotal > 0 ? 'lime' : 'surface'}
+        tone={c.outstandingTotal > 0 && !editing ? 'lime' : 'surface'}
         value={
           c.outstandingTotal > 0 ? (
-            <MoneyValue amount={c.outstandingTotal} currency={c.currency} />
+            <span className="text-stat-sm">
+              <MoneyValue amount={c.outstandingTotal} currency={c.currency} />
+            </span>
           ) : (
             <EmptyValue>нічого не чекаємо</EmptyValue>
           )
@@ -110,7 +119,7 @@ export function ClientStats({ c }: { c: ClientSummary }): ReactElement {
         <StatTile
           label="Години"
           value={hours}
-          hint={c.defaultRate > 0 ? `${fmtMoney(c.defaultRate, c.currency)} / год` : undefined}
+          hint={c.defaultRate > 0 ? `${fmtMoney(c.defaultRate, c.currency)}/год` : undefined}
         />
       ) : (
         <StatTile label="Відпрацьовано" value={hours} />

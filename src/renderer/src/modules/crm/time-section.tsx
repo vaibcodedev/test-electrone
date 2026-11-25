@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import type { ReactElement } from 'react'
 import { Plus } from 'lucide-react'
 import { EditableScope } from '@/components/common/detail-mode-context'
 import { useApiMutation } from '@/lib/query'
@@ -7,6 +7,7 @@ import { Section } from './parts'
 import { EntryForm } from './entry-form'
 import { RunningBar, StartBar } from './timer-bar'
 import { DayGroup } from './time-history'
+import { useInlineForm } from './inline-form'
 import { emptyDraft, toRange } from './time-range'
 import { useTimeHistory } from './use-time-history'
 
@@ -19,16 +20,20 @@ export function TimeSection({
   rate,
   currency,
   hourly,
-  secondary
+  secondary,
+  unpaid
 }: {
   projectId: string
   rate: number
   currency: string
   hourly: boolean
   secondary?: boolean
+  /** «Без оплати»: there is no rate to talk about, only where the time goes. */
+  unpaid?: boolean
 }): ReactElement {
-  const [adding, setAdding] = useState(false)
-  const { days, recent, running, mine, weeksBack, showEarlier, isPending } = useTimeHistory(projectId)
+  const [adding, setAdding] = useInlineForm()
+  const { days, recent, running, mine, weeksBack, showEarlier, isPending } =
+    useTimeHistory(projectId)
   const create = useApiMutation('time', 'create', {
     successMessage: 'Час додано',
     onSuccess: () => setAdding(false)
@@ -38,7 +43,11 @@ export function TimeSection({
     <Section
       title={secondary ? 'Облік часу' : 'Час'}
       hint={
-        secondary ? 'Для себе: скільки насправді йде на проєкт. На оплату не впливає.' : undefined
+        unpaid
+          ? 'Для себе: скільки насправді йде на проєкт.'
+          : secondary
+            ? 'Для себе: скільки насправді йде на проєкт. На оплату не впливає.'
+            : undefined
       }
       action={
         !adding && (
@@ -48,14 +57,14 @@ export function TimeSection({
         )
       }
     >
-      {mine ? (
-        <RunningBar key={mine.id} running={mine} />
-      ) : (
-        // The timer is an action, not an edit of the project: it works while reading too.
-        <EditableScope>
+      {/* The timer is an action, not an edit of the project: it works while reading too. */}
+      <EditableScope>
+        {mine ? (
+          <RunningBar key={mine.id} running={mine} />
+        ) : (
           <StartBar projectId={projectId} recent={recent} otherRunning={running} />
-        </EditableScope>
-      )}
+        )}
+      </EditableScope>
       {adding && (
         <EntryForm
           initial={emptyDraft()}
@@ -74,7 +83,9 @@ export function TimeSection({
         <p className="text-body text-muted-foreground">
           {hourly
             ? 'Запустіть таймер або додайте час вручну — години потраплять у розрахунок оплати.'
-            : 'Запустіть таймер, щоб бачити фактичну ставку проєкту.'}
+            : unpaid
+              ? 'Запустіть таймер або додайте час вручну — побачите, скільки йде на проєкт.'
+              : 'Запустіть таймер, щоб бачити фактичну ставку проєкту.'}
         </p>
       )}
       <div className="flex flex-col gap-4">
@@ -92,8 +103,8 @@ export function TimeSection({
           <p className="text-caption text-muted-foreground">За ці дні записів немає.</p>
         )}
         {(days.length > 0 || weeksBack > 0) && (
-          <Button variant="subtle" size="sm" className="w-fit" onClick={showEarlier}>
-            Показати раніші · ще тиждень
+          <Button variant="soft" size="sm" className="w-fit" onClick={showEarlier}>
+            Показати попередній тиждень
           </Button>
         )}
       </div>

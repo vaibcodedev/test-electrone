@@ -53,7 +53,10 @@ export function combine(day: number, time: string, dayOffset = 0): number | null
  * Converts a draft to start/end: either explicit from–to, or "minutes" ending now (or at 18:00 of a
  * past day). «23:00–01:00» is a night shift: an end earlier than the start is on the next day.
  */
-export function toRange(d: EntryDraft, nowMs = Date.now()): { startedAt: number; endedAt: number } | null {
+export function toRange(
+  d: EntryDraft,
+  nowMs = Date.now()
+): { startedAt: number; endedAt: number } | null {
   const from = combine(d.day, d.from)
   const to = combine(d.day, d.to)
   if (from !== null && to !== null) {

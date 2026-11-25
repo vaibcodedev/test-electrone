@@ -46,7 +46,6 @@ export function ClientPage(): ReactElement {
   const [howTo, setHowTo] = useAutosave(c?.howToCommunicate ?? '', (v) =>
     patch({ howToCommunicate: v })
   )
-  // Click opens the client for reading; «Редагувати» switches the whole record to editing.
   const mode = useRecordMode(id, 'client')
 
   if (isLoading) return <PageSkeleton kind="detail" />
@@ -55,7 +54,7 @@ export function ClientPage(): ReactElement {
       <EmptyState
         title="Клієнта не знайдено"
         hint="Можливо, він у кошику."
-        action={<Button onClick={() => navigate('/clients')}>До клієнтів</Button>}
+        cta={{ label: 'До клієнтів', icon: ArrowLeft, onClick: () => navigate('/clients') }}
       />
     )
   }
@@ -78,7 +77,7 @@ export function ClientPage(): ReactElement {
             patch={patch}
             onRemove={() => remove.mutate(id)}
           />
-          <ClientStats c={c} />
+          <ClientStats c={c} editing={mode.editing} />
 
           <div className="mt-8 flex flex-col gap-10">
             <Section

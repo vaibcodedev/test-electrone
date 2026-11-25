@@ -1,23 +1,23 @@
-import { useState, type ReactNode, type ReactElement } from 'react'
-import { normalizeUrl, openUrl } from '@/lib/open-url'
+import { useId, useState, type ReactNode, type ReactElement } from 'react'
 import { Copy, ExternalLink, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { credentialInputSchema, type Credential, type CredentialInput } from '@shared/domain/crm'
+import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { isLikelyUrl, limitsOf, URL_ERROR } from '@/lib/limits'
-import { api } from '@/lib/api'
 import { hostOf } from '@/lib/format'
+import { normalizeUrl, openUrl } from '@/lib/open-url'
 import { copyText } from '@/components/common/copy-button'
 import { Confirm } from '@/components/common/confirm'
+import { IconAction } from '@/components/common/icon-action'
 import { Field } from '@/components/common/page'
 import { useDetailMode } from '@/components/common/detail-mode-context'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Section } from './parts'
-import { escapeCloses } from './inline-form'
-import { Card } from '@/components/ui/card'
-import { IconAction } from '@/components/common/icon-action'
+import { escapeCloses, useInlineForm } from './inline-form'
 
 type Owner = { projectId: string } | { clientId: string }
 
@@ -39,8 +39,9 @@ function CredentialForm({
     secret: '',
     notes: initial?.notes ?? ''
   })
+  const uid = useId()
   const create = useApiMutation('credentials', 'create', {
-    successMessage: 'Доступ збережено',
+    successMessage: 'Доступ додано',
     onSuccess: onDone
   })
   const update = useApiMutation('credentials', 'update', {
@@ -69,8 +70,13 @@ function CredentialForm({
           }
         }}
       >
-        <Field label="Назва" hint={noLabel ? 'Обов’язкове поле' : undefined}>
+        <Field
+          label="Назва"
+          htmlFor={`${uid}-label`}
+          hint={noLabel ? 'Обов’язкове поле' : undefined}
+        >
           <Input
+            id={`${uid}-label`}
             autoFocus
             value={form.label}
             maxLength={L.label}
@@ -78,8 +84,9 @@ function CredentialForm({
             placeholder="Shopify admin"
           />
         </Field>
-        <Field label="Посилання" error={urlBad ? URL_ERROR : undefined}>
+        <Field label="Посилання" htmlFor={`${uid}-url`} error={urlBad ? URL_ERROR : undefined}>
           <Input
+            id={`${uid}-url`}
             type="url"
             maxLength={L.url}
             aria-invalid={urlBad || undefined}
@@ -88,15 +95,21 @@ function CredentialForm({
             placeholder="https://"
           />
         </Field>
-        <Field label="Логін">
+        <Field label="Логін" htmlFor={`${uid}-login`}>
           <Input
+            id={`${uid}-login`}
             value={form.login}
             maxLength={L.login}
             onChange={(e) => set({ login: e.target.value })}
           />
         </Field>
-        <Field label={initial?.hasSecret ? 'Новий пароль (порожньо — залишити)' : 'Пароль / токен'}>
+        <Field
+          label={initial?.hasSecret ? 'Новий пароль' : 'Пароль / токен'}
+          htmlFor={`${uid}-secret`}
+          hint={initial?.hasSecret ? 'Залиште порожнім, щоб не змінювати' : undefined}
+        >
           <Input
+            id={`${uid}-secret`}
             type="password"
             autoComplete="new-password"
             value={form.secret}
@@ -106,10 +119,12 @@ function CredentialForm({
         </Field>
         <Field
           label="Нотатка"
+          htmlFor={`${uid}-notes`}
           className="col-span-2"
           count={{ length: form.notes.length, max: L.notes }}
         >
           <Textarea
+            id={`${uid}-notes`}
             className="min-h-12"
             maxLength={L.notes}
             value={form.notes}
@@ -120,8 +135,9 @@ function CredentialForm({
           <Button type="button" variant="ghost" onClick={onDone}>
             Скасувати
           </Button>
-          <Button type="submit" variant="lime" disabled={noLabel || urlBad || pending}>
-            Зберегти
+          {/* subtle, not lime: the form only exists while editing, and then CSS paints lime as the surface card. */}
+          <Button type="submit" variant="subtle" disabled={noLabel || urlBad || pending}>
+            {initial ? 'Оновити доступ' : 'Додати доступ'}
           </Button>
         </div>
       </form>
@@ -130,7 +146,15 @@ function CredentialForm({
 }
 
 /** One value cell (Логін / Пароль): label on top, monospace value, its actions on the right. */
-function SecretCell({ label, value, children }: { label: string; value: ReactNode; children: ReactNode }): ReactElement {
+function SecretCell({
+  label,
+  value,
+  children
+}: {
+  label: string
+  value: ReactNode
+  children: ReactNode
+}): ReactElement {
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-xl bg-card px-3 py-2">
       <div className="min-w-0 flex-1">
@@ -148,7 +172,7 @@ function SecretCell({ label, value, children }: { label: string; value: ReactNod
  */
 function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): ReactElement {
   const [secret, setSecret] = useState<string | null>(null)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useInlineForm()
   const remove = useApiMutation('credentials', 'remove', { successMessage: 'Доступ видалено' })
 
   const reveal = async (): Promise<string | null> => {
@@ -160,7 +184,8 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): Rea
     }
   }
 
-  if (editing) return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
+  if (editing)
+    return <CredentialForm initial={item} owner={owner} onDone={() => setEditing(false)} />
 
   const host = item.url ? hostOf(item.url) : ''
   const empty = !item.login && !item.hasSecret
@@ -204,7 +229,10 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): Rea
         <div className="grid gap-2 sm:grid-cols-2">
           {item.login && (
             <SecretCell label="Логін" value={item.login}>
-              <IconAction label="Скопіювати логін" onClick={() => void copyText(item.login, 'Логін скопійовано')}>
+              <IconAction
+                label="Скопіювати логін"
+                onClick={() => void copyText(item.login, 'Логін скопійовано')}
+              >
                 <Copy />
               </IconAction>
             </SecretCell>
@@ -230,15 +258,23 @@ function CredentialRow({ item, owner }: { item: Credential; owner: Owner }): Rea
           )}
         </div>
       )}
-      {item.notes && <p className="line-clamp-2 text-caption text-muted-foreground">{item.notes}</p>}
+      {item.notes && (
+        <p className="line-clamp-2 text-caption text-muted-foreground">{item.notes}</p>
+      )}
     </Card>
   )
 }
 
 /** Access credentials of a client or project. Secrets are revealed on demand and never cached. */
-export function CredentialsSection({ items, owner }: { items: Credential[]; owner: Owner }): ReactElement {
+export function CredentialsSection({
+  items,
+  owner
+}: {
+  items: Credential[]
+  owner: Owner
+}): ReactElement {
   const mode = useDetailMode()
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useInlineForm()
   return (
     <Section
       title="Доступи"
@@ -261,7 +297,8 @@ export function CredentialsSection({ items, owner }: { items: Credential[]; owne
       {!items.length && !adding && (
         <div className="flex flex-col items-start gap-3">
           <p className="text-body leading-relaxed text-muted-foreground">
-            Доступів ще немає. Логіни від адмінок, хостингу й FTP — паролі шифруються ключем Windows.
+            Доступів ще немає. Логіни від адмінок, хостингу й FTP — паролі шифруються ключем
+            Windows.
           </p>
           {!mode.editing && (
             <Button

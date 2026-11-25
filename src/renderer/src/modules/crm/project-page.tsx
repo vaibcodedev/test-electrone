@@ -1,11 +1,7 @@
 import type { ReactElement } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
-import {
-  PROJECT_STATUSES,
-  projectInputSchema,
-  type ProjectPatch
-} from '@shared/domain/crm'
+import { PROJECT_STATUSES, projectInputSchema, type ProjectPatch } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { EditToggle, RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { limitsOf } from '@/lib/limits'
@@ -15,7 +11,6 @@ import { PageSkeleton } from '@/components/common/page-skeleton'
 import { EntityAside, InlineTitle } from '@/components/common/master-detail'
 import { PinButtons } from '@/components/common/pin-buttons'
 import { MarkdownField } from '@/components/common/markdown'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {
   Breadcrumb,
@@ -47,7 +42,6 @@ export function ProjectPage(): ReactElement {
   })
   const p = data?.project
   const patch = (patchValue: ProjectPatch): void => update.mutate({ id, patch: patchValue })
-  // Click opens the project for reading; «Редагувати» switches the whole record to editing.
   const mode = useRecordMode(id, 'project')
   const [title, setTitle] = useAutosave(
     p?.title ?? '',
@@ -63,7 +57,11 @@ export function ProjectPage(): ReactElement {
       <EmptyState
         title="Проєкт не знайдено"
         hint="Можливо, він у кошику."
-        action={<Button onClick={() => navigate('/clients?tab=projects')}>До проєктів</Button>}
+        cta={{
+          label: 'До проєктів',
+          icon: ArrowLeft,
+          onClick: () => navigate('/clients?tab=projects')
+        }}
       />
     )
   }
@@ -76,6 +74,7 @@ export function ProjectPage(): ReactElement {
       currency={p.currency}
       hourly={hourly}
       secondary={!hourly}
+      unpaid={p.billing === 'none'}
     />
   )
 
@@ -105,16 +104,19 @@ export function ProjectPage(): ReactElement {
             </BreadcrumbList>
           </Breadcrumb>
 
+          {/* docs/design-system.md → Шапка записи: pin → trash → «Редагувати», pinned to the right. */}
           <div className="flex items-start gap-4">
-            <InlineTitle value={title} onChange={setTitle} maxLength={PROJECT_L.title} />
+            <div className="min-w-0 flex-1">
+              <InlineTitle value={title} onChange={setTitle} maxLength={PROJECT_L.title} />
+            </div>
             <div className="flex shrink-0 items-center gap-2 pt-2">
-              <EditToggle mode={mode} />
               <PinButtons entity={{ type: 'project', id }} />
               <TrashButton
                 title="Видалити проєкт?"
                 description="Проєкт піде в кошик на 30 днів разом із годинами й оплатами."
                 onConfirm={() => remove.mutate(id)}
               />
+              <EditToggle mode={mode} />
             </div>
           </div>
 

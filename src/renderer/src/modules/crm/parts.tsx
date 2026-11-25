@@ -2,6 +2,7 @@ import { useId, type ReactElement, type ReactNode } from 'react'
 import { Trash2 } from 'lucide-react'
 import { BILLING_TYPES, type BillingType } from '@shared/domain/crm'
 import { Confirm } from '@/components/common/confirm'
+import { useReadOnly } from '@/components/common/detail-mode-context'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -15,7 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { BILLING_INFO } from './labels'
+import { BILLING_HINT, BILLING_LABEL } from './labels'
 
 interface ChoiceOption<T extends string> {
   value: T
@@ -46,12 +47,19 @@ export function Choice<T extends string>({
   size?: 'default' | 'sm'
 }): ReactElement {
   const NONE = '__none__'
+  const readOnly = useReadOnly()
   return (
     <Select
       value={value ?? (none ? NONE : undefined)}
       onValueChange={(v) => onChange(v === NONE ? null : (v as T))}
     >
-      <SelectTrigger id={id} size={size} className={cn('w-full text-body', className)}>
+      {/* Reading: the empty option («Без платформи») is no data — data-empty hides the whole Field. */}
+      <SelectTrigger
+        id={id}
+        size={size}
+        data-empty={readOnly && value == null && none ? '' : undefined}
+        className={cn('w-full text-body', className)}
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="rounded-xl">
@@ -121,17 +129,15 @@ export function Section({
   title,
   hint,
   action,
-  children,
-  className
+  children
 }: {
   title: string
   hint?: ReactNode
   action?: ReactNode
   children: ReactNode
-  className?: string
 }): ReactElement {
   return (
-    <section className={cn('flex flex-col gap-3', className)}>
+    <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-heading">{title}</h2>
@@ -141,6 +147,35 @@ export function Section({
       </div>
       {children}
     </section>
+  )
+}
+
+/** Record view: a definition list of label → value rows; empty values are skipped by the caller. */
+export function InfoList({ children }: { children: ReactNode }): ReactElement {
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-body">
+      {children}
+    </dl>
+  )
+}
+
+export function InfoRow({
+  label,
+  children,
+  actions
+}: {
+  label: string
+  children: ReactNode
+  actions?: ReactNode
+}): ReactElement {
+  return (
+    <>
+      <dt className="text-caption text-muted-foreground">{label}</dt>
+      <dd className="flex min-w-0 items-center gap-1">
+        <span className="selectable min-w-0 truncate">{children}</span>
+        {actions && <span className="ml-auto flex shrink-0 items-center">{actions}</span>}
+      </dd>
+    </>
   )
 }
 
@@ -167,14 +202,6 @@ export function Meter({
       )}
     />
   )
-}
-
-/** One-line hint per billing type: short enough to never wrap next to the label. */
-const BILLING_HINT: Record<BillingType, string> = {
-  fixed: 'оплата за весь проєкт',
-  hourly: 'ставка за годину',
-  retainer: 'щомісячна сума',
-  none: 'лише облік часу'
 }
 
 /**
@@ -211,9 +238,12 @@ export function BillingPicker({
             className="data-[state=checked]:border-transparent data-[state=checked]:bg-lime dark:data-[state=checked]:bg-lime [&_svg]:fill-lime-foreground [&_svg]:stroke-none"
           />
           <span className="shrink-0 text-body font-medium whitespace-nowrap text-foreground">
-            {BILLING_INFO[b].title}
+            {BILLING_LABEL[b]}
           </span>
-          <span className="min-w-0 truncate text-caption text-muted-foreground">
+          <span
+            className="min-w-0 truncate text-caption text-muted-foreground"
+            title={BILLING_HINT[b]}
+          >
             {BILLING_HINT[b]}
           </span>
         </Label>

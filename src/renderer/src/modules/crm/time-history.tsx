@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { EntryForm } from './entry-form'
+import { useInlineForm } from './inline-form'
 import { draftOf, toRange } from './time-range'
 
 /** "<1 хв" for short entries, otherwise «1 год 5 хв». */
@@ -32,7 +33,7 @@ function EntryRow({
   currency: string
   showBillable: boolean
 }): ReactElement {
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useInlineForm()
   const update = useApiMutation('time', 'update', { onSuccess: () => setEditing(false) })
   const remove = useApiMutation('time', 'remove')
   if (editing) {
