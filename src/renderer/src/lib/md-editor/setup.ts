@@ -201,6 +201,9 @@ export function markdownEditorSetup({ onMenuKey, icons }: MarkdownEditorSetup): 
     Prec.high(keymap.of(smartKeymap)),
     keymap.of([...defaultKeymap.filter((b) => !b.key || !DROPPED.has(b.key)), ...historyKeymap]),
     editorTheme,
+    // A file dropped on the text is no text: CodeMirror would paste its bytes. Taken here; a drop zone around the
+    // field (attachments) still gets the event.
+    EditorView.domEventHandlers({ drop: (event) => !!event.dataTransfer?.files.length }),
     EditorView.contentAttributes.of({ spellcheck: 'true', 'aria-autocomplete': 'list' })
   ]
 }

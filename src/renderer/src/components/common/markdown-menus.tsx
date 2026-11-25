@@ -105,13 +105,14 @@ function useActiveOption(
   selector: string | null,
   onActive: MenuListProps['onActive']
 ): void {
+  // A layout cleanup: when «/» turns into «[[» the old list must let go before the new one reports itself.
   useLayoutEffect(() => {
     const box = list.current
     const option = selector ? box?.querySelector<HTMLElement>(selector) : null
     option?.scrollIntoView({ block: 'nearest' })
     onActive(box?.id, option?.id)
+    return () => onActive(undefined, undefined)
   }, [list, selector, onActive])
-  useEffect(() => () => onActive(undefined, undefined), [onActive])
 }
 
 /** The footer every menu of the field shows: how to drive it without leaving the text. */
