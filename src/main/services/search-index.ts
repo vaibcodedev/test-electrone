@@ -17,6 +17,11 @@ const MAX_BODY = 20_000
 const DELETE_ONE = 'DELETE FROM search_index WHERE entity_type = ? AND entity_id = ?'
 const INSERT = 'INSERT INTO search_index (entity_type, entity_id, title, body) VALUES (?, ?, ?, ?)'
 
+/** What the index stores: the record's text and what only search may see (searchDoc → indexOnly). */
+function indexedBody(doc: { body: string; indexOnly?: string }): string {
+  return (doc.indexOnly ? `${doc.body}\n${doc.indexOnly}` : doc.body).slice(0, MAX_BODY)
+}
+
 /** Wrapper over the FTS5 `search_index` table. Single responsibility: keep the index in sync and query it. */
 export class SearchIndex {
   constructor(
@@ -36,9 +41,13 @@ export class SearchIndex {
     return s
   }
 
-  upsert(type: EntityType, id: string, doc: { title: string; body: string }): void {
+  upsert(
+    type: EntityType,
+    id: string,
+    doc: { title: string; body: string; indexOnly?: string }
+  ): void {
     this.stmt(DELETE_ONE).run(type, id)
-    this.stmt(INSERT).run(type, id, doc.title, doc.body.slice(0, MAX_BODY))
+    this.stmt(INSERT).run(type, id, doc.title, indexedBody(doc))
   }
 
   indexRow(type: EntityType, row: AnyRow): void {
@@ -100,7 +109,7 @@ export class SearchIndex {
           .all() as AnyRow[]
         for (const row of rows) {
           const doc = d.searchDoc(row)
-          insert.run(d.type, row.id, doc.title, doc.body.slice(0, MAX_BODY))
+          insert.run(d.type, row.id, doc.title, indexedBody(doc))
         }
       }
     })

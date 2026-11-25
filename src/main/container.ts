@@ -297,7 +297,10 @@ export class Container {
       records: {
         text: (ref) => {
           const row = this.registry.findRow(ref)
-          return row ? this.registry.get(ref.type).searchDoc(row) : null
+          if (!row) return null
+          // The record's own text only: searchDoc's indexOnly (credential hosts) never goes to a provider.
+          const { title, body } = this.registry.get(ref.type).searchDoc(row)
+          return { title, body }
         },
         tagsOf: (ref) => this.tags.forMany(ref.type, [ref.id]).get(ref.id) ?? [],
         allTags: () => this.tags.list()

@@ -51,7 +51,9 @@ export class CrmModule {
       table: clients,
       searchDoc: (r) => ({
         title: r.name,
-        body: `${r.company}\n${r.email}\n${r.phone}\n${r.messenger}\n${r.website}\n${r.notes}\n${this.credentials.searchText({ clientId: r.id })}`
+        body: `${r.company}\n${r.email}\n${r.phone}\n${r.messenger}\n${r.website}\n${r.notes}`,
+        // Credentials' labels and hosts: found by Ctrl+K, never sent to an AI provider with the record.
+        indexOnly: this.credentials.searchText({ clientId: r.id })
       }),
       summary: (r) => ({ title: r.name, subtitle: r.company || undefined })
     }
@@ -60,7 +62,8 @@ export class CrmModule {
       table: projects,
       searchDoc: (r) => ({
         title: r.title,
-        body: `${r.description}\n${r.repoUrl}\n${r.stagingUrl}\n${r.prodUrl}\n${this.credentials.searchText({ projectId: r.id })}`
+        body: `${r.description}\n${r.repoUrl}\n${r.stagingUrl}\n${r.prodUrl}`,
+        indexOnly: this.credentials.searchText({ projectId: r.id })
       }),
       summary: (r) => ({
         title: r.title,

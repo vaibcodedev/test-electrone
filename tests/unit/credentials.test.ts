@@ -283,7 +283,7 @@ describe('secrets stay out of list, export and search', () => {
     for (const s of [PASSWORD, KEY, PAIR, 'phrase-SECRET']) expect(text).not.toContain(s)
   })
 
-  it('search finds the project by the host, never by a secret (the AI reads the same text)', async () => {
+  it('search finds the project by the host, never by a secret; the AI reads neither', async () => {
     const { projectId } = await seed()
     expect(v.search.query({ text: 'hetzner' }).map((h) => h.id)).toContain(projectId)
     expect(v.search.query({ text: 'SECRETKEY' })).toEqual([])
@@ -291,6 +291,9 @@ describe('secrets stay out of list, export and search', () => {
       .get('project')
       .searchDoc(v.registry.findRow({ type: 'project', id: projectId })!)
     for (const s of [PASSWORD, KEY, PAIR]) expect(doc.body).not.toContain(s)
+    // The record's own text (what the chat ШІ and tags get) has no credential host at all: search-only.
+    expect(doc.body.toLowerCase()).not.toContain('hetzner')
+    expect(doc.indexOnly?.toLowerCase()).toContain('hetzner')
   })
 })
 

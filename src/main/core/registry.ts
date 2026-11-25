@@ -27,8 +27,12 @@ export type AnyRow = Record<string, any> & {
 export interface EntityDescriptor {
   type: EntityType
   table: SoftTable
-  /** Text indexed by global search. */
-  searchDoc(row: AnyRow): { title: string; body: string }
+  /**
+   * Text indexed by global search. `body` is the record's own text — also what the chat ШІ, tag suggestions and
+   * «Згадки» read. `indexOnly` is found by search but never leaves for an AI provider: the labels and hosts of a
+   * client's credentials (an IP of their server must not go to a cloud model with the client's record).
+   */
+  searchDoc(row: AnyRow): { title: string; body: string; indexOnly?: string }
   /** Title/subtitle shown in pins, links, trash, search. */
   summary(row: AnyRow): { title: string; subtitle?: string }
   /** Entities that live and die with this one (cards of a board…). */
