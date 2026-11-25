@@ -15,6 +15,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useLocation } from 'react-router'
 import { AI_CHAT_MAX, AI_CHAT_MIN, useUi } from '@/stores/ui-store'
 
 // The panel's chunk (messages, Markdown, actions) loads on the first Ctrl+J, not on every start.
@@ -103,6 +104,17 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
   }, [open])
 
   const close = useCallback(() => setOpen(false), [setOpen])
+
+  // Any move from the full-page chat («Відкрити», a source, a link in an answer) opened the record under it,
+  // where nothing seemed to happen: the chat goes back to a panel and the record shows up next to it.
+  const location = useLocation()
+  const setFull = useUi((s) => s.setAiChatFull)
+  const seen = useRef(location.key)
+  useEffect(() => {
+    if (seen.current === location.key) return
+    seen.current = location.key
+    setFull(false)
+  }, [location.key, setFull])
 
   const panel = (
     <Suspense fallback={<PanelSkeleton />}>

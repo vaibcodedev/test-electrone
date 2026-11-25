@@ -231,7 +231,11 @@ test.describe('«Зберегти» waits for a change and for valid fields', ()
 
     // Out of range: the field says so, «Зберегти» goes off and explains why on focus.
     const fee = sheet.getByRole('textbox', { name: 'Комісія платформи' })
-    await fee.fill('150')
+    // Typing can't reach 150 in a 0–100 field (the keys are refused); a paste can, and then the field says so.
+    await fee.evaluate((el: HTMLInputElement) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, '150')
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }))
+    })
     await expect(fee).toHaveAttribute('aria-invalid', 'true')
     await expect(save).toBeDisabled()
     await save.locator('xpath=..').focus()
