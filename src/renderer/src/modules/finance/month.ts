@@ -21,23 +21,49 @@ export function monthRange(month: string): [number, number] {
   return [new Date(y, m - 1, 1).getTime(), new Date(y, m, 1).getTime() - 1]
 }
 
+/** Default date for a new record in the month: now in the current month, otherwise noon of its 1st. */
+export function defaultDayIn(month: string): number {
+  if (month === currentMonth()) return Date.now()
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m - 1, 1, 12).getTime()
+}
 
-/** "Ноябрь 2026" */
+/** «Січень» … «Грудень» — month names for selects (index 0–11). */
+export const MONTH_NAMES = Array.from({ length: 12 }, (_, i) =>
+  capitalize(format(new Date(2000, i, 1), 'LLLL', { locale: LOCALE }))
+)
+
+/** date-fns `LLL` cuts uk words mid-syllable («листоп», «верес»), so axis labels are fixed. */
+const MONTH_SHORT = [
+  'січ',
+  'лют',
+  'бер',
+  'кві',
+  'тра',
+  'чер',
+  'лип',
+  'сер',
+  'вер',
+  'жов',
+  'лис',
+  'гру'
+]
+
+/** «Листопад 2026» */
 export function monthLabel(month: string): string {
   const [y, m] = month.split('-').map(Number)
   return capitalize(format(new Date(y, m - 1, 1), 'LLLL yyyy', { locale: LOCALE }))
 }
 
-/** "ноябрь" (for «Подписки на ноябрь»). */
+/** «листопад» — inside a phrase: «Підписки на листопад». */
 export function monthName(month: string): string {
   const [y, m] = month.split('-').map(Number)
   return format(new Date(y, m - 1, 1), 'LLLL', { locale: LOCALE })
 }
 
-/** Short label for chart axes: "ноя". */
+/** «лис» — chart axis label. */
 export function monthShort(month: string): string {
-  const [y, m] = month.split('-').map(Number)
-  return format(new Date(y, m - 1, 1), 'LLL', { locale: LOCALE }).replace('.', '')
+  return MONTH_SHORT[Number(month.split('-')[1]) - 1]
 }
 
 /** Selected month lives in the URL (?month=yyyy-mm) so it survives navigation between finance pages. */

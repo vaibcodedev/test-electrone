@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import type { ReactElement } from 'react'
 import { ArrowDownToLine, Pencil, Plus, Trash2 } from 'lucide-react'
-import type { MoneyByCurrency, Withdrawal } from '@shared/domain/finance'
+import type { Withdrawal } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
 import { fmtDate, fmtMoney } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -20,10 +20,12 @@ import {
 } from '@/components/ui/table'
 import { IconAction } from '@/components/common/icon-action'
 import { FinanceNav, MoneyLines, MonthSwitcher, MoneyStatTile } from './parts'
-import { WithdrawalDialog } from './dialogs'
-import { monthRange, useMonth } from './month'
+import { WithdrawalDialog } from './withdrawal-dialog'
+import { fmtRate, sumByCurrency } from './money'
+import { defaultDayIn, monthRange, useMonth } from './month'
+import { useEditDialog } from './use-edit-dialog'
 
-export function WithdrawalsPage() {
+export function WithdrawalsPage(): ReactElement {
   const [month, setMonth] = useMonth()
   const [from, to] = monthRange(month)
   const { data: rows } = useApi('finance', 'withdrawals', { from, to }, KEEP_PERIOD)
@@ -31,40 +33,25 @@ export function WithdrawalsPage() {
   const remove = useApiMutation('finance', 'removeWithdrawal', {
     successMessage: 'Виведення видалено'
   })
-  const [editing, setEditing] = useState<Withdrawal | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  // New key per opening: a form closed with «Скасувати» never shows its unsaved values again.
-  const [openSeq, setOpenSeq] = useState(0)
-  const [nowTs] = useState(() => Date.now())
-  const defaultAt = nowTs >= from && nowTs <= to ? nowTs : from + 12 * 3600_000
+  const dialog = useEditDialog<Withdrawal>()
   const platformName = new Map(platformList.map((p) => [p.id, p.name]))
 
   const totals = {
-    amount: {} as MoneyByCurrency,
-    fee: {} as MoneyByCurrency,
-    received: {} as MoneyByCurrency
-  }
-  for (const w of rows ?? []) {
-    totals.amount[w.currency] = (totals.amount[w.currency] ?? 0) + w.amount
-    totals.fee[w.currency] = (totals.fee[w.currency] ?? 0) + w.fee
-    totals.received[w.receivedCurrency] = (totals.received[w.receivedCurrency] ?? 0) + w.received
-  }
-  const openDialog = (w: Withdrawal | null): void => {
-    setEditing(w)
-    setOpenSeq((n) => n + 1)
-    setDialogOpen(true)
+    amount: sumByCurrency(rows, (w) => [w.currency, w.amount]),
+    fee: sumByCurrency(rows, (w) => [w.currency, w.fee]),
+    received: sumByCurrency(rows, (w) => [w.receivedCurrency, w.received])
   }
 
   return (
     <Page>
       <PageHeader
         title="Виведення"
-        subtitle="Гроші, виведені з платформ: комісія за виведення, курс і скільки реально надійшло на картку."
+        subtitle="Гроші, виведені з платформ, і скільки надійшло на картку."
         actions={
           <>
             <MonthSwitcher month={month} onChange={setMonth} />
-            <Button variant="lime" onClick={() => openDialog(null)}>
-              <Plus /> Виведення
+            <Button variant="lime" onClick={() => dialog.openWith(null)}>
+              <Plus /> Додати виведення
             </Button>
           </>
         }
@@ -80,20 +67,21 @@ export function WithdrawalsPage() {
             title="Цього місяця виведень немає"
             hint="Запишіть виведення, щоб бачити, скільки грошей ще лежить на платформі й скільки з’їли комісії та курс."
             action={
-              <Button variant="soft" onClick={() => openDialog(null)}>
+              <Button variant="soft" onClick={() => dialog.openWith(null)}>
                 <Plus /> Додати виведення
               </Button>
             }
           />
         ) : (
-          <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-3 gap-3">
-              <MoneyStatTile label="Виведено" value={totals.amount} />
-              <MoneyStatTile label="Комісії за виведення" value={totals.fee} />
+          <div className="@container flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-3">
+              <MoneyStatTile label="Виведено" value={totals.amount} empty="ще немає" />
+              <MoneyStatTile label="Комісії за виведення" value={totals.fee} empty="без комісій" />
               <MoneyStatTile
                 tone="ink"
                 label="Надійшло"
                 value={totals.received}
+                empty="ще немає"
                 hint="після комісії та обміну"
               />
             </div>
@@ -108,7 +96,7 @@ export function WithdrawalsPage() {
                       <TableHead className="text-right">Комісія</TableHead>
                       <TableHead className="text-right">Курс</TableHead>
                       <TableHead className="text-right">Надійшло</TableHead>
-                      <TableHead>Спосіб</TableHead>
+                      <TableHead className="pl-6">Спосіб</TableHead>
                       <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
@@ -134,17 +122,19 @@ export function WithdrawalsPage() {
                           {w.fee ? fmtMoney(w.fee, w.currency) : '—'}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground tabular-nums">
-                          {w.rate === 1 ? '—' : w.rate.toLocaleString('uk-UA', { maximumFractionDigits: 4 })}
+                          {w.currency === w.receivedCurrency ? '—' : fmtRate(w.rate)}
                         </TableCell>
                         <TableCell className="text-right font-medium tabular-nums">
                           {fmtMoney(w.received, w.receivedCurrency)}
                         </TableCell>
-                        <TableCell className="max-w-[160px] truncate text-muted-foreground">
-                          {w.method || '—'}
+                        <TableCell className="w-full max-w-0 pl-6 text-muted-foreground">
+                          <span className="block truncate" title={w.method || undefined}>
+                            {w.method || '—'}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end">
-                            <IconAction label="Змінити" onClick={() => openDialog(w)}>
+                            <IconAction label="Змінити" onClick={() => dialog.openWith(w)}>
                               <Pencil />
                             </IconAction>
                             <Confirm
@@ -152,14 +142,12 @@ export function WithdrawalsPage() {
                               description="Запис буде видалено без можливості відновлення."
                               onConfirm={() => remove.mutate(w.id)}
                             >
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                aria-label="Видалити виведення"
-                                className="hover:text-destructive"
+                              <IconAction
+                                label="Видалити виведення"
+                                className="text-muted-foreground hover:text-destructive"
                               >
                                 <Trash2 />
-                              </Button>
+                              </IconAction>
                             </Confirm>
                           </div>
                         </TableCell>
@@ -189,11 +177,11 @@ export function WithdrawalsPage() {
         )}
       </PageBody>
       <WithdrawalDialog
-        key={`${editing?.id ?? 'new'}-${openSeq}`}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        withdrawal={editing}
-        defaultAt={defaultAt}
+        key={dialog.key}
+        open={dialog.open}
+        onOpenChange={dialog.setOpen}
+        withdrawal={dialog.editing}
+        defaultAt={defaultDayIn(month)}
       />
     </Page>
   )

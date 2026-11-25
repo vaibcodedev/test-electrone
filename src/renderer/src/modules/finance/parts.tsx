@@ -1,36 +1,16 @@
-import type { ComponentProps } from 'react'
+import type { ComponentProps, ReactElement, ReactNode } from 'react'
 import { StatTile } from '@/components/common/stat-tile'
 import { MoneyValue } from '@/components/common/money-value'
 import { Link, useLocation } from 'react-router'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { Currency } from '@shared/domain/crm'
-import type { ExpenseCategory, MoneyByCurrency } from '@shared/domain/finance'
+import { Check, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import type { MoneyByCurrency } from '@shared/domain/finance'
 import { fmtMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { moneyEntries } from './money'
 import { currentMonth, monthLabel, shiftMonth } from './month'
-
-export const CATEGORY_LABEL: Record<ExpenseCategory, string> = {
-  subscription: 'Підписки',
-  connects: 'Конекти',
-  software: 'Софт і сервіси',
-  hardware: 'Техніка',
-  phone: 'Телефон',
-  internet: 'Інтернет',
-  education: 'Навчання',
-  taxes: 'Податки',
-  bank: 'Банк і комісії',
-  other: 'Інше'
-}
-
-/** Non-zero entries of a per-currency amount, largest first. */
-export function moneyEntries(m: MoneyByCurrency | undefined): [Currency, number][] {
-  return (Object.entries(m ?? {}) as [Currency, number][])
-    .filter(([, v]) => Math.abs(v ?? 0) >= 0.005)
-    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-}
 
 /** Money per currency, one line each (we never convert between currencies). */
 export function MoneyLines({
@@ -46,7 +26,7 @@ export function MoneyLines({
   sign?: boolean
   /** Stat tiles: shorten big sums («55 млн USD»), exact amount in a tooltip. */
   compact?: boolean
-}) {
+}): ReactElement {
   const entries = moneyEntries(value)
   if (!entries.length) return <span className={className}>{emptyLabel}</span>
   return (
@@ -65,99 +45,164 @@ export function MoneyLines({
   )
 }
 
-/** ← Ноябрь 2026 → with «Этот месяц» reset. */
+/** ← Листопад 2026 →; the middle button returns to the current month. */
 export function MonthSwitcher({
   month,
   onChange
 }: {
   month: string
   onChange: (month: string) => void
-}) {
+}): ReactElement {
   const isCurrent = month === currentMonth()
+  const label = (
+    <Button
+      variant="soft"
+      size="sm"
+      className="min-w-36 font-medium"
+      onClick={() => onChange(currentMonth())}
+      disabled={isCurrent}
+    >
+      {monthLabel(month)}
+    </Button>
+  )
   return (
-    <div className="flex items-center gap-2">
-      <ButtonGroup>
+    <ButtonGroup>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="soft"
+            size="icon-sm"
+            aria-label="Попередній місяць"
+            onClick={() => onChange(shiftMonth(month, -1))}
+          >
+            <ChevronLeft />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Попередній місяць</TooltipContent>
+      </Tooltip>
+      {isCurrent ? (
+        label
+      ) : (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="soft"
-              size="icon-sm"
-              aria-label="Попередній місяць"
-              onClick={() => onChange(shiftMonth(month, -1))}
-            >
-              <ChevronLeft />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Попередній місяць</TooltipContent>
+          <TooltipTrigger asChild>{label}</TooltipTrigger>
+          <TooltipContent>Повернутися до поточного місяця</TooltipContent>
         </Tooltip>
-        <Button
-          variant="soft"
-          size="sm"
-          className="min-w-36 font-medium"
-          onClick={() => onChange(currentMonth())}
-          disabled={isCurrent}
-        >
-          {monthLabel(month)}
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="soft"
-              size="icon-sm"
-              aria-label="Наступний місяць"
-              onClick={() => onChange(shiftMonth(month, 1))}
-            >
-              <ChevronRight />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Наступний місяць</TooltipContent>
-        </Tooltip>
-      </ButtonGroup>
-    </div>
+      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="soft"
+            size="icon-sm"
+            aria-label="Наступний місяць"
+            onClick={() => onChange(shiftMonth(month, 1))}
+          >
+            <ChevronRight />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Наступний місяць</TooltipContent>
+      </Tooltip>
+    </ButtonGroup>
   )
 }
 
-/** Month-summary tile: one line per currency, big sums shortened («250 тис. USD»). */
+/**
+ * Month-summary tile: one line per currency, big sums shortened («250 тис. USD»). Without money it
+ * says `empty` in words («ще немає оплат»), never a lone «—» (docs/design-system.md → Паттерны форм).
+ */
 export function MoneyStatTile({
   value,
+  empty,
   ...props
-}: Omit<ComponentProps<typeof StatTile>, 'value'> & { value: MoneyByCurrency | undefined }) {
+}: Omit<ComponentProps<typeof StatTile>, 'value'> & {
+  value: MoneyByCurrency | undefined
+  empty: string
+}): ReactElement {
   return (
     <StatTile
       {...props}
-      value={<MoneyLines value={value} compact className="flex flex-col text-stat-sm leading-tight tracking-normal" />}
+      value={
+        moneyEntries(value).length ? (
+          <MoneyLines
+            value={value}
+            compact
+            className="text-stat-sm leading-tight tracking-normal"
+          />
+        ) : (
+          <span
+            className={cn(
+              'font-sans text-body font-normal tracking-normal',
+              props.tone === 'ink' ? 'text-ink-muted' : 'text-muted-foreground'
+            )}
+          >
+            {empty}
+          </span>
+        )
+      }
     />
   )
 }
 
-/** Tabs between finance pages that keep the selected month. */
-export function FinanceNav() {
-  const { pathname, search } = useLocation()
-  const links = [
-    { to: '/finance', label: 'Огляд' },
-    { to: '/finance/income', label: 'Доходи' },
-    { to: '/finance/expenses', label: 'Підписки й витрати' },
-    { to: '/finance/withdrawals', label: 'Виведення' }
-  ]
+/** Empty card: icon in a circle, one line, an optional action — centred in the card. */
+export function CardState({
+  text,
+  action,
+  done
+}: {
+  text: string
+  action?: ReactNode
+  done?: boolean
+}): ReactElement {
   return (
-    // w-fit: the track follows the tabs instead of stretching across the page.
-    <div className="flex w-fit flex-wrap gap-1 rounded-full bg-surface p-1">
-      {links.map((l) => (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-2 text-center">
+      <span
+        className={cn(
+          'grid size-9 place-items-center rounded-full',
+          done ? 'bg-success/15 text-success' : 'bg-foreground/7 text-muted-foreground'
+        )}
+      >
+        {done ? <Check className="size-4" /> : <Plus className="size-4" />}
+      </span>
+      <p className="max-w-64 text-body text-muted-foreground">{text}</p>
+      {action}
+    </div>
+  )
+}
+
+const FINANCE_LINKS = [
+  { to: '/finance', label: 'Огляд' },
+  { to: '/finance/income', label: 'Доходи' },
+  { to: '/finance/expenses', label: 'Підписки й витрати' },
+  { to: '/finance/withdrawals', label: 'Виведення' }
+]
+
+/**
+ * Links between finance pages that keep the selected month. Links, not Radix Tabs: there is no
+ * TabsContent here, so aria-controls would point nowhere. The selected one looks like a selected
+ * segment (docs/design-system.md → Переключатели): raised neutral, not inverted.
+ */
+export function FinanceNav(): ReactElement {
+  const { pathname, search } = useLocation()
+  return (
+    <nav
+      aria-label="Розділи фінансів"
+      className="flex w-fit flex-wrap gap-1 rounded-full bg-surface p-1"
+    >
+      {FINANCE_LINKS.map((l) => (
         <Button
           key={l.to}
           asChild
           size="sm"
           variant="ghost"
-          className={cn(
-            'font-normal text-muted-foreground hover:bg-transparent hover:text-foreground',
-            // Same as a selected segment (docs/design-system.md → Переключатели): raised neutral, not inverted.
-            pathname === l.to &&
-              'bg-card font-medium text-foreground shadow-sm hover:bg-card dark:bg-foreground/12 dark:hover:bg-foreground/12'
-          )}
+          className="font-normal text-muted-foreground hover:bg-transparent hover:text-foreground aria-[current=page]:bg-card aria-[current=page]:font-medium aria-[current=page]:text-foreground aria-[current=page]:shadow-sm aria-[current=page]:hover:bg-card dark:aria-[current=page]:bg-foreground/12 dark:aria-[current=page]:hover:bg-foreground/12"
         >
-          <Link to={{ pathname: l.to, search }}>{l.label}</Link>
+          <Link
+            to={{ pathname: l.to, search }}
+            aria-current={pathname === l.to ? 'page' : undefined}
+          >
+            {l.label}
+          </Link>
         </Button>
       ))}
-    </div>
+    </nav>
   )
 }
