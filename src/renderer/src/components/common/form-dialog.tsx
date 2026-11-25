@@ -1,4 +1,4 @@
-import type { FormEvent, ReactElement, ReactNode } from 'react'
+import { useId, type FormEvent, type ReactElement, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import {
   Dialog,
@@ -44,13 +44,15 @@ export function FormDialog({
   pending?: boolean
   /**
    * Why the submit is disabled when no field shows it (an empty required name): «Вкажіть назву дошки».
-   * Shown left of the buttons while `invalid` (docs/design-system.md → Кнопки).
+   * Shown left of the buttons while `invalid` (docs/design-system.md → Кнопки). Without it the footer says
+   * «Заповніть обов’язкові поля», and only while no field shows its own error.
    */
   invalidReason?: string
   /** Width of the dialog, e.g. `sm:max-w-[560px]`. */
   className?: string
 }): ReactElement {
   const blocked = invalid || pending
+  const reasonId = useId()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn('sm:max-w-[520px]', className)}>
@@ -59,7 +61,7 @@ export function FormDialog({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <form
-          className="flex flex-col gap-6"
+          className="group/form flex flex-col gap-6"
           onSubmit={(e: FormEvent) => {
             e.preventDefault()
             if (!blocked) void onSubmit()
@@ -67,15 +69,28 @@ export function FormDialog({
         >
           <FieldGroup className="gap-4">{children}</FieldGroup>
           <DialogFooter>
-            {invalid && invalidReason && (
-              <p className="mr-auto self-center text-caption text-muted-foreground" aria-live="polite">
-                {invalidReason}
-              </p>
-            )}
+            {/* Always mounted: a live region that appears together with its text is not announced. */}
+            <p
+              id={reasonId}
+              aria-live="polite"
+              className={cn(
+                'mr-auto self-center text-caption text-muted-foreground',
+                // The generic phrase steps aside once a field says what is wrong.
+                !invalidReason &&
+                  'group-has-[[aria-invalid=true]]/form:hidden group-has-[[data-invalid=true]]/form:hidden'
+              )}
+            >
+              {invalid ? (invalidReason ?? 'Заповніть обов’язкові поля') : null}
+            </p>
             <Button type="button" variant="soft" onClick={() => onOpenChange(false)}>
               {cancelLabel}
             </Button>
-            <Button type="submit" variant="lime" disabled={blocked}>
+            <Button
+              type="submit"
+              variant="lime"
+              disabled={blocked}
+              aria-describedby={invalid ? reasonId : undefined}
+            >
               {submitLabel}
             </Button>
           </DialogFooter>

@@ -5,24 +5,35 @@ import { moneyEntries } from '@/lib/money'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
-// Kept until crm-overview imports it from '@/lib/money' (the one place to take it from).
-// eslint-disable-next-line react-refresh/only-export-components -- re-export, not a component
-export { moneyEntries }
-
 /**
  * Never wider than its tile: a long sum ends with «…» (the exact amount is in the tooltip). overflow-x: clip
  * cuts only sideways — `truncate` (overflow: hidden) also cut the comma tail and «р» below 1em in big type.
  */
-const FIT = 'inline-block max-w-full overflow-x-clip text-ellipsis whitespace-nowrap align-bottom tabular-nums'
+const FIT =
+  'inline-block max-w-full overflow-x-clip text-ellipsis whitespace-nowrap align-bottom tabular-nums'
 
 /**
  * A money amount for stat tiles: big sums are shortened («55 млн USD») so they never overflow the tile,
  * the exact amount is in the tooltip. Small sums are shown as is. docs/design-system.md → Числа в тексте.
  */
-export function MoneyValue({ amount, currency, sign = false }: { amount: number; currency: string; sign?: boolean }) {
+export function MoneyValue({
+  amount,
+  currency,
+  sign = false
+}: {
+  amount: number
+  currency: string
+  sign?: boolean
+}) {
   const prefix = sign && amount > 0 ? '+' : ''
   const short = `${prefix}${fmtMoneyCompact(amount, currency)}`
-  if (Math.abs(amount) < COMPACT_FROM) return <span className={FIT}>{short}</span>
+  // title: a narrow tile may still cut «600,00 U…»; no tabIndex, so it is safe inside a clickable row too.
+  if (Math.abs(amount) < COMPACT_FROM)
+    return (
+      <span className={FIT} title={`${prefix}${fmtMoney(amount, currency)}`}>
+        {short}
+      </span>
+    )
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -30,7 +41,10 @@ export function MoneyValue({ amount, currency, sign = false }: { amount: number;
         <span
           tabIndex={0}
           aria-label={`${prefix}${fmtMoney(amount, currency)}`}
-          className={cn(FIT, 'cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+          className={cn(
+            FIT,
+            'cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring'
+          )}
         >
           {short}
         </span>

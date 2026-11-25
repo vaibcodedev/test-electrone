@@ -81,15 +81,11 @@ export function DatePicker({
         <PopoverTrigger asChild>
           <Button
             id={id}
-            variant="soft"
+            variant="field"
             size={size}
+            // The field variant turns the border destructive, like an invalid Input.
             aria-invalid={invalid || undefined}
-            className={cn(
-              // Looks like an input (same border/tint as Input), not like a button.
-              'flex-1 justify-start rounded-xl border border-input bg-foreground/[0.04] font-normal hover:border-foreground/40 hover:bg-foreground/[0.04]',
-              !date && 'text-muted-foreground',
-              invalid && 'text-destructive ring-1 ring-destructive/60 ring-inset'
-            )}
+            className={cn('flex-1', !date && 'text-muted-foreground')}
           >
             <CalendarDays />
             {label}
@@ -114,7 +110,7 @@ export function DatePicker({
                 onChange={(e) => setTime(e.target.value)}
                 className="h-8 flex-1 [&::-webkit-calendar-picker-indicator]:hidden"
               />
-              <Button size="sm" variant="lime" onClick={() => setOpen(false)}>
+              <Button type="button" size="sm" variant="lime" onClick={() => setOpen(false)}>
                 Готово
               </Button>
             </div>
@@ -124,7 +120,16 @@ export function DatePicker({
       {clearable && date && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="soft" size={size === 'sm' ? 'icon-sm' : 'icon'} aria-label="Очистити дату" onClick={() => onChange(null)}>
+            {/* type=button: inside a FormDialog the ✕ would otherwise submit the form along with clearing the date.
+                The same field variant as the trigger, so the group reads as one field. */}
+            <Button
+              type="button"
+              variant="field"
+              size={size === 'sm' ? 'icon-sm' : 'icon'}
+              aria-label="Очистити дату"
+              className="justify-center text-muted-foreground hover:text-foreground"
+              onClick={() => onChange(null)}
+            >
               <X />
             </Button>
           </TooltipTrigger>

@@ -1,8 +1,15 @@
 import type { ComponentProps, ReactElement, ReactNode } from 'react'
-import { fmtPercent } from '@/lib/format'
+import { fmtNumber, fmtPercent } from '@/lib/format'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 
 export interface FunnelStep {
   label: string
@@ -27,10 +34,12 @@ export function Funnel({ steps }: { steps: FunnelStep[] }): ReactElement {
             aria-label={s.label}
             className="h-3 bg-card [&>[data-slot=progress-indicator]]:rounded-full [&>[data-slot=progress-indicator]]:bg-chart-1"
           />
+          {/* The same «12 · 33,3%» as the FunnelTable cells. */}
           <span className="text-right text-body tabular-nums">
-            <span className="font-medium">{s.value}</span>
-            {i > 0 && base > 0 && (
-              <span className="ml-1.5 text-muted-foreground">{fmtPercent((s.value / base) * 100)}</span>
+            {i > 0 && base > 0 ? (
+              <WithRate value={s.value} rate={(s.value / base) * 100} />
+            ) : (
+              fmtNumber(s.value)
             )}
           </span>
         </div>
@@ -39,11 +48,12 @@ export function Funnel({ steps }: { steps: FunnelStep[] }): ReactElement {
   )
 }
 
-/** «12 · 33,3%»: a count with its conversion rate, for FunnelTable cells. */
+/** «12 · 33,3%»: a count with its conversion rate (Funnel, FunnelTable cells). A zero is just «0»: «0 · 0%» is noise. */
 export function WithRate({ value, rate }: { value: number; rate: number }): ReactElement {
+  if (value === 0) return <>0</>
   return (
     <>
-      {value} <span className="text-muted-foreground">· {fmtPercent(rate)}</span>
+      {fmtNumber(value)} <span className="text-muted-foreground">· {fmtPercent(rate)}</span>
     </>
   )
 }

@@ -18,6 +18,7 @@ export function LivePreview({
   className,
   debounce = 350,
   showStatus = true,
+  quiet = false,
   onStatus
 }: {
   code: string
@@ -25,8 +26,10 @@ export function LivePreview({
   bg?: PreviewBg
   className?: string
   debounce?: number
-  /** false = no status badge (cards show their own quiet dot). */
+  /** false = no status badge (gallery tiles draw their own). */
   showStatus?: boolean
+  /** A scaled-down tile: the sandbox reports an error only to `onStatus`, without drawing its unreadable block. */
+  quiet?: boolean
   /** Render result for the parent: ok / error message. */
   onStatus?: (status: { ok: boolean; error?: string }) => void
 }) {
@@ -58,16 +61,21 @@ export function LivePreview({
   useEffect(() => {
     if (!ready) return
     const t = setTimeout(() => {
-      frame.current?.contentWindow?.postMessage({ type: 'render', code, language, bg }, '*')
+      frame.current?.contentWindow?.postMessage({ type: 'render', code, language, bg, quiet }, '*')
     }, debounce)
     return () => clearTimeout(t)
-  }, [code, language, bg, ready, debounce])
+  }, [code, language, bg, quiet, ready, debounce])
 
   return (
-    <div className={cn('relative flex min-h-0 flex-col overflow-hidden rounded-2xl ring-1 ring-border', className)}>
+    <div
+      className={cn(
+        'relative flex min-h-0 flex-col overflow-hidden rounded-2xl ring-1 ring-border',
+        className
+      )}
+    >
       <iframe
         ref={frame}
-        title="Превʼю компонента"
+        title="Прев’ю компонента"
         src={src}
         sandbox="allow-scripts"
         className="min-h-0 w-full flex-1 border-0 bg-white"
@@ -75,8 +83,16 @@ export function LivePreview({
       {/* On a card plate: a tinted status badge didn't read on the white, dark and grid backgrounds of the
           preview. Empty code has nothing to report (the preview reports ok for it). */}
       {showStatus && status && code.trim() && (
-        <Badge variant="soft" className="absolute top-2 left-2 bg-card text-foreground shadow-sm" title={status.error}>
-          {status.ok ? <CheckCircle2 className="text-success" /> : <AlertTriangle className="text-destructive" />}
+        <Badge
+          variant="soft"
+          className="absolute top-2 left-2 bg-card text-foreground shadow-sm"
+          title={status.error}
+        >
+          {status.ok ? (
+            <CheckCircle2 className="text-success" />
+          ) : (
+            <AlertTriangle className="text-destructive" />
+          )}
           {status.ok ? 'Працює' : 'Помилка'}
         </Badge>
       )}

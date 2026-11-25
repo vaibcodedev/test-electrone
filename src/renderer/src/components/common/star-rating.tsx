@@ -7,11 +7,12 @@ import { useReadOnly } from './detail-mode-context'
 const STARS = [1, 2, 3, 4, 5]
 
 /**
- * Filled up to the value in the warn tone: lime is the screen's one accent («Зберегти» sits next to the
- * stars while editing), and the rating copies in the modules were warn already.
+ * Filled up to the value in the warn fill tone: lime is the screen's one accent («Зберегти» sits next to the
+ * stars while editing). `*-fill` is the tone of marks (dots, bars, stars), `warn` itself is for text
+ * (docs/design-system.md → Цвета).
  */
 const starClass = (n: number, value: number): string =>
-  cn('size-4', n <= value ? 'fill-warn text-warn' : 'text-muted-foreground')
+  cn('size-4', n <= value ? 'fill-warn-fill text-warn-fill' : 'text-muted-foreground')
 
 /**
  * 0–5 stars (0 = not rated). Editing: five toggles, the chosen one again resets to 0. Reading: static
@@ -32,7 +33,12 @@ export function StarRating({
   const viewMode = useReadOnly()
   if (viewMode)
     return value ? (
-      <span data-view role="img" aria-label={`${value} з 5`} className={cn('flex items-center gap-0.5', className)}>
+      <span
+        data-view
+        role="img"
+        aria-label={`${value} з 5`}
+        className={cn('flex items-center gap-0.5', className)}
+      >
         {STARS.map((n) => (
           <Star key={n} aria-hidden className={starClass(n, value)} />
         ))}
@@ -51,7 +57,13 @@ export function StarRating({
       className={className}
     >
       {STARS.map((n) => (
-        <ToggleGroupItem key={n} value={String(n)} aria-label={`${n} з 5`} title={`${n} з 5`} className="size-8 min-w-8 px-0 on:bg-transparent">
+        <ToggleGroupItem
+          key={n}
+          value={String(n)}
+          aria-label={`${n} з 5`}
+          title={`${n} з 5`}
+          className="size-8 min-w-8 px-0 on:bg-transparent"
+        >
           <Star className={starClass(n, value)} />
         </ToggleGroupItem>
       ))}

@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EditorState } from '@codemirror/state'
-import CodeMirror, { EditorView, Prec, keymap, type Extension, type ReactCodeMirrorRef } from '@uiw/react-codemirror'
+import CodeMirror, {
+  EditorView,
+  Prec,
+  keymap,
+  type Extension,
+  type ReactCodeMirrorRef
+} from '@uiw/react-codemirror'
 import { Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { canFormat, formatCode } from '@/lib/format-code'
+import { fmtNumber } from '@/lib/format'
+import { reportError } from '@/lib/error-reporting'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createTheme } from '@uiw/codemirror-themes'
@@ -20,9 +28,6 @@ import hljs from 'highlight.js/lib/common'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from './detail-mode'
 import type { CodeLanguage } from '@/lib/code-language'
-
-// Language detection is plain logic (lib); re-exported so modules keep importing it from here.
-export { detectLanguage, LANGUAGE_LABEL, type CodeLanguage } from '@/lib/code-language'
 
 function languageExtension(lang: CodeLanguage): Extension[] {
   switch (lang) {
@@ -67,8 +72,15 @@ const vaultTheme = createTheme({
     fontFamily: 'var(--font-mono)'
   },
   styles: [
-    { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--code-muted)', fontStyle: 'italic' },
-    { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.bool, t.null], color: 'var(--code-keyword)' },
+    {
+      tag: [t.comment, t.lineComment, t.blockComment],
+      color: 'var(--code-muted)',
+      fontStyle: 'italic'
+    },
+    {
+      tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.bool, t.null],
+      color: 'var(--code-keyword)'
+    },
     { tag: [t.string, t.special(t.string), t.regexp], color: 'var(--code-string)' },
     { tag: [t.number], color: 'var(--code-number)' },
     { tag: [t.function(t.variableName), t.function(t.propertyName)], color: 'var(--code-fn)' },
@@ -77,10 +89,20 @@ const vaultTheme = createTheme({
     { tag: [t.heading], color: 'var(--code-keyword)', fontWeight: '600' },
     { tag: [t.link, t.url], color: 'var(--code-fn)', textDecoration: 'underline' },
     // Tags used by css / html / json / sql / markdown / shell, so each language actually looks different.
-    { tag: [t.atom, t.unit, t.color, t.constant(t.variableName), t.list], color: 'var(--code-number)' },
-    { tag: [t.definition(t.variableName), t.definition(t.propertyName), t.labelName], color: 'var(--code-fn)' },
+    {
+      tag: [t.atom, t.unit, t.color, t.constant(t.variableName), t.list],
+      color: 'var(--code-number)'
+    },
+    {
+      tag: [t.definition(t.variableName), t.definition(t.propertyName), t.labelName],
+      color: 'var(--code-fn)'
+    },
     { tag: [t.special(t.variableName), t.self, t.namespace], color: 'var(--code-attr)' },
-    { tag: [t.operator, t.derefOperator, t.compareOperator, t.arithmeticOperator], color: 'var(--code-keyword)', opacity: '0.8' },
+    {
+      tag: [t.operator, t.derefOperator, t.compareOperator, t.arithmeticOperator],
+      color: 'var(--code-keyword)',
+      opacity: '0.8'
+    },
     { tag: [t.punctuation, t.separator, t.bracket, t.angleBracket], color: 'var(--code-muted)' },
     { tag: [t.meta, t.processingInstruction, t.documentMeta], color: 'var(--code-muted)' },
     { tag: [t.monospace, t.escape], color: 'var(--code-string)' },
@@ -101,7 +123,9 @@ const baseTheme = EditorView.theme({
   '.cm-lineNumbers .cm-gutterElement': { minWidth: '3ch', padding: '0 10px 0 2px' },
   '&.cm-focused': { outline: 'none' },
   // Active line only while editing: an unfocused editor (e.g. an empty field) shows no stray stripe.
-  '&:not(.cm-focused) .cm-activeLine, &:not(.cm-focused) .cm-activeLineGutter': { backgroundColor: 'transparent' },
+  '&:not(.cm-focused) .cm-activeLine, &:not(.cm-focused) .cm-activeLineGutter': {
+    backgroundColor: 'transparent'
+  },
   '.cm-placeholder': { color: 'var(--code-muted)' }
 })
 
@@ -151,13 +175,23 @@ export function CodeEditor({
       const width = Math.min(120, Math.max(60, columns || 100))
       const formatted = await formatCode(source, language, width)
       if (maxLength && formatted.length > maxLength) {
-        toast.error(`Після форматування код перевищить ліміт у ${maxLength.toLocaleString('uk-UA')} символів`)
+        toast.error(`Після форматування код перевищить ліміт у ${fmtNumber(maxLength)} символів`)
         return
       }
       if (formatted === source) toast('Код уже відформатовано')
       else view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: formatted } })
     } catch (e) {
-      toast.error(`Не вдалося відформатувати: ${String((e as Error).message ?? e).split('\n')[0]}`)
+      // Prettier speaks English («Unexpected token (3:5)»): only the line goes to the person.
+      const line = (e as { loc?: { start?: { line?: number } } }).loc?.start?.line
+      if (line) {
+        // A mistake in the person's code, not in Vault: nothing for the log.
+        toast.error(
+          `Не вдалося відформатувати: синтаксична помилка в рядку ${line}. Виправте її й спробуйте ще раз.`
+        )
+      } else {
+        toast.error('Не вдалося відформатувати код. Спробуйте ще раз.')
+        reportError(e, 'code:format')
+      }
     } finally {
       setFormatting(false)
     }
@@ -196,13 +230,24 @@ export function CodeEditor({
   }, [])
 
   return (
-    <div className={cn('relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-[var(--code-bg)]', className)}>
+    <div
+      className={cn(
+        'relative flex min-w-0 flex-col overflow-hidden rounded-2xl bg-[var(--code-bg)]',
+        className
+      )}
+    >
       {/* Only where Prettier can format: for plain text a disabled button just took a strip above the code. */}
       {formattable && (
         <div className="flex justify-end px-2 pt-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button type="button" variant="code" size="xs" disabled={formatting} onClick={() => void runFormat()}>
+              <Button
+                type="button"
+                variant="code"
+                size="xs"
+                disabled={formatting}
+                onClick={() => void runFormat()}
+              >
                 <Wand2 /> Форматувати
               </Button>
             </TooltipTrigger>
@@ -271,7 +316,9 @@ export function CodeBlock({
   const htmlOut = useMemo(() => {
     const lang = HLJS_ALIAS[language] ?? language
     try {
-      return hljs.getLanguage(lang) ? hljs.highlight(shown, { language: lang }).value : hljs.highlightAuto(shown).value
+      return hljs.getLanguage(lang)
+        ? hljs.highlight(shown, { language: lang }).value
+        : hljs.highlightAuto(shown).value
     } catch {
       return shown.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
     }

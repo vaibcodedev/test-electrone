@@ -1,15 +1,13 @@
 import type { ReactElement } from 'react'
 import { cn } from '@/lib/utils'
+import { fmtNumber } from '@/lib/format'
 import { Progress } from '@/components/ui/progress'
-import { SegmentBar } from './page'
-
-/** Up to this many steps the bar is one segment per step (docs/design-system.md → Прогресс). */
-const PER_ITEM_MAX = 12
+import { SEGMENTS_MAX, SegmentBar } from './page'
 
 /**
  * Progress with its caption: a bar and «Готово X з Y» under it, an optional warning on the right
- * («переплата 300 $»). Short lists (≤ 12) or explicit `states` get one segment per item, longer ones a
- * single bar. The bar never shows more than 100%: the excess goes into `warn` as words.
+ * («переплата 300 $»). Short lists (≤ 12 whole steps) or `states` up to 12 get one segment per item, longer
+ * ones and `continuous` amounts a single bar. The bar never shows more than 100%: the excess goes into `warn`.
  */
 export function ProgressLine({
   value,
@@ -18,6 +16,7 @@ export function ProgressLine({
   label,
   warn,
   tone = 'lime',
+  continuous,
   className
 }: {
   value: number
@@ -29,11 +28,15 @@ export function ProgressLine({
   warn?: string
   /** `ink` — on an ink tile. */
   tone?: 'lime' | 'ink'
+  /** An amount, not a count of steps (hours, money): always one bar, a 10 h budget is not 10 segments. */
+  continuous?: boolean
   className?: string
 }): ReactElement {
-  const segmented = !!states?.length || (total > 0 && total <= PER_ITEM_MAX)
+  const segmented = states?.length
+    ? states.length <= SEGMENTS_MAX
+    : !continuous && Number.isInteger(total) && total > 0 && total <= SEGMENTS_MAX
   const percent = total > 0 ? Math.min(100, (value / total) * 100) : 0
-  const caption = label ?? `Готово ${value} з ${total}`
+  const caption = label ?? `Готово ${fmtNumber(value)} з ${fmtNumber(total)}`
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', className)}>
       {segmented ? (
@@ -42,7 +45,8 @@ export function ProgressLine({
           total={total}
           segments={states?.length || total}
           states={states}
-          tone={tone}
+          tone={tone === 'ink' ? 'on-ink' : 'lime'}
+          label={caption}
         />
       ) : (
         <Progress
@@ -52,7 +56,7 @@ export function ProgressLine({
             'h-1.5 bg-current/15',
             tone === 'lime'
               ? '[&>[data-slot=progress-indicator]]:bg-chart-1'
-              : '[&>[data-slot=progress-indicator]]:bg-lime-foreground'
+              : '[&>[data-slot=progress-indicator]]:bg-ink-accent'
           )}
         />
       )}

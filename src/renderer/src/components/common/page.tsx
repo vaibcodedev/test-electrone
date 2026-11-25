@@ -2,14 +2,26 @@
  * Page-level building blocks. Everything here is a thin composition of shadcn components
  * (Empty, InputGroup, ToggleGroup, Progress, Field, Kbd) — no hand-made controls.
  */
-import { useId, type ReactElement, type ReactNode } from 'react'
+import { useId, useRef, type ReactElement, type ReactNode } from 'react'
 import { RotateCcw, Search, SearchX, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fmtNumber } from '@/lib/format'
 import { useReadOnly } from './detail-mode'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '@/components/ui/input-group'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle
+} from '@/components/ui/empty'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput
+} from '@/components/ui/input-group'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Progress } from '@/components/ui/progress'
 import { Field as UiField, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
@@ -33,14 +45,28 @@ export function PageHeader({
 }) {
   return (
     // shrink-0: in a short window the Page column must not squeeze the header (the filters drew over the list).
-    <header data-slot="page-header" className={cn('flex shrink-0 flex-col gap-4 px-8 pt-7 pb-5', className)}>
-      <div className="flex items-start justify-between gap-6">
-        <h1 className="font-display text-title max-w-[18ch] min-w-0 text-balance">{title}</h1>
+    <header
+      data-slot="page-header"
+      className={cn('flex shrink-0 flex-col gap-4 px-8 pt-7 pb-5', className)}
+    >
+      {/* min-h-10: as tall without actions (/trash) as with them, so the subtitle does not jump between pages. */}
+      <div className="flex min-h-10 items-start justify-between gap-6">
+        {/* tabIndex -1: a page may move focus here (after emptying the trash); never a Tab stop. */}
+        <h1
+          tabIndex={-1}
+          className="font-display text-title max-w-[18ch] min-w-0 text-balance outline-none"
+        >
+          {title}
+        </h1>
         {actions && <div className="flex shrink-0 items-center gap-2 pt-1">{actions}</div>}
       </div>
       {/* Under the title row, not beside the actions: four header buttons no longer squeeze it onto two
-          lines. -mt-2 keeps the 8px from the title. */}
-      {subtitle && <div className="-mt-2 max-w-[80ch] text-body text-muted-foreground">{subtitle}</div>}
+          lines. -mt-2 keeps the 8px from the title; 110ch keeps a two-clause subtitle on one line at 1440. */}
+      {subtitle && (
+        <div className="-mt-2 max-w-[110ch] text-pretty text-body text-muted-foreground">
+          {subtitle}
+        </div>
+      )}
       {children}
     </header>
   )
@@ -59,7 +85,8 @@ export function Page({ children, className }: { children: ReactNode; className?:
  * Empty state (shadcn Empty): says what to do next, with the action right there. `cta` is the usual
  * action — a soft button (the lime one stays in the page header: one accent per screen); `variant: 'lime'`
  * only on a screen whose header has no lime button (focus screen, empty moodboard). `action` is for
- * anything else, e.g. a `subtle` button when the empty state sits inside a surface card.
+ * anything else, e.g. a `subtle` button when the empty state sits inside a surface card. `cta.iconEnd` — an
+ * icon after the label: the arrow of a move to another screen («До вакансій →», docs/design-system.md → Кнопки).
  */
 export function EmptyState({
   icon: Icon,
@@ -73,10 +100,18 @@ export function EmptyState({
   title: string
   hint?: ReactNode
   action?: ReactNode
-  cta?: { label: string; icon?: LucideIcon; onClick: () => void; disabled?: boolean; variant?: 'soft' | 'lime' }
+  cta?: {
+    label: string
+    icon?: LucideIcon
+    iconEnd?: LucideIcon
+    onClick: () => void
+    disabled?: boolean
+    variant?: 'soft' | 'lime'
+  }
   className?: string
 }) {
   const CtaIcon = cta?.icon
+  const CtaIconEnd = cta?.iconEnd
   return (
     <Empty className={cn('py-14', className)}>
       <EmptyHeader>
@@ -95,6 +130,7 @@ export function EmptyState({
             <Button variant={cta.variant ?? 'soft'} disabled={cta.disabled} onClick={cta.onClick}>
               {CtaIcon && <CtaIcon />}
               {cta.label}
+              {CtaIconEnd && <CtaIconEnd />}
             </Button>
           )}
           {action}
@@ -142,6 +178,7 @@ export function SearchInput({
   className?: string
   autoFocus?: boolean
 }) {
+  const inputRef = useRef<HTMLInputElement>(null)
   return (
     // Same height as chips and sm buttons in the filter row and one width on every screen
     // (docs/design-system.md → Ряд фильтров); shrinks instead of overflowing a narrow row.
@@ -150,7 +187,10 @@ export function SearchInput({
         <Search />
       </InputGroupAddon>
       <InputGroupInput
+        ref={inputRef}
         data-page-search
+        // searchbox, not type="search": Chromium would draw its own ✕ next to ours.
+        role="searchbox"
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -168,7 +208,16 @@ export function SearchInput({
         <InputGroupAddon align="inline-end">
           <Tooltip>
             <TooltipTrigger asChild>
-              <InputGroupButton size="icon-xs" className="rounded-full" aria-label="Очистити пошук" onClick={() => onChange('')}>
+              <InputGroupButton
+                size="icon-xs"
+                className="rounded-full"
+                aria-label="Очистити пошук"
+                // The ✕ goes away with the text: focus returns to the field instead of falling to body.
+                onClick={() => {
+                  onChange('')
+                  inputRef.current?.focus()
+                }}
+              >
                 <X />
               </InputGroupButton>
             </TooltipTrigger>
@@ -190,14 +239,19 @@ export interface ChipOption<T extends string> {
 
 const ALL = '__all__'
 
-/** Selected chip of a secondary filter group: a neutral tint, so the screen keeps one lime filter group. */
-const NEUTRAL_CHIP = 'on:bg-foreground/12 on:text-foreground on:font-medium on:focus-visible:ring-ring'
+/**
+ * Selected chip of a secondary filter group: a neutral tint, so the screen keeps one lime filter group. Exported
+ * for chip groups that are not FilterChips (the type switch of quick add).
+ */
+export const NEUTRAL_CHIP =
+  'on:bg-foreground/12 on:text-foreground on:font-medium on:focus-visible:ring-ring'
 
 /**
  * Pill filter chips (shadcn ToggleGroup, variant "chip": selected = lime). `allLabel` adds a "show all" chip.
  * `tone="neutral"` — the second and further groups of a filter row (docs/design-system.md → Переключатели).
  * A chip with `count: 0` is hidden unless it is selected, and a row with nothing to pick is not drawn at all:
- * no «Djinni 0 · DOU 0» above an empty state (docs/design-system.md → Ряд фильтров).
+ * no «Djinni 0 · DOU 0» above an empty state, and no «Усі» + one chip that would show the same records
+ * (docs/design-system.md → Ряд фильтров). A selected chip always stays, so the filter can be turned off.
  */
 export function FilterChips<T extends string>({
   options,
@@ -221,7 +275,7 @@ export function FilterChips<T extends string>({
 }) {
   const itemClass = tone === 'neutral' ? NEUTRAL_CHIP : undefined
   const visible = options.filter((o) => o.count === undefined || o.count > 0 || o.value === value)
-  if (!visible.length && value === undefined) return null
+  if (value === undefined && visible.length < (allLabel ? 2 : 1)) return null
   return (
     <ToggleGroup
       type="single"
@@ -277,16 +331,24 @@ export function FilterBar({
 }): ReactElement {
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        {chips && <div className="flex min-w-0 flex-wrap items-center gap-2">{chips}</div>}
-        {trailing && <div className="ml-auto flex max-w-full min-w-0 items-center gap-2">{trailing}</div>}
+      {/* The row itself does not wrap: chips wrap in their own column, the search stays right on the first line. */}
+      <div className="flex items-start gap-2">
+        {chips && (
+          <div className="flex min-w-0 flex-1 basis-0 flex-wrap items-center gap-2">{chips}</div>
+        )}
+        {trailing && (
+          <div className="ml-auto flex min-w-0 shrink items-center gap-2">{trailing}</div>
+        )}
       </div>
       {secondary}
     </div>
   )
 }
 
-/** Segmented control (shadcn ToggleGroup, variant "segment"): exactly one option is always selected. */
+/**
+ * Segmented control (shadcn ToggleGroup, variant "segment"): exactly one option is always selected. `count` —
+ * a muted number after the label («Клієнти 12»); leave it out while the number would mislead (more pages).
+ */
 export function Segmented<T extends string>({
   options,
   value,
@@ -294,7 +356,7 @@ export function Segmented<T extends string>({
   className,
   size = 'sm'
 }: {
-  options: { value: T; label: ReactNode; title?: string }[]
+  options: { value: T; label: ReactNode; title?: string; count?: number }[]
   value: T
   onChange: (value: T) => void
   className?: string
@@ -313,6 +375,9 @@ export function Segmented<T extends string>({
         const item = (
           <ToggleGroupItem key={o.value} value={o.value} aria-label={o.title}>
             {o.label}
+            {o.count !== undefined && (
+              <span className="tabular-nums text-muted-foreground">{o.count}</span>
+            )}
           </ToggleGroupItem>
         )
         // An icon-only segment explains itself in a Tooltip, like every icon button (docs/design-system.md → Кнопки).
@@ -329,6 +394,15 @@ export function Segmented<T extends string>({
   )
 }
 
+/** Up to this many items a bar draws a segment per item; a longer list gets one bar (docs/design-system.md → Прогресс). */
+export const SEGMENTS_MAX = 12
+
+const SEGMENT_FILL = {
+  lime: '[&>[data-slot=progress-indicator]]:bg-chart-1',
+  ink: '[&>[data-slot=progress-indicator]]:bg-lime-foreground',
+  'on-ink': '[&>[data-slot=progress-indicator]]:bg-ink-accent'
+} as const
+
 /** Segmented progress (reference "Active order" bar) built from shadcn Progress segments. */
 export function SegmentBar({
   value,
@@ -336,24 +410,53 @@ export function SegmentBar({
   segments = 4,
   className,
   tone = 'lime',
-  states
+  states,
+  label
 }: {
   value: number
   total: number
   segments?: number
   className?: string
-  tone?: 'lime' | 'ink'
-  /** Checklists (≤ 12 items): one segment per item, filled exactly where that item is done. */
+  /**
+   * `lime` — on paper; `ink` — dark segments on the lime sidebar card (lime-foreground is the ink colour, so it
+   * vanishes on an ink tile); `on-ink` — accent segments on an ink tile.
+   */
+  tone?: 'lime' | 'ink' | 'on-ink'
+  /** Checklists (≤ 12 items): one segment per item, filled exactly where that item is done. More — one bar. */
   states?: boolean[]
+  /** Name of the bar for screen readers («Готово 3 з 5»). */
+  label?: string
 }) {
   const ratio = total ? Math.min(1, value / total) : 0
-  const perItem = states && states.length > 0 && states.length <= 12
+  const fill = SEGMENT_FILL[tone]
+  if (states && states.length > SEGMENTS_MAX) {
+    return (
+      <Progress
+        value={ratio * 100}
+        aria-label={label}
+        className={cn('h-1.5 bg-current/15', fill, className)}
+      />
+    )
+  }
+  const perItem = !!states?.length
   const count = perItem ? states.length : segments
   // Whole segments only: a fractional fill left a lime sliver at the start of the next segment.
   // Any progress shows at least one segment; it's full only when everything is done.
-  const filled = value <= 0 ? 0 : ratio >= 1 ? count : Math.min(count - 1, Math.max(1, Math.round(ratio * count)))
+  const filled =
+    value <= 0
+      ? 0
+      : ratio >= 1
+        ? count
+        : Math.min(count - 1, Math.max(1, Math.round(ratio * count)))
   return (
-    <div className={cn('flex gap-1', className)} role="progressbar" aria-valuenow={value} aria-valuemax={total}>
+    <div
+      className={cn('flex gap-1', className)}
+      role="progressbar"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuenow={value}
+      aria-valuemax={total}
+    >
       {Array.from({ length: count }, (_, i) => {
         const on = perItem ? !!states[i] : i < filled
         return (
@@ -363,9 +466,7 @@ export function SegmentBar({
             aria-hidden
             className={cn(
               'h-1.5 flex-1 bg-current/15',
-              tone === 'lime'
-                ? '[&>[data-slot=progress-indicator]]:bg-chart-1'
-                : '[&>[data-slot=progress-indicator]]:bg-lime-foreground',
+              fill,
               // An empty segment hides its indicator: anti-aliasing showed a hairline of colour at the edge.
               !on && '[&>[data-slot=progress-indicator]]:opacity-0'
             )}
@@ -378,7 +479,8 @@ export function SegmentBar({
 
 /**
  * Character counter of a long field (docs/design-system.md → Формы): appears after 80% of the limit and
- * turns warn from 90%. Field and MarkdownField share it, so both behave the same.
+ * turns warn from 90%. Field and MarkdownField share it, so both behave the same. It is announced only from
+ * 90%: a live counter from 80% made a screen reader read a number after every key.
  */
 export function CharCount({
   length,
@@ -390,17 +492,25 @@ export function CharCount({
   className?: string
 }): ReactElement | null {
   if (!max || length < max * 0.8) return null
+  const warn = length >= max * 0.9
   return (
     <span
-      className={cn('shrink-0 text-meta tabular-nums', length >= max * 0.9 ? 'text-warn' : 'text-muted-foreground', className)}
-      aria-live="polite"
+      className={cn(
+        'shrink-0 text-meta tabular-nums',
+        warn ? 'text-warn' : 'text-muted-foreground',
+        className
+      )}
+      aria-live={warn ? 'polite' : undefined}
     >
       {fmtNumber(length)} / {fmtNumber(max)}
     </span>
   )
 }
 
-/** Labelled form field (shadcn Field + FieldLabel). */
+/**
+ * Labelled form field (shadcn Field + FieldLabel). With `htmlFor` the message under the control has an id the
+ * control can point at with `aria-describedby`: `${htmlFor}-error` for the error, `${htmlFor}-hint` for the hint.
+ */
 export function Field({
   label,
   children,
@@ -443,9 +553,15 @@ export function Field({
       </div>
       {children}
       {error ? (
-        <FieldError className="text-caption">{error}</FieldError>
+        <FieldError id={forId && `${forId}-error`} className="text-caption">
+          {error}
+        </FieldError>
       ) : (
-        hint && <FieldDescription className="text-caption">{hint}</FieldDescription>
+        hint && (
+          <FieldDescription id={forId && `${forId}-hint`} className="text-caption">
+            {hint}
+          </FieldDescription>
+        )
       )}
     </UiField>
   )

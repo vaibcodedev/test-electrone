@@ -32,7 +32,9 @@ export function NumberInput({
   allowEmpty?: boolean
 } & Omit<ComponentProps<typeof Input>, 'value' | 'onChange' | 'type' | 'min' | 'max' | 'step'>) {
   const readOnly = useReadOnly()
-  const show = (v: number | null): string => (v === null || Number.isNaN(v) ? '' : String(v))
+  // Decimal comma, as in NumberField and everywhere in the interface.
+  const show = (v: number | null): string =>
+    v === null || Number.isNaN(v) ? '' : String(v).replace('.', ',')
   const [text, setText] = useState(show(value))
   const [focused, setFocused] = useState(false)
 
@@ -61,7 +63,8 @@ export function NumberInput({
   }
 
   const typed = parseNumberText(text)
-  const outOfRange = typed !== null && ((min !== undefined && typed < min) || (max !== undefined && typed > max))
+  const outOfRange =
+    typed !== null && ((min !== undefined && typed < min) || (max !== undefined && typed > max))
 
   // Reading: the number as text, grouped like everywhere else («9 000 000»); none — the field hides itself.
   if (readOnly)

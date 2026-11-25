@@ -52,9 +52,17 @@ function ExternalImage({ src, alt }: { src?: string; alt?: string }) {
     /* keep raw */
   }
   return (
-    <Button variant="subtle" size="sm" className="my-1 max-w-full" onClick={() => setShown(true)} title={src}>
+    <Button
+      variant="subtle"
+      size="sm"
+      className="my-1 max-w-full"
+      onClick={() => setShown(true)}
+      title={src}
+    >
       <ImageIcon />
-      <span className="truncate">Показати зображення{alt ? ` «${alt}»` : ''} з {host}</span>
+      <span className="truncate">
+        Показати зображення{alt ? ` «${alt}»` : ''} з {host}
+      </span>
     </Button>
   )
 }
@@ -68,7 +76,9 @@ export function Markdown({ source, className }: { source: string; className?: st
         rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
         components={{
           pre: Pre,
-          img: ({ src, alt }) => <ExternalImage src={typeof src === 'string' ? src : undefined} alt={alt} />,
+          img: ({ src, alt }) => (
+            <ExternalImage src={typeof src === 'string' ? src : undefined} alt={alt} />
+          ),
           a: ({ href, children }) => (
             <a
               href={href}
@@ -118,7 +128,9 @@ export function MarkdownField({
   const id = useId()
   // In record editing «Редагувати» means writing, so the field opens on «Текст». Outside a record a filled
   // field opens on «Перегляд»: otherwise its text (and «- [ ]» checkboxes) would only ever show as raw markdown.
-  const [mode, setMode] = useState<'edit' | 'preview'>(defaultMode ?? (inRecord || !value.trim() ? 'edit' : 'preview'))
+  const [mode, setMode] = useState<'edit' | 'preview'>(
+    defaultMode ?? (inRecord || !value.trim() ? 'edit' : 'preview')
+  )
   // Record view mode: rendered text only; an empty field disappears.
   if (viewMode) {
     if (!value.trim()) return null
@@ -131,8 +143,9 @@ export function MarkdownField({
   }
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      {/* Label row has the label's height: the compact toggle (h-7, -my-1) must not push the control down,
-          so label → control is 8px like every other Field (docs/design-system.md → Формы). */}
+      {/* Label row has the label's height: the compact toggle (h-7, -my-1.5 → 16px in flow, below the
+          label's ≈17px) must not push the control down, so label → control is 8px like every other Field
+          (docs/design-system.md → Формы). */}
       <div className="flex items-center justify-between gap-2">
         {label ? (
           <FieldLabel htmlFor={mode === 'edit' ? id : undefined} className="min-w-0">
@@ -144,12 +157,26 @@ export function MarkdownField({
         <CharCount length={value.length} max={maxLength} className="ml-auto" />
         <Segmented
           size="xs"
-          className="-my-1 h-7 shrink-0 p-0.5 [&>button]:h-6 [&>button]:px-2.5 [&>button]:text-meta"
+          className="-my-1.5 h-7 shrink-0 p-0.5 [&>button]:h-6 [&>button]:px-2.5 [&>button]:text-meta"
           value={mode}
           onChange={setMode}
           options={[
-            { value: 'edit', label: <><Pencil /> Текст</> },
-            { value: 'preview', label: <><Eye /> Перегляд</> }
+            {
+              value: 'edit',
+              label: (
+                <>
+                  <Pencil /> Текст
+                </>
+              )
+            },
+            {
+              value: 'preview',
+              label: (
+                <>
+                  <Eye /> Перегляд
+                </>
+              )
+            }
           ]}
         />
       </div>
@@ -173,7 +200,9 @@ export function MarkdownField({
           {value.trim() ? (
             <Markdown source={value} />
           ) : (
-            <span className="text-body text-muted-foreground">Порожньо. Перемкніться на «Текст», щоб написати.</span>
+            <span className="text-body text-muted-foreground">
+              Порожньо. Перемкніться на «Текст», щоб написати.
+            </span>
           )}
         </div>
       )}

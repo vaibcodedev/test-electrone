@@ -16,19 +16,22 @@ const MUTED: Record<StatTone, string> = {
  * Dashboard-style stat tile: label (`text-body font-medium`, muted) → big number
  * (`font-display text-headline tabular-nums`) → optional hint (docs/design-system.md → Списки и
  * плитки). `value` is any node: a string, `MoneyValue`, `MoneyLines compact` (it sets its own size).
- * One `ink` or `lime` tile per row at most — it is the row's accent.
+ * One `ink` or `lime` tile per row at most — it is the row's accent. `empty` — a phrase instead of the value
+ * («Оплат цього місяця ще немає») in the tile's muted tone: a zero would read as data; the hint is hidden then.
  */
 export function StatTile({
   label,
   value,
   hint,
   tone = 'surface',
+  empty,
   className
 }: {
   label: ReactNode
   value: ReactNode
   hint?: ReactNode
   tone?: StatTone
+  empty?: string
   className?: string
 }): ReactElement {
   return (
@@ -41,11 +44,21 @@ export function StatTile({
       )}
     >
       <CardHeader>
-        <CardDescription className={cn('text-body font-medium', MUTED[tone])}>{label}</CardDescription>
+        <CardDescription className={cn('text-body font-medium', MUTED[tone])}>
+          {label}
+        </CardDescription>
       </CardHeader>
       <CardContent className="min-w-0">
-        <div className="min-w-0 font-display text-headline leading-none tabular-nums">{value}</div>
-        {hint && <div className={cn('mt-1.5 text-caption', MUTED[tone])}>{hint}</div>}
+        {empty ? (
+          <div className={cn('min-w-0 text-body', MUTED[tone])}>{empty}</div>
+        ) : (
+          <>
+            <div className="min-w-0 font-display text-headline leading-none tabular-nums">
+              {value}
+            </div>
+            {hint && <div className={cn('mt-1.5 text-caption', MUTED[tone])}>{hint}</div>}
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -55,7 +68,15 @@ export function StatTile({
  * Small «label + number» cell inside a record (word, interview question): a compact `Card`, the
  * explanation in a tooltip (the cell is focusable, so the tooltip opens from the keyboard too).
  */
-export function StatCell({ label, value, hint }: { label: string; value: ReactNode; hint: string }): ReactElement {
+export function StatCell({
+  label,
+  value,
+  hint
+}: {
+  label: string
+  value: ReactNode
+  hint: string
+}): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger asChild>

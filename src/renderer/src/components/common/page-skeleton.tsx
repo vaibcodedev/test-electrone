@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils'
  * fallback. Nothing is shown for the first 150 ms: local chunks usually arrive faster, and a skeleton that
  * flashes for one frame looks worse than none.
  */
-export type SkeletonKind = 'list' | 'grid' | 'board' | 'calendar' | 'dashboard' | 'overview' | 'form' | 'detail' | 'focus'
+export type SkeletonKind =
+  'list' | 'grid' | 'board' | 'calendar' | 'dashboard' | 'overview' | 'form' | 'detail' | 'focus'
 
 export const SKELETON_KINDS: readonly SkeletonKind[] = [
   'list',
@@ -33,31 +34,49 @@ export function Delayed({ delay, children }: { delay: number; children: ReactNod
   return visible ? <>{children}</> : null
 }
 
-/** Title + subtitle (+ optional action buttons on the right), like PageHeader. */
-function HeaderStub({ actions = 1, chips = 0 }: { actions?: number; chips?: number }) {
+/** What the filter row of a list page holds: `chips` stubs (0 — only the search) and TagFilter. */
+export interface SkeletonFilters {
+  chips?: number
+  tags?: boolean
+}
+
+/**
+ * Title row (+ action buttons on the right), the subtitle under the whole row, then the filter row — the same
+ * geometry as PageHeader and FilterBar. `chips` undefined: the page has no filter row.
+ */
+function HeaderStub({
+  actions = 1,
+  chips,
+  tags = false
+}: {
+  actions?: number
+  chips?: number
+  tags?: boolean
+}): ReactElement {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-9 w-56 rounded-2xl" />
-          <Skeleton className="h-4 w-[26rem] max-w-full rounded-full" />
-        </div>
+      <div className="flex min-h-10 items-start justify-between gap-6">
+        <Skeleton className="h-9 w-56 rounded-2xl" />
         {actions > 0 && (
           <div className="flex gap-2">
             {Array.from({ length: actions }, (_, i) => (
-              <Skeleton key={i} className={cn('h-9 rounded-full', i === actions - 1 ? 'w-32' : 'w-28')} />
+              <Skeleton
+                key={i}
+                className={cn('h-9 rounded-full', i === actions - 1 ? 'w-32' : 'w-28')}
+              />
             ))}
           </div>
         )}
       </div>
-      {chips > 0 && (
+      <Skeleton className="-mt-2 h-4 w-[26rem] max-w-full rounded-full" />
+      {chips !== undefined && (
         <div className="flex items-center gap-2">
           {Array.from({ length: chips }, (_, i) => (
             <Skeleton key={i} className={cn('h-8 rounded-full', i === 0 ? 'w-14' : 'w-24')} />
           ))}
-          {/* TagFilter + SearchInput (h-8 w-72), as in FilterBar: the row doesn't jump when the page arrives. */}
+          {/* TagFilter (only where the page has one) + SearchInput (h-8 w-72), as in FilterBar. */}
           <div className="ml-auto flex gap-2">
-            <Skeleton className="h-8 w-24 rounded-full" />
+            {tags && <Skeleton className="h-8 w-24 rounded-full" />}
             <Skeleton className="h-8 w-72 rounded-full" />
           </div>
         </div>
@@ -69,7 +88,10 @@ function HeaderStub({ actions = 1, chips = 0 }: { actions?: number; chips?: numb
 /** One list row stub (title + meta line), height ≈ ListItem. */
 export function RowSkeleton({ height = 64, className }: { height?: number; className?: string }) {
   return (
-    <div className={cn('flex flex-col justify-center gap-2 rounded-2xl bg-surface px-4', className)} style={{ height }}>
+    <div
+      className={cn('flex flex-col justify-center gap-2 rounded-2xl bg-surface px-4', className)}
+      style={{ height }}
+    >
       <Skeleton className="h-3.5 w-2/5 rounded-full" />
       {height >= 52 && <Skeleton className="h-3 w-1/4 rounded-full" />}
     </div>
@@ -79,7 +101,10 @@ export function RowSkeleton({ height = 64, className }: { height?: number; class
 /** One card stub for grids (image/code area + title + meta). */
 export function CardSkeleton({ height = 220, className }: { height?: number; className?: string }) {
   return (
-    <div className={cn('flex flex-col gap-3 rounded-3xl bg-surface p-3', className)} style={{ height }}>
+    <div
+      className={cn('flex flex-col gap-3 rounded-3xl bg-surface p-3', className)}
+      style={{ height }}
+    >
       <Skeleton className="min-h-0 w-full flex-1 rounded-2xl" />
       <Skeleton className="h-3.5 w-3/5 rounded-full" />
       <Skeleton className="h-3 w-2/5 rounded-full" />
@@ -87,13 +112,13 @@ export function CardSkeleton({ height = 220, className }: { height?: number; cla
   )
 }
 
-/** `header: false` — the page has already drawn its PageHeader, only the body is loading. */
-type LayoutProps = { header: boolean }
+/** `header: false` — BodySkeleton: the page has already drawn its PageHeader, only the body is loading. */
+type LayoutProps = { filters?: SkeletonFilters; header?: boolean }
 
-function ListLayout({ header }: LayoutProps) {
+function ListLayout({ filters, header = true }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      {header && <HeaderStub chips={5} />}
+      {header && <HeaderStub chips={filters?.chips ?? 5} tags={filters?.tags} />}
       <div className="flex flex-col gap-1.5">
         {Array.from({ length: 7 }, (_, i) => (
           <RowSkeleton key={i} />
@@ -103,10 +128,10 @@ function ListLayout({ header }: LayoutProps) {
   )
 }
 
-function GridLayout({ header }: LayoutProps) {
+function GridLayout({ filters, header = true }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
-      {header && <HeaderStub chips={4} />}
+      {header && <HeaderStub chips={filters?.chips ?? 4} tags={filters?.tags} />}
       <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
         {Array.from({ length: 8 }, (_, i) => (
           <CardSkeleton key={i} />
@@ -116,13 +141,16 @@ function GridLayout({ header }: LayoutProps) {
   )
 }
 
-function BoardLayout({ header }: LayoutProps) {
+function BoardLayout({ header = true }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
       {header && <HeaderStub actions={2} />}
       <div className="flex gap-3 overflow-hidden">
         {[4, 2, 3, 1].map((cards, i) => (
-          <div key={i} className="flex w-[288px] shrink-0 flex-col gap-2 rounded-3xl bg-surface p-2">
+          <div
+            key={i}
+            className="flex w-[288px] shrink-0 flex-col gap-2 rounded-3xl bg-surface p-2"
+          >
             <Skeleton className="m-2 h-4 w-24 rounded-full" />
             {Array.from({ length: cards }, (_, j) => (
               <Skeleton key={j} className="h-16 rounded-2xl" />
@@ -134,7 +162,7 @@ function BoardLayout({ header }: LayoutProps) {
   )
 }
 
-function CalendarLayout({ header }: LayoutProps) {
+function CalendarLayout({ header = true }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
       {header && <HeaderStub actions={3} />}
@@ -164,7 +192,7 @@ function DashboardLayout() {
   )
 }
 
-function OverviewLayout({ header }: LayoutProps) {
+function OverviewLayout({ header = true }: LayoutProps) {
   return (
     <div className="flex flex-col gap-5">
       {header && <HeaderStub actions={2} />}
@@ -183,7 +211,7 @@ function OverviewLayout({ header }: LayoutProps) {
   )
 }
 
-function FormLayout({ header }: LayoutProps) {
+function FormLayout({ header = true }: LayoutProps) {
   return (
     <div className="flex max-w-4xl flex-col gap-5">
       {header && <HeaderStub actions={0} />}
@@ -191,7 +219,10 @@ function FormLayout({ header }: LayoutProps) {
         <div key={i} className="flex flex-col gap-2 rounded-3xl bg-surface p-5">
           <Skeleton className="mb-1 h-4 w-32 rounded-full" />
           {Array.from({ length: rows }, (_, j) => (
-            <div key={j} className="flex items-center justify-between rounded-2xl bg-card px-4 py-3">
+            <div
+              key={j}
+              className="flex items-center justify-between rounded-2xl bg-card px-4 py-3"
+            >
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-3.5 w-48 rounded-full" />
                 <Skeleton className="h-3 w-72 max-w-full rounded-full" />
@@ -266,18 +297,22 @@ const LAYOUTS: Record<SkeletonKind, (props: LayoutProps) => ReactNode> = {
 export function PageSkeleton({
   kind = 'list',
   delay = 150,
-  header = true
+  filters
 }: {
   kind?: SkeletonKind
   delay?: number
-  /** false: no title stub (the header is already on screen). */
-  header?: boolean
+  /** list / grid: the page's real filter row (route `handle.filters`), so it doesn't change shape on arrival. */
+  filters?: SkeletonFilters
 }) {
   const Layout = LAYOUTS[kind] ?? ListLayout
   return (
     <Delayed delay={delay}>
-      <div className="h-full min-h-0 animate-page overflow-hidden px-8 pt-7 pb-8" aria-busy="true" aria-label="Завантаження сторінки">
-        <Layout header={header} />
+      <div
+        className="h-full min-h-0 animate-page overflow-hidden px-8 pt-7 pb-8"
+        aria-busy="true"
+        aria-label="Завантаження сторінки"
+      >
+        <Layout filters={filters} />
       </div>
     </Delayed>
   )

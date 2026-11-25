@@ -7,13 +7,21 @@ import { api } from '@/lib/api'
 import { invalidateAll } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
 import { useDroppedFiles } from '@/hooks/use-file-drop'
+import { copyText } from './copy-button'
 import { fmtNumber, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024
@@ -29,7 +37,8 @@ function extractJson(raw: string): string {
   return end > start ? raw.slice(start, end + 1) : raw
 }
 
-type Parsed = { ok: true; data: unknown; count: number; titles: string[] } | { ok: false; error: string } | null
+type Parsed =
+  { ok: true; data: unknown; count: number; titles: string[] } | { ok: false; error: string } | null
 
 function parse(kind: ImportKind, raw: string): Parsed {
   if (!raw.trim()) return null
@@ -40,7 +49,8 @@ function parse(kind: ImportKind, raw: string): Parsed {
     // JSON.parse speaks English («Unexpected token…»): say what usually went wrong instead.
     return {
       ok: false,
-      error: 'Це не схоже на JSON. Перевірте, що скопійовано весь текст від [ або { до кінця, без пояснень навколо.'
+      error:
+        'Це не схоже на JSON. Перевірте, що скопійовано весь текст від [ або { до кінця, без пояснень навколо.'
     }
   }
   const def = IMPORT_DEFS[kind]
@@ -100,21 +110,13 @@ export function ImportDialog({
       setFileName(file.name)
       setRaw(text)
     } catch (e) {
-      toast.error('Не вдалося прочитати файл')
+      toast.error(
+        'Не вдалося прочитати файл. Перевірте, що це текстовий .json, і спробуйте ще раз.'
+      )
       reportError(e, 'import:readFile')
     }
   }
   const drop = useDroppedFiles((files) => void readFile(files[0]))
-
-  const copy = async (text: string, msg: string): Promise<void> => {
-    try {
-      await api.app.copyText(text)
-      toast.success(msg)
-    } catch (e) {
-      toast.error('Не вдалося скопіювати')
-      reportError(e, 'import:copy')
-    }
-  }
 
   const submit = async (): Promise<void> => {
     if (!parsed?.ok) return
@@ -138,12 +140,17 @@ export function ImportDialog({
         <DialogHeader>
           <DialogTitle>Імпорт з JSON — {def.label}</DialogTitle>
           <DialogDescription>
-            {def.hint} Скопіюйте промт, вставте в Claude чи ChatGPT, опишіть задачу — і вставте відповідь або файл сюди.
+            {def.hint} Скопіюйте промт, вставте в Claude чи ChatGPT, опишіть задачу — і вставте
+            відповідь або файл сюди.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="subtle" size="sm" onClick={() => void copy(importPrompt(kind), 'Промт скопійовано')}>
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={() => void copyText(importPrompt(kind), 'Промт скопійовано')}
+          >
             <Copy /> Скопіювати промт для ШІ
           </Button>
           <Button
@@ -186,7 +193,9 @@ export function ImportDialog({
             >
               <FileJson className="size-6 text-muted-foreground" />
               <p className="text-body">{fileName ?? 'Перетягніть сюди .json файл'}</p>
-              <p className="text-caption text-muted-foreground">до 2 МБ, до {IMPORT_MAX_ITEMS} записів</p>
+              <p className="text-caption text-muted-foreground">
+                до 2 МБ, до {IMPORT_MAX_ITEMS} записів
+              </p>
               <Button variant="subtle" size="sm" onClick={() => fileInput.current?.click()}>
                 <FileUp /> Вибрати файл
               </Button>
@@ -212,12 +221,13 @@ export function ImportDialog({
             </div>
             <div className="flex flex-wrap gap-1.5">
               {parsed.titles.slice(0, 8).map((t, i) => (
-                // truncate on the inline-flex badge cut the text without «…»: it goes on an inner span.
-                <Badge key={i} variant="soft" className="max-w-64 min-w-0 justify-start" title={t}>
-                  <span className="truncate">{t}</span>
+                <Badge key={i} variant="soft" truncate className="max-w-64">
+                  {t}
                 </Badge>
               ))}
-              {parsed.titles.length > 8 && <Badge variant="soft">ще {parsed.titles.length - 8}</Badge>}
+              {parsed.titles.length > 8 && (
+                <Badge variant="soft">ще {fmtNumber(parsed.titles.length - 8)}</Badge>
+              )}
             </div>
           </div>
         )}
@@ -243,20 +253,32 @@ export function copyAsJson(data: unknown, what: string): Promise<void> {
   return copyLoadedJson(() => data, what)
 }
 
-/** Loading the data (a full list from the server) and copying it fail the same way: one toast, one log entry. */
+/** Loading the data (a full list from the server) and copying it are told apart: each failure says what to do. */
 async function copyLoadedJson(load: () => unknown | Promise<unknown>, what: string): Promise<void> {
+  let data: unknown
   try {
-    const data = await load()
-    await api.app.copyText(JSON.stringify(data, null, 2))
-    toast.success(Array.isArray(data) ? `${what} (${fmtNumber(data.length)}) скопійовано як JSON` : `${what} скопійовано як JSON`)
+    data = await load()
   } catch (e) {
-    toast.error('Не вдалося скопіювати')
+    toast.error('Не вдалося завантажити записи. Спробуйте ще раз.')
     reportError(e, 'import:copyJson')
+    return
   }
+  await copyText(
+    JSON.stringify(data, null, 2),
+    Array.isArray(data)
+      ? `${what} (${fmtNumber(data.length)}) скопійовано як JSON`
+      : `${what} скопійовано як JSON`
+  )
 }
 
 /** «Імпорт з JSON» header button + its dialog. Sits left of the page's primary (lime) button. */
-export function ImportButton({ kind, onImported }: { kind: ImportKind; onImported?: (firstId: string | undefined) => void }) {
+export function ImportButton({
+  kind,
+  onImported
+}: {
+  kind: ImportKind
+  onImported?: (firstId: string | undefined) => void
+}) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -281,14 +303,31 @@ export function CopyJsonButton({
   what: string
   disabled?: boolean
 }) {
+  // A full list is fetched first: while it loads a second click must not start a second request and toast.
+  const [busy, setBusy] = useState(false)
+  // Nothing to copy: no button rather than a disabled icon whose tooltip can't open.
+  if (disabled) return null
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Копіювати як JSON" disabled={disabled} onClick={() => void copyLoadedJson(getData, what)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Скопіювати як JSON"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await copyLoadedJson(getData, what)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
           <Braces />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>Копіювати як JSON — той самий формат, що й імпорт</TooltipContent>
+      <TooltipContent>Скопіювати як JSON — той самий формат, що й імпорт</TooltipContent>
     </Tooltip>
   )
 }

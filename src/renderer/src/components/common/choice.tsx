@@ -23,6 +23,7 @@ const NONE = '__none__'
  */
 export function Choice<T extends string>({
   id,
+  'aria-label': ariaLabel,
   value,
   onChange,
   options,
@@ -32,6 +33,8 @@ export function Choice<T extends string>({
   size = 'default'
 }: {
   id?: string
+  /** Name of a select without a visible Field label (a status in the record header). */
+  'aria-label'?: string
   value: T | null | undefined
   onChange: (value: T | null) => void
   options: ChoiceOption<T>[]
@@ -47,7 +50,12 @@ export function Choice<T extends string>({
       value={value ?? (none ? NONE : undefined)}
       onValueChange={(v) => onChange(v === NONE ? null : (v as T))}
     >
-      <SelectTrigger id={id} size={size} className={cn('w-full text-body', className)}>
+      <SelectTrigger
+        id={id}
+        aria-label={ariaLabel}
+        size={size}
+        className={cn('w-full text-body', className)}
+      >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="rounded-xl">
