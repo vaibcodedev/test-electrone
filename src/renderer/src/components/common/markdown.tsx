@@ -1,4 +1,4 @@
-import { useId, useState, type ComponentProps, type ReactElement } from 'react'
+import { useId, useRef, useState, type ComponentProps, type ReactElement } from 'react'
 import { openUrl } from '@/lib/open-url'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -10,10 +10,10 @@ import { cn } from '@/lib/utils'
 import { useDetailMode, useReadOnly } from './detail-mode-context'
 import { FieldLabel } from '@/components/ui/field'
 import { CharCount, Segmented } from './page'
-import { Kbd } from '@/components/ui/kbd'
 import { ShowMore } from './show-more'
 import { CopyButton } from './copy-button'
-import { MarkdownTextarea } from './markdown-textarea'
+import { MarkdownEditor, type MarkdownEditorHandle } from './markdown-editor'
+import { MarkdownCheatsheet } from './markdown-cheatsheet'
 import { useWikiLinkTargets } from '@/hooks/use-wiki-link-targets'
 import { WikiLink, WikiLinkTargets } from './wiki-link'
 
@@ -124,13 +124,14 @@ export function Markdown({
 }
 
 /**
- * Markdown field: shadcn Textarea for writing (regular font, auto-grows) + rendered preview.
- * Mode switch is a shadcn ToggleGroup above the content, never on top of the text.
+ * Markdown field: the Markdown editor for writing (MarkdownEditor: regular font, grows with the text, record links
+ * as chips, «/» and «[[» menus) + rendered preview. Mode switch is a shadcn ToggleGroup above the content, never on
+ * top of the text; «?» next to it — the syntax and the keys.
  */
 export function MarkdownField({
   value,
   onChange,
-  placeholder = 'Пишіть у Markdown: **жирний**, списки, ```код```; [[ — посилання на запис',
+  placeholder = 'Пишіть у Markdown: / — меню блоків, [[ — посилання на запис',
   minHeight = '160px',
   className,
   defaultMode,
@@ -157,6 +158,7 @@ export function MarkdownField({
   // A record has its own view mode (it has `save`); outside one (week review, «Про дошку») there is none.
   const inRecord = !!useDetailMode().save
   const id = useId()
+  const editor = useRef<MarkdownEditorHandle>(null)
   // In record editing «Редагувати» means writing, so the field opens on «Текст». Outside a record a filled
   // field opens on «Перегляд»: otherwise its text (and «- [ ]» checkboxes) would only ever show as raw markdown.
   const [mode, setMode] = useState<'edit' | 'preview'>(
@@ -176,19 +178,26 @@ export function MarkdownField({
   }
   return (
     // group/field: the «N / max» counter (CharCount) shows while the text is being written.
-    <div className={cn('group/field relative flex flex-col gap-2', className)}>
+    <div className={cn('group/field flex flex-col gap-2', className)}>
       {/* Label row has the label's height: the compact toggle (h-7, -my-1.5 → 16px in flow, below the
           label's ≈17px) must not push the control down, so label → control is 8px like every other Field
           (docs/design-system.md → Формы). */}
       <div className="flex items-center justify-between gap-2">
         {label ? (
-          <FieldLabel htmlFor={mode === 'edit' ? id : undefined} className="min-w-0">
+          // The editor is no <textarea> a label could point at: it is named by the label's id, and a click on
+          // the label puts the caret in it, as with a textarea.
+          <FieldLabel
+            id={`${id}-label`}
+            className="min-w-0"
+            onClick={() => mode === 'edit' && editor.current?.focus()}
+          >
             {label}
           </FieldLabel>
         ) : (
           <span />
         )}
         <CharCount length={value.length} max={maxLength} className="ml-auto" />
+        {mode === 'edit' && <MarkdownCheatsheet />}
         <Segmented
           size="xs"
           className="-my-1.5 h-7 shrink-0 p-0.5 [&>button]:h-6 [&>button]:px-2.5 [&>button]:text-meta"
@@ -215,14 +224,15 @@ export function MarkdownField({
         />
       </div>
       {mode === 'edit' ? (
-        <MarkdownTextarea
+        <MarkdownEditor
+          ref={editor}
           id={id}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
           maxLength={maxLength}
-          style={{ minHeight }}
-          className="px-4 py-3 text-lead leading-relaxed"
+          minHeight={minHeight}
+          labelledBy={label ? `${id}-label` : undefined}
         />
       ) : (
         // «Перегляд» shows the text as it will read: no box, flush with the label. A bg-surface box with px-5 was
@@ -241,13 +251,6 @@ export function MarkdownField({
             </span>
           )}
         </div>
-      )}
-      {/* «[[» links a record from any text, but nothing said so: a quiet line under the field while writing in it,
-          set in the gap below (absolute), so nothing moves when it shows. */}
-      {mode === 'edit' && (
-        <p className="pointer-events-none absolute top-full left-1 mt-1 flex items-center gap-1 text-meta text-muted-foreground opacity-0 transition-opacity group-focus-within/field:opacity-100">
-          <Kbd>[[</Kbd> — посилання на запис
-        </p>
       )}
     </div>
   )

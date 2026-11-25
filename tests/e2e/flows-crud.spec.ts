@@ -89,9 +89,7 @@ test.describe('ідея: повний цикл через інтерфейс', (
     await expect(titleField(win)).toHaveValue(title)
 
     // Fill: description + a new tag created right from the picker.
-    await pane(win)
-      .getByPlaceholder(/Опишіть ідею/)
-      .fill(`Опис ${token}`)
+    await pane(win).getByRole('textbox', { name: 'Опис' }).fill(`Опис ${token}`)
     await pane(win).getByRole('button', { name: 'Додати мітку' }).click()
     await win.getByPlaceholder('Знайти або створити…').fill(tagName)
     await win.getByRole('option', { name: `Створити «${tagName}»` }).click()
@@ -137,9 +135,7 @@ test.describe('ідея: повний цикл через інтерфейс', (
     await pane(win).locator('[data-edit-detail]').click()
     await titleField(win).fill(`Змінена ${token}`)
     await pane(win).getByRole('radio', { name: 'Текст' }).click()
-    await pane(win)
-      .getByPlaceholder(/Опишіть ідею/)
-      .fill('Інший опис')
+    await pane(win).getByRole('textbox', { name: 'Опис' }).fill('Інший опис')
     // Let the autosave land first (cancelling right after typing is covered by flows-shortcuts).
     await expect.poll(async () => (await rpc('ideas.get', id)).body).toBe('Інший опис')
     await pane(win).getByRole('button', { name: 'Скасувати' }).click()
@@ -190,7 +186,7 @@ test.describe('нотатка: повний цикл через інтерфей
     const id = (await openParam(win))!
     await titleField(win).fill(title)
     await pane(win)
-      .getByPlaceholder(/Пишіть у Markdown/)
+      .getByRole('textbox', { name: 'Текст', exact: true })
       .fill(`Текст ${token} про домовленості`)
     await pane(win).locator('[data-save]').click()
     await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')

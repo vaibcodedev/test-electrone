@@ -146,11 +146,13 @@ test.describe('E і Esc у записі', () => {
     const { win, rpc, go } = vault
     const note = await rpc('notes.create', { title: `Esc ${uid()}`, body: 'Початковий текст' })
     await go(`/notes?open=${note.id}`)
+    // Run on its own (first in the worker), the page is still loading its chunks: E needs the pane's button.
+    await expect(pane(win).locator('[data-edit-detail]')).toBeVisible()
     await blur(win)
     await win.keyboard.press('e')
     await expect(pane(win)).toHaveAttribute('data-detail-mode', 'edit')
     await pane(win).getByRole('radio', { name: 'Текст' }).click()
-    const body = pane(win).getByPlaceholder(/Пишіть у Markdown/)
+    const body = pane(win).getByRole('textbox', { name: 'Текст', exact: true })
     await body.fill('Новий текст, який не треба')
     // Esc right from the field (the focus is still there).
     await body.press('Escape')

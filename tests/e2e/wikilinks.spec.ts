@@ -40,7 +40,9 @@ test('[[ inserts a link that follows renames, opens the record and shows up in i
   await expect(option).toHaveAttribute('aria-selected', 'true')
   await win.keyboard.press('Enter')
   await expect(menu(win)).toHaveCount(0)
-  await expect(text).toHaveValue(`Перечитати [Ціль ${tag}](vault:note/${target.id})`)
+  // The stored link shows as a chip with the record's title, not as `vault:note/<uuid>`.
+  await expect(text).toHaveText(`Перечитати Ціль ${tag}`)
+  await expect(text.locator('[data-wikilink="live"]')).toHaveText(`Ціль ${tag}`)
   await win.keyboard.type(' до п’ятниці')
   await win.locator('[data-save]').click()
   await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
