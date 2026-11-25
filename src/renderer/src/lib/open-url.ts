@@ -16,6 +16,6 @@ export async function openUrl(url: string): Promise<void> {
   try {
     await api.app.openExternal(normalizeUrl(url))
   } catch {
-    toast.error(`Не вдалося відкрити посилання: ${url}`)
+    toast.error('Не вдалося відкрити посилання — перевірте адресу', { description: url })
   }
 }

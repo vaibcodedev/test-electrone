@@ -1,10 +1,13 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import type { MainEventName, MainEvents } from '@shared/api'
-import { invalidateAll } from '@/lib/query'
+import { invalidateAll, queryClient } from '@/lib/query'
 import { useUi } from '@/stores/ui-store'
 
-export function useMainEvent<E extends MainEventName>(event: E, handler: (payload: MainEvents[E]) => void): void {
+export function useMainEvent<E extends MainEventName>(
+  event: E,
+  handler: (payload: MainEvents[E]) => void
+): void {
   useEffect(() => window.vault.on(event, (p) => handler(p as MainEvents[E])), [event, handler])
 }
 
@@ -16,8 +19,12 @@ export function useMainEventsBridge(): void {
     const offs = [
       window.vault.on('data:changed', () => invalidateAll()),
       window.vault.on('settings:changed', () => invalidateAll()),
-      // The sidebar UpdateBanner shows progress and «Перезапустити» (useApi re-reads the status).
-      window.vault.on('updates:status', () => invalidateAll()),
+      // The sidebar UpdateBanner shows progress and «Перезапустити» (useApi re-reads the status). Only the
+      // updates queries: progress events come often, and each used to refetch the whole app.
+      window.vault.on(
+        'updates:status',
+        () => void queryClient.invalidateQueries({ queryKey: ['updates'] })
+      ),
       window.vault.on('navigate', (p) => {
         const { route } = p as MainEvents['navigate']
         if (route.includes('search=1')) setPaletteOpen(true)

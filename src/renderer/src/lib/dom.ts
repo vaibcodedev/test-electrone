@@ -5,6 +5,19 @@ export function isEditableTarget(el: EventTarget | null): boolean {
 }
 
 /**
+ * A closed Radix Select trigger (role="combobox") has typeahead: a letter picks a value. A single-key shortcut
+ * there would change «Статус» and act at the same time. Kept apart from isEditableTarget: Esc must still close
+ * the pane and paste must still reach the drop zone.
+ */
+export function isTypeaheadTarget(el: EventTarget | null): boolean {
+  return el instanceof HTMLElement && !!el.closest('[role="combobox"]')
+}
+
+/** For scrollIntoView/scrollTo: the CSS reduce-motion rule does not reach a `behavior: 'smooth'` from JS. */
+export const scrollBehavior = (): ScrollBehavior =>
+  matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+
+/**
  * A menu, popover, confirmation or an open Select list owns the keyboard, even inside a sheet. Select content
  * is mounted only while its list is open (or closing). Not a bare [role="listbox"]: a cmdk list on a page is
  * one too, and it would block N forever.

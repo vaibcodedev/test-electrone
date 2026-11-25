@@ -20,7 +20,11 @@ const Toaster = (props: ToasterProps) => {
       toastOptions={{
         closeButtonAriaLabel: 'Закрити сповіщення',
         classNames: {
-          toast: '!rounded-2xl !border-border !bg-popover !text-popover-foreground !font-sans !shadow-lg',
+          toast:
+            '!rounded-2xl !border-border !bg-popover !text-popover-foreground !font-sans !shadow-lg',
+          // A long record title used to stretch the toast to half the screen, «Відкрити» ended up mid-height.
+          title: 'line-clamp-2',
+          description: 'line-clamp-3',
           actionButton: '!rounded-full !bg-lime !text-lime-foreground'
         }
       }}

@@ -5,8 +5,9 @@
 @import './code.css';
 
 /* "Selected" state of shadcn Toggle / ToggleGroupItem. Radix Tooltip (asChild) overwrites data-state on its
-   trigger with "closed", so a Toggle inside a tooltip never matched data-[state=on]; aria-pressed survives. */
-@custom-variant on (&:is([data-state='on'], [aria-pressed='true']));
+   trigger with "closed", so a Toggle inside a tooltip never matched data-[state=on]; aria-pressed survives.
+   ToggleGroup type=single under a Tooltip has only aria-checked. */
+@custom-variant on (&:is([data-state='on'], [aria-pressed='true'], [aria-checked='true']));
 
 @custom-variant dark (&:is(.dark *));
 
@@ -57,6 +58,10 @@
   --color-warn: var(--warn);
   --color-info: var(--info);
   --color-success: var(--success);
+  /* Fills (dots, bars, stars): --warn/--info/--success are darkened for text and turned brown/grey as fills. */
+  --color-warn-fill: var(--chart-3);
+  --color-info-fill: var(--chart-2);
+  --color-success-fill: var(--chart-4);
 
   --color-sidebar: var(--card);
   --color-sidebar-foreground: var(--foreground);
@@ -105,6 +110,8 @@
   --animate-enter: fade-up 0.22s var(--ease-soft) backwards;
   --animate-page: page 0.18s var(--ease-soft) backwards;
   --animate-pane: pane 0.22s var(--ease-soft) backwards;
+  /* Closing the record pane (Esc, ✕): the reverse of `pane`, a little faster; forwards keeps it hidden until unmount. */
+  --animate-pane-out: pane-out 0.16s var(--ease-soft) forwards;
 
   --animate-leave: leave 0.22s var(--ease-soft) forwards;
   --animate-trash-bump: trash-bump 0.35s var(--ease-soft);
@@ -154,6 +161,12 @@
     to {
       opacity: 1;
       transform: none;
+    }
+  }
+  @keyframes pane-out {
+    to {
+      opacity: 0;
+      transform: translateX(6px);
     }
   }
 }
@@ -500,6 +513,12 @@
   display: block;
 }
 
+/* Focus on an ink card: --ring is 1.1:1 on the dark-theme ink, ink-accent is 6:1 (14:1 in light). Set on the
+   focused element itself, not on the ink card: the card's own outer ring sits on --card, where ink-accent fails. */
+.bg-ink :focus-visible {
+  --ring: var(--ink-accent);
+}
+
 /* Unlayered on purpose: these must beat Tailwind utilities (display/padding) inside fields. */
 /* ── Record view mode (DetailPane data-detail-mode="view"): read, don't edit ── */
 /* Empty fields disappear instead of showing empty boxes. */
@@ -524,19 +543,32 @@
   box-shadow: none;
 }
 /* Choice controls show only the chosen value and can't be changed. */
-[data-detail-mode='view'] [data-slot='toggle-group-item']:not([data-state='on']),
+[data-detail-mode='view'] [data-slot='toggle-group-item']:not([data-state='on'], [aria-checked='true'], [aria-pressed='true']),
 [data-detail-mode='view'] [data-edit-only] {
   display: none;
 }
-/* One accent while editing: «Зберегти» stays lime, the record's other lime buttons step back to a neutral
-   tint. A tint, not var(--surface): inline forms sit in bg-surface cards, where a surface fill read as grey text. */
+/* One accent while editing: «Зберегти» stays lime, the record's other lime buttons and the page header's lime
+   button («+ Нотатка») step back to a neutral tint (N still clicks it). A tint, not var(--surface): inline forms
+   sit in bg-surface cards, where a surface fill read as grey text. */
 [data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save], :disabled),
-.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save], :disabled) {
+.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save], :disabled),
+body:has([data-detail-mode='edit']) [data-slot='page-header'] [data-slot='button'][data-variant='lime']:not([data-save], :disabled),
+.dark
+  body:has([data-detail-mode='edit'])
+  [data-slot='page-header']
+  [data-slot='button'][data-variant='default']:not([data-save], :disabled) {
   background: color-mix(in oklab, var(--foreground) 8%, transparent);
   color: var(--foreground);
 }
 [data-detail-mode='edit'] [data-slot='button'][data-variant='lime']:not([data-save], :disabled):hover,
-.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save], :disabled):hover {
+.dark [data-detail-mode='edit'] [data-slot='button'][data-variant='default']:not([data-save], :disabled):hover,
+body:has([data-detail-mode='edit'])
+  [data-slot='page-header']
+  [data-slot='button'][data-variant='lime']:not([data-save], :disabled):hover,
+.dark
+  body:has([data-detail-mode='edit'])
+  [data-slot='page-header']
+  [data-slot='button'][data-variant='default']:not([data-save], :disabled):hover {
   background: color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 /* A chip inside a record is the field's value, not a screen filter: neutral, never lime. The hairline sets the
@@ -573,6 +605,10 @@
   border-color: transparent;
   padding-inline: 0;
   box-shadow: none;
+  /* Level with the label, as Combobox and DatePicker: h-9 + py-2 centred the value ~10px lower. */
+  height: auto;
+  min-height: 0;
+  padding-block: 0;
 }
 [data-detail-mode='view'] [data-slot='select-trigger']:is(:disabled, [data-disabled]) > svg:last-child {
   display: none;

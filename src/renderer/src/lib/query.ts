@@ -9,6 +9,7 @@ import {
   type UseMutationOptions,
   type UseQueryOptions
 } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { toast } from 'sonner'
 import type { ApiNamespace } from '@shared/api'
 import { call, type ArgOf, type MethodOf, type ResultOf } from './api'
@@ -25,8 +26,18 @@ const queryCache = new QueryCache({
     reportError(error, `query:${String(query.queryKey[0])}.${String(query.queryKey[1])}`)
     toast.error('Не вдалося завантажити дані', {
       id: 'query-error',
+      // The only way to retry: it stays until closed (4 s was too short to reach it, even with Alt+T).
+      duration: Infinity,
+      closeButton: true,
       description: error instanceof Error ? error.message : String(error),
-      action: { label: 'Повторити', onClick: () => void queryClient.refetchQueries({ type: 'active', predicate: (q) => q.state.status === 'error' }) }
+      action: {
+        label: 'Повторити',
+        onClick: () =>
+          void queryClient.refetchQueries({
+            type: 'active',
+            predicate: (q) => q.state.status === 'error'
+          })
+      }
     })
   }
 })
@@ -75,7 +86,9 @@ export async function flushAndSettle(): Promise<{ failed: number }> {
   // Saves the server rejected since the flush (too long, out of range…): the caller must not report success.
   const failed = cache
     .getAll()
-    .filter((m) => autosaves.has(m) && m.state.status === 'error' && m.state.submittedAt >= started - 2000).length
+    .filter(
+      (m) => autosaves.has(m) && m.state.status === 'error' && m.state.submittedAt >= started - 2000
+    ).length
   return { failed }
 }
 
@@ -134,12 +147,14 @@ export function useApiMutation<N extends ApiNamespace, M extends MethodOf<N>>(
       invalidateAll()
       if (method === 'remove') useUi.getState().bumpTrash()
       const created = args[0] as { id?: unknown } | null
-      if (String(method).startsWith('create') && created && typeof created.id === 'string') useUi.getState().markCreated(created.id)
+      if (String(method).startsWith('create') && created && typeof created.id === 'string')
+        useUi.getState().markCreated(created.id)
       if (successMessage) toast.success(successMessage)
       return onSuccess?.(...args)
     },
     onError: (error, ...args) => {
-      if (!silent) toast.error(error.message)
+      // Longer than Sonner's 4 s: an error has to be read to the end.
+      if (!silent) toast.error(error.message, { duration: 8000 })
       return onError?.(error, ...args)
     },
     ...rest
@@ -160,19 +175,29 @@ export function useInfiniteApi<N extends ApiNamespace, M extends MethodOf<N>>(
     queryKey: [ns, method, 'infinite', query, pageSize],
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
-      call(ns, method, { ...query, limit: pageSize, offset: pageParam } as ArgOf<N, M>) as Promise<unknown[]>,
-    getNextPageParam: (lastPage: unknown[], pages) => (lastPage.length === pageSize ? pages.length * pageSize : undefined),
+      call(ns, method, { ...query, limit: pageSize, offset: pageParam } as ArgOf<N, M>) as Promise<
+        unknown[]
+      >,
+    getNextPageParam: (lastPage: unknown[], pages) =>
+      lastPage.length === pageSize ? pages.length * pageSize : undefined,
     // Switching a filter/search keeps the current rows until the new ones arrive: no empty-state flash.
     // Safe here (lists, not editors).
     placeholderData: keepPreviousData
   })
   type Item = ResultOf<N, M> extends (infer I)[] ? I : never
-  const items = (result.data?.pages.flat() ?? []) as Item[]
+  // Stable between renders: effects and memos keyed on list.items rerun only when the data changes.
+  const items = useMemo(() => (result.data?.pages.flat() ?? []) as Item[], [result.data])
   return {
     ...result,
     items,
     hasMore: !!result.hasNextPage,
     loadingMore: result.isFetchingNextPage,
+    /**
+     * The list may show its EmptyState / NoResults. Not while the first page loads, not while a placeholder
+     * (keepPreviousData: right after «Скинути фільтри» the old empty page flashed the empty-base state) and not
+     * after a failed load: «Сніпетів поки немає» + «Додати» then invited duplicates (the error toast says it).
+     */
+    showEmpty: !result.isLoading && !result.isPlaceholderData && !result.isError,
     loadMore: () => void result.fetchNextPage()
   }
 }

@@ -1,5 +1,15 @@
-import { format, formatDistanceToNowStrict, isToday, isTomorrow, isYesterday } from 'date-fns'
+import {
+  differenceInCalendarDays,
+  format,
+  formatDistanceToNowStrict,
+  isThisYear,
+  isToday,
+  isTomorrow,
+  isYesterday
+} from 'date-fns'
 import { uk } from 'date-fns/locale'
+import { fmtDateTime as dateTime, fmtDayFull as dayFull } from '@shared/dates'
+import { hostOf as urlHost } from '@shared/url'
 
 export const LOCALE = uk
 
@@ -12,14 +22,22 @@ export function fmtDate(ts: number | null | undefined, pattern?: string): string
 /** «24 листопада» (+ year when it isn't this year): a plain date, without «сьогодні/завтра». */
 export function fmtDayFull(ts: number | null | undefined): string {
   if (!ts) return ''
-  return format(ts, new Date(ts).getFullYear() === new Date().getFullYear() ? 'd MMMM' : 'd MMMM yyyy', { locale: uk })
+  return dayFull(ts)
 }
 
 /** «24 листопада о 19:22» (+ year when it isn't this year): no «лист.,» dot-comma clash. */
 export function fmtDateTime(ts: number | null | undefined): string {
   if (!ts) return ''
-  const sameYear = new Date(ts).getFullYear() === new Date().getFullYear()
-  return format(ts, sameYear ? "d MMMM 'о' HH:mm" : "d MMMM yyyy 'о' HH:mm", { locale: uk })
+  return dateTime(ts)
+}
+
+/** A week: «23–29 листопада», «30 листопада – 6 грудня»; `year` adds the year to the end date. */
+export function fmtWeekRange(from: Date, to: Date, opts: { year?: boolean } = {}): string {
+  const end = format(to, opts.year ? 'd MMMM yyyy' : 'd MMMM', { locale: uk })
+  const sameMonth = from.getMonth() === to.getMonth() && from.getFullYear() === to.getFullYear()
+  return sameMonth
+    ? `${from.getDate()}–${end}`
+    : `${format(from, 'd MMMM', { locale: uk })} – ${end}`
 }
 
 /** "сьогодні", "завтра", "учора" or a short date. */
@@ -30,6 +48,36 @@ export function fmtDay(ts: number | null | undefined): string {
   if (isYesterday(ts)) return 'учора'
   // Short date: full month (Ukrainian abbreviations end with a dot and clash with punctuation).
   return fmtDayFull(ts)
+}
+
+/** «завтра о 15:00», «24 листопада о 19:22»: a day with a set time (deadline, interview, event). */
+export function fmtDayTime(ts: number | null | undefined): string {
+  if (!ts) return ''
+  return `${fmtDay(ts)} о ${format(ts, 'HH:mm', { locale: uk })}`
+}
+
+/**
+ * A narrow date block (agenda, EventDate): «сьогодні»/«завтра», the next days of the week by name
+ * («п’ятниця» fits 64px, «27 листопада» wraps), then fmtDay. Past days keep the date: «вівторок» back
+ * then would read as the coming one.
+ */
+export function fmtDayNear(ts: number | null | undefined): string {
+  if (!ts) return ''
+  const days = differenceInCalendarDays(ts, new Date())
+  return days >= 2 && days <= 6 ? format(ts, 'EEEE', { locale: uk }) : fmtDay(ts)
+}
+
+/** Chart axes and dense tables: «5 листоп.» (+ year when it isn't this year). Not for text: the dot clashes with punctuation. */
+export function fmtDayShort(ts: number | Date): string {
+  return format(ts, isThisYear(ts) ? 'd MMM' : 'd MMM yyyy', { locale: uk })
+}
+
+/**
+ * A record title quoted in a toast or a confirmation: up to 80 characters, then «…». A 500-character title
+ * took nine lines and pushed the point of the message («без можливості відновлення») out of sight.
+ */
+export function fmtTitle(title: string): string {
+  return title.length > 80 ? `${title.slice(0, 79)}…` : title
 }
 
 export function fmtRelative(ts: number | null | undefined): string {
@@ -62,7 +110,11 @@ export function fmtHours(min: number): string {
 
 export function fmtMoney(amount: number, currency: string): string {
   try {
-    return new Intl.NumberFormat('uk-UA', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount)
+    return new Intl.NumberFormat('uk-UA', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2
+    }).format(amount)
   } catch {
     return `${amount.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`
   }
@@ -112,28 +164,25 @@ export function dayKey(ts: number | Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-export function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
+/** «github.com» from «https://www.github.com/x»; anything that isn't a URL comes back as is. */
+export const hostOf = (url: string): string => urlHost(url) ?? url
 
 /** Markdown → one line of plain text for previews (cards, rows). Not a parser: strips the common marks. */
 export function mdPreview(md: string): string {
-  return md
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
-    // Paired markers only: «process_env» and «2 * 3» keep their characters.
-    .replace(/(\*\*|__|~~)(?=\S)([\s\S]*?\S)\1/g, '$2')
-    .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?!\w)/g, '$1$2')
-    .replace(/(^|[^\w])_(?=\S)([^_\n]*?\S)_(?![\w])/g, '$1$2')
-    .replace(/`([^`\n]*)`/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return (
+    md
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, '')
+      // Paired markers only: «process_env» and «2 * 3» keep their characters.
+      .replace(/(\*\*|__|~~)(?=\S)([\s\S]*?\S)\1/g, '$2')
+      .replace(/(^|[^\w*])\*(?=\S)([^*\n]*?\S)\*(?!\w)/g, '$1$2')
+      .replace(/(^|[^\w])_(?=\S)([^_\n]*?\S)_(?![\w])/g, '$1$2')
+      .replace(/`([^`\n]*)`/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim()
+  )
 }
 
 /** Header count for paged lists: exact once everything is loaded, «100+ …» while more pages remain. */

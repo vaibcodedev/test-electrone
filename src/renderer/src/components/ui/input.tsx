@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from '@/components/common/detail-mode-context'
+import { useFieldControl } from '@/components/ui/field-control'
 
 function Input({ className, type, readOnly, ...props }: React.ComponentProps<'input'>) {
   // In a record's view mode (DetailPane) inputs become read-only text; see components/common/detail-mode.
@@ -10,7 +11,9 @@ function Input({ className, type, readOnly, ...props }: React.ComponentProps<'in
   const num = type === 'number' && !empty ? Number(props.value) : NaN
   const outOfRange =
     !Number.isNaN(num) &&
-    ((props.min !== undefined && num < Number(props.min)) || (props.max !== undefined && num > Number(props.max)))
+    ((props.min !== undefined && num < Number(props.min)) ||
+      (props.max !== undefined && num > Number(props.max)))
+  const field = useFieldControl(props.id)
   return (
     <input
       type={type}
@@ -20,7 +23,8 @@ function Input({ className, type, readOnly, ...props }: React.ComponentProps<'in
       data-slot="input"
       // Reading: a long value ends with «…», the whole of it on hover.
       title={viewMode && typeof props.value === 'string' && props.value ? props.value : undefined}
-      aria-invalid={props['aria-invalid'] ?? (outOfRange || undefined)}
+      aria-describedby={props['aria-describedby'] ?? field.describedBy}
+      aria-invalid={props['aria-invalid'] ?? (outOfRange || field.invalid)}
       className={cn(
         // Visible on any background (card or surface): hairline border + faint tint. docs/design-system.md → Формы.
         'h-9 w-full min-w-0 rounded-xl border border-input bg-foreground/[0.04] hover:border-foreground/40 px-3 py-1 text-body transition-[border-color,box-shadow,background-color] outline-none placeholder:text-muted-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-body file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -31,7 +35,8 @@ function Input({ className, type, readOnly, ...props }: React.ComponentProps<'in
         '[&[type=number]]:[appearance:textfield] [&[type=number]::-webkit-inner-spin-button]:appearance-none [&[type=number]::-webkit-outer-spin-button]:appearance-none',
         className,
         // Reading: still a Tab stop (to select and copy the value), so the focus stays visible as an outline.
-        viewMode && 'pointer-events-auto h-auto cursor-text text-ellipsis border-transparent bg-transparent px-0 aria-invalid:border-transparent aria-invalid:ring-0 hover:border-transparent py-0.5 focus-visible:bg-transparent focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring rounded-md placeholder:text-transparent'
+        viewMode &&
+          'pointer-events-auto h-auto cursor-text text-ellipsis border-transparent bg-transparent px-0 aria-invalid:border-transparent aria-invalid:ring-0 hover:border-transparent py-0.5 focus-visible:bg-transparent focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring rounded-md placeholder:text-transparent'
       )}
       {...props}
     />

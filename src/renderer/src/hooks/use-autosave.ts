@@ -34,8 +34,14 @@ export function resetAllAutosaves(): void {
  * - `value` is the server state; when it changes (other window/refetch) and there are no
  *   pending local edits, the draft follows it.
  * - Pending edits are flushed on unmount so nothing is lost when switching items.
+ * - `save` must call mutate synchronously: only such mutations count as autosaves (their failure stops
+ *   «Зберегти»).
  */
-export function useAutosave<T>(value: T, save: (next: T) => void, delay = 600): [T, (next: T) => void] {
+export function useAutosave<T>(
+  value: T,
+  save: (next: T) => void,
+  delay = 600
+): [T, (next: T) => void] {
   const [draft, setDraft] = useState(value)
   const pending = useRef<T | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)

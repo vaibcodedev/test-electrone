@@ -10,10 +10,24 @@ import { extendTailwindMerge } from 'tailwind-merge'
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
-      text: ['meta', 'caption', 'body', 'lead', 'heading', 'stat-sm', 'headline', 'stat', 'title', 'display'],
-      animate: ['enter', 'page', 'pane', 'leave', 'trash-bump'],
+      text: [
+        'meta',
+        'caption',
+        'body',
+        'lead',
+        'heading',
+        'stat-sm',
+        'headline',
+        'stat',
+        'title',
+        'display'
+      ],
+      animate: ['enter', 'page', 'pane', 'pane-out', 'leave', 'trash-bump'],
       ease: ['soft']
-    }
+    },
+    // `truncate` in a className beats the base's line-clamp/text-balance (ItemDescription): text-balance kept
+    // wrapping on, and the «cut» meta line broke onto a second line.
+    conflictingClassGroups: { 'text-overflow': ['line-clamp', 'text-wrap'] }
   }
 })
 

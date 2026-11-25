@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   COMPACT_FROM,
   countLabel,
@@ -6,6 +6,9 @@ import {
   fmtBytes,
   fmtDate,
   fmtDayFull,
+  fmtDayNear,
+  fmtDayShort,
+  fmtDayTime,
   fmtHours,
   fmtMinutes,
   fmtMoney,
@@ -14,6 +17,8 @@ import {
   fmtPercent,
   fmtRelative,
   fmtReplyTime,
+  fmtTitle,
+  fmtWeekRange,
   hostOf,
   mdPreview,
   plural
@@ -156,11 +161,9 @@ describe('mdPreview', () => {
   })
   // Regression (was a bug): `_` is stripped everywhere, not only as emphasis: identifiers lose their underscores in previews
   // (src/renderer/src/lib/format.ts mdPreview, `.replace(/(\*\*|__|\*|_|~~|`)/g, '')`).
-  it('snake_case identifiers keep their underscores',
-    () => {
-      expect(mdPreview('Read process_env and MAX_RETRIES')).toBe('Read process_env and MAX_RETRIES')
-    }
-  )
+  it('snake_case identifiers keep their underscores', () => {
+    expect(mdPreview('Read process_env and MAX_RETRIES')).toBe('Read process_env and MAX_RETRIES')
+  })
   // Regression (was a bug): same regex removes a lone `*` (multiplication) — «2 * 3» → «2 3».
   it('a lone asterisk in text survives', () => {
     expect(mdPreview('2 * 3 = 6')).toBe('2 * 3 = 6')
@@ -190,6 +193,25 @@ describe('fmtDayFull / fmtDate', () => {
   })
 })
 
+describe('fmtWeekRange', () => {
+  it('one month: the day range and the month once', () => {
+    expect(fmtWeekRange(new Date(2026, 10, 23), new Date(2026, 10, 29))).toBe('23–29 листопада')
+  })
+  it('two months: both months, spaced dash', () => {
+    expect(fmtWeekRange(new Date(2026, 10, 30), new Date(2026, 11, 6))).toBe(
+      '30 листопада – 6 грудня'
+    )
+  })
+  it('year: added to the end date', () => {
+    expect(fmtWeekRange(new Date(2026, 10, 23), new Date(2026, 10, 29), { year: true })).toBe(
+      '23–29 листопада 2026'
+    )
+    expect(fmtWeekRange(new Date(2026, 11, 28), new Date(2027, 0, 3), { year: true })).toBe(
+      '28 грудня – 3 січня 2027'
+    )
+  })
+})
+
 describe('fmtRelative', () => {
   it('under a minute is «щойно», not a count of seconds', () => {
     expect(fmtRelative(Date.now() - 5_000)).toBe('щойно')
@@ -205,5 +227,49 @@ describe('fmtNumber', () => {
     expect(sp(fmtNumber(9_000_000))).toBe('9 000 000')
     expect(fmtNumber(4.9)).toBe('4,9')
     expect(fmtNumber(1.234)).toBe('1,23')
+  })
+})
+
+describe('near days: fmtDayTime / fmtDayNear', () => {
+  // Wednesday 25 November 2026, noon: «завтра» and the weekdays are counted from here.
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 10, 25, 12, 0))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+  it('fmtDayTime: the day and «о» the time', () => {
+    expect(fmtDayTime(new Date(2026, 10, 26, 15, 0).getTime())).toBe('завтра о 15:00')
+    expect(fmtDayTime(new Date(2026, 10, 24, 9, 5).getTime())).toBe('учора о 09:05')
+    expect(fmtDayTime(new Date(2026, 10, 2, 19, 22).getTime())).toBe('2 листопада о 19:22')
+    expect(fmtDayTime(null)).toBe('')
+  })
+  it('fmtDayNear: the next days of the week by name, then the date', () => {
+    expect(fmtDayNear(new Date(2026, 10, 25, 18).getTime())).toBe('сьогодні')
+    expect(fmtDayNear(new Date(2026, 10, 26).getTime())).toBe('завтра')
+    expect(fmtDayNear(new Date(2026, 10, 27).getTime())).toBe('п’ятниця')
+    expect(fmtDayNear(new Date(2026, 11, 1).getTime())).toBe('вівторок')
+    expect(fmtDayNear(new Date(2026, 11, 2).getTime())).toBe('2 грудня')
+  })
+  it('fmtDayNear: past days keep the date (a weekday would read as the coming one)', () => {
+    expect(fmtDayNear(new Date(2026, 10, 24).getTime())).toBe('учора')
+    expect(fmtDayNear(new Date(2026, 10, 21).getTime())).toBe('21 листопада')
+  })
+  it('fmtDayShort: abbreviated month, year only when it is not this year', () => {
+    expect(fmtDayShort(new Date(2026, 10, 5))).toBe('5 листоп.')
+    expect(fmtDayShort(new Date(2025, 11, 29).getTime())).toBe('29 груд. 2025')
+  })
+})
+
+describe('fmtTitle', () => {
+  it('keeps a title up to 80 characters', () => {
+    expect(fmtTitle('Короткий')).toBe('Короткий')
+    expect(fmtTitle('а'.repeat(80))).toBe('а'.repeat(80))
+  })
+  it('cuts a longer one to 80 with «…»', () => {
+    const cut = fmtTitle('а'.repeat(500))
+    expect(cut).toHaveLength(80)
+    expect(cut.endsWith('…')).toBe(true)
   })
 })

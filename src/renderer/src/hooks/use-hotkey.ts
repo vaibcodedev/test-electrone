@@ -1,14 +1,9 @@
 import { useEffect, useRef } from 'react'
-import { isEditableTarget, overlayOpen } from '@/lib/dom'
+import { isEditableTarget, isTypeaheadTarget, overlayOpen } from '@/lib/dom'
 
 export interface HotkeyOptions {
   /** Fire even when focus is inside an input/textarea/editor. */
   allowInInputs?: boolean
-  /**
-   * Fire a key without Ctrl/Alt even while a dialog, menu or Select list is open. Off by default: N, arrows or
-   * T of the page behind it must not act (mod combos — mod+k closes the palette — always fire).
-   */
-  allowInOverlay?: boolean
   enabled?: boolean
 }
 
@@ -16,7 +11,11 @@ export interface HotkeyOptions {
  * Minimal hotkey hook. Combo syntax: "mod+k", "alt+1", "shift+?", "escape".
  * `mod` = Ctrl on Windows/Linux, Cmd on macOS.
  */
-export function useHotkey(combo: string, handler: (e: KeyboardEvent) => void, options: HotkeyOptions = {}): void {
+export function useHotkey(
+  combo: string,
+  handler: (e: KeyboardEvent) => void,
+  options: HotkeyOptions = {}
+): void {
   const ref = useRef(handler)
   useEffect(() => {
     ref.current = handler
@@ -34,14 +33,24 @@ export function useHotkey(combo: string, handler: (e: KeyboardEvent) => void, op
       if (e.defaultPrevented) return
       const mod = isMac ? e.metaKey : e.ctrlKey
       if (mod !== wantMod || e.altKey !== wantAlt || e.shiftKey !== wantShift) return
-      const pressed = e.code.startsWith('Digit') ? e.code.slice(5) : e.code.startsWith('Key') ? e.code.slice(3).toLowerCase() : e.key.toLowerCase()
+      const pressed = e.code.startsWith('Digit')
+        ? e.code.slice(5)
+        : e.code.startsWith('Key')
+          ? e.code.slice(3).toLowerCase()
+          : e.key.toLowerCase()
       if (pressed !== key) return
-      if (!options.allowInInputs && isEditableTarget(e.target)) return
-      if (!options.allowInOverlay && !wantMod && !wantAlt && overlayOpen()) return
+      if (
+        !options.allowInInputs &&
+        (isEditableTarget(e.target) || (key.length === 1 && isTypeaheadTarget(e.target)))
+      )
+        return
+      // Keys without Ctrl/Alt don't fire behind a dialog, menu or Select list (mod+k closes the palette, so mod
+      // combos always fire).
+      if (!wantMod && !wantAlt && overlayOpen()) return
       e.preventDefault()
       ref.current(e)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [combo, options.allowInInputs, options.allowInOverlay, options.enabled])
+  }, [combo, options.allowInInputs, options.enabled])
 }

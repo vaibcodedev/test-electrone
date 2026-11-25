@@ -1,21 +1,21 @@
-"use client"
+'use client'
 
-import * as React from "react"
-import { type VariantProps } from "class-variance-authority"
-import { cn } from "@/lib/utils"
-import { useReadOnly } from "@/components/common/detail-mode-context"
-import { ToggleGroup as ToggleGroupPrimitive } from "radix-ui"
+import * as React from 'react'
+import { type VariantProps } from 'class-variance-authority'
+import { cn } from '@/lib/utils'
+import { useReadOnly } from '@/components/common/detail-mode-context'
+import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui'
 
-import { toggleVariants } from "@/components/ui/toggle"
+import { toggleVariants } from '@/components/ui/toggle'
 
 const ToggleGroupContext = React.createContext<
   VariantProps<typeof toggleVariants> & {
     spacing?: number
   }
 >({
-  size: "default",
-  variant: "default",
-  spacing: 0,
+  size: 'default',
+  variant: 'default',
+  spacing: 0
 })
 
 function ToggleGroup({
@@ -39,10 +39,10 @@ function ToggleGroup({
       data-variant={variant}
       data-size={size}
       data-spacing={spacing}
-      style={{ "--gap": spacing } as React.CSSProperties}
+      style={{ '--gap': spacing } as React.CSSProperties}
       className={cn(
-        "group/toggle-group flex w-fit flex-wrap items-center gap-[--spacing(var(--gap))] rounded-full",
-        "data-[variant=segment]:flex-nowrap data-[variant=segment]:gap-0.5 data-[variant=segment]:bg-surface data-[variant=segment]:p-1",
+        'group/toggle-group flex w-fit flex-wrap items-center gap-[--spacing(var(--gap))] rounded-full',
+        'data-[variant=segment]:flex-nowrap data-[variant=segment]:gap-0.5 data-[variant=segment]:bg-surface data-[variant=segment]:p-1',
         className
       )}
       {...props}
@@ -60,12 +60,14 @@ function ToggleGroupItem({
   variant,
   size,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Item> &
-  VariantProps<typeof toggleVariants>) {
+}: React.ComponentProps<typeof ToggleGroupPrimitive.Item> & VariantProps<typeof toggleVariants>) {
   const context = React.useContext(ToggleGroupContext)
 
   return (
+    // Service attributes after the props (as in Button): a Tooltip trigger (asChild) merges its own data-slot in,
+    // and the detail-mode CSS must still see data-slot="toggle-group-item".
     <ToggleGroupPrimitive.Item
+      {...props}
       data-slot="toggle-group-item"
       data-variant={context.variant || variant}
       data-size={context.size || size}
@@ -73,15 +75,16 @@ function ToggleGroupItem({
       className={cn(
         toggleVariants({
           variant: context.variant || variant,
-          size: context.size || size,
+          size: context.size || size
         }),
-        "w-auto min-w-0 shrink-0 focus:z-10 focus-visible:z-10",
+        'w-auto min-w-0 shrink-0 focus:z-10 focus-visible:z-10',
         // Segment track has p-1: items are 8px shorter so the whole control matches an input's height (36px).
-        (context.variant || variant) === "segment" &&
-          ({ default: "h-7", sm: "h-6", xs: "h-5", lg: "h-8" } as const)[(context.size || size || "default") as "default"],
+        (context.variant || variant) === 'segment' &&
+          ({ default: 'h-7', sm: 'h-6', xs: 'h-5', lg: 'h-8' } as const)[
+            (context.size || size || 'default') as 'default'
+          ],
         className
       )}
-      {...props}
     >
       {children}
     </ToggleGroupPrimitive.Item>

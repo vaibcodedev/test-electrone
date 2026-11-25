@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router'
 import { ALL_NAV_ITEMS } from '@/app/navigation'
 import { GO_TO } from '@/app/shortcuts'
 import { useUi } from '@/stores/ui-store'
-import { MENU_OPEN, isEditableTarget as isEditable, overlayOpen } from '@/lib/dom'
+import {
+  MENU_OPEN,
+  isEditableTarget as isEditable,
+  isTypeaheadTarget,
+  overlayOpen
+} from '@/lib/dom'
 
 function visible(el: Element | null): el is HTMLElement {
   return el instanceof HTMLElement && el.offsetParent !== null
@@ -13,9 +18,9 @@ function visible(el: Element | null): el is HTMLElement {
  * Global keyboard layer (one listener for the whole window):
  * Alt+1…9, Ctrl+, Ctrl+/ ?, [ ], G-sequences, and page-level N / "/" / Esc that work through
  * data attributes on shared components — modules get them for free:
- *   - N  → the page's own "new" target ([data-page-new]: a field gets focus, a button is clicked), else the
- *          first enabled lime button in the page header ([data-slot=page-header] [data-variant=lime]) — on a
- *          page whose first lime button does something else («Повторити 5» on Англійська) the target is marked.
+ *   - N  → the visible [data-page-new] (a field gets focus, a button is clicked), else the first enabled lime
+ *          button in [data-slot=page-header], including a form among the header's children («Додати» on
+ *          «Англійська»).
  *   - /  → page search field ([data-page-search])
  *   - Esc → close the open detail pane ([data-close-detail])
  */
@@ -77,6 +82,8 @@ export function useGlobalShortcuts(): void {
         }
         return
       }
+      // A closed Select takes letters as typeahead: N or E there would change the value and act at once.
+      if (isTypeaheadTarget(e.target)) return
       // E works inside record sheets (vacancy, board card, proposal) — they are dialogs too, so this runs
       // before the overlay check and looks in the topmost open dialog, or the page when none is open.
       // G then E is still «go to Англійська» (handled below).
