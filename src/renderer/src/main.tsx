@@ -10,10 +10,13 @@ import { Toaster } from '@/components/ui/sonner'
 import { useApplyTheme } from '@/hooks/use-theme'
 import { installErrorReporting } from '@/lib/error-reporting'
 import { configureZod } from '@shared/zod-locale'
+import { installScrollActivity } from '@/lib/scroll-activity'
 
 installErrorReporting()
 // Validation messages in Ukrainian (import previews, client-side checks).
 configureZod()
+// Scrollbars stay hidden until an area actually scrolls.
+installScrollActivity()
 
 function Root() {
   useApplyTheme()

@@ -348,8 +348,9 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  /* Thin overlay-style scrollbar: invisible at rest (a faint line on every panel that could scroll read as
-     clutter), shown while the area is hovered, clearer when the thumb is grabbed. */
+  /* Thin overlay-style scrollbar: invisible at rest (a bar on every panel that could scroll read as clutter),
+     shown while the area scrolls (`data-scrolling`, lib/scroll-activity.ts) and while the thumb is under the
+     pointer or grabbed. The lane stays (classic scrollbars take it anyway), only the thumb fades. */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -361,12 +362,20 @@
     background-clip: content-box;
     min-height: 32px;
   }
-  :hover::-webkit-scrollbar-thumb {
+  [data-scrolling]::-webkit-scrollbar-thumb {
     background-color: color-mix(in oklab, var(--foreground) 20%, transparent);
   }
   ::-webkit-scrollbar-thumb:hover,
   ::-webkit-scrollbar-thumb:active {
     background-color: color-mix(in oklab, var(--foreground) 34%, transparent);
+  }
+  /* The lane stops short of the rounded corners (28px page panel, 24px sheet): the thumb ran into the curve
+     and was cut off at the bottom. 14px clears a 28px radius at the lane's middle. */
+  ::-webkit-scrollbar-track:vertical {
+    margin-block: 14px;
+  }
+  ::-webkit-scrollbar-track:horizontal {
+    margin-inline: 14px;
   }
   ::-webkit-scrollbar-corner {
     background: transparent;

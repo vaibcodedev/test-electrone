@@ -189,4 +189,24 @@ test.describe('перетягування й прокрутка', () => {
       win.locator('[data-sonner-toast]').filter({ hasText: 'Перетягніть папку з диска' })
     ).toBeVisible()
   })
+
+  test('смуга прокрутки видна лише поки область прокручується', async ({ vault }) => {
+    const { win, go } = vault
+    await go('/guide')
+    const scroller = await win.evaluateHandle(() => {
+      const all = [...document.querySelectorAll('body *')] as HTMLElement[]
+      return all.find(
+        (el) => el.scrollHeight > el.clientHeight + 50 && getComputedStyle(el).overflowY === 'auto'
+      )!
+    })
+    await expect
+      .poll(() => scroller.evaluate((el) => el.hasAttribute('data-scrolling')))
+      .toBe(false)
+    await scroller.evaluate((el) => el.scrollBy(0, 200))
+    await expect.poll(() => scroller.evaluate((el) => el.hasAttribute('data-scrolling'))).toBe(true)
+    // …and hides again a moment after the scroll stops.
+    await expect
+      .poll(() => scroller.evaluate((el) => el.hasAttribute('data-scrolling')), { timeout: 3000 })
+      .toBe(false)
+  })
 })
