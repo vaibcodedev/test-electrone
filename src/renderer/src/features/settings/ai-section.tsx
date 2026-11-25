@@ -6,6 +6,7 @@ import {
   aiConfigSchema,
   aiKeySchema,
   aiPreset,
+  presetNote,
   type AiConfigPatch,
   type AiPreset,
   type AiPresetId,
@@ -95,7 +96,7 @@ export function AiSection(): ReactElement | null {
         )}
       </SettingsRow>
 
-      <SettingsRow label="Провайдер" hint={`${preset.cost} · ${preset.privacy}`}>
+      <SettingsRow label="Провайдер" hint={presetNote(preset)}>
         {(id) => (
           <Select value={settings.preset} onValueChange={(v) => set({ preset: v as AiPresetId })}>
             <SelectTrigger id={id} className="w-72 bg-card" aria-label="Провайдер">
@@ -130,7 +131,7 @@ export function AiSection(): ReactElement | null {
           label={`${preset.short} має бути запущено`}
           hint="Ключ не потрібен, ліміти задаєте ви"
         >
-          <Button size="sm" variant="subtle" onClick={() => void openUrl(preset.keyUrl!)}>
+          <Button size="sm" variant="soft" onClick={() => void openUrl(preset.keyUrl!)}>
             <ExternalLink /> Завантажити {preset.short}
           </Button>
         </SettingsRow>
@@ -253,7 +254,7 @@ function AiKeyField({ status, preset }: { status: AiStatus; preset: AiPreset }):
         label={`Ключ збережено${status.keyHint ? ` ••••${status.keyHint}` : ''}`}
         hint="Зашифровано ключем Windows і не показується в інтерфейсі"
       >
-        <Button size="sm" variant="subtle" onClick={() => setReplacing(true)}>
+        <Button size="sm" variant="soft" onClick={() => setReplacing(true)}>
           Замінити
         </Button>
         <Confirm
@@ -262,7 +263,7 @@ function AiKeyField({ status, preset }: { status: AiStatus; preset: AiPreset }):
           confirmLabel="Видалити"
           onConfirm={() => clear.mutate(undefined)}
         >
-          <Button size="sm" variant="subtle" disabled={clear.isPending}>
+          <Button size="sm" variant="soft" disabled={clear.isPending}>
             Видалити
           </Button>
         </Confirm>

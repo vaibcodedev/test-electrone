@@ -92,7 +92,8 @@ describe('AI settings schema', () => {
       if (p.id === 'custom') expect(p.baseUrl).toBe('')
       else expect(p.baseUrl).toMatch(p.local ? /^http:\/\/localhost:\d+\/v1$/ : /^https:\/\//)
       if (p.needsKey) expect(p.keyUrl).toMatch(/^https:\/\//)
-      expect(p.cost && p.privacy).toBeTruthy()
+      expect(p.cost).toBeTruthy()
+      expect(p.privacy || p.id === 'custom').toBeTruthy()
     }
   })
 

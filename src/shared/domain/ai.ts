@@ -57,6 +57,7 @@ export interface AiPreset {
   /** Local apps: what to do when they don't answer («запустіть Ollama і спробуйте ще раз»). */
   startHint?: string
   cost: string
+  /** '' when the cost line already says it («Своя адреса»). */
   privacy: string
   /** OpenAI's reasoning models reject `max_tokens`; everyone else (Mistral is strict) wants `max_tokens`. */
   maxTokensField?: 'max_tokens' | 'max_completion_tokens'
@@ -206,10 +207,15 @@ export const AI_PRESETS: readonly AiPreset[] = [
     keyUrl: null,
     local: false,
     startHint: 'перевірте адресу й чи запущено сервіс',
-    cost: 'залежить від сервісу',
-    privacy: 'залежить від сервісу'
+    cost: 'ціна й приватність залежать від сервісу',
+    privacy: ''
   }
 ]
+
+/** The line under the provider select: price and privacy. */
+export function presetNote(preset: AiPreset): string {
+  return [preset.cost, preset.privacy].filter(Boolean).join(' · ')
+}
 
 export function aiPreset(id: AiPresetId): AiPreset {
   return AI_PRESETS.find((p) => p.id === id) ?? AI_PRESETS[0]

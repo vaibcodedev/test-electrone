@@ -65,7 +65,7 @@ export function TagSuggestionChips({ state }: { state: TagSuggestionsState }): R
           onOpenChange={consent.setOpen}
           tone="default"
           title={`Надіслати текст запису в ${consent.provider}?`}
-          description={`Щоб запропонувати мітки, Vault надішле назву й текст цього запису провайдеру ${consent.provider}: ${consent.privacy}. Спитаємо один раз для цього провайдера. Щоб нічого не йшло в інтернет, виберіть Ollama або LM Studio в Налаштування → Штучний інтелект.`}
+          description={`Щоб запропонувати мітки, Vault надішле назву й текст цього запису провайдеру ${consent.provider}${consent.privacy ? `: ${consent.privacy}` : ''}. Спитаємо один раз для цього провайдера. Щоб нічого не йшло в інтернет, виберіть Ollama або LM Studio в Налаштування → Штучний інтелект.`}
           confirmLabel="Надіслати"
           onConfirm={consent.confirm}
         />
