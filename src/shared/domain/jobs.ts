@@ -76,13 +76,42 @@ export type CheckinInput = z.input<typeof checkinSchema>
 
 /* ───────────── Companies ───────────── */
 
+/** Company size as LinkedIn groups it (people), stored as these short strings. */
+export const COMPANY_SIZES = ['1–10', '11–50', '51–200', '201–500', '501–1000', '1001–5000', '5000+'] as const
+export type CompanySize = (typeof COMPANY_SIZES)[number]
+
+export const COMPANY_SIZE_LABEL: Record<CompanySize, string> = {
+  '1–10': '1–10 людей',
+  '11–50': '11–50 людей',
+  '51–200': '51–200 людей',
+  '201–500': '201–500 людей',
+  '501–1000': '501–1 000 людей',
+  '1001–5000': '1 001–5 000 людей',
+  '5000+': 'Понад 5 000'
+}
+
+/**
+ * The bucket an old free-text size means («51-200», «51–200 людей», «5000+») or null when it matches none (DOU's
+ * «201–800» stays as it was written).
+ */
+export function companySizeOf(text: string): CompanySize | null {
+  const t = text
+    .toLowerCase()
+    .replace(/(людей|осіб|співробітників|спеціалістів|people|employees)/g, '')
+    .replace(/[\s\u00a0]/g, '')
+    .replace(/[-—]/g, '–')
+  if (t === '5000+' || t === '5001+' || t === '10001+') return '5000+'
+  return (COMPANY_SIZES as readonly string[]).includes(t) ? (t as CompanySize) : null
+}
+
 export const companyInputSchema = z.object({
   name: z.string().trim().min(1).max(MAX.name),
   website: urlSchema.default(''),
   /** DOU / Glassdoor / other reviews page. */
   reviewsUrl: urlSchema.default(''),
   stack: z.string().max(MAX.line).default(''),
-  size: z.string().max(MAX.label).default(''),
+  /** One of COMPANY_SIZES or '' — an old free text stays in the record and is shown as it was. */
+  size: z.union([z.enum(COMPANY_SIZES), z.literal('')]).default(''),
   location: z.string().max(200).default(''),
   contacts: z.string().max(MAX.short).default(''),
   notes: z.string().max(MAX.note).default(''),

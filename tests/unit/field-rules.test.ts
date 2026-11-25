@@ -15,6 +15,8 @@ import {
 } from '@shared/domain/freelance'
 import { clientInputSchema, clientPatchSchema, projectInputSchema } from '@shared/domain/crm'
 import {
+  companyPatchSchema,
+  companySizeOf,
   applicationInputSchema,
   applicationPatchSchema,
   questionInputSchema
@@ -268,5 +270,21 @@ describe('phone', () => {
   it('only a new phone is checked: an old odd one never blocks other edits', () => {
     expect(clientPatchSchema.safeParse({ phone: 'дзвонити після 18' }).success).toBe(false)
     expect(clientPatchSchema.safeParse({ name: 'Олена' }).success).toBe(true)
+  })
+})
+
+describe('company size is a choice', () => {
+  it('an old free text maps to a LinkedIn bucket, or stays as it was written', () => {
+    expect(companySizeOf('51-200')).toBe('51–200')
+    expect(companySizeOf('51–200 людей')).toBe('51–200')
+    expect(companySizeOf('5000+')).toBe('5000+')
+    expect(companySizeOf('201–800')).toBeNull()
+    expect(companySizeOf('Напр.: багато')).toBeNull()
+  })
+
+  it('only a bucket (or empty) saves', () => {
+    expect(companyPatchSchema.safeParse({ size: '11–50' }).success).toBe(true)
+    expect(companyPatchSchema.safeParse({ size: '' }).success).toBe(true)
+    expect(companyPatchSchema.safeParse({ size: 'дуже велика' }).success).toBe(false)
   })
 })
