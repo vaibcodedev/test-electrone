@@ -482,3 +482,19 @@ describe('accesses on the client page', () => {
     ).rejects.toThrow(/належати/)
   })
 })
+
+describe('search after the update', () => {
+  it('owners of accesses from before the kinds are re-indexed with their names and hosts', async () => {
+    const p = await v.api.projects.create({ title: 'Сайт' })
+    v.db.sqlite
+      .prepare(
+        `INSERT INTO credentials (id, project_id, label, url, login, secret, notes, created_at, updated_at)
+         VALUES ('old2', ?, 'Cloudflare', 'https://dash.cloudflare.com', 'anna', ?, '', 1, 1)`
+      )
+      .run(p.id, v.m.secrets.encrypt('s3cret'))
+    expect(v.search.query({ text: 'cloudflare' })).toEqual([])
+    v.crm.reindexCredentialOwners()
+    expect(v.search.query({ text: 'cloudflare' }).map((h) => h.id)).toEqual([p.id])
+    expect(v.search.query({ text: 's3cret' })).toEqual([])
+  })
+})

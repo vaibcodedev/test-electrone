@@ -183,6 +183,14 @@ export class Credentials {
     }
   }
 
+  reindexAllOwners(): void {
+    const owners = this.db
+      .selectDistinct({ projectId: credentials.projectId, clientId: credentials.clientId })
+      .from(credentials)
+      .all()
+    this.m.db.tx(() => owners.forEach((o) => this.reindexOwner(o)))
+  }
+
   private secretsOf(r: CredentialRow): StoredSecrets {
     if (!r.secrets) return {}
     const v = readJson(this.m.secrets.decrypt(r.secrets))

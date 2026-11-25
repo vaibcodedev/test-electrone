@@ -24,6 +24,9 @@ export class DbContext {
     private readonly appVersion = ''
   ) {}
 
+  /** Migrations the last open() applied to an existing database (0 — none): startup backfills after an update. */
+  migratedOnOpen = 0
+
   /** Number of migrations shipped with this version vs. applied to the DB. */
   private pendingMigrations(sqlite: Database.Database): number {
     try {
@@ -62,8 +65,10 @@ export class DbContext {
     )
     this._sqlite = sqlite
     this._orm = drizzle({ client: sqlite, schema, casing: 'snake_case' })
-    if (existsSync(this.file)) this.backupBeforeMigrate(sqlite, this.pendingMigrations(sqlite))
+    const pending = existsSync(this.file) ? this.pendingMigrations(sqlite) : 0
+    this.backupBeforeMigrate(sqlite, pending)
     migrate(this._orm, { migrationsFolder: this.migrationsDir })
+    this.migratedOnOpen = pending
   }
 
   close(): void {

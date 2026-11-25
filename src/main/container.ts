@@ -369,6 +369,8 @@ export class Container {
     }
     housekeep('search index', () => {
       if (this.search.count() === 0) this.search.rebuild()
+      // After an update: accesses joined the text of their client / project (names, hosts — never secrets).
+      else if (this.db.migratedOnOpen) this.crm.reindexCredentialOwners()
     })
     housekeep('checklist seeds', () => this.checklists.seedIfEmpty(this.config))
     housekeep('freelance seeds', () => this.freelance.seedIfEmpty(this.config))

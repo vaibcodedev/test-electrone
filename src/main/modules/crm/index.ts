@@ -105,6 +105,11 @@ export class CrmModule {
     return this.time.recentActiveProjects(limit)
   }
 
+  /** Re-indexes every client / project that has accesses (their names and hosts are part of its search text). */
+  reindexCredentialOwners(): void {
+    this.credentials.reindexAllOwners()
+  }
+
   running(): RunningTimer | null {
     return this.time.running()
   }
