@@ -66,7 +66,8 @@ export function ScanImportDialog({ scan, onClose }: { scan: ScanResult | null; o
       submitLabel={picked.size ? `Імпортувати ${picked.size}` : 'Імпортувати'}
       onSubmit={submit}
       invalid={!picked.size}
-      invalidReason={items.length ? 'Позначте проєкти, які додати' : undefined}
+      // Nothing found: the empty state says why, the generic «Заповніть обов’язкові поля» would be wrong.
+      invalidReason={items.length ? 'Позначте проєкти, які додати' : ''}
       pending={busy}
       className="sm:max-w-140"
     >

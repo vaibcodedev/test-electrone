@@ -166,3 +166,27 @@ test.describe('Ctrl+K за текстом', () => {
       .toEqual([text])
   })
 })
+
+test.describe('перетягування й прокрутка', () => {
+  test('«Мої проєкти»: папка над сторінкою — підказка «Відпустіть…»; не з диска — тост', async ({
+    vault
+  }) => {
+    const { win, go } = vault
+    await go('/dev')
+    await expect(win.getByRole('heading', { name: 'Мої проєкти' })).toBeVisible()
+    // A File made in the page has no path on disk, as a drag from a browser: the page asks for a folder.
+    const target = win.locator('[data-slot="page-header"]').first()
+    const dt = await win.evaluateHandle(() => {
+      const d = new DataTransfer()
+      d.items.add(new File(['x'], 'repo'))
+      return d
+    })
+    await target.dispatchEvent('dragenter', { dataTransfer: dt })
+    await expect(win.getByText('Відпустіть, щоб додати проєкти')).toBeVisible()
+    await target.dispatchEvent('drop', { dataTransfer: dt })
+    await expect(win.getByText('Відпустіть, щоб додати проєкти')).toBeHidden()
+    await expect(
+      win.locator('[data-sonner-toast]').filter({ hasText: 'Перетягніть папку з диска' })
+    ).toBeVisible()
+  })
+})

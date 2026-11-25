@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react'
-import { FolderGit2, FolderPlus, FolderSearch } from 'lucide-react'
-import { toast } from 'sonner'
-import { api } from '@/lib/api'
+import { FolderGit2, FolderInput, FolderPlus, FolderSearch } from 'lucide-react'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useMainEvent } from '@/hooks/use-main-events'
+import { useDroppedFiles } from '@/hooks/use-file-drop'
+import { DropOverlay } from '@/components/common/drop-overlay'
 import {
   EmptyState,
   FilterBar,
@@ -21,9 +21,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { ProjectCard } from './project-card'
 import { ProjectSheet } from './project-sheet'
-import { ScanImportDialog, type ScanResult } from './scan-import-dialog'
+import { ScanImportDialog } from './scan-import-dialog'
 import { LogsPanel } from './logs-panel'
-import { folderName } from './dev-shared'
+import { useProjectImport } from './use-project-import'
 import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
 
 const ONLY = ['favorite', 'running'] as const
@@ -41,7 +41,11 @@ export function DevProjectsPage(): ReactElement {
   const [openId, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
   const [only, setOnly] = useState<(typeof ONLY)[number] | undefined>()
-  const [scan, setScan] = useState<ScanResult | null>(null)
+  const { scan, closeScan, addProject, importFolder, importDropped } = useProjectImport()
+  // Folders from Explorer: a repository is added at once, a folder of repositories opens the import dialog.
+  const drop = useDroppedFiles(
+    (files) => void importDropped(files.map((f) => window.vault.pathForFile(f)).filter(Boolean))
+  )
 
   // Process started/stopped/url detected → refresh cards and run tabs.
   const onStatus = useCallback(() => invalidateAll(), [])
@@ -74,28 +78,6 @@ export function DevProjectsPage(): ReactElement {
     setOnly(undefined)
   }
 
-  const addProject = async (): Promise<void> => {
-    const path = await api.devProjects.pickFolder()
-    if (!path) return
-    try {
-      const p = await api.devProjects.create({ name: folderName(path), path })
-      invalidateAll()
-      toast.success(`Додано проєкт ${p.name}`)
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
-  const importFolder = async (): Promise<void> => {
-    const root = await api.devProjects.pickFolder()
-    if (!root) return
-    try {
-      setScan({ root, items: await api.devProjects.scan(root) })
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
   const list = (
     <PageBody className="h-full">
       {isLoading ? (
@@ -112,7 +94,7 @@ export function DevProjectsPage(): ReactElement {
         <EmptyState
           icon={FolderGit2}
           title="Додайте свої проєкти"
-          hint="Вкажіть папку, де лежать усі репозиторії, — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер."
+          hint="Вкажіть папку, де лежать усі репозиторії, або перетягніть її сюди — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер."
           cta={{ label: 'Імпорт із папки', icon: FolderSearch, onClick: () => void importFolder() }}
         />
       ) : filtered.length === 0 ? (
@@ -139,70 +121,73 @@ export function DevProjectsPage(): ReactElement {
   )
 
   return (
-    <Page>
-      <PageHeader
-        title="Мої проєкти"
-        subtitle="Локальні репозиторії: відкрити в редакторі, запустити скрипт, переглянути лог."
-        actions={
-          <>
-            {/* On an empty page the same action is the empty state's button. */}
-            {projects.length > 0 && (
-              // Both buttons start with a folder picker: the tooltip says this one adds every repository inside.
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="soft" onClick={() => void importFolder()}>
-                    <FolderSearch /> Імпорт із папки
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Знайти всі репозиторії в папці</TooltipContent>
-              </Tooltip>
-            )}
-            {/* Named by the result: one folder becomes one project (the toast says «Додано проєкт …»). */}
-            <Button variant="lime" onClick={() => void addProject()}>
-              <FolderPlus /> Додати проєкт
-            </Button>
-          </>
-        }
-      >
-        {projects.length > 0 && (
-          <FilterBar
-            chips={
-              onlyChips.length > 0 && (
-                <FilterChips
-                  label="Показати"
-                  allLabel="Усі"
-                  value={only}
-                  onChange={setOnly}
-                  options={onlyChips}
-                />
-              )
-            }
-            trailing={
-              <SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" />
-            }
-          />
-        )}
-      </PageHeader>
+    <Page className="relative">
+      <div {...drop.props} className="flex min-h-0 flex-1 flex-col">
+        <DropOverlay show={drop.isOver} icon={FolderInput} label="Відпустіть, щоб додати проєкти" />
+        <PageHeader
+          title="Мої проєкти"
+          subtitle="Локальні репозиторії: відкрити в редакторі, запустити скрипт, переглянути лог."
+          actions={
+            <>
+              {/* On an empty page the same action is the empty state's button. */}
+              {projects.length > 0 && (
+                // Both buttons start with a folder picker: the tooltip says this one adds every repository inside.
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="soft" onClick={() => void importFolder()}>
+                      <FolderSearch /> Імпорт із папки
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Знайти всі репозиторії в папці</TooltipContent>
+                </Tooltip>
+              )}
+              {/* Named by the result: one folder becomes one project (the toast says «Додано проєкт …»). */}
+              <Button variant="lime" onClick={() => void addProject()}>
+                <FolderPlus /> Додати проєкт
+              </Button>
+            </>
+          }
+        >
+          {projects.length > 0 && (
+            <FilterBar
+              chips={
+                onlyChips.length > 0 && (
+                  <FilterChips
+                    label="Показати"
+                    allLabel="Усі"
+                    value={only}
+                    onChange={setOnly}
+                    options={onlyChips}
+                  />
+                )
+              }
+              trailing={
+                <SearchInput value={search} onChange={setSearch} placeholder="Знайти проєкт" />
+              }
+            />
+          )}
+        </PageHeader>
 
-      {runs.length > 0 ? (
-        <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
-          <ResizablePanel defaultSize="60%" minSize="25%" className="flex min-h-0 flex-col">
-            {list}
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize="40%" minSize="15%" className="flex min-h-0 flex-col">
-            <LogsPanel runs={runs} projects={projects} />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      ) : (
-        list
-      )}
+        {runs.length > 0 ? (
+          <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
+            <ResizablePanel defaultSize="60%" minSize="25%" className="flex min-h-0 flex-col">
+              {list}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize="40%" minSize="15%" className="flex min-h-0 flex-col">
+              <LogsPanel runs={runs} projects={projects} />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          list
+        )}
+      </div>
 
       <ProjectSheet
         project={projects.find((p) => p.id === openId) ?? null}
         onClose={() => setOpen(null)}
       />
-      <ScanImportDialog scan={scan} onClose={() => setScan(null)} />
+      <ScanImportDialog scan={scan} onClose={closeScan} />
     </Page>
   )
 }
