@@ -20,13 +20,17 @@ const buttonVariants = cva(
         default:
           'bg-primary text-primary-foreground hover:bg-primary/88 disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
         lime: 'bg-lime text-lime-foreground hover:brightness-95 disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
+        // State layers, not layer colours: soft, subtle, outline and ghost lay the text colour over whatever is
+        // under them — 6% at rest, 10% on hover (docs/design-system.md → Наведення). A solid bg-card/bg-surface
+        // was darker than a hovered tile in the dark theme and showed as a hole; a tint reads the same on a card,
+        // a tile and a hovered tile, in both themes. On a card, 6% ≈ surface, so soft looks as before.
         // Disabled the same way as the filled ones: a grey surface with grey text still read as clickable.
-        soft: 'bg-surface text-foreground hover:bg-accent disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
-        outline: 'border border-input bg-transparent hover:bg-surface disabled:opacity-50',
+        soft: 'bg-foreground/6 text-foreground hover:bg-foreground/10 disabled:bg-transparent disabled:text-muted-foreground disabled:inset-ring disabled:inset-ring-foreground/20',
+        outline: 'border border-input bg-transparent hover:bg-foreground/6 disabled:opacity-50',
         // Tinted hover: ghost buttons mostly sit on bg-surface cards, where hover:bg-surface was invisible.
         ghost: 'text-foreground hover:bg-foreground/[0.07] disabled:opacity-40',
-        // Navigation from a card ("Все библиотеки", "Календарь"): a visible pill on bg-surface cards.
-        subtle: 'bg-card text-foreground hover:bg-accent disabled:opacity-50',
+        // Navigation from a card ("Усі бібліотеки", "Календар"): the same state layer as soft, a step lighter at rest.
+        subtle: 'bg-foreground/6 text-foreground hover:bg-foreground/10 disabled:opacity-50',
         // Dangerous action: solid red, its own text colour (white is 3:1 on the dark-theme red), calm hover;
         // its focus outline is red too (never lime).
         destructive:
