@@ -59,7 +59,7 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
     {
       title: 'На сторінці',
       items: [
-        { keys: ['N'], label: 'Створити (головна кнопка сторінки)' },
+        { keys: ['N'], label: 'Створити (головна кнопка або поле додавання)' },
         { keys: ['/'], label: 'Перейти до пошуку в розділі' },
         { keys: ['E'], label: 'Редагувати відкритий запис' },
         { keys: ['Esc'], label: 'Вийти з редагування / закрити запис' },
