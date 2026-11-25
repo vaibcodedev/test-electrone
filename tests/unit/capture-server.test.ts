@@ -33,7 +33,7 @@ import { fieldMax } from '@shared/domain/limits'
 import { SNIPPET_LANGUAGES, snippetInputSchema } from '@shared/domain/snippets'
 import { fixInputSchema } from '@shared/domain/fixes'
 import { LANGUAGES, guessLanguage, looksLikeCode } from '../../extension/code-language.js'
-import { suggestTarget } from '../../extension/shared.js'
+import { isNewerVersion, suggestTarget, updateAction } from '../../extension/shared.js'
 
 type FetchFn = (url: string, init: RequestInit) => Promise<Response>
 const registry = (body: unknown): FetchFn & ReturnType<typeof vi.fn> =>
@@ -679,5 +679,27 @@ describe('CaptureServer: pairing over HTTP', () => {
     expect(second.status).toBe(429)
     expect(((await second.json()) as { error: string }).error).toMatch(/Забагато/)
     limited.stop()
+  })
+})
+
+describe('extension: self-update', () => {
+  it('compares manifest versions numerically', () => {
+    expect(isNewerVersion('0.3.10', '0.3.9')).toBe(true)
+    expect(isNewerVersion('0.4', '0.3.9')).toBe(true)
+    expect(isNewerVersion('0.3.0', '0.3')).toBe(false)
+    expect(isNewerVersion('0.2.9', '0.3.0')).toBe(false)
+    expect(isNewerVersion(null, '0.3.0')).toBe(false)
+    expect(isNewerVersion('0.3.x', '0.3.0')).toBe(false)
+  })
+
+  it('reloads once per newer version, never in a loop', () => {
+    expect(updateAction('0.3.1', '0.3.0', undefined)).toBe('reload')
+    expect(updateAction('0.3.1', '0.3.0', '0.3.0')).toBe('reload')
+    // Reloaded for 0.3.1 and still 0.3.0: Chrome loads another folder.
+    expect(updateAction('0.3.1', '0.3.0', '0.3.1')).toBe('stale')
+    expect(updateAction('0.3.0', '0.3.0', undefined)).toBeNull()
+    // An older Vault never downgrades the extension.
+    expect(updateAction('0.2.0', '0.3.0', undefined)).toBeNull()
+    expect(updateAction(undefined, '0.3.0', undefined)).toBeNull()
   })
 })

@@ -3,7 +3,7 @@
  * stubbed `chrome.*` API and a fake Vault bridge (no browser, no running Vault needed):
  *   <out>/<theme>/popup-<target>.png              each target type, connected (full height)
  *   <out>/<theme>/popup-<target>-600.png          the same in Chrome's 600px popup cap (warns if the footer leaves it)
- *   <out>/<theme>/popup-nokey | offline | unauthorized | timeout .png   connection problems
+ *   <out>/<theme>/popup-offline | unauthorized | timeout .png   connection problems with a key
  *   <out>/<theme>/popup-long | selection | recent | focus .png
  *   <out>/<theme>/popup-restricted | restricted-design | restricted-switch .png   chrome:// page (design → bookmark)
  *   <out>/<theme>/popup-area | area-error .png      back after «Виділити область», a failed selection
@@ -15,6 +15,12 @@
  *   <out>/<theme>/popup-snippet-remembered | remembered-prose | snippet-old-auto .png
  *                                                  the site's remembered type vs the code hint, an older Vault
  *   <out>/<theme>/popup-old-vault .png              a Vault from before extension 0.2 (no snippet / note / fix)
+ *   <out>/<theme>/popup-pair-ready | pair-rekey | pair-click | pair-waiting | pair-approved | pair-denied
+ *     | pair-expired | pair-error | pair-offline | pair-unsupported .png
+ *                                                  «Під’єднати до Vault»: found, key gone, the click, waiting for
+ *                                                  «Дозволити», the answers, no Vault, a Vault without pairing
+ *   <out>/<theme>/popup-update | update-stale .png  Vault has a newer extension: the reload screen; already
+ *                                                  reloaded for it (another folder) — the hint over the form
  *   <out>/<theme>/options | options-nokey | options-offline | options-badport .png
  * Usage: node scripts/snap-extension.mjs <out> [--themes=dark,light]
  */
@@ -33,8 +39,9 @@ cpSync(resolve('extension'), ext, { recursive: true })
 
 /**
  * chrome.* + fetch stub; the state comes from the page URL:
- * key=0 · ping=offline|401|timeout|old · url · title · sel · recent=a,b · site=host:target · area=1 · areaError=1
- * · capture=error|tags|warning|code
+ * key=0 · ping=offline|401|timeout|old|nopair · url · title · sel · recent=a,b · site=host:target · area=1
+ * · areaError=1 · capture=error|tags|warning|code · pairing=waiting|approved|denied|expired (stored by the worker)
+ * · pair=error (the answer to «Під’єднати») · ext=<Vault's extension version> · reloadedFor=<version>
  */
 writeFileSync(
   join(ext, 'stub.js'),
@@ -43,14 +50,28 @@ const q = new URLSearchParams(location.search)
 const tabUrl = q.get('url') || 'https://dribbble.com/shots/123-dashboard'
 const store = q.get('key') === '0' ? {} : { key: 'test-key', port: 47219 }
 if (q.get('recent')) store.recentTags = q.get('recent').split(',')
+if (q.get('reloadedFor')) store.reloadedFor = q.get('reloadedFor')
 // site=github.com:library — the type last saved on that site.
 if (q.get('site')) { const [h, t] = q.get('site').split(':'); store.targets = { [h]: t } }
 const session = {}
-const area = (s) => ({
+const changed = []
+const area = (s, name) => ({
   get: async (k) => { const o = {}; for (const x of k == null ? Object.keys(s) : [].concat(k)) if (x in s) o[x] = s[x]; return o },
-  set: async (o) => { Object.assign(s, o) },
+  set: async (o) => {
+    const diff = Object.fromEntries(Object.entries(o).map(([k, v]) => [k, { oldValue: s[k], newValue: v }]))
+    Object.assign(s, o)
+    for (const fn of changed) fn(diff, name)
+  },
   remove: async (k) => { for (const x of [].concat(k)) delete s[x] }
 })
+// What the service worker would have stored: a pairing in progress or its answer.
+const PAIRINGS = {
+  waiting: () => ({ state: 'waiting', id: 'p1', port: 47219, expiresAt: Date.now() + 52_000 }),
+  approved: () => ({ state: 'approved' }),
+  denied: () => ({ state: 'denied' }),
+  expired: () => ({ state: 'expired' })
+}
+if (PAIRINGS[q.get('pairing')]) session.pairing = PAIRINGS[q.get('pairing')]()
 function shot() {
   const c = document.createElement('canvas'); c.width = 1280; c.height = 720
   const g = c.getContext('2d'); g.fillStyle = '#101216'; g.fillRect(0, 0, 1280, 720)
@@ -65,13 +86,30 @@ window.chrome = {
     query: async () => [{ id: 7, windowId: 1, url: tabUrl, title: q.get('title') || 'Dashboard UI concept — Dribbble' }],
     captureVisibleTab: async () => shot()
   },
-  storage: { local: area(store), session: area(session) },
+  storage: {
+    local: area(store, 'local'),
+    session: area(session, 'session'),
+    onChanged: { addListener: (fn) => changed.push(fn) }
+  },
   scripting: { executeScript: async () => [{ result: q.get('sel') || '' }] },
   action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, openPopup: async () => {} },
   runtime: {
     openOptionsPage() {},
-    // The popup saves through the service worker; run the same code here.
-    sendMessage: async (msg) => (msg?.type === 'vault-capture' ? (await import('./shared.js')).sendCapture(msg.tabId, msg.body) : {}),
+    getManifest: () => ({ version: '0.3.0' }),
+    reload() { document.documentElement.dataset.reloaded = '1' },
+    // The popup saves and pairs through the service worker; here the same code or its answer.
+    sendMessage: async (msg) => {
+      if (msg?.type === 'vault-capture') return (await import('./shared.js')).sendCapture(msg.tabId, msg.body)
+      if (msg?.type === 'vault-pair') {
+        const next = q.get('pair') === 'error'
+          ? { state: 'error', error: 'Забагато запитів на під’єднання. Зачекайте хвилину й спробуйте ще раз.' }
+          : PAIRINGS.waiting()
+        await window.chrome.storage.session.set({ pairing: next })
+        return next
+      }
+      if (msg?.type === 'vault-pair-cancel') delete session.pairing
+      return {}
+    },
     onMessage: { addListener() {} }
   }
 }
@@ -81,11 +119,23 @@ window.fetch = async (url, init) => {
   if (q.get('ping') === 'offline') throw new TypeError('Failed to fetch')
   if (q.get('ping') === 'timeout') throw new DOMException('t', 'TimeoutError')
   const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
-  if (q.get('ping') === '401') return json(401, { ok: false, error: 'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».' })
+  // Vault 0.3+ answers a missing or refused key with «I am here, pair with me»; ping=nopair is an older Vault.
+  const noKey = !init?.headers?.['X-Vault-Key']
+  if (q.get('ping') === '401' || q.get('ping') === 'nopair' || noKey)
+    return json(401, {
+      ok: false,
+      error: 'Ключ не підходить. Скопіюйте новий у Vault: Налаштування → «Розширення для Chrome».',
+      ...(q.get('ping') === 'nopair' ? {} : { app: 'vault', pair: 1 })
+    })
   // A bridge from before extension 0.2 does not list its targets.
   const targets = ['design', 'bookmark', 'library', 'component', 'application', 'snippet', 'note', 'fix']
   if (String(url).endsWith('/ping'))
-    return json(200, { ok: true, app: 'vault', version: '0.1.0', ...(q.get('ping') === 'old' ? {} : { targets }) })
+    return json(200, {
+      ok: true,
+      app: 'vault',
+      version: '0.1.0',
+      ...(q.get('ping') === 'old' ? {} : { targets, extension: q.get('ext') || '0.3.0', pair: 1 })
+    })
   if (q.get('capture') === 'error') return json(400, { ok: false, error: 'Назва: занадто довго — максимум 500 символів' })
   if (q.get('capture') === 'tags') return json(400, { ok: false, error: 'Мітки: занадто довго — максимум 60 символів' })
   if (q.get('capture') === 'code') return json(400, { ok: false, error: 'Код: виділіть код на сторінці або вставте його сюди' })
@@ -172,9 +222,22 @@ const STATES = [
     'popup',
     'url=https://djinni.co/jobs/1-frontend/&title=Middle Frontend Developer at Acme&sel=Ми шукаємо Frontend-розробника з досвідом React від 3 років.'
   ],
-  ['popup-nokey', 'popup', 'key=0'],
+  ['popup-pair-ready', 'popup', 'key=0'],
+  ['popup-pair-rekey', 'popup', 'ping=401'],
+  // «Під’єднати до Vault» clicked: the worker sent the request, the popup waits for «Дозволити».
+  ['popup-pair-click', 'popup', 'key=0', 'pair'],
+  ['popup-pair-waiting', 'popup', 'key=0&pairing=waiting'],
+  ['popup-pair-approved', 'popup', 'pairing=approved'],
+  ['popup-pair-denied', 'popup', 'key=0&pairing=denied'],
+  ['popup-pair-expired', 'popup', 'key=0&pairing=expired'],
+  ['popup-pair-error', 'popup', 'key=0&pair=error', 'pair'],
+  ['popup-pair-offline', 'popup', 'key=0&ping=offline'],
+  ['popup-pair-unsupported', 'popup', 'key=0&ping=nopair'],
   ['popup-offline', 'popup', 'ping=offline'],
-  ['popup-unauthorized', 'popup', 'ping=401'],
+  // A Vault from before 0.3 refusing a pasted key: the old plate with «Відкрити налаштування».
+  ['popup-unauthorized', 'popup', 'ping=nopair'],
+  ['popup-update', 'popup', 'ext=0.3.1'],
+  ['popup-update-stale', 'popup', 'ext=0.3.1&reloadedFor=0.3.1'],
   ['popup-timeout', 'popup', 'ping=timeout'],
   [
     'popup-long',
@@ -423,6 +486,13 @@ for (const theme of THEMES) {
       // Back from «Назва» to the «Куди зберегти» group: the keyboard focus ring on a chip.
       await win.keyboard.press('Shift+Tab')
       await win.waitForTimeout(100)
+    }
+    if (action === 'pair') {
+      await win
+        .locator('#connect-primary')
+        .click()
+        .catch(() => {})
+      await win.waitForTimeout(300)
     }
     if (action === 'badport') await win.locator('#port').fill('80')
     if (action === 'submit' || action === 'badport') {

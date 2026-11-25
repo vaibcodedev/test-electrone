@@ -498,7 +498,8 @@ textarea {
   text-align: center;
 }
 
-.done .big {
+.done .big,
+.connect .big {
   display: grid;
   place-items: center;
   width: 48px;
@@ -525,7 +526,8 @@ textarea {
   color: var(--warn);
 }
 
-.done .what {
+.done .what,
+.connect .what {
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -534,6 +536,90 @@ textarea {
   font-size: var(--text-lead);
   font-weight: 560;
   letter-spacing: -0.02em;
+}
+
+/* «Під’єднати до Vault», the pairing answers and the update: the form's place while there is no working key
+   (connect.js). Same layout as «Збережено»; the circle is lime only for the brand «V» and the success check. */
+.connect {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px 16px;
+  text-align: center;
+}
+
+body[data-screen='connect'] .connect {
+  display: flex;
+}
+
+/* `!important`: «Збережено» is shown with an inline style. */
+body[data-screen='connect'] #form,
+body[data-screen='connect'] #done {
+  display: none !important;
+}
+
+.connect .what {
+  margin: 0;
+}
+
+.connect .what:focus {
+  outline: none;
+}
+
+.connect-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 340px;
+}
+
+.connect-status p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+#connect-timer {
+  margin: 0;
+}
+
+#connect-timer:empty {
+  display: none;
+}
+
+.connect .actions {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.connect .big[data-mark='wait'],
+.connect .big[data-mark='alert'],
+.connect .big[data-mark='update'] {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.connect .big[data-mark='no'] {
+  background: color-mix(in oklab, var(--danger) 14%, var(--bg));
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .connect .big[data-mark='wait'] {
+    animation: waiting 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes waiting {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* Vault has a newer extension that Chrome does not load from here: a quiet line over the form. */
+.notice {
+  margin: 0;
+  color: var(--warn);
 }
 
 /* Options page: a panel on the frame, like the app's window (layers, not borders). */
@@ -562,6 +648,11 @@ body.options {
   padding: 20px;
   border-radius: 24px;
   background: var(--bg);
+}
+
+/* The card's gap spaces its paragraphs: browser margins would double it. */
+.card > p {
+  margin: 0;
 }
 
 .input-row {
