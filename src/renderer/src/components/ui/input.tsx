@@ -42,6 +42,9 @@ function Input({ className, type, readOnly, onInput, ...props }: React.Component
         'focus-visible:border-ring focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-ring/25',
         'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
         '[[type=datetime-local]]:pr-2 [[type=date]]:pr-2 dark:scheme-dark',
+        // Time: Chromium puts ~20px before the clock icon; 6px and sizing to the content (with w-auto) keep
+        // «19:00 🕒» as tight on the right as on the left.
+        '[[type=time]]:field-sizing-content [[type=time]]:pr-2.5 [&[type=time]::-webkit-calendar-picker-indicator]:ms-1.5 [&[type=time]::-webkit-calendar-picker-indicator]:p-0',
         // No native number spinners: they look foreign and invite typing nonsense with the mouse wheel.
         '[[type=number]]:[appearance:textfield] [&[type=number]::-webkit-inner-spin-button]:appearance-none [&[type=number]::-webkit-outer-spin-button]:appearance-none',
         className,

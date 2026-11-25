@@ -190,7 +190,7 @@ export function SettingsPage(): ReactElement {
                       e.target.value !== settings.jobReminderTime &&
                       set({ jobReminderTime: e.target.value })
                     }
-                    className="w-24"
+                    className="w-auto"
                   />
                 )}
               </SettingsRow>

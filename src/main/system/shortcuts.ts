@@ -3,6 +3,12 @@ import type { ConfigStore } from '../core/config-store'
 import type { WindowManager } from './window-manager'
 
 /** Global hotkey for quick add — works while the app is minimized or hidden in the tray. */
+/** «Ctrl+Shift+Space», as the keys read on the keyboard, not Electron's «CommandOrControl+Shift+Space». */
+export function humanAccel(accel: string): string {
+  const mod = process.platform === 'darwin' ? '⌘' : 'Ctrl'
+  return accel.replace(/\b(CommandOrControl|CmdOrCtrl)\b/g, mod).replace(/\bControl\b/g, 'Ctrl')
+}
+
 export class ShortcutController {
   private current: string | null = null
   /** Why the saved hotkey isn't active (busy or invalid); null while it works. */
@@ -34,10 +40,10 @@ export class ShortcutController {
     if (accel === this.current) return null
     try {
       if (!globalShortcut.register(accel, () => this.windows.showQuickAdd())) {
-        return `Комбінацію ${accel} уже зайняла інша програма`
+        return `Комбінацію ${humanAccel(accel)} уже зайняла інша програма`
       }
     } catch {
-      return `Таку комбінацію не можна використати: ${accel}`
+      return `Таку комбінацію не можна використати: ${humanAccel(accel)}`
     }
     if (this.current) globalShortcut.unregister(this.current)
     this.current = accel

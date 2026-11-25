@@ -327,13 +327,23 @@ export class CaptureServer {
     }
   }
 
+  /** The port start() last tried: a server that failed to listen has no address, yet that port was tried. */
+  private port: number | null = null
+
   start(): void {
     const s = this.config.settings
     if (!s.captureEnabled || this.server) return
+    this.port = s.capturePort
     this.server = createServer((req, res) => void this.handle(req, res))
-    this.server.on('error', (e) => {
-      log.error('[capture]', e)
+    this.server.on('error', (e: NodeJS.ErrnoException) => {
       this.listening = false
+      // Usually another Vault (the installed one next to `npm run dev`) already listens there: the extension
+      // talks to it. Expected, so a warning, not an error with a stack.
+      if (e.code === 'EADDRINUSE')
+        log.warn(
+          `[capture] port ${s.capturePort} is taken (another Vault?) — capture is off in this one`
+        )
+      else log.error('[capture]', e)
     })
     this.server.listen(s.capturePort, '127.0.0.1', () => {
       this.listening = true
@@ -343,14 +353,15 @@ export class CaptureServer {
   stop(): void {
     this.server?.close()
     this.server = null
+    this.port = null
     this.listening = false
   }
 
+  /** Any settings change lands here: only turning capture on/off or a new port touches the server. */
   private restart(): void {
     const s = this.config.settings
-    const port = (this.server?.address() as { port?: number } | null)?.port
     if (!s.captureEnabled) return this.stop()
-    if (port !== s.capturePort) {
+    if (!this.server || this.port !== s.capturePort) {
       this.stop()
       this.start()
     }

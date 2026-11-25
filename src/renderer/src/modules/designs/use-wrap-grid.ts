@@ -50,7 +50,9 @@ export function useWrapGrid(): {
     // span lands in the same frame as the change (the links list unfolding) — no painted in-between frame.
     read()
     const ro = new ResizeObserver(() => flushSync(read))
-    ro.observe(grid)
+    // Not the grid itself: its height changes with the span this very callback sets, and observing it made a
+    // «ResizeObserver loop» in the same frame. Its width follows the scroll container, which only the window resizes.
+    ro.observe(grid.parentElement ?? grid)
     ro.observe(header)
     ro.observe(aside)
     return () => ro.disconnect()
