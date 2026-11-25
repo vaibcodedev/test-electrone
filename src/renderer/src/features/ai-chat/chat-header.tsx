@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react'
-import { History, MessageSquarePlus, Sparkles, Trash2, X } from 'lucide-react'
+import { History, Maximize2, MessageSquarePlus, Minimize2, Sparkles, Trash2, X } from 'lucide-react'
 import { aiPreset, type AiStatus } from '@shared/domain/ai'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { useApi } from '@/lib/query'
+import { useUi } from '@/stores/ui-store'
 import { fmtNumber, fmtRelative, fmtTitle } from '@/lib/format'
 import { newChat, openChat, removeChat, useChatSession } from './session'
 
@@ -94,6 +95,21 @@ function HistoryMenu({ title }: { title: string }): ReactElement {
   )
 }
 
+/** «На всю сторінку» ⇄ «Згорнути в панель»: the page stays mounted underneath (drafts, scroll). */
+function FullPageToggle(): ReactElement {
+  const full = useUi((s) => s.aiChatFull)
+  const setFull = useUi((s) => s.setAiChatFull)
+  return (
+    <IconAction
+      label={full ? 'Згорнути в панель' : 'На всю сторінку'}
+      size="icon-sm"
+      onClick={() => setFull(!full)}
+    >
+      {full ? <Minimize2 /> : <Maximize2 />}
+    </IconAction>
+  )
+}
+
 /** Title, history, «Новий чат», ✕ — and under them where the request goes and how much of today's limit is used. */
 export function ChatHeader({
   title,
@@ -123,6 +139,7 @@ export function ChatHeader({
             </IconAction>
           </>
         )}
+        <FullPageToggle />
         <IconAction label="Закрити" shortcut="Esc" size="icon-sm" onClick={onClose}>
           <X />
         </IconAction>

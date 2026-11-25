@@ -15,7 +15,8 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useUi } from '@/stores/ui-store'
+import { usePanelRef } from 'react-resizable-panels'
+import { AI_CHAT_MAX, AI_CHAT_MIN, useUi } from '@/stores/ui-store'
 
 // The panel's chunk (messages, Markdown, actions) loads on the first Ctrl+J, not on every start.
 const AiChatPanel = lazy(() => import('./chat-panel'))
@@ -80,6 +81,8 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
   const width = useUi((s) => s.aiChatWidth)
   const setWidth = useUi((s) => s.setAiChatWidth)
   const setOpen = useUi((s) => s.setAiChatOpen)
+  const full = useUi((s) => s.aiChatFull) && open
+  const page = usePanelRef()
   const size = useRef(width)
   const before = useRef<HTMLElement | null>(null)
   const wasOpen = useRef(open)
@@ -103,30 +106,52 @@ export function ChatLayout({ children }: { children: ReactNode }): ReactElement 
 
   const close = useCallback(() => setOpen(false), [setOpen])
 
+  // «На всю сторінку»: the page panel collapses to 0 but stays mounted (drafts, scroll), and comes back at its
+  // width when the chat goes back to a panel or closes.
+  useEffect(() => {
+    const p = page.current
+    if (!p) return
+    if (full) p.collapse()
+    else if (p.isCollapsed()) p.expand()
+  }, [full, page])
+
   return (
     <ResizablePanelGroup
       orientation="horizontal"
       style={FILL}
       className="min-h-0 min-w-0 flex-1"
       onLayoutChanged={() => {
-        if (open) setWidth(size.current)
+        if (open && !full) setWidth(size.current)
       }}
     >
-      <ResizablePanel id="page" minSize="360px" className="flex min-h-0 min-w-0 flex-col">
+      <ResizablePanel
+        id="page"
+        panelRef={page}
+        minSize="560px"
+        collapsible
+        collapsedSize="0px"
+        inert={full}
+        className="flex min-h-0 min-w-0 flex-col"
+      >
         {children}
       </ResizablePanel>
       {open && (
         <>
           {/* The 10px gap of the frame is the handle: a thin line shows on hover and focus. */}
           <ResizableHandle
+            disabled={full}
             aria-label="Ширина чату ШІ"
-            className="w-2.5 bg-transparent after:inset-y-6 after:rounded-full hover:after:bg-foreground/15 focus-visible:after:bg-ring"
+            className={cn(
+              'w-2.5 bg-transparent after:inset-y-6 after:rounded-full hover:after:bg-foreground/15 focus-visible:after:bg-ring',
+              // Full page: the collapsed page leaves no gap to keep; the sidebar's own gap is the frame.
+              full && 'w-0'
+            )}
           />
           <ResizablePanel
             id="ai-chat"
             defaultSize={`${width}px`}
-            minSize="300px"
-            maxSize="60%"
+            minSize={`${AI_CHAT_MIN}px`}
+            maxSize={full ? '100%' : `${AI_CHAT_MAX}px`}
             groupResizeBehavior="preserve-pixel-size"
             onResize={(s) => {
               size.current = s.inPixels
