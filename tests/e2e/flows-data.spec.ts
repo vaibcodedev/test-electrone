@@ -104,51 +104,86 @@ test.describe('зв’язки між записами', () => {
 })
 
 test.describe('закріплене й обране', () => {
-  test('шпилька й зірка в записі → «Закріплено» на головній → перехід → відкріпити', async ({
+  test('шпилька — на головну, зірка — першим у розділі з позначкою, чип «Обране» й група в Ctrl+K', async ({
     vault
   }) => {
     const { win, rpc, go } = vault
-    // Only our records on the dashboard card (it shows up to 7).
+    // Only our records on the dashboard card (it shows up to 7) and in «Обране».
     for (const kind of ['pin', 'favorite'] as const)
       for (const p of await rpc('pins.list', kind))
         await rpc('pins.toggle', { ref: { type: p.type, id: p.id }, kind })
 
     const pinned = await rpc('ideas.create', { title: `Закріплена ${uid()}` })
     const starred = await rpc('notes.create', { title: `Обрана ${uid()}`, body: 'текст' })
+    // A newer note: without ★ it would be the first row.
+    const newer = await rpc('notes.create', { title: `Свіжа ${uid()}`, body: 'текст' })
+    const starRef = { type: 'note', id: starred.id }
+    try {
+      await go(`/ideas?open=${pinned.id}`)
+      const pin = pane(win).getByRole('button', { name: 'Закріпити на головній' })
+      await expect(pin).toHaveAttribute('aria-pressed', 'false')
+      await pin.click()
+      await expect(win.getByText('Закріплено на головній')).toBeVisible()
+      await expect(pin).toHaveAttribute('aria-pressed', 'true')
 
-    await go(`/ideas?open=${pinned.id}`)
-    const pin = pane(win).getByRole('button', { name: 'Закріпити на головній' })
-    await expect(pin).toHaveAttribute('aria-pressed', 'false')
-    await pin.click()
-    await expect(win.getByText('Закріплено на головній')).toBeVisible()
-    await expect(pin).toHaveAttribute('aria-pressed', 'true')
+      await go(`/notes?open=${starred.id}`)
+      const star = pane(win).getByRole('button', { name: 'В обране' })
+      await star.click()
+      await expect(win.getByText('Додано в обране')).toBeVisible()
+      await expect(win.getByText('Тепер запис першим у своєму розділі')).toBeVisible()
+      await expect(star).toHaveAttribute('aria-pressed', 'true')
+      expect(await rpc('pins.state', starRef)).toEqual({ pin: false, favorite: true })
 
-    await go(`/notes?open=${starred.id}`)
-    const star = pane(win).getByRole('button', { name: 'В обране' })
-    await star.click()
-    await expect(win.getByText('Додано в обране')).toBeVisible()
-    await expect(star).toHaveAttribute('aria-pressed', 'true')
-    expect(await rpc('pins.state', { type: 'note', id: starred.id })).toEqual({
-      pin: false,
-      favorite: true
-    })
+      // ★ → the first row of «Нотатки», marked.
+      const firstRow = win.locator('[data-index="0"]').first()
+      await expect(firstRow).toContainText(starred.title)
+      await expect(firstRow.getByRole('img', { name: 'В обраному' })).toBeVisible()
 
-    await go('/')
-    const card = pinnedCard(win)
-    await expect(card.getByText(pinned.title)).toBeVisible()
-    await expect(card.getByText(starred.title)).toBeVisible()
-    await card.getByText(starred.title).click()
-    await expect.poll(() => hashPath(win)).toBe('/notes')
-    await expect.poll(() => openParam(win)).toBe(starred.id)
+      // The chip leaves only favourites; a second click brings the rest back.
+      const chip = win.getByRole('button', { name: 'Обране', exact: true })
+      await chip.click()
+      await expect(chip).toHaveAttribute('aria-pressed', 'true')
+      await expect(win.getByText(newer.title)).toHaveCount(0)
+      await chip.click()
+      await expect(win.getByText(newer.title)).toBeVisible()
 
-    // Unpin / unstar → the dashboard card is empty again.
-    await pane(win).getByRole('button', { name: 'В обране' }).click()
-    await expect(win.getByText('Прибрано з обраного')).toBeVisible()
-    await go(`/ideas?open=${pinned.id}`)
-    await pane(win).getByRole('button', { name: 'Закріпити на головній' }).click()
-    await expect(win.getByText('Відкріплено з головної')).toBeVisible()
-    await go('/')
-    await expect(pinnedCard(win).getByText('Натисніть шпильку в будь-якому записі')).toBeVisible()
+      // «Закріплено» on the home page is pins only.
+      await go('/')
+      const card = pinnedCard(win)
+      await expect(card.getByText(pinned.title)).toBeVisible()
+      await expect(card.getByText(starred.title)).toHaveCount(0)
+      await card.getByText(pinned.title).click()
+      await expect.poll(() => hashPath(win)).toBe('/ideas')
+      await expect.poll(() => openParam(win)).toBe(pinned.id)
+
+      // Ctrl+K without a query: the «Обране» group.
+      await win.keyboard.press('Control+k')
+      const palette = win.getByRole('dialog', { name: 'Пошук усюди' })
+      const favGroup = palette.locator('[cmdk-group]', {
+        has: win.locator('[cmdk-group-heading]', { hasText: /^Обране$/ })
+      })
+      await expect(favGroup.getByRole('option', { name: new RegExp(starred.title) })).toBeVisible()
+      await win.keyboard.press('Escape')
+      await expect(palette).toBeHidden()
+
+      // Unstar / unpin → no mark, no chip, an empty dashboard card.
+      await go(`/notes?open=${starred.id}`)
+      await pane(win).getByRole('button', { name: 'В обране' }).click()
+      await expect(win.getByText('Прибрано з обраного')).toBeVisible()
+      await expect(win.getByRole('img', { name: 'В обраному' })).toHaveCount(0)
+      await expect(win.getByRole('button', { name: 'Обране', exact: true })).toHaveCount(0)
+      await go(`/ideas?open=${pinned.id}`)
+      await pane(win).getByRole('button', { name: 'Закріпити на головній' }).click()
+      await expect(win.getByText('Відкріплено з головної')).toBeVisible()
+      await go('/')
+      await expect(pinnedCard(win).getByText('Натисніть шпильку в будь-якому записі')).toBeVisible()
+    } finally {
+      // A forgotten ★ would put this note first in other tests' lists.
+      if ((await rpc('pins.state', starRef)).favorite)
+        await rpc('pins.toggle', { ref: starRef, kind: 'favorite' })
+      if ((await rpc('pins.state', { type: 'idea', id: pinned.id })).pin)
+        await rpc('pins.toggle', { ref: { type: 'idea', id: pinned.id }, kind: 'pin' })
+    }
   })
 
   test('закріплений запис у кошику зникає з головної', async ({ vault }) => {
@@ -310,5 +345,69 @@ test.describe('експорт і бекап', () => {
     await win.locator('[data-page-search]').fill(token)
     await expect(win.getByText(`До бекапу ${token}`)).toBeVisible()
     await expect(win.getByText(`Після бекапу ${token}`)).toHaveCount(0)
+  })
+})
+
+test.describe('сховище', () => {
+  test('журнал тестового запуску лежить у його userData, не в робочому Vault', async ({
+    vault
+  }) => {
+    const userData = await vault.app.evaluate(({ app }) => app.getPath('userData'))
+    const info = await vault.rpc('settings.info')
+    expect(info.logFile.toLowerCase().startsWith(join(userData, 'logs').toLowerCase())).toBe(true)
+  })
+
+  test('розділ «Сховище» показує розміри', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    await go('/settings#storage')
+    await expect(win.locator('#storage').getByText('Сховище', { exact: true })).toBeVisible()
+    const usage = await rpc('storage.usage')
+    expect(usage.total).toBeGreaterThan(0)
+    expect(usage.database.bytes).toBeGreaterThan(0)
+  })
+
+  test('«Очистити кеш» не чіпає записи, налаштування й localStorage', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    const token = `cc${uid()}`
+    const idea = await rpc('ideas.create', { title: `Ідея ${token}` })
+    const settings = await rpc('settings.get')
+    await go('/settings#storage')
+    await win.evaluate(() => localStorage.setItem('vault-rate-calc', '{"x":1}'))
+    await win.locator('#storage').getByRole('button', { name: 'Очистити кеш' }).click()
+    await expect(win.getByText(/Кеш очищено|Кеш уже порожній/)).toBeVisible()
+    expect(await win.evaluate(() => localStorage.getItem('vault-rate-calc'))).toBe('{"x":1}')
+    expect(await rpc('settings.get')).toEqual(settings)
+    expect((await rpc('ideas.get', idea.id))?.title).toBe(`Ідея ${token}`)
+  })
+
+  test('«Видалити старі» бекапи: з підтвердженням, лишає backupKeep', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    const { backupKeep } = await rpc('settings.get')
+    try {
+      // create() trims to backupKeep itself: extra copies appear only once the limit goes down.
+      await rpc('settings.update', { backupKeep: 5 })
+      for (let i = 0; i < 3; i++) await rpc('backup.create', { saveAs: false })
+      await rpc('settings.update', { backupKeep: 1 })
+      await go('/settings#storage')
+      const prune = win.locator('#storage').getByRole('button', { name: 'Видалити старі бекапи' })
+      await expect(prune).toBeEnabled()
+      await prune.click()
+      const dialog = win.getByRole('alertdialog')
+      await expect(dialog.getByText('Видалити старі бекапи?')).toBeVisible()
+      await dialog.getByRole('button', { name: 'Видалити' }).click()
+      await expect(win.getByText(/Старі бекапи видалено/)).toBeVisible()
+      const regular = (await rpc('backup.list')).filter(
+        (b: { fileName: string }) => !b.fileName.includes('pre-restore')
+      )
+      expect(regular).toHaveLength(1)
+      await expect(prune).toBeDisabled()
+    } finally {
+      await rpc('settings.update', { backupKeep })
+    }
+  })
+
+  test('невідома папка — помилка, а не відкриття', async ({ vault }) => {
+    const r = await vault.rpcRaw('storage.openFolder', { folder: 'nope' })
+    expect(r.ok).toBe(false)
   })
 })

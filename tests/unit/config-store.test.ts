@@ -123,3 +123,37 @@ describe('a damaged config file', () => {
     expect(new ConfigStore(path).settings.userName).toBe('Олена')
   })
 })
+
+describe('«Налаштування → Меню» in config.json', () => {
+  it('an older config without the keys shows every section', () => {
+    const path = file()
+    writeFileSync(path, JSON.stringify({ settings: { userName: 'Олена' } }))
+    const config = new ConfigStore(path)
+    expect(config.settings.hiddenNavHubs).toEqual([])
+    expect(config.settings.hiddenNavItems).toEqual([])
+  })
+
+  it('a broken list resets only itself', () => {
+    const path = file()
+    writeFileSync(
+      path,
+      JSON.stringify({
+        settings: { hiddenNavHubs: 'x', hiddenNavItems: ['/jobs/stats'], theme: 'dark' }
+      })
+    )
+    const config = new ConfigStore(path)
+    expect(config.settings.hiddenNavHubs).toEqual([])
+    expect(config.settings.hiddenNavItems).toEqual(['/jobs/stats'])
+    expect(config.settings.theme).toBe('dark')
+  })
+
+  it('hidden sections are saved and read back', () => {
+    const path = file()
+    const config = new ConfigStore(path)
+    config.updateSettings({ hiddenNavHubs: ['jobs'] })
+    config.flush()
+    const again = new ConfigStore(path)
+    expect(again.settings.hiddenNavHubs).toEqual(['jobs'])
+    expect(again.settings.hiddenNavItems).toEqual([])
+  })
+})

@@ -1,5 +1,12 @@
 import { useId, type ReactElement, type ReactNode } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item'
 import { Label } from '@/components/ui/label'
 
@@ -8,11 +15,14 @@ export function SettingsSection({
   id,
   title,
   hint,
+  action,
   children
 }: {
   id?: string
   title: string
   hint?: string
+  /** Section-wide action in the header's right corner (shadcn CardAction), e.g. «Показати все». */
+  action?: ReactNode
   children: ReactNode
 }): ReactElement {
   return (
@@ -20,6 +30,7 @@ export function SettingsSection({
       <CardHeader>
         <CardTitle className="text-lead text-foreground">{title}</CardTitle>
         {hint && <CardDescription className="text-caption">{hint}</CardDescription>}
+        {action && <CardAction>{action}</CardAction>}
       </CardHeader>
       <CardContent className="flex flex-col gap-2">{children}</CardContent>
     </Card>
@@ -37,7 +48,8 @@ export function SettingsRow({
   children
 }: {
   label: string
-  hint?: string
+  /** Usually text; a node for a path in mono or a skeleton while the value loads. */
+  hint?: ReactNode
   children: ReactNode | ((id: string) => ReactNode)
 }): ReactElement {
   const id = useId()

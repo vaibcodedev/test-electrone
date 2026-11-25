@@ -192,9 +192,10 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
       if (!editing || !ref) return close()
       void hasChanges().then((changed) => {
         // Untouched: just close; an untouched new record goes only if it is an empty draft (sheets and pages
-        // have no pane cleanup of their own).
+        // have no pane cleanup of their own) — and says so, like Esc (`exit`): leaving silently looked as if
+        // «Нова добірка» had done nothing.
         if (!changed) {
-          if (fresh) void dropDraft()
+          if (fresh) void dropDraft().then((gone) => gone && toast('Запис не створено'))
           return close()
         }
         const ask = {

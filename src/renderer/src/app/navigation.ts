@@ -44,6 +44,7 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import type { EntityType } from '@shared/entity-types'
+import type { NavHubId, QuickAddTarget } from '@shared/domain/system'
 
 export const ENTITY_ICON: Record<EntityType, LucideIcon> = {
   idea: Lightbulb,
@@ -85,7 +86,7 @@ export interface NavItem {
  * `overview` is the hub landing page; `platforms: true` injects the user's freelance platforms.
  */
 export interface NavHub {
-  id: string
+  id: NavHubId
   title: string
   icon: LucideIcon
   overview?: string
@@ -188,18 +189,38 @@ export const HUBS: NavHub[] = [
 ]
 
 /**
+ * Always in the menu, never offered in «Налаштування → Меню»: Головна, the guide and the footer icons
+ * (Мітки, Кошик, Налаштування). They are not in HUBS, so the visibility switches never reach them.
+ */
+export const ALWAYS_SHOWN: readonly string[] = ['/', GUIDE.path, '/tags', '/trash', '/settings']
+
+/**
  * Flat list for the command palette and Alt+1…9, in sidebar order: Головна, Підсумки, each hub (overview,
  * then sections), and the guide last — in the sidebar it is a footer icon, so Alt+3 must not open it.
+ * Takes the hubs that are shown (useNavVisibility), so the numbers follow the menu the user sees.
  */
-export const ALL_NAV_ITEMS: NavItem[] = [
-  HOME,
-  REVIEW,
-  ...HUBS.flatMap((h) => [
-    ...(h.overview ? [{ path: h.overview, label: `${h.title}: огляд`, icon: h.icon }] : []),
-    ...h.items
-  ]),
-  GUIDE
-]
+export function navOrder(hubs: NavHub[] = HUBS, showReview = true): NavItem[] {
+  return [
+    HOME,
+    ...(showReview ? [REVIEW] : []),
+    ...hubs.flatMap((h) => [
+      ...(h.overview ? [{ path: h.overview, label: `${h.title}: огляд`, icon: h.icon }] : []),
+      ...h.items
+    ]),
+    GUIDE
+  ]
+}
+
+/** Quick-add target → the menu item that owns it: a hidden section offers no quick-add chip or tile. */
+export const QUICK_ADD_PLACE: Record<QuickAddTarget, string> = {
+  idea: '/ideas',
+  card: '/boards',
+  claude: '/claude',
+  snippet: '/snippets',
+  bookmark: '/bookmarks',
+  word: '/english',
+  event: '/calendar'
+}
 
 /**
  * Is the location at this nav path? A path with a query («/freelance/templates?situation=cover_letter»)
@@ -214,7 +235,7 @@ export function isAt(path: string, pathname: string, search = ''): boolean {
 }
 
 /** Hub that owns a location (for auto-expanding the sidebar). Items with a query win over plain paths. */
-export function hubOf(pathname: string, search = ''): string | undefined {
+export function hubOf(pathname: string, search = ''): NavHubId | undefined {
   const byQuery = HUBS.find((h) => h.items.some((i) => i.path.includes('?') && isAt(i.path, pathname, search)))
   if (byQuery) return byQuery.id
   if (pathname.startsWith('/jobs')) return 'jobs'

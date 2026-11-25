@@ -263,6 +263,17 @@
   --success: #6fdc84;
 }
 
+/* «Тестовий режим»: a warm sand frame instead of sage, so the test Vault never passes for the real one.
+   Light: foreground 13.25:1, muted 4.56:1 on it — do not darken without recounting. After `.dark` on purpose. */
+:root[data-profile='sandbox'] {
+  --frame: #e6dbc0;
+  --background: #e6dbc0;
+}
+:root.dark[data-profile='sandbox'] {
+  --frame: #120e06;
+  --background: #120e06;
+}
+
 /* Children appear one after another (cards in a grid, tiles on an overview). sibling-index() is native in
    Chromium 138+, so no JS; the delay is capped so long grids don't wait. */
 @utility stagger {

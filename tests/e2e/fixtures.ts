@@ -28,51 +28,60 @@ export interface Vault {
 /** Console noise that is not an app error. */
 const IGNORED = [/Electron Security Warning/i, /Download the React DevTools/i]
 
+/**
+ * Starts the built app on its own user-data dir and waits for the bridge. `args` go after it (e.g.
+ * `--vault-sandbox`). The window is shown at 1440×900.
+ */
+export async function launchVault(opts: { userData: string; args?: string[] }): Promise<Vault> {
+  const app = await electron.launch({
+    args: [resolve('.'), `--user-data-dir=${opts.userData}`, ...(opts.args ?? [])],
+    env: { ...process.env, NODE_ENV: 'production' }
+  })
+  const win = await app.firstWindow()
+  const errors: string[] = []
+  win.on('console', (m) => {
+    if (m.type() === 'error' && !IGNORED.some((re) => re.test(m.text())))
+      errors.push(`console.error: ${m.text()}`)
+  })
+  win.on('pageerror', (e) => errors.push(`pageerror: ${e.stack || e.message}`))
+  await app.evaluate(({ BrowserWindow }) => {
+    const w =
+      BrowserWindow.getAllWindows().find((x) => x.isVisible()) ?? BrowserWindow.getAllWindows()[0]
+    w.setSize(1440, 900)
+    w.show()
+  })
+  await win.waitForLoadState('domcontentloaded')
+  await win.waitForFunction(() => typeof (window as any).vault?.rpc === 'function')
+
+  const rpcRaw: Vault['rpcRaw'] = (path, arg) =>
+    win.evaluate(([p, a]) => (window as any).vault.rpc(p, a), [path, arg] as const)
+  const rpc: Rpc = async (path, arg) => {
+    const r = await rpcRaw(path, arg)
+    if (!r.ok) throw new Error(`${path}: ${r.error}`)
+    return r.data
+  }
+  const go = async (route: string): Promise<void> => {
+    await win.evaluate((r) => (window.location.hash = '#' + r), route)
+    await win.waitForLoadState('domcontentloaded')
+    // Route chunks are lazy: wait until the skeleton is replaced by the page.
+    await win.waitForTimeout(300)
+  }
+  return { app, win, rpc, rpcRaw, go, errors }
+}
+
 export const test = base.extend<{ vault: Vault; noErrors: void }, { vaultWorker: Vault }>({
   vaultWorker: [
     // eslint-disable-next-line no-empty-pattern
     async ({}, provide) => {
       const userData = mkdtempSync(join(tmpdir(), 'vault-e2e-'))
-      const app = await electron.launch({
-        args: [resolve('.'), `--user-data-dir=${userData}`],
-        env: { ...process.env, NODE_ENV: 'production' }
-      })
-      const win = await app.firstWindow()
-      const errors: string[] = []
-      win.on('console', (m) => {
-        if (m.type() === 'error' && !IGNORED.some((re) => re.test(m.text())))
-          errors.push(`console.error: ${m.text()}`)
-      })
-      win.on('pageerror', (e) => errors.push(`pageerror: ${e.stack || e.message}`))
-      await app.evaluate(({ BrowserWindow }) => {
-        const w =
-          BrowserWindow.getAllWindows().find((x) => x.isVisible()) ??
-          BrowserWindow.getAllWindows()[0]
-        w.setSize(1440, 900)
-        w.show()
-      })
-      await win.waitForLoadState('domcontentloaded')
-      await win.waitForFunction(() => typeof (window as any).vault?.rpc === 'function')
-
-      const rpcRaw: Vault['rpcRaw'] = (path, arg) =>
-        win.evaluate(([p, a]) => (window as any).vault.rpc(p, a), [path, arg] as const)
-      const rpc: Rpc = async (path, arg) => {
-        const r = await rpcRaw(path, arg)
-        if (!r.ok) throw new Error(`${path}: ${r.error}`)
-        return r.data
-      }
-      const go = async (route: string): Promise<void> => {
-        await win.evaluate((r) => (window.location.hash = '#' + r), route)
-        await win.waitForLoadState('domcontentloaded')
-        // Route chunks are lazy: wait until the skeleton is replaced by the page.
-        await win.waitForTimeout(300)
-      }
+      const vault = await launchVault({ userData })
+      const { app, rpcRaw, errors } = vault
 
       const { seed } = await import('../../scripts/seed.mjs')
       await seed(rpcRaw) // seed.mjs expects the raw { ok, data, error }
       errors.length = 0
 
-      await provide({ app, win, rpc, rpcRaw, go, errors })
+      await provide(vault)
 
       await app.close().catch(() => undefined)
       rmSync(userData, { recursive: true, force: true, maxRetries: 3 })
@@ -83,7 +92,27 @@ export const test = base.extend<{ vault: Vault; noErrors: void }, { vaultWorker:
   vault: async ({ vaultWorker }, provide) => {
     vaultWorker.errors.length = 0
     // Start every test from the dashboard with no dialogs open.
-    await vaultWorker.win.keyboard.press('Escape').catch(() => undefined)
+    const { win } = vaultWorker
+    // A closing Radix dialog keeps aria-hidden on the rest of the page, and getByRole doesn't see the
+    // sidebar button through it: wait until no dialog is left (a nested one needs a second Escape).
+    const dialogs = win.locator('[role="dialog"], [role="alertdialog"]')
+    for (let i = 0; i < 3 && (await dialogs.count()) > 0; i++) {
+      await win.keyboard.press('Escape').catch(() => undefined)
+      await expect(dialogs)
+        .toHaveCount(0, { timeout: 2_000 })
+        .catch(() => undefined)
+    }
+    await win.keyboard.press('Escape').catch(() => undefined)
+    // One window for the whole run: a test that folded the sidebar or hid sections must not change the next one.
+    // The fold state is read from the sidebar's data-state, not from a button's accessible name.
+    const folded = win.locator('[data-slot="app-sidebar"][data-state="collapsed"]')
+    if ((await folded.count()) > 0) {
+      await win.getByRole('button', { name: 'Розгорнути бічну панель', exact: true }).first().click()
+      await expect(folded).toHaveCount(0)
+    }
+    const s = await vaultWorker.rpc('settings.get')
+    if (s.hiddenNavHubs?.length || s.hiddenNavItems?.length)
+      await vaultWorker.rpc('settings.update', { hiddenNavHubs: [], hiddenNavItems: [] })
     await vaultWorker.go('/')
     await provide(vaultWorker)
   },

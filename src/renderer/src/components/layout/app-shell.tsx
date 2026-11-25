@@ -14,9 +14,10 @@ import type { MainEvents } from '@shared/api'
 import { CloseConfirmHost } from '@/components/common/detail-mode'
 import { PageSkeleton, SKELETON_KINDS, type SkeletonKind } from '@/components/common/page-skeleton'
 import type { RouteHandle } from '@/app/router'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import { SidebarProvider } from '@/components/ui/sidebar'
+import { SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/features/command-palette'
 import { QuickAddDialog } from '@/features/quick-add'
@@ -26,13 +27,15 @@ import { useMainEvent, useMainEventsBridge } from '@/hooks/use-main-events'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts'
 import { AppSidebar } from './sidebar'
+import { SidebarToggle } from './sidebar-toggle'
+import { SandboxBadge } from './sandbox-badge'
 
 const PlatformDialogHost = lazy(async () => ({
   default: (await import('@/modules/freelance')).PlatformDialogHost
 }))
 
-/** One width for the sidebar and the title bar that lines up with it. */
-const SHELL_VARS = { '--sidebar-width': '244px' } as CSSProperties
+/** One width for the sidebar and the title bar that lines up with it; the folded strip is 56 px. */
+const SHELL_VARS = { '--sidebar-width': '244px', '--sidebar-width-icon': '56px' } as CSSProperties
 
 function HistoryButton({
   label,
@@ -75,9 +78,20 @@ function TitleBar(): ReactElement {
   // React Router keeps the position in the history stack in history.state.idx; useLocation re-renders on moves.
   useLocation()
   const atStart = ((window.history.state as { idx?: number } | null)?.idx ?? 0) === 0
+  const { state } = useSidebar()
   return (
-    <div className="drag flex h-11 shrink-0 items-center gap-2 pr-37.5 pl-[calc(var(--sidebar-width)+14px)]">
-      <div className="no-drag flex gap-1">
+    <div className="drag flex h-11 shrink-0 items-center pr-37.5">
+      {/* A slot as wide as the sidebar column: the toggle sits over the column, history and search line up with
+          the main panel in both widths. Only the button is no-drag — the rest still moves the window. */}
+      <div
+        className={cn(
+          'ml-2.5 flex shrink-0 items-center',
+          state === 'collapsed' ? 'w-(--sidebar-width-icon) justify-center' : 'w-(--sidebar-width)'
+        )}
+      >
+        <SidebarToggle />
+      </div>
+      <div className="no-drag ml-1 flex gap-1">
         <HistoryButton label="Назад" keyHint="[" disabled={atStart} onClick={() => navigate(-1)}>
           <ArrowLeft />
         </HistoryButton>
@@ -89,15 +103,17 @@ function TitleBar(): ReactElement {
       <Button
         variant="ghost"
         onClick={() => setPaletteOpen(true)}
-        className="no-drag h-8 w-[min(420px,40vw)] justify-start gap-2 bg-card/70 px-3.5 font-normal text-muted-foreground hover:bg-card"
+        // min-w-0 + shrink: at 960 px the «Тестовий режим» badge must still fit next to it.
+        className="no-drag ml-2 h-8 w-[min(420px,40vw)] min-w-0 shrink justify-start gap-2 bg-card/70 px-3.5 font-normal text-muted-foreground hover:bg-card"
       >
         <Search />
-        <span className="flex-1 text-left">Знайти всюди</span>
+        <span className="min-w-0 flex-1 truncate text-left">Знайти всюди</span>
         <KbdGroup>
           <Kbd>Ctrl</Kbd>
           <Kbd>K</Kbd>
         </KbdGroup>
       </Button>
+      <SandboxBadge className="mr-2 ml-auto" />
     </div>
   )
 }
@@ -126,12 +142,19 @@ export function AppShell(): ReactElement {
   useMainEvent('toast', onToast)
   useGlobalShortcuts()
   useHotkey('mod+n', () => setQuickAddOpen(true), { allowInInputs: true })
+  const sidebarOpen = useUi((s) => s.sidebarOpen)
+  const setSidebarOpen = useUi((s) => s.setSidebarOpen)
 
   return (
-    <div className="flex h-full flex-col bg-frame" style={SHELL_VARS}>
+    // The provider is the root: the title bar's toggle and the sidebar read one state (ui-store, persisted).
+    <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
+      className="h-full min-h-0 flex-col bg-frame"
+      style={SHELL_VARS}
+    >
       <TitleBar />
-      {/* SidebarProvider sets its own default width on itself, so the same value goes there too. */}
-      <SidebarProvider className="min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5" style={SHELL_VARS}>
+      <div className="flex min-h-0 flex-1 gap-2.5 px-2.5 pb-2.5">
         <AppSidebar />
         <main className="panel relative flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Keyed by path: every page enters with the same short fade-up. Tabs of one hub share the key, so
@@ -142,7 +165,7 @@ export function AppShell(): ReactElement {
             </Suspense>
           </div>
         </main>
-      </SidebarProvider>
+      </div>
       <CommandPalette />
       <QuickAddDialog />
       <ShortcutsDialog />
@@ -152,6 +175,6 @@ export function AppShell(): ReactElement {
           <PlatformDialogHost />
         </Suspense>
       )}
-    </div>
+    </SidebarProvider>
   )
 }

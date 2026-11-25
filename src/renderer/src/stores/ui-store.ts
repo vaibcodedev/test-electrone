@@ -68,6 +68,13 @@ interface UiState {
   /** Expanded hubs in the sidebar. */
   openHubs: Record<string, boolean>
   setHubOpen: (id: string, open: boolean) => void
+  /** Sidebar expanded (244 px) or folded to the 56 px strip of icons — Ctrl+B, remembered between runs. */
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
+  toggleSidebar: () => void
+  /** Collapsed page sections, e.g. { 'designs.moodboards': true } — the row of moodboards over the gallery. */
+  collapsed: Record<string, boolean>
+  setCollapsed: (id: string, on: boolean) => void
   /** Increments when something goes to the trash: the sidebar trash icon plays a short "received" motion. */
   trashBump: number
   bumpTrash: () => void
@@ -109,6 +116,12 @@ export const useUi = create<UiState>()(
       setPlatformDialogOpen: (platformDialogOpen) => set({ platformDialogOpen }),
       openHubs: { work: true, freelance: true },
       setHubOpen: (id, open) => set((s) => ({ openHubs: { ...s.openHubs, [id]: open } })),
+      sidebarOpen: true,
+      setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+      toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+      // Older saved state has no `collapsed`: persist merges shallowly, so it starts as {} (all expanded).
+      collapsed: {},
+      setCollapsed: (id, on) => set((s) => ({ collapsed: { ...s.collapsed, [id]: on } })),
       trashBump: 0,
       bumpTrash: () => set((s) => ({ trashBump: s.trashBump + 1 })),
       closeAsk: null,
@@ -136,7 +149,22 @@ export const useUi = create<UiState>()(
     }),
     {
       name: 'vault-ui',
-      partialize: (s) => ({ views: s.views, openHubs: s.openHubs })
+      partialize: (s) => ({
+        views: s.views,
+        openHubs: s.openHubs,
+        collapsed: s.collapsed,
+        sidebarOpen: s.sidebarOpen
+      }),
+      // persist doesn't validate what it reads: a hand-edited or foreign `sidebarOpen` must not leave the
+      // panel in a state no button shows. The version stays — without a migrate a bump would drop views too.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<UiState>
+        return {
+          ...current,
+          ...p,
+          sidebarOpen: typeof p.sidebarOpen === 'boolean' ? p.sidebarOpen : current.sidebarOpen
+        }
+      }
     }
   )
 )

@@ -66,7 +66,10 @@ export async function seedMonsters(rpc) {
   const tagIds = tag ? [tag.id] : []
   const plat = first(await rpc('platforms.list', {}))
   put('idea', await rpc('ideas.create', { title: LONG, body: BODY, tagIds }))
-  put('note', await rpc('notes.create', { title: LONG, folder: WORD.slice(0, 90), body: BODY }))
+  const longNote = await rpc('notes.create', { title: LONG, folder: WORD.slice(0, 90), body: BODY })
+  put('note', longNote)
+  // ★ on the longest title: the mark must never be cut off and the row goes first in «Нотатки».
+  if (longNote) await rpc('pins.toggle', { ref: { type: 'note', id: longNote.id }, kind: 'favorite' })
   put('bookmark', await rpc('bookmarks.create', { title: LONG, url: URL, notes: BODY, tagIds }))
   put('snippet', await rpc('snippets.create', { title: LONG, code: `const x = '${WORD}'\n`.repeat(30), tagIds }))
   put('library', await rpc('libraries.create', { name: WORD.slice(0, 190), notes: BODY, tagIds }))
@@ -168,4 +171,32 @@ export async function demoIds(rpc, exclude = new Set()) {
     if (pick) ids[type] = pick.id
   }
   return ids
+}
+
+/**
+ * The «Добірки» row over the design gallery at its fullest: 30 boards (2 in «Обране», 5 empty, the rest with
+ * designs) — row of 12, «+N», arrows. Returns the new ids (to trash them afterwards).
+ */
+export async function seedManyMoodboards(rpc) {
+  const designs = (await rpc('designs.list', { limit: 8 })) ?? []
+  const ids = []
+  for (let i = 0; i < 30; i++) {
+    const board = await rpc('moodboards.create', { title: `Добірка для ряду ${i + 1}` })
+    if (!board) continue
+    ids.push(board.id)
+    if (i >= 25 || !designs.length) continue // the last five stay empty
+    const picked = designs.slice(i % designs.length, (i % designs.length) + 1 + (i % 4)).map((d) => d.id)
+    await rpc('moodboards.addDesigns', { moodboardId: board.id, designIds: picked })
+    if (i < 2) await rpc('pins.toggle', { ref: { type: 'moodboard', id: board.id }, kind: 'favorite' })
+  }
+  return ids
+}
+
+/** «Добірок поки немає» with designs in the gallery: every live board to the trash; returns a restore. */
+export async function hideMoodboards(rpc) {
+  const ids = ((await rpc('moodboards.list', {})) ?? []).map((b) => b.id)
+  for (const id of ids) await rpc('moodboards.remove', id)
+  return async () => {
+    for (const id of ids) await rpc('trash.restore', { type: 'moodboard', id })
+  }
 }

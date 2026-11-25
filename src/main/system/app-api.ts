@@ -3,7 +3,7 @@ import { statSync } from 'fs'
 import { dirname } from 'path'
 import { z } from 'zod'
 import type { AppApi, SettingsApi, UpdatesApi } from '@shared/api'
-import { settingsPatchSchema } from '@shared/domain/system'
+import { hidesEveryHub, settingsPatchSchema } from '@shared/domain/system'
 import type { AppPaths } from '../core/paths'
 import type { ConfigStore } from '../core/config-store'
 import { log, logFilePath } from '../core/logger'
@@ -35,6 +35,9 @@ export class AppApiFactory {
       get: async () => config.settings,
       update: async (patch) => {
         const p = settingsPatchSchema.parse(patch)
+        // The renderer never offers it either; a hand-made call must not leave the sidebar without sections.
+        if (p.hiddenNavHubs !== undefined && hidesEveryHub(p.hiddenNavHubs))
+          throw new UserError('Залиште в меню хоча б один розділ.')
         // A busy/invalid hotkey is refused before saving: config.json keeps the working one.
         if (p.quickAddShortcut !== undefined && p.quickAddShortcut !== config.settings.quickAddShortcut) {
           const err = shortcuts.apply(p.quickAddShortcut)

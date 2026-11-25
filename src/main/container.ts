@@ -2,8 +2,9 @@
  * Composition root: builds every service once and wires them by constructor injection.
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
-import { app } from 'electron'
-import { log } from './core/logger'
+import { app, session } from 'electron'
+import { dirname } from 'path'
+import { log, logFilePath } from './core/logger'
 import { openPathOrThrow } from './core/open-path'
 import type { Api } from '@shared/api'
 import { AppPaths } from './core/paths'
@@ -22,6 +23,8 @@ import { RevisionService } from './services/revision-service'
 import { TrashService } from './services/trash-service'
 import { SecretBox } from './services/secret-box'
 import { BackupService } from './services/backup-service'
+import { StorageService } from './services/storage-service'
+import { storageLayout } from './services/storage-usage'
 import { ExportService } from './services/export-service'
 import { DashboardService } from './services/dashboard-service'
 import { QuickAddService } from './services/quick-add-service'
@@ -51,6 +54,9 @@ import { ShortcutController } from './system/shortcuts'
 import { Updater } from './system/updater'
 import { applyAutostart } from './system/autostart'
 import { AppApiFactory } from './system/app-api'
+import { SandboxService } from './system/sandbox-service'
+import { DemoSeedService } from './services/demo-seed'
+import type { Profile } from './core/profile'
 
 export class Container {
   readonly paths = new AppPaths()
@@ -123,6 +129,17 @@ export class Container {
   })
 
   readonly backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus)
+  readonly storage = new StorageService({
+    layout: storageLayout(this.paths, {
+      userData: app.getPath('userData'),
+      sessionData: app.getPath('sessionData'),
+      logsDir: dirname(logFilePath())
+    }),
+    currentLog: logFilePath,
+    installDir: app.isPackaged ? dirname(app.getPath('exe')) : null,
+    session: () => session.defaultSession,
+    backups: this.backup
+  })
   readonly exporter = new ExportService(this.db, this.paths, this.registry, this.tags, this.links)
   readonly dashboard = new DashboardService(this.db, this.registry, this.pins, {
     boards: this.boards,
@@ -140,9 +157,15 @@ export class Container {
   readonly updater: Updater
   readonly reminders: ReminderService
   readonly capture: CaptureServer
+  readonly sandbox: SandboxService
   readonly api: Api
+  private disposed = false
 
-  constructor(readonly iconPath: string) {
+  /** `profile`: «Тестовий режим» or the real data; index.ts has already pointed userData at its folder. */
+  constructor(
+    readonly iconPath: string,
+    readonly profile: Profile
+  ) {
     for (const d of [
       ...this.boards.descriptors,
       this.ideas.descriptor,
@@ -158,13 +181,14 @@ export class Container {
       this.registry.register(d)
     }
 
-    this.windows = new WindowManager(this.config, this.bus, iconPath)
+    this.windows = new WindowManager(this.config, this.bus, iconPath, profile.kind)
     const time = this.crm.timeApi()
     this.tray = new TrayController(
       this.windows,
       this.config,
       iconPath,
       (enabled) => this.config.updateSettings({ launchAtLogin: enabled }),
+      profile.kind,
       {
         running: () => this.crm.running(),
         projects: () => this.crm.recentActiveProjects(),
@@ -174,7 +198,7 @@ export class Container {
       }
     )
     this.shortcuts = new ShortcutController(this.config, this.windows)
-    this.updater = new Updater(this.bus, this.config)
+    this.updater = new Updater(this.bus, this.config, profile.kind)
     this.reminders = new ReminderService(
       this.db,
       this.calendar,
@@ -184,6 +208,16 @@ export class Container {
       this.jobs,
       this.config
     )
+    this.sandbox = new SandboxService({
+      profile,
+      ledger: this.config,
+      backup: this.backup,
+      scripts: this.scripts,
+      updater: this.updater,
+      bus: this.bus,
+      dispose: () => this.dispose(),
+      demo: new DemoSeedService(() => this.api, this.config, this.bus, iconPath)
+    })
     this.api = this.buildApi()
     this.capture = new CaptureServer(
       this.config,
@@ -193,9 +227,34 @@ export class Container {
       iconPath
     )
     this.config.onSettingsChange((s) => {
-      applyAutostart(s.launchAtLogin)
+      applyAutostart(s.launchAtLogin, profile.kind)
       this.bus.emit('settings:changed', s)
     })
+  }
+
+  /**
+   * Stops everything and closes the database: on quit (will-quit) and before a «Тестовий режим» relaunch,
+   * where app.exit() skips will-quit. Idempotent; each step on its own, so one failure (EPERM on
+   * config.json) never leaves the database open or stops the relaunch.
+   */
+  dispose(): void {
+    if (this.disposed) return
+    this.disposed = true
+    const step = (name: string, fn: () => void): void => {
+      try {
+        fn()
+      } catch (e) {
+        log.error('[dispose]', name, e)
+      }
+    }
+    step('reminders', () => this.reminders.stop())
+    step('scripts', () => this.scripts.killAll())
+    step('capture', () => this.capture.stop())
+    step('backup', () => this.backup.stop())
+    step('updater', () => this.updater.stop())
+    step('tray', () => this.tray.destroy())
+    step('config', () => this.config.flush())
+    step('db', () => this.db.close())
   }
 
   /** Opens the database (runs pending migrations, a safety copy is made before them). */
@@ -334,9 +393,11 @@ export class Container {
       trash: this.trash.api(this.bus),
       files: this.attachments.api(),
       backup: this.backup.api(this.exporter),
+      storage: this.storage.api(),
       settings: appApi.settings(),
       updates: appApi.updates(),
-      app: appApi.app()
+      app: appApi.app(),
+      sandbox: this.sandbox.api()
     }
   }
 }

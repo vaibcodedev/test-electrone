@@ -25,9 +25,13 @@ import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/setting
 import { SettingsRow, SettingsSection } from './settings/section'
 import { AutosaveInput } from './settings/autosave-input'
 import { ThemePicker } from './settings/theme-picker'
+import { MenuSection } from './settings/menu-section'
 import { ShortcutInput } from './settings/shortcut-input'
 import { BackupSection } from './settings/backup-section'
+import { StorageSection } from './settings/storage-section'
 import { UpdatesSection } from './settings/updates-section'
+import { SandboxSection } from './settings/sandbox-section'
+import { isSandbox } from '@/lib/profile'
 import { LoadError } from './route-error'
 
 const LIMITS = limitsOf(settingsSchema)
@@ -77,7 +81,10 @@ export function SettingsPage(): ReactElement {
 
   return (
     <Page>
-      <PageHeader title="Налаштування" subtitle={info ? `Vault ${info.version}` : undefined} />
+      <PageHeader
+        title="Налаштування"
+        subtitle={info ? `Vault ${info.version}${isSandbox ? ' · тестовий режим' : ''}` : undefined}
+      />
       <PageBody>
         <div className="flex max-w-4xl flex-col gap-3">
           <SettingsSection id="you" title="Ви" hint="Ім’я показується в привітанні.">
@@ -99,6 +106,8 @@ export function SettingsPage(): ReactElement {
             <ThemePicker value={settings.theme} onChange={(theme) => set({ theme })} />
           </SettingsSection>
 
+          <MenuSection />
+
           <SettingsSection
             id="system"
             title="Система"
@@ -114,11 +123,20 @@ export function SettingsPage(): ReactElement {
                 onChange={(quickAddShortcut) => set({ quickAddShortcut })}
               />
             </SettingsRow>
-            <SettingsRow label="Запускати разом із Windows" hint="Працює у встановленій версії">
+            <SettingsRow
+              label="Запускати разом із Windows"
+              hint={
+                isSandbox
+                  ? 'У тестовому режимі вимкнено: автозапуск спільний з основним Vault'
+                  : 'Працює у встановленій версії'
+              }
+            >
               {(id) => (
                 <Switch
                   id={id}
-                  checked={settings.launchAtLogin}
+                  // One login item per OS, owned by the real Vault: the test one never changes it.
+                  checked={isSandbox ? false : settings.launchAtLogin}
+                  disabled={isSandbox}
                   onCheckedChange={(launchAtLogin) => set({ launchAtLogin })}
                 />
               )}
@@ -171,7 +189,7 @@ export function SettingsPage(): ReactElement {
                       e.target.value !== settings.jobReminderTime &&
                       set({ jobReminderTime: e.target.value })
                     }
-                    className="w-28"
+                    className="w-24"
                   />
                 )}
               </SettingsRow>
@@ -201,6 +219,8 @@ export function SettingsPage(): ReactElement {
               </SettingsRow>
             )}
           </SettingsSection>
+
+          <StorageSection />
 
           <BackupSection settings={settings} info={info} set={set} />
 
@@ -242,6 +262,8 @@ export function SettingsPage(): ReactElement {
               розшифровуються лише на цьому комп’ютері.
             </p>
           </SettingsSection>
+
+          <SandboxSection />
 
           <GithubSettingsCard />
           <ExtensionSettingsCard />

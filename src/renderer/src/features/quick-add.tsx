@@ -5,10 +5,11 @@ import { toast } from 'sonner'
 import { ENTITY_META } from '@shared/entity-types'
 import { QUICK_ADD_TARGETS, quickAddSchema, type QuickAddTarget } from '@shared/domain/system'
 import { api } from '@/lib/api'
-import { useApiMutation } from '@/lib/query'
+import { queryClient, useApiMutation } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
 import { shortTitle } from '@/features/short-title'
-import { ENTITY_ICON } from '@/app/navigation'
+import { ENTITY_ICON, QUICK_ADD_PLACE } from '@/app/navigation'
+import { useNavVisibility } from '@/hooks/use-nav-visibility'
 import { HOTKEY_DIALOG_PROPS, useUi } from '@/stores/ui-store'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -20,6 +21,8 @@ import {
   InputGroupTextarea
 } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
+import { Badge } from '@/components/ui/badge'
+import { isSandbox } from '@/lib/profile'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 /** Same limit as quickAddSchema.text (first line + body in one field). */
@@ -67,7 +70,15 @@ export function QuickAddForm({
   initialTarget?: QuickAddTarget
   initialText?: string
 }): ReactElement {
-  const [target, setTarget] = useState<QuickAddTarget>(initialTarget ?? 'idea')
+  const { isShown } = useNavVisibility()
+  // Only targets whose section is in the menu; none shown (every one of them hidden) — all of them, the form is
+  // never empty.
+  const shownTargets = QUICK_ADD_TARGETS.filter((t) => isShown(QUICK_ADD_PLACE[t]))
+  const targets: readonly QuickAddTarget[] =
+    shownTargets.length > 0 ? shownTargets : QUICK_ADD_TARGETS
+  const [picked, setTarget] = useState<QuickAddTarget>(initialTarget ?? 'idea')
+  // Chosen during render, not in an effect: settings that arrive late can't leave a hidden chip selected.
+  const target = targets.includes(picked) ? picked : targets[0]
   const [text, setText] = useState(initialText ?? '')
   const add = useApiMutation('app', 'quickAdd')
   const ref = useRef<HTMLTextAreaElement>(null)
@@ -100,8 +111,8 @@ export function QuickAddForm({
   }
 
   const cycle = (dir: 1 | -1): void => {
-    const i = QUICK_ADD_TARGETS.indexOf(target)
-    setTarget(QUICK_ADD_TARGETS[(i + dir + QUICK_ADD_TARGETS.length) % QUICK_ADD_TARGETS.length])
+    const i = targets.indexOf(target)
+    setTarget(targets[(i + dir + targets.length) % targets.length])
   }
 
   return (
@@ -114,7 +125,7 @@ export function QuickAddForm({
         onValueChange={(v) => v && setTarget(v as QuickAddTarget)}
         aria-label="Куди додати"
       >
-        {QUICK_ADD_TARGETS.map((t) => {
+        {targets.map((t) => {
           const Icon = ENTITY_ICON[t]
           return (
             <ToggleGroupItem key={t} value={t} className={TYPE_CHIP}>
@@ -197,7 +208,10 @@ export function QuickAddDialog(): ReactElement {
         }}
         {...HOTKEY_DIALOG_PROPS}
       >
-        <DialogTitle className="font-display text-heading">Швидко додати</DialogTitle>
+        <div className="flex items-center gap-2">
+          <DialogTitle className="font-display text-heading">Швидко додати</DialogTitle>
+          <SandboxMark />
+        </div>
         <DialogDescription className="sr-only">
           Enter зберігає, Tab змінює тип запису
         </DialogDescription>
@@ -213,6 +227,11 @@ export function QuickAddDialog(): ReactElement {
   )
 }
 
+/** «Тест» next to the title in «Тестовий режим»: a quick thought must not land in the test data unnoticed. */
+function SandboxMark(): ReactElement | null {
+  return isSandbox ? <Badge variant="warn">Тест</Badge> : null
+}
+
 /** Route rendered inside the frameless popup window opened by the global hotkey. */
 export function QuickAddWindow(): ReactElement {
   const [key, setKey] = useState(0)
@@ -223,6 +242,8 @@ export function QuickAddWindow(): ReactElement {
     return window.vault.on('quick-add:open', (p) => {
       const t = (p as { target?: string }).target
       setTarget(QUICK_ADD_TARGETS.includes(t as QuickAddTarget) ? (t as QuickAddTarget) : undefined)
+      // The popup has its own cache and no main-events bridge: «Налаштування → Меню» may have changed since.
+      void queryClient.invalidateQueries({ queryKey: ['settings', 'get'] })
       setKey((k) => k + 1)
     })
   }, [])
@@ -236,6 +257,7 @@ export function QuickAddWindow(): ReactElement {
             </AvatarFallback>
           </Avatar>
           <span className="font-display text-heading">Швидко додати</span>
+          <SandboxMark />
         </div>
         <div className="no-drag">
           <QuickAddForm

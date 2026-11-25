@@ -61,6 +61,7 @@ import type {
   Moodboard,
   MoodboardDetails,
   MoodboardInput,
+  MoodboardListQuery,
   MoodboardPatch
 } from './domain/designs'
 import type {
@@ -142,6 +143,7 @@ import type {
   RunningScript
 } from './domain/dev'
 import type { ReviewNotesInput, WeeklyReview } from './domain/review'
+import type { SandboxInfo } from './domain/sandbox'
 import type { ImportKind, ImportResult } from './domain/import'
 import type {
   Application,
@@ -233,6 +235,9 @@ import type {
   SearchQuery,
   Settings,
   SettingsPatch,
+  StorageFolder,
+  StorageFreed,
+  StorageUsage,
   TagInput,
   TrashItem,
   UpdateStatus
@@ -320,13 +325,18 @@ export interface DesignsApi extends CrudApi<Design, DesignInput, DesignPatch, De
   counts(query?: DesignCountsQuery): Promise<ChipCounts<DesignKind>>
 }
 
-/** `designId`: each moodboard also says whether that design is in it (`contains`, the «У добірку» picker). */
+/**
+ * Favourites first, then boards with designs, then empty ones. `designId`: each moodboard also says whether
+ * that design is in it (`contains`, the «У добірку» picker); `search` — title and description.
+ */
 export interface MoodboardsApi extends CrudApi<
   Moodboard,
   MoodboardInput,
   MoodboardPatch,
-  { designId?: string }
+  Omit<MoodboardListQuery, 'limit' | 'offset'>
 > {
+  /** Live moodboards (the «Добірки N» counter over the gallery). */
+  count(): Promise<number>
   details(id: string): Promise<MoodboardDetails | null>
   addDesigns(args: { moodboardId: string; designIds: string[] }): Promise<void>
   removeDesign(args: { moodboardId: string; designId: string }): Promise<void>
@@ -409,7 +419,7 @@ export interface ImporterApi {
 
 export interface ChecklistsApi {
   list(
-    args?: { kind?: ChecklistKind; search?: string; tagId?: string } & PageQuery
+    args?: { kind?: ChecklistKind; search?: string; tagId?: string; favorite?: boolean } & PageQuery
   ): Promise<Checklist[]>
   /** Number of templates and runs (for the tab chips). */
   counts(): Promise<{ template: number; run: number }>
@@ -689,6 +699,8 @@ export interface LinksApi {
 
 export interface PinsApi {
   list(kind?: PinKind): Promise<PinnedEntity[]>
+  /** Live records with the mark, type + id only (★ marks in lists, the «Обране» chip). */
+  refs(kind: PinKind): Promise<EntityRef[]>
   /** Returns the new state. */
   toggle(args: { ref: EntityRef; kind: PinKind }): Promise<boolean>
   state(ref: EntityRef): Promise<Record<PinKind, boolean>>
@@ -755,6 +767,21 @@ export interface BackupApi {
   export(format: ExportFormat): Promise<string | null>
 }
 
+/** Налаштування → Сховище: disk use by category and the cleanups that cannot touch user data. */
+export interface StorageApi {
+  /** Sizes by category; cached in main (10 s + a folder fingerprint). */
+  usage(): Promise<StorageUsage>
+  /** Drops the cache: the next usage() walks the disk again («Перерахувати»). */
+  recount(): Promise<void>
+  /** HTTP cache, V8 code cache, shader cache, Cache Storage. Never localStorage/IndexedDB/cookies. */
+  clearCache(): Promise<StorageFreed>
+  /** Rotated logs next to the current one; the current log stays. */
+  clearLogs(): Promise<StorageFreed>
+  /** Regular backups beyond backupKeep, pre-restore copies beyond the newest, stale .part files. */
+  pruneBackups(): Promise<StorageFreed>
+  openFolder(args: { folder: StorageFolder }): Promise<void>
+}
+
 export interface SettingsApi {
   get(): Promise<Settings>
   update(patch: SettingsPatch): Promise<Settings>
@@ -782,6 +809,22 @@ export interface AppApi {
   logError(args: { message: string; stack?: string; source?: string }): Promise<void>
   /** Renderer reports the theme it actually shows, so the native window buttons match it. */
   setWindowTheme(theme: 'light' | 'dark'): Promise<void>
+}
+
+/**
+ * «Тестовий режим». No method takes an argument: the sandbox folder is always computed in main, a path never
+ * comes from the renderer. enter / exit / clear (in the sandbox) relaunch Vault a moment after answering.
+ */
+export interface SandboxApi {
+  info(): Promise<SandboxInfo>
+  /** Main profile only: relaunch with the test data. */
+  enter(): Promise<void>
+  /** Sandbox only: relaunch with the real data. */
+  exit(): Promise<void>
+  /** Main: delete the test folder (only with its own marker). Sandbox: relaunch with a fresh test database. */
+  clear(): Promise<void>
+  /** Sandbox only, once per test database: example records in every section. */
+  fillDemo(): Promise<{ created: number }>
 }
 
 export interface Api {
@@ -828,10 +871,12 @@ export interface Api {
   records: RecordsApi
   files: FilesApi
   backup: BackupApi
+  storage: StorageApi
   settings: SettingsApi
   updates: UpdatesApi
   app: AppApi
   importer: ImporterApi
+  sandbox: SandboxApi
 }
 
 export type ApiNamespace = keyof Api

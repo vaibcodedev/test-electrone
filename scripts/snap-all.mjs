@@ -14,7 +14,7 @@ import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 import { ENTITY_META, ENTITY_TYPES } from '../src/shared/entity-types.ts'
 import { seed } from './seed.mjs'
-import { demoIds, makeRpc, seedDesigns, seedMonsters, seedSparse } from './fixtures.mjs'
+import { demoIds, hideMoodboards, makeRpc, seedDesigns, seedManyMoodboards, seedMonsters, seedSparse } from './fixtures.mjs'
 
 const out = resolve(process.argv[2] ?? 'snap-all')
 const opt = (name, def) => (process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1] ?? def).split(',')
@@ -84,6 +84,44 @@ for (const theme of THEMES) {
         await go(ctx, r, 1100)
         await shot(ctx, join(base, 'list'), name(r), `${theme} list ${r}`)
       }
+
+    if (ONLY.has('list')) {
+      // The «Добірки» row over the gallery: none yet (one line with «Нова добірка») and a full row («+N», arrows).
+      const restore = await hideMoodboards(ctx.rpc)
+      await go(ctx, '/designs', 1100)
+      await shot(ctx, join(base, 'list'), 'designs_no-boards', `${theme} list /designs no boards`)
+      await restore()
+      const many = await seedManyMoodboards(ctx.rpc)
+      await go(ctx, '/designs', 1100)
+      await shot(ctx, join(base, 'list'), 'designs_many-boards', `${theme} list /designs many boards`)
+      for (const id of many) await ctx.rpc('moodboards.remove', id)
+    }
+
+    if (ONLY.has('list')) {
+      // «Налаштування → Меню»: the section with a group unfolded, and home / the sidebar with sections hidden.
+      await go(ctx, '/settings#menu', 1100)
+      await ctx.win.getByRole('button', { name: 'Показати пункти розділу «Робота»' }).click().catch(() => {})
+      await ctx.win.waitForTimeout(400)
+      await shot(ctx, join(base, 'list'), 'settings_menu', `${theme} list /settings#menu`)
+      await ctx.rpc('settings.update', { hiddenNavHubs: ['freelance', 'jobs', 'finance', 'knowledge'], hiddenNavItems: ['/calendar'] })
+      await go(ctx, '/settings#menu', 1100)
+      await shot(ctx, join(base, 'list'), 'settings_menu-hidden', `${theme} list /settings#menu hidden`)
+      await go(ctx, '/', 1100)
+      await shot(ctx, join(base, 'list'), 'home_hidden-sections', `${theme} list / hidden sections`)
+      await ctx.rpc('settings.update', { hiddenNavHubs: [], hiddenNavItems: [] })
+
+      // Folded sidebar (Ctrl+B): the strip of icons, and the «Фриланс» flyout.
+      await ctx.win.keyboard.press('Control+b')
+      for (const r of ['/', '/designs', '/boards', '/jobs/applications', '/finance']) {
+        await go(ctx, r, 1100)
+        await shot(ctx, join(base, 'list'), `collapsed_${name(r)}`, `${theme} list ${r} collapsed`)
+      }
+      await ctx.win.locator('[data-slot=app-sidebar]').getByRole('button', { name: 'Фриланс' }).click().catch(() => {})
+      await ctx.win.waitForTimeout(400)
+      await shot(ctx, join(base, 'list'), 'collapsed_flyout-freelance', `${theme} list collapsed flyout`)
+      await ctx.win.keyboard.press('Escape')
+      await ctx.win.keyboard.press('Control+b')
+    }
 
     if (ONLY.has('detail'))
       for (const type of ENTITY_TYPES) {

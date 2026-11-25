@@ -51,12 +51,16 @@ for (const r of ROUTES) {
     const vw = innerWidth
     const res = []
     const desc = (el) => `${el.tagName.toLowerCase()}.${String(el.className).split(' ').slice(0, 4).join('.')} «${(el.textContent || '').trim().slice(0, 40)}»`
-    for (const el of document.querySelectorAll('main *, [data-slot=sidebar] *, [data-slot=card] *')) {
+    for (const el of document.querySelectorAll('main *, [data-slot=app-sidebar] *, [data-slot=sidebar] *, [data-slot=card] *')) {
+      // Hidden on purpose: screen-reader text and the labels of the folded sidebar's icon buttons.
+      if (el.closest('.sr-only, [data-collapsible=icon] [data-sidebar=menu-button]')) continue
       const cs = getComputedStyle(el)
       if (cs.display === 'none' || cs.visibility === 'hidden') continue
       const rc = el.getBoundingClientRect()
       if (!rc.width || !rc.height) continue
-      if (rc.right > vw + 2 && rc.left < vw) res.push(['window', desc(el), Math.round(rc.right - vw)])
+      // A tile half past the edge of a horizontal scroll row (the «Добірки» row) is clipped by the row, not the window.
+      const inRow = el.closest('[data-scroll-row]')
+      if (!inRow && rc.right > vw + 2 && rc.left < vw) res.push(['window', desc(el), Math.round(rc.right - vw)])
       const hasText = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())
       if (!hasText) continue
       const over = el.scrollWidth - el.clientWidth

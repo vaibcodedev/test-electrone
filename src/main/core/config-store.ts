@@ -45,7 +45,9 @@ export const DEFAULT_SETTINGS: Settings = {
   weeklyReviewDay: 0,
   weeklyReviewTime: '18:00',
   captureEnabled: true,
-  capturePort: 47219
+  capturePort: 47219,
+  hiddenNavHubs: [],
+  hiddenNavItems: []
 }
 
 const DEFAULTS: ConfigShape = {

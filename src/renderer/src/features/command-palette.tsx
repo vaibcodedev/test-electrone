@@ -1,6 +1,19 @@
 import { Fragment, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import { Keyboard, Moon, Plus, RotateCcw, Settings, Sun, Tags, Trash2 } from 'lucide-react'
+import {
+  FlaskConical,
+  Keyboard,
+  Moon,
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  RotateCcw,
+  Settings,
+  Sun,
+  Tags,
+  Trash2
+} from 'lucide-react'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { quickAddSchema, searchQuerySchema, type SearchHit } from '@shared/domain/system'
 import {
@@ -15,10 +28,13 @@ import { Spinner } from '@/components/ui/spinner'
 import { useApi, useApiMutation } from '@/lib/query'
 import { HOTKEY_DIALOG_PROPS, useUi } from '@/stores/ui-store'
 import { useHotkey } from '@/hooks/use-hotkey'
-import { ALL_NAV_ITEMS, ENTITY_ICON } from '@/app/navigation'
+import { ENTITY_ICON } from '@/app/navigation'
+import { useNavVisibility } from '@/hooks/use-nav-visibility'
+import { sidebarToggleLabel } from '@/components/ui/sidebar-label'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
+import { FavoriteMark } from '@/components/common/favorite-mark'
 
 const SEARCH_LIMITS = limitsOf(searchQuerySchema)
 const NO_HITS: SearchHit[] = []
@@ -28,10 +44,12 @@ type Ref = { type: EntityType; id: string }
 const VALUE = {
   hit: (h: Ref) => `${h.type}:${h.id}`,
   recent: (r: Ref) => `recent:${r.type}:${r.id}`,
+  fav: (r: Ref) => `fav:${r.type}:${r.id}`,
   nav: (path: string) => `nav:${path}`,
   action: (id: string) => `action:${id}`
 }
 const QUICK_LIMITS = limitsOf(quickAddSchema)
+const FAV_LIMIT = 5
 
 /**
  * FTS snippet → plain text: no raw `**`, `#` or list dashes glued into one line (design-system §10).
@@ -80,6 +98,10 @@ export function CommandPalette(): ReactElement {
   const setQuickAddOpen = useUi((s) => s.setQuickAddOpen)
   const setShortcutsOpen = useUi((s) => s.setShortcutsOpen)
   const dropReturnFocus = useUi((s) => s.dropReturnFocus)
+  const sidebarOpen = useUi((s) => s.sidebarOpen)
+  const toggleSidebar = useUi((s) => s.toggleSidebar)
+  // «Розділи» and the Alt N hints follow the menu the user sees; records (search, «Нещодавні») are never filtered.
+  const { order, isShown } = useNavVisibility()
   const navigate = useNavigate()
   const [text, setText] = useState('')
   // Controlled selection: recent records arrive after cmdk has already picked «Головна».
@@ -104,6 +126,9 @@ export function CommandPalette(): ReactElement {
   const hits = query ? rawHits : NO_HITS
   const failed = !!query && isError
   const { data: recent = [] } = useApi('search', 'recent', 8, { enabled: open && !query })
+  // «Обране» under «Нещодавні»: a record may be in both, their cmdk values differ.
+  const { data: favAll = [] } = useApi('pins', 'list', 'favorite', { enabled: open && !query })
+  const favs = favAll.slice(0, FAV_LIMIT)
 
   const grouped = useMemo(() => {
     const map = new Map<EntityType, SearchHit[]>()
@@ -162,6 +187,24 @@ export function CommandPalette(): ReactElement {
       }
     },
     {
+      id: 'sidebar',
+      label: sidebarToggleLabel(sidebarOpen ? 'expanded' : 'collapsed'),
+      icon: sidebarOpen ? <PanelLeftClose /> : <PanelLeftOpen />,
+      keywords: ['панель', 'меню', 'сайдбар', 'бічна', 'згорнути', 'розгорнути', 'ширше', 'місце'],
+      shortcut: 'Ctrl B',
+      run: () => {
+        close()
+        toggleSidebar()
+      }
+    },
+    {
+      id: 'menu',
+      label: 'Налаштувати меню',
+      icon: <PanelLeft />,
+      keywords: ['меню', 'розділи', 'сховати', 'показати', 'бічна панель'],
+      run: () => go('/settings#menu')
+    },
+    {
       id: 'trash',
       label: 'Кошик',
       icon: <Trash2 />,
@@ -176,6 +219,13 @@ export function CommandPalette(): ReactElement {
       run: () => go('/tags')
     },
     {
+      id: 'sandbox',
+      label: 'Тестовий режим',
+      icon: <FlaskConical />,
+      keywords: ['тест', 'тестовий', 'пісочниця', 'демо', 'експеримент'],
+      run: () => go('/settings#sandbox')
+    },
+    {
       id: 'settings',
       label: 'Налаштування, бекап і експорт',
       icon: <Settings />,
@@ -185,9 +235,7 @@ export function CommandPalette(): ReactElement {
   ]
 
   const needle = query.toLowerCase()
-  const navMatches = query
-    ? ALL_NAV_ITEMS.filter((n) => n.label.toLowerCase().includes(needle))
-    : ALL_NAV_ITEMS
+  const navMatches = query ? order.filter((n) => n.label.toLowerCase().includes(needle)) : order
   const actionMatches = query
     ? actions.filter(
         (a) => a.label.toLowerCase().includes(needle) || a.keywords.some((k) => k.includes(needle))
@@ -204,6 +252,7 @@ export function CommandPalette(): ReactElement {
       ))
   // Nothing found: the typed text is most likely a thought worth keeping. A failed search has found nothing yet.
   const offerAdd =
+    isShown('/ideas') &&
     !!query &&
     !failed &&
     !isFetching &&
@@ -223,6 +272,7 @@ export function CommandPalette(): ReactElement {
     ...hitValues,
     ...(offerAdd ? [VALUE.action('add-idea')] : []),
     ...(!query ? recent.map(VALUE.recent) : []),
+    ...(!query ? favs.map(VALUE.fav) : []),
     ...(placesFirst ? [] : placeValues)
   ]
 
@@ -312,8 +362,11 @@ export function CommandPalette(): ReactElement {
                 >
                   <Icon />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium" title={h.title}>
-                      {h.title}
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate font-medium" title={h.title}>
+                        {h.title}
+                      </span>
+                      <FavoriteMark entity={h} />
                     </div>
                     {h.snippet && (
                       <div className="truncate text-caption text-muted-foreground">
@@ -353,12 +406,36 @@ export function CommandPalette(): ReactElement {
                   onSelect={() => go(ENTITY_META[r.type].route(r.id))}
                 >
                   <Icon />
-                  <span className="flex-1 truncate" title={r.title}>
-                    {r.title}
+                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                    <span className="truncate" title={r.title}>
+                      {r.title}
+                    </span>
+                    <FavoriteMark entity={r} />
                   </span>
                   <CommandShortcut className="tracking-normal">
                     {ENTITY_META[r.type].label} · {fmtRelative(r.updatedAt)}
                   </CommandShortcut>
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
+        )}
+
+        {!query && favs.length > 0 && (
+          <CommandGroup heading="Обране">
+            {favs.map((r) => {
+              const Icon = ENTITY_ICON[r.type]
+              return (
+                <CommandItem
+                  key={`${r.type}:${r.id}`}
+                  value={VALUE.fav(r)}
+                  onSelect={() => go(ENTITY_META[r.type].route(r.id))}
+                >
+                  <Icon />
+                  <span className="min-w-0 flex-1 truncate" title={r.title}>
+                    {r.title}
+                  </span>
+                  <CommandShortcut className="tracking-normal">{ENTITY_META[r.type].label}</CommandShortcut>
                 </CommandItem>
               )
             })}

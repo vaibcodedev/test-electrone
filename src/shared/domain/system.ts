@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { EntityType } from '../entity-types'
-import { entityTypeSchema, idSchema, type EntitySummary } from './common'
+import { entityTypeSchema, idSchema, patchOf, type EntitySummary } from './common'
 import type { DueCard } from './boards'
 import type { CalendarItem } from './calendar'
 import type { RunningTimer } from './crm'
@@ -15,6 +15,23 @@ export type Theme = (typeof THEMES)[number]
 
 /** Global «Швидке додавання» shortcut of a fresh install (main defaults, renderer «Скинути»). */
 export const DEFAULT_QUICK_ADD_SHORTCUT = 'CommandOrControl+Shift+Space'
+
+/** Sidebar groups (renderer HUBS ids). Shared so main can refuse hiding all of them. */
+export const NAV_HUB_IDS = [
+  'work',
+  'freelance',
+  'jobs',
+  'finance',
+  'dev',
+  'knowledge',
+  'inspiration'
+] as const
+export type NavHubId = (typeof NAV_HUB_IDS)[number]
+
+/** True when the list hides every sidebar group: main refuses such a patch, one group always stays. */
+export function hidesEveryHub(hidden: readonly string[]): boolean {
+  return NAV_HUB_IDS.every((id) => hidden.includes(id))
+}
 
 export const settingsSchema = z.object({
   userName: z.string().max(100),
@@ -33,10 +50,17 @@ export const settingsSchema = z.object({
   weeklyReviewTime: z.string().regex(/^(\d{2}:\d{2})?$/),
   /** Local bridge for the Chrome extension. */
   captureEnabled: z.boolean(),
-  capturePort: z.number().int().min(1024).max(65535)
+  capturePort: z.number().int().min(1024).max(65535),
+  /**
+   * Sidebar groups switched off in «Налаштування → Меню». Only hidden ones are stored, so a new group starts
+   * visible. Plain strings, not an enum: a group removed later must not reset the whole list on read.
+   */
+  hiddenNavHubs: z.array(z.string().max(40)).max(50),
+  /** Nav item paths switched off («/jobs/stats», «/review»). Unknown paths are ignored. */
+  hiddenNavItems: z.array(z.string().max(200)).max(200)
 })
 export type Settings = z.infer<typeof settingsSchema>
-export const settingsPatchSchema = settingsSchema.partial()
+export const settingsPatchSchema = patchOf(settingsSchema)
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
 
 export interface AppInfo {
@@ -144,6 +168,37 @@ export interface BackupEntry {
 export const EXPORT_FORMATS = ['json', 'markdown'] as const
 export type ExportFormat = (typeof EXPORT_FORMATS)[number]
 
+/* ───────────── Storage (Налаштування → Сховище) ───────────── */
+
+/** Folders «Сховище» opens. The log folder has its own button: settings.openLogs. */
+export const STORAGE_FOLDERS = ['data', 'files', 'backups', 'app'] as const
+export type StorageFolder = (typeof STORAGE_FOLDERS)[number]
+export const storageFolderSchema = z.object({ folder: z.enum(STORAGE_FOLDERS) })
+
+/** Disk use by category. No byte is counted twice: `total` is the sum of the rows shown. */
+export interface StorageUsage {
+  computedAt: number
+  /** vault.db + -wal + -shm */
+  database: { bytes: number }
+  files: { bytes: number; count: number }
+  /** `prunable` — what «Видалити старі» removes (never pre-update copies or unknown files). */
+  backups: { bytes: number; count: number; prunable: { count: number; bytes: number } }
+  /** `removableBytes` — rotated logs only; the current log is counted in `other`. */
+  logs: { bytes: number; removableBytes: number }
+  /** Only the folders «Очистити кеш» empties. */
+  cache: { bytes: number }
+  other: { bytes: number }
+  /** The installed program; null when not packaged (dev, tests). */
+  app: { bytes: number; installDir: string } | null
+  total: number
+  diskFree: number | null
+}
+
+export interface StorageFreed {
+  freedBytes: number
+  removed: number
+}
+
 /* ───────────── Dashboard ───────────── */
 
 export interface DashboardData {
@@ -153,7 +208,6 @@ export interface DashboardData {
     agenda: CalendarItem[]
   }
   pinned: PinnedEntity[]
-  favorites: PinnedEntity[]
   recent: EntitySummary[]
   inboxIdeas: Idea[]
   reading: Bookmark[]

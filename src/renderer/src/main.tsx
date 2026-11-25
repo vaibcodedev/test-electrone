@@ -10,11 +10,14 @@ import { Toaster } from '@/components/ui/sonner'
 import { useApplyTheme } from '@/hooks/use-theme'
 import { installErrorReporting } from '@/lib/error-reporting'
 import { configureZod } from '@shared/zod-locale'
+import { applyProfileMarker } from '@/lib/profile'
 import { installScrollActivity } from '@/lib/scroll-activity'
 
 installErrorReporting()
 // Validation messages in Ukrainian (import previews, client-side checks).
 configureZod()
+// «Тестовий режим»: sand frame and window title from the first paint.
+applyProfileMarker()
 // Scrollbars stay hidden until an area actually scrolls.
 installScrollActivity()
 
