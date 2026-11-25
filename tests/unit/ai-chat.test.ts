@@ -24,6 +24,7 @@ import {
   sourcesBlock
 } from '@main/services/ai/chat-prompt'
 import { UserError } from '@main/core/util'
+import { MAX } from '@shared/domain/limits'
 import { recordFromLocation } from '@/features/ai-chat/context'
 import { openVault, type Vault } from './support/vault'
 
@@ -327,7 +328,8 @@ describe('actions on the base', () => {
     const event = await v.api.events.create({
       title: 'Подія',
       startAt: Date.now(),
-      description: 'x'.repeat(19_990)
+      // A description just under the event's own limit (MAX.note): 100 more characters can't fit.
+      description: 'x'.repeat(MAX.note - 10)
     })
     await expect(
       runner.apply({ type: 'append_text', text: 'y'.repeat(100) }, { type: 'event', id: event.id })
