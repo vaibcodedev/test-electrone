@@ -188,7 +188,8 @@ function StageRow({ stage, defaultOpen }: { stage: Stage; defaultOpen: boolean }
           <CalendarBadge eventId={stage.deadlineEventId} label="дедлайн у календарі" />
         </div>
         {expandable && (
-          <CollapsibleContent>
+          // The content clips while it folds: -m-1 p-1 keeps the fields' focus rings inside the clip.
+          <CollapsibleContent className="-m-1 p-1">
             <StageEditor stage={stage} />
           </CollapsibleContent>
         )}
