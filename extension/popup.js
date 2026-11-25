@@ -6,12 +6,17 @@ import {
   hostOf,
   isQaSite,
   isRestricted,
+  getConnection,
+  reloadForUpdate,
   setFieldError,
   suggestTarget,
+  updateAction,
   urlParts,
   vaultFetch
 } from './shared.js'
 import { LANGUAGES, guessLanguage } from './code-language.js'
+import { createConnect } from './connect.js'
+import { getPairing } from './pairing.js'
 
 const $ = (id) => document.getElementById(id)
 
@@ -293,18 +298,76 @@ function setStatus(kind, text, problem) {
   }
 }
 
+/** «Під’єднати до Vault» and the update screen: instead of the form while there is no working key. */
+const connect = createConnect({
+  // Back to the form after «Під’єднано»: the status plate still says «Перевіряю…» from before the key.
+  onContinue: () => {
+    focusTitle()
+    void ping()
+  },
+  onRetry: () => void ping()
+})
+
+/**
+ * A connection problem the pairing screen solves (no key, a key Vault no longer takes, no Vault at all
+ * without a key); true when that screen is shown. Other problems stay in the status plate over the form.
+ */
+async function showConnectProblem(res) {
+  // The person is pairing or reading its answer: a ping must not swap the screen under them.
+  if (connect.sticky) return true
+  if (res.status === 'nokey' || res.status === 'unauthorized') {
+    if (res.pairing) connect.show(res.status === 'nokey' ? 'ready' : 'rekey')
+    // A Vault before 0.3 cannot pair: without a key there is only the manual way.
+    else if (res.status === 'nokey') connect.show('unsupported')
+    else return false
+    return true
+  }
+  const { port, key } = await getConnection()
+  if ((res.status === 'offline' || res.status === 'timeout') && !key) {
+    connect.show('offline', { port })
+    return true
+  }
+  return false
+}
+
+/**
+ * Vault's folder has a newer extension: reload into it (drafts survive, see reloadForUpdate) — once per
+ * version. Already reloaded and still older: Chrome loads another folder, a hint says how to fix it.
+ */
+async function checkUpdate(vaultVersion) {
+  const { reloadedFor } = await chrome.storage.local.get('reloadedFor')
+  const action = updateAction(vaultVersion, chrome.runtime.getManifest().version, reloadedFor)
+  const hint = $('update-hint')
+  hint.hidden = action !== 'stale'
+  hint.textContent =
+    action === 'stale'
+      ? `У Vault новіша версія розширення (${vaultVersion}), але Chrome завантажує його з іншої папки. Встановіть заново: Vault → Налаштування → «Встановити розширення».`
+      : ''
+  if (action !== 'reload') return false
+  clearTimeout(state.draftTimer)
+  await saveDraft()
+  connect.show('update', { version: vaultVersion })
+  // A moment to read why the popup is about to close.
+  setTimeout(() => void reloadForUpdate(vaultVersion), 1200)
+  return true
+}
+
 async function ping() {
   const retry = document.activeElement === $('status-action')
   setStatus('pending', 'Перевіряю…')
   const res = await vaultFetch('/ping')
+  if (res.ok && (await checkUpdate(res.extension))) return
   // A bridge from before extension 0.2 does not list its targets: it knows the first five only.
   if (res.ok) state.serverTargets = Array.isArray(res.targets) ? res.targets : LEGACY_TARGETS
-  if (res.ok) setStatus('ok', 'Vault підключено')
-  else setStatus('bad', res.error, res.status)
+  if (res.ok) {
+    setStatus('ok', 'Vault підключено')
+    // Connected (a key pasted in the settings, pairing done elsewhere): back to the form, unless «Під’єднано» is on.
+    if (connect.state && connect.state !== 'approved') connect.hide()
+  } else if (!(await showConnectProblem(res))) setStatus('bad', res.error, res.status)
   // «Оновіть Vault» for a new type appears (or goes) once the bridge has said what it knows.
   if (res.ok && state.tab?.url) renderFields()
   // After a successful check the button is gone: keep the keyboard in the form, not on <body>.
-  if (retry) {
+  if (retry && !connect.state) {
     if (!$('status-action').hidden) $('status-action').focus()
     else focusTitle()
   }
@@ -687,6 +750,8 @@ async function save() {
   $('save').textContent = 'Зберегти у Vault'
   if (!res.ok) {
     if (CONNECTION_PROBLEMS.includes(res.status)) {
+      // The key stopped working (Vault said «Відключити»): pair again; the draft is already saved.
+      if (await showConnectProblem(res)) return
       setStatus('bad', res.error, res.status)
       $('status').scrollIntoView({ block: 'nearest' })
     } else if (res.shotError) setError(res.error, res.shotError)
@@ -757,6 +822,10 @@ function showDone(res) {
 /* ───────── init ───────── */
 
 async function init() {
+  // A pairing in progress or its answer comes first: the worker keeps it while the popup was closed.
+  const pairing = await getPairing()
+  if (connect.applyPairing(pairing) && pairing.state === 'waiting')
+    chrome.runtime.sendMessage({ type: 'vault-pair-watch' }).catch(() => {})
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   state.tab = tab
   if (!tab?.url) {

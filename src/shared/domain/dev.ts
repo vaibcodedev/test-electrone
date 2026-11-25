@@ -175,10 +175,45 @@ export const captureSchema = z.object({
 })
 export type CaptureInput = z.input<typeof captureSchema>
 
+/** An extension the person let in with «Дозволити» (it got the key by pairing). */
+export interface CaptureClient {
+  /** chrome-extension://<id> or moz-extension://<uuid>. */
+  origin: string
+  approvedAt: number
+  /** The id matches the extension Vault ships (its manifest `key`): «Розширення Vault», not an unknown one. */
+  vault: boolean
+}
+
 export interface CaptureInfo {
   enabled: boolean
   port: number
   token: string
+  /** The folder Chrome loads: `<userData>/extension`, refreshed from the bundled copy on start. */
   extensionDir: string
+  /** Version of the extension in that folder (what /ping reports); null when there is none. */
+  extensionVersion: string | null
   running: boolean
+  /** Extensions paired by a click in Vault; a new key («Відключити») clears the list. */
+  clients: CaptureClient[]
+}
+
+/** A pairing request waiting for «Дозволити» / «Відхилити» in Vault. */
+export interface PairRequestView {
+  id: string
+  origin: string
+  /** The requester is the extension Vault ships (stable id from its manifest `key`). */
+  vault: boolean
+  expiresAt: number
+}
+
+export const pairAnswerSchema = z.object({
+  id: z.string().min(1).max(64),
+  allow: z.boolean()
+})
+export type PairAnswer = z.infer<typeof pairAnswerSchema>
+
+/** «Встановити розширення»: the folder (its path is on the clipboard) and whether Chrome was opened. */
+export interface ExtensionInstallResult {
+  dir: string
+  browserOpened: boolean
 }

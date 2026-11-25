@@ -17,6 +17,9 @@
         </div>
       </div>
 
+      <!-- Vault has a newer extension, but Chrome loads this one from another folder: reloading would not help. -->
+      <p class="hint notice" id="update-hint" hidden></p>
+
       <div class="segment" id="targets" aria-label="Куди зберегти"></div>
 
       <div>
@@ -77,6 +80,20 @@
         <button type="button" class="primary" id="save" title="Ctrl+Enter" aria-keyshortcuts="Control+Enter">Зберегти у Vault</button>
       </div>
     </main>
+
+    <!-- No working key, pairing, self-update: shown instead of the form (connect.js). -->
+    <section class="connect" id="connect" aria-labelledby="connect-title">
+      <span class="big" id="connect-mark" aria-hidden="true"></span>
+      <div class="connect-status" aria-live="polite">
+        <h1 class="what" id="connect-title" tabindex="-1"></h1>
+        <p class="hint" id="connect-text"></p>
+      </div>
+      <p class="count" id="connect-timer"></p>
+      <div class="actions">
+        <button type="button" class="soft" id="connect-secondary" hidden></button>
+        <button type="button" class="primary" id="connect-primary" hidden></button>
+      </div>
+    </section>
 
     <section class="done" id="done" aria-live="polite">
       <span class="big" aria-hidden="true">✓</span>

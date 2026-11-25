@@ -41,7 +41,19 @@ interface ConfigShape {
   ai: AiSettings
   /** Today's AI requests and tokens, so the daily limit survives a restart. */
   aiUsage: AiUsage
+  /** Browser extensions paired by «Дозволити» (origins only, never the key). */
+  captureClients: StoredCaptureClient[]
 }
+
+export interface StoredCaptureClient {
+  origin: string
+  approvedAt: number
+}
+
+const isStoredClient = (x: unknown): x is StoredCaptureClient =>
+  !!x &&
+  typeof (x as StoredCaptureClient).origin === 'string' &&
+  typeof (x as StoredCaptureClient).approvedAt === 'number'
 
 export const DEFAULT_SETTINGS: Settings = {
   userName: '',
@@ -72,7 +84,8 @@ const DEFAULTS: ConfigShape = {
   lastCardNudge: null,
   seeded: [],
   ai: DEFAULT_AI_SETTINGS,
-  aiUsage: { day: '', requests: 0, inputTokens: 0, outputTokens: 0 }
+  aiUsage: { day: '', requests: 0, inputTokens: 0, outputTokens: 0 },
+  captureClients: []
 }
 
 /**
@@ -157,7 +170,10 @@ export class ConfigStore {
         ? raw.seeded.filter((x): x is string => typeof x === 'string')
         : [],
       ai: readSection('AI setting', aiSettingsSchema, DEFAULT_AI_SETTINGS, raw.ai),
-      aiUsage: aiUsageSchema.safeParse(raw.aiUsage).data ?? structuredClone(DEFAULTS.aiUsage)
+      aiUsage: aiUsageSchema.safeParse(raw.aiUsage).data ?? structuredClone(DEFAULTS.aiUsage),
+      captureClients: Array.isArray(raw.captureClients)
+        ? raw.captureClients.filter(isStoredClient).slice(0, 20)
+        : []
     }
   }
 
@@ -264,6 +280,15 @@ export class ConfigStore {
 
   set aiUsage(usage: AiUsage) {
     this.data.aiUsage = usage
+    this.scheduleWrite()
+  }
+
+  get captureClients(): StoredCaptureClient[] {
+    return this.data.captureClients.map((c) => ({ ...c }))
+  }
+
+  set captureClients(clients: StoredCaptureClient[]) {
+    this.data.captureClients = clients
     this.scheduleWrite()
   }
 

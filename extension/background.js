@@ -1,7 +1,12 @@
-// Service worker: finishes the «Виділити область» flow and sends captures.
+// Service worker: finishes the «Виділити область» flow, sends captures and pairs with Vault.
 // The popup closes while the user drags a rectangle, so the content script reports the
 // rectangle here; we capture the visible tab, crop it and keep the result for the popup.
-import { AREA_TTL, sendCapture } from './shared.js'
+// It also closes when the Vault window comes up for «Дозволити»: pairing waits here (pairing.js).
+import { AREA_TTL, restoreAfterReload, sendCapture } from './shared.js'
+import { cancelPairing, getPairing, startPairing, watchPairing } from './pairing.js'
+
+// After a self-update (reloadForUpdate): the popup's drafts come back, the popup reopens.
+restoreAfterReload().catch((e) => console.error('[vault update]', e))
 
 /** Area PNGs live in storage.session (10 MB quota): keep only the freshest few. */
 const AREA_KEEP = 3
@@ -39,6 +44,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           status: 'error',
           error: 'Не вдалося зберегти. Спробуйте ще раз.'
         })
+      })
+    return true
+  }
+  // Pairing: only from the extension's own pages (no sender.tab), never from a content script.
+  if (msg?.type === 'vault-pair' && !sender.tab) {
+    startPairing()
+      .then(sendResponse)
+      .catch((e) => {
+        console.error('[vault pair]', e)
+        sendResponse({ state: 'error', error: 'Не вдалося надіслати запит. Спробуйте ще раз.' })
+      })
+    return true
+  }
+  if (msg?.type === 'vault-pair-watch' && !sender.tab) {
+    // A reopened popup: polling may have stopped with a worker Chrome put to sleep.
+    getPairing()
+      .then((p) => void watchPairing(p))
+      .catch((e) => console.error('[vault pair]', e))
+    return false
+  }
+  if (msg?.type === 'vault-pair-cancel' && !sender.tab) {
+    cancelPairing()
+      .then(() => sendResponse({ ok: true }))
+      .catch((e) => {
+        console.error('[vault pair]', e)
+        sendResponse({ ok: false })
       })
     return true
   }

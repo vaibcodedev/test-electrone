@@ -140,6 +140,9 @@ import type {
 import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
 import type {
   CaptureInfo,
+  ExtensionInstallResult,
+  PairAnswer,
+  PairRequestView,
   DevProject,
   DevProjectInput,
   DevProjectPatch,
@@ -706,8 +709,15 @@ export interface ReviewApi {
 
 export interface CaptureApi {
   info(): Promise<CaptureInfo>
+  /** A new key: every extension (paired or with a pasted key) is disconnected — «Відключити». */
   regenerateKey(): Promise<CaptureInfo>
   openExtensionDir(): Promise<void>
+  /** Refreshes the extension folder, copies its path and opens chrome://extensions when Chrome is found. */
+  installExtension(): Promise<ExtensionInstallResult>
+  /** The pairing request waiting for an answer (the dialog reads it on start), or null. */
+  pairRequest(): Promise<PairRequestView | null>
+  /** «Дозволити» / «Відхилити»: refused when the request is gone or was replaced meanwhile. */
+  answerPair(input: PairAnswer): Promise<void>
 }
 
 export interface TagsApi {
@@ -934,6 +944,8 @@ export interface MainEvents {
   'dev:status': RunningScript
   /** Messages from background work (e.g. editor not found). */
   toast: { kind: 'error' | 'success' | 'info'; message: string }
+  /** The extension asks for access («Під’єднати до Vault»); null once it is answered, replaced or expired. */
+  'capture:pair': PairRequestView | null
 }
 
 export type MainEventName = keyof MainEvents
@@ -945,7 +957,8 @@ export const MAIN_EVENTS: MainEventName[] = [
   'quick-add:open',
   'dev:log',
   'dev:status',
-  'toast'
+  'toast',
+  'capture:pair'
 ]
 
 /** Shape of the RPC envelope; errors are serialised explicitly to keep messages intact. */

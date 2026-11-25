@@ -21,6 +21,7 @@ import { SidebarProvider, useSidebar } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CommandPalette } from '@/features/command-palette'
 import { QuickAddDialog } from '@/features/quick-add'
+import { ExtensionPairDialog } from '@/features/extension-pair-dialog'
 import { ShortcutsDialog } from '@/features/shortcuts-dialog'
 import { useUi } from '@/stores/ui-store'
 import { useMainEvent, useMainEventsBridge } from '@/hooks/use-main-events'
@@ -170,6 +171,8 @@ export function AppShell(): ReactElement {
       <QuickAddDialog />
       <ShortcutsDialog />
       <CloseConfirmHost />
+      {/* «Під’єднати до Vault» from the browser extension: main brings the window up with this question. */}
+      <ExtensionPairDialog />
       {platformMounted && (
         <Suspense fallback={null}>
           <PlatformDialogHost />
