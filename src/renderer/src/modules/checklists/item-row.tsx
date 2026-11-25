@@ -133,7 +133,7 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
           </div>
         ) : (
           // Editable in place, like InlineTitle: a tint and a pencil on hover / focus say the text can be changed.
-          <div className="flex flex-col items-start">
+          <div className="flex flex-col items-start gap-1.5">
             <Button
               variant="ghost"
               onClick={() => startEditing()}
@@ -150,7 +150,8 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
               <Button
                 variant="ghost"
                 size="xs"
-                className={cn('-ml-1 h-6 px-1.5 text-caption', ROW_ACTION)}
+                // -ml-2 with px-2: «+ Підказка» starts exactly under the step's text, 6px below it.
+                className={cn('-ml-2 h-7 gap-1.5 px-2 text-caption', ROW_ACTION)}
                 onClick={() => startEditing('hint')}
               >
                 <Plus /> Підказка
