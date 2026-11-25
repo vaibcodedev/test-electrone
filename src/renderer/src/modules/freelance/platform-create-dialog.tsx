@@ -16,9 +16,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Field } from '@/components/common/page'
 import { FormDialog } from '@/components/common/form-dialog'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
-import { Choice } from '../crm/parts'
-import { PLATFORM_KIND_LABEL } from './proposal-labels'
-import { ColorSwatches } from './color-swatches'
+import { Choice } from '@/components/common/choice'
+import { ColorSwatches } from '@/components/common/color-swatches'
+import { PLATFORM_COLOR_NAME, PLATFORM_COLORS, PLATFORM_KIND_LABEL } from './proposal-labels'
 
 const PLATFORM_L = limitsOf(platformInputSchema)
 const PLATFORM_R = rangesOf(platformInputSchema)
@@ -164,7 +164,7 @@ export function PlatformDialogHost(): ReactElement {
             value={name}
             maxLength={PLATFORM_L.name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Наприклад, Fiverr"
+            placeholder="Напр.: Fiverr"
             aria-invalid={!name.trim() || undefined}
             autoFocus
           />
@@ -185,17 +185,24 @@ export function PlatformDialogHost(): ReactElement {
           />
         </Field>
         <NumberField
-          label="Комісія за замовчуванням"
+          label="Типова комісія"
           value={fee}
           {...PLATFORM_R.defaultFeePercent}
           step={0.5}
           unit="%"
           onCommit={setFee}
+          live
           onValidityChange={numbers.report('fee')}
         />
       </div>
       <Field label="Колір">
-        <ColorSwatches value={color} onChange={setColor} />
+        <ColorSwatches
+          colors={PLATFORM_COLORS}
+          names={PLATFORM_COLOR_NAME}
+          allowNone
+          value={color}
+          onChange={setColor}
+        />
       </Field>
     </FormDialog>
   )

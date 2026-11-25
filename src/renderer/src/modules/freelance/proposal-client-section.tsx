@@ -40,22 +40,20 @@ export function ProposalClientSection({
           value={p.clientName}
           onSave={(clientName) => patch({ clientName })}
         />
-        {/* CountryCombobox shows «—» for an empty value while reading, so the field is left out here. */}
-        {!(readOnly && !p.clientCountry) && (
-          <Field label="Країна">
-            <CountryCombobox
-              value={p.clientCountry}
-              onChange={(clientCountry) => patch({ clientCountry })}
-            />
-          </Field>
-        )}
+        <Field label="Країна" htmlFor={`country-${p.id}`}>
+          <CountryCombobox
+            id={`country-${p.id}`}
+            value={p.clientCountry}
+            onChange={(clientCountry) => patch({ clientCountry })}
+          />
+        </Field>
         <NumberField
           label="Рейтинг"
           value={p.clientRating}
           {...R.clientRating}
           step={0.1}
           onCommit={(clientRating) => patch({ clientRating })}
-          placeholder="напр. 4,9"
+          placeholder="Напр.: 4,9"
           unit="★"
         />
         <NumberField
@@ -66,7 +64,7 @@ export function ProposalClientSection({
           unit={platform.currency}
         />
         <NumberField
-          label="Найм, %"
+          label="Найм"
           value={p.clientHireRate}
           {...R.clientHireRate}
           onCommit={(clientHireRate) => patch({ clientHireRate })}
@@ -77,7 +75,7 @@ export function ProposalClientSection({
           maxLength={PROPOSAL_L.proposalsOnJob}
           value={p.proposalsOnJob}
           onSave={(proposalsOnJob) => patch({ proposalsOnJob })}
-          placeholder="Наприклад, 20–50"
+          placeholder="Напр.: 20–50"
         />
       </div>
       {/* While reading only the positive fact is shown: a locked «off» switch read as a warning. */}

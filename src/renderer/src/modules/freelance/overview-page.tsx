@@ -5,8 +5,9 @@ import { AlertTriangle, ArchiveRestore, ArrowRight, ChevronDown, Plus } from 'lu
 import type { Platform } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
-import { fmtDay, fmtMoney, fmtPercent, fmtReplyTime, plural } from '@/lib/format'
+import { fmtMoney, fmtPercent, fmtReplyTime, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { scrollBehavior } from '@/lib/dom'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup, ButtonGroupSeparator } from '@/components/ui/button-group'
 import {
@@ -33,13 +34,15 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
 import { MoneyValue } from '@/components/common/money-value'
+import { RowSkeleton } from '@/components/common/page-skeleton'
+import { WithRate } from '@/components/common/funnel'
 import { StatTile } from '@/components/common/stat-tile'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { SectionLabel } from '@/components/common/section-label'
 import { EmptyValue } from '../crm/parts'
 import { GoalCard } from './goal-card'
+import { sentLabel } from './proposal-labels'
 
 const LOW_CREDITS = 30
 
@@ -47,8 +50,8 @@ const LOW_CREDITS = 30
 function RowsSkeleton(): ReactElement {
   return (
     <div className="flex flex-col gap-1.5">
-      <Skeleton className="h-10 rounded-2xl" />
-      <Skeleton className="h-10 rounded-2xl" />
+      <RowSkeleton height={40} className="bg-card" />
+      <RowSkeleton height={40} className="bg-card" />
     </div>
   )
 }
@@ -103,7 +106,7 @@ function CreditsRow({ platform }: { platform: Platform }): ReactElement {
   const navigate = useNavigate()
   const { data: s } = useApi('credits', 'summary', { platformId: platform.id })
   // Same height as the row: the balance card doesn't jump when the numbers arrive.
-  if (!s) return <Skeleton className="h-[60px] rounded-2xl" />
+  if (!s) return <RowSkeleton height={60} className="bg-card" />
   // A platform that never had credits isn't «running low» — it just hasn't started.
   const started = s.spent > 0 || s.balance > 0
   const low = started && s.balance < LOW_CREDITS
@@ -154,22 +157,27 @@ export function FreelanceOverviewPage() {
   const { hash } = useLocation()
   useEffect(() => {
     if (hash === '#archived' && archived.length)
-      document.getElementById('archived')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document
+        .getElementById('archived')
+        ?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
   }, [hash, archived.length])
   const { data: goals = [] } = useApi('goals', 'progress')
   const { data: stats, isLoading: statsLoading } = useApi('freelance', 'stats', { from })
   const { data: stale = [], isLoading: staleLoading } = useApi('proposals', 'stale', { days: 3 })
   const { data: active = [] } = useApi('projects', 'list', { status: 'active' })
   const { data: month } = useApi('finance', 'month', { month: monthKey })
+  const [now] = useState(() => Date.now())
 
   const contracts = active.filter((p) => p.platformId)
+  // Archived platforms too: their proposals still show up in the funnel and the follow-ups.
   const platformName = (id: string | null): string | undefined =>
-    platformList.find((p) => p.id === id)?.name
+    allPlatforms.find((p) => p.id === id)?.name
   const withCredits = platformList.filter((p) => p.creditsName)
-  const showCredits = withCredits.length > 0
-  // The column sums paid bids (credits + boost), so it is named after the credits, not «відгуки».
-  const creditsHead = withCredits.length === 1 ? withCredits[0].creditsName : 'Витрачено кредитів'
-  const paysCredits = (platformId: string): boolean => withCredits.some((p) => p.id === platformId)
+  // The funnel counts archived platforms as well, so the column follows all of them, not only the menu.
+  const creditPlatforms = allPlatforms.filter((p) => p.creditsName)
+  const showCredits = creditPlatforms.length > 0
+  const paysCredits = (platformId: string): boolean =>
+    creditPlatforms.some((p) => p.id === platformId)
   const go = (platformId: string): void => void navigate(`/freelance/p/${platformId}?tab=stats`)
   const netEntries = Object.entries(month?.net ?? {}) as [Currency, number][]
   const totals = stats?.totals
@@ -199,11 +207,15 @@ export function FreelanceOverviewPage() {
                 <EmptyValue className="text-ink-muted">Оплат цього місяця ще немає</EmptyValue>
               )
             }
-            hint={`${contracts.length} ${plural(contracts.length, [
-              'активний контракт',
-              'активні контракти',
-              'активних контрактів'
-            ])}`}
+            hint={
+              contracts.length > 0
+                ? `${contracts.length} ${plural(contracts.length, [
+                    'активний контракт',
+                    'активні контракти',
+                    'активних контрактів'
+                  ])}`
+                : undefined
+            }
           />
 
           <Card className="col-span-8">
@@ -231,7 +243,15 @@ export function FreelanceOverviewPage() {
                       <TableHead className="text-right">Відповіді</TableHead>
                       <TableHead className="text-right">Інтерв’ю</TableHead>
                       <TableHead className="text-right">Контракти</TableHead>
-                      {showCredits && <TableHead className="text-right">{creditsHead}</TableHead>}
+                      {/* «Витрачено», not the credits' name: next to the balance card it read as a balance. */}
+                      {showCredits && (
+                        <TableHead
+                          className="text-right"
+                          title="Кредити на платні відгуки (разом із бустом)"
+                        >
+                          Витрачено
+                        </TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -253,16 +273,15 @@ export function FreelanceOverviewPage() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{r.sent}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {r.replied}{' '}
-                          <span className="text-muted-foreground">· {fmtPercent(r.replyRate)}</span>
+                          <WithRate value={r.replied} rate={r.replyRate} />
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{r.interview}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {r.hired} <span className="text-muted-foreground">· {fmtPercent(r.hireRate)}</span>
+                          <WithRate value={r.hired} rate={r.hireRate} />
                         </TableCell>
                         {showCredits && (
                           <TableCell className="text-right tabular-nums">
-                            {paysCredits(r.key) ? (
+                            {r.credits > 0 || paysCredits(r.key) ? (
                               r.credits
                             ) : (
                               <span className="text-muted-foreground">—</span>
@@ -328,7 +347,12 @@ export function FreelanceOverviewPage() {
                             {p.jobTitle}
                           </ItemTitle>
                           <ItemDescription className="text-caption">
-                            {platformName(p.platformId)} · надіслано {fmtDay(p.sentAt)}
+                            {[
+                              platformName(p.platformId),
+                              p.sentAt && `надіслано ${sentLabel(p.sentAt, now)}`
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
                           </ItemDescription>
                         </ItemContent>
                       </button>
@@ -341,11 +365,7 @@ export function FreelanceOverviewPage() {
 
           <Card className="col-span-6">
             <CardHeader>
-              <CardTitle>
-                {withCredits.length === 1
-                  ? `Баланс: ${withCredits[0].creditsName}`
-                  : 'Баланс кредитів'}
-              </CardTitle>
+              <CardTitle>Баланс кредитів</CardTitle>
               <CardDescription>Попередження, коли лишилося менше {LOW_CREDITS}.</CardDescription>
             </CardHeader>
             <CardContent>

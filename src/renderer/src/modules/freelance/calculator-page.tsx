@@ -69,106 +69,140 @@ export function CalculatorPage() {
     <Page>
       <PageHeader
         title="Калькулятор ставки"
-        subtitle="Скільки брати за годину, щоб після комісії платформи, виведення й податків на руках лишалася потрібна сума."
+        subtitle="Скільки брати за годину, щоб після комісій і податків лишалася потрібна сума."
       />
       <PageBody>
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Вхідні дані</CardTitle>
-              <CardDescription>Зберігаються на цьому комп’ютері.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <NumberField
-                id="rc-target"
-                label="Хочу на руки за місяць"
-                unit="USD"
-                value={shown(input.targetNet)}
-                onCommit={(n) => set('targetNet', n ?? 0)}
-                min={0}
-                max={10_000_000}
-              />
-              <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-start gap-4">
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Вхідні дані</CardTitle>
+                <CardDescription>Зберігаються на цьому комп’ютері.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
                 <NumberField
-                  id="rc-hours"
-                  label="Годин на тиждень"
-                  unit="год"
-                  value={shown(input.hoursPerWeek)}
-                  onCommit={(n) => set('hoursPerWeek', n ?? 1)}
-                  min={1}
-                  max={100}
-                  integer
-                />
-                <NumberField
-                  id="rc-vac"
-                  label="Тижнів відпочинку на рік"
-                  unit="тиж."
-                  value={shown(input.vacationWeeks)}
-                  onCommit={(n) => set('vacationWeeks', n ?? 0)}
+                  id="rc-target"
+                  label="Хочу на руки за місяць"
+                  unit="USD"
+                  value={shown(input.targetNet)}
+                  onCommit={(n) => set('targetNet', n ?? 0)}
                   min={0}
-                  max={30}
-                  integer
+                  max={10_000_000}
                 />
-              </div>
-              <Field className="gap-3">
-                <FieldLabel>Оплачуваний час: {input.billableShare}%</FieldLabel>
-                <Slider
-                  min={5}
-                  max={100}
-                  step={5}
-                  value={[input.billableShare]}
-                  onValueChange={([v]) => set('billableShare', v)}
-                  aria-label="Частка оплачуваного часу"
-                />
-                <FieldDescription className="text-caption">
-                  Решта — відгуки, дзвінки, правки без оплати, навчання.
-                </FieldDescription>
-              </Field>
-              <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField
+                    id="rc-hours"
+                    label="Годин на тиждень"
+                    unit="год"
+                    value={shown(input.hoursPerWeek)}
+                    onCommit={(n) => set('hoursPerWeek', n ?? 1)}
+                    min={1}
+                    max={100}
+                    integer
+                  />
+                  <NumberField
+                    id="rc-vac"
+                    label="Тижнів відпочинку на рік"
+                    unit="тиж."
+                    value={shown(input.vacationWeeks)}
+                    onCommit={(n) => set('vacationWeeks', n ?? 0)}
+                    min={0}
+                    max={30}
+                    integer
+                  />
+                </div>
+                <Field className="gap-3">
+                  <FieldLabel>Оплачуваний час: {input.billableShare}%</FieldLabel>
+                  <Slider
+                    min={5}
+                    max={100}
+                    step={5}
+                    value={[input.billableShare]}
+                    onValueChange={([v]) => set('billableShare', v)}
+                    aria-label="Частка оплачуваного часу"
+                  />
+                  <FieldDescription className="text-caption">
+                    Решта — відгуки, дзвінки, правки без оплати, навчання.
+                  </FieldDescription>
+                </Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <NumberField
+                    id="rc-fee"
+                    label="Комісія платформи"
+                    unit="%"
+                    value={shown(input.feePercent)}
+                    onCommit={(n) => set('feePercent', n ?? 0)}
+                    min={0}
+                    max={100}
+                  />
+                  <NumberField
+                    id="rc-wd"
+                    label="Комісія виведення"
+                    unit="%"
+                    value={shown(input.withdrawalFeePercent)}
+                    onCommit={(n) => set('withdrawalFeePercent', n ?? 0)}
+                    min={0}
+                    max={100}
+                  />
+                  <NumberField
+                    id="rc-tax"
+                    label="Податок"
+                    unit="%"
+                    value={shown(input.taxPercent)}
+                    onCommit={(n) => set('taxPercent', n ?? 0)}
+                    min={0}
+                    max={100}
+                  />
+                </div>
                 <NumberField
-                  id="rc-fee"
-                  label="Комісія платформи"
-                  unit="%"
-                  value={shown(input.feePercent)}
-                  onCommit={(n) => set('feePercent', n ?? 0)}
+                  id="rc-exp"
+                  label="Витрати на місяць"
+                  unit="USD"
+                  hint={
+                    subsUsd !== undefined
+                      ? `Підписки в розділі «Фінанси»: ${usd(subsUsd)} на місяць`
+                      : undefined
+                  }
+                  value={shown(input.monthlyExpenses)}
+                  onCommit={(n) => set('monthlyExpenses', n ?? 0)}
                   min={0}
-                  max={100}
+                  max={10_000_000}
                 />
-                <NumberField
-                  id="rc-wd"
-                  label="Комісія виведення"
-                  unit="%"
-                  value={shown(input.withdrawalFeePercent)}
-                  onCommit={(n) => set('withdrawalFeePercent', n ?? 0)}
-                  min={0}
-                  max={100}
-                />
-                <NumberField
-                  id="rc-tax"
-                  label="Податок"
-                  unit="%"
-                  value={shown(input.taxPercent)}
-                  onCommit={(n) => set('taxPercent', n ?? 0)}
-                  min={0}
-                  max={100}
-                />
-              </div>
-              <NumberField
-                id="rc-exp"
-                label="Витрати на місяць"
-                unit="USD"
-                hint={
-                  subsUsd !== undefined
-                    ? `Підписки в розділі «Фінанси»: ${usd(subsUsd)} на місяць`
-                    : undefined
-                }
-                value={shown(input.monthlyExpenses)}
-                onCommit={(n) => set('monthlyExpenses', n ?? 0)}
-                min={0}
-                max={10_000_000}
-              />
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Проєкт за фіксовану ціну</CardTitle>
+                <CardDescription>Скільки просити за проєкт за оцінкою в годинах.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-end gap-4">
+                <div className="w-32">
+                  <NumberField
+                    id="rc-fixed"
+                    label="Оцінка"
+                    unit="год"
+                    value={shown(fixedHours)}
+                    onCommit={(n) => setFixedHours(n ?? 1)}
+                    min={1}
+                    max={10_000}
+                    integer
+                  />
+                </div>
+                <div className="pb-1">
+                  <div className="font-display text-headline leading-none tabular-nums">
+                    {usd(fixedBase)}
+                  </div>
+                  {/* Each sum stays whole: the range used to break right after the dash. */}
+                  <div className="mt-1 text-caption text-muted-foreground">
+                    <div>Із запасом 15–20% на правки:</div>
+                    <span className="whitespace-nowrap">{usd(fixedBase * 1.15)}</span> –{' '}
+                    <span className="whitespace-nowrap">{usd(fixedBase * 1.2)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="flex flex-col gap-4">
             <Card className="bg-ink text-ink-foreground">
@@ -215,38 +249,6 @@ export function CalculatorPage() {
                     <span className="text-body font-medium tabular-nums">{usd(r.grossNeeded)}</span>
                   </Item>
                 </ItemGroup>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Проєкт за фіксовану ціну</CardTitle>
-                <CardDescription>Скільки просити за проєкт за оцінкою в годинах.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex items-end gap-4">
-                <div className="w-32">
-                  <NumberField
-                    id="rc-fixed"
-                    label="Оцінка"
-                    unit="год"
-                    value={shown(fixedHours)}
-                    onCommit={(n) => setFixedHours(n ?? 1)}
-                    min={1}
-                    max={10_000}
-                    integer
-                  />
-                </div>
-                <div className="pb-1">
-                  <div className="font-display text-headline leading-none tabular-nums">
-                    {usd(fixedBase)}
-                  </div>
-                  {/* Each sum stays whole: the range used to break right after the dash. */}
-                  <div className="mt-1 text-caption text-muted-foreground">
-                    <div>Із запасом 15–20% на правки:</div>
-                    <span className="whitespace-nowrap">{usd(fixedBase * 1.15)}</span> –{' '}
-                    <span className="whitespace-nowrap">{usd(fixedBase * 1.2)}</span>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>

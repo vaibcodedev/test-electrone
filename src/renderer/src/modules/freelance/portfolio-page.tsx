@@ -27,6 +27,7 @@ import {
   EmptyState,
   FilterBar,
   FilterChips,
+  Kbd,
   NoResults,
   Page,
   PageBody,
@@ -184,7 +185,7 @@ function CaseProject({
 
 function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
   const update = useApiMutation('cases', 'update')
-  const remove = useApiMutation('cases', 'remove', { successMessage: 'Переміщено в кошик' })
+  const remove = useApiMutation('cases', 'remove', { successMessage: 'Кейс переміщено в кошик' })
   const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
   const entity = { type: 'case' as const, id: c.id }
   // Without any text the copy would be just the title: the button waits for content.
@@ -196,7 +197,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
       disabled={nothingToCopy}
       onClick={() => void copyText(englishText(c), 'Текст кейсу скопійовано')}
     >
-      <ClipboardCopy /> Копіювати англійською
+      <ClipboardCopy /> Скопіювати англійською
     </Button>
   )
 
@@ -208,8 +209,20 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         remove.mutate(c.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Опишіть завдання клієнта, що зроблено й результат — з них збереться текст англійською.
+          Натисніть «Редагувати» або <Kbd>E</Kbd>.
+        </>
+      }
       headerExtra={
-        <DisabledHint reason={nothingToCopy ? 'Додайте опис кейсу, щоб копіювати' : undefined}>
+        <DisabledHint
+          reason={
+            nothingToCopy
+              ? 'Заповніть завдання, що зроблено або результат, щоб скопіювати'
+              : undefined
+          }
+        >
           {copyButton}
         </DisabledHint>
       }
@@ -256,7 +269,8 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
       }
     >
       <EditorStack>
-        <CaseCover c={c} />
+        {/* Without a cover the drop zone goes last: E must not push the title down by its height. */}
+        {c.coverPath && <CaseCover c={c} />}
         <AutoTitle
           value={c.title}
           onSave={(title) => save({ title })}
@@ -272,12 +286,12 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
           placeholder="Що хотів клієнт і яка була проблема"
         />
         <AutoMarkdown
-          label="Що зробив"
+          label="Що зроблено"
           value={c.whatDone}
           onSave={(whatDone) => save({ whatDone })}
           maxLength={CASE_L.whatDone}
           minHeight="140px"
-          placeholder="Ключові рішення: що й як ви зробили"
+          placeholder="Ключові рішення: що й як зроблено"
         />
         <AutoMarkdown
           label="Результат"
@@ -289,13 +303,14 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
         />
         <TextareaBlock
           label="Текст англійською"
-          hint="Його копіює кнопка «Копіювати англійською». Порожньо — збереться із завдання, роботи й результату."
+          hint="Його копіює кнопка «Скопіювати англійською». Якщо поле порожнє, текст збереться із завдання, що зроблено й результату."
           value={c.textEn}
           maxLength={CASE_L.textEn}
           onSave={(textEn) => save({ textEn })}
           className="min-h-40 text-lead leading-relaxed"
           placeholder="Built a … that …"
         />
+        {!c.coverPath && <CaseCover c={c} />}
       </EditorStack>
     </DetailPane>
   )
@@ -303,17 +318,20 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
 
 function CoverlessPreview({ c }: { c: PortfolioCase }): ReactElement {
   const text = mdPreview(c.result || c.problem || c.whatDone)
+  // Nothing to show: one quiet line, not an icon alone in a big empty frame.
+  if (!text)
+    return (
+      <div className="flex size-full items-center justify-center gap-1.5 p-3 text-caption text-muted-foreground">
+        <BriefcaseBusiness className="size-3.5 shrink-0" />
+        Немає опису й скриншота
+      </div>
+    )
   return (
-    <div
-      className={cn(
-        'flex size-full flex-col gap-2 p-3',
-        text ? 'items-start' : 'items-center justify-center'
-      )}
-    >
+    <div className="flex size-full flex-col items-start gap-2 p-3">
       <div className="rounded-xl bg-foreground/[0.07] p-2 text-muted-foreground">
         <BriefcaseBusiness className="size-4" />
       </div>
-      {text && <p className="line-clamp-4 text-caption text-muted-foreground">{text}</p>}
+      <p className="line-clamp-4 text-caption text-muted-foreground">{text}</p>
     </div>
   )
 }
@@ -348,32 +366,31 @@ export function PortfolioPage() {
           </Button>
         }
       >
-        <FilterBar
-          chips={
-            niches.length > 0 && (
-              <FilterChips
-                allLabel="Усі"
-                value={niche}
-                onChange={setNiche}
-                options={niches.map((n) => ({ value: n, label: n }))}
-              />
-            )
-          }
-          trailing={
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Шукати в кейсах"
-              className="w-72"
-            />
-          }
-        />
+        {/* Nothing to filter or search on an empty base: the row comes with the first case. */}
+        {(sample.length > 0 || search || niche) && (
+          <FilterBar
+            chips={
+              niches.length > 0 && (
+                <FilterChips
+                  allLabel="Усі"
+                  value={niche}
+                  onChange={setNiche}
+                  options={niches.map((n) => ({ value: n, label: n }))}
+                />
+              )
+            }
+            trailing={
+              <SearchInput value={search} onChange={setSearch} placeholder="Шукати в кейсах" />
+            }
+          />
+        )}
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
             <VirtualGrid
               className="pr-1"
+              activeKey={open}
               items={list.items}
               loading={list.isLoading}
               getKey={(c) => c.id}
@@ -423,8 +440,8 @@ export function PortfolioPage() {
                     {/* Reserved line: cards stay the same height with or without niche/stack. */}
                     <div className="flex h-6 min-w-0 items-center gap-1.5">
                       {c.niche && (
-                        <Badge variant="soft" className="shrink" title={c.niche}>
-                          <span className="truncate">{c.niche}</span>
+                        <Badge variant="soft" truncate>
+                          {c.niche}
                         </Badge>
                       )}
                       {c.stack && <span className="min-w-0 truncate text-meta text-muted-foreground">{c.stack}</span>}

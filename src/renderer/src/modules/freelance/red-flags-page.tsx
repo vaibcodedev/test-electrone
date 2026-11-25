@@ -21,6 +21,7 @@ import { useReadOnly } from '@/components/common/detail-mode-context'
 import {
   EmptyState,
   FilterBar,
+  Kbd,
   NoResults,
   Page,
   PageBody,
@@ -49,7 +50,7 @@ const SEVERITY_VARIANT: Record<number, 'soft' | 'warn' | 'destructive'> = {
 
 const SEVERITY_DOT: Record<'soft' | 'warn' | 'destructive', string> = {
   soft: 'bg-muted-foreground',
-  warn: 'bg-warn',
+  warn: 'bg-warn-fill',
   destructive: 'bg-destructive'
 }
 
@@ -82,17 +83,25 @@ const SEVERITY_OPTIONS = [1, 2, 3].map((n) => ({ value: String(n), label: SEVERI
  * Coloured badge while reading (the record's main signal). While editing — a Select: three segments
  * don't fit the narrow aside column (docs/design-system.md → Переключатели).
  */
-function SeverityField({ severity, onChange }: { severity: number; onChange: (v: number) => void }): ReactElement {
+function SeverityField({
+  id,
+  severity,
+  onChange
+}: {
+  id: string
+  severity: number
+  onChange: (v: number) => void
+}): ReactElement {
   const readOnly = useReadOnly()
   return (
-    <Block label="Наскільки серйозно">
+    <Block label="Наскільки серйозно" htmlFor={id}>
       {readOnly ? (
         <div data-view>
           <SeverityBadge severity={severity} />
         </div>
       ) : (
         <Select value={String(severity)} onValueChange={(v) => onChange(Number(v))}>
-          <SelectTrigger size="sm" className="w-full" aria-label="Наскільки серйозно">
+          <SelectTrigger id={id} size="sm" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -117,7 +126,9 @@ function SeverityField({ severity, onChange }: { severity: number; onChange: (v:
 
 function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
   const update = useApiMutation('redflags', 'update')
-  const remove = useApiMutation('redflags', 'remove', { successMessage: 'Переміщено в кошик' })
+  const remove = useApiMutation('redflags', 'remove', {
+    successMessage: 'Прапорець переміщено в кошик'
+  })
   const save = (patch: RedFlagPatch): void => update.mutate({ id: flag.id, patch })
   const entity = { type: 'redflag' as const, id: flag.id }
 
@@ -129,6 +140,12 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
         remove.mutate(flag.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Ще не описано, як розпізнати цей прапорець і що робити. Натисніть «Редагувати» або{' '}
+          <Kbd>E</Kbd>.
+        </>
+      }
       aside={
         <EntityAside
           entity={entity}
@@ -138,7 +155,11 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
           updatedAt={flag.updatedAt}
           files={false}
         >
-          <SeverityField severity={flag.severity} onChange={(severity) => save({ severity })} />
+          <SeverityField
+            id={`severity-${flag.id}`}
+            severity={flag.severity}
+            onChange={(severity) => save({ severity })}
+          />
         </EntityAside>
       }
     >
@@ -183,7 +204,7 @@ export function RedFlagsPage() {
     <Page>
       <PageHeader
         title="Червоні прапорці"
-        subtitle="Ознаки клієнтів і вакансій, яких краще оминати. Клієнтові можна поставити статус «Не працювати» в його картці."
+        subtitle="Ознаки клієнтів і вакансій, яких краще оминати."
         actions={
           <>
             <ImportButton kind="redflag" onImported={(id) => id && setOpen(id)} />
@@ -193,22 +214,21 @@ export function RedFlagsPage() {
           </>
         }
       >
-        <FilterBar
-          trailing={
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Шукати за ознаками"
-              className="w-72"
-            />
-          }
-        />
+        {/* Nothing to search on an empty base: the field comes with the first flag. */}
+        {(search || list.isLoading || list.items.length > 0) && (
+          <FilterBar
+            trailing={
+              <SearchInput value={search} onChange={setSearch} placeholder="Шукати за ознаками" />
+            }
+          />
+        )}
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
             <VirtualList
               className="pr-1"
+              activeKey={open}
               items={list.items}
               loading={list.isLoading}
               getKey={(f) => f.id}
@@ -218,7 +238,7 @@ export function RedFlagsPage() {
               onLoadMore={list.loadMore}
               empty={
                 !list.isLoading &&
-                (search ? (
+                (search.trim() ? (
                   <NoResults
                     hint={`За запитом «${search.trim()}» прапорців немає.`}
                     onReset={() => setSearch('')}
@@ -226,8 +246,8 @@ export function RedFlagsPage() {
                 ) : (
                   <EmptyState
                     icon={Flag}
-                    title="Прапорців немає"
-                    hint="Запишіть ознаку проблемного клієнта, щойно на неї натрапите."
+                    title="Прапорців поки немає"
+                    hint="Запишіть ознаку проблемного клієнта, щойно на неї натрапите. Самому клієнтові можна поставити статус «Не працювати»."
                     cta={{ label: 'Додати прапорець', icon: Plus, onClick: add }}
                   />
                 ))

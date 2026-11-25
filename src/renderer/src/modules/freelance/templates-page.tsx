@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactElement } from 'react'
+import { useSearchParams } from 'react-router'
 import { ArrowRight, Copy, MessageSquareQuote, Plus } from 'lucide-react'
 import {
   TEMPLATE_SITUATIONS,
@@ -13,6 +14,7 @@ import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { capitalize, fmtPercent, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { SectionLabel } from '@/components/common/section-label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ItemDescription } from '@/components/ui/item'
@@ -24,6 +26,7 @@ import {
   EmptyState,
   FilterBar,
   FilterChips,
+  Kbd,
   NoResults,
   Page,
   PageBody,
@@ -49,9 +52,9 @@ const TPL_L = limitsOf(templateInputSchema)
 const SITUATION_OPTIONS = TEMPLATE_SITUATIONS.map((s) => ({ value: s, label: SITUATION_LABEL[s] }))
 
 /**
- * «Копіювати»: asks for the {variables}, shows the filled text and copies it. A plain button opens the
- * dialog (no DialogTrigger asChild: it would replace the button's data-slot, and the edit-mode rule
- * «only «Зберегти» stays lime» would miss it).
+ * «Скопіювати»: asks for the {variables}, shows the filled text and copies it. Soft, not lime: the page's
+ * one lime action is «+ Шаблон» in the header. A plain button opens the dialog (no DialogTrigger asChild:
+ * it would replace the button's data-slot).
  */
 function CopyTemplateButton({
   template
@@ -69,40 +72,54 @@ function CopyTemplateButton({
     if (!o) setValues({})
   }
   const doCopy = async (): Promise<void> => {
-    await copyText(filled, 'Шаблон скопійовано')
+    if (!(await copyText(filled, 'Шаблон скопійовано'))) return
     markCopied.mutate(template.id)
     onOpenChange(false)
   }
 
   return (
     <>
-      <Button variant="lime" size="sm" onClick={() => setOpen(true)}>
-        <Copy /> Копіювати
+      <Button variant="soft" size="sm" onClick={() => setOpen(true)}>
+        <Copy /> Скопіювати
       </Button>
       <FormDialog
         open={open}
         onOpenChange={onOpenChange}
-        title={template.title}
+        title="Скопіювати шаблон"
         description={
           vars.length
             ? 'Заповніть змінні — порожні лишаться у фігурних дужках.'
             : 'Змінних немає, текст скопіюється як є.'
         }
-        submitLabel="Копіювати текст"
+        submitLabel="Скопіювати текст"
         onSubmit={doCopy}
         className="sm:max-w-2xl"
       >
+        {/* The name goes in the body, not the title: a long one without spaces ran under ✕. */}
+        <p
+          className="line-clamp-2 text-body font-medium [overflow-wrap:anywhere]"
+          title={template.title}
+        >
+          {template.title}
+        </p>
         {vars.length > 0 && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {vars.map((v, i) => (
               <Field key={v} className="gap-1.5">
-                <FieldLabel htmlFor={`var-${v}`} className="flex w-full items-baseline justify-between gap-2">
-                  {variableLabel(v)}
-                  <span className="font-mono text-meta font-normal text-muted-foreground">{`{${v}}`}</span>
+                <FieldLabel
+                  htmlFor={`var-${v}`}
+                  className="flex w-full min-w-0 flex-wrap items-baseline justify-between gap-x-2"
+                >
+                  <span className="min-w-0">{variableLabel(v)}</span>
+                  <span
+                    className="min-w-0 truncate font-mono text-meta font-normal text-muted-foreground"
+                    title={`{${v}}`}
+                  >
+                    {`{${v}}`}
+                  </span>
                 </FieldLabel>
                 <Input
                   id={`var-${v}`}
-                  placeholder={`Порожньо — лишиться {${v}}`}
                   autoFocus={i === 0}
                   value={values[v] ?? ''}
                   onChange={(e) => setValues((s) => ({ ...s, [v]: e.target.value }))}
@@ -112,7 +129,7 @@ function CopyTemplateButton({
           </div>
         )}
         <Field className="gap-1.5">
-          <FieldLabel htmlFor="template-filled">Вийде</FieldLabel>
+          <FieldLabel htmlFor="template-filled">Готовий текст</FieldLabel>
           <Textarea
             id="template-filled"
             readOnly
@@ -125,23 +142,38 @@ function CopyTemplateButton({
   )
 }
 
-function StatBadges({ t }: { t: MessageTemplate }) {
+/** What the template brought: how often it went into proposals and how many of them got a reply or a contract. */
+function TemplateResults({ t }: { t: MessageTemplate }): ReactElement | null {
   if (!t.usedIn && !t.copyCount) return null
+  const share = (n: number, tone?: string): ReactElement => (
+    <>
+      {n} з {t.usedIn} · <span className={tone}>{fmtPercent((n / t.usedIn) * 100)}</span>
+    </>
+  )
   return (
-    <div className="flex flex-wrap gap-1">
-      {t.usedIn > 0 && <Badge variant="soft">у відгуках: {t.usedIn}</Badge>}
-      {t.usedIn > 0 && (
-        <Badge variant="info">
-          відповіді {t.replied} · {fmtPercent((t.replied / t.usedIn) * 100)}
-        </Badge>
-      )}
-      {t.usedIn > 0 && (
-        <Badge variant="success">
-          контракти {t.hired} · {fmtPercent((t.hired / t.usedIn) * 100)}
-        </Badge>
-      )}
-      {t.copyCount > 0 && <Badge variant="outline">скопійовано {t.copyCount}×</Badge>}
-    </div>
+    <section className="flex flex-col gap-2">
+      <SectionLabel>Результати</SectionLabel>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-body">
+        {t.usedIn > 0 && (
+          <>
+            <dt className="text-caption text-muted-foreground">У відгуках</dt>
+            <dd className="tabular-nums">{t.usedIn}</dd>
+            <dt className="text-caption text-muted-foreground">Відповіли</dt>
+            <dd className="tabular-nums">{share(t.replied)}</dd>
+            <dt className="text-caption text-muted-foreground">Контракти</dt>
+            <dd className="tabular-nums">{share(t.hired, 'text-success')}</dd>
+          </>
+        )}
+        {t.copyCount > 0 && (
+          <>
+            <dt className="text-caption text-muted-foreground">Скопійовано</dt>
+            <dd className="tabular-nums">
+              {t.copyCount} {plural(t.copyCount, ['раз', 'рази', 'разів'])}
+            </dd>
+          </>
+        )}
+      </dl>
+    </section>
   )
 }
 
@@ -154,8 +186,16 @@ function TemplateVariables({ body }: { body: string }): ReactElement | null {
     <div className="-mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
       <span className="text-caption text-muted-foreground">Змінні:</span>
       {vars.map((v) => (
-        <Badge key={v} variant="soft" className="max-w-full min-w-0 justify-start" title={`{${v}}`}>
-          <span className="truncate">{variableLabel(v)}</span>
+        // Name and {key} are cut together, so not Badge `truncate`: it takes a single string child.
+        <Badge
+          key={v}
+          variant="soft"
+          className="min-w-0 shrink justify-start"
+          title={`${variableLabel(v)} {${v}}`}
+        >
+          <span className="min-w-0 truncate">
+            {variableLabel(v)} <span className="font-mono text-muted-foreground">{`{${v}}`}</span>
+          </span>
         </Badge>
       ))}
     </div>
@@ -164,7 +204,9 @@ function TemplateVariables({ body }: { body: string }): ReactElement | null {
 
 function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => void }) {
   const update = useApiMutation('templates', 'update')
-  const remove = useApiMutation('templates', 'remove', { successMessage: 'Переміщено в кошик' })
+  const remove = useApiMutation('templates', 'remove', {
+    successMessage: 'Шаблон переміщено в кошик'
+  })
   const save = (patch: TemplatePatch): void => update.mutate({ id: t.id, patch })
   const entity = { type: 'template' as const, id: t.id }
   const isTalk = t.situation === 'small_talk'
@@ -177,13 +219,19 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
         remove.mutate(t.id)
         onClose()
       }}
+      emptyHint={
+        <>
+          Тексту шаблону ще немає. Натисніть «Редагувати» або <Kbd>E</Kbd> і напишіть відповідь —
+          змінні у фігурних дужках заповните під час копіювання.
+        </>
+      }
       headerExtra={
         t.body.trim() ? (
           <CopyTemplateButton template={t} />
         ) : (
-          <DisabledHint reason="Додайте текст, щоб копіювати">
-            <Button variant="lime" size="sm" disabled>
-              <Copy /> Копіювати
+          <DisabledHint reason="Додайте текст шаблону, щоб скопіювати">
+            <Button variant="soft" size="sm" disabled>
+              <Copy /> Скопіювати
             </Button>
           </DisabledHint>
         )
@@ -213,7 +261,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
               onChange={(niche) => save({ niche })}
             />
           </Block>
-          <StatBadges t={t} />
+          <TemplateResults t={t} />
         </EntityAside>
       }
     >
@@ -229,7 +277,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
           value={t.trigger}
           maxLength={TPL_L.trigger}
           onSave={(trigger) => save({ trigger })}
-          placeholder={isTalk ? 'How are you doing?' : 'Наприклад: клієнт запитав про терміни'}
+          placeholder={isTalk ? 'How are you doing?' : 'Напр.: клієнт запитав про терміни'}
         />
         <TextareaBlock
           label={isTalk ? 'Моя відповідь' : 'Текст'}
@@ -251,7 +299,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
           value={t.note}
           maxLength={TPL_L.note}
           onSave={(note) => save({ note })}
-          placeholder="Що означає, коли не варто використовувати"
+          placeholder="Напр.: не для клієнтів із фіксованим бюджетом"
         />
       </EditorStack>
     </DetailPane>
@@ -260,7 +308,22 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
 
 export function TemplatesPage() {
   const [open, setOpen] = useOpenParam()
-  const [situation, setSituation] = useState<TemplateSituation | undefined>()
+  // In the URL: the sidebar and the job pages link to «?situation=cover_letter» and the like.
+  const [params, setParams] = useSearchParams()
+  const raw = params.get('situation')
+  const situation = TEMPLATE_SITUATIONS.includes(raw as TemplateSituation)
+    ? (raw as TemplateSituation)
+    : undefined
+  const setSituation = (v: TemplateSituation | undefined): void =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (v) next.set('situation', v)
+        else next.delete('situation')
+        return next
+      },
+      { replace: true }
+    )
   const [search, setSearch] = useState('')
   const term = useDebounced(search.trim())
   // Full list feeds the situation counters and the open template; the column pages from the server.
@@ -287,7 +350,7 @@ export function TemplatesPage() {
     <Page>
       <PageHeader
         title="Шаблони"
-        subtitle="Готові відповіді для різних ситуацій. Позначайте шаблон у відгуку — статистика покаже, який приводить до контрактів."
+        subtitle="Готові відповіді для відгуків і листування з клієнтами."
         actions={
           <>
             <ImportButton kind="template" onImported={(id) => id && setOpen(id)} />
@@ -297,33 +360,29 @@ export function TemplatesPage() {
           </>
         }
       >
-        <FilterBar
-          chips={
-            // Only situations that have templates; no lone «Усі» chip above an empty base.
-            all.length > 0 && (
+        {/* Nothing to filter or search on an empty base: the row comes with the first template. */}
+        {(all.length > 0 || search || situation) && (
+          <FilterBar
+            chips={
               <FilterChips
                 allLabel="Усі"
                 value={situation}
                 onChange={setSituation}
                 options={SITUATION_OPTIONS.map((o) => ({ ...o, count: counts[o.value] ?? 0 }))}
               />
-            )
-          }
-          trailing={
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Шукати в шаблонах"
-              className="w-72"
-            />
-          }
-        />
+            }
+            trailing={
+              <SearchInput value={search} onChange={setSearch} placeholder="Шукати в шаблонах" />
+            }
+          />
+        )}
       </PageHeader>
       <PageBody className="flex min-h-0 flex-col">
         <MasterDetail
           list={
             <VirtualList
               className="pr-1"
+              activeKey={open}
               items={list.items}
               loading={list.isLoading}
               getKey={(t) => t.id}
@@ -359,7 +418,10 @@ export function TemplatesPage() {
                       {t.situation === 'small_talk' ? (
                         <ItemDescription className="mt-1 line-clamp-2 text-caption">
                           {t.trigger || '—'}{' '}
-                          <ArrowRight className="inline size-3 align-[-2px]" aria-label="відповідь" />{' '}
+                          <ArrowRight
+                            className="inline size-3 align-[-2px]"
+                            aria-label="відповідь"
+                          />{' '}
                           {t.body || '—'}
                         </ItemDescription>
                       ) : (

@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactElement } from 'react'
+import { useState, type ReactElement } from 'react'
 import { MoreHorizontal, Pause, Pencil, Play, Plus, Target, Trash2 } from 'lucide-react'
 import {
   GOAL_METRICS,
@@ -12,10 +12,10 @@ import {
 import type { Currency } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { limitsOf, rangesOf } from '@/lib/limits'
+import { fmtNumber } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,16 +30,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from '@/components/ui/alert-dialog'
+import { Confirm } from '@/components/common/confirm'
+import { IconAction } from '@/components/common/icon-action'
 import { EmptyState, Field, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { FormDialog } from '@/components/common/form-dialog'
 import { SectionLabel } from '@/components/common/section-label'
@@ -100,10 +92,11 @@ function GoalDialog({
   }
 
   const rate = isRateMetric(form.metric)
-  // Money even for «Усі платформи»: the progress is then counted in USD (formatGoalValue).
+  // «Усі платформи» has no currency of its own: the server counts in the one with the most payments.
+  const anyCurrency = form.metric === 'net_income' && form.platformId === null
   const unit =
     form.metric === 'net_income'
-      ? (platformList.find((p) => p.id === form.platformId)?.currency ?? 'USD')
+      ? platformList.find((p) => p.id === form.platformId)?.currency
       : rate
         ? '%'
         : undefined
@@ -169,8 +162,15 @@ function GoalDialog({
           integer={form.metric !== 'net_income' && !rate}
           unit={unit}
           value={form.target}
-          hint={form.target === null ? 'Вкажіть ціль' : undefined}
+          hint={
+            form.target === null
+              ? 'Вкажіть ціль'
+              : anyCurrency
+                ? 'Рахується у валюті, в якій найбільше оплат за період'
+                : undefined
+          }
           onCommit={(target) => setForm((f) => ({ ...f, target }))}
+          live
           onValidityChange={numbers.report('target')}
         />
       </div>
@@ -196,7 +196,7 @@ function GoalDialog({
       <Field
         label="Назва (необов’язково)"
         htmlFor="goal-title"
-        hint={`Порожньо — «${goalTitle(form)}»`}
+        hint={`Якщо лишити порожнім — «${goalTitle({ ...form, title: '' })}»`}
       >
         <Input
           id="goal-title"
@@ -209,67 +209,48 @@ function GoalDialog({
   )
 }
 
-/** ⋯ menu instead of bare icons + an unlabeled switch: Змінити / Призупинити (Відновити) / Видалити. */
+/**
+ * ⋯ menu instead of bare icons + an unlabeled switch: Змінити / Призупинити (Продовжити) / Видалити.
+ * Not «Відновити»: in the app that word means back from the trash.
+ */
 function GoalMenu({ goal }: { goal: Goal }): ReactElement {
   const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const cancelRef = useRef<HTMLButtonElement>(null)
   const update = useApiMutation('goals', 'update', {
-    successMessage: goal.active ? 'Ціль призупинено' : 'Ціль відновлено'
+    successMessage: goal.active ? 'Ціль призупинено' : 'Ціль знову активна'
   })
   const remove = useApiMutation('goals', 'remove', { successMessage: 'Ціль видалено' })
   return (
     <>
-      <Tooltip>
-        <DropdownMenu>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-xs" aria-label="Дії з ціллю">
-                <MoreHorizontal />
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => setEditing(true)}>
-              <Pencil /> Змінити
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => update.mutate({ id: goal.id, patch: { active: !goal.active } })}
-            >
-              {goal.active ? <Pause /> : <Play />} {goal.active ? 'Призупинити' : 'Відновити'}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
-              <Trash2 /> Видалити
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <TooltipContent>Дії з ціллю</TooltipContent>
-      </Tooltip>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <IconAction label="Дії з ціллю">
+            <MoreHorizontal />
+          </IconAction>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditing(true)}>
+            <Pencil /> Змінити
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => update.mutate({ id: goal.id, patch: { active: !goal.active } })}
+          >
+            {goal.active ? <Pause /> : <Play />} {goal.active ? 'Призупинити' : 'Продовжити'}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setConfirming(true)}>
+            <Trash2 /> Видалити
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       <GoalDialog goal={goal} open={editing} onOpenChange={setEditing} />
-      {/* Looks like common Confirm, which can't be opened from a menu item: it owns its trigger. */}
-      <AlertDialog open={confirming} onOpenChange={setConfirming}>
-        <AlertDialogContent
-          className="rounded-3xl"
-          onOpenAutoFocus={(e) => {
-            e.preventDefault()
-            cancelRef.current?.focus({ focusVisible: false } as FocusOptions)
-          }}
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>Видалити ціль «{goalTitle(goal)}»?</AlertDialogTitle>
-            <AlertDialogDescription>Прогрес за минулі періоди теж зникне.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel ref={cancelRef} variant="soft">
-              Скасувати
-            </AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => remove.mutate(goal.id)}>
-              <Trash2 /> Видалити
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Confirm
+        open={confirming}
+        onOpenChange={setConfirming}
+        title={`Видалити ціль «${goalTitle(goal)}»?`}
+        description="Прогрес за минулі періоди теж зникне. Відновити не можна."
+        onConfirm={() => remove.mutate(goal.id)}
+      />
     </>
   )
 }
@@ -324,7 +305,7 @@ export function GoalsPage() {
         ) : (
           !progressLoading && inactive.length > 0 && (
             <p className="text-body text-muted-foreground">
-              Усі цілі на паузі — відновіть потрібну в меню ⋯.
+              Усі цілі на паузі — продовжте потрібну в меню ⋯.
             </p>
           )
         )}
@@ -338,7 +319,10 @@ export function GoalsPage() {
                   {goalTitle(g)}
                 </span>
                 <span className="text-caption text-muted-foreground">
-                  ціль {formatGoalValue(g.metric, g.target, platformCurrency(g.platformId))}
+                  ціль{' '}
+                  {g.metric === 'net_income' && g.platformId === null
+                    ? fmtNumber(g.target)
+                    : formatGoalValue(g.metric, g.target, platformCurrency(g.platformId))}
                 </span>
                 <GoalMenu goal={g} />
               </Card>

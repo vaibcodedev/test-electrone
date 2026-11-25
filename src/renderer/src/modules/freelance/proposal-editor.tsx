@@ -28,12 +28,12 @@ import { Toggle } from '@/components/ui/toggle'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Field, Kbd } from '@/components/common/page'
-import { InlineTitle, RecordActions, SectionLabel } from '@/components/common/master-detail'
+import { InlineTitle, RecordActions } from '@/components/common/master-detail'
 import { DatePicker } from '@/components/common/date-picker'
 import { MarkdownField } from '@/components/common/markdown'
-import { TagPicker } from '@/components/common/tags'
+import { TagsSection } from '@/components/common/tags'
 import { LinksPanel } from '@/components/common/links-panel'
-import { Choice } from '../crm/parts'
+import { Choice } from '@/components/common/choice'
 import { PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { HireDialog } from './hire-dialog'
 import { NicheCombobox } from './niche-combobox'
@@ -95,7 +95,6 @@ function Editor({
   return (
     <RecordMode mode={mode}>
       <div className="flex h-full min-h-0 flex-col">
-        {/* The record header order (DS §8): pins → «Сильний» · contract → trash → edit → ✕. */}
         <RecordActions
           entity={{ type: 'proposal', id: p.id }}
           mode={mode}
@@ -108,14 +107,13 @@ function Editor({
                     pressed={p.starred}
                     onPressedChange={(starred) => patch({ starred })}
                     aria-label="Сильний відгук"
-                    className="h-8 gap-1.5 rounded-full bg-surface px-3 text-caption on:bg-warn/15 on:text-warn"
+                    className="h-8 gap-1.5 rounded-full bg-surface px-3 on:bg-warn/15 on:text-warn"
                   >
                     <Award /> Сильний
                   </Toggle>
                 </TooltipTrigger>
                 <TooltipContent>Сильний відгук — використати ще раз</TooltipContent>
               </Tooltip>
-              <span className="flex-1" />
               {p.projectId ? (
                 <Button
                   size="sm"
@@ -138,7 +136,7 @@ function Editor({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <SheetTitle className="sr-only">{p.jobTitle}</SheetTitle>
-          <SheetDescription className="sr-only">Редагування відгуку</SheetDescription>
+          <SheetDescription className="sr-only">Відгук на платформі</SheetDescription>
           <InlineTitle
             value={title}
             onChange={setTitle}
@@ -197,8 +195,7 @@ function Editor({
           <section className="flex flex-col gap-4">
             {noTexts && !mode.editing && (
               <p className="text-body text-muted-foreground">
-                Тексту відгуку ще немає. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб вставити
-                шаблон або написати свій.
+                Тексту відгуку ще немає. Натисніть «Редагувати» або <Kbd>E</Kbd>, щоб написати його.
               </p>
             )}
             <div data-edit-only>
@@ -230,7 +227,7 @@ function Editor({
               label="Опис вакансії"
               value={description}
               onChange={setDescription}
-              placeholder="Скопіюйте опис завдання"
+              placeholder="Вставте текст вакансії з платформи"
               maxLength={PROPOSAL_L.jobDescription}
               minHeight="120px"
             />
@@ -246,13 +243,7 @@ function Editor({
           </section>
 
           <div className="mt-6 flex flex-col gap-6">
-            <section
-              className="flex flex-col gap-2"
-              data-edit-only={p.tags.length === 0 || undefined}
-            >
-              <SectionLabel>Мітки</SectionLabel>
-              <TagPicker value={p.tags} onChange={(tagIds) => patch({ tagIds })} />
-            </section>
+            <TagsSection value={p.tags} onChange={(tagIds) => patch({ tagIds })} />
             <LinksPanel entity={{ type: 'proposal', id: p.id }} />
             <div className="text-meta text-muted-foreground">
               Створено {fmtDateTime(p.createdAt)}

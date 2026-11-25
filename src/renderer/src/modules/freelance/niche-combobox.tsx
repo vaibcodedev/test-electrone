@@ -35,9 +35,11 @@ export function NicheCombobox({
       clearable
       clearLabel="Без типу"
       maxLength={maxLength}
-      placeholder="Next.js, верстка, боти…"
-      searchPlaceholder="Тип завдання…"
+      placeholder="Оберіть або введіть тип"
+      searchPlaceholder="Напр.: Next.js"
       emptyText="Введіть новий тип"
+      // In view mode the value is a bare span: a long word without spaces must wrap, not scroll the aside.
+      className="[overflow-wrap:anywhere]"
     />
   )
 }

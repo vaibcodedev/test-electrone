@@ -1,7 +1,7 @@
 import { useState, type ReactNode, type ReactElement } from 'react'
 import { differenceInCalendarDays, isSameMonth } from 'date-fns'
 import { Check } from 'lucide-react'
-import type { GoalProgress } from '@shared/domain/freelance'
+import type { GoalMetric, GoalProgress } from '@shared/domain/freelance'
 import { fmtDate, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -12,12 +12,19 @@ import { formatGoalValue, goalTitle } from './goal-format'
 
 type GoalStatus = { label: string; variant: 'success' | 'warn' | 'soft' }
 
+/** What is still missing, as a noun: «Ще 7 відгуків», not a bare «Ще 7». Money and % carry their own unit. */
+const COUNT_FORMS: Partial<Record<GoalMetric, [string, string, string]>> = {
+  proposals: ['відгук', 'відгуки', 'відгуків'],
+  replies: ['відповідь', 'відповіді', 'відповідей'],
+  contracts: ['контракт', 'контракти', 'контрактів']
+}
+
 /** Done / behind (period >70% over, progress <50%) / in progress. */
 function goalStatus(g: GoalProgress, now: number): GoalStatus {
   if (g.ratio >= 1) return { label: 'Виконано', variant: 'success' }
   const span = Math.max(1, g.periodEnd - g.periodStart)
   const elapsed = (now - g.periodStart) / span
-  if (elapsed > 0.7 && g.ratio < 0.5) return { label: 'Не встигаю', variant: 'warn' }
+  if (elapsed > 0.7 && g.ratio < 0.5) return { label: 'Відстає', variant: 'warn' }
   return { label: 'У процесі', variant: 'soft' }
 }
 
@@ -45,6 +52,7 @@ export function GoalCard({
   const daysAfterToday = Math.max(0, differenceInCalendarDays(g.periodEnd, now))
   const daysLeft = daysAfterToday + 1
   const remaining = Math.max(0, g.target - g.current)
+  const forms = COUNT_FORMS[g.metric]
   return (
     <Card>
       <CardHeader>
@@ -72,7 +80,7 @@ export function GoalCard({
           className={cn(
             'h-2',
             done
-              ? '[&>[data-slot=progress-indicator]]:bg-success'
+              ? '[&>[data-slot=progress-indicator]]:bg-success-fill'
               : '[&>[data-slot=progress-indicator]]:bg-chart-1'
           )}
         />
@@ -85,7 +93,8 @@ export function GoalCard({
           )
         ) : (
           <p className="text-caption text-muted-foreground">
-            Ще {formatGoalValue(g.metric, remaining, g.currency)} ·{' '}
+            Ще {formatGoalValue(g.metric, remaining, g.currency)}
+            {forms && ` ${plural(Math.round(remaining), forms)}`} ·{' '}
             {daysAfterToday > 0
               ? `залишилось ${daysLeft} ${plural(daysLeft, ['день', 'дні', 'днів'])}`
               : 'останній день'}

@@ -6,7 +6,6 @@ import { fmtMoney, fmtNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { sentLabel } from './proposal-labels'
 
 /** Compact proposal tile used on the kanban (composed of shadcn Card + Badge). */
@@ -46,8 +45,8 @@ export const ProposalCard = forwardRef<
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-1">
         {p.niche && (
-          <Badge variant="soft" title={p.niche}>
-            <span className="truncate">{p.niche}</span>
+          <Badge variant="soft" truncate>
+            {p.niche}
           </Badge>
         )}
         {p.bidAmount > 0 && (
@@ -57,16 +56,16 @@ export const ProposalCard = forwardRef<
           </Badge>
         )}
         {credits > 0 && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge variant="outline">
-                <Coins />
-                {p.credits}
-                {p.boostCredits > 0 && `+${p.boostCredits}`}
-              </Badge>
-            </TooltipTrigger>
-            {creditsName && <TooltipContent>{creditsName}</TooltipContent>}
-          </Tooltip>
+          // A title, like the rating below: the card is a button, a Tooltip on a span never gets focus.
+          <Badge
+            variant="outline"
+            title={creditsName || undefined}
+            aria-label={creditsName ? `${creditsName}: ${credits}` : undefined}
+          >
+            <Coins />
+            {p.credits}
+            {p.boostCredits > 0 && `+${p.boostCredits}`}
+          </Badge>
         )}
       </div>
       <div className="flex items-center gap-2 text-meta text-muted-foreground">

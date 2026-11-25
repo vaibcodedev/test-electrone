@@ -1,27 +1,15 @@
-import type { GoalMetric, GoalPeriod, TemplateSituation } from '@shared/domain/freelance'
+import type { GoalMetric, GoalPeriod } from '@shared/domain/freelance'
 
-export const SITUATION_LABEL: Record<TemplateSituation, string> = {
-  proposal: 'Відгук',
-  first_message: 'Перше повідомлення',
-  estimate: 'Оцінка термінів',
-  tz_questions: 'Питання щодо ТЗ',
-  revisions: 'Правки',
-  follow_up: 'Нагадування',
-  small_talk: 'Світська бесіда',
-  closing: 'Завершення',
-  cover_letter: 'Супровідний лист',
-  recruiter: 'Відповідь рекрутеру',
-  thank_you: 'Подяка після інтерв’ю',
-  other: 'Інше'
-}
+/** One map for main (search subtitles) and the page. */
+export { SITUATION_LABEL } from '@shared/domain/freelance'
 
 export const GOAL_METRIC_LABEL: Record<GoalMetric, string> = {
   net_income: 'Чистий дохід',
   proposals: 'Відгуки',
   replies: 'Відповіді',
   contracts: 'Контракти',
-  reply_rate: '% відповідей',
-  hire_rate: '% контрактів'
+  reply_rate: 'Частка відповідей',
+  hire_rate: 'Частка контрактів'
 }
 
 export const GOAL_PERIOD_LABEL: Record<GoalPeriod, string> = {

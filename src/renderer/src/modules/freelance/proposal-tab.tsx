@@ -6,7 +6,7 @@ import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useUi } from '@/stores/ui-store'
-import { daysSince, plural } from '@/lib/format'
+import { capitalize, daysSince, plural } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,7 @@ import {
   EmptyState,
   FilterBar,
   FilterChips,
+  NoResults,
   SearchInput,
   Segmented
 } from '@/components/common/page'
@@ -125,7 +126,11 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
           дні. Одне коротке нагадування часто повертає клієнта.
         </CardDescription>
         <CardAction>
-          <Button variant="subtle" size="sm" onClick={() => navigate('/freelance/templates')}>
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={() => navigate('/freelance/templates?situation=follow_up')}
+          >
             Шаблони нагадувань
           </Button>
         </CardAction>
@@ -186,20 +191,36 @@ export function ProposalsTab({
   }, [all])
 
   const list = all.filter((p) => (!niche || p.niche === niche) && (!starred || p.starred))
+  const emptyBase = !isLoading && all.length === 0 && !term
+  const noResults = !isLoading && list.length === 0 && (!!term || !!niche || starred)
+  const filterHint = [
+    term && `за запитом «${term}»`,
+    niche && `з типом «${niche}»`,
+    starred && 'серед сильних'
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const resetFilters = (): void => {
+    setSearch('')
+    setNiche(undefined)
+    setStarred(false)
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
       <FilterBar
         chips={
-          <Toggle
-            variant="chip"
-            size="sm"
-            pressed={starred}
-            onPressedChange={setStarred}
-            aria-label="Лише сильні"
-          >
-            <Award /> Сильні
-          </Toggle>
+          (starred || all.some((p) => p.starred)) && (
+            <Toggle
+              variant="chip"
+              size="sm"
+              pressed={starred}
+              onPressedChange={setStarred}
+              aria-label="Лише сильні"
+            >
+              <Award /> Сильні
+            </Toggle>
+          )
         }
         trailing={
           <>
@@ -207,7 +228,6 @@ export function ProposalsTab({
               value={search}
               onChange={setSearch}
               placeholder="Вакансія, клієнт, текст відгуку"
-              className="w-72"
             />
             <Segmented
               className="w-fit"
@@ -236,12 +256,14 @@ export function ProposalsTab({
       <StaleBanner platformId={platform.id} onOpen={setOpenId} />
 
       <div className="min-h-0 flex-1">
-        {!isLoading && all.length === 0 && !search ? (
+        {emptyBase ? (
           <EmptyState
             title="Відгуків поки немає"
             hint="Додавайте кожен відгук — так стане видно, які завдання й тексти приносять контракти."
             cta={{ label: 'Додати відгук', icon: Plus, onClick: onNew }}
           />
+        ) : noResults ? (
+          <NoResults hint={`${capitalize(filterHint)} відгуків немає.`} onReset={resetFilters} />
         ) : view === 'kanban' ? (
           <ProposalBoard
             proposals={list}

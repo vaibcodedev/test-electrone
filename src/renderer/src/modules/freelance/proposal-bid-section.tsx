@@ -7,6 +7,7 @@ import {
   type ProposalPatch
 } from '@shared/domain/freelance'
 import { rangesOf } from '@/lib/limits'
+import { fmtPercent } from '@/lib/format'
 import { NumberField } from '@/components/common/number-field'
 import { Field, Segmented } from '@/components/common/page'
 import { SectionLabel } from '@/components/common/master-detail'
@@ -52,11 +53,7 @@ export function ProposalBidSection({
           {...R.feePercent}
           step={0.5}
           onCommit={(feePercent) => patch({ feePercent })}
-          hint={
-            platform.kind === 'upwork'
-              ? `Точну комісію Upwork видно під час відгуку. Порожньо — ${platform.defaultFeePercent}% з налаштувань платформи`
-              : `Порожньо — ${platform.defaultFeePercent}% з налаштувань платформи`
-          }
+          hint={`${platform.kind === 'upwork' ? 'Точну комісію Upwork видно під час відгуку. ' : ''}Якщо не заповнити — ${fmtPercent(platform.defaultFeePercent)} з налаштувань платформи.`}
           unit="%"
         />
         {platform.creditsName && (

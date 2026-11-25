@@ -4,7 +4,7 @@ import { Archive, ArchiveRestore, Handshake } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { Button } from '@/components/ui/button'
-import { fmtMoney } from '@/lib/format'
+import { fmtMoney, fmtPercent } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -163,7 +163,7 @@ export function PlatformPage() {
           subtitle={
             platform.archived
               ? 'В архіві'
-              : `Комісія за замовчуванням ${platform.defaultFeePercent}%${platform.creditsName ? ` · ${platform.creditsName} по ${fmtMoney(platform.creditPrice, platform.currency)}` : ''}`
+              : `Типова комісія ${fmtPercent(platform.defaultFeePercent)}${platform.creditsName ? ` · ${platform.creditsName} — ${fmtMoney(platform.creditPrice, platform.currency)} за одиницю` : ''}`
           }
           actions={
             tab === 'proposals' && (

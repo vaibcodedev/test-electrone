@@ -23,7 +23,8 @@ const COL = {
   bid: 'w-28',
   credits: 'w-24',
   client: 'w-[18%]',
-  sent: 'w-32'
+  // Room for «30 листопада 2025»: older proposals carry the year.
+  sent: 'w-40'
 } as const
 
 /**
@@ -63,7 +64,9 @@ export function ProposalList({
             <TableHead className={COL.niche}>Тип</TableHead>
             <TableHead className={cn(COL.bid, 'text-right')}>Ставка</TableHead>
             {creditsName && (
-              <TableHead className={cn(COL.credits, 'truncate text-right')}>{creditsName}</TableHead>
+              <TableHead className={cn(COL.credits, 'truncate text-right')}>
+                {creditsName}
+              </TableHead>
             )}
             <TableHead className={COL.client}>Клієнт</TableHead>
             <TableHead className={cn(COL.sent, 'pr-4 text-right')}>Надіслано</TableHead>
@@ -79,74 +82,65 @@ export function ProposalList({
         hasMore={hasMore}
         loadingMore={loadingMore}
         onLoadMore={onLoadMore}
-        empty={
-          !loading && (
-            <div className="py-10 text-center text-body text-muted-foreground">
-              Під фільтр нічого не потрапило.
-            </div>
-          )
-        }
-        renderItem={(p) => {
-          return (
-            <Table className="table-fixed">
-              <TableBody>
-                <TableRow
-                  tabIndex={0}
-                  aria-selected={activeId === p.id}
-                  onClick={() => onOpen(p.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && onOpen(p.id)}
-                  className={cn('cursor-pointer border-b!', activeId === p.id && 'bg-surface')}
+        renderItem={(p) => (
+          <Table className="table-fixed">
+            <TableBody>
+              <TableRow
+                tabIndex={0}
+                aria-selected={activeId === p.id}
+                onClick={() => onOpen(p.id)}
+                onKeyDown={(e) => e.key === 'Enter' && onOpen(p.id)}
+                className={cn('cursor-pointer border-b!', activeId === p.id && 'bg-surface')}
+              >
+                <TableCell className="pl-4">
+                  <div className="flex items-center gap-1.5">
+                    {p.starred && (
+                      <Award className="size-3.5 shrink-0 text-warn" aria-label="Сильний відгук" />
+                    )}
+                    <span className="truncate font-medium">{p.jobTitle}</span>
+                  </div>
+                </TableCell>
+                <TableCell className={COL.status}>
+                  <Badge variant={PROPOSAL_STATUS_BADGE[p.status]}>
+                    {PROPOSAL_STATUS_LABEL[p.status]}
+                  </Badge>
+                </TableCell>
+                <TableCell className={cn(COL.niche, 'truncate text-muted-foreground')}>
+                  {p.niche || '—'}
+                </TableCell>
+                <TableCell className={cn(COL.bid, 'truncate text-right tabular-nums')}>
+                  {p.bidAmount
+                    ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/год' : ''}`
+                    : '—'}
+                </TableCell>
+                {creditsName && (
+                  <TableCell className={cn(COL.credits, 'text-right tabular-nums')}>
+                    {p.credits}
+                    {p.boostCredits > 0 && (
+                      <span className="text-muted-foreground">+{p.boostCredits}</span>
+                    )}
+                  </TableCell>
+                )}
+                <TableCell className={COL.client}>
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate">{p.clientName || '—'}</span>
+                    {p.paymentVerified && (
+                      <BadgeCheck
+                        className="size-3.5 shrink-0 text-success"
+                        aria-label="Оплату верифіковано"
+                      />
+                    )}
+                  </span>
+                </TableCell>
+                <TableCell
+                  className={cn(COL.sent, 'pr-4 text-right text-muted-foreground tabular-nums')}
                 >
-                  <TableCell className="pl-4">
-                    <div className="flex items-center gap-1.5">
-                      {p.starred && (
-                        <Award className="size-3.5 shrink-0 text-warn" aria-label="Сильний відгук" />
-                      )}
-                      <span className="truncate font-medium">{p.jobTitle}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className={COL.status}>
-                    <Badge variant={PROPOSAL_STATUS_BADGE[p.status]}>
-                      {PROPOSAL_STATUS_LABEL[p.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className={cn(COL.niche, 'truncate text-muted-foreground')}>
-                    {p.niche || '—'}
-                  </TableCell>
-                  <TableCell className={cn(COL.bid, 'truncate text-right tabular-nums')}>
-                    {p.bidAmount
-                      ? `${fmtMoney(p.bidAmount, currency)}${p.bidType === 'hourly' ? '/год' : ''}`
-                      : '—'}
-                  </TableCell>
-                  {creditsName && (
-                    <TableCell className={cn(COL.credits, 'text-right tabular-nums')}>
-                      {p.credits}
-                      {p.boostCredits > 0 && (
-                        <span className="text-muted-foreground">+{p.boostCredits}</span>
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell className={COL.client}>
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate">{p.clientName || '—'}</span>
-                      {p.paymentVerified && (
-                        <BadgeCheck
-                          className="size-3.5 shrink-0 text-success"
-                          aria-label="Оплату верифіковано"
-                        />
-                      )}
-                    </span>
-                  </TableCell>
-                  <TableCell
-                    className={cn(COL.sent, 'pr-4 text-right text-muted-foreground tabular-nums')}
-                  >
-                    {p.sentAt ? sentLabel(p.sentAt, now) : '—'}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          )
-        }}
+                  {p.sentAt ? sentLabel(p.sentAt, now) : '—'}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        )}
       />
     </div>
   )

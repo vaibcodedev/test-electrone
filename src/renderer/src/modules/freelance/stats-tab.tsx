@@ -112,7 +112,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
             </Card>
             <Card className="col-span-7">
               <CardHeader>
-                <CardTitle>По тижнях</CardTitle>
+                <CardTitle>За тижнями</CardTitle>
                 <CardDescription>Скільки відгуків надіслано й на скільки відповіли</CardDescription>
               </CardHeader>
               <CardContent>

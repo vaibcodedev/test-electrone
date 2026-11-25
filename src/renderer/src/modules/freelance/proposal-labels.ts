@@ -3,19 +3,8 @@ import { daysSince, fmtDayFull, plural } from '@/lib/format'
 import type { badgeVariants } from '@/components/ui/badge'
 import type { VariantProps } from 'class-variance-authority'
 
-export const PROPOSAL_STATUS_LABEL: Record<ProposalStatus, string> = {
-  draft: 'Чернетка',
-  sent: 'Надіслано',
-  viewed: 'Переглянуто',
-  replied: 'Відповіли',
-  interview: 'Інтерв’ю',
-  offer: 'Офер',
-  hired: 'Контракт',
-  declined: 'Відмова',
-  no_reply: 'Без відповіді',
-  withdrawn: 'Відкликано',
-  closed: 'Вакансію закрито'
-}
+/** One map for main (search, pins, trash) and the page. */
+export { PROPOSAL_STATUS_LABEL } from '@shared/domain/freelance'
 
 /** Pipeline columns shown on the kanban, in order. */
 export const ACTIVE_STATUSES: ProposalStatus[] = [

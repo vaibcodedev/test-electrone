@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Field } from '@/components/common/page'
 import { NumberField } from '@/components/common/number-field'
-import { Choice } from '../crm/parts'
-import { ColorSwatches } from './color-swatches'
+import { Choice } from '@/components/common/choice'
+import { ColorSwatches } from '@/components/common/color-swatches'
+import { PLATFORM_COLOR_NAME, PLATFORM_COLORS } from './proposal-labels'
 import { ChecklistEditor } from './checklist-editor'
 
 const PLATFORM_L = limitsOf(platformInputSchema)
@@ -35,9 +36,7 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }): React
       <Card>
         <CardHeader>
           <CardTitle>Основне</CardTitle>
-          <CardDescription>
-            Назва, валюта й комісія за замовчуванням для нових контрактів.
-          </CardDescription>
+          <CardDescription>Назва, валюта й типова комісія для нових контрактів.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Field label="Назва" error={noName ? 'Вкажіть назву — порожня не збережеться' : undefined}>
@@ -57,7 +56,7 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }): React
               />
             </Field>
             <NumberField
-              label="Комісія за замовчуванням"
+              label="Типова комісія"
               value={platform.defaultFeePercent}
               onCommit={(v) => patch({ defaultFeePercent: v ?? 0 })}
               unit="%"
@@ -85,7 +84,13 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }): React
             )}
           </div>
           <Field label="Колір">
-            <ColorSwatches value={platform.color} onChange={(color) => patch({ color })} />
+            <ColorSwatches
+              colors={PLATFORM_COLORS}
+              names={PLATFORM_COLOR_NAME}
+              allowNone
+              value={platform.color}
+              onChange={(color) => patch({ color })}
+            />
           </Field>
           <Field label="Нотатки про платформу">
             <Textarea
@@ -113,7 +118,7 @@ export function PlatformSettingsTab({ platform }: { platform: Platform }): React
                 // Stay here: the page shows an «в архіві» banner with a way back.
                 patch({ archived })
                 if (archived)
-                  toast.success(`${platform.name} у архіві`, {
+                  toast.success(`${platform.name} в архіві`, {
                     action: { label: 'Скасувати', onClick: () => patch({ archived: false }) }
                   })
                 else toast.success(`${platform.name} знову в меню`)
