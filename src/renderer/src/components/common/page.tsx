@@ -2,7 +2,15 @@
  * Page-level building blocks. Everything here is a thin composition of shadcn components
  * (Empty, InputGroup, ToggleGroup, Progress, Field, Kbd) — no hand-made controls.
  */
-import { useId, useRef, type ReactElement, type ReactNode } from 'react'
+import {
+  useCallback,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactElement,
+  type ReactNode
+} from 'react'
 import { RotateCcw, Search, SearchX, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,6 +33,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Progress } from '@/components/ui/progress'
 import { Field as UiField, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field'
+import { FieldControlProvider } from '@/components/ui/field-control'
 import { Kbd as UiKbd } from '@/components/ui/kbd'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -491,13 +500,16 @@ export function CharCount({
   max?: number
   className?: string
 }): ReactElement | null {
-  if (!max || length < max * 0.8) return null
+  if (!max) return null
+  const near = length >= max * 0.8
   const warn = length >= max * 0.9
   return (
     <span
       className={cn(
         'shrink-0 text-meta tabular-nums',
         warn ? 'text-warn' : 'text-muted-foreground',
+        // The limit is visible while you type in the field, and always once it gets close.
+        !near && 'invisible group-focus-within/field:visible',
         className
       )}
       aria-live={warn ? 'polite' : undefined}
@@ -516,7 +528,7 @@ export function Field({
   children,
   className,
   htmlFor,
-  error,
+  error: errorProp,
   hint,
   count
 }: {
@@ -528,7 +540,10 @@ export function Field({
   error?: ReactNode
   /** Quiet explanation under the control (hidden while there is an error). */
   hint?: ReactNode
-  /** Character counter: appears next to the label once 80% of the limit is used. */
+  /**
+   * Character counter next to the label. Usually not needed: an Input / Textarea with maxLength whose id is
+   * `htmlFor` reports its length itself (FieldControl). Shown while the field has focus and from 80% of the limit.
+   */
   count?: { length: number; max?: number }
 }) {
   // View mode shows values, not validation: an error appears only while editing.
@@ -538,7 +553,18 @@ export function Field({
   const labelId = useId()
   // In view mode the control is text without that id (LinkInput, NumberInput): the label names the group.
   const forId = viewMode ? undefined : htmlFor
-  if (viewMode) error = undefined
+  const error = viewMode ? undefined : errorProp
+  // The control's own report of its length (useFieldCount), so every limited field shows its limit.
+  const [reported, setReported] = useState<{ length: number; max: number } | null>(null)
+  const report = useCallback((length: number, max: number) => {
+    setReported((p) => (p && p.length === length && p.max === max ? p : { length, max }))
+  }, [])
+  const describedBy = forId && (error ? `${forId}-error` : hint ? `${forId}-hint` : undefined)
+  const control = useMemo(
+    () => ({ id: forId, describedBy, invalid: !!error, count: report }),
+    [forId, describedBy, error, report]
+  )
+  const shown = count ?? reported
   return (
     <UiField
       className={cn('min-w-0 gap-2', className)}
@@ -549,9 +575,9 @@ export function Field({
         <FieldLabel id={labelId} htmlFor={forId}>
           {label}
         </FieldLabel>
-        {count && <CharCount length={count.length} max={count.max} />}
+        {shown && !viewMode && <CharCount length={shown.length} max={shown.max} />}
       </div>
-      {children}
+      <FieldControlProvider value={control}>{children}</FieldControlProvider>
       {error ? (
         <FieldError id={forId && `${forId}-error`} className="text-caption">
           {error}

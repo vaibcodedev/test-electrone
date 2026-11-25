@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from '@/components/common/detail-mode-context'
-import { useFieldControl } from '@/components/ui/field-control'
+import { useFieldControl, useFieldCount } from '@/components/ui/field-control'
 
-function Input({ className, type, readOnly, ...props }: React.ComponentProps<'input'>) {
+function Input({ className, type, readOnly, onInput, ...props }: React.ComponentProps<'input'>) {
   // In a record's view mode (DetailPane) inputs become read-only text; see components/common/detail-mode.
   const viewMode = useReadOnly()
   const empty = props.value === '' || props.value === undefined || props.value === null
@@ -14,9 +14,20 @@ function Input({ className, type, readOnly, ...props }: React.ComponentProps<'in
     ((props.min !== undefined && num < Number(props.min)) ||
       (props.max !== undefined && num > Number(props.max)))
   const field = useFieldControl(props.id)
+  // An uncontrolled field (defaultValue) is counted from what is typed.
+  const [typed, setTyped] = React.useState<number | null>(null)
+  const length =
+    typeof props.value === 'string'
+      ? props.value.length
+      : (typed ?? String(props.defaultValue ?? '').length)
+  useFieldCount(props.id, length, viewMode ? undefined : props.maxLength)
   return (
     <input
       type={type}
+      onInput={(e) => {
+        if (typeof props.value !== 'string') setTyped(e.currentTarget.value.length)
+        onInput?.(e)
+      }}
       readOnly={readOnly || viewMode}
       data-view={viewMode || undefined}
       data-empty={viewMode && empty ? true : undefined}

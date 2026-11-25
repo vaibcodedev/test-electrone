@@ -142,7 +142,8 @@ export function MarkdownField({
     )
   }
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    // group/field: the «N / max» counter (CharCount) shows while the text is being written.
+    <div className={cn('group/field flex flex-col gap-2', className)}>
       {/* Label row has the label's height: the compact toggle (h-7, -my-1.5 → 16px in flow, below the
           label's ≈17px) must not push the control down, so label → control is 8px like every other Field
           (docs/design-system.md → Формы). */}

@@ -10,6 +10,7 @@ import {
 } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
+import { MAX } from '@shared/domain/limits'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { capitalize, fmtPercent, plural } from '@/lib/format'
@@ -122,6 +123,7 @@ function CopyTemplateButton({
                   id={`var-${v}`}
                   autoFocus={i === 0}
                   value={values[v] ?? ''}
+                  maxLength={MAX.title}
                   onChange={(e) => setValues((s) => ({ ...s, [v]: e.target.value }))}
                 />
               </Field>

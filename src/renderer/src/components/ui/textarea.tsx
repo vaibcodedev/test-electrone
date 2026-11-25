@@ -1,14 +1,25 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { useReadOnly } from '@/components/common/detail-mode-context'
-import { useFieldControl } from '@/components/ui/field-control'
+import { useFieldControl, useFieldCount } from '@/components/ui/field-control'
 
-function Textarea({ className, readOnly, ...props }: React.ComponentProps<'textarea'>) {
+function Textarea({ className, readOnly, onInput, ...props }: React.ComponentProps<'textarea'>) {
   const viewMode = useReadOnly()
   const empty = props.value === '' || props.value === undefined || props.value === null
   const field = useFieldControl(props.id)
+  // An uncontrolled field (defaultValue) is counted from what is typed.
+  const [typed, setTyped] = React.useState<number | null>(null)
+  const length =
+    typeof props.value === 'string'
+      ? props.value.length
+      : (typed ?? String(props.defaultValue ?? '').length)
+  useFieldCount(props.id, length, viewMode ? undefined : props.maxLength)
   return (
     <textarea
+      onInput={(e) => {
+        if (typeof props.value !== 'string') setTyped(e.currentTarget.value.length)
+        onInput?.(e)
+      }}
       aria-describedby={field.describedBy}
       aria-invalid={field.invalid}
       readOnly={readOnly || viewMode}

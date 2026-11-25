@@ -179,6 +179,8 @@ export function ImportDialog({
               }}
               placeholder={exampleJson.length > 400 ? `${exampleJson.slice(0, 400)}…` : exampleJson}
               aria-label="JSON для імпорту"
+              // The same 2 MB as a file: a pasted text is no smaller a risk.
+              maxLength={MAX_FILE_BYTES}
               aria-invalid={parsed?.ok === false || undefined}
               className="min-h-48 font-mono text-caption"
             />
