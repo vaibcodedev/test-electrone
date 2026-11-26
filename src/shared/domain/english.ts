@@ -87,6 +87,10 @@ export interface EnglishToday {
   /** What today's session still holds: due reviews up to the cap, then new entries up to the goal. */
   reviewsLeft: number
   newLeft: number
+  /** New trainable entries beyond today's session (what «Ще N нових» can take). */
+  newMore: number
+  /** Due reviews are left over the daily cap: the day's limit, not the schedule, holds them back. */
+  reviewsWaiting: boolean
 }
 
 /** One local day of the statistics chart. */

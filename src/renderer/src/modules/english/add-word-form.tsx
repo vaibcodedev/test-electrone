@@ -77,7 +77,8 @@ export function AddWordForm({ onAdded }: { onAdded?: () => void }): ReactElement
         })}
         {/* The grid cell is a wrapper: a disabled button sits inside its reason's tooltip span. */}
         <div className="col-span-2 justify-self-end @3xl:col-span-1">
-          <SubmitButton variant="lime" reason={reason} pending={create.isPending}>
+          {/* Not lime: the screen's one accent is «Тренуватися» (N still starts here through data-page-new). */}
+          <SubmitButton variant="subtle" reason={reason} pending={create.isPending}>
             <Plus /> Додати
           </SubmitButton>
         </div>

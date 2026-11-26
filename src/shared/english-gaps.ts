@@ -55,10 +55,14 @@ export function gapCards(examples: string): GapCard[] {
   return cards
 }
 
-/** The card of one showing: the seed (the entry's `dueAt`) changes after each answer, so the sentences rotate. */
-export function pickGapCard(cards: GapCard[], seed: number): GapCard | undefined {
+/**
+ * The card of one showing. `turn` is the entry's answer count (`repetitions + lapses`): it moves on with every
+ * graded answer, so the sentences take turns. (`dueAt` did not: after a pass it is a round hour, and with 2–6 or
+ * 8–12 sentences only the first one ever showed.)
+ */
+export function pickGapCard(cards: GapCard[], turn: number): GapCard | undefined {
   if (!cards.length) return undefined
-  return cards[Math.abs(Math.floor(seed / 1000)) % cards.length]
+  return cards[Math.abs(Math.trunc(turn)) % cards.length]
 }
 
 /** Case, spacing, curly apostrophes and a final full stop don't make an answer wrong. */

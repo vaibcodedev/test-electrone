@@ -165,7 +165,9 @@ export function TodayPanel({ stats }: { stats: EnglishStats }): ReactElement {
             <div className="text-caption text-muted-foreground">
               {left
                 ? `Ще ${left} ${plural(left, ['картка', 'картки', 'карток'])} у тренуванні`
-                : 'На сьогодні все — ціль виконано'}
+                : t.reviewsWaiting
+                  ? 'Ліміт повторень на сьогодні вичерпано — решта чекає завтра'
+                  : 'На сьогодні все — ціль виконано'}
             </div>
             <div
               className={cn(

@@ -4,6 +4,8 @@ import { chartDays, pickSession, sessionLimits, streakOf } from '@main/modules/e
 import { addDays, dayKey } from '@main/core/util'
 import { fillGaps, gapCards, isGapAnswer, pickGapCard } from '@shared/english-gaps'
 import { guessColumns, mapRows, parseWordTable, stripHtml } from '@shared/english-import'
+import { eq } from 'drizzle-orm'
+import { wordReviews, words } from '@main/db/schema'
 import { openVault, type Vault } from './support/vault'
 
 vi.mock('electron', async () => (await import('./support/electron-mock')).electronMock)
@@ -114,6 +116,26 @@ describe('import parsing', () => {
     })
   })
 
+  it('Excel `;` CSV with commas inside translations keeps its columns; a tie goes to `;`', () => {
+    const t = parseWordTable(
+      'deploy;розгорнути, викатити;\nmerge;злити, об’єднати;Merge it\nship;випустити;'
+    )
+    expect(t.rows[0]).toEqual(['deploy', 'розгорнути, викатити', ''])
+    expect(parseWordTable('a;b,c\nd;e,f').rows[0]).toEqual(['a', 'b,c'])
+  })
+
+  it('a first word is not taken for a header; the translation is never the word’s column', () => {
+    const t = parseWordTable('term,термін\nrollout,викатка')
+    expect(t.header).toBeNull()
+    expect(t.rows).toHaveLength(2)
+    const named = parseWordTable('word,example\nrun,Run it')
+    expect(named.header).toEqual(['word', 'example'])
+    expect(guessColumns(named)).toEqual({ term: 0, translation: 1, example: null })
+    const same = parseWordTable('#columns:word,word\nrun,бігти')
+    const map = guessColumns(same)
+    expect(map.translation).not.toBe(map.term)
+  })
+
   it('stripHtml decodes entities', () =>
     expect(stripHtml('a&amp;b &#39;c&#x27; <i>d</i>')).toBe("a&b 'c' d"))
 })
@@ -147,9 +169,15 @@ describe('grammar gaps', () => {
 
   it('fillGaps and rotation', () => {
     expect(fillGaps('I [went|go] there')).toBe('I went there')
-    expect(pickGapCard(cards, 0)).toBe(cards[0])
-    expect(pickGapCard(cards, 4000)).toBe(cards[1])
     expect(pickGapCard([], 1)).toBeUndefined()
+    // Every sentence takes its turn, whatever their number (dueAt as a seed showed only the first one).
+    for (const n of [2, 3, 4, 5, 6, 8, 9, 10, 12]) {
+      const many = gapCards(Array.from({ length: n }, (_, i) => `s${i} [x${i}]`).join('\n'))
+      const shown = new Set(
+        Array.from({ length: n }, (_, turn) => pickGapCard(many, turn)?.answers[0])
+      )
+      expect(shown.size).toBe(n)
+    }
   })
 })
 
@@ -198,5 +226,56 @@ describe('on a real database', () => {
     })
     const [added] = await v.api.english.list({ search: 'conflict' })
     expect(added).toMatchObject({ term: 'merge  conflict', translation: 'конфлікт', stage: 'new' })
+  })
+
+  it('an entry forgotten today comes back behind an older backlog and a reached cap', async () => {
+    const yesterday = addDays(Date.now(), -1)
+    const make = async (term: string, dueAt: number): Promise<string> => {
+      const w = await v.api.english.create({ term, translation: 't' })
+      v.db.orm
+        .update(words)
+        .set({ lastReviewedAt: yesterday, intervalDays: 1, repetitions: 1, dueAt })
+        .where(eq(words.id, w.id))
+        .run()
+      v.db.orm
+        .insert(wordReviews)
+        .values({ id: `r-${term}`, wordId: w.id, grade: 2, reviewedAt: yesterday })
+        .run()
+      return w.id
+    }
+    for (let i = 0; i < 101; i++) await make(`old${i}`, yesterday - 1000 * (101 - i))
+    const again = await make('again', yesterday)
+    await v.api.english.review({ id: again, grade: 0 })
+    // Ten minutes later it is due again — the newest of all due entries.
+    v.db.orm
+      .update(words)
+      .set({ dueAt: Date.now() - 1 })
+      .where(eq(words.id, again))
+      .run()
+    const q = await v.api.english.queue()
+    expect(q).toHaveLength(100)
+    expect(q.map((w) => w.term)).toContain('again')
+    const stats = await v.api.english.stats()
+    expect(stats.today).toMatchObject({ reviewsDone: 1, reviewsLeft: 99, reviewsWaiting: true })
+  })
+
+  it('answers of an entry in the trash don’t count toward today', async () => {
+    const w = await v.api.english.create({ term: 'gone' })
+    await v.api.english.review({ id: w.id, grade: 2 })
+    expect((await v.api.english.stats()).today.newDone).toBe(1)
+    await v.api.english.remove(w.id)
+    expect((await v.api.english.stats()).today.newDone).toBe(0)
+  })
+
+  it('a rule with only empty brackets is not trainable anywhere', async () => {
+    await v.api.english.create({
+      term: 'Empty',
+      kind: 'rule',
+      example: 'I [ ] it.\nShe [|hint] it.\nA [line\nbreak]'
+    })
+    const ok = await v.api.english.create({ term: 'Ok', kind: 'rule', example: 'I [went] home.' })
+    expect((await v.api.english.queue()).map((w) => w.id)).toEqual([ok.id])
+    expect((await v.api.english.moreNew(10)).map((w) => w.id)).toEqual([ok.id])
+    expect((await v.api.english.stats()).today.newMore).toBe(0)
   })
 })

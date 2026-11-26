@@ -129,11 +129,41 @@ function splitRecords(text: string, sep: string): string[][] {
 function guessSeparator(lines: string[]): string {
   const sample = lines.slice(0, 20)
   if (sample.some((l) => l.includes('\t'))) return '\t'
-  const score = (c: string): number => sample.filter((l) => l.includes(c)).length
-  return score(';') > score(',') ? ';' : ','
+  // Outside quotes only: a quoted «a, b» is one field whatever the separator.
+  const counts = (c: string): number[] =>
+    sample.map(
+      (l) =>
+        l
+          .split('"')
+          .filter((_, i) => i % 2 === 0)
+          .join('')
+          .split(c).length - 1
+    )
+  // The separator splits every line into the same number of fields; commas inside translations don't
+  // (Excel in Ukrainian saves `;`-separated CSV: «deploy;розгорнути, викатити»). A tie goes to `;`.
+  const rank = (c: string): [number, number] => {
+    const n = counts(c)
+    const consistent = n.length > 0 && n[0] > 0 && n.every((x) => x === n[0]) ? 1 : 0
+    return [consistent, n.filter((x) => x > 0).length]
+  }
+  const [semi, comma] = [rank(';'), rank(',')]
+  if (comma[0] !== semi[0]) return comma[0] > semi[0] ? ',' : ';'
+  return comma[1] > semi[1] ? ',' : ';'
 }
 
 const isName = (cell: string, names: string[]): boolean => names.includes(cell.trim().toLowerCase())
+
+const ROLES = [TERM_NAMES, TRANSLATION_NAMES, EXAMPLE_NAMES]
+
+/**
+ * A first row is column names only when every filled cell is a known name and no role repeats: «word,translation»
+ * is a header, «term,термін» is a word with its translation.
+ */
+function looksLikeHeader(row: string[]): boolean {
+  const filled = row.filter((c) => c.trim())
+  const roles = filled.map((c) => ROLES.findIndex((names) => isName(c, names)))
+  return filled.length > 1 && roles.every((r) => r >= 0) && new Set(roles).size === roles.length
+}
 
 export function parseWordTable(input: string): WordTable {
   const text = input.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
@@ -164,13 +194,9 @@ export function parseWordTable(input: string): WordTable {
   let rows = splitRecords(body.join('\n'), separator)
     .map((r) => r.map(clean))
     .filter((r) => r.some(Boolean))
-  if (!header && rows.length > 1) {
-    const first = rows[0]
-    const all = [...TERM_NAMES, ...TRANSLATION_NAMES, ...EXAMPLE_NAMES]
-    if (first.some((c) => isName(c, all))) {
-      header = first
-      rows = rows.slice(1)
-    }
+  if (!header && rows.length > 1 && looksLikeHeader(rows[0])) {
+    header = rows[0]
+    rows = rows.slice(1)
   }
   const columns = Math.max(header?.length ?? 0, ...rows.map((r) => r.length), 0)
   return { header, rows, columns, meta: [...meta].filter((i) => i < columns).sort((a, b) => a - b) }
@@ -186,9 +212,15 @@ export function guessColumns(table: WordTable): ColumnMap {
     return i >= 0 ? i : null
   }
   const term = byName(TERM_NAMES) ?? free[0] ?? 0
+  // Never the word's own column again: a translation equal to the word is no translation.
+  const unused = (i: number | null, taken: (number | null)[]): number | null =>
+    i !== null && !taken.includes(i) ? i : null
   const rest = free.filter((i) => i !== term)
-  const translation = byName(TRANSLATION_NAMES) ?? rest[0] ?? null
-  const example = byName(EXAMPLE_NAMES) ?? rest.filter((i) => i !== translation)[0] ?? null
+  const translation = unused(byName(TRANSLATION_NAMES), [term]) ?? rest[0] ?? null
+  const example =
+    unused(byName(EXAMPLE_NAMES), [term, translation]) ??
+    rest.filter((i) => i !== translation)[0] ??
+    null
   return { term, translation, example }
 }
 

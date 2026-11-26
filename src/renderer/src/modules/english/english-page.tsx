@@ -70,7 +70,11 @@ function subtitleOf(stats: EnglishStats | undefined): string | undefined {
   if (!stats?.total) return undefined
   const size = `${stats.total} ${plural(stats.total, ['слово', 'слова', 'слів'])}`
   // The streak and today's goal are in the panel below: here only when the next review comes.
-  const second = !stats.due && stats.nextDueAt && `наступне повторення ${fmtDay(stats.nextDueAt)}`
+  const second =
+    !stats.due &&
+    (stats.today.reviewsWaiting
+      ? 'ліміт повторень на сьогодні вичерпано'
+      : stats.nextDueAt && `наступне повторення ${fmtDay(stats.nextDueAt)}`)
   return second ? `${size} · ${second}` : size
 }
 

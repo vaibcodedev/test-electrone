@@ -25,10 +25,12 @@ export function ReviewPage(): ReactElement {
   const s = useReviewSession()
   const pronounce = usePronounce()
   const current = s.current
-  // A rule shows one of its sentences; the seed (dueAt) changes after every answer, so they take turns.
+  // A rule shows one of its sentences; the answer count moves on after every grade, so they take turns.
   const gap = useMemo(
     () =>
-      current?.kind === 'rule' ? pickGapCard(gapCards(current.example), current.dueAt) : undefined,
+      current?.kind === 'rule'
+        ? pickGapCard(gapCards(current.example), current.repetitions + current.lapses)
+        : undefined,
     [current]
   )
   // What 🔊 and R read: the word itself, or a rule's sentence once its gap is open (not before: it gives it away).
@@ -70,7 +72,7 @@ export function ReviewPage(): ReactElement {
     <PracticeMore
       onStart={startExtra}
       onMoreNew={(limit) => void s.startMoreNew(limit)}
-      newCount={stats.byStage.new}
+      newCount={stats.today.newMore}
       onExit={exit}
     />
   )
