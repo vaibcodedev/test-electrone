@@ -33,7 +33,11 @@ export function hidesEveryHub(hidden: readonly string[]): boolean {
   return NAV_HUB_IDS.every((id) => hidden.includes(id))
 }
 
+/** «Як до вас звертатися»: a name for the greeting, not free text. */
+export const USER_NAME_MAX = 40
+
 export const settingsSchema = z.object({
+  // Wider than USER_NAME_MAX on purpose: a name stored before the limit was lowered must not be reset on read.
   userName: z.string().max(100),
   theme: z.enum(THEMES),
   launchAtLogin: z.boolean(),
@@ -62,7 +66,9 @@ export const settingsSchema = z.object({
   hiddenNavItems: z.array(z.string().max(200)).max(200)
 })
 export type Settings = z.infer<typeof settingsSchema>
-export const settingsPatchSchema = patchOf(settingsSchema)
+export const settingsPatchSchema = patchOf(settingsSchema).extend({
+  userName: z.string().max(USER_NAME_MAX).optional()
+})
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
 
 export interface AppInfo {

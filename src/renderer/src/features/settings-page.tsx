@@ -2,11 +2,10 @@ import { useEffect, type ReactElement } from 'react'
 import { useLocation } from 'react-router'
 import { FileJson, FileText, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { settingsSchema, type ExportFormat, type Settings } from '@shared/domain/system'
+import { USER_NAME_MAX, type ExportFormat, type Settings } from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fmtBytes } from '@/lib/format'
-import { limitsOf } from '@/lib/limits'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { Button } from '@/components/ui/button'
@@ -35,7 +34,6 @@ import { isSandbox } from '@/lib/profile'
 import { AiSection } from './settings/ai-section'
 import { LoadError } from './route-error'
 
-const LIMITS = limitsOf(settingsSchema)
 /** Time the evening reminder starts with when it is switched on. */
 const DEFAULT_REMINDER = '20:00'
 
@@ -98,8 +96,9 @@ export function SettingsPage(): ReactElement {
                     userName === settings.userName ? null : save.mutateAsync({ userName })
                   }
                   placeholder="Напр.: Олена"
-                  maxLength={LIMITS.userName}
-                  className="w-72"
+                  maxLength={USER_NAME_MAX}
+                  tooLong={`Скоротіть ім’я до ${USER_NAME_MAX} символів`}
+                  className="w-64"
                 />
               )}
             </SettingsRow>
