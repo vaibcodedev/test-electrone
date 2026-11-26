@@ -9,7 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Minus,
-  NotebookPen
+  NotebookPen,
+  SquareKanban
 } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
 import {
@@ -18,6 +19,7 @@ import {
   type WeekSection,
   type WeekSnapshot
 } from '@shared/domain/review'
+import { planTasks } from '@shared/plan-tasks'
 import { limitsOf } from '@/lib/limits'
 import { KEEP_PERIOD, useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
 import { LoadError } from '@/features/route-error'
@@ -31,7 +33,7 @@ import {
   plural
 } from '@/lib/format'
 import { moneyEntries } from '@/lib/money'
-import { useAutosave } from '@/hooks/use-autosave'
+import { flushAllAutosaves, useAutosave } from '@/hooks/use-autosave'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { useNavVisibility } from '@/hooks/use-nav-visibility'
 import { cn } from '@/lib/utils'
@@ -58,6 +60,7 @@ import { CardEmptyText, ListCard } from '@/components/common/list-card'
 import { EventDate } from '@/components/common/event-date'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { visibleSnapshot } from './visible'
+import { PlanCardsDialog } from './plan-cards-dialog'
 
 const NOTES_L = limitsOf(reviewNotesSchema)
 const currentWeekKey = (): string => dayKey(startOfWeek(new Date(), { weekStartsOn: 1 }))
@@ -240,6 +243,8 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
   const save = useApiMutation('review', 'saveNotes', { silent: false })
   const [s, setS] = useAutosave(summary, (next) => save.mutate({ weekStart, summary: next }))
   const [p, setP] = useAutosave(plan, (next) => save.mutate({ weekStart, plan: next }))
+  const [cardsOpen, setCardsOpen] = useState(false)
+  const hasTasks = useMemo(() => planTasks(p).length > 0, [p])
   return (
     <div className="col-span-12 grid grid-cols-2 gap-3">
       <Card>
@@ -264,8 +269,29 @@ function Notes({ weekStart, summary, plan }: { weekStart: string; summary: strin
             maxLength={NOTES_L.plan}
             minHeight="160px"
           />
+          {hasTasks && (
+            <Button
+              variant="subtle"
+              className="mt-3"
+              // A plan over the limit isn't saved, and cards are made from the saved text.
+              disabled={p.length > NOTES_L.plan!}
+              onClick={() => {
+                // Main reads the saved plan: what was just typed goes there first.
+                flushAllAutosaves()
+                setCardsOpen(true)
+              }}
+            >
+              <SquareKanban /> Створити картки
+            </Button>
+          )}
         </CardContent>
       </Card>
+      <PlanCardsDialog
+        open={cardsOpen}
+        onOpenChange={setCardsOpen}
+        weekStart={weekStart}
+        plan={p}
+      />
     </div>
   )
 }
@@ -321,12 +347,7 @@ export function ReviewPage() {
   const navigate = useNavigate()
   const week = params.get('week') ?? currentWeekKey()
   const isCurrent = week === currentWeekKey()
-  const review = useInPlaceApi(
-    'review',
-    'get',
-    isCurrent ? {} : { weekStart: week },
-    KEEP_PERIOD
-  )
+  const review = useInPlaceApi('review', 'get', isCurrent ? {} : { weekStart: week }, KEEP_PERIOD)
   const { data, isLoading } = review
   const setWeek = (key: string): void =>
     setParams(key === currentWeekKey() ? {} : { week: key }, { replace: true })

@@ -257,6 +257,11 @@ export class BoardsModule {
     return col
   }
 
+  /** The board a column belongs to; a board in the trash takes no new cards from outside. */
+  boardIdOfColumn(columnId: string): string {
+    return this.boardRepo.rowOrThrow(this.column(columnId).boardId).id
+  }
+
   /** Markdown export: the board's columns with their cards as a task list. */
   private exportBody(boardId: string): string[] {
     const list = this.db

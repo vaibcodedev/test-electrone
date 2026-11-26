@@ -4,8 +4,12 @@ import { CARD_ON_LIVE_BOARD } from '../modules/boards'
 import type { EntitySummary } from '@shared/domain/common'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import type { Currency } from '@shared/domain/crm'
+import { MAX } from '@shared/domain/limits'
+import { linkedPlanLength, linkPlanTasks, planTasks } from '@shared/plan-tasks'
 import {
+  planCardsSchema,
   reviewNotesSchema,
+  type PlanCardsInput,
   type WeekMetric,
   type WeekSection,
   type WeekSnapshot,
@@ -30,7 +34,7 @@ import {
   wordReviews,
   withdrawals
 } from '../db/schema'
-import { addDays, dayKey, newId, now, startOfWeek, overlapMinutes } from '../core/util'
+import { addDays, dayKey, newId, now, startOfWeek, overlapMinutes, UserError } from '../core/util'
 import type { FinanceModule } from '../modules/finance'
 import type { CalendarModule } from '../modules/calendar'
 import type { BoardsModule } from '../modules/boards'
@@ -411,6 +415,37 @@ export class WeeklyReviewService {
         .run()
   }
 
+  /** All or nothing: the cards and the marks in the plan are written in one transaction. */
+  createCards(input: PlanCardsInput): { boardId: string; count: number } {
+    const { weekStart, columnId, tasks } = planCardsSchema.parse(input)
+    const plan =
+      this.db.select().from(weeklyReviews).where(eq(weeklyReviews.weekStart, weekStart)).get()
+        ?.plan ?? ''
+    const open = new Map(planTasks(plan).map((t) => [t.line, t]))
+    const chosen = [...new Set(tasks.map((t) => t.line))].map((line) => {
+      const task = open.get(line)
+      if (!task || tasks.some((t) => t.line === line && t.text !== task.text))
+        throw new UserError('План змінився — закрийте вікно й відкрийте його ще раз')
+      return task
+    })
+    if (
+      linkedPlanLength(
+        plan,
+        chosen.map((t) => t.line)
+      ) > MAX.note
+    )
+      throw new UserError('У плані не вистачає місця для посилань на картки — скоротіть його')
+    return this.ctx.tx(() => {
+      const boardId = this.mods.boards.boardIdOfColumn(columnId)
+      const created = chosen.map((t) => ({
+        line: t.line,
+        cardId: this.mods.boards.createCard({ boardId, columnId, title: t.title }).id
+      }))
+      this.saveNotes(weekStart, { plan: linkPlanTasks(plan, created) })
+      return { boardId, count: created.length }
+    })
+  }
+
   list(): { weekStart: string; hasNotes: boolean }[] {
     return this.db
       .select({
@@ -431,6 +466,7 @@ export class WeeklyReviewService {
         const { weekStart, summary, plan } = reviewNotesSchema.parse(input)
         this.saveNotes(weekStart, { summary, plan })
       },
+      createCards: async (input) => this.createCards(input),
       list: async () => this.list()
     }
   }

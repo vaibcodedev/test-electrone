@@ -168,7 +168,7 @@ import type {
   LogChunk,
   RunningScript
 } from './domain/dev'
-import type { ReviewNotesInput, WeeklyReview } from './domain/review'
+import type { PlanCardsInput, ReviewNotesInput, WeeklyReview } from './domain/review'
 import type { SandboxInfo } from './domain/sandbox'
 import type { ImportKind, ImportResult } from './domain/import'
 import type {
@@ -765,6 +765,8 @@ export interface ReviewApi {
   /** Week by its Monday (yyyy-mm-dd); current week when omitted. */
   get(args?: { weekStart?: string }): Promise<WeeklyReview>
   saveNotes(input: ReviewNotesInput): Promise<void>
+  /** Cards from the saved plan's «- [ ]» lines; each used line gets a link to its card. */
+  createCards(input: PlanCardsInput): Promise<{ boardId: string; count: number }>
   list(): Promise<{ weekStart: string; hasNotes: boolean }[]>
 }
 

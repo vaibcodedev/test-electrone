@@ -1,7 +1,7 @@
 /** Weekly review: a snapshot of the week + your own summary and plan. */
 import { z } from 'zod'
 import { MAX } from './limits'
-import type { EntitySummary } from './common'
+import { idSchema, type EntitySummary } from './common'
 import type { MoneyByCurrency } from './finance'
 
 export interface WeekMetric {
@@ -53,3 +53,15 @@ export const reviewNotesSchema = z.object({
   plan: z.string().max(MAX.note).optional()
 })
 export type ReviewNotesInput = z.input<typeof reviewNotesSchema>
+
+/** «Створити картки» from the week's plan. */
+export const planCardsSchema = z.object({
+  weekStart: reviewNotesSchema.shape.weekStart,
+  columnId: idSchema,
+  /** The chosen lines with the text the person saw: main refuses if the plan changed meanwhile. */
+  tasks: z
+    .array(z.object({ line: z.number().int().min(0), text: z.string().min(1).max(MAX.note) }))
+    .min(1)
+    .max(100)
+})
+export type PlanCardsInput = z.input<typeof planCardsSchema>
