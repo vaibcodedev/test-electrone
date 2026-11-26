@@ -19,34 +19,39 @@ const STALE = 'Меню застаріло — відкрийте його ще 
  * Vault's right-click menu for text (features/text-menu in the renderer). Chromium's `context-menu` event says
  * that a menu is wanted and what it may offer; the renderer draws it, and the command comes back here and is
  * performed on that window's webContents — the same editing commands as the keys, so undo and the clipboard
- * work as usual. Only the latest menu can be acted on, once, and only with what it offered: a renderer can't
- * paste or replace words on its own.
+ * work as usual. Only a window's latest menu can be acted on, once, and only with what it offered: a renderer
+ * can't paste or replace words on its own.
  */
 export class TextMenuController {
   private seq = 0
-  private pending: (MenuGrant & { id: number; contents: WebContents; at: number }) | null = null
+  /** One menu per window: a menu in the quick-add window must not make the main window's one stale. */
+  private readonly pending = new Map<WebContents, MenuGrant & { id: number; at: number }>()
 
   attach(contents: WebContents): void {
+    contents.once('destroyed', () => this.pending.delete(contents))
     contents.on('context-menu', (_event, params) => {
       // The component preview is a sandboxed frame running the person's own code, a PDF has its viewer: our
       // menu lives in the app's document and can't hand focus back into another one. No menu there, as before.
       const frame = params.frame
       if (!frame || frame.parent || !isAppPageUrl(frame.url)) return
       const { request, grant } = menuRequest(params, ++this.seq, contents.getZoomFactor())
-      this.pending = { ...grant, id: request.id, contents, at: Date.now() }
+      this.pending.set(contents, { ...grant, id: request.id, at: Date.now() })
       contents.send('text-menu:open', request)
     })
   }
 
-  /** The menu `id` if it is still the latest, unused and its window is alive; it is used up by this call. */
+  /** The menu `id` if it is still its window's latest, unused and the window is alive; used up by this call. */
   private take(id: number): MenuGrant & { contents: WebContents } {
-    const p = this.pending
-    if (!p || p.id !== id || Date.now() - p.at > MAX_AGE_MS || p.contents.isDestroyed()) {
-      log.warn('[text-menu] stale menu')
-      throw new UserError(STALE)
+    const found = [...this.pending].find(([, menu]) => menu.id === id)
+    if (found) {
+      const [contents, menu] = found
+      if (Date.now() - menu.at <= MAX_AGE_MS && !contents.isDestroyed()) {
+        this.pending.delete(contents)
+        return { ...menu, contents }
+      }
     }
-    this.pending = null
-    return p
+    log.warn('[text-menu] stale menu')
+    throw new UserError(STALE)
   }
 
   api(): TextMenuApi {
