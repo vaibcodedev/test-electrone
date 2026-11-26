@@ -4,7 +4,7 @@ import { entityTypeSchema, idSchema, patchOf, type EntitySummary } from './commo
 import type { DueCard } from './boards'
 import type { CalendarItem } from './calendar'
 import type { RunningTimer } from './crm'
-import type { Word } from './english'
+import { ENGLISH_ACCENTS, ENGLISH_NEW_PER_DAY, ENGLISH_REVIEWS_PER_DAY, type Word } from './english'
 import type { Bookmark } from './bookmarks'
 import type { Idea } from './ideas'
 
@@ -81,7 +81,12 @@ export const settingsSchema = z.object({
    */
   hiddenNavHubs: z.array(z.string().max(40)).max(50),
   /** Nav item paths switched off («/jobs/stats», «/review»). Unknown paths are ignored. */
-  hiddenNavItems: z.array(z.string().max(200)).max(200)
+  hiddenNavItems: z.array(z.string().max(200)).max(200),
+  /** «Англійська → Налаштування тренування»: the daily goal, the voice and autoplay of pronunciation. */
+  englishNewPerDay: z.number().int().min(ENGLISH_NEW_PER_DAY.min).max(ENGLISH_NEW_PER_DAY.max),
+  englishReviewsPerDay: z.number().int().min(ENGLISH_REVIEWS_PER_DAY.min).max(ENGLISH_REVIEWS_PER_DAY.max),
+  englishAccent: z.enum(ENGLISH_ACCENTS),
+  englishAutoplay: z.boolean()
 })
 export type Settings = z.infer<typeof settingsSchema>
 export const settingsPatchSchema = patchOf(settingsSchema).extend({
