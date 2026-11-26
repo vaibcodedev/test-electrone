@@ -39,7 +39,7 @@ import { SectionLabel } from '@/components/common/section-label'
 import { NumberField, useInvalidFields } from '@/components/common/number-field'
 import { GOAL_METRIC_LABEL, GOAL_PERIOD_LABEL } from './g2-labels'
 import { GoalCard } from './goal-card'
-import { useNewParam } from './use-new-param'
+import { useNewParam } from '@/hooks/use-new-param'
 import { formatGoalValue, goalTitle } from './goal-format'
 import { freshOnOpen } from '@/components/common/fresh-on-open'
 
@@ -305,7 +305,8 @@ export function GoalsPage() {
             })}
           </div>
         ) : (
-          !progressLoading && inactive.length > 0 && (
+          !progressLoading &&
+          inactive.length > 0 && (
             <p className="text-body text-muted-foreground">
               Усі цілі на паузі — продовжте потрібну в меню ⋯.
             </p>

@@ -16,7 +16,7 @@ import {
   useTrashItem
 } from '@/features/record-menu/actions'
 
-/** A proposal's right click (list rows): the job post, the status, «Зберегти як шаблон». */
+/** A proposal's right click (list rows; the kanban, with «⋯»): the job post, the status, «Зберегти як шаблон». */
 export const proposalMenu = defineRecordMenu<Proposal, { onOpen: () => void }>({
   title: (p) => p.jobTitle,
   entity: (p) => ({ type: 'proposal', id: p.id }),

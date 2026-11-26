@@ -476,3 +476,88 @@ test('only one submenu is open: moving to a sibling row or a plain row closes th
   await expect(menu(win)).toHaveCount(0)
   await expect(submenus).toHaveCount(0)
 })
+
+test('pipeline kanbans: proposals and vacancies have «⋯» and the right click', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const job = `Відгук дошки ${uid()}`
+  const platform = (await rpc('platforms.list'))[0]
+  const proposal = await rpc('proposals.create', { platformId: platform.id, jobTitle: job })
+  await go(`/freelance/p/${platform.id}?tab=proposals`)
+  const tile = area(win, job)
+  await tile.hover()
+  await tile.getByRole('button', { name: `Дії: ${job}` }).click()
+  await item(win, 'Статус').hover()
+  await win.getByRole('menuitemcheckbox', { name: 'Надіслано', exact: true }).click()
+  await expect.poll(async () => (await rpc('proposals.get', proposal.id))?.status).toBe('sent')
+
+  const title = `Вакансія дошки ${uid()}`
+  await rpc('jobs.create', { title })
+  await go('/jobs/applications')
+  const card = area(win, title)
+  await card.click({ button: 'right' })
+  await expect(item(win, 'Відкрити')).toBeVisible()
+  await win.keyboard.press('Escape')
+  await expect(menu(win)).toHaveCount(0)
+  await expect(card.getByRole('button', { name: `Дії: ${title}` })).toHaveCount(1)
+})
+
+test('client menu «Новий проєкт», then a payment row’s menu on the project', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const name = `Клієнт меню ${uid()}`
+  const client = await rpc('clients.create', { name })
+  await go('/clients')
+  await area(win, name).click({ button: 'right' })
+  await item(win, 'Новий проєкт').click()
+  const dialog = win.getByRole('dialog', { name: 'Новий проєкт' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText(name)
+  // The flag leaves the address: going back or reloading doesn't open the form again.
+  await expect.poll(() => win.evaluate(() => location.hash)).toBe(`#/clients/${client.id}`)
+  await win.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+
+  const project = await rpc('projects.create', {
+    title: `Проєкт меню ${uid()}`,
+    clientId: client.id,
+    billing: 'fixed',
+    fixedPrice: 500
+  })
+  const note = `Етап ${uid()}`
+  await rpc('payments.create', { projectId: project.id, amount: 100, note })
+  await go(`/projects/${project.id}`)
+  const row = area(win, note)
+  await row.click({ button: 'right' })
+  expect(await labels(win)).toEqual(['Змінити', '—', 'Статус', '—', 'Видалити…'])
+  // «Змінити» from reading: the record goes to editing with the row's form open.
+  await item(win, 'Змінити').click()
+  await expect(win.locator('[data-detail-mode]').first()).toHaveAttribute('data-detail-mode', 'edit')
+  await expect(win.getByRole('button', { name: 'Зберегти', exact: true }).first()).toBeVisible()
+  await expect(win.getByPlaceholder('Напр.: Передоплата 50%')).toHaveValue(note)
+})
+
+test('home rows and Ctrl+K results have the record menu', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const title = `Ідея головної ${uid()}`
+  const idea = await rpc('ideas.create', { title })
+  await go('/')
+  const chip = win.locator('button[data-record-menu]').filter({ hasText: title })
+  await chip.click({ button: 'right' })
+  await expect(item(win, 'Перетворити на дошку')).toBeVisible()
+  await win.keyboard.press('Escape')
+  await expect(menu(win)).toHaveCount(0)
+
+  await win.keyboard.press('Control+k')
+  const palette = win.getByRole('dialog', { name: 'Пошук усюди' })
+  await palette.getByRole('combobox').fill(title)
+  const hit = palette.getByRole('option').filter({ hasText: title }).first()
+  await hit.click({ button: 'right' })
+  await expect(menu(win)).toBeVisible()
+  // The menu is part of the palette's layer: using it doesn't close the palette.
+  await item(win, 'Копіювати посилання').click()
+  await expect.poll(() => readClipboard(vault)).toBe(`[${title}](vault:idea/${idea.id})`)
+  await expect(palette).toBeVisible()
+  await hit.click({ button: 'right' })
+  await item(win, 'Відкрити').click()
+  await expect(palette).toHaveCount(0)
+  await expect.poll(() => win.evaluate(() => location.hash)).toContain(`open=${idea.id}`)
+})

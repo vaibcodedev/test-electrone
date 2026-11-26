@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { Pencil, Trash2 } from 'lucide-react'
 import type { TimeEntry } from '@shared/domain/crm'
 import { useApiMutation } from '@/lib/query'
-import { capitalize, LOCALE, fmtMinutes, fmtMoney } from '@/lib/format'
+import { capitalize, LOCALE, fmtMoney } from '@/lib/format'
 import { Confirm } from '@/components/common/confirm'
 import { IconAction } from '@/components/common/icon-action'
 import { Badge } from '@/components/ui/badge'
@@ -13,9 +13,9 @@ import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { EntryForm } from './entry-form'
 import { useInlineForm } from './inline-form'
 import { draftOf, toRange } from './time-range'
-
-/** "<1 хв" for short entries, otherwise «1 год 5 хв». */
-const fmtDuration = (min: number): string => (min < 1 ? '<1 хв' : fmtMinutes(min))
+import { fmtDuration, timeEntryMenu } from './money-menus'
+import { useDetailMode } from '@/components/common/detail-mode-context'
+import { RecordMenu } from '@/features/record-menu/record-menu'
 
 /** Rows shown per day before «ще N». */
 const DAY_LIMIT = 8
@@ -36,6 +36,12 @@ function EntryRow({
   showBillable: boolean
 }): ReactElement {
   const [editing, setEditing] = useInlineForm('запис часу')
+  const mode = useDetailMode()
+  // From the menu in view mode too: the inline form belongs to edit mode.
+  const edit = (): void => {
+    mode.setEditing(true)
+    setEditing(true)
+  }
   const update = useApiMutation('time', 'update', { onSuccess: () => setEditing(false) })
   const remove = useApiMutation('time', 'remove')
   if (editing) {
@@ -59,51 +65,53 @@ function EntryRow({
     )
   }
   return (
-    <div
-      className={cn(
-        ROW_GRID,
-        'group min-h-10 rounded-xl py-1.5 transition-colors hover:bg-foreground/5'
-      )}
-    >
-      <span className="text-caption text-muted-foreground tabular-nums">
-        {format(entry.startedAt, 'HH:mm')}–{entry.endedAt ? format(entry.endedAt, 'HH:mm') : '…'}
-      </span>
-      <span
-        className={cn('truncate text-body', !entry.description && 'text-muted-foreground')}
-        title={entry.description || undefined}
-      >
-        {entry.description || 'без опису'}
-      </span>
-      <span className="text-right">
-        {showBillable && !entry.billable ? (
-          <Badge variant="soft">не оплачується</Badge>
-        ) : (
-          rate > 0 && (
-            <span className="text-caption text-muted-foreground tabular-nums">
-              {fmtMoney((entry.minutes / 60) * rate, currency)}
-            </span>
-          )
+    <RecordMenu asChild def={timeEntryMenu} record={entry} ctx={{ onEdit: edit }}>
+      <div
+        className={cn(
+          ROW_GRID,
+          'group min-h-10 rounded-xl py-1.5 transition-colors hover:bg-foreground/5'
         )}
-      </span>
-      <span className="text-right text-body tabular-nums">{fmtDuration(entry.minutes)}</span>
-      <span
-        data-edit-only
-        className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
       >
-        <IconAction label="Змінити запис" onClick={() => setEditing(true)}>
-          <Pencil />
-        </IconAction>
-        <Confirm
-          title={`Видалити запис ${fmtDuration(entry.minutes)}?`}
-          description="Відновити не можна."
-          onConfirm={() => remove.mutate(entry.id)}
+        <span className="text-caption text-muted-foreground tabular-nums">
+          {format(entry.startedAt, 'HH:mm')}–{entry.endedAt ? format(entry.endedAt, 'HH:mm') : '…'}
+        </span>
+        <span
+          className={cn('truncate text-body', !entry.description && 'text-muted-foreground')}
+          title={entry.description || undefined}
         >
-          <IconAction label="Видалити запис" className="hover:text-destructive">
-            <Trash2 />
+          {entry.description || 'без опису'}
+        </span>
+        <span className="text-right">
+          {showBillable && !entry.billable ? (
+            <Badge variant="soft">не оплачується</Badge>
+          ) : (
+            rate > 0 && (
+              <span className="text-caption text-muted-foreground tabular-nums">
+                {fmtMoney((entry.minutes / 60) * rate, currency)}
+              </span>
+            )
+          )}
+        </span>
+        <span className="text-right text-body tabular-nums">{fmtDuration(entry.minutes)}</span>
+        <span
+          data-edit-only
+          className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+        >
+          <IconAction label="Змінити запис" onClick={() => setEditing(true)}>
+            <Pencil />
           </IconAction>
-        </Confirm>
-      </span>
-    </div>
+          <Confirm
+            title={`Видалити запис ${fmtDuration(entry.minutes)}?`}
+            description="Відновити не можна."
+            onConfirm={() => remove.mutate(entry.id)}
+          >
+            <IconAction label="Видалити запис" className="hover:text-destructive">
+              <Trash2 />
+            </IconAction>
+          </Confirm>
+        </span>
+      </div>
+    </RecordMenu>
   )
 }
 

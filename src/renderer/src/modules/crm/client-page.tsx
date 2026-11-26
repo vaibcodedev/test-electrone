@@ -7,6 +7,7 @@ import { LoadError } from '@/features/route-error'
 import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useStillCurrent } from '@/hooks/use-still-current'
+import { useNewParam } from '@/hooks/use-new-param'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { EntityAside, RecordActions } from '@/components/common/master-detail'
@@ -51,6 +52,8 @@ export function ClientPage(): ReactElement {
     onSuccess: () => stillHere() && navigate('/clients')
   })
   const [projectOpen, setProjectOpen] = useState(false)
+  // «Новий проєкт» of the client's record menu.
+  useNewParam(() => setProjectOpen(true))
   const c = data?.client
   const patch = (p: ClientPatch): void => update.mutate({ id, patch: p })
   const [name, setName] = useAutosave(c?.name ?? '', (v) => v.trim() && patch({ name: v.trim() }))

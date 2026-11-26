@@ -36,6 +36,8 @@ import { useResolvedTheme } from '@/hooks/use-theme'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { entityMenu } from '@/features/record-menu/entity-menu'
 
 const SEARCH_LIMITS = limitsOf(searchQuerySchema)
 const NO_HITS: SearchHit[] = []
@@ -158,6 +160,23 @@ export function CommandPalette(): ReactElement {
     close()
     navigate(route)
   }
+
+  // Right click on a record's row: the shared menu of a record known by its summary. «Відкрити» closes the palette.
+  const recordRow = (
+    key: string,
+    record: Ref & { title: string },
+    row: ReactElement
+  ): ReactElement => (
+    <RecordMenu
+      asChild
+      key={key}
+      def={entityMenu}
+      record={{ type: record.type, id: record.id, title: record.title }}
+      ctx={{ onOpen: () => go(ENTITY_META[record.type].route(record.id)) }}
+    >
+      {row}
+    </RecordMenu>
+  )
 
   useHotkey('mod+k', () => (open ? close() : setOpen(true)), { allowInInputs: true })
 
@@ -357,31 +376,34 @@ export function CommandPalette(): ReactElement {
           const Icon = ENTITY_ICON[type]
           return (
             <CommandGroup key={type} heading={ENTITY_META[type].plural}>
-              {list.map((h, i) => (
-                // New results fade in one after another; results that stay between keystrokes don't re-animate.
-                <CommandItem
-                  key={`${h.type}:${h.id}`}
-                  value={VALUE.hit(h)}
-                  onSelect={() => go(ENTITY_META[h.type].route(h.id))}
-                  className="animate-enter"
-                  style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
-                >
-                  <Icon />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate font-medium" title={h.title}>
-                        {h.title}
-                      </span>
-                      <FavoriteMark entity={h} />
-                    </div>
-                    {h.snippet && (
-                      <div className="truncate text-caption text-muted-foreground">
-                        <Snippet text={h.snippet} />
+              {list.map((h, i) =>
+                recordRow(
+                  VALUE.hit(h),
+                  h,
+                  // New results fade in one after another; results that stay between keystrokes don't re-animate.
+                  <CommandItem
+                    value={VALUE.hit(h)}
+                    onSelect={() => go(ENTITY_META[h.type].route(h.id))}
+                    className="animate-enter"
+                    style={{ animationDelay: `${Math.min(i, 8) * 25}ms` }}
+                  >
+                    <Icon />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate font-medium" title={h.title}>
+                          {h.title}
+                        </span>
+                        <FavoriteMark entity={h} />
                       </div>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
+                      {h.snippet && (
+                        <div className="truncate text-caption text-muted-foreground">
+                          <Snippet text={h.snippet} />
+                        </div>
+                      )}
+                    </div>
+                  </CommandItem>
+                )
+              )}
             </CommandGroup>
           )
         })}
@@ -421,9 +443,10 @@ export function CommandPalette(): ReactElement {
           <CommandGroup heading="Нещодавні">
             {recent.map((r) => {
               const Icon = ENTITY_ICON[r.type]
-              return (
+              return recordRow(
+                VALUE.recent(r),
+                r,
                 <CommandItem
-                  key={`${r.type}:${r.id}`}
                   value={VALUE.recent(r)}
                   onSelect={() => go(ENTITY_META[r.type].route(r.id))}
                 >
@@ -447,9 +470,10 @@ export function CommandPalette(): ReactElement {
           <CommandGroup heading="Обране">
             {favs.map((r) => {
               const Icon = ENTITY_ICON[r.type]
-              return (
+              return recordRow(
+                VALUE.fav(r),
+                r,
                 <CommandItem
-                  key={`${r.type}:${r.id}`}
                   value={VALUE.fav(r)}
                   onSelect={() => go(ENTITY_META[r.type].route(r.id))}
                 >

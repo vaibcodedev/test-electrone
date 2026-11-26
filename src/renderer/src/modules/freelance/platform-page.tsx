@@ -21,7 +21,7 @@ import { EmptyState, Page, PageHeader } from '@/components/common/page'
 import { useOpenParam } from '@/components/common/master-detail'
 import { BILLING_LABEL, PROJECT_STATUS_BADGE, PROJECT_STATUS_LABEL } from '../crm/labels'
 import { NewProposalButton, ProposalsTab } from './proposal-tab'
-import { useNewParam } from './use-new-param'
+import { useNewParam } from '@/hooks/use-new-param'
 import { CreditsTab } from './credits-tab'
 import { StatsTab } from './stats-tab'
 import { PlatformSettingsTab } from './platform-settings-tab'
@@ -122,7 +122,11 @@ export function PlatformPage() {
   }
   if (!platform)
     return (
-      <EmptyState icon={SearchX} title="Платформу не знайдено" hint="Можливо, вона в архіві або її видалено." />
+      <EmptyState
+        icon={SearchX}
+        title="Платформу не знайдено"
+        hint="Можливо, вона в архіві або її видалено."
+      />
     )
 
   const tabs: { value: Tab; label: string }[] = [

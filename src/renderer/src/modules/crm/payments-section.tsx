@@ -38,6 +38,8 @@ import { cn } from '@/lib/utils'
 import { CURRENCY_SIGN, PAYMENT_STATUS_LABEL } from './labels'
 import { Section } from './parts'
 import { escapeCloses, useInlineForm } from './inline-form'
+import { paymentMenu } from './money-menus'
+import { RecordMenu } from '@/features/record-menu/record-menu'
 
 const NOTE_MAX = limitsOf(paymentInputSchema).note
 const AMOUNT_MAX = rangesOf(paymentInputSchema).amount?.max
@@ -208,6 +210,12 @@ function PaymentRow({
   showNote: boolean
 }): ReactElement {
   const [editing, setEditing] = useInlineForm(stage ? 'етап' : 'оплату')
+  const mode = useDetailMode()
+  // From the menu in view mode too: the inline form belongs to edit mode.
+  const edit = (): void => {
+    mode.setEditing(true)
+    setEditing(true)
+  }
   const update = useApiMutation('payments', 'update')
   const remove = useApiMutation('payments', 'remove')
   if (editing)
@@ -227,68 +235,71 @@ function PaymentRow({
     )
   const what = stage ? 'етап' : 'оплату'
   return (
-    <TableRow className={cn('group', payment.overdue && 'bg-destructive/5')}>
-      <TableCell className="font-display text-heading tabular-nums">
-        {fmtMoney(payment.amount, payment.currency)}
-      </TableCell>
-      {showNote && (
-        <TableCell className="max-w-0 truncate" title={payment.note || undefined}>
-          {payment.note}
+    // A table row: right click (Shift+F10) only, its buttons are in sight.
+    <RecordMenu asChild def={paymentMenu} record={payment} ctx={{ stage, onEdit: edit }}>
+      <TableRow className={cn('group', payment.overdue && 'bg-destructive/5')}>
+        <TableCell className="font-display text-heading tabular-nums">
+          {fmtMoney(payment.amount, payment.currency)}
         </TableCell>
-      )}
-      <TableCell
-        className={cn(
-          'text-caption',
-          payment.overdue ? 'text-destructive' : 'text-muted-foreground'
+        {showNote && (
+          <TableCell className="max-w-0 truncate" title={payment.note || undefined}>
+            {payment.note}
+          </TableCell>
         )}
-      >
-        {payment.status === 'paid' && payment.paidAt
-          ? `оплачено ${fmtDay(payment.paidAt)}`
-          : payment.dueAt
-            ? `${payment.overdue ? 'прострочено, термін ' : 'до '}${fmtDay(payment.dueAt)}`
-            : 'без терміну'}
-      </TableCell>
-      <TableCell className="w-42.5">
-        {/* Marking a stage paid is a quick action (docs/design-system.md §8): it works in view mode too. */}
-        <EditableScope>
-          <Choice
-            size="sm"
-            aria-label={stage ? 'Статус етапу' : 'Статус оплати'}
-            className={cn(
-              'border-transparent bg-transparent shadow-none hover:bg-card dark:bg-transparent',
-              STATUS_TONE[payment.status]
-            )}
-            value={payment.status}
-            onChange={(s) =>
-              s && s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })
-            }
-            options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
-          />
-        </EditableScope>
-      </TableCell>
-      <TableCell className="w-16">
-        <span
-          data-edit-only
-          className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+        <TableCell
+          className={cn(
+            'text-caption',
+            payment.overdue ? 'text-destructive' : 'text-muted-foreground'
+          )}
         >
-          <IconAction
-            label={stage ? 'Змінити етап' : 'Змінити оплату'}
-            onClick={() => setEditing(true)}
+          {payment.status === 'paid' && payment.paidAt
+            ? `оплачено ${fmtDay(payment.paidAt)}`
+            : payment.dueAt
+              ? `${payment.overdue ? 'прострочено, термін ' : 'до '}${fmtDay(payment.dueAt)}`
+              : 'без терміну'}
+        </TableCell>
+        <TableCell className="w-42.5">
+          {/* Marking a stage paid is a quick action (docs/design-system.md §8): it works in view mode too. */}
+          <EditableScope>
+            <Choice
+              size="sm"
+              aria-label={stage ? 'Статус етапу' : 'Статус оплати'}
+              className={cn(
+                'border-transparent bg-transparent shadow-none hover:bg-card dark:bg-transparent',
+                STATUS_TONE[payment.status]
+              )}
+              value={payment.status}
+              onChange={(s) =>
+                s && s !== payment.status && update.mutate({ id: payment.id, patch: { status: s } })
+              }
+              options={PAYMENT_STATUSES.map((s) => ({ value: s, label: PAYMENT_STATUS_LABEL[s] }))}
+            />
+          </EditableScope>
+        </TableCell>
+        <TableCell className="w-16">
+          <span
+            data-edit-only
+            className="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
           >
-            <Pencil />
-          </IconAction>
-          <Confirm
-            title={`Видалити ${what} ${fmtMoney(payment.amount, payment.currency)}?`}
-            description="Відновити не можна."
-            onConfirm={() => remove.mutate(payment.id)}
-          >
-            <IconAction label={`Видалити ${what}`} className="hover:text-destructive">
-              <Trash2 />
+            <IconAction
+              label={stage ? 'Змінити етап' : 'Змінити оплату'}
+              onClick={() => setEditing(true)}
+            >
+              <Pencil />
             </IconAction>
-          </Confirm>
-        </span>
-      </TableCell>
-    </TableRow>
+            <Confirm
+              title={`Видалити ${what} ${fmtMoney(payment.amount, payment.currency)}?`}
+              description="Відновити не можна."
+              onConfirm={() => remove.mutate(payment.id)}
+            >
+              <IconAction label={`Видалити ${what}`} className="hover:text-destructive">
+                <Trash2 />
+              </IconAction>
+            </Confirm>
+          </span>
+        </TableCell>
+      </TableRow>
+    </RecordMenu>
   )
 }
 

@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item'
 import { RowLink } from './row-link'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { entityMenu } from '@/features/record-menu/entity-menu'
 
 const TODAY_LIMIT = 6
 
@@ -61,35 +63,41 @@ export function TodayCard({
         {open.slice(0, TODAY_LIMIT).map((c) => {
           const late = c.dueAt! < todayStart
           return (
-            <RowLink
+            <RecordMenu
+              asChild
               key={c.id}
-              to={ENTITY_META.card.route(c.id)}
-              // On ink the lime ring is invisible in the dark theme (≈1,1:1): focus takes the ink-foreground colour.
-              // [button]:hover — the same variant as Item's own bg-surface hover, so tailwind-merge replaces it
-              // (a plain hover: lost to it, and the row turned into a dark pill with dark text).
-              className="rounded-xl text-ink-foreground [button]:hover:bg-ink-foreground/8 focus-visible:border-ink-foreground focus-visible:ring-ink-foreground/60"
+              def={entityMenu}
+              record={{ type: 'card', id: c.id, title: c.title }}
             >
-              <ItemMedia>
-                <span className={cn('size-2 rounded-full', PRIORITY_DOT[c.priority])} />
-              </ItemMedia>
-              <ItemContent className="min-w-0">
-                <ItemTitle className="w-full truncate text-lead font-normal">{c.title}</ItemTitle>
-              </ItemContent>
-              {/* No status colours on ink (§6): «прострочено» is ink-foreground with an icon, only the dot stays red. */}
-              {late ? (
-                <span className="flex shrink-0 items-center gap-1 text-caption text-ink-foreground">
-                  <CircleAlert className="size-3.5" /> прострочено
-                </span>
-              ) : (
-                // The board name gives way to the title: it truncates instead of wrapping out of the card.
-                <span
-                  className="max-w-[40%] min-w-0 truncate text-caption text-ink-muted"
-                  title={c.boardTitle}
-                >
-                  {c.boardTitle}
-                </span>
-              )}
-            </RowLink>
+              <RowLink
+                to={ENTITY_META.card.route(c.id)}
+                // On ink the lime ring is invisible in the dark theme (≈1,1:1): focus takes the ink-foreground colour.
+                // [button]:hover — the same variant as Item's own bg-surface hover, so tailwind-merge replaces it
+                // (a plain hover: lost to it, and the row turned into a dark pill with dark text).
+                className="rounded-xl text-ink-foreground [button]:hover:bg-ink-foreground/8 focus-visible:border-ink-foreground focus-visible:ring-ink-foreground/60"
+              >
+                <ItemMedia>
+                  <span className={cn('size-2 rounded-full', PRIORITY_DOT[c.priority])} />
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle className="w-full truncate text-lead font-normal">{c.title}</ItemTitle>
+                </ItemContent>
+                {/* No status colours on ink (§6): «прострочено» is ink-foreground with an icon, only the dot stays red. */}
+                {late ? (
+                  <span className="flex shrink-0 items-center gap-1 text-caption text-ink-foreground">
+                    <CircleAlert className="size-3.5" /> прострочено
+                  </span>
+                ) : (
+                  // The board name gives way to the title: it truncates instead of wrapping out of the card.
+                  <span
+                    className="max-w-[40%] min-w-0 truncate text-caption text-ink-muted"
+                    title={c.boardTitle}
+                  >
+                    {c.boardTitle}
+                  </span>
+                )}
+              </RowLink>
+            </RecordMenu>
           )
         })}
       </ItemGroup>

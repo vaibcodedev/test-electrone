@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ACTIVE_STATUSES, CLOSED_STATUSES, PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { ProposalCard } from './proposal-card'
+import { proposalMenu } from './proposal-menu'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
 import { dropAnimation } from '@/lib/motion'
 
 const PAGE = 30
@@ -47,21 +49,32 @@ function DraggableProposal({
   onOpen: () => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: proposal.id })
+  // As on the boards' kanban: «⋯» is a sibling of the card (dnd-kit listens on the card only).
   return (
-    <ProposalCard
-      ref={setNodeRef}
-      proposal={proposal}
-      currency={currency}
-      creditsName={creditsName}
-      now={now}
-      dragging={isDragging}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') onOpen()
-      }}
-      {...attributes}
-      {...listeners}
-    />
+    <RecordMenu def={proposalMenu} record={proposal} ctx={{ onOpen }} className="shrink-0">
+      <ProposalCard
+        ref={setNodeRef}
+        proposal={proposal}
+        currency={currency}
+        creditsName={creditsName}
+        now={now}
+        dragging={isDragging}
+        onClick={onOpen}
+        className="pr-10"
+        {...attributes}
+        {...listeners}
+        // After the spread: dnd-kit's own onKeyDown would replace this one. Enter opens, Space picks up.
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && e.target === e.currentTarget && !isDragging) {
+            e.preventDefault()
+            onOpen()
+            return
+          }
+          listeners?.onKeyDown?.(e)
+        }}
+      />
+      {!isDragging && <RecordMenuButton className="absolute top-2.5 right-2.5" />}
+    </RecordMenu>
   )
 }
 

@@ -1,4 +1,5 @@
-import { CircleDot, Copy, Mail, Play, Square } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { CircleDot, Copy, FolderPlus, Mail, Play, Square } from 'lucide-react'
 import {
   CLIENT_STATUSES,
   PROJECT_STATUSES,
@@ -19,11 +20,12 @@ import {
 } from '@/features/record-menu/actions'
 import { CLIENT_STATUS_LABEL, PROJECT_STATUS_LABEL } from './labels'
 
-/** A client card's right click and «⋯»: write, copy the phone, the status. The trash asks (as on its page). */
+/** A client card's right click and «⋯»: a new project, write, copy the phone, the status. The trash asks (as on its page). */
 export const clientMenu = defineRecordMenu<ClientSummary>({
   title: (c) => c.name,
   entity: (c) => ({ type: 'client', id: c.id }),
   useGroups(c) {
+    const navigate = useNavigate()
     const ref = { type: 'client' as const, id: c.id }
     const update = useApiMutation('clients', 'update')
     const save = (patch: ClientPatch): void => update.mutate({ id: c.id, patch })
@@ -31,6 +33,8 @@ export const clientMenu = defineRecordMenu<ClientSummary>({
     return {
       open: [
         useOpenItem(ref),
+        // The client page opens its own project dialog, with this client and their terms filled in.
+        { label: 'Новий проєкт', icon: FolderPlus, run: () => navigate(`/clients/${c.id}?new=1`) },
         !!c.email.trim() && {
           label: 'Написати листа',
           icon: Mail,

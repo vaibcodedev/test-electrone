@@ -11,6 +11,9 @@ import { ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { Progress } from '@/components/ui/progress'
 import { presenceProps, usePresenceList } from '@/hooks/use-presence-list'
 import { RowLink } from './row-link'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { ideaMenu } from '@/modules/ideas/menu'
+import { bookmarkMenu } from '@/modules/bookmarks/menu'
 
 const LIST_LIMIT = 7
 const pinKey = (p: DashboardData['pinned'][number]): string => `${p.kind}:${p.type}:${p.id}`
@@ -98,16 +101,23 @@ export function InboxIdeasCard({
       {ideas.length ? (
         <div className="flex flex-wrap gap-2">
           {ideas.map((i) => (
-            <Button
+            <RecordMenu
+              asChild
               key={i.id}
-              variant="soft"
-              size="sm"
-              className="max-w-full bg-card font-normal hover:ring-1 hover:ring-border"
-              title={i.title}
-              onClick={() => navigate(ENTITY_META.idea.route(i.id))}
+              def={ideaMenu}
+              record={i}
+              ctx={{ onOpen: () => navigate(ENTITY_META.idea.route(i.id)) }}
             >
-              <span className="truncate">{i.title}</span>
-            </Button>
+              <Button
+                variant="soft"
+                size="sm"
+                className="max-w-full bg-card font-normal hover:ring-1 hover:ring-border"
+                title={i.title}
+                onClick={() => navigate(ENTITY_META.idea.route(i.id))}
+              >
+                <span className="truncate">{i.title}</span>
+              </Button>
+            </RecordMenu>
           ))}
         </div>
       ) : (
@@ -123,25 +133,34 @@ export function ReadingCard({
   reading,
   className
 }: Pick<DashboardData, 'reading'> & { className?: string }): ReactElement {
+  const navigate = useNavigate()
   return (
     <ListCard title="Читаю зараз" className={className}>
       {reading.length ? (
         <ItemGroup className="gap-2">
           {reading.map((b) => (
-            <RowLink key={b.id} to={ENTITY_META.bookmark.route(b.id)} className="bg-card">
-              <ItemContent className="min-w-0">
-                <ItemTitle className="w-full truncate font-normal">{b.title}</ItemTitle>
-              </ItemContent>
-              {/* Progress is always signed (§7): the number for the eye, the label for a screen reader. */}
-              <Progress
-                value={b.progress}
-                aria-label={`Прочитано ${b.progress}%`}
-                className="h-1.5 w-20 bg-surface *:data-[slot=progress-indicator]:bg-chart-1"
-              />
-              <span className="w-9 text-right text-meta tabular-nums text-muted-foreground">
-                {b.progress}%
-              </span>
-            </RowLink>
+            <RecordMenu
+              asChild
+              key={b.id}
+              def={bookmarkMenu}
+              record={b}
+              ctx={{ onOpen: () => navigate(ENTITY_META.bookmark.route(b.id)) }}
+            >
+              <RowLink to={ENTITY_META.bookmark.route(b.id)} className="bg-card">
+                <ItemContent className="min-w-0">
+                  <ItemTitle className="w-full truncate font-normal">{b.title}</ItemTitle>
+                </ItemContent>
+                {/* Progress is always signed (§7): the number for the eye, the label for a screen reader. */}
+                <Progress
+                  value={b.progress}
+                  aria-label={`Прочитано ${b.progress}%`}
+                  className="h-1.5 w-20 bg-surface *:data-[slot=progress-indicator]:bg-chart-1"
+                />
+                <span className="w-9 text-right text-meta tabular-nums text-muted-foreground">
+                  {b.progress}%
+                </span>
+              </RowLink>
+            </RecordMenu>
           ))}
         </ItemGroup>
       ) : (

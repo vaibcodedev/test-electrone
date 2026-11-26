@@ -16,7 +16,7 @@ import {
 } from '@/features/record-menu/actions'
 import { promptAfterStatusChange } from './schedule-stage'
 
-/** A vacancy's right click (list rows): the post, the status. */
+/** A vacancy's right click (list rows; the kanban, with «⋯»): the post, the status. */
 export const applicationMenu = defineRecordMenu<Application, { onOpen: () => void }>({
   title: (a) => a.title,
   entity: (a) => ({ type: 'application', id: a.id }),
