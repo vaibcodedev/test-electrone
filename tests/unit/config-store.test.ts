@@ -75,6 +75,21 @@ describe('a damaged config file', () => {
     expect(config.settings.backupKeep).toBe(DEFAULT_SETTINGS.backupKeep)
   })
 
+  it('a config from before «Папка для копій» works unchanged; the folder is not a setting', () => {
+    const path = file()
+    writeFileSync(path, JSON.stringify({ settings: { backupKeep: 7 }, lastBackupAt: 5 }))
+    const config = new ConfigStore(path)
+    expect(config.settings.backupKeep).toBe(7)
+    expect(config.settings.backupFolderKeep).toBe(10)
+    expect(config.backupFolder.path).toBeNull()
+    // A renderer patch can't point rotation anywhere: the key is not in the settings schema.
+    config.updateSettings({ path: 'C:\\Windows' } as never)
+    expect(config.backupFolder.path).toBeNull()
+    writeFileSync(path, JSON.stringify({ backupFolder: { path: 42, machineId: 'a1b2c3d4' } }))
+    const damaged = new ConfigStore(path)
+    expect(damaged.backupFolder).toMatchObject({ path: null, machineId: 'a1b2c3d4' })
+  })
+
   it('unreadable JSON is kept aside before the defaults overwrite it', () => {
     const path = file()
     writeFileSync(path, '{ "secrets": { "capture": "abc" ')

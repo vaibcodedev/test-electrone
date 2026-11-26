@@ -175,7 +175,7 @@ export class StorageService {
       mark(layout.logsDir, 'mtimeMs'),
       mark(layout.dbFile, 'size'),
       mark(layout.dbFile + '-wal', 'size'),
-      // «Скільки копій зберігати» changes what may go without touching the folder.
+      // «Скільки копій зберігати в папці Vault» changes what may go without touching the folder.
       String(this.deps.backups.prunePlan().length)
     ].join('|')
   }

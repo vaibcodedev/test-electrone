@@ -12,7 +12,7 @@ import {
   type AiSettings,
   type AiUsage
 } from '@shared/domain/ai'
-import type { z } from 'zod'
+import { z } from 'zod'
 import { log } from './logger'
 import { retryBusy } from './util'
 
@@ -24,10 +24,36 @@ export interface WindowState {
   maximized: boolean
 }
 
+/**
+ * «Бекап → Папка для копій». Outside `settings` on purpose: settings.update comes from the renderer, and the folder
+ * where rotation deletes files must only ever be set by the main-process dialog.
+ */
+const backupFolderSchema = z.object({
+  path: z.string().min(1).max(1000).nullable(),
+  /** Names this installation's copies (`vault-<host>-<id>-…`): rotation in a shared folder touches only them. */
+  machineId: z
+    .string()
+    .regex(/^[0-9a-f]{8}$/)
+    .nullable(),
+  lastOkAt: z.number().nullable(),
+  /** Stamp of the newest local backup already in the folder: the hourly check doesn't touch the folder for it. */
+  lastStamp: z.string().max(40).nullable(),
+  lastError: z.object({ at: z.number(), message: z.string().max(1000) }).nullable()
+})
+export type BackupFolderState = z.infer<typeof backupFolderSchema>
+const NO_BACKUP_FOLDER: BackupFolderState = {
+  path: null,
+  machineId: null,
+  lastOkAt: null,
+  lastStamp: null,
+  lastError: null
+}
+
 interface ConfigShape {
   settings: Settings
   window: WindowState
   lastBackupAt: number | null
+  backupFolder: BackupFolderState
   /** Encrypted secrets (github token…) and generated keys (capture token). */
   secrets: Record<string, string>
   lastWeeklyReview: string | null
@@ -64,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quickAddShortcut: DEFAULT_QUICK_ADD_SHORTCUT,
   autoBackup: true,
   backupKeep: 14,
+  backupFolderKeep: 10,
   autoUpdate: true,
   jobReminderTime: '19:00',
   weeklyReviewDay: 0,
@@ -78,6 +105,7 @@ const DEFAULTS: ConfigShape = {
   settings: DEFAULT_SETTINGS,
   window: { width: 1360, height: 860, maximized: false },
   lastBackupAt: null,
+  backupFolder: NO_BACKUP_FOLDER,
   secrets: {},
   lastWeeklyReview: null,
   lastJobNudge: null,
@@ -113,6 +141,9 @@ function readSection<S extends z.ZodObject>(
 
 const readSettings = (raw: unknown): Settings =>
   readSection('setting', settingsSchema, DEFAULT_SETTINGS, raw)
+
+const readBackupFolder = (raw: unknown): BackupFolderState =>
+  readSection('backup folder', backupFolderSchema, NO_BACKUP_FOLDER, raw)
 
 type Listener = (settings: Settings) => void
 
@@ -162,6 +193,7 @@ export class ConfigStore {
       settings: readSettings(raw.settings),
       window: { ...DEFAULTS.window, ...raw.window },
       lastBackupAt: typeof raw.lastBackupAt === 'number' ? raw.lastBackupAt : null,
+      backupFolder: readBackupFolder(raw.backupFolder),
       secrets: raw.secrets && typeof raw.secrets === 'object' ? raw.secrets : {},
       lastWeeklyReview: typeof raw.lastWeeklyReview === 'string' ? raw.lastWeeklyReview : null,
       lastJobNudge: typeof raw.lastJobNudge === 'string' ? raw.lastJobNudge : null,
@@ -309,6 +341,17 @@ export class ConfigStore {
   set lastBackupAt(ts: number | null) {
     this.data.lastBackupAt = ts
     this.scheduleWrite()
+  }
+
+  get backupFolder(): BackupFolderState {
+    return structuredClone(this.data.backupFolder)
+  }
+
+  /** BackupService only: the path comes from its own dialog, never from a renderer patch. */
+  updateBackupFolder(patch: Partial<BackupFolderState>): BackupFolderState {
+    this.data.backupFolder = backupFolderSchema.parse({ ...this.data.backupFolder, ...patch })
+    this.scheduleWrite()
+    return this.backupFolder
   }
 }
 

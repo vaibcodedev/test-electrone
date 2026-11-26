@@ -17,6 +17,7 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { SettingsRow, SettingsSection } from './section'
+import { BackupFolderRows } from './backup-folder-rows'
 
 const RANGES = rangesOf(settingsSchema)
 
@@ -53,7 +54,7 @@ export function BackupSection({
           />
         )}
       </SettingsRow>
-      <SettingsRow label="Скільки копій зберігати">
+      <SettingsRow label="Скільки копій зберігати в папці Vault">
         {(id) => (
           <NumberInput
             id={id}
@@ -66,6 +67,7 @@ export function BackupSection({
           />
         )}
       </SettingsRow>
+      <BackupFolderRows settings={settings} set={set} />
       <div className="flex flex-wrap gap-2 pt-1">
         {/* subtle, not lime: settings have no main action, and the screen keeps one accent (§1). */}
         <Button

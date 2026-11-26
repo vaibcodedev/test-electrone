@@ -245,6 +245,7 @@ import type {
   AppInfo,
   Attachment,
   BackupEntry,
+  BackupFolderInfo,
   DashboardData,
   ExportFormat,
   LinkedEntity,
@@ -859,6 +860,13 @@ export interface BackupApi {
   create(args: { saveAs: boolean }): Promise<BackupEntry | null>
   /** Asks for a backup file (or uses `path`) and restores it. The app reloads afterwards. */
   restore(args: { path?: string }): Promise<boolean>
+  /** «Папка для копій»: where the second copy goes and how the last attempt went. */
+  folder(): Promise<BackupFolderInfo>
+  /** Picks the folder in a main-process dialog (never a path from the renderer); null — cancelled. */
+  chooseFolder(): Promise<BackupFolderInfo | null>
+  /** Back to the default: backups only in Vault's own folder. Copies already in the folder stay. */
+  resetFolder(): Promise<BackupFolderInfo>
+  openFolder(): Promise<void>
   /** Exports all data to a zip (markdown files or one JSON). Returns the saved path or null if cancelled. */
   export(format: ExportFormat): Promise<string | null>
 }

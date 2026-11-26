@@ -42,6 +42,8 @@ export const settingsSchema = z.object({
   quickAddShortcut: z.string().max(100),
   autoBackup: z.boolean(),
   backupKeep: z.number().int().min(1).max(100),
+  /** Copies of this computer kept in «Папка для копій» (the folder itself is chosen in main, never patched). */
+  backupFolderKeep: z.number().int().min(1).max(50),
   autoUpdate: z.boolean(),
   /** "19:00" — evening reminder about unmarked job boards; "" = off. */
   jobReminderTime: z.string().regex(/^(\d{2}:\d{2})?$/),
@@ -163,6 +165,18 @@ export interface BackupEntry {
   path: string
   size: number
   createdAt: number
+}
+
+/** «Бекап → Папка для копій»: a second copy of every daily backup on another disk or in a synced cloud folder. */
+export interface BackupFolderInfo {
+  /** null — backups live only in Vault's own folder (the default). */
+  path: string | null
+  /** The newest copy that reached the folder and passed the check. */
+  lastOkAt: number | null
+  /** The last attempt failed (folder unplugged, cloud client not running…): when and why, for the person. */
+  lastError: { at: number; message: string } | null
+  /** false in «Тестовий режим»: test data is never copied to an outside folder. */
+  enabled: boolean
 }
 
 export const EXPORT_FORMATS = ['json', 'markdown'] as const

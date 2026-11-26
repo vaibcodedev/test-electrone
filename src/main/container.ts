@@ -144,18 +144,9 @@ export class Container {
     git: this.git
   })
 
-  readonly backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus)
-  readonly storage = new StorageService({
-    layout: storageLayout(this.paths, {
-      userData: app.getPath('userData'),
-      sessionData: app.getPath('sessionData'),
-      logsDir: dirname(logFilePath())
-    }),
-    currentLog: logFilePath,
-    installDir: app.isPackaged ? dirname(app.getPath('exe')) : null,
-    session: () => session.defaultSession,
-    backups: this.backup
-  })
+  /** Built in the constructor: it needs the profile (no copies to an outside folder from the sandbox). */
+  readonly backup: BackupService
+  readonly storage: StorageService
   readonly exporter = new ExportService(this.db, this.paths, this.registry, this.tags, this.links)
   readonly dashboard = new DashboardService(this.db, this.registry, this.pins, {
     boards: this.boards,
@@ -183,6 +174,20 @@ export class Container {
     readonly iconPath: string,
     readonly profile: Profile
   ) {
+    this.backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus, {
+      folderCopies: profile.kind === 'main'
+    })
+    this.storage = new StorageService({
+      layout: storageLayout(this.paths, {
+        userData: app.getPath('userData'),
+        sessionData: app.getPath('sessionData'),
+        logsDir: dirname(logFilePath())
+      }),
+      currentLog: logFilePath,
+      installDir: app.isPackaged ? dirname(app.getPath('exe')) : null,
+      session: () => session.defaultSession,
+      backups: this.backup
+    })
     for (const d of [
       ...this.boards.descriptors,
       this.ideas.descriptor,

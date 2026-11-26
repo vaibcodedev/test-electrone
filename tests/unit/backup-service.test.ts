@@ -2,9 +2,21 @@
  * Backup restore on a real database: whatever fails half-way, the user's current data stays as it was.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import fs, { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'fs'
+import fs, {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync
+} from 'fs'
+import fsp from 'fs/promises'
 import { syncBuiltinESMExports } from 'module'
+import { tmpdir } from 'os'
 import { basename, join } from 'path'
+import { readBackupFacts } from '@main/services/backup-verify'
 import { AppPaths } from '@main/core/paths'
 import { ConfigStore } from '@main/core/config-store'
 import { EventBus } from '@main/core/event-bus'
@@ -155,6 +167,136 @@ describe('auto backup', () => {
     const first = backups.restore(file)
     await expect(backups.restore(file)).rejects.toThrow('Відновлення вже виконується')
     await expect(first).resolves.toBe(true)
+  })
+})
+
+describe('a new backup is checked before rotation', () => {
+  it('a backup that does not read back is removed and the older ones stay', async () => {
+    config.updateSettings({ backupKeep: 1 })
+    const first = (await backups.create({ saveAs: false }))!.path
+    await new Promise((r) => setTimeout(r, 1100)) // a new name (stamped to the second)
+    // The disk returns garbage for the new file: the check fails.
+    const realRead = fs.readFileSync
+    fs.readFileSync = ((p: fs.PathOrFileDescriptor, ...rest: unknown[]) =>
+      String(p).startsWith(paths.backupsDir) && String(p).endsWith('.vaultbak') && String(p) !== first
+        ? Buffer.from('broken')
+        : (realRead as (...a: unknown[]) => unknown)(p, ...rest)) as typeof fs.readFileSync
+    syncBuiltinESMExports()
+    try {
+      await expect(backups.create({ saveAs: false })).rejects.toThrow(/не пройшов перевірку/)
+    } finally {
+      fs.readFileSync = realRead
+      syncBuiltinESMExports()
+    }
+    expect(backups.list().map((b) => b.path)).toEqual([first])
+  })
+})
+
+describe('«Папка для копій»', () => {
+  let folder: string
+  let toasts: { kind: string; message: string }[]
+  beforeEach(() => {
+    folder = mkdtempSync(join(tmpdir(), 'vault-folder-'))
+    const bus = new EventBus()
+    toasts = []
+    vi.spyOn(bus, 'emit').mockImplementation((event, payload) => {
+      if (event === 'toast') toasts.push(payload as { kind: string; message: string })
+    })
+    backups = new BackupService(v.db, paths, config, v.search, bus, { folderCopies: true, hostname: 'Test-PC' })
+  })
+  afterEach(() => rmSync(folder, { recursive: true, force: true }))
+
+  const own = (): string[] => readdirSync(folder).filter((f) => /^vault-test-pc-[0-9a-f]{8}-/.test(f)).sort()
+
+  it('copies the backup, reads it back as a Vault backup and records the success', async () => {
+    await backups.useFolder(folder)
+    v.boards.createBoard({ title: 'У хмарі' })
+    await backups.create({ saveAs: false })
+    await backups.syncFolder('manual')
+    expect(own()).toHaveLength(1)
+    expect(readdirSync(folder).some((f) => f.endsWith('.part'))).toBe(false)
+    const facts = await readBackupFacts(readFileSync(join(folder, own()[0])), paths.tmpDir)
+    expect(facts.rows.boards).toBe(1)
+    const info = backups.folderInfo()
+    expect(info.path).toBe(folder)
+    expect(info.lastOkAt).not.toBeNull()
+    expect(info.lastError).toBeNull()
+    expect(toasts.map((t) => t.kind)).toEqual(['success'])
+  })
+
+  it('keeps backupFolderKeep own copies; another computer’s copies and other files stay', async () => {
+    await backups.useFolder(folder)
+    const id = config.backupFolder.machineId!
+    for (let d = 1; d <= 4; d++) writeFileSync(join(folder, `vault-test-pc-${id}-2026-01-0${d}_10-00-00.vaultbak`), 'old')
+    const foreign = ['vault-laptop-0f0f0f0f-2026-01-01_10-00-00.vaultbak', 'Мої документи.docx']
+    foreign.forEach((f) => writeFileSync(join(folder, f), 'theirs'))
+    config.updateSettings({ backupFolderKeep: 2 })
+    await backups.create({ saveAs: false })
+    await backups.syncFolder('auto')
+    expect(own()).toHaveLength(2)
+    expect(own()[0]).toBe(`vault-test-pc-${id}-2026-01-04_10-00-00.vaultbak`)
+    for (const f of foreign) expect(readFileSync(join(folder, f), 'utf8')).toBe('theirs')
+  })
+
+  it('a copy that fails the check is removed and no older copy goes', async () => {
+    const id = 'abcdef01'
+    config.updateBackupFolder({ machineId: id })
+    for (let d = 1; d <= 3; d++) writeFileSync(join(folder, `vault-test-pc-${id}-2026-01-0${d}_10-00-00.vaultbak`), 'old')
+    config.updateSettings({ backupFolderKeep: 1 })
+    await backups.create({ saveAs: false }) // no folder yet: nothing copied
+    // The cloud client hands back something else than was written.
+    const realRead = fsp.readFile
+    fsp.readFile = (async (p: Parameters<typeof fsp.readFile>[0], ...rest: unknown[]) =>
+      String(p).startsWith(folder)
+        ? Buffer.from('not a zip')
+        : (realRead as (...a: unknown[]) => Promise<unknown>)(p, ...rest)) as typeof fsp.readFile
+    syncBuiltinESMExports()
+    try {
+      await backups.useFolder(folder) // copies the newest backup at once
+      await backups.syncFolder('auto')
+    } finally {
+      fsp.readFile = realRead
+      syncBuiltinESMExports()
+    }
+    expect(own()).toEqual([1, 2, 3].map((d) => `vault-test-pc-${id}-2026-01-0${d}_10-00-00.vaultbak`))
+    expect(backups.folderInfo().lastError?.message).toMatch(/не пройшла перевірку/)
+  })
+
+  it('an unplugged folder: the local backup is made, the error is recorded, the folder is not re-created', async () => {
+    await backups.useFolder(folder)
+    rmSync(folder, { recursive: true, force: true })
+    const entry = await backups.create({ saveAs: false }, 'auto')
+    await backups.syncFolder('auto')
+    expect(entry).not.toBeNull()
+    expect(backups.list()).toHaveLength(1)
+    expect(existsSync(folder)).toBe(false)
+    expect(backups.folderInfo().lastError?.message).toMatch(/недоступна — підключіть диск/)
+    expect(toasts).toHaveLength(1)
+    // Retried hourly, reported once a day.
+    await backups.syncFolder('auto')
+    expect(toasts).toHaveLength(1)
+    // Back again: the same backup reaches the folder and the error is gone.
+    mkdirSync(folder)
+    await backups.syncFolder('auto')
+    expect(own()).toHaveLength(1)
+    expect(backups.folderInfo().lastError).toBeNull()
+  })
+
+  it('refuses a folder inside the data folder; the sandbox refuses any folder', async () => {
+    await expect(backups.useFolder(paths.backupsDir)).rejects.toThrow(/всередині папки даних Vault/)
+    expect(backups.folderInfo().path).toBeNull()
+    const sandbox = new BackupService(v.db, paths, config, v.search, new EventBus(), { folderCopies: false })
+    await expect(sandbox.chooseFolder()).rejects.toThrow(/тестовому режимі/)
+    expect(sandbox.folderInfo().enabled).toBe(false)
+  })
+
+  it('«Не копіювати» stops the copies and leaves the old ones in place', async () => {
+    await backups.useFolder(folder)
+    await backups.create({ saveAs: false })
+    await backups.syncFolder('manual')
+    backups.resetFolder()
+    expect(backups.folderInfo().path).toBeNull()
+    expect(own()).toHaveLength(1)
   })
 })
 
