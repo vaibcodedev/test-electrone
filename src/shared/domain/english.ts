@@ -1,6 +1,13 @@
 import { z } from 'zod'
 import { MAX } from './limits'
-import { favoriteFilter, idSchema, withTagIds, type EntityBase, type WithTags, patchOf } from './common'
+import {
+  favoriteFilter,
+  idSchema,
+  withTagIds,
+  type EntityBase,
+  type WithTags,
+  patchOf
+} from './common'
 
 /** Vocabulary kinds (the «Тип» of a word). */
 export const WORD_KINDS = ['word', 'phrase', 'idiom', 'term'] as const
@@ -64,7 +71,11 @@ export interface Word extends EntityBase, WithTags {
 export const reviewGradeSchema = z.number().int().min(0).max(3)
 export type ReviewGrade = z.infer<typeof reviewGradeSchema>
 /** `extra` = practice beyond the schedule: only «Не згадав» changes the schedule (lapse). */
-export const reviewInputSchema = z.object({ id: idSchema, grade: reviewGradeSchema, extra: z.boolean().optional() })
+export const reviewInputSchema = z.object({
+  id: idSchema,
+  grade: reviewGradeSchema,
+  extra: z.boolean().optional()
+})
 
 /** Today against the daily goal (settings `englishNewPerDay` / `englishReviewsPerDay`). */
 export interface EnglishToday {

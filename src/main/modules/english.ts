@@ -1,5 +1,20 @@
 /** English vocabulary and grammar rules with spaced repetition (scheduler: core/srs, daily goal: english-session). */
-import { and, asc, desc, eq, gt, gte, isNotNull, isNull, lt, lte, ne, or, sql, type SQL } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  ne,
+  or,
+  sql,
+  type SQL
+} from 'drizzle-orm'
 import type { EnglishApi } from '@shared/api'
 import { pageSchema } from '@shared/domain/common'
 import {
@@ -47,7 +62,11 @@ function stageWhere(stage: WordStage): SQL {
     case 'mastered':
       return and(reviewed, gte(words.intervalDays, MASTERED_DAYS))!
     case 'review':
-      return and(reviewed, gte(words.intervalDays, REVIEW_DAYS), lt(words.intervalDays, MASTERED_DAYS))!
+      return and(
+        reviewed,
+        gte(words.intervalDays, REVIEW_DAYS),
+        lt(words.intervalDays, MASTERED_DAYS)
+      )!
     case 'learning':
       return and(reviewed, lt(words.intervalDays, REVIEW_DAYS))!
   }
@@ -84,7 +103,10 @@ export class EnglishModule {
       }),
       summary: (r) => ({
         title: r.term,
-        subtitle: r.kind === 'rule' ? `Правило${r.translation ? ` · ${r.translation}` : ''}` : r.translation || undefined
+        subtitle:
+          r.kind === 'rule'
+            ? `Правило${r.translation ? ` · ${r.translation}` : ''}`
+            : r.translation || undefined
       }),
       systemFields: SRS_FIELDS
     }
@@ -194,9 +216,20 @@ export class EnglishModule {
     }
   }
 
-  private insertNew(data: Omit<z.output<typeof wordInputSchema>, 'tagIds'>, tagIds?: string[]): Word {
+  private insertNew(
+    data: Omit<z.output<typeof wordInputSchema>, 'tagIds'>,
+    tagIds?: string[]
+  ): Word {
     return this.repo.insert(
-      { ...data, ease: 2.5, intervalDays: 0, repetitions: 0, lapses: 0, dueAt: now(), lastReviewedAt: null },
+      {
+        ...data,
+        ease: 2.5,
+        intervalDays: 0,
+        repetitions: 0,
+        lapses: 0,
+        dueAt: now(),
+        lastReviewedAt: null
+      },
       tagIds
     )
   }
@@ -242,7 +275,11 @@ export class EnglishModule {
       },
       practiceExtra: async (limit) => {
         const n = z.number().int().min(1).max(500).optional().parse(limit) ?? 10
-        return repo.listWhere([gt(words.dueAt, now()), trainable()], [asc(words.ease), asc(words.dueAt)], n)
+        return repo.listWhere(
+          [gt(words.dueAt, now()), trainable()],
+          [asc(words.ease), asc(words.dueAt)],
+          n
+        )
       },
       review: async (args) => {
         const { id, grade, extra } = reviewInputSchema.parse(args)
@@ -250,8 +287,14 @@ export class EnglishModule {
         const at = now()
         this.db.insert(wordReviews).values({ id: newId(), wordId: id, grade, reviewedAt: at }).run()
         // Extra practice: remembering doesn't push the next review further; forgetting still counts as a lapse.
-        if (extra && grade > 0) this.db.update(words).set({ lastReviewedAt: at }).where(eq(words.id, id)).run()
-        else this.db.update(words).set(schedule(row, grade, at)).where(eq(words.id, id)).run()
+        if (extra && grade > 0)
+          this.db.update(words).set({ lastReviewedAt: at }).where(eq(words.id, id)).run()
+        else
+          this.db
+            .update(words)
+            .set(schedule(row, grade, at))
+            .where(eq(words.id, id))
+            .run()
         return repo.getOrThrow(id)
       },
       stats: async () => this.stats(),

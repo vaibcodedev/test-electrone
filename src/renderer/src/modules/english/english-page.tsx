@@ -1,11 +1,17 @@
 import { useState, type ReactElement } from 'react'
-import { useNavigate } from 'react-router'
-import { Brain, Languages } from 'lucide-react'
+import {
+  BookOpenCheck,
+  ChevronDown,
+  FileJson,
+  FileSpreadsheet,
+  Languages,
+  Upload
+} from 'lucide-react'
 import {
   WORD_KINDS,
   WORD_STAGES,
   type EnglishStats,
-  type WordKind,
+  type EntryKind,
   type WordStage
 } from '@shared/domain/english'
 import { api } from '@/lib/api'
@@ -24,47 +30,56 @@ import {
   SearchInput
 } from '@/components/common/page'
 import { MasterDetail, useOpenParam } from '@/components/common/master-detail'
-import { ProgressLine } from '@/components/common/progress-line'
 import { TagFilter } from '@/components/common/tags'
 import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectSeparator,
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { AddWordForm } from './add-word-form'
 import { WordDetail } from './word-detail'
 import { WordRow } from './word-row'
 import { KIND_LABEL, STAGE_COLOR, STAGE_LABEL } from './labels'
-import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
+import { CopyJsonButton, ImportDialog } from '@/components/common/import-dialog'
+import { ImportWordsDialog } from './import-words-dialog'
+import { RuleDialog } from './rule-dialog'
+import { TodayPanel } from './today-panel'
+import { TrainingSettings } from './training-settings'
 import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
 
 const ALL_KINDS = '__all'
 
 /**
- * Two facts at most: the size of the dictionary, then when the next word comes up (nothing due now) or the
- * streak. An empty dictionary says nothing here: the empty state below already does.
+ * Two facts at most: the size of the dictionary, then when the next word comes up (nothing left today). An empty
+ * dictionary says nothing here: the empty state below already does.
  */
 function subtitleOf(stats: EnglishStats | undefined): string | undefined {
   if (!stats?.total) return undefined
   const size = `${stats.total} ${plural(stats.total, ['слово', 'слова', 'слів'])}`
-  const second =
-    !stats.due && stats.nextDueAt
-      ? `наступне повторення ${fmtDay(stats.nextDueAt)}`
-      : stats.streakDays > 0 &&
-        `${stats.streakDays} ${plural(stats.streakDays, ['день', 'дні', 'днів'])} поспіль`
+  // The streak and today's goal are in the panel below: here only when the next review comes.
+  const second = !stats.due && stats.nextDueAt && `наступне повторення ${fmtDay(stats.nextDueAt)}`
   return second ? `${size} · ${second}` : size
 }
 
 export function EnglishPage(): ReactElement {
-  const navigate = useNavigate()
   const [open, setOpen] = useOpenParam()
+  const [dialog, setDialog] = useState<'json' | 'file' | 'rule' | null>(null)
   const [search, setSearch] = useState('')
   const [stage, setStage] = useState<WordStage | undefined>()
-  const [kind, setKind] = useState<WordKind | undefined>()
+  const [kind, setKind] = useState<EntryKind | undefined>()
   const [tagId, setTagId] = useState<string | undefined>()
   const [favorite, setFavorite] = useState(false)
   const filtered = !!(search || stage || kind || tagId || favorite)
@@ -92,7 +107,6 @@ export function EnglishPage(): ReactElement {
   // same moment, and it moves on after each add, review and refresh (a word added a second ago is due today).
   const now = Math.max(list.dataUpdatedAt, statsUpdatedAt)
 
-  const due = stats?.due ?? 0
   const hasWords = !!stats?.total
 
   return (
@@ -123,25 +137,32 @@ export function EnglishPage(): ReactElement {
                 }
               />
             )}
-            <ImportButton kind="word" onImported={(id) => id && setOpen(id)} />
-            {/* Soft: the lime one is «Додати» in the form below, the one N presses. Never a dead end: with
-                nothing due the trainer offers practice beyond the norm. */}
-            {hasWords && (
-              <Button variant="soft" onClick={() => navigate('/english/review')}>
-                <Brain /> {due ? `Повторити ${due}` : 'Тренуватися наперед'}
-              </Button>
-            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="soft">
+                  <Upload /> Імпорт <ChevronDown />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onSelect={() => setDialog('file')}>
+                    <FileSpreadsheet /> З CSV або Anki…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setDialog('json')}>
+                    <FileJson /> З JSON…
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="soft" onClick={() => setDialog('rule')}>
+              <BookOpenCheck /> Правило
+            </Button>
+            <TrainingSettings />
           </>
         }
       >
-        {/* A fresh dictionary (all «Нові») has nothing learned yet: no empty bar. The split by stage is in the chips. */}
-        {stats && hasWords && stats.byStage.new < stats.total && (
-          <ProgressLine
-            value={stats.byStage.mastered}
-            total={stats.total}
-            label={`Вивчено ${stats.byStage.mastered} з ${stats.total}`}
-          />
-        )}
+        {/* Today's goal, streak, statistics and «Тренуватися»; an empty dictionary has nothing to train yet. */}
+        {stats && hasWords && <TodayPanel stats={stats} />}
         {/* A new word is always "new" and may not match the active filters: show it instead of hiding it. */}
         <AddWordForm onAdded={resetFilters} />
         {/* No row of filters over an empty dictionary (it stays while the stats load: nothing jumps). */}
@@ -169,18 +190,25 @@ export function EnglishPage(): ReactElement {
               <>
                 <Select
                   value={kind ?? ALL_KINDS}
-                  onValueChange={(v) => setKind(v === ALL_KINDS ? undefined : (v as WordKind))}
+                  onValueChange={(v) => setKind(v === ALL_KINDS ? undefined : (v as EntryKind))}
                 >
                   <SelectTrigger size="sm" className="w-36" aria-label="Тип">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ALL_KINDS}>Усі типи</SelectItem>
-                    {WORD_KINDS.map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {KIND_LABEL[k]}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectItem value={ALL_KINDS}>Усі типи</SelectItem>
+                      {WORD_KINDS.map((k) => (
+                        <SelectItem key={k} value={k}>
+                          {KIND_LABEL[k]}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                    <SelectSeparator />
+                    {/* Grammar rules apart from the words: their own filter, not «one more kind of word». */}
+                    <SelectGroup>
+                      <SelectItem value="rule">Граматика</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FavoriteFilter type="word" value={favorite} onChange={setFavorite} />
@@ -250,6 +278,24 @@ export function EnglishPage(): ReactElement {
           }
         />
       </div>
+      <ImportDialog
+        kind="word"
+        open={dialog === 'json'}
+        onOpenChange={(o) => setDialog(o ? 'json' : null)}
+        onImported={(id) => id && setOpen(id)}
+      />
+      <ImportWordsDialog
+        open={dialog === 'file'}
+        onOpenChange={(o) => setDialog(o ? 'file' : null)}
+      />
+      <RuleDialog
+        open={dialog === 'rule'}
+        onOpenChange={(o) => setDialog(o ? 'rule' : null)}
+        onCreated={(id) => {
+          resetFilters()
+          setOpen(id)
+        }}
+      />
     </Page>
   )
 }

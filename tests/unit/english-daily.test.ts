@@ -13,9 +13,17 @@ const w = (id: string): { id: string } => ({ id })
 
 describe('daily session', () => {
   it('reviews first, then new words up to what is left of the goal', () => {
-    const limits = sessionLimits({ newPerDay: 10, reviewsPerDay: 100 }, { newDone: 7, reviewsDone: 18 })
+    const limits = sessionLimits(
+      { newPerDay: 10, reviewsPerDay: 100 },
+      { newDone: 7, reviewsDone: 18 }
+    )
     expect(limits).toEqual({ newLeft: 3, reviewsLeft: 82 })
-    const s = pickSession([w('r1'), w('r2')], [w('n1'), w('n2'), w('n3'), w('n4')], new Set(), limits)
+    const s = pickSession(
+      [w('r1'), w('r2')],
+      [w('n1'), w('n2'), w('n3'), w('n4')],
+      new Set(),
+      limits
+    )
     expect(s.map((x) => x.id)).toEqual(['r1', 'r2', 'n1', 'n2', 'n3'])
   })
 
@@ -28,7 +36,9 @@ describe('daily session', () => {
   })
 
   it('a goal already met leaves nothing (never negative)', () => {
-    expect(sessionLimits({ newPerDay: 5, reviewsPerDay: 10 }, { newDone: 9, reviewsDone: 12 })).toEqual({
+    expect(
+      sessionLimits({ newPerDay: 5, reviewsPerDay: 10 }, { newDone: 9, reviewsDone: 12 })
+    ).toEqual({
       newLeft: 0,
       reviewsLeft: 0
     })
@@ -37,10 +47,12 @@ describe('daily session', () => {
 
 describe('streak', () => {
   const today = new Date(2026, 10, 26, 15).getTime()
-  const days = (...back: number[]): Set<string> => new Set(back.map((n) => dayKey(addDays(today, -n))))
+  const days = (...back: number[]): Set<string> =>
+    new Set(back.map((n) => dayKey(addDays(today, -n))))
 
   it('counts days in a row ending today', () => expect(streakOf(days(0, 1, 2, 4), today)).toBe(3))
-  it('keeps yesterday’s streak while today has no answers yet', () => expect(streakOf(days(1, 2), today)).toBe(2))
+  it('keeps yesterday’s streak while today has no answers yet', () =>
+    expect(streakOf(days(1, 2), today)).toBe(2))
   it('a gap breaks it', () => expect(streakOf(days(2, 3), today)).toBe(0))
   it('survives the DST switch', () => {
     const spring = new Date(2026, 2, 30, 9).getTime()
@@ -66,7 +78,9 @@ describe('streak', () => {
 
 describe('import parsing', () => {
   it('CSV with a header, quotes, commas and line breaks inside quotes', () => {
-    const t = parseWordTable('﻿word,translation,example\r\nrollout,викатка,"We\'ll do a staged rollout, ok"\r\n"say ""hi""","привітатися","line\nbreak"\r\n')
+    const t = parseWordTable(
+      '\uFEFFword,translation,example\r\nrollout,викатка,"We\'ll do a staged rollout, ok"\r\n"say ""hi""","привітатися","line\nbreak"\r\n'
+    )
     expect(t.header).toEqual(['word', 'translation', 'example'])
     expect(t.rows).toEqual([
       ['rollout', 'викатка', "We'll do a staged rollout, ok"],
@@ -93,10 +107,15 @@ describe('import parsing', () => {
     expect(t.rows[0]).toEqual(['k1', 'rollout', 'викатка поетапна', 'learn'])
     const map = guessColumns(t)
     expect(map).toEqual({ term: 1, translation: 2, example: null })
-    expect(mapRows(t, map)[1]).toEqual({ term: 'merge conflict', translation: 'конфлікт', example: '' })
+    expect(mapRows(t, map)[1]).toEqual({
+      term: 'merge conflict',
+      translation: 'конфлікт',
+      example: ''
+    })
   })
 
-  it('stripHtml decodes entities', () => expect(stripHtml('a&amp;b &#39;c&#x27; <i>d</i>')).toBe("a&b 'c' d"))
+  it('stripHtml decodes entities', () =>
+    expect(stripHtml('a&amp;b &#39;c&#x27; <i>d</i>')).toBe("a&b 'c' d"))
 })
 
 describe('grammar gaps', () => {
@@ -104,9 +123,18 @@ describe('grammar gaps', () => {
 
   it('one card per bracket; other brackets read as text; hints after |', () => {
     expect(cards).toHaveLength(3)
-    expect(cards[0]).toMatchObject({ before: 'Yesterday I ', after: ' home.', answers: ['went'], hint: 'go' })
+    expect(cards[0]).toMatchObject({
+      before: 'Yesterday I ',
+      after: ' home.',
+      answers: ['went'],
+      hint: 'go'
+    })
     expect(cards[1]).toMatchObject({ before: 'She ', after: ' been working.', answers: ['has'] })
-    expect(cards[2]).toMatchObject({ before: 'She has ', after: ' working.', sentence: 'She has been working.' })
+    expect(cards[2]).toMatchObject({
+      before: 'She has ',
+      after: ' working.',
+      sentence: 'She has been working.'
+    })
   })
 
   it('answers: case, spaces, curly apostrophes and alternatives', () => {
@@ -157,9 +185,17 @@ describe('on a real database', () => {
       { term: '   ', translation: 'x', example: '' },
       { term: 'x'.repeat(301), translation: '', example: '' }
     ]
-    expect(await v.api.english.importWords({ rows, dryRun: true })).toEqual({ added: 1, duplicates: 2, invalid: 2 })
+    expect(await v.api.english.importWords({ rows, dryRun: true })).toEqual({
+      added: 1,
+      duplicates: 2,
+      invalid: 2
+    })
     expect((await v.api.english.stats()).total).toBe(1)
-    expect(await v.api.english.importWords({ rows })).toEqual({ added: 1, duplicates: 2, invalid: 2 })
+    expect(await v.api.english.importWords({ rows })).toEqual({
+      added: 1,
+      duplicates: 2,
+      invalid: 2
+    })
     const [added] = await v.api.english.list({ search: 'conflict' })
     expect(added).toMatchObject({ term: 'merge  conflict', translation: 'конфлікт', stage: 'new' })
   })

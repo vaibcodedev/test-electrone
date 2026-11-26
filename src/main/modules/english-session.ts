@@ -12,7 +12,10 @@ export interface DoneToday {
   reviewsDone: number
 }
 
-export function sessionLimits(goal: DailyGoal, done: DoneToday): { newLeft: number; reviewsLeft: number } {
+export function sessionLimits(
+  goal: DailyGoal,
+  done: DoneToday
+): { newLeft: number; reviewsLeft: number } {
   return {
     newLeft: Math.max(0, goal.newPerDay - done.newDone),
     reviewsLeft: Math.max(0, goal.reviewsPerDay - done.reviewsDone)

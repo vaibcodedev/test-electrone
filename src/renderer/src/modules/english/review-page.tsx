@@ -1,4 +1,5 @@
-import type { ReactElement } from 'react'
+import { useEffect, useMemo, type ReactElement } from 'react'
+import { gapCards, pickGapCard } from '@shared/english-gaps'
 import { useNavigate } from 'react-router'
 import { ArrowLeft, Languages, Plus } from 'lucide-react'
 import { invalidateAll, useApi } from '@/lib/query'
@@ -7,7 +8,14 @@ import { EmptyState, SegmentBar } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { LoadError } from '@/features/route-error'
 import { Button } from '@/components/ui/button'
-import { GradeButtons, PracticeMore, ReviewCard, SessionSummary } from './review-parts'
+import {
+  GapReviewCard,
+  GradeButtons,
+  PracticeMore,
+  ReviewCard,
+  SessionSummary
+} from './review-parts'
+import { usePronounce } from './use-pronounce'
 import { useReviewSession } from './use-review-session'
 
 /** Focused flashcard session. Words graded «Не згадали» return at the end of the same session. */
@@ -15,6 +23,20 @@ export function ReviewPage(): ReactElement {
   const navigate = useNavigate()
   const { data: stats, error: statsError, refetch: refetchStats } = useApi('english', 'stats')
   const s = useReviewSession()
+  const pronounce = usePronounce()
+  const current = s.current
+  // A rule shows one of its sentences; the seed (dueAt) changes after every answer, so they take turns.
+  const gap = useMemo(
+    () =>
+      current?.kind === 'rule' ? pickGapCard(gapCards(current.example), current.dueAt) : undefined,
+    [current]
+  )
+  // What 🔊 and R read: the word itself, or a rule's sentence once its gap is open (not before: it gives it away).
+  const spoken = current ? (gap ? (s.revealed ? gap.sentence : '') : current.term) : ''
+  const { autoplay, canSpeak, say } = pronounce
+  useEffect(() => {
+    if (autoplay && canSpeak && spoken) say(spoken)
+  }, [autoplay, canSpeak, say, spoken, s.index])
 
   const exit = (): void => {
     invalidateAll()
@@ -28,6 +50,7 @@ export function ReviewPage(): ReactElement {
   useHotkey('2', () => void s.grade(1), { enabled: s.revealed })
   useHotkey('3', () => void s.grade(2), { enabled: s.revealed })
   useHotkey('4', () => void s.grade(3), { enabled: s.revealed })
+  useHotkey('r', () => say(spoken), { enabled: canSpeak && !!spoken })
 
   // A failed load must not leave the skeleton on forever.
   if (s.error || (statsError && !stats))
@@ -43,6 +66,14 @@ export function ReviewPage(): ReactElement {
   if (s.loading || !stats) return <PageSkeleton kind="focus" />
 
   const startExtra = (limit: number): void => void s.startExtra(limit)
+  const more = (
+    <PracticeMore
+      onStart={startExtra}
+      onMoreNew={(limit) => void s.startMoreNew(limit)}
+      newCount={stats.byStage.new}
+      onExit={exit}
+    />
+  )
   let body
   if (stats.total === 0) {
     body = (
@@ -65,7 +96,7 @@ export function ReviewPage(): ReactElement {
         <p className="mt-2 text-body text-muted-foreground">
           Слова повернуться, коли настане час повторення.
         </p>
-        <PracticeMore onStart={startExtra} onExit={exit} />
+        {more}
       </div>
     )
   } else if (s.finished) {
@@ -77,18 +108,38 @@ export function ReviewPage(): ReactElement {
           done={s.done}
           results={s.results}
         />
-        <PracticeMore onStart={startExtra} onExit={exit} />
+        {more}
       </div>
     )
-  } else if (s.current) {
+  } else if (current) {
     body = (
       // Keyed by word: every next card enters with the same short motion.
       <div
-        key={`${s.current.id}:${s.index}`}
+        key={`${current.id}:${s.index}`}
         className="flex w-full max-w-2xl animate-enter flex-col gap-4"
       >
-        <ReviewCard word={s.current} revealed={s.revealed} onReveal={s.reveal} />
-        <GradeButtons revealed={s.revealed} busy={s.busy} onGrade={(g) => void s.grade(g)} />
+        {gap ? (
+          <GapReviewCard
+            rule={current}
+            card={gap}
+            revealed={s.revealed}
+            onReveal={s.reveal}
+            pronounce={pronounce}
+          />
+        ) : (
+          <ReviewCard
+            word={current}
+            revealed={s.revealed}
+            onReveal={s.reveal}
+            pronounce={pronounce}
+          />
+        )}
+        <GradeButtons
+          revealed={s.revealed}
+          busy={s.busy}
+          rule={!!gap}
+          onGrade={(g) => void s.grade(g)}
+        />
       </div>
     )
   }

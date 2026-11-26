@@ -120,6 +120,8 @@ export function shortcutGroups(quickAddGlobal: string): ShortcutGroup[] {
         { keys: ['2'], label: 'Насилу' },
         { keys: ['3'], label: 'Згадали / Добре' },
         { keys: ['4'], label: 'Легко / Впевнено' },
+        { keys: ['R'], label: 'Вимовити слово (у правилі — речення після перевірки)' },
+        { keys: ['Enter'], label: 'Правило: перевірити вписане' },
         { keys: ['Esc'], label: 'Вийти' }
       ]
     },

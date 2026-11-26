@@ -27,11 +27,38 @@ const SEPARATORS: Record<string, string> = {
   space: ' '
 }
 
-const TERM_NAMES = ['word', 'term', 'english', 'en', 'front', 'expression', 'слово', 'термін', 'англійською']
-const TRANSLATION_NAMES = ['translation', 'meaning', 'back', 'ukrainian', 'uk', 'переклад', 'значення', 'українською']
+const TERM_NAMES = [
+  'word',
+  'term',
+  'english',
+  'en',
+  'front',
+  'expression',
+  'слово',
+  'термін',
+  'англійською'
+]
+const TRANSLATION_NAMES = [
+  'translation',
+  'meaning',
+  'back',
+  'ukrainian',
+  'uk',
+  'переклад',
+  'значення',
+  'українською'
+]
 const EXAMPLE_NAMES = ['example', 'sentence', 'context', 'приклад', 'речення']
 
-const ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'" }
+const ENTITIES: Record<string, string> = {
+  nbsp: ' ',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  '#39': "'"
+}
 
 /** Anki fields keep HTML and sound tags: plain text is what a dictionary entry wants. */
 export function stripHtml(value: string): string {
@@ -104,7 +131,7 @@ function guessSeparator(lines: string[]): string {
 const isName = (cell: string, names: string[]): boolean => names.includes(cell.trim().toLowerCase())
 
 export function parseWordTable(input: string): WordTable {
-  const text = input.replace(/^﻿/, '').replace(/\r\n?/g, '\n')
+  const text = input.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n')
   const lines = text.split('\n')
   let sep: string | null = null
   let html = false
@@ -118,7 +145,8 @@ export function parseWordTable(input: string): WordTable {
     skip++
     const key = m[1].trim().toLowerCase()
     const value = m[2].trim()
-    if (key === 'separator') sep = SEPARATORS[value.toLowerCase()] ?? (value.length === 1 ? value : null)
+    if (key === 'separator')
+      sep = SEPARATORS[value.toLowerCase()] ?? (value.length === 1 ? value : null)
     else if (key === 'html') html = value === 'true'
     else if (key === 'columns') header = value.split(sep ?? '\t').map((c) => c.trim())
     else if (/column$/.test(key) && Number(value) > 0) meta.add(Number(value) - 1)
@@ -145,7 +173,9 @@ export function parseWordTable(input: string): WordTable {
 
 /** Columns by name when the file has names, else the usual order: word, translation, example. */
 export function guessColumns(table: WordTable): ColumnMap {
-  const free = Array.from({ length: table.columns }, (_, i) => i).filter((i) => !table.meta.includes(i))
+  const free = Array.from({ length: table.columns }, (_, i) => i).filter(
+    (i) => !table.meta.includes(i)
+  )
   const byName = (names: string[]): number | null => {
     const i = table.header?.findIndex((h) => isName(h, names)) ?? -1
     return i >= 0 ? i : null
@@ -166,7 +196,11 @@ export interface ImportRow {
 export function mapRows(table: WordTable, map: ColumnMap): ImportRow[] {
   const cell = (r: string[], i: number | null): string => (i === null ? '' : (r[i] ?? '').trim())
   return table.rows
-    .map((r) => ({ term: cell(r, map.term), translation: cell(r, map.translation), example: cell(r, map.example) }))
+    .map((r) => ({
+      term: cell(r, map.term),
+      translation: cell(r, map.translation),
+      example: cell(r, map.example)
+    }))
     .filter((r) => r.term)
 }
 

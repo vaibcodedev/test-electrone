@@ -84,7 +84,11 @@ export const settingsSchema = z.object({
   hiddenNavItems: z.array(z.string().max(200)).max(200),
   /** «Англійська → Налаштування тренування»: the daily goal, the voice and autoplay of pronunciation. */
   englishNewPerDay: z.number().int().min(ENGLISH_NEW_PER_DAY.min).max(ENGLISH_NEW_PER_DAY.max),
-  englishReviewsPerDay: z.number().int().min(ENGLISH_REVIEWS_PER_DAY.min).max(ENGLISH_REVIEWS_PER_DAY.max),
+  englishReviewsPerDay: z
+    .number()
+    .int()
+    .min(ENGLISH_REVIEWS_PER_DAY.min)
+    .max(ENGLISH_REVIEWS_PER_DAY.max),
   englishAccent: z.enum(ENGLISH_ACCENTS),
   englishAutoplay: z.boolean()
 })

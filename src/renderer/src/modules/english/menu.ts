@@ -24,10 +24,24 @@ export const wordMenu = defineRecordMenu<Word, { onOpen: () => void }>({
     return {
       open: [
         useOpenItem(ref, onOpen),
-        { label: 'Копіювати слово', icon: Copy, run: () => void copyText(w.term, 'Слово скопійовано') }
+        {
+          label: w.kind === 'rule' ? 'Копіювати назву' : 'Копіювати слово',
+          icon: Copy,
+          run: () =>
+            void copyText(w.term, w.kind === 'rule' ? 'Назву скопійовано' : 'Слово скопійовано')
+        }
       ],
       state: [
-        choiceSubmenu('Тип', Shapes, WORD_KINDS, w.kind, (k) => KIND_LABEL[k], (kind) => save({ kind })),
+        // A rule is not a kind of word: its «Тип» doesn't switch.
+        w.kind !== 'rule' &&
+          choiceSubmenu(
+            'Тип',
+            Shapes,
+            WORD_KINDS,
+            w.kind,
+            (k) => KIND_LABEL[k],
+            (kind) => save({ kind })
+          ),
         useTagsSubmenu(w.tags, (tagIds) => save({ tagIds }))
       ],
       danger: [useTrashItem('english', ref, 'Слово переміщено в кошик')]

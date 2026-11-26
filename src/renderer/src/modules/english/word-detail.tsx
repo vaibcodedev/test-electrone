@@ -20,6 +20,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { FieldError } from '@/components/ui/field'
 import { KIND_LABEL, STAGE_BADGE, STAGE_LABEL_ONE } from './labels'
+import { SpeakButton } from './speak-button'
+import { gapsSummary } from './labels'
 
 const LIMITS = limitsOf(wordInputSchema)
 
@@ -142,16 +144,23 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
     setForm({ ...form, [key]: value })
   const entity = { type: 'word' as const, id: word.id }
   const id = useId()
+  const rule = word.kind === 'rule'
 
   return (
     <DetailPane
       entity={entity}
       onClose={onClose}
       onDelete={() => remove.mutate(word.id)}
-      headerExtra={<Badge variant={STAGE_BADGE[word.stage]}>{STAGE_LABEL_ONE[word.stage]}</Badge>}
+      headerExtra={
+        <>
+          {!rule && <SpeakButton text={form.term} />}
+          <Badge variant={STAGE_BADGE[word.stage]}>{STAGE_LABEL_ONE[word.stage]}</Badge>
+        </>
+      }
       emptyHint={
         <>
-          Перекладу й прикладу поки немає. <EditHintText />
+          {rule ? 'Правила й прикладів поки немає.' : 'Перекладу й прикладу поки немає.'}{' '}
+          <EditHintText />
         </>
       }
       aside={
@@ -179,78 +188,119 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
           />
           <TermError id={`${id}-term-error`} empty={!form.term.trim()} />
         </div>
-        <Field label="Транскрипція" htmlFor={`${id}-tr`}>
-          <Input
-            id={`${id}-tr`}
-            value={form.transcription}
-            maxLength={LIMITS.transcription}
-            onChange={(e) => set('transcription', e.target.value)}
-            placeholder="Напр.: [ˈrəʊlaʊt]"
-            className="max-w-xs"
-          />
-        </Field>
-        {/* One line to start with, but a long translation wraps while reading instead of ending in «…». */}
-        <Field label="Переклад" htmlFor={`${id}-translation`}>
-          <Textarea
-            id={`${id}-translation`}
-            rows={1}
-            value={form.translation}
-            maxLength={LIMITS.translation}
-            onKeyDown={noEnter}
-            onChange={(e) => set('translation', oneLine(e.target.value))}
-            placeholder="Як це українською"
-            className="min-h-9"
-          />
-        </Field>
-        <Field label="Тип">
-          <Segmented
-            options={WORD_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
-            value={form.kind}
-            onChange={(k) => set('kind', k)}
-          />
-        </Field>
-        <ExampleGrid wide={!!form.exampleTranslation}>
-          <Field label="Приклад" count={{ length: form.example.length, max: LIMITS.example }}>
-            <Textarea
-              value={form.example}
-              maxLength={LIMITS.example}
-              onChange={(e) => set('example', e.target.value)}
-              placeholder="Речення, де ви це побачили"
-            />
-          </Field>
-          <Field
-            label="Переклад прикладу"
-            count={{ length: form.exampleTranslation.length, max: LIMITS.exampleTranslation }}
-          >
-            <Textarea
-              value={form.exampleTranslation}
-              maxLength={LIMITS.exampleTranslation}
-              onChange={(e) => set('exampleTranslation', e.target.value)}
-              placeholder="Як це речення звучить українською"
-            />
-          </Field>
-        </ExampleGrid>
-        <Field label="Джерело" htmlFor={`${id}-context`}>
-          <Textarea
-            id={`${id}-context`}
-            rows={1}
-            value={form.context}
-            maxLength={LIMITS.context}
-            onKeyDown={noEnter}
-            onChange={(e) => set('context', oneLine(e.target.value))}
-            placeholder="Напр.: PR, документація, чат"
-            className="min-h-9"
-          />
-        </Field>
+        {rule ? (
+          <RuleFields id={id} form={form} set={set} />
+        ) : (
+          <WordFields id={id} form={form} set={set} />
+        )}
         <Field label="Нотатки" count={{ length: form.notes.length, max: LIMITS.notes }}>
           <Textarea
             value={form.notes}
             maxLength={LIMITS.notes}
             onChange={(e) => set('notes', e.target.value)}
-            placeholder="Синоніми, нюанси вживання"
+            placeholder={rule ? 'Винятки, типові помилки' : 'Синоніми, нюанси вживання'}
           />
         </Field>
       </div>
     </DetailPane>
+  )
+}
+
+type SetField = <K extends keyof Form>(key: K, value: Form[K]) => void
+
+/** A grammar rule: the rule in short and the practice sentences the trainer turns into fill-the-gap cards. */
+function RuleFields({ id, form, set }: { id: string; form: Form; set: SetField }): ReactElement {
+  return (
+    <>
+      <Field label="Правило" htmlFor={`${id}-rule`}>
+        <Textarea
+          id={`${id}-rule`}
+          value={form.translation}
+          maxLength={LIMITS.translation}
+          onChange={(e) => set('translation', e.target.value)}
+          placeholder="Коротко, коли і як вживається"
+        />
+      </Field>
+      <Field label="Приклади" htmlFor={`${id}-examples`} hint={gapsSummary(form.example)}>
+        <Textarea
+          id={`${id}-examples`}
+          value={form.example}
+          maxLength={LIMITS.example}
+          onChange={(e) => set('example', e.target.value)}
+          placeholder="Yesterday I [went|go] home."
+          className="min-h-28"
+        />
+      </Field>
+    </>
+  )
+}
+
+function WordFields({ id, form, set }: { id: string; form: Form; set: SetField }): ReactElement {
+  return (
+    <>
+      <Field label="Транскрипція" htmlFor={`${id}-tr`}>
+        <Input
+          id={`${id}-tr`}
+          value={form.transcription}
+          maxLength={LIMITS.transcription}
+          onChange={(e) => set('transcription', e.target.value)}
+          placeholder="Напр.: [ˈrəʊlaʊt]"
+          className="max-w-xs"
+        />
+      </Field>
+      {/* One line to start with, but a long translation wraps while reading instead of ending in «…». */}
+      <Field label="Переклад" htmlFor={`${id}-translation`}>
+        <Textarea
+          id={`${id}-translation`}
+          rows={1}
+          value={form.translation}
+          maxLength={LIMITS.translation}
+          onKeyDown={noEnter}
+          onChange={(e) => set('translation', oneLine(e.target.value))}
+          placeholder="Як це українською"
+          className="min-h-9"
+        />
+      </Field>
+      <Field label="Тип">
+        <Segmented
+          options={WORD_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+          value={form.kind}
+          onChange={(k) => set('kind', k)}
+        />
+      </Field>
+      <ExampleGrid wide={!!form.exampleTranslation}>
+        <Field label="Приклад" count={{ length: form.example.length, max: LIMITS.example }}>
+          <Textarea
+            value={form.example}
+            maxLength={LIMITS.example}
+            onChange={(e) => set('example', e.target.value)}
+            placeholder="Речення, де ви це побачили"
+          />
+        </Field>
+        <Field
+          label="Переклад прикладу"
+          count={{ length: form.exampleTranslation.length, max: LIMITS.exampleTranslation }}
+        >
+          <Textarea
+            value={form.exampleTranslation}
+            maxLength={LIMITS.exampleTranslation}
+            onChange={(e) => set('exampleTranslation', e.target.value)}
+            placeholder="Як це речення звучить українською"
+          />
+        </Field>
+      </ExampleGrid>
+      <Field label="Джерело" htmlFor={`${id}-context`}>
+        <Textarea
+          id={`${id}-context`}
+          rows={1}
+          value={form.context}
+          maxLength={LIMITS.context}
+          onKeyDown={noEnter}
+          onChange={(e) => set('context', oneLine(e.target.value))}
+          placeholder="Напр.: PR, документація, чат"
+          className="min-h-9"
+        />
+      </Field>
+    </>
   )
 }

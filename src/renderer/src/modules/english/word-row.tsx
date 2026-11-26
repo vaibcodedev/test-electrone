@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import type { Word } from '@shared/domain/english'
+import { fillGaps, hasGaps } from '@shared/english-gaps'
 import { fmtDay } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ListItem } from '@/components/common/master-detail'
@@ -25,6 +26,10 @@ export function WordRow({
   onOpen: () => void
 }): ReactElement {
   const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
+  const rule = w.kind === 'rule'
+  // A rule shows its first example as a sentence (gaps filled), not its bracket markup.
+  const example = rule ? fillGaps(w.example.trim().split('\n')[0] ?? '') : w.example
+  const due = w.dueAt <= now ? 'повторити сьогодні' : `повторення ${fmtDay(w.dueAt)}`
   return (
     // Top-aligned in a stretched grid cell: a short card no longer floats in the middle, and the stage line is
     // pinned to the bottom (mt-auto), on one line across the row.
@@ -56,10 +61,12 @@ export function WordRow({
         </div>
       ) : (
         // Not a value: a missing translation must not read like one.
-        <div className={cn('mt-0.5 truncate text-body italic', muted)}>Переклад не додано</div>
+        <div className={cn('mt-0.5 truncate text-body italic', muted)}>
+          {rule ? 'Правило не описано' : 'Переклад не додано'}
+        </div>
       )}
-      {w.example && (
-        <div className={cn('mt-1.5 truncate text-caption italic', muted)}>«{w.example}»</div>
+      {example && (
+        <div className={cn('mt-1.5 truncate text-caption italic', muted)}>«{example}»</div>
       )}
       {/* Quiet text, no badge: a warm badge on every row was louder than the word itself. */}
       <div className={cn('mt-auto flex items-center gap-3 pt-2.5 text-meta', muted)}>
@@ -67,7 +74,7 @@ export function WordRow({
           <span className={cn('size-2 rounded-full', STAGE_COLOR[w.stage])} />
           {STAGE_LABEL_ONE[w.stage]}
         </span>
-        <span>{w.dueAt <= now ? 'повторити сьогодні' : `повторення ${fmtDay(w.dueAt)}`}</span>
+        <span>{rule && !hasGaps(w.example) ? 'немає пропусків — не в тренуванні' : due}</span>
       </div>
     </ListItem>
   )
