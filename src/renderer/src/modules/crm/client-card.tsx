@@ -1,6 +1,5 @@
 import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowUpRight } from 'lucide-react'
 import type { ClientSummary } from '@shared/domain/crm'
 import { fmtHours, fmtMoney, fmtMoneyCompact, plural } from '@/lib/format'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -9,6 +8,8 @@ import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/i
 import { CLIENT_STATUS_BADGE, CLIENT_STATUS_LABEL } from './labels'
 import { AvoidBadge, PlatformBadge } from './platform-fields'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { clientMenu } from './menus'
 
 /** «1 проєкт у роботі з 3», «2 проєкти», «Ще без проєктів». */
 function projectsLine(c: ClientSummary): string {
@@ -26,6 +27,7 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
   const status = CLIENT_STATUS_BADGE[client.status]
   const badges = !!client.platformId || client.status === 'avoid' || !!status
   return (
+    <RecordMenuTile menu={bindMenu(clientMenu, client)} buttonClassName="absolute top-5 right-5">
     <Item
       asChild
       variant="muted"
@@ -42,10 +44,8 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
               {client.name.slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <ArrowUpRight
-            aria-hidden
-            className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-          />
+          {/* The room of the card's «⋯» (beside the card's button, never inside it). */}
+          <span aria-hidden className="size-6" />
         </div>
         <ItemContent className="w-full min-w-0 gap-1">
           <ItemTitle className="w-full text-lead">
@@ -98,5 +98,6 @@ export function ClientCard({ client }: { client: ClientSummary }): ReactElement 
         </ItemContent>
       </button>
     </Item>
+    </RecordMenuTile>
   )
 }

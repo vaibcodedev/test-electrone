@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  CLIPBOARD_CLEAR_SECONDS,
   connectionString,
   CREDENTIAL_KIND_LABEL,
   credentialMainLine,
@@ -24,14 +23,12 @@ import {
   serverPort,
   sshCommand,
   type Credential,
-  type CredentialCopy,
   type CredentialSecretRef
 } from '@shared/domain/credentials'
 import { api } from '@/lib/api'
 import { useApi, useApiMutation } from '@/lib/query'
 import { fmtDayFull, hostOf } from '@/lib/format'
 import { openUrl } from '@/lib/open-url'
-import { reportError } from '@/lib/error-reporting'
 import { cn } from '@/lib/utils'
 import { copyText } from '@/components/common/copy-button'
 import { Confirm } from '@/components/common/confirm'
@@ -53,6 +50,9 @@ import { KIND_ICON } from './credential-kinds'
 import { CredentialForm, type CredentialOwner, type OwnerChoice } from './credential-form'
 import { CredentialPayment } from './credential-payment'
 import { useInlineForm } from './inline-form'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
+import { credentialMenu } from './credential-menu'
+import { copySecret } from './copy-secret'
 
 /** «Показати» shows a secret this long, then hides it again. */
 const REVEAL_MS = 10_000
@@ -108,18 +108,6 @@ function PlainCell({ label, value }: { label: string; value: string }): ReactEle
   )
 }
 
-/** Copies a secret in main: it never passes through the renderer, and the clipboard clears itself in 30 s. */
-async function copySecret(arg: CredentialCopy, what: string): Promise<void> {
-  try {
-    await api.credentials.copy(arg)
-    toast.success(`${what} — скопійовано`, {
-      description: `Буфер обміну очиститься через ${CLIPBOARD_CLEAR_SECONDS} с`
-    })
-  } catch (e) {
-    toast.error((e as Error).message || 'Не вдалося скопіювати. Спробуйте ще раз.')
-    reportError(e, 'copy secret')
-  }
-}
 
 /**
  * A secret: dots, «Показати» for 10 s, «Скопіювати» (main copies it and clears the clipboard in 30 s). The value
@@ -440,6 +428,8 @@ export function CredentialCard({
   const details = kindDetails(item)
   const quick = <QuickActions item={item} />
   return (
+    // Right click and «⋯»: the same copies as the cells (secrets copied by main, cleared in 30 s).
+    <RecordMenu def={credentialMenu} record={item} ctx={{ editing: mode.editing, onEdit: () => setEditing(true) }}>
     <Card className="group gap-3 bg-surface p-4" data-credential={item.kind}>
       <div className="flex min-w-0 items-center gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground/[0.07] text-muted-foreground">
@@ -471,6 +461,7 @@ export function CredentialCard({
               <ExternalLink />
             </IconAction>
           )}
+          <RecordMenuButton />
           <span data-edit-only className="flex items-center gap-0.5">
             <IconAction label="Змінити доступ" onClick={() => setEditing(true)}>
               <Pencil />
@@ -522,5 +513,6 @@ export function CredentialCard({
         <p className="line-clamp-2 text-caption text-muted-foreground">{item.notes}</p>
       )}
     </Card>
+    </RecordMenu>
   )
 }

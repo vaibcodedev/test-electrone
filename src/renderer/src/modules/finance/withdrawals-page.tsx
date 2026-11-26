@@ -27,6 +27,8 @@ import { WithdrawalDialog } from './withdrawal-dialog'
 import { fmtRate, sumByCurrency } from './money'
 import { defaultDayIn, monthRange, noneInMonth, noneInTile, useMonth } from './month'
 import { useEditDialog } from './use-edit-dialog'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { financeRowMenu } from './menu'
 
 /** Secondary columns, hidden in a narrow card (body, header and footer use the same class). */
 const METHOD_COL = 'hidden @2xl:table-cell'
@@ -126,74 +128,90 @@ export function WithdrawalsPage(): ReactElement {
                   </TableHeader>
                   <TableBody>
                     {rows.map((w) => (
-                      <TableRow key={w.id}>
-                        <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
-                          {fmtDayFull(w.at)}
-                        </TableCell>
-                        <TableCell>
-                          {w.platformId ? (
-                            <Badge variant="soft">
-                              {platformName.get(w.platformId) ?? 'Платформа'}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Інше</Badge>
-                          )}
-                          {/* The method column is hidden in a narrow card: the method moves here. */}
-                          {w.method && (
-                            <span
-                              className="block max-w-40 truncate text-caption text-muted-foreground @2xl:hidden"
-                              title={w.method}
-                            >
-                              {w.method}
-                            </span>
-                          )}
-                        </TableCell>
-                        {hasMethod && (
-                          <TableCell
-                            className={cn('w-full max-w-0 text-muted-foreground', METHOD_COL)}
-                          >
-                            <span className="block truncate" title={w.method || undefined}>
-                              {w.method || '—'}
-                            </span>
+                      <RecordMenu
+                        asChild
+                        key={w.id}
+                        def={financeRowMenu}
+                        record={{ title: 'Виведення' }}
+                        ctx={{
+                          onEdit: () => dialog.openWith(w),
+                          onRemove: () => remove.mutate(w.id),
+                          removeConfirm: {
+                            title: 'Видалити виведення?',
+                            description: 'Запис буде видалено без можливості відновлення.',
+                            confirmLabel: 'Видалити'
+                          }
+                        }}
+                      >
+                        <TableRow>
+                          <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                            {fmtDayFull(w.at)}
                           </TableCell>
-                        )}
-                        <TableCell className="text-right whitespace-nowrap tabular-nums">
-                          {fmtMoney(w.amount, w.currency)}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
-                          {w.fee ? fmtMoney(w.fee, w.currency) : '—'}
-                        </TableCell>
-                        <TableCell
-                          className={cn(
-                            'text-right whitespace-nowrap text-muted-foreground tabular-nums',
-                            RATE_COL
-                          )}
-                        >
-                          {w.currency === w.receivedCurrency ? '—' : fmtRate(w.rate)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
-                          {fmtMoney(w.received, w.receivedCurrency)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end">
-                            <IconAction label="Змінити" onClick={() => dialog.openWith(w)}>
-                              <Pencil />
-                            </IconAction>
-                            <Confirm
-                              title="Видалити виведення?"
-                              description="Запис буде видалено без можливості відновлення."
-                              onConfirm={() => remove.mutate(w.id)}
-                            >
-                              <IconAction
-                                label="Видалити виведення"
-                                className="text-muted-foreground hover:text-destructive"
+                          <TableCell>
+                            {w.platformId ? (
+                              <Badge variant="soft">
+                                {platformName.get(w.platformId) ?? 'Платформа'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Інше</Badge>
+                            )}
+                            {/* The method column is hidden in a narrow card: the method moves here. */}
+                            {w.method && (
+                              <span
+                                className="block max-w-40 truncate text-caption text-muted-foreground @2xl:hidden"
+                                title={w.method}
                               >
-                                <Trash2 />
+                                {w.method}
+                              </span>
+                            )}
+                          </TableCell>
+                          {hasMethod && (
+                            <TableCell
+                              className={cn('w-full max-w-0 text-muted-foreground', METHOD_COL)}
+                            >
+                              <span className="block truncate" title={w.method || undefined}>
+                                {w.method || '—'}
+                              </span>
+                            </TableCell>
+                          )}
+                          <TableCell className="text-right whitespace-nowrap tabular-nums">
+                            {fmtMoney(w.amount, w.currency)}
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap text-muted-foreground tabular-nums">
+                            {w.fee ? fmtMoney(w.fee, w.currency) : '—'}
+                          </TableCell>
+                          <TableCell
+                            className={cn(
+                              'text-right whitespace-nowrap text-muted-foreground tabular-nums',
+                              RATE_COL
+                            )}
+                          >
+                            {w.currency === w.receivedCurrency ? '—' : fmtRate(w.rate)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium whitespace-nowrap tabular-nums">
+                            {fmtMoney(w.received, w.receivedCurrency)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end">
+                              <IconAction label="Змінити" onClick={() => dialog.openWith(w)}>
+                                <Pencil />
                               </IconAction>
-                            </Confirm>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                              <Confirm
+                                title="Видалити виведення?"
+                                description="Запис буде видалено без можливості відновлення."
+                                onConfirm={() => remove.mutate(w.id)}
+                              >
+                                <IconAction
+                                  label="Видалити виведення"
+                                  className="text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 />
+                                </IconAction>
+                              </Confirm>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </RecordMenu>
                     ))}
                   </TableBody>
                   <TableFooter>

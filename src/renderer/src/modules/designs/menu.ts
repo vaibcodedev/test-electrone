@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 import { ExternalLink, FolderOpen, ImageIcon, LayoutGrid, ListX } from 'lucide-react'
-import type { Design, DesignPatch } from '@shared/domain/designs'
+import type { Design, DesignPatch, Moodboard } from '@shared/domain/designs'
 import { api } from '@/lib/api'
 import { useApi, useApiMutation } from '@/lib/query'
 import { openUrl } from '@/lib/open-url'
@@ -44,8 +44,7 @@ export const designMenu = defineRecordMenu<
     const { data: boards = [] } = useApi('moodboards', 'list', { designId: d.id })
     // Toasts from the hooks' own options: the menu is gone by the time the answer comes, and per-call callbacks of
     // an unmounted hook never run.
-    const titleOf = (id: string): string =>
-      boards.find((b) => b.id === id)?.title ?? 'добірки'
+    const titleOf = (id: string): string => boards.find((b) => b.id === id)?.title ?? 'добірки'
     const add = useApiMutation('moodboards', 'addDesigns', {
       onSuccess: (_r, v) => toast.success(`Дизайн додано в «${titleOf(v.moodboardId)}»`)
     })
@@ -91,6 +90,23 @@ export const designMenu = defineRecordMenu<
         useTagsSubmenu(d.tags, (tagIds) => save({ tagIds }))
       ],
       danger: [useTrashItem('designs', ref, 'Дизайн переміщено в кошик')]
+    }
+  }
+})
+
+/** A moodboard tile's right click (gallery strip, «Усі добірки»). */
+export const moodboardMenu = defineRecordMenu<Moodboard, { onOpen: () => void }>({
+  title: (b) => b.title,
+  entity: (b) => ({ type: 'moodboard', id: b.id }),
+  useGroups(b, { onOpen }) {
+    const ref = { type: 'moodboard' as const, id: b.id }
+    const update = useApiMutation('moodboards', 'update')
+    return {
+      open: [useOpenItem(ref, onOpen)],
+      state: [useTagsSubmenu(b.tags, (tagIds) => update.mutate({ id: b.id, patch: { tagIds } }))],
+      danger: [
+        useTrashItem('moodboards', ref, 'Добірку переміщено в кошик — дизайни залишилися в галереї')
+      ]
     }
   }
 })

@@ -112,7 +112,7 @@ test.describe('ідея: повний цикл через інтерфейс', (
     await pane(win).getByRole('button', { name: 'Закрити' }).click()
     await expect(pane(win)).toHaveCount(0)
     await win.locator('[data-page-search]').fill(token)
-    await expect(win.getByRole('button', { name: new RegExp(title) })).toBeVisible()
+    await expect(win.getByRole('button', { name: new RegExp(`^${title}`) })).toBeVisible()
     await expect(win.getByText(other.title)).toHaveCount(0)
     await win.locator('[data-page-search]').fill('')
 
@@ -120,7 +120,7 @@ test.describe('ідея: повний цикл через інтерфейс', (
     await expect(win.getByText(other.title)).toBeVisible()
     await win.getByRole('button', { name: 'Мітка', exact: true }).click()
     await win.getByRole('option', { name: new RegExp(tagName) }).click()
-    await expect(win.getByRole('button', { name: new RegExp(title) })).toBeVisible()
+    await expect(win.getByRole('button', { name: new RegExp(`^${title}`) })).toBeVisible()
     await expect(win.getByText(other.title)).toHaveCount(0)
     await win.getByRole('button', { name: 'Скинути мітку' }).click()
 
@@ -205,7 +205,7 @@ test.describe('нотатка: повний цикл через інтерфей
 
     // Search by a word from the body.
     await win.locator('[data-page-search]').fill(`${token} про`)
-    const row = win.getByRole('button', { name: new RegExp(title) })
+    const row = win.getByRole('button', { name: new RegExp(`^${title}`) })
     await expect(row).toBeVisible()
     await row.click()
     await expect.poll(() => openParam(win)).toBe(id)
@@ -240,7 +240,7 @@ test.describe('«У кошик» і одразу інший запис', () => {
 
     await go(`/notes?open=${a.id}`)
     await win.locator('[data-page-search]').fill(token)
-    await expect(win.getByRole('button', { name: new RegExp(`Друга ${token}`) })).toBeVisible()
+    await expect(win.getByRole('button', { name: new RegExp(`^Друга ${token}`) })).toBeVisible()
     await expect(pane(win).getByRole('heading', { name: `Перша ${token}` })).toBeVisible()
 
     // Both clicks in one task: B is opened well inside the pane's 0.2 s fade-out, as a quick person does it.
