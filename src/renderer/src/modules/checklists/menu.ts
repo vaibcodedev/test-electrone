@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router'
-import { Braces, Rocket } from 'lucide-react'
-import type { Checklist, ChecklistPatch } from '@shared/domain/checklists'
+import { Braces, CircleCheck, Pencil, Rocket, Trash2 } from 'lucide-react'
+import type { Checklist, ChecklistItem, ChecklistPatch } from '@shared/domain/checklists'
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
 import { copyAsJson } from '@/components/common/import-dialog'
@@ -20,7 +20,8 @@ export const checklistMenu = defineRecordMenu<Checklist, { onLaunch?: () => void
     return {
       open: [
         useOpenItem(ref, () => navigate(`/checklists/${c.id}`)),
-        c.kind === 'template' && !!onLaunch && { label: 'Запустити прогін', icon: Rocket, run: onLaunch }
+        c.kind === 'template' &&
+          !!onLaunch && { label: 'Запустити прогін', icon: Rocket, run: onLaunch }
       ],
       state: [useTagsSubmenu(c.tags, (tagIds) => save({ tagIds }))],
       share: [
@@ -40,6 +41,45 @@ export const checklistMenu = defineRecordMenu<Checklist, { onLaunch?: () => void
         }
       ],
       danger: [useTrashItem('checklists', ref, 'Чек-лист переміщено в кошик')]
+    }
+  }
+})
+
+/**
+ * A step of a checklist: «Виконано» in a run; while editing — «Змінити» and «Видалити пункт» (asked: a step has no
+ * trash). Not an entity: no pins or links.
+ */
+export const checklistItemMenu = defineRecordMenu<
+  ChecklistItem,
+  { isRun: boolean; editing: boolean; onEdit: () => void }
+>({
+  title: (i) => i.text,
+  useGroups(i, { isRun, editing, onEdit }) {
+    const update = useApiMutation('checklists', 'updateItem')
+    const remove = useApiMutation('checklists', 'removeItem')
+    return {
+      open: [editing && { label: 'Змінити', icon: Pencil, run: onEdit }],
+      state: [
+        isRun && {
+          label: 'Виконано',
+          icon: CircleCheck,
+          on: i.done,
+          run: () => update.mutate({ id: i.id, patch: { done: !i.done } })
+        }
+      ],
+      danger: [
+        editing && {
+          label: 'Видалити пункт',
+          icon: Trash2,
+          destructive: true,
+          confirm: {
+            title: 'Видалити пункт?',
+            description: `«${i.text}» буде видалено з чек-листа.`,
+            confirmLabel: 'Видалити'
+          },
+          run: () => remove.mutate(i.id)
+        }
+      ]
     }
   }
 })
