@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/item'
 import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/settings-cards'
 import { SettingsRow, SettingsSection } from './settings/section'
-import { AutosaveInput } from './settings/autosave-input'
+import { EditableSetting } from './settings/editable-setting'
 import { ThemePicker } from './settings/theme-picker'
 import { MenuSection } from './settings/menu-section'
 import { ShortcutInput } from './settings/shortcut-input'
@@ -88,19 +88,15 @@ export function SettingsPage(): ReactElement {
         <div className="flex max-w-4xl flex-col gap-3">
           <SettingsSection id="you" title="Ви">
             <SettingsRow label="Як до вас звертатися" hint="Ім’я з’явиться в привітанні на головній">
-              {(id) => (
-                <AutosaveInput
-                  id={id}
-                  value={settings.userName}
-                  onSave={(userName) =>
-                    userName === settings.userName ? null : save.mutateAsync({ userName })
-                  }
-                  placeholder="Напр.: Олена"
-                  maxLength={USER_NAME_MAX}
-                  tooLong={`Скоротіть ім’я до ${USER_NAME_MAX} символів`}
-                  className="w-64"
-                />
-              )}
+              <EditableSetting
+                label="Як до вас звертатися"
+                value={settings.userName}
+                emptyText="Не вказано"
+                placeholder="Напр.: Олена"
+                maxLength={USER_NAME_MAX}
+                tooLong={`Скоротіть ім’я до ${USER_NAME_MAX} символів`}
+                onSave={(userName) => save.mutateAsync({ userName })}
+              />
             </SettingsRow>
           </SettingsSection>
 
