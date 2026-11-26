@@ -75,17 +75,22 @@ export class UserError extends Error {
   readonly code = 'USER'
 }
 
-/**
- * Builds a safe FTS5 MATCH expression from free text: every token becomes a quoted prefix term. All of them must
- * match; `any` — one is enough (a question in plain words: the chat's «Шукати в моїй базі»).
- */
-export function toFtsQuery(text: string, any = false): string | null {
-  const tokens = text
+/** The words of a search query (at most 12), as toFtsQuery splits them. */
+export function searchWords(text: string): string[] {
+  return text
     .normalize('NFKC')
     .split(/[\s\p{P}\p{S}]+/u)
     .map((t) => t.trim())
     .filter(Boolean)
     .slice(0, 12)
+}
+
+/**
+ * Builds a safe FTS5 MATCH expression from free text: every token becomes a quoted prefix term. All of them must
+ * match; `any` — one is enough (a question in plain words: the chat's «Шукати в моїй базі»).
+ */
+export function toFtsQuery(text: string, any = false): string | null {
+  const tokens = searchWords(text)
   if (!tokens.length) return null
   return tokens.map((t) => `"${t.replace(/"/g, '""')}"*`).join(any ? ' OR ' : ' ')
 }

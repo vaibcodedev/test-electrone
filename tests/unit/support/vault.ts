@@ -3,7 +3,7 @@
  * services and the modules that need each other (boards, crm, calendar, jobs) — wired like container.ts.
  * Electron is not available under plain Node: test files mock 'electron' and the logger before importing this.
  */
-import { mkdtempSync, rmSync } from 'fs'
+import { mkdtempSync, readFileSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join, resolve } from 'path'
 import { DbContext } from '@main/db/client'
@@ -15,6 +15,12 @@ import { LinkService } from '@main/services/link-service'
 import { PinService } from '@main/services/pin-service'
 import { FileStorage } from '@main/services/file-storage'
 import { AttachmentService } from '@main/services/attachment-service'
+import {
+  AttachmentTextIndexer,
+  AttachmentTextStore,
+  type ExtractFile
+} from '@main/services/attachment-text'
+import { extractPdfText, PDF_LIMITS } from '@main/services/pdf-text/extract'
 import { SecretBox } from '@main/services/secret-box'
 import { TrashService } from '@main/services/trash-service'
 import { RevisionService } from '@main/services/revision-service'
@@ -52,7 +58,11 @@ export class Vault {
   readonly dir = mkdtempSync(join(tmpdir(), 'vault-unit-'))
   readonly db = new DbContext(join(this.dir, 'vault.db'), resolve('src/main/db/migrations'))
   readonly registry = new EntityRegistry(this.db)
-  readonly search = new SearchIndex(this.db, this.registry)
+  readonly fileTexts = new AttachmentTextStore(this.db)
+  readonly search = new SearchIndex(this.db, this.registry, this.fileTexts)
+  /** How a PDF is read: in-process here (the app uses a worker thread); a test can swap it. */
+  extractPdf: ExtractFile = async (abs) => extractPdfText(readFileSync(abs))
+  readonly fileTextIndexer: AttachmentTextIndexer
   readonly tags = new TagService(this.db, this.registry)
   readonly links = new LinkService(this.db, this.registry)
   readonly files = new FileStorage(join(this.dir, 'files'))
@@ -74,7 +84,19 @@ export class Vault {
   constructor() {
     this.db.open()
     const pins = new PinService(this.db, this.registry)
-    const attachments = new AttachmentService(this.db, this.files, this.registry)
+    this.fileTextIndexer = new AttachmentTextIndexer({
+      ctx: this.db,
+      store: this.fileTexts,
+      resolve: (rel) => this.files.resolve(rel),
+      extract: (abs, signal) => this.extractPdf(abs, signal),
+      maxBytes: PDF_LIMITS.maxBytes
+    })
+    const attachments = new AttachmentService(
+      this.db,
+      this.files,
+      this.registry,
+      this.fileTextIndexer
+    )
     const m: ModuleContext = (this.m = {
       db: this.db,
       registry: this.registry,

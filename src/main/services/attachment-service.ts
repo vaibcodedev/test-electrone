@@ -14,6 +14,11 @@ import { openPathOrThrow } from '../core/open-path'
 import type { EntityRegistry } from '../core/registry'
 import type { FileStorage } from './file-storage'
 
+/** Who follows attachments for search (AttachmentTextIndexer): PDFs get their text read in the background. */
+export interface AttachmentTextHooks {
+  added(a: { id: string; mime: string }): void
+}
+
 /** Why a stored file didn't open (shell's English error goes to the log through openPathOrThrow). */
 const FILE_OPEN_ERROR = 'Не вдалося відкрити файл — можливо, його видалено або перейменовано'
 
@@ -22,7 +27,8 @@ export class AttachmentService {
   constructor(
     private readonly ctx: DbContext,
     private readonly storage: FileStorage,
-    private readonly registry: EntityRegistry
+    private readonly registry: EntityRegistry,
+    private readonly texts: AttachmentTextHooks
   ) {}
 
   list(ref: EntityRef): Attachment[] {
@@ -49,6 +55,8 @@ export class AttachmentService {
       createdAt: now()
     }
     this.ctx.orm.insert(attachments).values(row).run()
+    // Queued, never awaited: attaching doesn't wait for (or fail because of) reading the file's text.
+    this.texts.added(row)
     return row as Attachment & { entityType: EntityType }
   }
 
@@ -61,6 +69,7 @@ export class AttachmentService {
   remove(id: string): void {
     const row = this.find(id)
     this.ctx.orm.delete(attachments).where(eq(attachments.id, id)).run()
+    // Its text and index entry go with the row (ON DELETE CASCADE + triggers, migration 0009).
     this.storage.remove(row.path)
   }
 

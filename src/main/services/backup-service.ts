@@ -139,7 +139,17 @@ export class BackupService {
     private readonly search: SearchIndex,
     private readonly bus: EventBus,
     /** `folderCopies: false` — «Тестовий режим»: test data never goes to an outside folder. */
-    private readonly opts: { folderCopies: boolean; hostname?: string } = { folderCopies: true }
+    private readonly opts: {
+      folderCopies: boolean
+      hostname?: string
+      /**
+       * Background reading of attached files (PDF text): paused for the swap — a file held open by it makes the
+       * rename of the files folder fail on Windows — and resumed after it, restored or rolled back.
+       */
+      fileWork?: { pause(): Promise<void>; resume(): void }
+      /** After a successful restore, once the index is rebuilt (the PDF text backfill). */
+      afterRestore?: () => void
+    } = { folderCopies: true }
   ) {}
 
   list(): BackupEntry[] {
@@ -478,6 +488,7 @@ export class BackupService {
     let placedDb = false
     let movedFiles = false
     let createdFiles = false
+    await this.opts.fileWork?.pause()
     this.ctx.close()
     try {
       for (const suffix of ['-wal', '-shm']) rmSync(dbFile + suffix, { force: true })
@@ -531,6 +542,7 @@ export class BackupService {
       } catch (oe) {
         log.error('[backup] could not reopen the database after the rollback', oe)
       }
+      this.opts.fileWork?.resume()
       if (kept.length) {
         throw new UserError(
           `Не вдалося повернути поточні дані: ${kept.join('; ')}. Перезапустіть Vault, подробиці — у журналі: ${LOG_HINT}.`
@@ -538,7 +550,13 @@ export class BackupService {
       }
       throw new UserError(restoreFailMessage(e))
     }
+    this.opts.fileWork?.resume()
     this.search.rebuild()
+    try {
+      this.opts.afterRestore?.()
+    } catch (e) {
+      log.error('[backup] after restore', e)
+    }
     this.bus.dataChanged('all')
     for (const w of BrowserWindow.getAllWindows()) w.webContents.reload()
     // The old data goes only once the restored one is in use.

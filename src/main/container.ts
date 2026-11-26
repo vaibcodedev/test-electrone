@@ -21,6 +21,9 @@ import { MentionService } from './services/mention-service'
 import { PinService } from './services/pin-service'
 import { FileStorage } from './services/file-storage'
 import { AttachmentService } from './services/attachment-service'
+import { AttachmentTextIndexer, AttachmentTextStore } from './services/attachment-text'
+import { PDF_LIMITS } from './services/pdf-text/extract'
+import { extractPdfInWorker } from './services/pdf-text/run-worker'
 import { RevisionService } from './services/revision-service'
 import { TrashService } from './services/trash-service'
 import { SecretBox } from './services/secret-box'
@@ -84,13 +87,27 @@ export class Container {
     app.getVersion()
   )
   readonly registry = new EntityRegistry(this.db)
-  readonly search = new SearchIndex(this.db, this.registry)
+  /** Text of attached PDFs: an index of its own, searched by Ctrl+K only (never the chat ШІ, export or the log). */
+  readonly fileTexts = new AttachmentTextStore(this.db)
+  readonly search = new SearchIndex(this.db, this.registry, this.fileTexts)
   readonly tags = new TagService(this.db, this.registry)
   readonly links = new LinkService(this.db, this.registry)
   readonly mentions = new MentionService(this.db, this.registry)
   readonly pins = new PinService(this.db, this.registry)
   readonly files = new FileStorage(this.paths.filesDir)
-  readonly attachments = new AttachmentService(this.db, this.files, this.registry)
+  readonly fileTextIndexer = new AttachmentTextIndexer({
+    ctx: this.db,
+    store: this.fileTexts,
+    resolve: (rel) => this.files.resolve(rel),
+    extract: (abs, signal) => extractPdfInWorker(abs, signal),
+    maxBytes: PDF_LIMITS.maxBytes
+  })
+  readonly attachments = new AttachmentService(
+    this.db,
+    this.files,
+    this.registry,
+    this.fileTextIndexer
+  )
   readonly secrets = new SecretBox()
   readonly revisions = new RevisionService(
     this.db,
@@ -192,7 +209,14 @@ export class Container {
     readonly profile: Profile
   ) {
     this.backup = new BackupService(this.db, this.paths, this.config, this.search, this.bus, {
-      folderCopies: profile.kind === 'main'
+      folderCopies: profile.kind === 'main',
+      // No PDF is held open while the files folder is renamed (EPERM on Windows); the restored base may hold
+      // PDFs whose text was never read (a copy from before this version).
+      fileWork: {
+        pause: () => this.fileTextIndexer.pause(),
+        resume: () => this.fileTextIndexer.resume()
+      },
+      afterRestore: () => this.fileTextIndexer.backfill()
     })
     this.storage = new StorageService({
       layout: storageLayout(this.paths, {
@@ -351,7 +375,11 @@ export class Container {
           return { ref: { type: ref.type, id: ref.id }, title: doc.title, body: doc.body }
         },
         search: (words, { any, limit }) => {
-          const hits = this.search.query({ text: words.join(' '), limit: limit * 2 }, { any })
+          // Own text only: what an attached PDF says never decides which records go to a provider.
+          const hits = this.search.query(
+            { text: words.join(' '), limit: limit * 2 },
+            { any, ownText: true }
+          )
           return this.registry
             .summarize(hits)
             .slice(0, limit)
@@ -396,6 +424,11 @@ export class Container {
       if (this.search.count() === 0) this.search.rebuild()
       // After an update: accesses joined the text of their client / project (names, hosts — never secrets).
       else if (this.db.migratedOnOpen) this.crm.reindexCredentialOwners()
+    })
+    // PDFs attached before this version (or left in the queue by a quit): read in the background.
+    housekeep('pdf text', () => {
+      if (this.fileTexts.ensureIndex()) log.warn('[file-text] file index was empty: rebuilt')
+      this.fileTextIndexer.backfill()
     })
     housekeep('checklist seeds', () => this.checklists.seedIfEmpty(this.config))
     housekeep('freelance seeds', () => this.freelance.seedIfEmpty(this.config))
