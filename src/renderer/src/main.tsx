@@ -7,6 +7,7 @@ import { queryClient } from '@/lib/query'
 import { router } from '@/app/router'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { TextMenu } from '@/features/text-menu/text-menu'
 import { useApplyTheme } from '@/hooks/use-theme'
 import { installErrorReporting } from '@/lib/error-reporting'
 import { configureZod } from '@shared/zod-locale'
@@ -28,6 +29,8 @@ function Root() {
     <TooltipProvider delayDuration={350}>
       <RouterProvider router={router} />
       <Toaster />
+      {/* Right click on text, in both windows (main and quick add). */}
+      <TextMenu />
     </TooltipProvider>
   )
 }

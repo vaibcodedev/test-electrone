@@ -21,7 +21,15 @@ function ContextMenu({ ...props }: React.ComponentProps<typeof ContextMenuPrimit
 function ContextMenuTrigger({
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>) {
-  return <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />
+  // `data-context-menu-trigger` survives `asChild` (the child's own data-slot wins the merge): the text menu
+  // (features/text-menu) looks for it to let a field or selected text inside a record keep the text menu.
+  return (
+    <ContextMenuPrimitive.Trigger
+      data-slot="context-menu-trigger"
+      data-context-menu-trigger=""
+      {...props}
+    />
+  )
 }
 
 function ContextMenuGroup({ ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Group>) {

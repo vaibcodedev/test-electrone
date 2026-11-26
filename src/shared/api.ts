@@ -13,6 +13,7 @@ import type {
   TagWithUsage
 } from './domain/common'
 import type { Idea, IdeaInput, IdeaListQuery, IdeaPatch, IdeaStatus } from './domain/ideas'
+import type { TextEditCommand, TextMenuRequest } from './domain/text-menu'
 import type {
   AiConfigPatch,
   AiStatus,
@@ -929,6 +930,18 @@ export interface AppApi {
 }
 
 /**
+ * The text menu's commands (shared/domain/text-menu.ts). Each one is for the menu `id` main last opened and
+ * only what that menu allowed; it acts on the focused field of the window the menu was opened in.
+ */
+export interface TextMenuApi {
+  edit(args: { id: number; command: TextEditCommand }): Promise<void>
+  /** `word` must be one of the menu's suggestions. */
+  replaceMisspelling(args: { id: number; word: string }): Promise<void>
+  /** Adds the menu's misspelled word to the spellchecker's own dictionary. */
+  addToDictionary(args: { id: number }): Promise<void>
+}
+
+/**
  * «Тестовий режим». No method takes an argument: the sandbox folder is always computed in main, a path never
  * comes from the renderer. enter / exit / clear (in the sandbox) relaunch Vault a moment after answering.
  */
@@ -995,6 +1008,7 @@ export interface Api {
   settings: SettingsApi
   updates: UpdatesApi
   app: AppApi
+  textMenu: TextMenuApi
   importer: ImporterApi
   sandbox: SandboxApi
 }
@@ -1016,6 +1030,8 @@ export interface MainEvents {
   toast: { kind: 'error' | 'success' | 'info'; message: string }
   /** The extension asks for access («Під’єднати до Vault»); null once it is answered, replaced or expired. */
   'capture:pair': PairRequestView | null
+  /** Chromium asked for a context menu in this window (sent to that window only). */
+  'text-menu:open': TextMenuRequest
 }
 
 export type MainEventName = keyof MainEvents
@@ -1028,7 +1044,8 @@ export const MAIN_EVENTS: MainEventName[] = [
   'dev:log',
   'dev:status',
   'toast',
-  'capture:pair'
+  'capture:pair',
+  'text-menu:open'
 ]
 
 /** Shape of the RPC envelope; errors are serialised explicitly to keep messages intact. */

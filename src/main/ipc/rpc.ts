@@ -10,12 +10,16 @@ import { NotFoundError, UserError } from '../core/util'
 import { log } from '../core/logger'
 import { changedTypes, formatError } from './rpc-utils'
 
-/** Only our own pages may call the API (defence against a navigated/injected frame). */
-function trustedSender(event: IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url ?? ''
+/** A page of Vault itself (app:// in production, the dev server in dev), not a navigated or injected one. */
+export function isAppPageUrl(url: string): boolean {
   if (url.startsWith('app://renderer/')) return true
   const dev = process.env['ELECTRON_RENDERER_URL']
   return is.dev && !!dev && url.startsWith(dev)
+}
+
+/** Only our own pages may call the API (defence against a navigated/injected frame). */
+function trustedSender(event: IpcMainInvokeEvent): boolean {
+  return isAppPageUrl(event.senderFrame?.url ?? '')
 }
 
 /**
