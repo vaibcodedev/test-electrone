@@ -206,7 +206,10 @@ export function TextMenu(): ReactElement {
         // Focus goes back in finish(), right when the menu closes; Radix would do it again after the fade-out.
         onCloseAutoFocus={(e) => e.preventDefault()}
         // A left click outside only closes the menu. A right click goes on to open the menu where it landed.
-        onPointerDownOutside={(e) => e.detail.originalEvent.button === 0 && swallowNextPress()}
+        onPointerDownOutside={(e) => {
+          // Prevented by the wrapper once the menu is closing: that press is an ordinary one and must not be eaten.
+          if (!e.defaultPrevented && e.detail.originalEvent.button === 0) swallowNextPress()
+        }}
       >
         {session.groups.map((group, i) => (
           <Fragment key={group[0]?.key ?? i}>
