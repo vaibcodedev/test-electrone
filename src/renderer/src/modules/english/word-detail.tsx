@@ -63,7 +63,8 @@ function Repetition({ word }: { word: Word }): ReactElement {
       <SectionLabel>Повторення</SectionLabel>
       {!word.lastReviewedAt ? (
         <p className="text-body leading-relaxed text-muted-foreground">
-          Ще не повторювали — слово буде в тренуванні {fmtDay(word.dueAt)}.
+          Ще не повторювали — {word.kind === 'rule' ? 'правило' : 'слово'} буде в тренуванні{' '}
+          {fmtDay(word.dueAt)}.
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-1.5">

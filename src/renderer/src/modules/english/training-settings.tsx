@@ -49,7 +49,7 @@ export function TrainingSettings(): ReactElement {
       </Tooltip>
       <PopoverContent align="end" className="flex w-80 flex-col gap-4">
         <div className="text-heading font-display">Налаштування тренування</div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 items-end gap-3">
           <Field label="Нових слів на день" htmlFor={`${id}-new`}>
             <NumberInput
               id={`${id}-new`}

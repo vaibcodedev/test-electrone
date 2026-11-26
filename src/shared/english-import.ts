@@ -60,11 +60,14 @@ const ENTITIES: Record<string, string> = {
   '#39': "'"
 }
 
-/** Anki fields keep HTML and sound tags: plain text is what a dictionary entry wants. */
+/**
+ * Anki fields keep HTML and sound tags: plain text is what a dictionary entry wants. Lines of a field (`<br>`,
+ * `<div>`) are usually separate meanings: they become «; ».
+ */
 export function stripHtml(value: string): string {
   return value
     .replace(/\[sound:[^\]]*\]/g, '')
-    .replace(/<br\s*\/?>|<\/(div|p|li)>/gi, ' ')
+    .replace(/<br\s*\/?>|<\/(div|p|li)>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&(#\d+|#x[\da-f]+|[a-z]+|#39);/gi, (m, e: string) => {
       const k = e.toLowerCase()
@@ -73,8 +76,10 @@ export function stripHtml(value: string): string {
       if (k.startsWith('#')) return String.fromCodePoint(Number(k.slice(1)))
       return m
     })
-    .replace(/\s+/g, ' ')
-    .trim()
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('; ')
 }
 
 /** RFC 4180 fields: quotes around a field, `""` inside one, separators and line breaks inside quotes. */

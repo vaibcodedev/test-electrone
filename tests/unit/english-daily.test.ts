@@ -104,7 +104,7 @@ describe('import parsing', () => {
       '#separator:tab\n#html:true\n#guid column:1\n#tags column:4\nk1\t<b>rollout</b>[sound:r.mp3]\tвикатка<br>поетапна\tlearn\nk2\tmerge&nbsp;conflict\tконфлікт\t\n'
     )
     expect(t.meta).toEqual([0, 3])
-    expect(t.rows[0]).toEqual(['k1', 'rollout', 'викатка поетапна', 'learn'])
+    expect(t.rows[0]).toEqual(['k1', 'rollout', 'викатка; поетапна', 'learn'])
     const map = guessColumns(t)
     expect(map).toEqual({ term: 1, translation: 2, example: null })
     expect(mapRows(t, map)[1]).toEqual({

@@ -71,7 +71,7 @@ function AnswersChart({ data }: { data: EnglishStats['days'] }): ReactElement {
     label: `${fmtDayFull(parseISO(d.day).getTime())}: нових ${d.newWords}, правильно ${d.correct}`
   }))
   return (
-    <ChartContainer config={barsConfig} className="aspect-auto h-14 w-full">
+    <ChartContainer config={barsConfig} className="aspect-auto h-16 w-full">
       <BarChart data={rows} margin={{ top: 2, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
         <XAxis
           dataKey="day"
@@ -80,7 +80,7 @@ function AnswersChart({ data }: { data: EnglishStats['days'] }): ReactElement {
           tickLine={false}
           axisLine={{ stroke: 'var(--border)' }}
           tickMargin={4}
-          height={16}
+          height={20}
           tick={({ x, y, payload }) => (
             <text
               x={x}
