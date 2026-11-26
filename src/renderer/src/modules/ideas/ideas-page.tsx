@@ -48,7 +48,7 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
         })
       }
     >
-      <InputGroup className="h-11 pr-1">
+      <InputGroup className="h-11">
         {/* data-page-new: the page has no lime header button, so `N` puts the caret here. */}
         <InputGroupInput
           data-page-new

@@ -33,7 +33,29 @@ export function hidesEveryHub(hidden: readonly string[]): boolean {
   return NAV_HUB_IDS.every((id) => hidden.includes(id))
 }
 
+/** «Як до вас звертатися»: a name for the greeting, not free text. */
+export const USER_NAME_MAX = 40
+
+/** Shown under the field when it refused a character. */
+export const USER_NAME_RULE = 'Лише літери й цифри, між ними — один знак'
+
+/**
+ * A name as it may be typed, permissive on purpose (names of any script, «Анна-Марія», «Мар’яна», «J. R.»):
+ * letters, digits and single separators between them; it starts with a letter or a digit, and the only two
+ * separators in a row are «. » of initials. A separator at the very end stays: the next letter may follow.
+ */
+export function tidyName(text: string): string {
+  return text
+    .replace(/[^\p{L}\p{M}\p{N} .'’ʼ-]/gu, '')
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .replace(/[ .'’ʼ-]{2,}/g, (run) => (run.startsWith('. ') ? '. ' : run[0]))
+}
+
+/** The name as it is saved: without a separator left hanging at the end (a final dot stays: «Коля П.»). */
+export const finishName = (text: string): string => tidyName(text).replace(/[ '’ʼ-]+$/, '')
+
 export const settingsSchema = z.object({
+  // Wider than USER_NAME_MAX on purpose: a name stored before the limit was lowered must not be reset on read.
   userName: z.string().max(100),
   theme: z.enum(THEMES),
   launchAtLogin: z.boolean(),
@@ -62,7 +84,13 @@ export const settingsSchema = z.object({
   hiddenNavItems: z.array(z.string().max(200)).max(200)
 })
 export type Settings = z.infer<typeof settingsSchema>
-export const settingsPatchSchema = patchOf(settingsSchema)
+export const settingsPatchSchema = patchOf(settingsSchema).extend({
+  userName: z
+    .string()
+    .max(USER_NAME_MAX)
+    .refine((name) => name === finishName(name), USER_NAME_RULE)
+    .optional()
+})
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>
 
 export interface AppInfo {

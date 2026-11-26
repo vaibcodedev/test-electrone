@@ -1,3 +1,4 @@
+import { finishName, settingsPatchSchema, tidyName, USER_NAME_MAX } from '../../src/shared/domain/system'
 /** Machine-level config outside the DB: seed ledger and once-a-day reminders survive a restart. */
 import { describe, expect, it, vi } from 'vitest'
 import * as fs from 'fs'
@@ -136,6 +137,30 @@ describe('a damaged config file', () => {
       throw Object.assign(new Error('EBUSY'), { code: 'EBUSY' })
     })
     expect(new ConfigStore(path).settings.userName).toBe('Олена')
+  })
+})
+
+describe('«Як до вас звертатися»', () => {
+  it('keeps real names and drops repeated separators and other symbols', () => {
+    for (const name of ['Анна-Марія', 'Мар’яна', "O'Connor", 'J. R.', 'Коля 2', '李 小龙'])
+      expect(finishName(name)).toBe(name)
+    expect(finishName('вввв---------')).toBe('вввв')
+    expect(finishName('  -.Коля  --  Петро!!! 😀')).toBe('Коля Петро')
+    expect(finishName('Коля___<b>')).toBe('Коляb')
+    expect(finishName('---')).toBe('')
+    // While typing, one separator at the end stays: the next letter may follow it.
+    expect(tidyName('Анна--')).toBe('Анна-')
+    expect(settingsPatchSchema.safeParse({ userName: 'a--b' }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ userName: '' }).success).toBe(true)
+  })
+
+  it('a name stored before the limit was lowered is kept, only a new change must fit', () => {
+    const path = file()
+    const long = 'о'.repeat(USER_NAME_MAX + 20)
+    writeFileSync(path, JSON.stringify({ settings: { userName: long } }))
+    expect(new ConfigStore(path).settings.userName).toBe(long)
+    expect(settingsPatchSchema.safeParse({ userName: long }).success).toBe(false)
+    expect(settingsPatchSchema.safeParse({ theme: 'dark' }).data).toEqual({ theme: 'dark' })
   })
 })
 

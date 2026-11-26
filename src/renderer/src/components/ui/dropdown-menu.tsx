@@ -100,7 +100,7 @@ function DropdownMenuItem({
   return (
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
-      data-inset={inset}
+      data-inset={inset || undefined}
       data-variant={variant}
       className={cn(MENU_ITEM,
         // A link to the current page (sidebar flyout): same marking as the sidebar's own current item.
@@ -170,7 +170,7 @@ function DropdownMenuLabel({
   return (
     <DropdownMenuPrimitive.Label
       data-slot="dropdown-menu-label"
-      data-inset={inset}
+      data-inset={inset || undefined}
       className={cn(MENU_LABEL, className)}
       {...props}
     />
@@ -215,7 +215,7 @@ function DropdownMenuSubTrigger({
   return (
     <DropdownMenuPrimitive.SubTrigger
       data-slot="dropdown-menu-sub-trigger"
-      data-inset={inset}
+      data-inset={inset || undefined}
       className={cn(MENU_SUB_TRIGGER, className)}
       {...props}
     >

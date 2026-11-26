@@ -2,11 +2,17 @@ import { useEffect, type ReactElement } from 'react'
 import { useLocation } from 'react-router'
 import { FileJson, FileText, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { settingsSchema, type ExportFormat, type Settings } from '@shared/domain/system'
+import {
+  finishName,
+  tidyName,
+  USER_NAME_MAX,
+  USER_NAME_RULE,
+  type ExportFormat,
+  type Settings
+} from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fmtBytes } from '@/lib/format'
-import { limitsOf } from '@/lib/limits'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { Button } from '@/components/ui/button'
@@ -23,7 +29,7 @@ import {
 } from '@/components/ui/item'
 import { ExtensionSettingsCard, GithubSettingsCard } from '@/modules/dev/settings-cards'
 import { SettingsRow, SettingsSection } from './settings/section'
-import { AutosaveInput } from './settings/autosave-input'
+import { EditableSetting } from './settings/editable-setting'
 import { ThemePicker } from './settings/theme-picker'
 import { MenuSection } from './settings/menu-section'
 import { ShortcutInput } from './settings/shortcut-input'
@@ -35,7 +41,6 @@ import { isSandbox } from '@/lib/profile'
 import { AiSection } from './settings/ai-section'
 import { LoadError } from './route-error'
 
-const LIMITS = limitsOf(settingsSchema)
 /** Time the evening reminder starts with when it is switched on. */
 const DEFAULT_REMINDER = '20:00'
 
@@ -89,20 +94,19 @@ export function SettingsPage(): ReactElement {
       <PageBody>
         <div className="flex max-w-4xl flex-col gap-3">
           <SettingsSection id="you" title="Ви">
-            <SettingsRow label="Як до вас звертатися" hint="Ім’я з’явиться в привітанні на головній">
-              {(id) => (
-                <AutosaveInput
-                  id={id}
-                  value={settings.userName}
-                  onSave={(userName) =>
-                    userName === settings.userName ? null : save.mutateAsync({ userName })
-                  }
-                  placeholder="Напр.: Олена"
-                  maxLength={LIMITS.userName}
-                  className="w-72"
-                />
-              )}
-            </SettingsRow>
+            <EditableSetting
+              label="Як до вас звертатися"
+              hint="Ім’я з’явиться в привітанні на головній"
+              value={settings.userName}
+              emptyText="Не вказано"
+              placeholder="Напр.: Олена"
+              maxLength={USER_NAME_MAX}
+              tooLong={`Скоротіть ім’я до ${USER_NAME_MAX} символів`}
+              tidy={tidyName}
+              finish={finishName}
+              rule={USER_NAME_RULE}
+              onSave={(userName) => save.mutateAsync({ userName })}
+            />
           </SettingsSection>
 
           <SettingsSection id="theme" title="Оформлення">
