@@ -4,6 +4,7 @@ import * as React from 'react'
 import { cn } from '@/lib/utils'
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react'
 import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui'
+import { DismissableLayer } from 'radix-ui/internal'
 import {
   MENU_CHOICE_ITEM,
   MENU_CHOICE_MARK,
@@ -39,12 +40,19 @@ function DropdownMenuContent({
   // Keep a gap to the window edge: with 0 the content touched it and its border got clipped.
   collisionPadding = OVERLAY_COLLISION,
   onPointerDownOutside,
+  layerBranch = false,
   ref,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  /**
+   * Open sheets, dialogs and popovers take a click or focus inside this menu as their own, not as one outside
+   * them. For a menu rendered away from the React tree of what it serves (the text menu, mounted once for the
+   * whole window): a popover around the field would close the moment focus went into the menu.
+   */
+  layerBranch?: boolean
+}) {
   const own = React.useRef<HTMLDivElement | null>(null)
-  return (
-    <DropdownMenuPrimitive.Portal>
+  const content = (
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         ref={(node) => {
@@ -67,6 +75,11 @@ function DropdownMenuContent({
         )}
         {...props}
       />
+  )
+  return (
+    <DropdownMenuPrimitive.Portal>
+      {/* Inside the portal, which mounts with the content: a branch registers the node it has on mount. */}
+      {layerBranch ? <DismissableLayer.Branch asChild>{content}</DismissableLayer.Branch> : content}
     </DropdownMenuPrimitive.Portal>
   )
 }

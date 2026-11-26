@@ -4,6 +4,7 @@ import { is } from '@electron-toolkit/utils'
 import type { ConfigStore, WindowState } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
 import { PROFILE_ARG_PREFIX, type ProfileKind } from '@shared/domain/sandbox'
+import type { TextMenuController } from './text-menu'
 
 const MIN = { width: 960, height: 640 }
 
@@ -46,7 +47,8 @@ export class WindowManager {
     private readonly config: ConfigStore,
     private readonly bus: EventBus,
     private readonly icon: string,
-    private readonly profile: ProfileKind = 'main'
+    private readonly profile: ProfileKind,
+    private readonly textMenu: TextMenuController
   ) {
     app.on('before-quit', () => {
       this.quitting = true
@@ -70,6 +72,8 @@ export class WindowManager {
 
   private secure(win: BrowserWindow): void {
     this.setSpellcheck(win)
+    // Right click on text: Vault's own menu (features/text-menu), spelling included.
+    this.textMenu.attach(win.webContents)
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
       return { action: 'deny' }

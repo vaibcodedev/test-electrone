@@ -63,6 +63,7 @@ import { openChromeExtensions } from './system/browser-launcher'
 import { FEED_COLOR, type CalendarItem } from '@shared/domain/calendar'
 import type { ModuleContext } from './modules/context'
 import { WindowManager } from './system/window-manager'
+import { TextMenuController } from './system/text-menu'
 import { TrayController } from './system/tray'
 import { ShortcutController } from './system/shortcuts'
 import { Updater } from './system/updater'
@@ -170,6 +171,7 @@ export class Container {
     checklists: this.checklists
   })
 
+  readonly textMenu = new TextMenuController()
   readonly windows: WindowManager
   readonly tray: TrayController
   readonly shortcuts: ShortcutController
@@ -215,7 +217,7 @@ export class Container {
       this.registry.register(d)
     }
 
-    this.windows = new WindowManager(this.config, this.bus, iconPath, profile.kind)
+    this.windows = new WindowManager(this.config, this.bus, iconPath, profile.kind, this.textMenu)
     const time = this.crm.timeApi()
     this.tray = new TrayController(
       this.windows,
@@ -534,6 +536,7 @@ export class Container {
       settings: appApi.settings(),
       updates: appApi.updates(),
       app: appApi.app(),
+      textMenu: this.textMenu.api(),
       sandbox: this.sandbox.api()
     }
   }
