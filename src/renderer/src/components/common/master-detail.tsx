@@ -23,10 +23,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useUi } from '@/stores/ui-store'
-import { api } from '@/lib/api'
-import { invalidateAll } from '@/lib/query'
 import { CurrentRecordContext } from '@/hooks/use-current-record'
-import { reportError } from '@/lib/error-reporting'
+import { useDiscardDraftOnLeave } from '@/hooks/use-discard-draft'
 import { useHoldWhileInvalid } from '@/hooks/use-hold-while-invalid'
 import {
   DetailModeContext,
@@ -313,19 +311,14 @@ export function DetailPane({
   // Set by «У кошик»: the pane's unmount hands focus to the next row instead of dropping it on <body>.
   const refocus = useRef<(() => void) | null>(null)
   // Closing an untouched empty draft discards it (server re-checks, so a late autosave wins).
-  useEffect(() => {
-    const ref = { type: entity.type, id: entity.id }
-    return () => {
+  useDiscardDraftOnLeave(entity.type, entity.id, 'detail-pane')
+  useEffect(
+    () => () => {
       const after = refocus.current
       if (after) requestAnimationFrame(after)
-      setTimeout(() => {
-        api.trash
-          .discardDraft(ref)
-          .then((discarded) => discarded && invalidateAll())
-          .catch((e) => reportError(e, 'detail-pane:discardDraft'))
-      }, 800)
-    }
-  }, [entity.type, entity.id])
+    },
+    [entity.type, entity.id]
+  )
   // "В корзину": the pane and the list row fade out first, then the record is removed.
   const remove = onDelete
     ? (): void => {
