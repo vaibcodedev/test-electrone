@@ -39,8 +39,11 @@ const inputGroupAddonVariants = cva(
   {
     variants: {
       align: {
-        'inline-start': 'order-first pl-3 has-[>button]:ml-[-0.45rem] has-[>kbd]:ml-[-0.35rem]',
-        'inline-end': 'order-last pr-3 has-[>button]:mr-[-0.45rem] has-[>kbd]:mr-[-0.35rem]',
+        // `>span>button`: a disabled button sits inside DisabledHint's span and must not move for that.
+        'inline-start':
+          'order-first pl-3 has-[>button]:ml-[-0.45rem] has-[>span>button]:ml-[-0.45rem] has-[>kbd]:ml-[-0.35rem]',
+        'inline-end':
+          'order-last pr-3 has-[>button]:mr-[-0.45rem] has-[>span>button]:mr-[-0.45rem] has-[>kbd]:mr-[-0.35rem]',
         'block-start':
           'order-first w-full justify-start px-3 pt-3 group-has-[>input]/input-group:pt-2.5 [.border-b]:pb-3',
         'block-end':

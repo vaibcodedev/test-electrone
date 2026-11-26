@@ -61,7 +61,7 @@ function ContextMenuSubTrigger({
   return (
     <ContextMenuPrimitive.SubTrigger
       data-slot="context-menu-sub-trigger"
-      data-inset={inset}
+      data-inset={inset || undefined}
       className={cn(MENU_SUB_TRIGGER, className)}
       {...props}
     >
@@ -120,7 +120,7 @@ function ContextMenuItem({
   return (
     <ContextMenuPrimitive.Item
       data-slot="context-menu-item"
-      data-inset={inset}
+      data-inset={inset || undefined}
       data-variant={variant}
       className={cn(MENU_ITEM, className)}
       {...props}
@@ -182,7 +182,7 @@ function ContextMenuLabel({
   return (
     <ContextMenuPrimitive.Label
       data-slot="context-menu-label"
-      data-inset={inset}
+      data-inset={inset || undefined}
       className={cn(MENU_LABEL, className)}
       {...props}
     />

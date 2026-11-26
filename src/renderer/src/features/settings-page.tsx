@@ -2,7 +2,14 @@ import { useEffect, type ReactElement } from 'react'
 import { useLocation } from 'react-router'
 import { FileJson, FileText, FolderOpen } from 'lucide-react'
 import { toast } from 'sonner'
-import { USER_NAME_MAX, type ExportFormat, type Settings } from '@shared/domain/system'
+import {
+  finishName,
+  tidyName,
+  USER_NAME_MAX,
+  USER_NAME_RULE,
+  type ExportFormat,
+  type Settings
+} from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
 import { api } from '@/lib/api'
 import { fmtBytes } from '@/lib/format'
@@ -87,17 +94,19 @@ export function SettingsPage(): ReactElement {
       <PageBody>
         <div className="flex max-w-4xl flex-col gap-3">
           <SettingsSection id="you" title="Ви">
-            <SettingsRow label="Як до вас звертатися" hint="Ім’я з’явиться в привітанні на головній">
-              <EditableSetting
-                label="Як до вас звертатися"
-                value={settings.userName}
-                emptyText="Не вказано"
-                placeholder="Напр.: Олена"
-                maxLength={USER_NAME_MAX}
-                tooLong={`Скоротіть ім’я до ${USER_NAME_MAX} символів`}
-                onSave={(userName) => save.mutateAsync({ userName })}
-              />
-            </SettingsRow>
+            <EditableSetting
+              label="Як до вас звертатися"
+              hint="Ім’я з’явиться в привітанні на головній"
+              value={settings.userName}
+              emptyText="Не вказано"
+              placeholder="Напр.: Олена"
+              maxLength={USER_NAME_MAX}
+              tooLong={`Скоротіть ім’я до ${USER_NAME_MAX} символів`}
+              tidy={tidyName}
+              finish={finishName}
+              rule={USER_NAME_RULE}
+              onSave={(userName) => save.mutateAsync({ userName })}
+            />
           </SettingsSection>
 
           <SettingsSection id="theme" title="Оформлення">

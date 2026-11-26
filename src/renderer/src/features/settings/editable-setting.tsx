@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react'
+import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { CharCount } from '@/components/common/page'
 import { DisabledHint } from '@/components/common/disabled-hint'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-/** No space at the start, one between words: spaces alone looked like an empty field that was somehow full. */
-const tidy = (text: string): string => text.replace(/^\s+/, '').replace(/\s{2,}/g, ' ')
+import { SettingsRow } from './section'
 
 /** `tidy` applied to the field itself, with the caret left where the person was typing. */
-function tidyInput(input: HTMLInputElement): string {
+function tidyInput(input: HTMLInputElement, tidy: (text: string) => string): string {
   const next = tidy(input.value)
   if (next !== input.value) {
     const caret = tidy(input.value.slice(0, input.selectionStart ?? input.value.length)).length
@@ -25,15 +23,21 @@ function tidyInput(input: HTMLInputElement): string {
  */
 export function EditableSetting({
   label,
+  hint,
   value,
   emptyText,
   placeholder,
   maxLength,
   tooLong,
+  tidy,
+  finish,
+  rule,
   onSave
 }: {
   /** Names the field and the «Змінити» button for a screen reader. */
   label: string
+  /** The line under the row's title; while something typed was refused, `rule` takes its place. */
+  hint: string
   value: string
   /** Shown instead of an empty value. */
   emptyText: string
@@ -41,11 +45,20 @@ export function EditableSetting({
   maxLength: number
   /** Why «Зберегти» is off for a value stored before the limit was lowered. */
   tooLong: string
+  /** What the field accepts: applied to every keystroke and paste. */
+  tidy: (text: string) => string
+  /** The text as it is saved. */
+  finish: (text: string) => string
+  /** Says under the field why something typed didn't appear. */
+  rule: string
   onSave: (next: string) => Promise<unknown>
 }): ReactElement {
   /** The text being edited; null — reading. */
   const [draft, setDraft] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  /** The last keystroke or paste lost something. */
+  const [refused, setRefused] = useState(false)
+  const hintId = useId()
   const editButton = useRef<HTMLButtonElement>(null)
   /** The editor was closed by the person: focus goes back to «Змінити», which only now is on screen again. */
   const returnFocus = useRef(false)
@@ -61,8 +74,22 @@ export function EditableSetting({
     setDraft(null)
   }
 
+  const row = (control: ReactNode, note: string): ReactElement => (
+    <SettingsRow
+      label={label}
+      hint={
+        // Takes the hint's own line, so nothing moves or spills out of the row.
+        <span id={hintId} role="status">
+          {note}
+        </span>
+      }
+    >
+      {control}
+    </SettingsRow>
+  )
+
   if (draft === null) {
-    return (
+    return row(
       <>
         <span
           title={value || undefined}
@@ -75,21 +102,25 @@ export function EditableSetting({
           variant="soft"
           size="sm"
           aria-label={`Змінити: ${label}`}
-          onClick={() => setDraft(tidy(value))}
+          onClick={() => {
+            setRefused(false)
+            setDraft(tidy(value))
+          }}
         >
           Змінити
         </Button>
-      </>
+      </>,
+      hint
     )
   }
 
   const over = draft.length > maxLength
-  const changed = draft.trim() !== value
+  const changed = finish(draft) !== value
   const save = async (): Promise<void> => {
     if (!changed || over || saving) return
     setSaving(true)
     try {
-      await onSave(draft.trim())
+      await onSave(finish(draft))
       toast.success('Збережено')
       close()
     } catch {
@@ -98,7 +129,7 @@ export function EditableSetting({
       setSaving(false)
     }
   }
-  return (
+  return row(
     <form
       className="group/field flex items-center gap-2"
       onSubmit={(e) => {
@@ -116,8 +147,14 @@ export function EditableSetting({
         autoFocus
         onFocus={(e) => e.currentTarget.select()}
         aria-label={label}
+        aria-describedby={hintId}
         value={draft}
-        onChange={(e) => setDraft(tidyInput(e.target))}
+        onChange={(e) => {
+          const typed = e.target.value
+          const next = tidyInput(e.target, tidy)
+          setRefused(next !== typed)
+          setDraft(next)
+        }}
         placeholder={placeholder}
         maxLength={maxLength}
         aria-invalid={over || undefined}
@@ -133,6 +170,7 @@ export function EditableSetting({
       <Button variant="soft" size="sm" onClick={close}>
         Скасувати
       </Button>
-    </form>
+    </form>,
+    refused ? rule : hint
   )
 }
