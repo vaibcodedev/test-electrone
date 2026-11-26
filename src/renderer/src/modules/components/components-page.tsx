@@ -25,6 +25,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { noResultsHint } from '@/components/common/filter-helpers'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
+import { componentMenu } from './menu'
 
 /** Virtual size the live preview renders at; the tile scales it down to fit (same 16:10 aspect). */
 const PREVIEW_W = 800
@@ -78,6 +81,8 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
   const [status, setStatus] = useState<{ ok: boolean; error?: string } | null>(null)
   const hasCode = !!item.code.trim()
   return (
+    // «⋯» on the tags line at the bottom: the preview and the title line stay uncovered.
+    <RecordMenuTile menu={bindMenu(componentMenu, item, { onOpen })} buttonClassName="absolute right-3 bottom-3">
     <Card
       {...clickableProps(onOpen)}
       // rounded-2xl (24) = the preview's 18 + the 6px frame: with Card's own 28 the preview's corner looked off.
@@ -124,11 +129,12 @@ function ComponentTile({ item, onOpen }: { item: UiComponent; onOpen: () => void
         <div className="min-h-5 truncate text-caption text-muted-foreground">
           {item.description ? mdPreview(item.description) : ' '}
         </div>
-        <div className="mt-auto flex min-h-6 min-w-0 items-center overflow-hidden pt-1">
+        <div className="mt-auto flex min-h-6 min-w-0 items-center overflow-hidden pt-1 pr-8">
           <TagList tags={item.tags} max={3} className="flex-nowrap" />
         </div>
       </div>
     </Card>
+    </RecordMenuTile>
   )
 }
 

@@ -66,15 +66,19 @@ import { FavoriteMark } from '@/components/common/favorite-mark'
 import { useFavorites } from '@/hooks/use-favorites'
 import { freshOnOpen } from '@/components/common/fresh-on-open'
 import { SORTABLE_TRANSITION } from '@/lib/motion'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { designMenu } from './menu'
 
 const LIMITS = limitsOf(moodboardInputSchema)
 
 function SortableDesign({
   design,
+  board,
   onRemove,
   onOpen
 }: {
   design: Design
+  board: { id: string; title: string }
   onRemove: () => void
   /** A plain click opens the design; a drag (6px and more) reorders and opens nothing. */
   onOpen: () => void
@@ -86,6 +90,13 @@ function SortableDesign({
   const title = designTitle(design)
   const fav = useFavorites()
   return (
+    // Right click (and Shift+F10): the design's menu. No «⋯» here: the tile's own hover bar already has its buttons.
+    <RecordMenu
+      asChild
+      def={designMenu}
+      record={design}
+      ctx={{ onOpen, moodboard: { ...board, remove: onRemove } }}
+    >
     <Card
       ref={setNodeRef}
       // A name of its own: in a view transition (the links list unfolding beside the grid) the tile glides to its
@@ -160,6 +171,7 @@ function SortableDesign({
         </span>
       </div>
     </Card>
+    </RecordMenu>
   )
 }
 
@@ -507,6 +519,7 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                         <SortableDesign
                           key={id}
                           design={d}
+                          board={{ id: board.id, title: board.title }}
                           onOpen={() => {
                             if (!dragged.current) setOpenDesign(id)
                           }}

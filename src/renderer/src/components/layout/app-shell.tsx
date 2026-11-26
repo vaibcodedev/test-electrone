@@ -23,6 +23,7 @@ import { CommandPalette } from '@/features/command-palette'
 import { QuickAddDialog } from '@/features/quick-add'
 import { ExtensionPairDialog } from '@/features/extension-pair-dialog'
 import { ShortcutsDialog } from '@/features/shortcuts-dialog'
+import { RecordMenuHost } from '@/features/record-menu/host'
 import { useUi } from '@/stores/ui-store'
 import { useMainEvent, useMainEventsBridge } from '@/hooks/use-main-events'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -183,6 +184,8 @@ export function AppShell(): ReactElement {
       <QuickAddDialog />
       <ShortcutsDialog />
       <CloseConfirmHost />
+      {/* Right click and «⋯» on records: one menu for the whole window. */}
+      <RecordMenuHost />
       {/* «Під’єднати до Vault» from the browser extension: main brings the window up with this question. */}
       <ExtensionPairDialog />
       {platformMounted && (

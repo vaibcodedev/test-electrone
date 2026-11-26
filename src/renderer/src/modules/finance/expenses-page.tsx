@@ -28,6 +28,8 @@ import { SubscriptionsSection } from './subscriptions-section'
 import { CATEGORY_LABEL, addMoney, sumByCurrency } from './money'
 import { defaultDayIn, monthName, monthRange, noneInMonth, useMonth } from './month'
 import { useEditDialog } from './use-edit-dialog'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { financeRowMenu } from './menu'
 
 /**
  * Category badges in one pass over the table rows, not the server's expensesByCategory: that one also
@@ -117,52 +119,68 @@ function ExpensesSection({
               </TableHeader>
               <TableBody>
                 {rows.map((e) => (
-                  <TableRow key={e.id}>
-                    <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
-                      {fmtDayFull(e.at)}
-                    </TableCell>
-                    <TableCell className="w-full max-w-0 font-medium">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate" title={e.title}>
-                          {e.title}
-                        </span>
-                        {e.subscriptionId && <Badge variant="soft">підписка</Badge>}
-                      </div>
-                      {e.note && (
-                        <div
-                          className="truncate text-caption font-normal text-muted-foreground"
-                          title={e.note}
-                        >
-                          {e.note}
+                  <RecordMenu
+                    asChild
+                    key={e.id}
+                    def={financeRowMenu}
+                    record={e}
+                    ctx={{
+                      onEdit: () => onEdit(e),
+                      onRemove: () => remove.mutate(e.id),
+                      removeConfirm: {
+                        title: 'Видалити витрату?',
+                        description: `«${e.title}» буде видалено без можливості відновлення.`,
+                        confirmLabel: 'Видалити'
+                      }
+                    }}
+                  >
+                    <TableRow>
+                      <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                        {fmtDayFull(e.at)}
+                      </TableCell>
+                      <TableCell className="w-full max-w-0 font-medium">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate" title={e.title}>
+                            {e.title}
+                          </span>
+                          {e.subscriptionId && <Badge variant="soft">підписка</Badge>}
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {CATEGORY_LABEL[e.category]}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {fmtMoney(e.amount, e.currency)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end">
-                        <IconAction label="Змінити" onClick={() => onEdit(e)}>
-                          <Pencil />
-                        </IconAction>
-                        <Confirm
-                          title="Видалити витрату?"
-                          description={`«${e.title}» буде видалено без можливості відновлення.`}
-                          onConfirm={() => remove.mutate(e.id)}
-                        >
-                          <IconAction
-                            label="Видалити витрату"
-                            className="text-muted-foreground hover:text-destructive"
+                        {e.note && (
+                          <div
+                            className="truncate text-caption font-normal text-muted-foreground"
+                            title={e.note}
                           >
-                            <Trash2 />
+                            {e.note}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {CATEGORY_LABEL[e.category]}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {fmtMoney(e.amount, e.currency)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end">
+                          <IconAction label="Змінити" onClick={() => onEdit(e)}>
+                            <Pencil />
                           </IconAction>
-                        </Confirm>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                          <Confirm
+                            title="Видалити витрату?"
+                            description={`«${e.title}» буде видалено без можливості відновлення.`}
+                            onConfirm={() => remove.mutate(e.id)}
+                          >
+                            <IconAction
+                              label="Видалити витрату"
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <Trash2 />
+                            </IconAction>
+                          </Confirm>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </RecordMenu>
                 ))}
               </TableBody>
               <TableFooter>

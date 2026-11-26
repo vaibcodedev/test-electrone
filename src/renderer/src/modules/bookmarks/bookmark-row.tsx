@@ -10,6 +10,8 @@ import { ListItem } from '@/components/common/master-detail'
 import { TagList } from '@/components/common/tags'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { KIND_ICON, KIND_LABEL, STATUS_BADGE, STATUS_LABEL } from './labels'
+import { bindMenu } from '@/features/record-menu/model'
+import { bookmarkMenu } from './menu'
 
 /** One bookmark in the list: kind icon, title, site, rating, reading progress and status. */
 export function BookmarkRow({ bookmark: b, active, onOpen }: { bookmark: Bookmark; active: boolean; onOpen: () => void }): ReactElement {
@@ -17,7 +19,12 @@ export function BookmarkRow({ bookmark: b, active, onOpen }: { bookmark: Bookmar
   const note = mdPreview(b.notes)
   const reading = b.status === 'in_progress' || b.status === 'done'
   return (
-    <ListItem active={active} onClick={onOpen} className="@container">
+    <ListItem
+      active={active}
+      onClick={onOpen}
+      className="@container"
+      menu={bindMenu(bookmarkMenu, b, { onOpen })}
+    >
       <div className="flex items-center gap-3.5">
         <ItemMedia
           variant="icon"

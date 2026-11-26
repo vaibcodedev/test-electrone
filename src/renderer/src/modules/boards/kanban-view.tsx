@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowRight, Check, Plus, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import type { BoardColumn, BoardDetails, Card } from '@shared/domain/boards'
 import { useApiMutation } from '@/lib/query'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -31,22 +31,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger
-} from '@/components/ui/context-menu'
-import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput
 } from '@/components/ui/input-group'
 import { CardTile } from './card-tile'
+import { cardMenu } from './card-menu'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
 import { ColumnHeader } from './column-header'
 import { useRepeatToast } from './repeat'
 import { SORTABLE_TRANSITION, dropAnimation } from '@/lib/motion'
@@ -76,60 +68,36 @@ function SortableCard({
     id: card.id,
     transition: SORTABLE_TRANSITION
   })
-  const notifyRepeat = useRepeatToast()
-  const move = useApiMutation('cards', 'move', { onSuccess: notifyRepeat })
-  const remove = useApiMutation('cards', 'remove', { successMessage: 'Картку переміщено в кошик' })
-  // Right-click menu: the quick way to move or delete without opening the card.
+  // Right click and «⋯»: the quick way to move, prioritise or trash without opening the card. The sortable node is
+  // the area, so «⋯» moves with the card; dnd-kit listens on the card only, so a press on «⋯» never drags.
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
-        <CardTile
-          ref={setNodeRef}
-          card={card}
-          done={done}
-          dragging={isDragging}
-          style={{ transform: CSS.Translate.toString(transform), transition }}
-          onClick={onOpen}
-          {...attributes}
-          {...listeners}
-          // After the spread: dnd-kit's own onKeyDown would replace this one. Enter opens, Space picks up.
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              onOpen()
-              return
-            }
-            listeners?.onKeyDown?.(e)
-          }}
-        />
-      </ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
-        <ContextMenuItem onSelect={onOpen}>
-          <SquareArrowOutUpRight /> Відкрити
-        </ContextMenuItem>
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>
-            <ArrowRight /> Перемістити в…
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-48">
-            {columns.map((c) => (
-              <ContextMenuItem
-                key={c.id}
-                disabled={c.id === card.columnId}
-                onSelect={() => move.mutate({ cardId: card.id, columnId: c.id, index: 0 })}
-              >
-                <span className="truncate">{c.title}</span>
-                {c.id === card.columnId && <Check className="ml-auto" aria-label="Поточна колонка" />}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-        <ContextMenuSeparator />
-        <ContextMenuItem variant="destructive" onSelect={() => remove.mutate(card.id)}>
-          <Trash2 /> У кошик
-        </ContextMenuItem>
-      </ContextMenuContent>
-    </ContextMenu>
+    <RecordMenu
+      def={cardMenu}
+      record={card}
+      ctx={{ onOpen, columns }}
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+    >
+      <CardTile
+        card={card}
+        done={done}
+        dragging={isDragging}
+        onClick={onOpen}
+        className="pr-10"
+        {...attributes}
+        {...listeners}
+        // After the spread: dnd-kit's own onKeyDown would replace this one. Enter opens, Space picks up.
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onOpen()
+            return
+          }
+          listeners?.onKeyDown?.(e)
+        }}
+      />
+      {!isDragging && <RecordMenuButton className="absolute top-2.5 right-2.5" />}
+    </RecordMenu>
   )
 }
 

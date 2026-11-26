@@ -22,6 +22,9 @@ import {
 import { Meter } from './parts'
 import { PlatformName } from './platform-fields'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
+import { projectMenu } from './menus'
 
 const muted = (text: string): ReactNode => <span className="text-muted-foreground">{text}</span>
 
@@ -162,11 +165,12 @@ export function ProjectRow({
   const overdue = live && daysLeft !== null && daysLeft < 0
   const soon = live && daysLeft !== null && daysLeft >= 0 && daysLeft <= 3
   return (
-    <Item asChild variant="muted" size="sm">
+    <RecordMenuTile menu={bindMenu(projectMenu, project)} className="" buttonClassName="absolute top-1/2 right-4 -mt-3">
+    <Item asChild variant="muted" size="sm" className="group-hover/record-menu:bg-(--tile-hover)">
       <button
         type="button"
         onClick={() => navigate(`/projects/${project.id}`)}
-        className="grid min-h-19 w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_150px] items-center gap-6 px-5 py-4 text-left"
+        className="grid min-h-19 w-full grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)_150px] items-center gap-6 py-4 pr-14 pl-5 text-left"
       >
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-3">
@@ -209,5 +213,6 @@ export function ProjectRow({
         </div>
       </button>
     </Item>
+    </RecordMenuTile>
   )
 }

@@ -4,10 +4,26 @@ import { fmtDay, fmtDayFull } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { VirtualList } from '@/components/common/virtual-list'
 import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { APP_STATUS_LABEL, appStatusVariant, CLOSED_APP_STATUSES, salaryLabel, STAGE_KIND_SHORT, whenLabel } from './labels'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import {
+  APP_STATUS_LABEL,
+  appStatusVariant,
+  CLOSED_APP_STATUSES,
+  salaryLabel,
+  STAGE_KIND_SHORT,
+  whenLabel
+} from './labels'
 import { BoardLabel } from './board-label'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { applicationMenu } from './application-menu'
 
 /** Fixed column widths: every virtual row is its own table, so columns must line up without auto layout. */
 const COL = {
@@ -71,42 +87,62 @@ export function ApplicationList({
           const board = a.boardId ? boardById.get(a.boardId) : undefined
           const closed = CLOSED_APP_STATUSES.includes(a.status)
           const salary = salaryLabel(a.salaryMin, a.salaryMax, a.currency)
-          const next = a.nextStage ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}` : ''
+          const next = a.nextStage
+            ? `${STAGE_KIND_SHORT[a.nextStage.kind]}, ${whenLabel(a.nextStage.at)}`
+            : ''
           return (
             <Table className="table-fixed">
               <TableBody>
-                <TableRow
-                  tabIndex={0}
-                  data-state={activeId === a.id ? 'selected' : undefined}
-                  onClick={() => onOpen(a.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && onOpen(a.id)}
-                  className={cn('cursor-pointer border-b!', closed && 'text-muted-foreground')}
+                <RecordMenu
+                  asChild
+                  def={applicationMenu}
+                  record={a}
+                  ctx={{ onOpen: () => onOpen(a.id) }}
                 >
-                  <TableCell className="font-medium">
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate">{a.title}</span>
-                      <FavoriteMark entity={{ type: 'application', id: a.id }} />
-                    </span>
-                  </TableCell>
-                  <TableCell className={cn(COL.company, 'truncate')}>{a.company || '—'}</TableCell>
-                  <TableCell className={COL.status}>
-                    <Badge variant={appStatusVariant(a.status)}>
-                      {APP_STATUS_LABEL[a.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className={cn(COL.next, 'truncate text-caption')} title={next || undefined}>
-                    {next || '—'}
-                  </TableCell>
-                  <TableCell className={cn(COL.salary, 'truncate tabular-nums')} title={salary ?? undefined}>
-                    {salaryLabel(a.salaryMin, a.salaryMax, a.currency, true) ?? '—'}
-                  </TableCell>
-                  <TableCell className={cn(COL.board, 'truncate')}>
-                    {board ? <BoardLabel board={board} /> : '—'}
-                  </TableCell>
-                  <TableCell className={cn(COL.applied, 'truncate text-right tabular-nums')} title={a.appliedAt ? fmtDayFull(a.appliedAt) : undefined}>
-                    {a.appliedAt ? fmtDay(a.appliedAt) : '—'}
-                  </TableCell>
-                </TableRow>
+                  <TableRow
+                    tabIndex={0}
+                    data-state={activeId === a.id ? 'selected' : undefined}
+                    onClick={() => onOpen(a.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && onOpen(a.id)}
+                    className={cn('cursor-pointer border-b!', closed && 'text-muted-foreground')}
+                  >
+                    <TableCell className="font-medium">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate">{a.title}</span>
+                        <FavoriteMark entity={{ type: 'application', id: a.id }} />
+                      </span>
+                    </TableCell>
+                    <TableCell className={cn(COL.company, 'truncate')}>
+                      {a.company || '—'}
+                    </TableCell>
+                    <TableCell className={COL.status}>
+                      <Badge variant={appStatusVariant(a.status)}>
+                        {APP_STATUS_LABEL[a.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell
+                      className={cn(COL.next, 'truncate text-caption')}
+                      title={next || undefined}
+                    >
+                      {next || '—'}
+                    </TableCell>
+                    <TableCell
+                      className={cn(COL.salary, 'truncate tabular-nums')}
+                      title={salary ?? undefined}
+                    >
+                      {salaryLabel(a.salaryMin, a.salaryMax, a.currency, true) ?? '—'}
+                    </TableCell>
+                    <TableCell className={cn(COL.board, 'truncate')}>
+                      {board ? <BoardLabel board={board} /> : '—'}
+                    </TableCell>
+                    <TableCell
+                      className={cn(COL.applied, 'truncate text-right tabular-nums')}
+                      title={a.appliedAt ? fmtDayFull(a.appliedAt) : undefined}
+                    >
+                      {a.appliedAt ? fmtDay(a.appliedAt) : '—'}
+                    </TableCell>
+                  </TableRow>
+                </RecordMenu>
               </TableBody>
             </Table>
           )

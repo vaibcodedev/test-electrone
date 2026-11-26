@@ -17,6 +17,22 @@ export const ITEM_LIMITS = limitsOf(checklistItemInputSchema)
 
 export const NO_SECTION = 'Без розділу'
 
+/** A checklist in the import's JSON format («Скопіювати як JSON» on its page and in its menu); `items` in their order. */
+export function checklistJson(
+  title: string,
+  description: string,
+  items: ChecklistItem[]
+): { title: string; description: string; sections: { title: string; items: unknown[] }[] } {
+  return {
+    title,
+    description,
+    sections: groupBySection(items).map(([section, list]) => ({
+      title: section,
+      items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
+    }))
+  }
+}
+
 /** Groups items by section, keeping the order in which sections first appear. */
 function groupBySection(items: ChecklistItem[]): [string, ChecklistItem[]][] {
   const map = new Map<string, ChecklistItem[]>()

@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { Pin, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EntityRef } from '@shared/domain/common'
+import type { PinKind } from '@shared/domain/system'
 import { useApi, useApiMutation } from '@/lib/query'
 import { cn } from '@/lib/utils'
 import { Toggle } from '@/components/ui/toggle'
@@ -24,6 +25,16 @@ function TwoLines({ title, hint }: { title: string; hint: string }): ReactElemen
   )
 }
 
+/**
+ * The result of a pin / ★ toggle is the new state: say what happened, a toggle alone is easy to miss.
+ * ★ moves the record to the top of its list: the toast says why the row jumped. Also the record menu's.
+ */
+export function toastPinToggled(on: boolean, kind: PinKind): void {
+  if (kind === 'pin') toast.success(on ? 'Закріплено на головній' : 'Відкріплено з головної')
+  else if (on) toast.success('Додано в обране', { description: 'Тепер запис першим у своєму розділі' })
+  else toast.success('Прибрано з обраного')
+}
+
 /** "Pin to dashboard" + "favorite" toggles for any entity (shadcn Toggle). */
 export function PinButtons({
   entity,
@@ -33,15 +44,8 @@ export function PinButtons({
   className?: string
 }): ReactElement {
   const { data } = useApi('pins', 'state', entity)
-  // The result is the new state: say what happened, a toggle alone is easy to miss.
-  // ★ moves the record to the top of its list: the toast says why the row jumped.
   const toggle = useApiMutation('pins', 'toggle', {
-    onSuccess: (on, { kind }) => {
-      if (kind === 'pin') toast.success(on ? 'Закріплено на головній' : 'Відкріплено з головної')
-      else if (on)
-        toast.success('Додано в обране', { description: 'Тепер запис першим у своєму розділі' })
-      else toast.success('Прибрано з обраного')
-    }
+    onSuccess: (on, { kind }) => toastPinToggled(on, kind)
   })
   return (
     <div className={cn('flex gap-1', className)}>

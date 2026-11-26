@@ -45,6 +45,8 @@ import { SubscriptionDialog } from './subscription-dialog'
 import { CATEGORY_LABEL, sumByCurrency } from './money'
 import { monthName, noSubscriptionsDue } from './month'
 import { useEditDialog } from './use-edit-dialog'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { financeRowMenu } from './menu'
 
 const AMOUNT_RANGE = rangesOf(expenseInputSchema).amount
 
@@ -155,6 +157,22 @@ function SubscriptionRow({
   const paid = !!r.expenseId
   const owner = r.credential?.owner
   return (
+    <RecordMenu
+      asChild
+      def={financeRowMenu}
+      record={r}
+      ctx={{
+        onEdit,
+        onRemove,
+        removeConfirm: {
+          title: `Видалити підписку «${r.title}»?`,
+          description: REMOVE_SUB_TEXT,
+          confirmLabel: 'Видалити'
+        },
+        paid: { on: paid, toggle: () => setPaid.mutate({ id: r.id, month, paid: !paid }) },
+        url: r.url || undefined
+      }}
+    >
     <TableRow data-state={paid ? 'selected' : undefined}>
       <TableCell>
         <Checkbox
@@ -221,6 +239,7 @@ function SubscriptionRow({
         </div>
       </TableCell>
     </TableRow>
+    </RecordMenu>
   )
 }
 

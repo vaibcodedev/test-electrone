@@ -21,6 +21,8 @@ import { FavoriteFilter } from '@/components/common/favorite-filter'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { DetailPane, EntityAside, ListItem, MasterDetail, useOpenParam } from '@/components/common/master-detail'
 import { AutoMarkdown, AutoTitle, EditorStack } from '../claude/editor-kit'
+import { bindMenu } from '@/features/record-menu/model'
+import { noteMenu } from './menu'
 
 const LIMITS = limitsOf(noteInputSchema)
 const NEW_TITLE = 'Нова нотатка'
@@ -205,7 +207,11 @@ export function NotesPage(): ReactElement {
                 const active = n.id === openId
                 const text = mdPreview(n.body)
                 return (
-                  <ListItem active={active} onClick={() => setOpen(n.id)}>
+                  <ListItem
+                    active={active}
+                    onClick={() => setOpen(n.id)}
+                    menu={bindMenu(noteMenu, n, { onOpen: () => setOpen(n.id) })}
+                  >
                     <div className="flex min-w-0 items-center gap-1.5">
                       <span className="truncate text-body font-medium">{n.title}</span>
                       <FavoriteMark entity={{ type: 'note', id: n.id }} onInk={active} />

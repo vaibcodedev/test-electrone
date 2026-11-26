@@ -38,6 +38,8 @@ import {
   useOpenParam
 } from '@/components/common/master-detail'
 import { AutoCode, AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-kit'
+import { bindMenu } from '@/features/record-menu/model'
+import { fixMenu } from './menu'
 
 const LIMITS = limitsOf(fixInputSchema)
 
@@ -278,7 +280,11 @@ export function FixesPage(): ReactElement {
                 const active = f.id === openId
                 const line = firstLine(f.errorText)
                 return (
-                  <ListItem active={active} onClick={() => setOpen(f.id)}>
+                  <ListItem
+                    active={active}
+                    onClick={() => setOpen(f.id)}
+                    menu={bindMenu(fixMenu, f, { onOpen: () => setOpen(f.id) })}
+                  >
                     {/* Height follows content: title line, optional error line, one meta line (status · place · tags … time).
                         Only the unresolved state is marked: as a badge, not a coloured dot (docs/design-system.md → Чипы и строки). */}
                     <div className="flex min-w-0 items-center gap-1.5">

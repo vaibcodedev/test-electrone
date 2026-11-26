@@ -26,6 +26,9 @@ import { Card, CardTitle } from '@/components/ui/card'
 import { clickableProps } from '@/lib/clickable'
 import { noResultsHint } from '../claude/chips'
 import { LaunchDialog } from './launch-dialog'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
+import { checklistMenu } from './menu'
 
 type Tab = 'template' | 'run'
 
@@ -44,6 +47,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
     void navigate(`/checklists/${item.id}`)
   }
   return (
+    <RecordMenuTile menu={bindMenu(checklistMenu, item, { onLaunch })} buttonClassName="absolute top-4 right-4">
     <Card
       {...clickableProps(open)}
       // The title is always first and the button pinned to the bottom: titles line up across a row whether a
@@ -51,7 +55,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
       className="group tile h-full min-h-47.5 gap-0 p-5"
     >
       <div className="min-w-0">
-        <div className="flex min-w-0 items-start gap-1.5">
+        <div className="flex min-w-0 items-start gap-1.5 pr-7">
           <CardTitle
             title={item.title}
             className="font-display line-clamp-2 min-w-0 text-stat-sm leading-tight font-normal"
@@ -96,6 +100,7 @@ function TemplateCard({ item, onLaunch }: { item: Checklist; onLaunch: () => voi
         )}
       </div>
     </Card>
+    </RecordMenuTile>
   )
 }
 
@@ -106,8 +111,9 @@ function RunCard({ item }: { item: Checklist }) {
   }
   const complete = item.total > 0 && item.done === item.total
   return (
+    <RecordMenuTile menu={bindMenu(checklistMenu, item, {})} buttonClassName="absolute top-4 right-4">
     <Card {...clickableProps(open)} className="tile h-full min-h-37.5 gap-0 p-5">
-      <div className="flex min-w-0 items-start gap-1.5">
+      <div className="flex min-w-0 items-start gap-1.5 pr-7">
         <CardTitle
           title={item.title}
           className="font-display line-clamp-2 min-w-0 text-stat-sm leading-tight font-normal"
@@ -130,6 +136,7 @@ function RunCard({ item }: { item: Checklist }) {
         )}
       </div>
     </Card>
+    </RecordMenuTile>
   )
 }
 

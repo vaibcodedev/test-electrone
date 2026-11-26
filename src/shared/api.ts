@@ -786,6 +786,8 @@ export interface TagsApi {
   create(input: TagInput): Promise<Tag>
   update(args: { id: string; patch: Partial<TagInput> }): Promise<Tag>
   remove(id: string): Promise<void>
+  /** One tag off one live record (`on: false`) or back on it (`on: true`); its other tags stay. */
+  setOn(args: { tagId: string; ref: EntityRef; on: boolean }): Promise<void>
   /** Live entities carrying the tag, recently changed first; pass `{ tagId, limit, offset }` to page. */
   entities(args: string | ({ tagId: string } & PageQuery)): Promise<EntitySummary[]>
 }
@@ -862,6 +864,8 @@ export interface FilesApi {
   openPath(path: string): Promise<void>
   /** Shows a stored file selected in Explorer (Finder); a plain error when the file is gone. */
   revealPath(path: string): Promise<void>
+  /** Puts a stored picture (relative path under <data>/files) on the clipboard as PNG. */
+  copyImage(path: string): Promise<void>
   /** True if the system clipboard currently holds an image. */
   clipboardHasImage(): Promise<boolean>
   /** The clipboard's image for a preview («З буфера» asks before adding); null when there is none. */

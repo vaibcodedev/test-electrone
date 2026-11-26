@@ -26,6 +26,9 @@ import { IconAction } from './icon-action'
 import { SectionLabel } from './section-label'
 import { useFold } from '@/hooks/use-fold'
 import { FoldButton } from './fold-button'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { attachmentMenu } from '@/features/record-menu/attachment-menu'
+import { useReadOnly } from './detail-mode-context'
 
 /** open / reveal fail when the file was moved or deleted outside the app: say so instead of an unhandled error. */
 function openFile(action: Promise<unknown>, source: string): void {
@@ -45,6 +48,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
   const fold = useFold(files)
   const add = useApiMutation('files', 'add')
   const remove = useApiMutation('files', 'remove')
+  const readOnly = useReadOnly()
   const picker = useRef<HTMLInputElement>(null)
   const addAll = (sources: FileSource[]): void =>
     sources.forEach((source) => add.mutate({ ref: entity, source }))
@@ -76,7 +80,9 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
       {/* empty:hidden — no files, no extra gap under the title. */}
       <div className="flex flex-col gap-1 empty:hidden">
         {fold.shown.map((f) => (
-          <Item key={f.id} size="xs" className="group hover:bg-(--tile-hover)">
+          // Right click: the same actions (they show on hover, so no «⋯»).
+          <RecordMenu asChild key={f.id} def={attachmentMenu} record={f} ctx={{ canDelete: !readOnly }}>
+          <Item size="xs" className="group hover:bg-(--tile-hover)">
             <ItemMedia variant="image" className="size-8">
               {f.mime.startsWith('image/') ? (
                 <img src={fileUrl(f.path)} alt="" />
@@ -119,6 +125,7 @@ export function AttachmentsPanel({ entity }: { entity: EntityRef }) {
               </Confirm>
             </ItemActions>
           </Item>
+          </RecordMenu>
         ))}
       </div>
       <FoldButton fold={fold} />

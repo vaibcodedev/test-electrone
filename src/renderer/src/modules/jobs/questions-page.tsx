@@ -36,6 +36,8 @@ import { EditHintText } from '@/components/common/detail-mode'
 import { daysWord, DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL, QUESTION_GROUP_LABEL } from './labels'
 import { QuestionCategoryFilter, QuestionCategoryPicker } from './question-category'
 import { ApplicationCombobox, CompanyCombobox } from './j1-fields'
+import { bindMenu } from '@/features/record-menu/model'
+import { questionMenu } from './menus'
 
 const LIMITS = limitsOf(questionInputSchema)
 /** Draft titles: an untouched new question is discarded on close; the first one is what «Питання» creates. */
@@ -432,7 +434,11 @@ export function QuestionsPage(): ReactElement {
                   .filter(Boolean)
                   .join(' · ')
                 return (
-                  <ListItem active={active} onClick={() => setOpen(active ? null : q.id)}>
+                  <ListItem
+                    active={active}
+                    onClick={() => setOpen(active ? null : q.id)}
+                    menu={bindMenu(questionMenu, q, { onOpen: () => setOpen(q.id) })}
+                  >
                     <div className="flex items-start gap-2">
                       <div className="flex min-w-0 flex-1 items-start gap-1.5">
                         <div className="line-clamp-2 min-w-0 text-body font-medium">{q.question}</div>

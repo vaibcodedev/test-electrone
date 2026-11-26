@@ -40,6 +40,8 @@ import { AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-ki
 import { SEVERITY_LABEL } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { bindMenu } from '@/features/record-menu/model'
+import { redFlagMenu } from './red-flag-menu'
 
 const FLAG_L = limitsOf(redFlagInputSchema)
 const TITLE_MAX = FLAG_L.title
@@ -253,7 +255,11 @@ export function RedFlagsPage() {
                 ))
               }
               renderItem={(f) => (
-                <ListItem active={f.id === open} onClick={() => setOpen(f.id)}>
+                <ListItem
+                  active={f.id === open}
+                  onClick={() => setOpen(f.id)}
+                  menu={bindMenu(redFlagMenu, f, { onOpen: () => setOpen(f.id) })}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-start gap-1.5">

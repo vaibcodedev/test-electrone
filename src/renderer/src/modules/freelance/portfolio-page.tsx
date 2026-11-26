@@ -48,6 +48,9 @@ import { AutoMarkdown, AutoTitle, Block, EditorStack, TextareaBlock } from '../c
 import { DisabledHint } from '@/components/common/disabled-hint'
 import { NicheCombobox } from './niche-combobox'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
+import { caseMenu } from './case-menu'
 
 const CASE_L = limitsOf(caseInputSchema)
 
@@ -429,6 +432,11 @@ export function PortfolioPage() {
                 ))
               }
               renderItem={(c) => (
+                // «⋯» on the niche line at the bottom: the cover and the title stay uncovered.
+                <RecordMenuTile
+                  menu={bindMenu(caseMenu, c, { onOpen: () => setOpen(c.id) })}
+                  buttonClassName="absolute right-3 bottom-3"
+                >
                 <Card
                   {...clickableProps(() => setOpen(c.id))}
                   className={cn(
@@ -457,7 +465,7 @@ export function PortfolioPage() {
                       <FavoriteMark entity={{ type: 'case', id: c.id }} />
                     </div>
                     {/* Reserved line: cards stay the same height with or without niche/stack. */}
-                    <div className="flex h-6 min-w-0 items-center gap-1.5">
+                    <div className="flex h-6 min-w-0 items-center gap-1.5 pr-7">
                       {c.niche && (
                         <Badge variant="soft" truncate>
                           {c.niche}
@@ -471,6 +479,7 @@ export function PortfolioPage() {
                     </div>
                   </CardContent>
                 </Card>
+                </RecordMenuTile>
               )}
             />
           }

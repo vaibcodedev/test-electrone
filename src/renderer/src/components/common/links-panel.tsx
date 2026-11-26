@@ -53,6 +53,7 @@ export function LinksPanel({ entity }: { entity: EntityRef }): ReactElement {
             <div key={l.linkId}>
               <EntityRow
                 item={l}
+                menu={{ linkId: l.linkId }}
                 onOpen={() =>
                   mode.editing && mode.confirmClose
                     ? mode.confirmClose(() => openEntity(l))

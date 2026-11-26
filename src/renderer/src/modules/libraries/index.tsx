@@ -20,7 +20,18 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { EmptyState, Field, FilterBar, FilterChips, NoResults, Page, PageBody, PageHeader, SearchInput, Segmented } from '@/components/common/page'
+import {
+  EmptyState,
+  Field,
+  FilterBar,
+  FilterChips,
+  NoResults,
+  Page,
+  PageBody,
+  PageHeader,
+  SearchInput,
+  Segmented
+} from '@/components/common/page'
 import { LinkInput } from '@/components/common/text-field'
 import { TagFilter, TagList } from '@/components/common/tags'
 import { FavoriteFilter } from '@/components/common/favorite-filter'
@@ -30,7 +41,12 @@ import { useReadOnly } from '@/components/common/detail-mode-context'
 import { EditHintText } from '@/components/common/detail-mode'
 import { toastTrashed } from '@/components/common/trash-toast'
 import { noResultsHint, presentChips } from '@/components/common/filter-helpers'
-import { DetailPane, EntityAside, MasterDetail, useOpenParam } from '@/components/common/master-detail'
+import {
+  DetailPane,
+  EntityAside,
+  MasterDetail,
+  useOpenParam
+} from '@/components/common/master-detail'
 import {
   AutoMarkdown,
   AutoTitle,
@@ -40,6 +56,9 @@ import {
   TextareaBlock
 } from '../claude/editor-kit'
 import { ImportButton } from '@/components/common/import-dialog'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
+import { libraryMenu } from './menu'
 
 const LIMITS = limitsOf(libraryInputSchema)
 
@@ -58,7 +77,15 @@ const isUrl = (value: string): boolean => !!value.trim() && isLikelyUrl(value)
  * Opens npm / GitHub / docs in the system browser. `subtle` on a card (surface); `soft` in the record header,
  * which is card itself — subtle (= bg-card) would read as plain text there.
  */
-function LinkButtons({ lib, onInk, variant = 'subtle' }: { lib: Library; onInk?: boolean; variant?: 'subtle' | 'soft' }): ReactElement | null {
+function LinkButtons({
+  lib,
+  onInk,
+  variant = 'subtle'
+}: {
+  lib: Library
+  onInk?: boolean
+  variant?: 'subtle' | 'soft'
+}): ReactElement | null {
   const links = [
     { url: lib.npmUrl, label: 'npm', icon: Package },
     { url: lib.githubUrl, label: 'GitHub', icon: GitBranch },
@@ -72,7 +99,9 @@ function LinkButtons({ lib, onInk, variant = 'subtle' }: { lib: Library; onInk?:
           key={l.label}
           variant={variant}
           size="xs"
-          className={cn(onInk && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15')}
+          className={cn(
+            onInk && 'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15'
+          )}
           onClick={(e) => {
             e.stopPropagation()
             void openUrl(l.url)
@@ -97,8 +126,17 @@ function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }): React
       onClick={(e) => e.stopPropagation()}
       className={cn('h-8 font-mono', onInk ? 'bg-ink-foreground/8 text-ink-foreground' : 'bg-card')}
     >
-      <InputGroupAddon className={cn('font-mono', onInk ? 'text-ink-accent' : 'text-muted-foreground')}>$</InputGroupAddon>
-      <InputGroupInput readOnly value={cmd} aria-label="Команда встановлення" className="font-mono text-caption" />
+      <InputGroupAddon
+        className={cn('font-mono', onInk ? 'text-ink-accent' : 'text-muted-foreground')}
+      >
+        $
+      </InputGroupAddon>
+      <InputGroupInput
+        readOnly
+        value={cmd}
+        aria-label="Команда встановлення"
+        className="font-mono text-caption"
+      />
       <InputGroupAddon align="inline-end">
         <CopyButton text={cmd} variant="ghost" size="xs" className="text-inherit" />
       </InputGroupAddon>
@@ -107,7 +145,13 @@ function InstallCommand({ cmd, onInk }: { cmd: string; onInk?: boolean }): React
 }
 
 /** Reading: the command with a copy button (the list's own copy row is hidden while a record is open). */
-function InstallField({ lib, save }: { lib: Library; save: (patch: LibraryPatch) => void }): ReactElement | null {
+function InstallField({
+  lib,
+  save
+}: {
+  lib: Library
+  save: (patch: LibraryPatch) => void
+}): ReactElement | null {
   const readOnly = useReadOnly()
   if (readOnly) {
     if (!lib.installCmd.trim()) return null
@@ -162,7 +206,12 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }):
       }
     >
       <EditorStack>
-        <AutoTitle value={lib.name} onSave={(name) => save({ name })} placeholder="Назва пакета" maxLength={LIMITS.name} />
+        <AutoTitle
+          value={lib.name}
+          onSave={(name) => save({ name })}
+          placeholder="Назва пакета"
+          maxLength={LIMITS.name}
+        />
         <TextareaBlock
           label="Для чого"
           value={lib.purpose}
@@ -183,9 +232,26 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }):
         <InstallField lib={lib} save={save} />
         {/* Full-width rows: three columns left ~110px per link. Reading: the header's link buttons open them. */}
         <div data-edit-only className="flex flex-col gap-5">
-          <LinkInput label="npm" value={lib.npmUrl} onSave={(npmUrl) => save({ npmUrl })} maxLength={LIMITS.npmUrl} placeholder="https://npmjs.com/package/…" />
-          <LinkInput label="GitHub" value={lib.githubUrl} onSave={(githubUrl) => save({ githubUrl })} maxLength={LIMITS.githubUrl} placeholder="https://github.com/…" />
-          <LinkInput label="Документація" value={lib.docsUrl} onSave={(docsUrl) => save({ docsUrl })} maxLength={LIMITS.docsUrl} />
+          <LinkInput
+            label="npm"
+            value={lib.npmUrl}
+            onSave={(npmUrl) => save({ npmUrl })}
+            maxLength={LIMITS.npmUrl}
+            placeholder="https://npmjs.com/package/…"
+          />
+          <LinkInput
+            label="GitHub"
+            value={lib.githubUrl}
+            onSave={(githubUrl) => save({ githubUrl })}
+            maxLength={LIMITS.githubUrl}
+            placeholder="https://github.com/…"
+          />
+          <LinkInput
+            label="Документація"
+            value={lib.docsUrl}
+            onSave={(docsUrl) => save({ docsUrl })}
+            maxLength={LIMITS.docsUrl}
+          />
         </div>
         <AutoMarkdown
           label="Нотатки"
@@ -234,46 +300,60 @@ function LibraryCard({
   const muted = active ? 'text-ink-muted' : 'text-muted-foreground'
   // `tile` brings hover, cursor and the focus ring. The ink card keeps the global :focus-visible outline, only
   // drawn inside: `outline-none` would set the outline style to none for the focus-visible state too.
-  const base = cn('h-full min-w-0', active ? 'bg-ink text-ink-foreground focus-visible:-outline-offset-2' : 'tile')
+  const base = cn(
+    'h-full min-w-0',
+    active ? 'bg-ink text-ink-foreground focus-visible:-outline-offset-2' : 'tile'
+  )
+  const menu = bindMenu(libraryMenu, lib, { onOpen })
   if (compact) {
     return (
-      <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-0 px-4 py-3')}>
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <span className="truncate text-body font-semibold">{lib.name}</span>
-            <FavoriteMark entity={{ type: 'library', id: lib.id }} onInk={active} />
-          </span>
-          <StatusBadge status={lib.status} onInk={active} />
-        </div>
-      </Card>
+      <RecordMenuTile menu={menu} onInk={active} buttonClassName="absolute top-1/2 right-3 -mt-3">
+        <Card
+          {...clickableProps(onOpen)}
+          aria-current={active || undefined}
+          className={cn(base, 'gap-0 py-3 pr-10 pl-4')}
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <span className="truncate text-body font-semibold">{lib.name}</span>
+              <FavoriteMark entity={{ type: 'library', id: lib.id }} onInk={active} />
+            </span>
+            <StatusBadge status={lib.status} onInk={active} />
+          </div>
+        </Card>
+      </RecordMenuTile>
     )
   }
   return (
-    <Card {...clickableProps(onOpen)} aria-current={active || undefined} className={cn(base, 'gap-3 py-4')}>
-      <CardHeader className="gap-1 px-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex min-w-0 flex-1 items-center gap-1.5">
-            <span className="truncate text-body font-semibold">{lib.name}</span>
-            <FavoriteMark entity={{ type: 'library', id: lib.id }} onInk={active} />
-          </span>
-          <StatusBadge status={lib.status} onInk={active} />
-        </div>
-        <div className={cn('min-h-5 truncate text-caption', muted)}>
-          {lib.purpose || ' '}
-        </div>
-      </CardHeader>
-      {lib.installCmd.trim() && (
-        <CardContent className="min-w-0 px-4">
-          <InstallCommand cmd={lib.installCmd} onInk={active} />
-        </CardContent>
-      )}
-      <CardFooter className="mt-auto min-w-0 items-center justify-between gap-2 px-4">
-        <div className="flex min-h-6 min-w-0 flex-1 items-center overflow-hidden">
-          <TagList tags={lib.tags} max={3} className="flex-nowrap" />
-        </div>
-        <LinkButtons lib={lib} onInk={active} />
-      </CardFooter>
-    </Card>
+    <RecordMenuTile menu={menu} onInk={active}>
+      <Card
+        {...clickableProps(onOpen)}
+        aria-current={active || undefined}
+        className={cn(base, 'gap-3 py-4')}
+      >
+        <CardHeader className="gap-1 pr-10 pl-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              <span className="truncate text-body font-semibold">{lib.name}</span>
+              <FavoriteMark entity={{ type: 'library', id: lib.id }} onInk={active} />
+            </span>
+            <StatusBadge status={lib.status} onInk={active} />
+          </div>
+          <div className={cn('min-h-5 truncate text-caption', muted)}>{lib.purpose || ' '}</div>
+        </CardHeader>
+        {lib.installCmd.trim() && (
+          <CardContent className="min-w-0 px-4">
+            <InstallCommand cmd={lib.installCmd} onInk={active} />
+          </CardContent>
+        )}
+        <CardFooter className="mt-auto min-w-0 items-center justify-between gap-2 px-4">
+          <div className="flex min-h-6 min-w-0 flex-1 items-center overflow-hidden">
+            <TagList tags={lib.tags} max={3} className="flex-nowrap" />
+          </div>
+          <LinkButtons lib={lib} onInk={active} />
+        </CardFooter>
+      </Card>
+    </RecordMenuTile>
   )
 }
 
@@ -330,14 +410,23 @@ export function LibrariesPage(): ReactElement {
           emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           chips={
             statusChips.length > 0 && (
-              <FilterChips allLabel="Усі" value={status} onChange={setStatus} options={statusChips} />
+              <FilterChips
+                allLabel="Усі"
+                value={status}
+                onChange={setStatus}
+                options={statusChips}
+              />
             )
           }
           trailing={
             <>
               <FavoriteFilter type="library" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Назва або призначення" />
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Назва або призначення"
+              />
             </>
           }
         />
@@ -356,19 +445,34 @@ export function LibrariesPage(): ReactElement {
               hasMore={list.hasMore}
               loadingMore={list.loadingMore}
               onLoadMore={list.loadMore}
-              renderItem={(l) => <LibraryCard lib={l} active={l.id === openId} compact={!!openId} onOpen={() => setOpen(l.id)} />}
+              renderItem={(l) => (
+                <LibraryCard
+                  lib={l}
+                  active={l.id === openId}
+                  compact={!!openId}
+                  onOpen={() => setOpen(l.id)}
+                />
+              )}
               empty={
                 // Not over a placeholder page (keepPreviousData): no flash of the empty-base state after a reset.
                 !list.isLoading &&
                 !list.isPlaceholderData &&
                 (filtered ? (
-                  <NoResults icon={Package} hint={noResultsHint(q, !!(tagId || status || favorite))} onReset={resetFilters} />
+                  <NoResults
+                    icon={Package}
+                    hint={noResultsHint(q, !!(tagId || status || favorite))}
+                    onReset={resetFilters}
+                  />
                 ) : (
                   <EmptyState
                     icon={Package}
                     title="Бібліотек поки немає"
                     hint="Збережіть пакет, який сподобався, з командою встановлення й посиланнями."
-                    cta={{ label: 'Створити бібліотеку', icon: Plus, onClick: () => void createNew() }}
+                    cta={{
+                      label: 'Створити бібліотеку',
+                      icon: Plus,
+                      onClick: () => void createNew()
+                    }}
                   />
                 ))
               }

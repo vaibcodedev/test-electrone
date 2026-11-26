@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { ITEM_LIMITS } from './use-checklist-order'
 import { SORTABLE_TRANSITION } from '@/lib/motion'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { checklistItemMenu } from './menu'
 
 /** The drag handle: hidden until the row is hovered, but visible as soon as the keyboard reaches it (WCAG 2.4.7). */
 const ROW_ACTION =
@@ -58,6 +60,14 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
   )
 
   return (
+    // Right click: «Виконано» in a run, «Змінити» / «Видалити пункт» while editing (a field being typed in keeps the
+    // text menu).
+    <RecordMenu
+      asChild
+      def={checklistItemMenu}
+      record={item}
+      ctx={{ isRun, editing: !readOnly, onEdit: () => startEditing() }}
+    >
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
@@ -172,5 +182,6 @@ export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }
         <Trash2 />
       </IconAction>
     </li>
+    </RecordMenu>
   )
 }

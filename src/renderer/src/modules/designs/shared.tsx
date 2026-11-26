@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils'
 import { clickableProps } from '@/lib/clickable'
 import { MEDIA_ACCEPT, isVideoPath } from './media'
 import { designCount } from './labels'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { moodboardMenu } from './menu'
 
 /** Hidden file input triggered by a shadcn Button. */
 export function PickImagesButton({
@@ -190,12 +192,15 @@ export function MoodboardTile({
   const empty = board.itemCount === 0
   const cells = [...board.previewPaths, null, null, null, null].slice(0, 4)
   const tint = board.color ? { background: `${board.color}33` } : undefined
+  const open = (): void => {
+    onOpen?.()
+    navigate(`/designs/boards/${board.id}`)
+  }
   return (
+    // Right click only: the strip's tiles are narrow, a «⋯» would cover the title.
+    <RecordMenu asChild def={moodboardMenu} record={board} ctx={{ onOpen: open }}>
     <Card
-      {...clickableProps(() => {
-        onOpen?.()
-        navigate(`/designs/boards/${board.id}`)
-      })}
+      {...clickableProps(open)}
       className={cn(
         'tile gap-1.5 rounded-2xl p-1.5 text-left',
         // One width for every tile in the strip: a narrower empty tile cut its own title to «Но…».
@@ -238,6 +243,7 @@ export function MoodboardTile({
         </span>
       </div>
     </Card>
+    </RecordMenu>
   )
 }
 

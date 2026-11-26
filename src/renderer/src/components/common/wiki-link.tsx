@@ -2,6 +2,8 @@ import { useCurrentRecord } from '@/hooks/use-current-record'
 import { createContext, useContext, type ReactElement, type ReactNode } from 'react'
 import { Link2Off } from 'lucide-react'
 import type { EntityRef } from '@shared/domain/common'
+import { entityMenu } from '@/features/record-menu/entity-menu'
+import { RecordMenu } from '@/features/record-menu/record-menu'
 import { ENTITY_META } from '@shared/entity-types'
 import { refKey } from '@shared/wikilinks'
 import { ENTITY_ICON } from '@/app/navigation'
@@ -79,20 +81,24 @@ export function WikiLink({
     if (mode.editing && mode.confirmClose) mode.confirmClose(go)
     else go()
   }
+  const title = resolved?.title || (typeof children === 'string' ? children : meta.label)
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <a
-          href={`#${meta.route(target.id)}`}
-          data-wikilink="live"
-          onClick={(e) => {
-            e.preventDefault()
-            open()
-          }}
-        >
-          <Icon aria-hidden className={INLINE_ICON} />
-          {resolved?.title || children}
-        </a>
+        {/* Right click: the record's menu (open, pins, copy its link), not the text menu's «Копіювати». */}
+        <RecordMenu asChild def={entityMenu} record={{ ...target, title }} ctx={{ onOpen: open }}>
+          <a
+            href={`#${meta.route(target.id)}`}
+            data-wikilink="live"
+            onClick={(e) => {
+              e.preventDefault()
+              open()
+            }}
+          >
+            <Icon aria-hidden className={INLINE_ICON} />
+            {resolved?.title || children}
+          </a>
+        </RecordMenu>
       </TooltipTrigger>
       <TooltipContent>{meta.label} · відкрити</TooltipContent>
     </Tooltip>
