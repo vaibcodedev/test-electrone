@@ -1,5 +1,5 @@
 /**
- * Credentials by kind (план.md §16) on a real database: kinds and schemas, rows from before the kinds, 2FA codes
+ * Credentials by kind on a real database: kinds and schemas, rows from before the kinds, 2FA codes
  * (RFC 4226 / 6238 vectors), secrets kept out of list / export / search, the clipboard clear, the payment link and
  * client-paid subscriptions that never count as my expenses.
  */

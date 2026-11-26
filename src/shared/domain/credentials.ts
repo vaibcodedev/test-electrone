@@ -1,5 +1,5 @@
 /**
- * Credentials by kind (план.md §16): a server, a database, an API key… each with its own fields. One table: the
+ * Credentials by kind: a server, a database, an API key… each with its own fields. One table: the
  * columns of the first version (label, url, login, secret, notes) keep their meaning for every kind, the kind's
  * other non-secret fields live in `fields` (JSON), the extra secrets in `secrets` (encrypted JSON). Which key goes
  * where is read from the kind's schema below — the single source for main and the forms.

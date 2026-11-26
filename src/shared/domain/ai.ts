@@ -32,7 +32,7 @@ export type AiPresetGroup = (typeof AI_PRESET_GROUPS)[number]['id']
 
 /**
  * A ready-made provider choice in «Налаштування → Штучний інтелект»: picking it fills the address and the
- * model, and gives the «Отримати ключ» link. Prices and privacy notes are as of 25.11.2026 (план.md, п. 13),
+ * model, and gives the «Отримати ключ» link. Prices and privacy notes are as of 25.11.2026,
  * for 30–50 short requests a day.
  */
 export interface AiPreset {
@@ -248,7 +248,7 @@ const HTTP_URL = /^https?:\/\/[^\s/?#]+[^\s]*$/i
 export const aiSettingsSchema = z.object({
   /** Off by default: nothing is sent anywhere until the person switches it on. */
   enabled: z.boolean().default(false),
-  /** The simplest free option first (план.md, п. 13). */
+  /** The simplest free option first. */
   preset: z.enum(AI_PRESET_IDS).default('gemini'),
   /** Address of «Своя адреса»; the other presets carry their own. */
   baseUrl: z

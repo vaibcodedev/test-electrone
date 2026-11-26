@@ -1,7 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test, uid } from './fixtures'
 
-/** «[[» record links in Markdown fields and the «Згадки» block (план.md §12). */
+/** «[[» record links in Markdown fields and the «Згадки» block. */
 
 const pane = (win: Page): Locator => win.locator('[data-detail-mode]').first()
 const menu = (win: Page): Locator => win.getByRole('listbox', { name: 'Записи для посилання' })

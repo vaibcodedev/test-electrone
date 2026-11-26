@@ -1,7 +1,7 @@
 import { expect, test, uid } from './fixtures'
 
 /**
- * Доступи за типами (план.md §16): a server access through the UI → its main line and the SSH command → «+ Оплата»
+ * Доступи за типами: a server access through the UI → its main line and the SSH command → «+ Оплата»
  * makes a subscription in Фінанси › Підписки with a link back; the client page lists the project's access under its
  * project. RPC checks where the UI can't see (the clipboard, the stored link).
  */
