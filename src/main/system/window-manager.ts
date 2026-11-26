@@ -5,6 +5,7 @@ import type { ConfigStore, WindowState } from '../core/config-store'
 import type { EventBus } from '../core/event-bus'
 import { PROFILE_ARG_PREFIX, type ProfileKind } from '@shared/domain/sandbox'
 import type { TextMenuController } from './text-menu'
+import { keepOutOfSight } from './test-windows'
 
 const MIN = { width: 960, height: 640 }
 
@@ -71,6 +72,7 @@ export class WindowManager {
   }
 
   private secure(win: BrowserWindow): void {
+    keepOutOfSight(win)
     this.setSpellcheck(win)
     // Right click on text: Vault's own menu (features/text-menu), spelling included.
     this.textMenu.attach(win.webContents)

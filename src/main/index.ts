@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, nativeTheme, session } from 'electron'
+import { keepOffscreenWindowsActive } from './system/test-windows'
 import { mkdirSync } from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
@@ -86,6 +87,8 @@ if (!gotLock) {
           : 'Vault уже відкрито з вашими даними. Тестовий режим вмикається в Налаштуваннях.'
     })
   })
+
+  keepOffscreenWindowsActive()
 
   app.whenReady().then(() => {
     electronApp.setAppUserModelId(APP_ID)
