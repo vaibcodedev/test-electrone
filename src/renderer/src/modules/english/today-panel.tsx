@@ -34,7 +34,11 @@ function TodayRing({ done, total }: { done: number; total: number }): ReactEleme
   const pct = total ? Math.round((done / total) * 100) : 100
   return (
     <div className="relative size-16 shrink-0" role="img" aria-label={`Готово ${done} з ${total}`}>
-      <ChartContainer config={ringConfig} className="aspect-square size-16">
+      <ChartContainer
+        config={ringConfig}
+        // ChartContainer paints the track bg-muted, which is the card's own colour in the dark theme.
+        className="aspect-square size-16 [&_.recharts-radial-bar-background-sector]:fill-foreground/20"
+      >
         <RadialBarChart
           data={[{ done: pct }]}
           startAngle={90}
