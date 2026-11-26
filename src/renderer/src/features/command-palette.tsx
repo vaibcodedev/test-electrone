@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ReactElement, type ReactNode } from 'react'
+import { Fragment, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import {
   FlaskConical,
@@ -35,6 +35,13 @@ import { sidebarToggleLabel } from '@/components/ui/sidebar-label'
 import { useResolvedTheme } from '@/hooks/use-theme'
 import { fmtRelative, mdPreview } from '@/lib/format'
 import { limitsOf } from '@/lib/limits'
+import {
+  PREFIX_HELP,
+  SEARCH_PREFIX,
+  parseSearch,
+  suggestPrefixes,
+  withPrefix
+} from '@/lib/search-prefix'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { RecordMenu } from '@/features/record-menu/record-menu'
 import { entityMenu } from '@/features/record-menu/entity-menu'
@@ -49,10 +56,12 @@ const VALUE = {
   recent: (r: Ref) => `recent:${r.type}:${r.id}`,
   fav: (r: Ref) => `fav:${r.type}:${r.id}`,
   nav: (path: string) => `nav:${path}`,
+  prefix: (type: EntityType) => `prefix:${type}`,
   action: (id: string) => `action:${id}`
 }
 const QUICK_LIMITS = limitsOf(quickAddSchema)
 const FAV_LIMIT = 5
+const FILTERED_RECENT_LIMIT = 20
 
 /**
  * FTS snippet → plain text: no raw `**`, `#` or list dashes glued into one line (design-system §10).
@@ -110,10 +119,16 @@ export function CommandPalette(): ReactElement {
   // Controlled selection: recent records arrive after cmdk has already picked «Головна».
   const [selected, setSelected] = useState('')
   const [pickedRecent, setPickedRecent] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   const theme = useResolvedTheme()
   const updateSettings = useApiMutation('settings', 'update')
 
   const query = text.trim()
+  // «сн: debounce» → snippets only; `term` is what is searched for. «?» lists the prefixes instead.
+  const help = query === PREFIX_HELP
+  const parsed = parseSearch(text)
+  const type = parsed.type
+  const term = help ? '' : parsed.query
   const {
     data: rawHits = [],
     isFetching,
@@ -122,20 +137,31 @@ export function CommandPalette(): ReactElement {
   } = useApi(
     'search',
     'query',
-    { text: query, limit: 60 },
-    { enabled: open && query.length > 0, placeholderData: (prev) => prev }
+    { text: term, types: type ? [type] : undefined, limit: 60 },
+    { enabled: open && term.length > 0, placeholderData: (prev) => prev }
   )
   // Results of the previous query stay while the next one loads; once the field is cleared there are none.
-  const hits = query ? rawHits : NO_HITS
-  const failed = !!query && isError
-  const { data: recent = [] } = useApi('search', 'recent', 8, { enabled: open && !query })
+  // The type is checked here too: the kept results may belong to the previous filter.
+  const hits = useMemo(
+    () => (!term ? NO_HITS : type ? rawHits.filter((h) => h.type === type) : rawHits),
+    [term, type, rawHits]
+  )
+  const failed = !!term && isError
+  const showRecent = !term && !help
+  const recentList = useApi(
+    'search',
+    'recent',
+    type ? { limit: FILTERED_RECENT_LIMIT, types: [type] } : 8,
+    { enabled: open && showRecent }
+  )
+  const recent = recentList.data ?? []
   // «Обране» under «Нещодавні»: a record may be in both, their cmdk values differ.
   const { data: favAll = [] } = useApi('pins', 'list', 'favorite', { enabled: open && !query })
   const favs = favAll.slice(0, FAV_LIMIT)
   // «Спитати ШІ: …» only once AI is switched on (the chat itself explains a missing key).
   const { data: aiStatus } = useApi('ai', 'status', undefined, { enabled: open })
   const askAi = useUi((s) => s.askAi)
-  const offerAi = !!query && !!aiStatus?.settings.enabled
+  const offerAi = !!term && !type && !!aiStatus?.settings.enabled
 
   const grouped = useMemo(() => {
     const map = new Map<EntityType, SearchHit[]>()
@@ -259,12 +285,24 @@ export function CommandPalette(): ReactElement {
   ]
 
   const needle = query.toLowerCase()
-  const navMatches = query ? order.filter((n) => n.label.toLowerCase().includes(needle)) : order
-  const actionMatches = query
-    ? actions.filter(
-        (a) => a.label.toLowerCase().includes(needle) || a.keywords.some((k) => k.includes(needle))
-      )
-    : actions
+  // A type filter is about records only: sections and actions step aside.
+  const placesOff = help || !!type
+  const navMatches = placesOff
+    ? []
+    : query
+      ? order.filter((n) => n.label.toLowerCase().includes(needle))
+      : order
+  const actionMatches = placesOff
+    ? []
+    : query
+      ? actions.filter(
+          (a) =>
+            a.label.toLowerCase().includes(needle) || a.keywords.some((k) => k.includes(needle))
+        )
+      : actions
+  const suggestions = type ? [] : suggestPrefixes(text)
+  // «?» or a typed prefix («нт»): the filter stands above the results. A section name still wins (placesFirst).
+  const suggestFirst = help || (!!suggestions[0] && SEARCH_PREFIX[suggestions[0]] === needle)
   // «нала», «кошик»: the typed text starts a section or an action name, so Enter should open that place,
   // not a record that merely mentions the word.
   const placesFirst =
@@ -278,11 +316,19 @@ export function CommandPalette(): ReactElement {
   const offerAdd =
     isShown('/ideas') &&
     !!query &&
+    !placesOff &&
+    suggestions.length === 0 &&
     !failed &&
     !isFetching &&
     hits.length === 0 &&
     navMatches.length === 0 &&
     actionMatches.length === 0
+  // A filter that has nothing to show offers the way back to the whole search.
+  const filterEmpty =
+    !!type &&
+    !failed &&
+    (term ? !isFetching && hits.length === 0 : recentList.isSuccess && recent.length === 0)
+  const suggestValues = suggestions.map(VALUE.prefix)
   const hitValues = grouped.flatMap(([, list]) => list.map(VALUE.hit))
   const placeValues = [
     ...navMatches.map((n) => VALUE.nav(n.path)),
@@ -293,10 +339,13 @@ export function CommandPalette(): ReactElement {
   const values = [
     ...(failed ? [VALUE.action('retry')] : []),
     ...(placesFirst ? placeValues : []),
+    ...(suggestFirst ? suggestValues : []),
     ...hitValues,
+    ...(suggestFirst ? [] : suggestValues),
+    ...(filterEmpty ? [VALUE.action('search-all')] : []),
     ...(offerAi ? [VALUE.action('ask-ai')] : []),
     ...(offerAdd ? [VALUE.action('add-idea')] : []),
-    ...(!query ? recent.map(VALUE.recent) : []),
+    ...(showRecent ? recent.map(VALUE.recent) : []),
     ...(!query ? favs.map(VALUE.fav) : []),
     ...(placesFirst ? [] : placeValues)
   ]
@@ -329,6 +378,32 @@ export function CommandPalette(): ReactElement {
     </>
   )
 
+  const pickText = (next: string): void => {
+    setText(next)
+    setSelected('')
+  }
+
+  // A picked filter rewrites the query: the clicked row disappears, and typing goes on in the field.
+  const applyFilter = (next: string): void => {
+    pickText(next)
+    inputRef.current?.focus()
+  }
+
+  const suggestGroup = suggestions.length > 0 && (
+    <CommandGroup heading="Фільтр за типом">
+      {suggestions.map((t) => {
+        const Icon = ENTITY_ICON[t]
+        return (
+          <CommandItem key={t} value={VALUE.prefix(t)} onSelect={() => applyFilter(withPrefix(t))}>
+            <Icon />
+            <span className="min-w-0 flex-1 truncate">Шукати лише: {ENTITY_META[t].plural}</span>
+            <CommandShortcut className="tracking-normal">{SEARCH_PREFIX[t]}:</CommandShortcut>
+          </CommandItem>
+        )
+      })}
+    </CommandGroup>
+  )
+
   return (
     <CommandDialog
       open={open}
@@ -347,11 +422,9 @@ export function CommandPalette(): ReactElement {
     >
       <div className="relative">
         <CommandInput
+          ref={inputRef}
           value={text}
-          onValueChange={(v) => {
-            setText(v)
-            setSelected('')
-          }}
+          onValueChange={pickText}
           maxLength={SEARCH_LIMITS.text}
           placeholder="Знайти ідею, сніпет, помилку, клієнта…"
         />
@@ -371,6 +444,7 @@ export function CommandPalette(): ReactElement {
         )}
 
         {placesFirst && placeGroups}
+        {suggestFirst && suggestGroup}
 
         {grouped.map(([type, list]) => {
           const Icon = ENTITY_ICON[type]
@@ -408,6 +482,19 @@ export function CommandPalette(): ReactElement {
           )
         })}
 
+        {!suggestFirst && suggestGroup}
+
+        {filterEmpty && (
+          <CommandGroup
+            heading={`${ENTITY_META[type].plural}: ${term ? 'нічого не знайдено' : 'поки порожньо'}`}
+          >
+            <CommandItem value={VALUE.action('search-all')} onSelect={() => applyFilter(term)}>
+              <RotateCcw />
+              Прибрати фільтр і шукати всюди
+            </CommandItem>
+          </CommandGroup>
+        )}
+
         {offerAi && (
           <CommandGroup heading="ШІ">
             <CommandItem
@@ -439,8 +526,8 @@ export function CommandPalette(): ReactElement {
           </CommandGroup>
         )}
 
-        {!query && recent.length > 0 && (
-          <CommandGroup heading="Нещодавні">
+        {showRecent && recent.length > 0 && (
+          <CommandGroup heading={type ? `Нещодавні: ${ENTITY_META[type].plural}` : 'Нещодавні'}>
             {recent.map((r) => {
               const Icon = ENTITY_ICON[r.type]
               return recordRow(
@@ -492,6 +579,12 @@ export function CommandPalette(): ReactElement {
 
         {!placesFirst && placeGroups}
       </CommandList>
+      {!query && (
+        <p className="border-t px-4 py-2 text-caption text-muted-foreground">
+          Фільтр за типом: «{SEARCH_PREFIX.snippet}:» сніпети, «{SEARCH_PREFIX.note}:» нотатки. Усі
+          префікси — «{PREFIX_HELP}».
+        </p>
+      )}
     </CommandDialog>
   )
 }

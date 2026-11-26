@@ -144,6 +144,36 @@ test.describe('Ctrl+K за текстом', () => {
     await expect.poll(() => shownInDetail(win, snippet.title)).toBe(true)
   })
 
+  test('префікс «сн:» лишає тільки сніпети, а «Прибрати фільтр» повертає пошук усюди', async ({
+    vault
+  }) => {
+    const { win, rpc } = vault
+    const word = `zq${uid()}pf`
+    const snippet = await rpc('snippets.create', { title: `Сніпет ${word}`, code: 'x' })
+    const idea = await rpc('ideas.create', { title: `Ідея ${word}` })
+    await win.keyboard.press('Control+k')
+    const palette = win.getByRole('dialog', { name: 'Пошук усюди' })
+    const input = palette.getByRole('combobox')
+    const found = (title: string) => palette.getByRole('option', { name: new RegExp(title) })
+
+    await input.fill('сн')
+    await palette.getByRole('option', { name: 'Шукати лише: Сніпети' }).click()
+    await expect(input).toHaveValue('сн: ')
+    await expect(input).toBeFocused()
+    await expect(found(snippet.title)).toBeVisible()
+
+    await input.fill(`сн: ${word}`)
+    await expect(found(snippet.title)).toBeVisible()
+    await expect(found(idea.title)).toBeHidden()
+
+    await input.fill(`нт: ${word}`)
+    await palette.getByRole('option', { name: 'Прибрати фільтр і шукати всюди' }).click()
+    await expect(input).toHaveValue(word)
+    await expect(found(idea.title)).toBeVisible()
+    await win.keyboard.press('Escape')
+    await expect(palette).toBeHidden()
+  })
+
   test('нічого не знайдено → «Додати … як ідею» → швидке додавання з текстом', async ({
     vault
   }) => {
