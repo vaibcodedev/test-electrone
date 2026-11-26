@@ -110,3 +110,20 @@ export function menuGroups(groups: RecordMenuGroups, shared: Entry[] = []): Show
     )
     .filter((g) => g.length > 0)
 }
+
+/** A row's menu handed to a shared row component (ListItem): the declaration with its record and context. */
+export interface RecordMenuBinding {
+  // The row component doesn't know the record's type; bindMenu checked it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  def: RecordMenuDef<any, any>
+  record: unknown
+  ctx?: unknown
+}
+
+export function bindMenu<T, C = undefined>(
+  def: RecordMenuDef<T, C>,
+  record: T,
+  ...ctx: C extends undefined ? [] : [C]
+): RecordMenuBinding {
+  return { def, record, ctx: ctx[0] }
+}

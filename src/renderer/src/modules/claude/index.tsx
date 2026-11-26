@@ -58,7 +58,7 @@ import {
   EnumSelect,
   TextareaBlock
 } from './editor-kit'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { claudeMenu, TRASHED } from './menu'
 
 const LIMITS = limitsOf(claudeInputSchema)

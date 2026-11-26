@@ -25,7 +25,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { noResultsHint } from '@/components/common/filter-helpers'
-import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
 import { componentMenu } from './menu'
 
 /** Virtual size the live preview renders at; the tile scales it down to fit (same 16:10 aspect). */

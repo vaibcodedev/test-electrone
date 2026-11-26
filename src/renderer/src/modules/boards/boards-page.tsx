@@ -18,7 +18,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { freshOnOpen } from '@/components/common/fresh-on-open'
-import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
 import { boardMenu } from './board-menu'
 
 const LIMITS = limitsOf(boardInputSchema)

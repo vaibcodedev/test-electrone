@@ -45,11 +45,8 @@ import { AttachmentsPanel } from './attachments'
 import { SectionLabel } from './section-label'
 import { Confirm } from './confirm'
 import { IconAction } from './icon-action'
-import {
-  RecordMenu,
-  RecordMenuButton,
-  type RecordMenuBinding
-} from '@/features/record-menu/record-menu'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
+import type { RecordMenuBinding } from '@/features/record-menu/model'
 
 export { SectionLabel }
 

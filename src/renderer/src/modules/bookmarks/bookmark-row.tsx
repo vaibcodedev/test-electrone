@@ -10,7 +10,7 @@ import { ListItem } from '@/components/common/master-detail'
 import { TagList } from '@/components/common/tags'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { KIND_ICON, KIND_LABEL, STATUS_BADGE, STATUS_LABEL } from './labels'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { bookmarkMenu } from './menu'
 
 /** One bookmark in the list: kind icon, title, site, rating, reading progress and status. */

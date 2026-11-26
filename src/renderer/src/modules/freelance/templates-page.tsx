@@ -45,7 +45,7 @@ import { ImportButton } from '@/components/common/import-dialog'
 import { DisabledHint } from '@/components/common/disabled-hint'
 import { NicheCombobox } from './niche-combobox'
 import { FavoriteMark } from '@/components/common/favorite-mark'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { templateMenu } from './template-menu'
 
 const TPL_L = limitsOf(templateInputSchema)

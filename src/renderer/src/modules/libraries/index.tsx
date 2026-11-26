@@ -56,7 +56,8 @@ import {
   TextareaBlock
 } from '../claude/editor-kit'
 import { ImportButton } from '@/components/common/import-dialog'
-import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
 import { libraryMenu } from './menu'
 
 const LIMITS = limitsOf(libraryInputSchema)

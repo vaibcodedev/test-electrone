@@ -42,7 +42,7 @@ import { BucketField } from '@/components/common/bucket-field'
 import { APP_STATUS_LABEL, appStatusVariant, salaryLabel } from './labels'
 import { AskedQuestions } from './application-questions'
 import { FavoriteMark } from '@/components/common/favorite-mark'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { companyMenu } from './menus'
 
 const LIMITS = limitsOf(companyInputSchema)

@@ -40,7 +40,7 @@ import { AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-ki
 import { SEVERITY_LABEL } from './g2-labels'
 import { ImportButton } from '@/components/common/import-dialog'
 import { FavoriteMark } from '@/components/common/favorite-mark'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { redFlagMenu } from './red-flag-menu'
 
 const FLAG_L = limitsOf(redFlagInputSchema)

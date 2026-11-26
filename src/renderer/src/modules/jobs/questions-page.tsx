@@ -36,7 +36,7 @@ import { EditHintText } from '@/components/common/detail-mode'
 import { daysWord, DIFFICULTY_LABEL, LANG_LABEL, QUESTION_CATEGORY_LABEL, QUESTION_GROUP_LABEL } from './labels'
 import { QuestionCategoryFilter, QuestionCategoryPicker } from './question-category'
 import { ApplicationCombobox, CompanyCombobox } from './j1-fields'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { questionMenu } from './menus'
 
 const LIMITS = limitsOf(questionInputSchema)

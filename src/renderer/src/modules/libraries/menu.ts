@@ -9,7 +9,7 @@ import { isLikelyUrl } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import { openUrl } from '@/lib/open-url'
 import { copyText } from '@/components/common/copy-button'
-import { defineRecordMenu } from '@/features/record-menu/model'
+import { defineRecordMenu, type MenuItemSpec } from '@/features/record-menu/model'
 import {
   choiceSubmenu,
   useOpenItem,
@@ -17,7 +17,7 @@ import {
   useTrashItem
 } from '@/features/record-menu/actions'
 
-const site = (url: string, label: string, icon: typeof Package) =>
+const site = (url: string, label: string, icon: typeof Package): MenuItemSpec | false =>
   !!url.trim() && isLikelyUrl(url) && { label, icon, run: () => void openUrl(url) }
 
 /** A JS library's right click and «⋯»: the install command, its sites, the status. */

@@ -23,7 +23,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { IDEA_STATUS_BADGE, IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
 import { IdeaDetail } from './idea-detail'
 import { ideaMenu } from './menu'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { noResultsHint, presentChips } from '../claude/chips'
 
 function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {

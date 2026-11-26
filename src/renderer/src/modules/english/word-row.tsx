@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { ListItem } from '@/components/common/master-detail'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { KIND_LABEL, STAGE_COLOR, STAGE_LABEL_ONE } from './labels'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { wordMenu } from './menu'
 
 /** A word in the dictionary: term + kind on top, translation, the work sentence it came from, then stage and due. */

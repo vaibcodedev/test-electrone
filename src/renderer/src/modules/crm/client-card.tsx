@@ -8,7 +8,8 @@ import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/i
 import { CLIENT_STATUS_BADGE, CLIENT_STATUS_LABEL } from './labels'
 import { AvoidBadge, PlatformBadge } from './platform-fields'
 import { FavoriteMark } from '@/components/common/favorite-mark'
-import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
 import { clientMenu } from './menus'
 
 /** «1 проєкт у роботі з 3», «2 проєкти», «Ще без проєктів». */

@@ -159,16 +159,18 @@ export function RecordMenuHost(): ReactElement {
 
   const session = useMemo<MenuSession | null>(() => (req ? { origin: req.origin } : null), [req])
 
-  // The page scrolls under an open menu: the menu would float away from its record, so it closes.
+  // The person scrolls the page under an open menu (wheel, touchpad): the menu would float away from its record,
+  // so it closes. Not on any `scroll` event: a virtual list adjusting its own offset as rows are measured closed
+  // a menu that had just opened.
   useEffect(() => {
     if (!open) return
-    const onScroll = (e: Event): void => {
+    const onWheel = (e: WheelEvent): void => {
       if (e.target instanceof Node && content.current?.contains(e.target)) return
       outside.current = true
       setOpenSeq(null)
     }
-    window.addEventListener('scroll', onScroll, true)
-    return () => window.removeEventListener('scroll', onScroll, true)
+    window.addEventListener('wheel', onWheel, { capture: true, passive: true })
+    return () => window.removeEventListener('wheel', onWheel, { capture: true })
   }, [open])
 
   const a = req?.anchor

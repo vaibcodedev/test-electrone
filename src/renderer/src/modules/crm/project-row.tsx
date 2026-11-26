@@ -22,7 +22,8 @@ import {
 import { Meter } from './parts'
 import { PlatformName } from './platform-fields'
 import { FavoriteMark } from '@/components/common/favorite-mark'
-import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
+import { RecordMenuTile } from '@/features/record-menu/record-menu'
 import { projectMenu } from './menus'
 
 const muted = (text: string): ReactNode => <span className="text-muted-foreground">{text}</span>

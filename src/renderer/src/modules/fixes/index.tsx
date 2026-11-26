@@ -38,7 +38,7 @@ import {
   useOpenParam
 } from '@/components/common/master-detail'
 import { AutoCode, AutoMarkdown, AutoTitle, Block, EditorStack } from '../claude/editor-kit'
-import { bindMenu } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/model'
 import { fixMenu } from './menu'
 
 const LIMITS = limitsOf(fixInputSchema)
