@@ -188,6 +188,7 @@ export function useTagsSubmenu(
     items: all.map((t) => ({
       label: t.name,
       checked: mine.has(t.id),
+      dot: t.color,
       run: () =>
         save(
           mine.has(t.id) ? current.filter((c) => c.id !== t.id).map((c) => c.id) : [...mine, t.id]

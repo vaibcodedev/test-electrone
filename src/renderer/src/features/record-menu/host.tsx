@@ -1,3 +1,4 @@
+import { TagDot } from '@/components/common/tags'
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { reportError } from '@/lib/error-reporting'
 import { Confirm } from '@/components/common/confirm'
@@ -37,18 +38,21 @@ function Item({
   onChoose: (i: MenuItemSpec) => void
 }): ReactElement {
   const label = <span className="min-w-0 flex-1 truncate">{shownLabel(item)}</span>
-  if (item.on !== undefined) {
+  // An on/off state or a choice among values: the ✓ goes to the end of the row, so no row keeps an empty column
+  // on the left for a mark it doesn't have.
+  const checked = item.on ?? item.checked
+  if (checked !== undefined) {
     const Icon = item.icon
     return (
-      <DropdownMenuCheckboxItem mark="end" checked={item.on} onSelect={() => onChoose(item)}>
-        {Icon && <Icon />}
-        {label}
-      </DropdownMenuCheckboxItem>
-    )
-  }
-  if (item.checked !== undefined) {
-    return (
-      <DropdownMenuCheckboxItem checked={item.checked} onSelect={() => onChoose(item)}>
+      <DropdownMenuCheckboxItem mark="end" checked={checked} onSelect={() => onChoose(item)}>
+        {item.dot !== undefined ? (
+          // The icon's 16px box, so the names line up with the rows above.
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            <TagDot color={item.dot} className="size-2" />
+          </span>
+        ) : (
+          Icon && <Icon />
+        )}
         {label}
       </DropdownMenuCheckboxItem>
     )

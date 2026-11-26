@@ -31,6 +31,20 @@ const TAG_NAME_MAX = limitsOf(tagInputSchema).name
 /** The shared PALETTE (@shared/colors), as a plain string[]: callers check `.includes(anyColour)`. */
 export const TAG_COLORS: string[] = [...PALETTE]
 
+/** A tag's colour. An outline like the legend dots (DS §11): a lime dot on a light chip was all but invisible. */
+export function TagDot({ color, className }: { color: string | null; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'size-1.5 shrink-0 rounded-full ring-1 ring-foreground/20 in-data-active:ring-ink-foreground/25',
+        className
+      )}
+      style={{ background: color ?? 'var(--muted-foreground)' }}
+    />
+  )
+}
+
 export function TagChip({
   tag,
   onRemove,
@@ -55,11 +69,7 @@ export function TagChip({
         className
       )}
     >
-      {/* An outline like the legend dots (DS §11): a lime dot on a light chip was all but invisible. */}
-      <span
-        className="size-1.5 shrink-0 rounded-full ring-1 ring-foreground/20 in-data-active:ring-ink-foreground/25"
-        style={{ background: tag.color ?? 'var(--muted-foreground)' }}
-      />
+      <TagDot color={tag.color} />
       {/* A long tag name ends with «…» (full name on hover) instead of leaving the row. */}
       <span className="min-w-0 truncate">{tag.name}</span>
       {onRemove && (

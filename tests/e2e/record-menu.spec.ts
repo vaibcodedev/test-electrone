@@ -162,6 +162,8 @@ test('ideas: pins and tags from the menu; a pinned idea offers «Відкріп�
   await expect
     .poll(async () => (await rpc('ideas.get', idea.id)).tags.map((t: { id: string }) => t.id))
     .toEqual([tag.id])
+  // The menu reads the record as the list shows it: reopen once the row has the chip, not just the base.
+  await expect(row).toContainText(tagName)
   await row.click({ button: 'right' })
   await item(win, 'Мітки').hover()
   await expect(win.getByRole('menuitemcheckbox', { name: tagName })).toHaveAttribute(
@@ -423,9 +425,17 @@ test('only one submenu is open: moving to a sibling row or a plain row closes th
   await win.mouse.click(box.x + 40, box.y + 20, { button: 'right' })
   await expect(menu(win)).toBeVisible()
   const submenus = win.locator('[data-slot="dropdown-menu-sub-content"][data-state="open"]')
+  // The menu is still zooming in when it appears: a pointer that moved once can end up beside the row. A person's
+  // pointer keeps moving, so the test moves it again until the submenu is there.
+  const openByPointer = async (label: string): Promise<void> => {
+    await expect(async () => {
+      await item(win, label).hover({ position: { x: 30, y: 12 } })
+      await item(win, label).hover({ position: { x: 20, y: 10 } })
+      await expect(submenus).toHaveCount(1, { timeout: 1000 })
+    }).toPass()
+  }
 
-  await item(win, 'Статус').hover()
-  await expect(submenus).toHaveCount(1)
+  await openByPointer('Статус')
   await item(win, 'Важливість').hover()
   // The pointer may cross the first submenu's grace area: a second move settles it on the row.
   await item(win, 'Важливість').hover({ position: { x: 20, y: 10 } })
@@ -438,21 +448,30 @@ test('only one submenu is open: moving to a sibling row or a plain row closes th
   await expect(submenus).toHaveCount(0)
   await expect(menu(win)).toBeVisible()
 
-  // The keyboard too: → opens, ← closes, and the next one opens alone.
+  // The keyboard too: → opens, ← closes, and the next one opens alone. Focus moves a frame after a key, so each
+  // step waits for it. The pointer is parked away: resting on a row it would take the focus back.
+  await win.mouse.move(1, 1)
+  const focusInSubmenu = (): Promise<boolean> =>
+    win.evaluate(() => !!document.activeElement?.closest('[data-slot="dropdown-menu-sub-content"]'))
   await item(win, 'Статус').focus()
+  await expect(item(win, 'Статус')).toBeFocused()
   await win.keyboard.press('ArrowRight')
   await expect(submenus).toHaveCount(1)
+  await expect.poll(focusInSubmenu).toBe(true)
   await win.keyboard.press('ArrowLeft')
+  await expect(item(win, 'Статус')).toBeFocused()
+  await expect(submenus).toHaveCount(0)
   await win.keyboard.press('ArrowDown')
+  await expect(item(win, 'Важливість')).toBeFocused()
   await win.keyboard.press('ArrowRight')
   await expect(submenus).toHaveCount(1)
+  await expect.poll(focusInSubmenu).toBe(true)
   await win.keyboard.press('Escape')
   await expect(menu(win)).toHaveCount(0)
 
   // A click away closes the whole menu, an open submenu included.
   await win.mouse.click(box.x + 40, box.y + 20, { button: 'right' })
-  await item(win, 'Статус').hover()
-  await expect(submenus).toHaveCount(1)
+  await openByPointer('Статус')
   await win.mouse.click(box.x + box.width - 60, box.y + box.height + 220)
   await expect(menu(win)).toHaveCount(0)
   await expect(submenus).toHaveCount(0)

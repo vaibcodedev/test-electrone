@@ -23,6 +23,8 @@ export interface MenuItemSpec {
   destructive?: boolean
   /** A choice in a submenu: true marks the current value (✓), false — another value. */
   checked?: boolean
+  /** A tag's colour (null — a tag without one): its dot stands where an item has its icon. */
+  dot?: string | null
   /**
    * An on/off state («Працює», «Вирішено»): the label names the state and never changes, ✓ at the end while it
    * is on (menuitemcheckbox). Not «Позначити…» / «Зняти позначку…».
