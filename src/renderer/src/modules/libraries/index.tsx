@@ -142,10 +142,7 @@ function LibraryDetail({ lib, onClose }: { lib: Library; onClose: () => void }):
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(lib.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(lib.id)}
       emptyHint={
         <>
           Ще не вказано, для чого вона і як її встановити. <EditHintText />

@@ -26,6 +26,7 @@ import { useUi } from '@/stores/ui-store'
 import { CurrentRecordContext } from '@/hooks/use-current-record'
 import { useDiscardDraftOnLeave } from '@/hooks/use-discard-draft'
 import { useHoldWhileInvalid } from '@/hooks/use-hold-while-invalid'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import {
   DetailModeContext,
   EditHintText,
@@ -101,8 +102,8 @@ export function MasterDetail({
   // The open record itself is gone (trashed): let it go now, or closing it a moment later brought it back.
   else if (!detail && open && held.node && held.open === open) setHeld(NOTHING_HELD)
   const holding = !detail && !!open && !!held.node && held.open !== open
-  // Closed (Esc, ✕): the last record stays for the exit motion, inert, then goes. Closed by «У кошик» (most pages
-  // close right after the delete starts): it has faded out already, a second exit would only hold an empty column.
+  // Closed (Esc, ✕): the last record stays for the exit motion, inert, then goes. Closed by «У кошик» (DetailPane
+  // closes right after the delete starts): it has faded out already, a second exit would only hold an empty column.
   const closing = !detail && !open && !!held.node
   const heldLeaving = useUi((s) => !!held.open && !!s.leaving[held.open])
   useEffect(() => {
@@ -282,6 +283,7 @@ export function DetailPane({
 }: {
   entity: EntityRef
   onClose: () => void
+  /** Moves the record to the trash — and only that: the pane closes itself afterwards (onClose), if still open. */
   onDelete?: () => void
   headerExtra?: ReactNode
   children: ReactNode
@@ -308,8 +310,11 @@ export function DetailPane({
   useHoldWhileInvalid(root, editing ? mode.holdInvalid : undefined)
   const current = useMemo(() => ({ type: entity.type, id: entity.id }), [entity.type, entity.id])
 
-  // Set by «У кошик»: the pane's unmount hands focus to the next row instead of dropping it on <body>.
+  // Set when «У кошик» closes the pane: its unmount hands focus to the next row instead of dropping it on <body>.
   const refocus = useRef<(() => void) | null>(null)
+  // The trash closes the pane 0.2 s later: only if this record is still the open one (?open= unchanged).
+  const [open] = useOpenParam()
+  const stillOpen = useStillCurrent(`${entity.type}:${entity.id}?${open ?? ''}`)
   // Closing an untouched empty draft discards it (server re-checks, so a late autosave wins).
   useDiscardDraftOnLeave(entity.type, entity.id, 'detail-pane')
   useEffect(
@@ -319,13 +324,19 @@ export function DetailPane({
     },
     [entity.type, entity.id]
   )
-  // "В корзину": the pane and the list row fade out first, then the record is removed.
+  // «У кошик»: the pane and the list row fade out first, then the record is removed and the pane closes — unless
+  // another record was opened meanwhile (a click, Ctrl+K): that one stays open and keeps its focus.
   const remove = onDelete
     ? (): void => {
-        refocus.current = focusAfterTrash()
+        const after = focusAfterTrash()
         setLeaving(entity.id, true)
         setTimeout(() => {
+          const close = stillOpen()
           onDelete()
+          if (close) {
+            refocus.current = after
+            onClose()
+          }
           setTimeout(() => setLeaving(entity.id, false), 400)
         }, 200)
       }

@@ -147,10 +147,7 @@ export function WordDetail({ word, onClose }: { word: Word; onClose: () => void 
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(word.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(word.id)}
       headerExtra={<Badge variant={STAGE_BADGE[word.stage]}>{STAGE_LABEL_ONE[word.stage]}</Badge>}
       emptyHint={
         <>

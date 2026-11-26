@@ -216,10 +216,7 @@ function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }) {
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(c.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(c.id)}
       emptyHint={
         <>
           Опишіть завдання клієнта, що зроблено й результат — з них збереться текст англійською.

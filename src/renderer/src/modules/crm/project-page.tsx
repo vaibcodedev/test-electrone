@@ -8,6 +8,7 @@ import { RECORD_PAGE } from '@/components/common/record-page-layout'
 import { EditableScope } from '@/components/common/detail-mode-context'
 import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { EntityAside, InlineTitle, RecordActions } from '@/components/common/master-detail'
@@ -39,9 +40,11 @@ export function ProjectPage(): ReactElement {
   const navigate = useNavigate()
   const { data, isLoading } = useApi('projects', 'details', id)
   const update = useApiMutation('projects', 'update')
+  // Back to the list after the request: not if the person has gone elsewhere meanwhile.
+  const stillHere = useStillCurrent(id)
   const remove = useApiMutation('projects', 'remove', {
     successMessage: 'Проєкт переміщено в кошик',
-    onSuccess: () => navigate('/clients?tab=projects')
+    onSuccess: () => stillHere() && navigate('/clients?tab=projects')
   })
   const p = data?.project
   const patch = (patchValue: ProjectPatch): void => update.mutate({ id, patch: patchValue })

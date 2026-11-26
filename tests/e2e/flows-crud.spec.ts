@@ -231,6 +231,38 @@ test.describe('нотатка: повний цикл через інтерфей
   })
 })
 
+test.describe('«У кошик» і одразу інший запис', () => {
+  test('поки панель іде, відкрита друга нотатка лишається відкритою й у фокусі', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    const token = `tr${uid()}`
+    const a = await rpc('notes.create', { title: `Перша ${token}`, body: 'А' })
+    const b = await rpc('notes.create', { title: `Друга ${token}`, body: 'Б' })
+
+    await go(`/notes?open=${a.id}`)
+    await win.locator('[data-page-search]').fill(token)
+    await expect(win.getByRole('button', { name: new RegExp(`Друга ${token}`) })).toBeVisible()
+    await expect(pane(win).getByRole('heading', { name: `Перша ${token}` })).toBeVisible()
+
+    // Both clicks in one task: B is opened well inside the pane's 0.2 s fade-out, as a quick person does it.
+    await win.evaluate((title) => {
+      const pane = document.querySelector('[data-detail-mode]')!
+      pane.querySelector<HTMLButtonElement>('button[aria-label="У кошик"]')!.click()
+      const row = [...document.querySelectorAll<HTMLButtonElement>('[data-index] button')].find((r) =>
+        r.textContent?.includes(title)
+      )!
+      row.focus()
+      row.click()
+    }, `Друга ${token}`)
+
+    await expect.poll(() => inTrash(vault, a.id)).toBe(true)
+    await win.waitForTimeout(800) // past the delayed close and the pane's unmount
+    expect(await openParam(win)).toBe(b.id)
+    await expect(pane(win).getByRole('heading', { name: `Друга ${token}` })).toBeVisible()
+    // The trashed pane's refocus doesn't move focus off the row that was clicked.
+    expect(await win.evaluate(() => document.activeElement?.textContent ?? '')).toContain(`Друга ${token}`)
+  })
+})
+
 test.describe('вакансія: повний цикл через інтерфейс', () => {
   test('«Вакансія» → посада → зберегти → знайти → скасувати правку → кошик → відновити → назавжди', async ({
     vault

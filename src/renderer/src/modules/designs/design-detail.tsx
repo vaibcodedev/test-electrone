@@ -233,10 +233,7 @@ function Editor({
       // The dialog is the frame: no second border, shadow or slide-in of a side pane.
       className="animate-none rounded-none border-0 shadow-none"
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(design.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(design.id)}
       headerExtra={
         <>
           {nav && <NavButtons nav={nav} />}

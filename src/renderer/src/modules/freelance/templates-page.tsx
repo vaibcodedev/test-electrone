@@ -156,10 +156,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(t.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(t.id)}
       emptyHint={
         <>
           Тексту шаблону ще немає. Натисніть «Редагувати» або <Kbd>E</Kbd> і напишіть відповідь —

@@ -6,6 +6,7 @@ import { limitsOf, rangesOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import { fmtDayFull } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -245,7 +246,12 @@ function ApplicationEditorHeader({
   patch: (p: ApplicationPatch) => void
   onClose: () => void
 }): ReactElement {
-  const remove = useApiMutation('jobs', 'remove', { successMessage: 'Вакансію переміщено в кошик', onSuccess: onClose })
+  // Closes after the request: not if another vacancy was opened meanwhile.
+  const stillOpen = useStillCurrent(a.id)
+  const remove = useApiMutation('jobs', 'remove', {
+    successMessage: 'Вакансію переміщено в кошик',
+    onSuccess: () => stillOpen() && onClose()
+  })
   const statusId = useId()
   return (
     <RecordActions

@@ -14,6 +14,7 @@ import {
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import { fmtDateTime } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import {
@@ -169,10 +170,12 @@ function CardEditor({
   modeRef?: RefObject<DetailMode | null>
 }) {
   const update = useApiMutation('cards', 'update')
+  // Closes after the request: not if another card was opened meanwhile.
+  const stillOpen = useStillCurrent(card.id)
   const remove = useApiMutation('cards', 'remove', {
     onSuccess: () => {
       toast.success('Картку переміщено в кошик')
-      onClose()
+      if (stillOpen()) onClose()
     }
   })
   const patch = (p: CardPatch): void => update.mutate({ id: card.id, patch: p })

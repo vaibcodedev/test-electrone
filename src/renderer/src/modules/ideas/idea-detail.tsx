@@ -21,12 +21,7 @@ const LIMITS = limitsOf(ideaInputSchema)
 export function IdeaDetail({ idea, onClose }: { idea: Idea; onClose: () => void }) {
   const navigate = useNavigate()
   const update = useApiMutation('ideas', 'update', { silent: false })
-  const remove = useApiMutation('ideas', 'remove', {
-    onSuccess: () => {
-      toast.success('Ідею переміщено в кошик')
-      onClose()
-    }
-  })
+  const remove = useApiMutation('ideas', 'remove', { successMessage: 'Ідею переміщено в кошик' })
   const convert = useApiMutation('ideas', 'convertToBoard', {
     onSuccess: (board) => {
       toast.success('Дошку створено')

@@ -137,10 +137,7 @@ function FlagDetail({ flag, onClose }: { flag: RedFlag; onClose: () => void }) {
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(flag.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(flag.id)}
       emptyHint={
         <>
           Ще не описано, як розпізнати цей прапорець і що робити. Натисніть «Редагувати» або{' '}

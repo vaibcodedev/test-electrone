@@ -169,10 +169,7 @@ function QuestionDetail({ question, topics, onClose }: { question: InterviewQues
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(question.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(question.id)}
       headerExtra={<ReviewBadge question={question} />}
       emptyHint={
         <>

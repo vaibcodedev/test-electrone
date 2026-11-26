@@ -98,10 +98,7 @@ function FixDetail({ fix, onClose }: { fix: Fix; onClose: () => void }): ReactEl
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(fix.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(fix.id)}
       emptyHint={
         <>
           Тексту помилки й рішення ще немає. <EditHintText />

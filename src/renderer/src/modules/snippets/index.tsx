@@ -69,10 +69,7 @@ function SnippetDetail({ item, onClose }: { item: Snippet; onClose: () => void }
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(item.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(item.id)}
       emptyHint={
         <>
           Коду ще немає. <EditHintText action="вставити його" />

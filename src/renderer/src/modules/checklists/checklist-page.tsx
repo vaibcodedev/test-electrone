@@ -7,6 +7,7 @@ import { checklistInputSchema, type ChecklistPatch } from '@shared/domain/checkl
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import {
@@ -46,16 +47,10 @@ function ChecklistView({ id }: { id: string }): ReactElement {
   const reset = useApiMutation('checklists', 'reset', { successMessage: 'Позначки знято' })
   const listPath = data?.kind === 'run' ? '/checklists?tab=runs' : '/checklists'
   // Closing is async (Esc on a fresh draft reverts and deletes it first): if the person has gone elsewhere
-  // meanwhile (sidebar, Ctrl+K), don't pull them back to the list.
-  const mounted = useRef(true)
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-    }
-  }, [])
+  // meanwhile (sidebar, Ctrl+K), don't pull them back to the list. The same after «У кошик».
+  const stillHere = useStillCurrent(id)
   const toList = (): void => {
-    if (mounted.current) void navigate(listPath)
+    if (stillHere()) void navigate(listPath)
   }
   const remove = useApiMutation('checklists', 'remove', {
     successMessage: 'Чек-лист переміщено в кошик',

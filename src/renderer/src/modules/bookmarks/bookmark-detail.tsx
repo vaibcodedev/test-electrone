@@ -165,10 +165,7 @@ export function BookmarkDetail({
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(item.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(item.id)}
       headerExtra={
         <>
           {isUrl(item.url) && (

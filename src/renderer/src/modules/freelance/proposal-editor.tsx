@@ -20,6 +20,7 @@ import {
 import { limitsOf } from '@/lib/limits'
 import { LinkInput } from '@/components/common/text-field'
 import { useAutosave } from '@/hooks/use-autosave'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import { fmtDateTime } from '@/lib/format'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -59,9 +60,11 @@ function Editor({
 }) {
   const navigate = useNavigate()
   const update = useApiMutation('proposals', 'update')
+  // Closes after the request: not if another proposal was opened meanwhile.
+  const stillOpen = useStillCurrent(p.id)
   const remove = useApiMutation('proposals', 'remove', {
     successMessage: 'Відгук переміщено в кошик',
-    onSuccess: onClose
+    onSuccess: () => stillOpen() && onClose()
   })
   const toTemplate = useApiMutation('proposals', 'toTemplate', {
     successMessage: 'Шаблон створено',

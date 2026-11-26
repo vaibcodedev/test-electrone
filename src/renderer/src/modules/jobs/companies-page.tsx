@@ -99,7 +99,7 @@ function CompanyApplications({ companyId }: { companyId: string }): ReactElement
 
 function CompanyEditor({ company: c, onClose }: { company: Company; onClose: () => void }): ReactElement {
   const update = useApiMutation('jobs', 'updateCompany')
-  const remove = useApiMutation('jobs', 'removeCompany', { successMessage: 'Компанію переміщено в кошик', onSuccess: onClose })
+  const remove = useApiMutation('jobs', 'removeCompany', { successMessage: 'Компанію переміщено в кошик' })
   // Paged like «Вакансії в компанії»: a company can collect hundreds of questions.
   const questions = useInfiniteApi('jobs', 'questions', { companyId: c.id }, 30)
   const patch = (p: CompanyPatch): void => update.mutate({ id: c.id, patch: p })

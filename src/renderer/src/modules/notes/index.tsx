@@ -47,10 +47,7 @@ function NoteDetail({ note, onClose }: { note: Note; onClose: () => void }): Rea
     <DetailPane
       entity={entity}
       onClose={onClose}
-      onDelete={() => {
-        remove.mutate(note.id)
-        onClose()
-      }}
+      onDelete={() => remove.mutate(note.id)}
       emptyHint={
         <>
           Тексту нотатки ще немає. <EditHintText action="написати його" />

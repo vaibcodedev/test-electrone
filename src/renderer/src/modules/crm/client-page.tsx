@@ -5,6 +5,7 @@ import { clientInputSchema, type ClientPatch } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
+import { useStillCurrent } from '@/hooks/use-still-current'
 import { EmptyState } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
 import { EntityAside, RecordActions } from '@/components/common/master-detail'
@@ -41,9 +42,11 @@ export function ClientPage(): ReactElement {
   const navigate = useNavigate()
   const { data, isLoading } = useApi('clients', 'details', id)
   const update = useApiMutation('clients', 'update')
+  // Back to the list after the request: not if the person has gone elsewhere meanwhile.
+  const stillHere = useStillCurrent(id)
   const remove = useApiMutation('clients', 'remove', {
     successMessage: 'Клієнта переміщено в кошик',
-    onSuccess: () => navigate('/clients')
+    onSuccess: () => stillHere() && navigate('/clients')
   })
   const [projectOpen, setProjectOpen] = useState(false)
   const c = data?.client
