@@ -70,10 +70,12 @@ export function usePresenceList<T>(
 
 /**
  * Height and opacity transition of a presence item. `interpolate-size` lets `height: auto` animate (Chromium
- * 129+); overflow is clipped only while folding, so focus outlines of a shown item are never cut.
+ * 129+); overflow is clipped only while folding, so focus outlines of a shown item are never cut. `min-h-0
+ * shrink-0`: in a flex column (every such list) an item's automatic minimum height is its content while overflow
+ * is visible — the unfolding row stood at full height at once and only faded in, the list below it jumped.
  */
 const PRESENCE_CLASS =
-  '[interpolate-size:allow-keywords] transition-[height,opacity] duration-200 ease-soft data-entering:starting:h-0 data-entering:starting:overflow-hidden data-entering:starting:opacity-0 data-leaving:h-0 data-leaving:overflow-hidden data-leaving:opacity-0 motion-reduce:transition-none'
+  'min-h-0 shrink-0 [interpolate-size:allow-keywords] transition-[height,opacity] duration-200 ease-soft data-entering:starting:h-0 data-entering:starting:overflow-hidden data-entering:starting:opacity-0 data-leaving:h-0 data-leaving:overflow-hidden data-leaving:opacity-0 motion-reduce:transition-none'
 
 export function presenceProps(entry: PresenceEntry<unknown>): {
   className: string

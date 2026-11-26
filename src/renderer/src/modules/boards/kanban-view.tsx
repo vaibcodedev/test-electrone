@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/input-group'
 import { CardTile } from './card-tile'
 import { ColumnHeader } from './column-header'
+import { SORTABLE_TRANSITION, dropAnimation } from '@/lib/motion'
 
 type Layout = Record<string, string[]>
 
@@ -71,7 +72,8 @@ function SortableCard({
   columns: BoardColumn[]
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: card.id
+    id: card.id,
+    transition: SORTABLE_TRANSITION
   })
   const move = useApiMutation('cards', 'move')
   const remove = useApiMutation('cards', 'remove', { successMessage: 'Картку переміщено в кошик' })
@@ -443,7 +445,7 @@ export function KanbanView({
         ))}
         <AddColumn boardId={details.board.id} />
       </div>
-      <DragOverlay dropAnimation={{ duration: 160, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }}>
+      <DragOverlay dropAnimation={dropAnimation()}>
         {active ? (
           <CardTile
             card={active}

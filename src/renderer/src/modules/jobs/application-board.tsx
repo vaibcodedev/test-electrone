@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/card'
 import { ACTIVE_APP_STATUSES, APP_STATUS_LABEL, CLOSED_APP_STATUSES } from './labels'
 import { ApplicationCard } from './application-card'
 import { promptAfterStatusChange } from './schedule-stage'
+import { dropAnimation } from '@/lib/motion'
 
 function DraggableApplication({
   application,
@@ -228,7 +229,7 @@ export function ApplicationBoard({
             })}
         </Card>
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={dropAnimation()}>
         {active ? (
           <ApplicationCard
             application={active}

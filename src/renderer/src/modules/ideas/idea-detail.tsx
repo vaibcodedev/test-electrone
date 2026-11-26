@@ -3,7 +3,7 @@ import { SquareKanban, ArrowUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { IDEA_STATUSES, ideaInputSchema, type Idea, type IdeaPatch, type IdeaStatus } from '@shared/domain/ideas'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation } from '@/lib/query'
 import { useAutosave } from '@/hooks/use-autosave'
 import { DetailPane, EntityAside, InlineTitle } from '@/components/common/master-detail'
 import { MarkdownField } from '@/components/common/markdown'
@@ -14,14 +14,11 @@ import { IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
 
 const LIMITS = limitsOf(ideaInputSchema)
 
-/** Editor for a single idea. Keyed by id by the parent so autosave flushes on switch. */
-export function IdeaDetail({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data: idea } = useApi('ideas', 'get', id)
-  if (!idea) return null
-  return <IdeaEditor key={idea.id} idea={idea} onClose={onClose} />
-}
-
-function IdeaEditor({ idea, onClose }: { idea: Idea; onClose: () => void }) {
+/**
+ * Editor for a single idea. Keyed by id by the parent so autosave flushes on switch. The page loads the idea and
+ * passes `null` to MasterDetail until it arrives (an element that renders nothing blanked the pane between records).
+ */
+export function IdeaDetail({ idea, onClose }: { idea: Idea; onClose: () => void }) {
   const navigate = useNavigate()
   const update = useApiMutation('ideas', 'update', { silent: false })
   const remove = useApiMutation('ideas', 'remove', {

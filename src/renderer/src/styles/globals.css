@@ -421,10 +421,15 @@
     animation-duration: 0.18s;
   }
   @media (prefers-reduced-motion: reduce) {
-    *,
+    /* Not the startup note (index.html): its 1.4s delay is a wait, not motion — zeroed, the text flashed on
+       every quick start. Its own reduced-motion rule shows it at once after the wait, without the fade. */
+    *:not(#splash .note),
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      /* One pass: an endless 0.01ms loop (animate-pulse, animate-spin) froze on a random frame (a skeleton at
+         half opacity, a spinner at a random angle) and could flicker from frame to frame. */
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       /* Delays too (stagger, inline row cascades with fill-mode backwards), or tiles still pop in one by one. */
       animation-delay: 0s !important;

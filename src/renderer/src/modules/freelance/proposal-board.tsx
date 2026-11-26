@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ACTIVE_STATUSES, CLOSED_STATUSES, PROPOSAL_STATUS_LABEL } from './proposal-labels'
 import { ProposalCard } from './proposal-card'
+import { dropAnimation } from '@/lib/motion'
 
 const PAGE = 30
 
@@ -238,7 +239,7 @@ export function ProposalBoard({ proposals, currency, creditsName, onOpen }: Boar
             })}
         </Card>
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={dropAnimation()}>
         {active ? (
           <ProposalCard
             proposal={active}

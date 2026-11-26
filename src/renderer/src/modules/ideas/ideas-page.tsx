@@ -122,6 +122,8 @@ export function IdeasPage() {
   const [status, setStatus] = useState<IdeaStatus | undefined>()
   const [favorite, setFavorite] = useState(false)
   const { data: settings } = useApi('settings', 'get')
+  // Loaded here, not inside the pane: MasterDetail keeps the previous record until this one arrives.
+  const { data: openIdea } = useApi('ideas', 'get', open ?? '', { enabled: !!open })
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the list itself is paged + virtualized.
@@ -205,7 +207,11 @@ export function IdeasPage() {
               />
             </div>
           }
-          detail={open ? <IdeaDetail key={open} id={open} onClose={() => setOpen(null)} /> : null}
+          detail={
+            open && openIdea?.id === open ? (
+              <IdeaDetail key={openIdea.id} idea={openIdea} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </div>
     </Page>

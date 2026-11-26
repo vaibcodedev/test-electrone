@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { ITEM_LIMITS } from './use-checklist-order'
+import { SORTABLE_TRANSITION } from '@/lib/motion'
 
 /** The drag handle: hidden until the row is hovered, but visible as soon as the keyboard reaches it (WCAG 2.4.7). */
 const ROW_ACTION =
@@ -20,7 +21,8 @@ const ROW_ACTION =
 /** One checklist item: a tickable step in a run, a plain step in a template; text and hint editable in place. */
 export function ItemRow({ item, isRun }: { item: ChecklistItem; isRun: boolean }): ReactElement {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id
+    id: item.id,
+    transition: SORTABLE_TRANSITION
   })
   const readOnly = useReadOnly()
   const update = useApiMutation('checklists', 'updateItem')

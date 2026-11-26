@@ -91,7 +91,8 @@
 1. **Снимки:** `npm run build`, затем `node scripts/snap-all.mjs <dir>` (все экраны, детали записей —
    обычная/пустая/огромная, формы создания, режим правки, пустая база; тёмная и светлая темы) и
    `node scripts/snap-extension.mjs <dir>`. Плюс `scripts/audit-overflow.mjs` (переполнения на экстремальных данных) и
-   `audit-empty.mjs` (пустая база, зависшие скелетоны).
+   `audit-empty.mjs` (пустая база, зависшие скелетоны), `audit-motion.mjs <dir> [light|dark]` (анимации входа и
+   выхода покадрово, «уменьшить движение», загрузчик запуска — §13 `design-system.md`).
 2. **Ревью** по зонам параллельно (только чтение): скриншоты + код → находки. Скилы:
    `ui-design-review:ui-review`, `design:accessibility-review`, `design:ux-copy`,
    `engineering:architecture` для структуры кода.

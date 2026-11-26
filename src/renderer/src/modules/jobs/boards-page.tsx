@@ -39,6 +39,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { WEEKDAYS } from './labels'
 import { BoardDot } from './board-label'
+import { SORTABLE_TRANSITION } from '@/lib/motion'
 
 const LIMITS = limitsOf(jobBoardInputSchema)
 const RANGES = rangesOf(jobBoardInputSchema)
@@ -50,7 +51,8 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
   // A board with applications is refused by main with a toast: it is switched off instead.
   const remove = useApiMutation('jobs', 'removeBoard', { successMessage: 'Майданчик видалено' })
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: board.id
+    id: board.id,
+    transition: SORTABLE_TRANSITION
   })
   const save = (patch: Partial<JobBoard>): void => update.mutate({ id: board.id, patch })
   // Seeded or older boards may carry a colour outside the palette: show it first and selected.
@@ -167,9 +169,12 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
   )
 }
 
+/** One empty list for every render while loading: the local drag order compares the array itself. */
+const NO_BOARDS: JobBoard[] = []
+
 /** Job boards: where to look every day, with daily targets and weekdays. */
 export function JobBoardsPage(): ReactElement {
-  const { data: boards = [], isLoading } = useApi('jobs', 'boards', { includeInactive: true })
+  const { data: boards = NO_BOARDS, isLoading } = useApi('jobs', 'boards', { includeInactive: true })
   // All time, the same query as the board chips on «Вакансії»: one board, one number on both screens.
   const { data: stats } = useApi('jobs', 'stats', { from: 0 })
   const [name, setName] = useState('')
@@ -181,7 +186,14 @@ export function JobBoardsPage(): ReactElement {
     onSuccess: () => setName('')
   })
   const reorder = useApiMutation('jobs', 'reorderBoards')
+  // The dropped order stays until the server's list comes back (adjusting state while rendering): dropping it when
+  // the request settled showed the old order for a few frames before the refetch — the card jumped back and forth.
   const [order, setOrder] = useState<string[] | null>(null)
+  const [orderOf, setOrderOf] = useState(boards)
+  if (boards !== orderOf) {
+    setOrderOf(boards)
+    setOrder(null)
+  }
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const sorted = order
@@ -194,7 +206,7 @@ export function JobBoardsPage(): ReactElement {
     const ids = sorted.map((b) => b.id)
     const next = arrayMove(ids, ids.indexOf(String(e.active.id)), ids.indexOf(String(e.over.id)))
     setOrder(next)
-    reorder.mutate(next, { onSettled: () => setOrder(null) })
+    reorder.mutate(next, { onError: () => setOrder(null) })
   }
 
   return (

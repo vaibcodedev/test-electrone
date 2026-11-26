@@ -64,6 +64,7 @@ import { isMediaFile } from './media'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { useFavorites } from '@/hooks/use-favorites'
 import { freshOnOpen } from '@/components/common/fresh-on-open'
+import { SORTABLE_TRANSITION } from '@/lib/motion'
 
 const LIMITS = limitsOf(moodboardInputSchema)
 
@@ -78,7 +79,8 @@ function SortableDesign({
   onOpen: () => void
 }): ReactElement {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: design.id
+    id: design.id,
+    transition: SORTABLE_TRANSITION
   })
   const title = designTitle(design)
   const fav = useFavorites()

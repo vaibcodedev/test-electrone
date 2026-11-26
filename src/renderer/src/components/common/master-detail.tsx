@@ -15,6 +15,7 @@ import { useSearchParams } from 'react-router'
 import { Pencil, Trash2, X } from 'lucide-react'
 import type { EntityRef, Tag } from '@shared/domain/common'
 import { fmtDateTime } from '@/lib/format'
+import { reducedMotion } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Item } from '@/components/ui/item'
@@ -73,8 +74,7 @@ export function useOpenParam(): [string | null, (id: string | null) => void] {
 const HOLD_MS = 1000
 const NOTHING_HELD = { node: null as ReactNode, open: null as string | null }
 /** The closing pane's exit motion (`--animate-pane-out`, 0.16s); nothing to wait for when motion is reduced. */
-const exitMs = (): number =>
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160
+const exitMs = (): number => (reducedMotion() ? 0 : 160)
 /** Every parent is a flex box: auto lets the group stretch / grow into it, negative margins included. */
 const FILL = { width: 'auto', height: 'auto' } as const
 
@@ -103,13 +103,16 @@ export function MasterDetail({
   // The open record itself is gone (trashed): let it go now, or closing it a moment later brought it back.
   else if (!detail && open && held.node && held.open === open) setHeld(NOTHING_HELD)
   const holding = !detail && !!open && !!held.node && held.open !== open
-  // Closed (Esc, ✕, «У кошик»): the last record stays for the exit motion, inert, then goes.
+  // Closed (Esc, ✕): the last record stays for the exit motion, inert, then goes. Closed by «У кошик» (most pages
+  // close right after the delete starts): it has faded out already, a second exit would only hold an empty column.
   const closing = !detail && !open && !!held.node
+  const heldLeaving = useUi((s) => !!held.open && !!s.leaving[held.open])
   useEffect(() => {
     if (!holding && !closing) return
-    const timer = setTimeout(() => setHeld(NOTHING_HELD), holding ? HOLD_MS : exitMs())
+    const exit = heldLeaving ? 0 : exitMs()
+    const timer = setTimeout(() => setHeld(NOTHING_HELD), holding ? HOLD_MS : exit)
     return () => clearTimeout(timer)
-  }, [holding, closing])
+  }, [holding, closing, heldLeaving])
   const shown = detail ?? (holding || closing ? held.node : null)
   return (
     // One group whether or not a record is open: the list stays mounted, so opening a record keeps its scroll.
