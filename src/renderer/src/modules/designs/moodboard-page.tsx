@@ -26,7 +26,8 @@ import {
   type MoodboardPatch
 } from '@shared/domain/designs'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useFileDrop, usePastedFiles } from '@/hooks/use-file-drop'
@@ -535,7 +536,10 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
 export function MoodboardPage(): ReactElement {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { data, isLoading } = useApi('moodboards', 'details', id)
+  const record = useInPlaceApi('moodboards', 'details', id)
+  const { data, isLoading } = record
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити добірку" onRetry={record.retry} />
   if (isLoading) return <PageSkeleton kind="grid" />
   if (!data)
     return (

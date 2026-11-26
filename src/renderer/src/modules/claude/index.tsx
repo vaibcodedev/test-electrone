@@ -9,7 +9,8 @@ import {
   type ClaudePatch
 } from '@shared/domain/claude'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { fmtRelative, plural } from '@/lib/format'
@@ -232,7 +233,8 @@ export function ClaudePage(): ReactElement {
   const create = useApiMutation('claude', 'create')
   const markCopied = useApiMutation('claude', 'markCopied', { silent: true })
 
-  const { data: openItem } = useApi('claude', 'get', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('claude', 'get', openId ?? '', { enabled: !!openId })
+  const openItem = openRecord.data
   const kindChips = presentChips(CLAUDE_KINDS, counts, (k) => KIND_LABEL[k], kind)
   // By the debounced query the list was fetched with (see the empty state below).
   const filtered = !!(q || tagId || kind || favorite)
@@ -413,7 +415,9 @@ export function ClaudePage(): ReactElement {
             />
           }
           detail={
-            openId && openItem ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : openId && openItem ? (
               <ClaudeDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} />
             ) : null
           }

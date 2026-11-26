@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { FunnelRow, Platform } from '@shared/domain/freelance'
-import { useApi } from '@/lib/query'
+import { useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { LOCALE, fmtReplyTime, fmtPercent } from '@/lib/format'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -49,8 +50,11 @@ export function StatsTab({ platform }: { platform: Platform }) {
   // No `to`: the server counts up to "now" on every refetch, so new proposals show up without reopening.
   // `from` is a local midnight — the query key stays stable within a day.
   const from = startOfDay(subDays(new Date(), Number(range))).getTime()
-  const { data: stats } = useApi('freelance', 'stats', { platformId: platform.id, from })
+  const query = useInPlaceApi('freelance', 'stats', { platformId: platform.id, from })
+  const { data: stats } = query
 
+  if (query.failed)
+    return <LoadError title="Не вдалося завантажити статистику" onRetry={query.retry} />
   if (!stats)
     return (
       <Delayed delay={150}>

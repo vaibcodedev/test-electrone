@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { Archive, ArchiveRestore, Handshake, SearchX } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { Button } from '@/components/ui/button'
 import { fmtMoney, fmtPercent } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
@@ -101,15 +102,16 @@ function ContractsTab({ platform }: { platform: Platform }) {
 export function PlatformPage() {
   const { platformId = '' } = useParams()
   const [params, setParams] = useSearchParams()
-  const { data: platform, isLoading } = useApi('platforms', 'get', platformId, {
-    enabled: !!platformId
-  })
+  const record = useInPlaceApi('platforms', 'get', platformId, { enabled: !!platformId })
+  const { data: platform, isLoading } = record
   const update = useApiMutation('platforms', 'update', { successMessage: 'Платформа знову в меню' })
   const [, setOpenId] = useOpenParam()
   // «+ Відгук» sits in the page header (where `N` looks for it); the overview lands here with ?new=1.
   const [newOpen, setNewOpen] = useState(false)
   useNewParam(() => setNewOpen(true))
 
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити платформу" onRetry={record.retry} />
   if (isLoading) {
     return (
       <Page className="gap-4 p-8">

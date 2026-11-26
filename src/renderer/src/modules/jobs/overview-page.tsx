@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Settings2 } from 'lucide-react'
-import { useApi } from '@/lib/query'
+import { useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { cn } from '@/lib/utils'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { PageSkeleton } from '@/components/common/page-skeleton'
@@ -30,8 +31,11 @@ function Counter({ label, value, hint, onClick, accent }: { label: string; value
 /** Job search hub landing: today's board habit, upcoming interviews, follow-ups, counters. */
 export function JobsOverviewPage(): ReactElement {
   const navigate = useNavigate()
-  const { data } = useApi('jobs', 'overview')
+  const overview = useInPlaceApi('jobs', 'overview')
+  const { data } = overview
 
+  if (overview.failed)
+    return <LoadError title="Не вдалося завантажити огляд" onRetry={overview.retry} />
   if (!data) return <PageSkeleton kind="overview" />
 
   return (

@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 import { FileText, FileUser, X } from 'lucide-react'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useStillCurrent } from '@/hooks/use-still-current'
@@ -455,7 +456,8 @@ function MissingApplication({ onClose }: { onClose: () => void }): ReactElement 
 
 /** Right-side vacancy editor, opened by ?open=<id>. */
 export function ApplicationEditorSheet({ applicationId, onClose }: { applicationId: string | null; onClose: () => void }): ReactElement {
-  const { data: application, isLoading } = useApi('jobs', 'get', applicationId ?? '', { enabled: !!applicationId })
+  const record = useInPlaceApi('jobs', 'get', applicationId ?? '', { enabled: !!applicationId })
+  const { data: application, isLoading } = record
   const modeRef = useModeRef()
   const guard = guardSheet(modeRef, onClose)
   return (
@@ -466,8 +468,10 @@ export function ApplicationEditorSheet({ applicationId, onClose }: { application
         ) : (
           <>
             <SheetTitle className="sr-only">Вакансія</SheetTitle>
-            <SheetDescription className="sr-only">{isLoading ? 'Завантаження' : 'Вакансію не знайдено'}</SheetDescription>
-            {isLoading ? (
+            <SheetDescription className="sr-only">{record.failed ? 'Помилка' : isLoading ? 'Завантаження' : 'Вакансію не знайдено'}</SheetDescription>
+            {record.failed ? (
+              <RecordLoadError onRetry={record.retry} onClose={onClose} />
+            ) : isLoading ? (
               <Delayed delay={150}>
                 <EditorSkeleton />
               </Delayed>

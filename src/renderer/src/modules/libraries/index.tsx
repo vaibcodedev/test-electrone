@@ -11,7 +11,8 @@ import {
 } from '@shared/domain/libraries'
 import { limitsOf, isLikelyUrl } from '@/lib/limits'
 import { clickableProps } from '@/lib/clickable'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { cn } from '@/lib/utils'
@@ -287,7 +288,8 @@ export function LibrariesPage(): ReactElement {
   // Chip counters come from the server under the same search and tag; the rendered grid is paged + virtualized.
   const { data: counts = {} } = useApi('libraries', 'counts', base)
   const list = useInfiniteApi('libraries', 'list', { ...base, status })
-  const { data: openItem } = useApi('libraries', 'get', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('libraries', 'get', openId ?? '', { enabled: !!openId })
+  const openItem = openRecord.data
   const create = useApiMutation('libraries', 'create')
 
   const statusChips = presentChips(LIBRARY_STATUSES, counts, (s) => LIBRARY_STATUS_LABEL[s], status)
@@ -373,7 +375,13 @@ export function LibrariesPage(): ReactElement {
             />
           }
           listSize="36%"
-          detail={openId && openItem ? <LibraryDetail key={openItem.id} lib={openItem} onClose={() => setOpen(null)} /> : null}
+          detail={
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : openId && openItem ? (
+              <LibraryDetail key={openItem.id} lib={openItem} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </PageBody>
     </Page>

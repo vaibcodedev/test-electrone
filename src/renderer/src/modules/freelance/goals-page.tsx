@@ -10,7 +10,8 @@ import {
   type GoalPeriod
 } from '@shared/domain/freelance'
 import type { Currency } from '@shared/domain/crm'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { limitsOf, rangesOf, requiredOf } from '@/lib/limits'
 import { fmtNumber } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -255,7 +256,8 @@ function GoalMenu({ goal }: { goal: Goal }): ReactElement {
 
 export function GoalsPage() {
   const { data: progress = [], isLoading: progressLoading } = useApi('goals', 'progress')
-  const { data: goals = [], isLoading } = useApi('goals', 'list')
+  const query = useInPlaceApi('goals', 'list')
+  const { data: goals = [], isLoading } = query
   const { data: platformList = [] } = useApi('platforms', 'list')
   const [createOpen, setCreateOpen] = useState(false)
   // «Поставити ціль» on the overview lands here with ?new=1.
@@ -279,7 +281,9 @@ export function GoalsPage() {
       />
       <GoalDialog open={createOpen} onOpenChange={setCreateOpen} />
       <PageBody className="flex flex-col gap-6">
-        {!isLoading && goals.length === 0 ? (
+        {query.failed ? (
+          <LoadError title="Не вдалося завантажити цілі" onRetry={query.retry} />
+        ) : !isLoading && goals.length === 0 ? (
           <EmptyState
             icon={Target}
             title="Цілей поки немає"

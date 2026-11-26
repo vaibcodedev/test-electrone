@@ -1,7 +1,8 @@
 import { useState, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router'
 import { Plus, Tags, Trash2 } from 'lucide-react'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { EmptyState, Field, Page, PageBody, PageHeader } from '@/components/common/page'
 import { VirtualList } from '@/components/common/virtual-list'
 import { EntityRow } from '@/components/common/entity-link'
@@ -68,7 +69,8 @@ function TaggedRecords({ tagId }: { tagId: string }): ReactElement {
 export function TagsPage(): ReactElement {
   const [params, setParams] = useSearchParams()
   const selected = params.get('tag')
-  const { data: tags = [], isLoading } = useApi('tags', 'list')
+  const query = useInPlaceApi('tags', 'list')
+  const { data: tags = [], isLoading } = query
   const noTags = !isLoading && tags.length === 0
   const create = useApiMutation('tags', 'create')
   const update = useApiMutation('tags', 'update')
@@ -93,6 +95,8 @@ export function TagsPage(): ReactElement {
 
   // The name is required: «Додати» is off while it is empty, Enter adds nothing (useFormGate).
   const { attach, reason, submit: gate } = useFormGate()
+  if (query.failed)
+    return <LoadError title="Не вдалося завантажити мітки" onRetry={query.retry} />
   return (
     <Page>
       <PageHeader

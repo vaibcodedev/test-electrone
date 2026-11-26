@@ -28,6 +28,9 @@ const queryCache = new QueryCache({
     // A query that shows its own error next to the control (the model list in Settings → ШІ) opts out with
     // `meta: { inlineError: true }`: a toast over it only repeated the same words.
     if (query.meta?.inlineError) return
+    // useInPlaceApi: the screen says it where the data would be. With data already on screen (a failed refetch)
+    // that message is not shown, so the toast stays.
+    if (query.meta?.inPlaceError && query.state.data === undefined) return
     toast.error('Не вдалося завантажити дані', {
       id: 'query-error',
       // 12 s, paused while hovered: long enough to reach «Повторити». A toast that stayed until closed piled up
@@ -139,6 +142,23 @@ export function useApi<N extends ApiNamespace, M extends MethodOf<N>>(
     queryFn: () => call(ns, method, arg),
     ...options
   })
+}
+
+/**
+ * useApi for what a screen can't do without (the record of a page, pane or sheet): its failure is shown in place
+ * with «Повторити» (LoadError, RecordLoadError) instead of «не знайдено» or a blank. A missing record is `null`,
+ * not a failure. Check `failed` before `isLoading`: it stays true while the retry runs, so nothing blinks.
+ */
+export function useInPlaceApi<N extends ApiNamespace, M extends MethodOf<N>>(
+  ns: N,
+  method: M,
+  arg?: ArgOf<N, M>,
+  options?: Omit<UseQueryOptions<ResultOf<N, M>>, 'queryKey' | 'queryFn' | 'meta'>
+) {
+  const query = useApi(ns, method, arg, { ...options, meta: { inPlaceError: true } })
+  const failed =
+    query.data === undefined && (query.isError || (query.isFetching && query.errorUpdateCount > 0))
+  return { ...query, failed, retry: () => void query.refetch() }
 }
 
 /** useMutation bound to an API method. Errors are toasted; success refreshes active queries. */

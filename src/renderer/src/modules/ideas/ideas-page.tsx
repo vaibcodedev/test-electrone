@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { MAX } from '@shared/domain/limits'
 import { Flame, Lightbulb, Plus, SquareKanban } from 'lucide-react'
 import { IDEA_STATUSES, type Idea, type IdeaStatus } from '@shared/domain/ideas'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { accelToKeys, DEFAULT_QUICK_ADD } from '@/app/shortcuts'
 import { VirtualList } from '@/components/common/virtual-list'
@@ -123,7 +124,8 @@ export function IdeasPage() {
   const [favorite, setFavorite] = useState(false)
   const { data: settings } = useApi('settings', 'get')
   // Loaded here, not inside the pane: MasterDetail keeps the previous record until this one arrives.
-  const { data: openIdea } = useApi('ideas', 'get', open ?? '', { enabled: !!open })
+  const openRecord = useInPlaceApi('ideas', 'get', open ?? '', { enabled: !!open })
+  const openIdea = openRecord.data
   const q = useDebounced(search.trim())
   const base = { search: q || undefined, tagId, favorite: favorite || undefined }
   // Chip counters come from the server under the same search and tag; the list itself is paged + virtualized.
@@ -208,7 +210,9 @@ export function IdeasPage() {
             </div>
           }
           detail={
-            open && openIdea?.id === open ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : open && openIdea?.id === open ? (
               <IdeaDetail key={openIdea.id} idea={openIdea} onClose={() => setOpen(null)} />
             ) : null
           }

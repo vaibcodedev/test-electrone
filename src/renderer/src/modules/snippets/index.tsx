@@ -2,7 +2,8 @@ import { useState, type ReactElement } from 'react'
 import { CodeXml, Plus } from 'lucide-react'
 import { SNIPPET_LANGUAGES, snippetInputSchema, type Snippet, type SnippetLanguage, type SnippetPatch } from '@shared/domain/snippets'
 import { api } from '@/lib/api'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { cn } from '@/lib/utils'
@@ -241,7 +242,8 @@ export function SnippetsPage(): ReactElement {
   // Chip counters come from the server under the same search and tag; the rendered grid is paged + virtualized.
   const { data: counts = {} } = useApi('snippets', 'counts', base)
   const list = useInfiniteApi('snippets', 'list', { ...base, language })
-  const { data: openItem } = useApi('snippets', 'get', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('snippets', 'get', openId ?? '', { enabled: !!openId })
+  const openItem = openRecord.data
   const create = useApiMutation('snippets', 'create')
 
   const languageChips = presentChips(SNIPPET_LANGUAGES, counts, (l) => LANGUAGE_LABEL[l], language)
@@ -347,7 +349,13 @@ export function SnippetsPage(): ReactElement {
               }
             />
           }
-          detail={openId && openItem ? <SnippetDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} /> : null}
+          detail={
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : openId && openItem ? (
+              <SnippetDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </PageBody>
     </Page>

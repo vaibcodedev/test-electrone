@@ -11,7 +11,8 @@ import {
 import { revealStoredFile } from '@/lib/files'
 import { limitsOf } from '@/lib/limits'
 import { cn } from '@/lib/utils'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { api } from '@/lib/api'
 import { toFileSources } from '@/lib/files'
 import { reportError } from '@/lib/error-reporting'
@@ -374,7 +375,9 @@ export function DesignDetail({
   modeRef?: RefObject<DetailMode | null>
   nav?: DesignNav
 }): ReactElement | null {
-  const { data } = useApi('designs', 'get', id)
+  const record = useInPlaceApi('designs', 'get', id)
+  const { data } = record
+  if (record.failed) return <RecordLoadError onRetry={record.retry} onClose={onClose} />
   if (!data) return null
   return <Editor key={data.id} design={data} onClose={onClose} modeRef={modeRef} nav={nav} />
 }

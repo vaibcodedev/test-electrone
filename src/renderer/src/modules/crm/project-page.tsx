@@ -2,7 +2,8 @@ import { useId, type ReactElement } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, SearchX } from 'lucide-react'
 import { PROJECT_STATUSES, projectInputSchema, type ProjectPatch } from '@shared/domain/crm'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
 import { RECORD_PAGE } from '@/components/common/record-page-layout'
 import { EditableScope } from '@/components/common/detail-mode-context'
@@ -38,7 +39,8 @@ const PROJECT_L = limitsOf(projectInputSchema)
 export function ProjectPage(): ReactElement {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { data, isLoading } = useApi('projects', 'details', id)
+  const record = useInPlaceApi('projects', 'details', id)
+  const { data, isLoading } = record
   const update = useApiMutation('projects', 'update')
   // Back to the list after the request: not if the person has gone elsewhere meanwhile.
   const stillHere = useStillCurrent(id)
@@ -58,6 +60,8 @@ export function ProjectPage(): ReactElement {
     patch({ description: d })
   )
 
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити проєкт" onRetry={record.retry} />
   if (isLoading) return <PageSkeleton kind="detail" />
   if (!data || !p) {
     return (

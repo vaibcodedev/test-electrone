@@ -8,7 +8,8 @@ import {
   type Proposal,
   type ProposalPatch
 } from '@shared/domain/freelance'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import {
   guardSheet,
   RecordMode,
@@ -278,7 +279,8 @@ export function ProposalEditorSheet({
   platform: Platform
   onClose: () => void
 }) {
-  const { data: proposal } = useApi('proposals', 'get', proposalId ?? '', { enabled: !!proposalId })
+  const record = useInPlaceApi('proposals', 'get', proposalId ?? '', { enabled: !!proposalId })
+  const proposal = record.data
   const modeRef = useModeRef()
   const guard = guardSheet(modeRef, onClose)
   return (
@@ -294,7 +296,10 @@ export function ProposalEditorSheet({
         ) : (
           <>
             <SheetTitle className="sr-only">Відгук</SheetTitle>
-            <SheetDescription className="sr-only">Завантаження</SheetDescription>
+            <SheetDescription className="sr-only">
+              {record.failed ? 'Помилка' : 'Завантаження'}
+            </SheetDescription>
+            {record.failed && <RecordLoadError onRetry={record.retry} onClose={onClose} />}
           </>
         )}
       </SheetContent>

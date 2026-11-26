@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react'
 import { CircleAlert } from 'lucide-react'
-import { KEEP_PERIOD, useApi } from '@/lib/query'
+import { KEEP_PERIOD, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { fmtMoney, plural } from '@/lib/format'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { cn } from '@/lib/utils'
@@ -32,7 +33,8 @@ const TILE_SPANS = [
 
 export function FinanceOverviewPage(): ReactElement {
   const [month, setMonth] = useMonth()
-  const { data: report } = useApi('finance', 'month', { month }, KEEP_PERIOD)
+  const query = useInPlaceApi('finance', 'month', { month }, KEEP_PERIOD)
+  const { data: report } = query
   // Empty cards add records right here instead of sending you to another tab.
   const add = useEditDialog<AddKind>()
   const subsLeft = report ? report.subscriptionsDue - report.subscriptionsPaid : 0
@@ -54,7 +56,9 @@ export function FinanceOverviewPage(): ReactElement {
       <PageBody className="animate-page">
         {/* Container queries, not the window: the grid follows the space the page really has. */}
         <div className="@container flex flex-col gap-3">
-          {!report ? (
+          {query.failed ? (
+            <LoadError title="Не вдалося завантажити фінанси" onRetry={query.retry} />
+          ) : !report ? (
             <div className={TILE_GRID}>
               {TILE_SPANS.map((span, i) => (
                 <Skeleton key={i} className={cn('h-32 rounded-3xl', span)} />

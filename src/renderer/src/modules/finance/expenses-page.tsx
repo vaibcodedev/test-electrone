@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Expense, ExpenseCategory, MoneyByCurrency } from '@shared/domain/finance'
-import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { fmtDayFull, fmtMoney, fmtMoneyCompact } from '@/lib/format'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
 import { MoneyLines } from '@/components/common/money-value'
@@ -58,7 +59,8 @@ function ExpensesSection({
   onEdit: (e: Expense) => void
 }): ReactElement {
   const [from, to] = monthRange(month)
-  const { data: rows } = useApi('finance', 'expenses', { from, to }, KEEP_PERIOD)
+  const query = useInPlaceApi('finance', 'expenses', { from, to }, KEEP_PERIOD)
+  const { data: rows } = query
   const remove = useApiMutation('finance', 'removeExpense', { successMessage: 'Витрату видалено' })
 
   const total = sumByCurrency(rows, (e) => [e.currency, e.amount])
@@ -75,7 +77,9 @@ function ExpensesSection({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 px-2">
-        {!rows ? (
+        {query.failed ? (
+          <LoadError title="Не вдалося завантажити витрати" onRetry={query.retry} />
+        ) : !rows ? (
           <Skeleton className="mx-3 h-24 rounded-2xl" />
         ) : rows.length === 0 ? (
           <CardState

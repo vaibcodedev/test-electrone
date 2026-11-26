@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react'
 import { FolderGit2, FolderInput, FolderPlus, FolderSearch, Star } from 'lucide-react'
-import { invalidateAll, useApi } from '@/lib/query'
+import { invalidateAll, useApi, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { useMainEvent } from '@/hooks/use-main-events'
 import { useDroppedFiles } from '@/hooks/use-file-drop'
 import { DropOverlay } from '@/components/common/drop-overlay'
@@ -34,9 +35,10 @@ const ONLY_LABEL: Record<(typeof ONLY)[number], string> = {
 
 /** «Мои проекты»: local repos with editor buttons, script runner and live logs. */
 export function DevProjectsPage(): ReactElement {
-  const { data: projects = [], isLoading } = useApi('devProjects', 'list', undefined, {
+  const query = useInPlaceApi('devProjects', 'list', undefined, {
     refetchInterval: 30_000
   })
+  const { data: projects = [], isLoading } = query
   const { data: runs = [] } = useApi('devProjects', 'runs')
   const [openId, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
@@ -80,7 +82,9 @@ export function DevProjectsPage(): ReactElement {
 
   const list = (
     <PageBody className="h-full">
-      {isLoading ? (
+      {query.failed ? (
+        <LoadError title="Не вдалося завантажити проєкти" onRetry={query.retry} />
+      ) : isLoading ? (
         // Cards of the real grid (the page header is already there): no blank body while loading.
         <Delayed delay={150}>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3">

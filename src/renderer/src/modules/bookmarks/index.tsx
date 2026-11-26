@@ -6,7 +6,8 @@ import {
   type BookmarkKind,
   type BookmarkStatus
 } from '@shared/domain/bookmarks'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { accelToKeys, DEFAULT_QUICK_ADD } from '@/app/shortcuts'
 import { VirtualList } from '@/components/common/virtual-list'
@@ -55,7 +56,8 @@ export function BookmarksPage(): ReactElement | null {
     kind
   })
   const list = useInfiniteApi('bookmarks', 'list', { ...base, kind, status })
-  const { data: openItem } = useApi('bookmarks', 'get', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('bookmarks', 'get', openId ?? '', { enabled: !!openId })
+  const openItem = openRecord.data
   const { data: settings } = useApi('settings', 'get')
   const create = useApiMutation('bookmarks', 'create')
 
@@ -205,7 +207,9 @@ export function BookmarksPage(): ReactElement | null {
             />
           }
           detail={
-            openId && openItem ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : openId && openItem ? (
               <BookmarkDetail key={openItem.id} item={openItem} onClose={() => setOpen(null)} />
             ) : null
           }

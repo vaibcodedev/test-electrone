@@ -9,7 +9,8 @@ import {
   type WordStage
 } from '@shared/domain/english'
 import { api } from '@/lib/api'
-import { useApi, useInfiniteApi } from '@/lib/query'
+import { useApi, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { fmtDay, plural } from '@/lib/format'
@@ -84,7 +85,8 @@ export function EnglishPage(): ReactElement {
     tagId,
     favorite: favorite || undefined
   })
-  const { data: openWord } = useApi('english', 'get', open ?? '', { enabled: !!open })
+  const openRecord = useInPlaceApi('english', 'get', open ?? '', { enabled: !!open })
+  const openWord = openRecord.data
 
   // The clock is the time of the last fetch: render stays pure, every row of a list reads «due» against the
   // same moment, and it moves on after each add, review and refresh (a word added a second ago is due today).
@@ -240,7 +242,9 @@ export function EnglishPage(): ReactElement {
             />
           }
           detail={
-            open && openWord ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : open && openWord ? (
               <WordDetail key={openWord.id} word={openWord} onClose={() => setOpen(null)} />
             ) : null
           }

@@ -2,7 +2,8 @@ import { useState, type ReactElement } from 'react'
 import { Bug, CircleCheck, Plus } from 'lucide-react'
 import { fixInputSchema, type Fix, type FixPatch } from '@shared/domain/fixes'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { fmtRelative } from '@/lib/format'
@@ -177,7 +178,8 @@ export function FixesPage(): ReactElement {
     ...base,
     resolved: resolved ? resolved === 'resolved' : undefined
   })
-  const { data: openItem } = useApi('fixes', 'get', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('fixes', 'get', openId ?? '', { enabled: !!openId })
+  const openItem = openRecord.data
   const create = useApiMutation('fixes', 'create')
 
   const stateChips = presentChips(
@@ -335,7 +337,9 @@ export function FixesPage(): ReactElement {
             />
           }
           detail={
-            openId && openItem ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : openId && openItem ? (
               <FixDetail key={openItem.id} fix={openItem} onClose={() => setOpen(null)} />
             ) : null
           }

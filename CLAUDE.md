@@ -190,6 +190,7 @@ src/renderer/
 ## Соглашения
 
 - Данные в renderer — только через `useApi(ns, method, arg)` / `useApiMutation(ns, method)`; после любой мутации обновляются все активные запросы.
+- То, без чего экран пуст (запись, основная выборка страницы), — через `useInPlaceApi`: сбой показывается на месте (`LoadError` / `RecordLoadError`), `failed` проверяется раньше `isLoading` (`docs/design-system.md` §9).
 - Выбранная запись модуля — в URL `?open=<id>` (`useOpenParam`), чтобы поиск/связи открывали её напрямую.
 - **Patch-схемы только через `patchOf(inputSchema)`** (`shared/domain/common.ts`). В zod 4 `.partial()` подставляет `.default()` — частичное обновление затёрло бы остальные поля.
 - **Данные пользователя неприкосновенны.** Перед новыми миграциями `DbContext` сам кладёт копию базы в `backups/pre-update-<версия>-<время>.db` (последние 5). `npm run dev` работает с отдельной папкой `%APPDATA%/vault-dev`, рабочая база установленного Vault не трогается. Тесты (`scripts/snap.mjs`) всегда идут во временную папку.

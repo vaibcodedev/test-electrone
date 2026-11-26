@@ -10,7 +10,8 @@ import {
   type CompanyPatch
 } from '@shared/domain/jobs'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { countLabel, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -187,7 +188,8 @@ export function CompaniesPage(): ReactElement {
   const debounced = useDebounced(search.trim())
   // Paged on the server (100 per page) + virtualized; search runs on the server too.
   const list = useInfiniteApi('jobs', 'companies', { search: debounced || undefined })
-  const { data: current } = useApi('jobs', 'company', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('jobs', 'company', openId ?? '', { enabled: !!openId })
+  const current = openRecord.data
   // Same name already exists → offer to open it instead of creating a duplicate (server dedupes too).
   const typed = useDebounced(name.trim(), 200)
   const { data: existing } = useApi('jobs', 'findCompany', typed, { enabled: typed.length > 0 })
@@ -340,7 +342,13 @@ export function CompaniesPage(): ReactElement {
       <div className="flex min-h-0 flex-1 px-8 pb-6">
         <MasterDetail
           list={listPane}
-          detail={current && current.id === openId ? <CompanyEditor key={current.id} company={current} onClose={() => setOpenId(null)} /> : null}
+          detail={
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpenId(null)} />
+            ) : current && current.id === openId ? (
+              <CompanyEditor key={current.id} company={current} onClose={() => setOpenId(null)} />
+            ) : null
+          }
         />
       </div>
     </Page>

@@ -12,7 +12,8 @@ import {
   type Priority
 } from '@shared/domain/boards'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useStillCurrent } from '@/hooks/use-still-current'
 import { fmtDateTime } from '@/lib/format'
@@ -329,7 +330,8 @@ export function CardSheet({
   columns: BoardColumn[]
   onClose: () => void
 }) {
-  const { data: card, isLoading } = useApi('cards', 'get', cardId ?? '', { enabled: !!cardId })
+  const record = useInPlaceApi('cards', 'get', cardId ?? '', { enabled: !!cardId })
+  const { data: card, isLoading } = record
   const modeRef = useModeRef()
   const guard = guardSheet(modeRef, onClose)
   return (
@@ -352,9 +354,11 @@ export function CardSheet({
           <>
             <SheetTitle className="sr-only">Картка</SheetTitle>
             <SheetDescription className="sr-only">
-              {isLoading ? 'Завантаження' : 'Картку не знайдено'}
+              {record.failed ? 'Помилка' : isLoading ? 'Завантаження' : 'Картку не знайдено'}
             </SheetDescription>
-            {isLoading ? (
+            {record.failed ? (
+              <RecordLoadError onRetry={record.retry} onClose={onClose} />
+            ) : isLoading ? (
               <div className="flex flex-col gap-3 p-6">
                 <Skeleton className="h-8 w-2/3" />
                 <RowSkeleton />

@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react'
 import { ArrowDownToLine, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Withdrawal } from '@shared/domain/finance'
-import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { fmtDayFull, fmtMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -34,7 +35,8 @@ const RATE_COL = 'hidden @xl:table-cell'
 export function WithdrawalsPage(): ReactElement {
   const [month, setMonth] = useMonth()
   const [from, to] = monthRange(month)
-  const { data: rows } = useApi('finance', 'withdrawals', { from, to }, KEEP_PERIOD)
+  const query = useInPlaceApi('finance', 'withdrawals', { from, to }, KEEP_PERIOD)
+  const { data: rows } = query
   const { data: platformList = [] } = useApi('platforms', 'list', { includeArchived: true })
   const remove = useApiMutation('finance', 'removeWithdrawal', {
     successMessage: 'Виведення видалено'
@@ -68,7 +70,9 @@ export function WithdrawalsPage(): ReactElement {
       </PageHeader>
       {/* Tabs of the finance hub share the shell key (handle.hub), so only the body fades in on a tab switch. */}
       <PageBody className="animate-page">
-        {!rows ? (
+        {query.failed ? (
+          <LoadError title="Не вдалося завантажити виведення" onRetry={query.retry} />
+        ) : !rows ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState

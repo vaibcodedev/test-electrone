@@ -18,7 +18,8 @@ import { GripVertical, Plus, Trash2, Globe } from 'lucide-react'
 import { jobBoardInputSchema, type JobBoard, type JobFunnelRow } from '@shared/domain/jobs'
 import { PALETTE } from '@shared/colors'
 import { limitsOf, rangesOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { fmtPercent, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { EmptyState, Field, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -174,7 +175,8 @@ const NO_BOARDS: JobBoard[] = []
 
 /** Job boards: where to look every day, with daily targets and weekdays. */
 export function JobBoardsPage(): ReactElement {
-  const { data: boards = NO_BOARDS, isLoading } = useApi('jobs', 'boards', { includeInactive: true })
+  const query = useInPlaceApi('jobs', 'boards', { includeInactive: true })
+  const { data: boards = NO_BOARDS, isLoading } = query
   // All time, the same query as the board chips on «Вакансії»: one board, one number on both screens.
   const { data: stats } = useApi('jobs', 'stats', { from: 0 })
   const [name, setName] = useState('')
@@ -257,7 +259,9 @@ export function JobBoardsPage(): ReactElement {
       />
       <PageBody>
         <div className="flex w-full max-w-4xl flex-col gap-3">
-          {isLoading ? (
+          {query.failed ? (
+            <LoadError title="Не вдалося завантажити майданчики" onRetry={query.retry} />
+          ) : isLoading ? (
             <Delayed delay={150}>
               <div className="flex flex-col gap-3">
                 {[0, 1, 2].map((i) => (

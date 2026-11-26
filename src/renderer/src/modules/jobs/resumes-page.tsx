@@ -3,7 +3,8 @@ import { CircleCheck, Eye, FileText, FileUp, Trash2, Upload } from 'lucide-react
 import type { FileSource } from '@shared/domain/designs'
 import { resumeInputSchema, type JobBoard, type Resume } from '@shared/domain/jobs'
 import { limitsOf, requiredOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { api } from '@/lib/api'
 import { fileUrl, toFileSources } from '@/lib/files'
 import { fmtBytes, fmtDateTime, fmtDay, fmtPercent } from '@/lib/format'
@@ -211,7 +212,8 @@ function ResumeCard({ resume, boards, onPreview }: { resume: Resume; boards: Job
 
 /** Resume versions: files, what changed, where each version is uploaded, which one gets replies. */
 export function ResumesPage(): ReactElement {
-  const { data: resumes = [], isLoading } = useApi('jobs', 'resumes')
+  const query = useInPlaceApi('jobs', 'resumes')
+  const { data: resumes = [], isLoading } = query
   const { data: boards = [] } = useApi('jobs', 'boards')
   const [pending, setPending] = useState<FileSource | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -258,7 +260,9 @@ export function ResumesPage(): ReactElement {
             isOver && 'bg-lime-soft'
           )}
         >
-          {isLoading ? (
+          {query.failed ? (
+            <LoadError title="Не вдалося завантажити резюме" onRetry={query.retry} />
+          ) : isLoading ? (
             <Delayed delay={150}>
               <div className="grid grid-cols-2 gap-3">
                 <CardSkeleton height={260} />

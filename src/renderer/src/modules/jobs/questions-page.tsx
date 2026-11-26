@@ -11,7 +11,8 @@ import {
 } from '@shared/domain/jobs'
 import { DRAFT_TITLES } from '@shared/entity-types'
 import { api } from '@/lib/api'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { useAutosave } from '@/hooks/use-autosave'
 import { fmtDateTime, fmtDay, easeLabel } from '@/lib/format'
@@ -281,7 +282,8 @@ export function QuestionsPage(): ReactElement {
   const create = useApiMutation('jobs', 'createQuestion')
 
   // The open question is loaded on its own: an edit that drops it out of the search/tag filter must not close it.
-  const { data: current } = useApi('jobs', 'question', open ?? '', { enabled: !!open })
+  const openRecord = useInPlaceApi('jobs', 'question', open ?? '', { enabled: !!open })
+  const current = openRecord.data
 
   // What is really narrowing the list, for the «Нічого не знайдено» hint.
   const filters = [
@@ -458,7 +460,13 @@ export function QuestionsPage(): ReactElement {
               }}
             />
           }
-          detail={current && current.id === open ? <QuestionDetail key={current.id} question={current} topics={topics} onClose={() => setOpen(null)} /> : null}
+          detail={
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : current && current.id === open ? (
+              <QuestionDetail key={current.id} question={current} topics={topics} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </PageBody>
     </Page>

@@ -19,7 +19,8 @@ import {
   type WeekSnapshot
 } from '@shared/domain/review'
 import { limitsOf } from '@/lib/limits'
-import { KEEP_PERIOD, useApi, useApiMutation } from '@/lib/query'
+import { KEEP_PERIOD, useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import {
   dayKey,
   fmtHours,
@@ -320,12 +321,13 @@ export function ReviewPage() {
   const navigate = useNavigate()
   const week = params.get('week') ?? currentWeekKey()
   const isCurrent = week === currentWeekKey()
-  const { data, isLoading } = useApi(
+  const review = useInPlaceApi(
     'review',
     'get',
     isCurrent ? {} : { weekStart: week },
     KEEP_PERIOD
   )
+  const { data, isLoading } = review
   const setWeek = (key: string): void =>
     setParams(key === currentWeekKey() ? {} : { week: key }, { replace: true })
   const shift = (days: number): void => setWeek(dayKey(addDays(parseKey(week), days)))
@@ -348,6 +350,8 @@ export function ReviewPage() {
   const wide = wideSections(filled)
   const quiet = !!snapshot && filled.length === 0
   const previousWeek = dayKey(addDays(parseKey(currentWeekKey()), -7))
+  if (review.failed)
+    return <LoadError title="Не вдалося завантажити підсумки" onRetry={review.retry} />
   // The route's own skeleton, delayed: a fast load doesn't flash. Switching weeks keeps the old one (KEEP_PERIOD).
   if (isLoading || !data || !snapshot) return <PageSkeleton kind="overview" />
 

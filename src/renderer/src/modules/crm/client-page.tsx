@@ -2,7 +2,8 @@ import { useState, type ReactElement } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, Plus, SearchX } from 'lucide-react'
 import { clientInputSchema, type ClientPatch } from '@shared/domain/crm'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { limitsOf } from '@/lib/limits'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useStillCurrent } from '@/hooks/use-still-current'
@@ -40,7 +41,8 @@ const CLIENT_L = limitsOf(clientInputSchema)
 export function ClientPage(): ReactElement {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { data, isLoading } = useApi('clients', 'details', id)
+  const record = useInPlaceApi('clients', 'details', id)
+  const { data, isLoading } = record
   const update = useApiMutation('clients', 'update')
   // Back to the list after the request: not if the person has gone elsewhere meanwhile.
   const stillHere = useStillCurrent(id)
@@ -58,6 +60,8 @@ export function ClientPage(): ReactElement {
   )
   const mode = useRecordMode(id, 'client')
 
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити клієнта" onRetry={record.retry} />
   if (isLoading) return <PageSkeleton kind="detail" />
   if (!data || !c) {
     return (

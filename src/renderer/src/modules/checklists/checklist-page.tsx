@@ -5,7 +5,8 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ArrowLeft, ArrowUpRight, Plus, RotateCcw, Rocket, X, SearchX } from 'lucide-react'
 import { checklistInputSchema, type ChecklistPatch } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useStillCurrent } from '@/hooks/use-still-current'
 import { EmptyState } from '@/components/common/page'
@@ -42,7 +43,8 @@ export function ChecklistPage(): ReactElement {
 
 function ChecklistView({ id }: { id: string }): ReactElement {
   const navigate = useNavigate()
-  const { data, isLoading } = useApi('checklists', 'get', id)
+  const record = useInPlaceApi('checklists', 'get', id)
+  const { data, isLoading } = record
   const update = useApiMutation('checklists', 'update')
   const reset = useApiMutation('checklists', 'reset', { successMessage: 'Позначки знято' })
   const listPath = data?.kind === 'run' ? '/checklists?tab=runs' : '/checklists'
@@ -92,6 +94,8 @@ function ChecklistView({ id }: { id: string }): ReactElement {
     focusFirstItem()
   }, [addOnOpen, mode.editing, setParams])
 
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити чек-лист" onRetry={record.retry} />
   if (isLoading) return <PageSkeleton kind="detail" />
   if (!data) {
     return (

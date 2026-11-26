@@ -1,7 +1,8 @@
 import type { ReactElement } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ArrowRight, TrendingUp } from 'lucide-react'
-import { KEEP_PERIOD, useApi } from '@/lib/query'
+import { KEEP_PERIOD, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { fmtDayFull, fmtMoney, fmtPercent } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { EmptyState, Page, PageBody, PageHeader } from '@/components/common/page'
@@ -38,7 +39,8 @@ const sourceOf = (r: { clientName: string | null; platformName: string | null })
 export function IncomePage(): ReactElement {
   const [month, setMonth] = useMonth()
   const [from, to] = monthRange(month)
-  const { data: rows } = useApi('finance', 'income', { from, to }, KEEP_PERIOD)
+  const query = useInPlaceApi('finance', 'income', { from, to }, KEEP_PERIOD)
+  const { data: rows } = query
   const navigate = useNavigate()
 
   const totals = {
@@ -66,7 +68,9 @@ export function IncomePage(): ReactElement {
       </PageHeader>
       {/* Tabs of the finance hub share the shell key (handle.hub), so only the body fades in on a tab switch. */}
       <PageBody className="animate-page">
-        {!rows ? (
+        {query.failed ? (
+          <LoadError title="Не вдалося завантажити доходи" onRetry={query.retry} />
+        ) : !rows ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState

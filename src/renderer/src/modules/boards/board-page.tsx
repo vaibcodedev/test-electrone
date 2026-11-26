@@ -14,7 +14,8 @@ import { boardInputSchema, type Board, type BoardPatch } from '@shared/domain/bo
 import { ENTITY_META } from '@shared/entity-types'
 import { limitsOf } from '@/lib/limits'
 import { fmtTitle } from '@/lib/format'
-import { useApi, useApiMutation } from '@/lib/query'
+import { useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { useAutosave } from '@/hooks/use-autosave'
 import { useUi } from '@/stores/ui-store'
 import { EmptyState, Page, Segmented } from '@/components/common/page'
@@ -198,10 +199,13 @@ function BoardHeader({ board }: { board: Board }) {
 export function BoardPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { data: details, isLoading } = useApi('boards', 'details', id)
+  const record = useInPlaceApi('boards', 'details', id)
+  const { data: details, isLoading } = record
   const view = (useUi((s) => s.views.board) as BoardView | undefined) ?? 'kanban'
   const [cardId, setCardId] = useCardParam()
 
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити дошку" onRetry={record.retry} />
   if (isLoading) return <PageSkeleton kind="board" />
   if (!details) {
     return (

@@ -10,7 +10,8 @@ import {
   type UiComponent
 } from '@shared/domain/components'
 import { api } from '@/lib/api'
-import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
+import { invalidateAll, useApiMutation, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { reportError } from '@/lib/error-reporting'
 import { useAutosave } from '@/hooks/use-autosave'
 import { limitsOf } from '@/lib/limits'
@@ -203,7 +204,10 @@ function Editor({ item }: { item: UiComponent }): ReactElement {
 export function ComponentPage(): ReactElement {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { data, isLoading } = useApi('components', 'get', id)
+  const record = useInPlaceApi('components', 'get', id)
+  const { data, isLoading } = record
+  if (record.failed)
+    return <LoadError title="Не вдалося завантажити компонент" onRetry={record.retry} />
   if (isLoading) return <PageSkeleton kind="detail" />
   if (!data)
     return (

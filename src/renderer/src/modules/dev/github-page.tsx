@@ -2,7 +2,8 @@ import { useState, type ReactElement } from 'react'
 import { CircleDot, GitCommitHorizontal, RefreshCw, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { invalidateAll, useApi } from '@/lib/query'
+import { invalidateAll, useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { reportError } from '@/lib/error-reporting'
 import { cn } from '@/lib/utils'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
@@ -19,7 +20,8 @@ import { CommitsTab } from './github-commits-tab'
 
 /** GitHub: repos, open issues/PRs and recent commits (read-only token). */
 export function GithubPage(): ReactElement {
-  const { data: status, isLoading } = useApi('github', 'status')
+  const connection = useInPlaceApi('github', 'status')
+  const { data: status, isLoading } = connection
   const [tab, setTab] = useState('repos')
   // Repo filters live here so «Оновити» refreshes exactly what the tabs show.
   const [issuesRepo, setIssuesRepo] = useState<string>()
@@ -49,6 +51,8 @@ export function GithubPage(): ReactElement {
     }
   }
 
+  if (connection.failed)
+    return <LoadError title="Не вдалося перевірити підключення GitHub" onRetry={connection.retry} />
   if (isLoading) return <PageSkeleton kind="list" />
 
   if (!status?.connected) {

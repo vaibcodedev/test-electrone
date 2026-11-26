@@ -4,7 +4,8 @@ import { ChartColumn } from 'lucide-react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { JobFunnelRow } from '@shared/domain/jobs'
-import { useApi } from '@/lib/query'
+import { useInPlaceApi } from '@/lib/query'
+import { LoadError } from '@/features/route-error'
 import { fmtReplyTime, LOCALE } from '@/lib/format'
 import { EmptyState, Page, PageBody, PageHeader, Segmented } from '@/components/common/page'
 import { CardSkeleton, Delayed } from '@/components/common/page-skeleton'
@@ -41,7 +42,8 @@ export function JobStatsPage(): ReactElement {
   // No `to`: the server counts up to "now" on every refetch, so new records show up without reopening.
   // `from` is a local midnight — the query key stays stable within a day.
   const from = startOfDay(subDays(new Date(), Number(range))).getTime()
-  const { data } = useApi('jobs', 'stats', { from })
+  const query = useInPlaceApi('jobs', 'stats', { from })
+  const { data } = query
   const weekly = (data?.weekly ?? []).map((w) => ({ ...w, label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }) }))
 
   return (
@@ -52,7 +54,9 @@ export function JobStatsPage(): ReactElement {
         actions={<Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} />}
       />
       <PageBody>
-        {!data ? (
+        {query.failed ? (
+          <LoadError title="Не вдалося завантажити статистику" onRetry={query.retry} />
+        ) : !data ? (
           <Delayed delay={150}>
             <div className="grid grid-cols-2 gap-3">
               {Array.from({ length: 6 }, (_, i) => (

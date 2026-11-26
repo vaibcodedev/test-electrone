@@ -3,7 +3,8 @@ import { useId, useState, type ReactElement } from 'react'
 import { Folder, NotebookPen, Plus } from 'lucide-react'
 import { noteInputSchema, type Note, type NotePatch } from '@shared/domain/notes'
 import { limitsOf } from '@/lib/limits'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { fmtRelative, mdPreview } from '@/lib/format'
@@ -113,7 +114,8 @@ export function NotesPage(): ReactElement {
   // Folder counters under the same search and tag, so the chips never promise notes the result lacks
   // (notes.folderCounts takes no filters yet).
   const { data: all = [] } = useApi('notes', 'list', base)
-  const { data: openItem } = useApi('notes', 'get', openId ?? '', { enabled: !!openId })
+  const openRecord = useInPlaceApi('notes', 'get', openId ?? '', { enabled: !!openId })
+  const openItem = openRecord.data
   const create = useApiMutation('notes', 'create')
 
   const countIn = (f: string): number => all.filter((n) => n.folder === f).length
@@ -236,7 +238,13 @@ export function NotesPage(): ReactElement {
               }}
             />
           }
-          detail={openItem ? <NoteDetail key={openItem.id} note={openItem} onClose={() => setOpen(null)} /> : null}
+          detail={
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : openItem ? (
+              <NoteDetail key={openItem.id} note={openItem} onClose={() => setOpen(null)} />
+            ) : null
+          }
         />
       </PageBody>
     </Page>

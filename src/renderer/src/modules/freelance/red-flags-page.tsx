@@ -1,7 +1,8 @@
 import { useState, type ReactElement } from 'react'
 import { Flag, Plus } from 'lucide-react'
 import { redFlagInputSchema, type RedFlag, type RedFlagPatch } from '@shared/domain/freelance'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualList } from '@/components/common/virtual-list'
 import { mdPreview } from '@/lib/format'
@@ -195,7 +196,8 @@ export function RedFlagsPage() {
   const q = useDebounced(search.trim())
   const list = useInfiniteApi('redflags', 'list', { search: q || undefined })
   const create = useApiMutation('redflags', 'create', { onSuccess: (f) => setOpen(f.id) })
-  const { data: current } = useApi('redflags', 'get', open ?? '', { enabled: !!open })
+  const openRecord = useInPlaceApi('redflags', 'get', open ?? '', { enabled: !!open })
+  const current = openRecord.data
   const add = (): void => create.mutate({ title: 'Новий прапорець' })
 
   return (
@@ -271,7 +273,9 @@ export function RedFlagsPage() {
             />
           }
           detail={
-            current && current.id === open ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : current && current.id === open ? (
               <FlagDetail key={current.id} flag={current} onClose={() => setOpen(null)} />
             ) : null
           }

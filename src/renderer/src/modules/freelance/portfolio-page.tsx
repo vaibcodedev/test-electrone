@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router'
 import { BriefcaseBusiness, ClipboardCopy, ImagePlus, Plus } from 'lucide-react'
 import type { FileSource } from '@shared/domain/designs'
 import { caseInputSchema, type CasePatch, type PortfolioCase } from '@shared/domain/freelance'
-import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
+import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
+import { RecordLoadError } from '@/components/common/record-load-error'
 import { useDebounced } from '@/hooks/use-debounced'
 import { VirtualGrid } from '@/components/common/virtual-list'
 import { capitalize, mdPreview } from '@/lib/format'
@@ -353,7 +354,8 @@ export function PortfolioPage() {
   const q = useDebounced(search.trim())
   const list = useInfiniteApi('cases', 'list', { search: q || undefined, niche })
   const create = useApiMutation('cases', 'create', { onSuccess: (c) => setOpen(c.id) })
-  const { data: current } = useApi('cases', 'get', open ?? '', { enabled: !!open })
+  const openRecord = useInPlaceApi('cases', 'get', open ?? '', { enabled: !!open })
+  const current = openRecord.data
   const niches = [...new Set(sample.map((c) => c.niche).filter(Boolean))]
   const add = (): void => create.mutate({ title: 'Новий кейс' })
   const filterHint = [
@@ -473,7 +475,9 @@ export function PortfolioPage() {
             />
           }
           detail={
-            current && current.id === open ? (
+            openRecord.failed ? (
+              <RecordLoadError pane onRetry={openRecord.retry} onClose={() => setOpen(null)} />
+            ) : current && current.id === open ? (
               <CaseDetail key={current.id} c={current} onClose={() => setOpen(null)} />
             ) : null
           }
