@@ -15,31 +15,42 @@ import {
   ItemTitle
 } from '@/components/ui/item'
 import { FavoriteMark } from './favorite-mark'
+import { entityMenu, type EntityMenuContext } from '@/features/record-menu/entity-menu'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
 
 export function useOpenEntity(): (ref: Pick<EntitySummary, 'type' | 'id'>) => void {
   const navigate = useNavigate()
   return (ref) => navigate(ENTITY_META[ref.type].route(ref.id))
 }
 
-/** A compact row pointing to any entity (shadcn Item) — used by links, pins, search, recent. */
+/**
+ * A compact row pointing to any entity (shadcn Item) — used by links, pins, search, recent. Right click (and «⋯»
+ * where the row has no trailing controls of its own) opens the record menu: `menu` adds what the place offers
+ * («Прибрати зв’язок», «Зняти мітку»), `menu={false}` turns it off.
+ */
 export function EntityRow({
   item,
   trailing,
   className,
-  onOpen
+  onOpen,
+  menu
 }: {
   item: EntitySummary
   trailing?: ReactNode
   className?: string
   onOpen?: () => void
+  menu?: EntityMenuContext | false
 }) {
   const open = useOpenEntity()
   const Icon = ENTITY_ICON[item.type]
   const meta = [ENTITY_META[item.type].label, item.subtitle].filter(Boolean).join(' · ')
-  return (
+  const row = (
     <Item
       size="xs"
-      className={cn('group cursor-pointer hover:bg-(--tile-hover)', className)}
+      className={cn(
+        'group cursor-pointer hover:bg-(--tile-hover) group-hover/record-menu:bg-(--tile-hover)',
+        menu === false && className
+      )}
       asChild
     >
       <div {...clickableProps(() => (onOpen ? onOpen() : open(item)))}>
@@ -62,11 +73,25 @@ export function EntityRow({
           </ItemDescription>
         </ItemContent>
         <ItemActions>
-          {trailing ?? (
-            <ArrowUpRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
-          )}
+          {trailing ??
+            (menu === false ? (
+              <ArrowUpRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+            ) : (
+              // The «⋯» beside the row (never inside its button) stands over this room.
+              <span aria-hidden className="size-6" />
+            ))}
         </ItemActions>
       </div>
     </Item>
+  )
+  if (menu === false) return row
+  return (
+    // The row's own margins go on the area, so the «⋯» stands over the room the row keeps for it.
+    <RecordMenu def={entityMenu} record={item} ctx={{ onOpen, ...menu }} className={className}>
+      {row}
+      {trailing === undefined && (
+        <RecordMenuButton className="absolute top-1/2 right-2.5 -mt-3" />
+      )}
+    </RecordMenu>
   )
 }

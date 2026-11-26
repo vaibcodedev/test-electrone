@@ -58,6 +58,8 @@ import {
   EnumSelect,
   TextareaBlock
 } from './editor-kit'
+import { bindMenu } from '@/features/record-menu/record-menu'
+import { claudeMenu, TRASHED } from './menu'
 
 const LIMITS = limitsOf(claudeInputSchema)
 
@@ -87,16 +89,6 @@ const NEW_TITLE: Record<ClaudeKind, string> = {
   plugin: 'Новий плагін',
   guide: 'Новий гайд',
   prompt: 'Новий промт'
-}
-
-/** Accusative noun of the trash toast: «Промт переміщено в кошик» (glossary: always with the noun). */
-const TRASHED: Record<ClaudeKind, string> = {
-  note: 'Нотатку',
-  branch: 'Гілку',
-  skill: 'Скіл',
-  plugin: 'Плагін',
-  guide: 'Гайд',
-  prompt: 'Промт'
 }
 
 function ClaudeDetail({ item, onClose }: { item: ClaudeItem; onClose: () => void }): ReactElement {
@@ -347,7 +339,11 @@ export function ClaudePage(): ReactElement {
                   <div className="relative">
                     {/* Room for the copy button only beside the title and summary: the meta line keeps the full
                         width, so the time lines up with the rows without a button. */}
-                    <ListItem active={active} onClick={() => setOpen(i.id)}>
+                    <ListItem
+                      active={active}
+                      onClick={() => setOpen(i.id)}
+                      menu={bindMenu(claudeMenu, i, { onOpen: () => setOpen(i.id) })}
+                    >
                       <div className={cn('flex min-w-0 items-center gap-1.5', copyable && 'pr-9')}>
                         <span className="truncate text-body font-medium">{i.title}</span>
                         <FavoriteMark entity={{ type: 'claude', id: i.id }} onInk={active} />
@@ -403,7 +399,8 @@ export function ClaudePage(): ReactElement {
                         message="Промт скопійовано"
                         onCopied={() => markCopied.mutate(i.id)}
                         className={cn(
-                          'absolute top-2.5 right-3',
+                          // Left of the row's «⋯».
+                          'absolute top-2.5 right-10',
                           active &&
                             'bg-ink-foreground/10 text-ink-foreground hover:bg-ink-foreground/15'
                         )}

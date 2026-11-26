@@ -45,6 +45,8 @@ import { ImportButton } from '@/components/common/import-dialog'
 import { DisabledHint } from '@/components/common/disabled-hint'
 import { NicheCombobox } from './niche-combobox'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { bindMenu } from '@/features/record-menu/record-menu'
+import { templateMenu } from './template-menu'
 
 const TPL_L = limitsOf(templateInputSchema)
 const SITUATION_OPTIONS = TEMPLATE_SITUATIONS.map((s) => ({ value: s, label: SITUATION_LABEL[s] }))
@@ -60,26 +62,41 @@ function CopyTemplateButton({
   template: Pick<MessageTemplate, 'id' | 'title' | 'body'>
 }): ReactElement {
   const [open, setOpen] = useState(false)
-  const markCopied = useApiMutation('templates', 'markCopied')
   return (
     <>
       <Button variant="soft" size="sm" onClick={() => setOpen(true)}>
         <Copy /> Скопіювати
       </Button>
-      <TemplateFillDialog
-        open={open}
-        onOpenChange={setOpen}
-        heading="Скопіювати шаблон"
-        title={template.title}
-        body={template.body}
-        submitLabel="Скопіювати текст"
-        onSubmit={async (filled) => {
-          if (!(await copyText(filled, 'Шаблон скопійовано'))) return
-          markCopied.mutate(template.id)
-          setOpen(false)
-        }}
-      />
+      <CopyTemplateDialog template={template} open={open} onOpenChange={setOpen} />
     </>
+  )
+}
+
+/** «Скопіювати шаблон»: the gaps filled in, then the text goes to the clipboard and counts as copied. */
+function CopyTemplateDialog({
+  template,
+  open,
+  onOpenChange
+}: {
+  template: Pick<MessageTemplate, 'id' | 'title' | 'body'>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}): ReactElement {
+  const markCopied = useApiMutation('templates', 'markCopied')
+  return (
+    <TemplateFillDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      heading="Скопіювати шаблон"
+      title={template.title}
+      body={template.body}
+      submitLabel="Скопіювати текст"
+      onSubmit={async (filled) => {
+        if (!(await copyText(filled, 'Шаблон скопійовано'))) return
+        markCopied.mutate(template.id)
+        onOpenChange(false)
+      }}
+    />
   )
 }
 
@@ -279,6 +296,10 @@ export function TemplatesPage() {
     .filter(Boolean)
     .join(' ')
 
+  // «Скопіювати…» from a row's menu: one dialog for the page (the menu is gone by the time it opens). The
+  // template is kept after closing, so the dialog fades out with its text.
+  const [copying, setCopying] = useState<MessageTemplate | null>(null)
+  const [copyOpen, setCopyOpen] = useState(false)
   const counts = all.reduce<Partial<Record<TemplateSituation, number>>>((acc, t) => {
     acc[t.situation] = (acc[t.situation] ?? 0) + 1
     return acc
@@ -286,6 +307,7 @@ export function TemplatesPage() {
 
   return (
     <Page>
+      {copying && <CopyTemplateDialog template={copying} open={copyOpen} onOpenChange={setCopyOpen} />}
       <PageHeader
         title="Шаблони"
         subtitle="Готові відповіді для відгуків і листування з клієнтами."
@@ -349,7 +371,17 @@ export function TemplatesPage() {
                 ))
               }
               renderItem={(t) => (
-                <ListItem active={t.id === open} onClick={() => setOpen(t.id)}>
+                <ListItem
+                  active={t.id === open}
+                  onClick={() => setOpen(t.id)}
+                  menu={bindMenu(templateMenu, t, {
+                    onOpen: () => setOpen(t.id),
+                    onCopy: () => {
+                      setCopying(t)
+                      setCopyOpen(true)
+                    }
+                  })}
+                >
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-1.5">

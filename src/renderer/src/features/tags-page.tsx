@@ -38,7 +38,7 @@ import { PALETTE } from '@shared/colors'
 const TAG_LIMITS = limitsOf(tagInputSchema)
 
 /** Everything carrying the tag, paged (keyed by tag: another tag's rows never stand under this name). */
-function TaggedRecords({ tagId }: { tagId: string }): ReactElement {
+function TaggedRecords({ tagId, tagName }: { tagId: string; tagName: string }): ReactElement {
   const page = useInfiniteApi('tags', 'entities', { tagId })
   if (!page.isLoading && !page.isError && !page.items.length)
     return (
@@ -60,7 +60,7 @@ function TaggedRecords({ tagId }: { tagId: string }): ReactElement {
       getKey={(e) => `${e.type}:${e.id}`}
       estimateSize={40}
       gap={0}
-      renderItem={(e) => <EntityRow item={e} />}
+      renderItem={(e) => <EntityRow item={e} menu={{ tag: { id: tagId, name: tagName } }} />}
     />
   )
 }
@@ -256,7 +256,7 @@ export function TagsPage(): ReactElement {
                   </Field>
                   <div className="flex flex-col gap-1">
                     <SectionLabel>Позначено</SectionLabel>
-                    <TaggedRecords key={current.id} tagId={current.id} />
+                    <TaggedRecords key={current.id} tagId={current.id} tagName={current.name} />
                   </div>
                 </CardContent>
               </>

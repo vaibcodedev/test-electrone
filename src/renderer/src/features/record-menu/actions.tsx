@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import {
   Link2,
   Pin,
@@ -13,12 +13,12 @@ import {
 import type { ApiNamespace } from '@shared/api'
 import type { EntityRef, Tag } from '@shared/domain/common'
 import { wikiLink } from '@shared/wikilinks'
+import { ENTITY_META } from '@shared/entity-types'
 import { toast } from 'sonner'
 import { call, type ArgOf, type MethodOf } from '@/lib/api'
 import { invalidateAll, useApi, useApiMutation } from '@/lib/query'
 import { reportError } from '@/lib/error-reporting'
 import { useUi } from '@/stores/ui-store'
-import { useOpenEntity } from '@/components/common/entity-link'
 import { copyText } from '@/components/common/copy-button'
 import { toastPinToggled } from '@/components/common/pin-buttons'
 import { toastTrashed } from '@/components/common/trash-toast'
@@ -73,12 +73,13 @@ export function focusAfterRemoval(origin: HTMLElement): () => void {
 
 /** «Відкрити»: the row's own handler (a sheet, a pane) or the record's address. */
 export function useOpenItem(ref: EntityRef | null, onOpen?: () => void): MenuItemSpec | null {
-  const openEntity = useOpenEntity()
+  // Not useOpenEntity: components/common/entity-link renders this menu, an import back would be a cycle.
+  const navigate = useNavigate()
   if (!onOpen && !ref) return null
   return {
     label: 'Відкрити',
     icon: SquareArrowOutUpRight,
-    run: () => (onOpen ? onOpen() : ref && openEntity(ref))
+    run: () => (onOpen ? onOpen() : ref && navigate(ENTITY_META[ref.type].route(ref.id)))
   }
 }
 

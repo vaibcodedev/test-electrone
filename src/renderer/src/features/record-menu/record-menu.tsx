@@ -168,3 +168,45 @@ export function RecordMenuButton({
     </Tooltip>
   )
 }
+
+/** A row's menu handed to a shared row component (ListItem): the declaration with its record and context. */
+export interface RecordMenuBinding {
+  // The row component doesn't know the record's type; bindMenu checked it.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  def: RecordMenuDef<any, any>
+  record: unknown
+  ctx?: unknown
+}
+
+export function bindMenu<T, C = undefined>(
+  def: RecordMenuDef<T, C>,
+  record: T,
+  ...ctx: C extends undefined ? [] : [C]
+): RecordMenuBinding {
+  return { def, record, ctx: ctx[0] }
+}
+
+/**
+ * A tile or card with the record menu: right click anywhere on it, «⋯» in its top right corner (the tile keeps
+ * room for it: `pr-10` on its first line). The tile itself stays the clickable element; «⋯» is its sibling.
+ */
+export function RecordMenuTile({
+  menu,
+  onInk,
+  className = 'h-full',
+  buttonClassName = 'absolute top-3 right-3',
+  children
+}: {
+  menu: RecordMenuBinding
+  onInk?: boolean
+  className?: string
+  buttonClassName?: string
+  children: ReactNode
+}): ReactElement {
+  return (
+    <RecordMenu def={menu.def} record={menu.record} ctx={menu.ctx} className={className}>
+      {children}
+      <RecordMenuButton onInk={onInk} className={buttonClassName} />
+    </RecordMenu>
+  )
+}

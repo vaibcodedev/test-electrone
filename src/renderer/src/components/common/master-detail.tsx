@@ -45,6 +45,11 @@ import { AttachmentsPanel } from './attachments'
 import { SectionLabel } from './section-label'
 import { Confirm } from './confirm'
 import { IconAction } from './icon-action'
+import {
+  RecordMenu,
+  RecordMenuButton,
+  type RecordMenuBinding
+} from '@/features/record-menu/record-menu'
 
 export { SectionLabel }
 
@@ -517,13 +522,18 @@ export function EntityAside({
   )
 }
 
-/** Selectable list row for master lists (shadcn Item; selected = ink like the reference). */
+/**
+ * Selectable list row for master lists (shadcn Item; selected = ink like the reference). With `menu`
+ * (`bindMenu(def, record, ctx)`) the row has the record menu: right click, and «⋯» in its top right corner
+ * (beside the row's button, never inside it; the row keeps room for it).
+ */
 export function ListItem({
   active,
   onClick,
   children,
   className,
-  align = 'center'
+  align = 'center',
+  menu
 }: {
   active?: boolean
   onClick: () => void
@@ -534,14 +544,21 @@ export function ListItem({
    * bottom with mt-auto) instead of being centred vertically.
    */
   align?: 'center' | 'top'
+  menu?: RecordMenuBinding
 }) {
   const top = align === 'top'
-  return (
+  const row = (
     <Item
       asChild
       variant={active ? 'active' : 'muted'}
       size="sm"
-      className={cn(top && 'items-stretch', className)}
+      className={cn(
+        top && 'items-stretch',
+        // Still the hovered row while the pointer is on its «⋯».
+        menu && 'pr-10',
+        menu && !active && 'group-hover/record-menu:bg-(--tile-hover)',
+        className
+      )}
     >
       <button
         type="button"
@@ -553,5 +570,13 @@ export function ListItem({
         <div className={cn('w-full min-w-0 wrap-anywhere', top && 'flex flex-col')}>{children}</div>
       </button>
     </Item>
+  )
+  if (!menu) return row
+  return (
+    // h-full: a grid card (align top) stretches to its cell through the area.
+    <RecordMenu def={menu.def} record={menu.record} ctx={menu.ctx} className="h-full">
+      {row}
+      <RecordMenuButton onInk={active} className="absolute top-2 right-2" />
+    </RecordMenu>
   )
 }

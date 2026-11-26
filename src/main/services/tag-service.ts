@@ -3,9 +3,11 @@ import { z } from 'zod'
 import type { TagsApi } from '@shared/api'
 import type { EntityType } from '@shared/entity-types'
 import {
+  entityRefSchema,
   idSchema,
   pageSchema,
   patchOf,
+  type EntityRef,
   type EntitySummary,
   type Tag,
   type TagWithUsage
@@ -126,6 +128,29 @@ export class TagService {
     return result
   }
 
+  /**
+   * Takes one tag off one record (`on: false`, «Зняти мітку» on the tag's page) or puts it back (`on: true`, the
+   * toast's «Скасувати»). Only a live record; its other tags stay. The record counts as changed (updatedAt).
+   */
+  setOn(tagId: string, ref: EntityRef, on: boolean): void {
+    const d = this.registry.get(ref.type)
+    if (!this.registry.findRow(ref)) throw new NotFoundError(ref.type, ref.id)
+    if (!this.db.select({ id: tags.id }).from(tags).where(eq(tags.id, tagId)).get())
+      throw new NotFoundError('Мітка', tagId)
+    this.ctx.tx(() => {
+      const where = and(
+        eq(entityTags.entityType, ref.type),
+        eq(entityTags.entityId, ref.id),
+        eq(entityTags.tagId, tagId)
+      )
+      const has = !!this.db.select({ id: entityTags.tagId }).from(entityTags).where(where).get()
+      if (has === on) return
+      if (on) this.db.insert(entityTags).values({ entityType: ref.type, entityId: ref.id, tagId }).run()
+      else this.db.delete(entityTags).where(where).run()
+      this.db.update(d.table).set({ updatedAt: now() }).where(eq(d.table.id, ref.id)).run()
+    })
+  }
+
   clearFor(type: EntityType, entityId: string): void {
     this.db
       .delete(entityTags)
@@ -173,6 +198,12 @@ export class TagService {
         return this.update(id, patch)
       },
       remove: async (id) => this.remove(idSchema.parse(id)),
+      setOn: async (args) => {
+        const { tagId, ref, on } = z
+          .object({ tagId: idSchema, ref: entityRefSchema, on: z.boolean() })
+          .parse(args)
+        this.setOn(tagId, ref, on)
+      },
       entities: async (args) => {
         const { tagId, ...page } =
           typeof args === 'string'

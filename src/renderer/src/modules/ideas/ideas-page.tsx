@@ -23,7 +23,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { IDEA_STATUS_BADGE, IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
 import { IdeaDetail } from './idea-detail'
 import { ideaMenu } from './menu'
-import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
+import { bindMenu } from '@/features/record-menu/record-menu'
 import { noResultsHint, presentChips } from '../claude/chips'
 
 function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
@@ -84,18 +84,9 @@ const ON_INK = 'in-data-active:bg-ink-foreground/12 in-data-active:text-ink-fore
 
 function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onClick: () => void }): ReactElement {
   return (
-    <RecordMenu def={ideaMenu} record={idea} ctx={{ onOpen: onClick }}>
-      {/* pr-10: the «⋯» has its own room in the corner, over nothing of the row. */}
-      <ListItem
-        active={active}
-        onClick={onClick}
-        // Still the hovered row while the pointer is on its «⋯».
-        className={cn('pr-10', !active && 'group-hover/record-menu:bg-(--tile-hover)')}
-      >
-        <IdeaRowBody idea={idea} active={active} />
-      </ListItem>
-      <RecordMenuButton onInk={active} className="absolute top-2 right-2" />
-    </RecordMenu>
+    <ListItem active={active} onClick={onClick} menu={bindMenu(ideaMenu, idea, { onOpen: onClick })}>
+      <IdeaRowBody idea={idea} active={active} />
+    </ListItem>
   )
 }
 

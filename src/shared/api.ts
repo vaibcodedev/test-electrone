@@ -786,6 +786,8 @@ export interface TagsApi {
   create(input: TagInput): Promise<Tag>
   update(args: { id: string; patch: Partial<TagInput> }): Promise<Tag>
   remove(id: string): Promise<void>
+  /** One tag off one live record (`on: false`) or back on it (`on: true`); its other tags stay. */
+  setOn(args: { tagId: string; ref: EntityRef; on: boolean }): Promise<void>
   /** Live entities carrying the tag, recently changed first; pass `{ tagId, limit, offset }` to page. */
   entities(args: string | ({ tagId: string } & PageQuery)): Promise<EntitySummary[]>
 }

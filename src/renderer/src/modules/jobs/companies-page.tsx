@@ -42,6 +42,8 @@ import { BucketField } from '@/components/common/bucket-field'
 import { APP_STATUS_LABEL, appStatusVariant, salaryLabel } from './labels'
 import { AskedQuestions } from './application-questions'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { bindMenu } from '@/features/record-menu/record-menu'
+import { companyMenu } from './menus'
 
 const LIMITS = limitsOf(companyInputSchema)
 const appKey = (a: { id: string }): string => a.id
@@ -295,7 +297,11 @@ export function CompaniesPage(): ReactElement {
           // Tokens, not opacity: a faded meta fell below 4.5:1 in the light theme.
           const metaTone = active ? 'text-ink-muted' : 'text-muted-foreground'
           return (
-            <ListItem active={active} onClick={() => setOpenId(c.id)}>
+            <ListItem
+              active={active}
+              onClick={() => setOpenId(c.id)}
+              menu={bindMenu(companyMenu, c, { onOpen: () => setOpenId(c.id) })}
+            >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
                   <span className="truncate text-body font-medium">{c.name}</span>
