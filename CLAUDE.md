@@ -25,6 +25,7 @@
 | Когда | Что использовать |
 |---|---|
 | API библиотеки, фреймворка, CLI | **Context7** (MCP, `resolve-library-id` → `query-docs`), правило 1 |
+| Где определено и где используется (символ TypeScript), ошибки типов по ходу правок | `typescript-lsp` (LSP; нужен глобальный `typescript-language-server` и `typescript@5.9.3` — версия как в проекте, обновлять вместе). Для символов точнее `Grep`; сборку и тесты не заменяет |
 | Компоненты интерфейса | `shadcn` — **обязательно**. Лежит в репозитории: `.agents/skills/shadcn` (для Claude Code — ссылка `.claude/skills/shadcn`; если нет — `New-Item -ItemType Junction -Path .claude\skills\shadcn -Target <корень>\.agents\skills\shadcn`). Агенту без скила — прочитать `SKILL.md` и `rules/*.md` перед UI-правками |
 | Новая или переделываемая UI-часть | `frontend-design` |
 | Ревью и полировка экрана по скриншотам; как делают другие | плагин `ui-design-review` (`ui-review`, `ui-polish`, `ui-compare`) |
