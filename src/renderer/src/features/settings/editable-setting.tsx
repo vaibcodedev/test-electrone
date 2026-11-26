@@ -5,6 +5,20 @@ import { DisabledHint } from '@/components/common/disabled-hint'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
+/** No space at the start, one between words: spaces alone looked like an empty field that was somehow full. */
+const tidy = (text: string): string => text.replace(/^\s+/, '').replace(/\s{2,}/g, ' ')
+
+/** `tidy` applied to the field itself, with the caret left where the person was typing. */
+function tidyInput(input: HTMLInputElement): string {
+  const next = tidy(input.value)
+  if (next !== input.value) {
+    const caret = tidy(input.value.slice(0, input.selectionStart ?? input.value.length)).length
+    input.value = next
+    input.setSelectionRange(caret, caret)
+  }
+  return next
+}
+
 /**
  * A short text setting, read first like a record: the value and «Змінити»; editing is a field with «Зберегти»
  * (Enter) and «Скасувати» (Esc). A field standing open all the time read as something left to fill in.
@@ -61,7 +75,7 @@ export function EditableSetting({
           variant="soft"
           size="sm"
           aria-label={`Змінити: ${label}`}
-          onClick={() => setDraft(value)}
+          onClick={() => setDraft(tidy(value))}
         >
           Змінити
         </Button>
@@ -103,7 +117,7 @@ export function EditableSetting({
         onFocus={(e) => e.currentTarget.select()}
         aria-label={label}
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => setDraft(tidyInput(e.target))}
         placeholder={placeholder}
         maxLength={maxLength}
         aria-invalid={over || undefined}
