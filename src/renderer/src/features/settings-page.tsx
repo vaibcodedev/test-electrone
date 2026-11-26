@@ -88,16 +88,18 @@ export function SettingsPage(): ReactElement {
       />
       <PageBody>
         <div className="flex max-w-4xl flex-col gap-3">
-          <SettingsSection id="you" title="Ви" hint="Ім’я показується в привітанні.">
-            <SettingsRow label="Як до вас звертатися">
+          <SettingsSection id="you" title="Ви">
+            <SettingsRow label="Як до вас звертатися" hint="Ім’я з’явиться в привітанні на головній">
               {(id) => (
                 <AutosaveInput
                   id={id}
                   value={settings.userName}
-                  onSave={(userName) => userName !== settings.userName && set({ userName })}
+                  onSave={(userName) =>
+                    userName === settings.userName ? null : save.mutateAsync({ userName })
+                  }
                   placeholder="Напр.: Олена"
                   maxLength={LIMITS.userName}
-                  className="w-56"
+                  className="w-72"
                 />
               )}
             </SettingsRow>
