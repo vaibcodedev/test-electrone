@@ -402,6 +402,13 @@
   [data-slot='sheet-content'] {
     scrollbar-gutter: stable;
   }
+  /* Menus and lists of choices are sized to their items: the reserved lane read as a wider padding on the right
+     and cut the separators short. */
+  [data-slot='context-menu-content'],
+  [data-slot='dropdown-menu-content'],
+  [data-slot='select-content'] {
+    scrollbar-gutter: auto;
+  }
   /* A page body holding master-detail panels never scrolls itself (the list and the pane do): a reserved
      lane there pushed the pane's right edge ~16px left of the header. */
   [class*='overflow-y-auto']:has(> [data-slot='resizable-panel-group']) {

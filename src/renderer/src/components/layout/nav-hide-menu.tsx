@@ -60,7 +60,7 @@ export function NavHideMenu({
       <ContextMenuTrigger asChild {...triggerProps}>
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-60">
+      <ContextMenuContent className="max-w-80 min-w-60">
         <ContextMenuItem
           disabled={!canHide}
           onSelect={() => {
