@@ -26,6 +26,8 @@ function yamlValue(v: unknown): string {
   if (v === null || v === undefined) return 'null'
   if (typeof v === 'number' || typeof v === 'boolean') return String(v)
   if (Array.isArray(v)) return `[${v.map((x) => yamlValue(x)).join(', ')}]`
+  // A JSON column (a card's repeat rule): JSON is valid YAML, String() would write «[object Object]».
+  if (typeof v === 'object') return JSON.stringify(v)
   return JSON.stringify(String(v))
 }
 

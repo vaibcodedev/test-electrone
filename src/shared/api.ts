@@ -41,6 +41,7 @@ import type {
   CardInput,
   CardMove,
   CardPatch,
+  CardRepeatOutcome,
   ChecklistEntry,
   ColumnInput,
   ColumnPatch,
@@ -146,7 +147,9 @@ import type {
   CalendarItem,
   DateRange,
   EventInput,
-  EventPatch
+  EventPatch,
+  IcsExportInput,
+  IcsExportResult
 } from './domain/calendar'
 import type { Note, NoteInput, NoteListQuery, NotePatch } from './domain/notes'
 import type {
@@ -291,17 +294,22 @@ export interface BoardsApi extends CrudApi<BoardSummary, BoardInput, BoardPatch,
   details(id: string): Promise<BoardDetails | null>
   addColumn(args: { boardId: string; input: ColumnInput }): Promise<BoardColumn>
   updateColumn(args: { id: string; patch: ColumnPatch }): Promise<BoardColumn>
-  /** Hard-deletes a column; its cards move to `moveCardsTo` or are trashed if null. */
-  removeColumn(args: { id: string; moveCardsTo: string | null }): Promise<void>
+  /**
+   * Hard-deletes a column; its cards move to `moveCardsTo` or are trashed if null. Moved into «Готово», repeating
+   * cards get their next card (older versions returned nothing).
+   */
+  removeColumn(args: { id: string; moveCardsTo: string | null }): Promise<CardRepeatOutcome | void>
   reorderColumns(args: { boardId: string; ids: string[] }): Promise<void>
 }
 
 export interface CardsApi {
   get(id: string): Promise<CardDetails | null>
   create(input: CardInput): Promise<Card>
-  update(args: { id: string; patch: CardPatch }): Promise<Card>
+  /** `repeatOutcome` — the change of column moved a repeating card into «Готово». */
+  update(args: { id: string; patch: CardPatch }): Promise<Card & { repeatOutcome?: CardRepeatOutcome }>
   remove(id: string): Promise<void>
-  move(input: CardMove): Promise<void>
+  /** Into «Готово» a repeating card gets its next one (older versions returned nothing). */
+  move(input: CardMove): Promise<CardRepeatOutcome | void>
   /** Cards with a due date in range (for list/calendar views), optionally limited to one board. */
   due(args: { from: number; to: number; boardId?: string }): Promise<DueCard[]>
   addCheck(args: { cardId: string; text: string }): Promise<ChecklistEntry>
@@ -497,6 +505,11 @@ export interface EnglishApi extends CrudApi<Word, WordInput, WordPatch, WordList
 export interface EventsApi extends CrudApi<CalendarEvent, EventInput, EventPatch> {
   /** Everything placed on the calendar in a range: events (expanded recurrences), card deadlines, payments, project deadlines. */
   feed(range: DateRange): Promise<CalendarItem[]>
+  /**
+   * Saves the chosen sources as an .ics file: main asks where (its own save dialog) and writes it. null — the
+   * person cancelled the dialog.
+   */
+  exportIcs(input: IcsExportInput): Promise<IcsExportResult | null>
 }
 
 export type NotesApi = CrudApi<Note, NoteInput, NotePatch, NoteListQuery> & {

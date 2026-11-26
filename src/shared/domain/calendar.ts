@@ -66,6 +66,31 @@ export const rangeSchema = z.object({ from: timestampSchema, to: timestampSchema
 export type DateRange = z.infer<typeof rangeSchema>
 
 /**
+ * What can go into the .ics file: own events (whole, with their repeat), and the dated items of other modules —
+ * card deadlines, payments + subscriptions, project deadlines, interviews + «Нагадати про себе», terms of accesses.
+ */
+export const ICS_SOURCES = ['event', 'card', 'money', 'project', 'jobs', 'credential'] as const
+export type IcsSource = (typeof ICS_SOURCES)[number]
+/** Which calendar items each choice of the export takes. */
+export const ICS_SOURCE_ITEMS: Record<IcsSource, CalendarItem['source'][]> = {
+  event: ['event'],
+  card: ['card'],
+  money: ['payment', 'subscription'],
+  project: ['project'],
+  jobs: ['interview', 'followup'],
+  credential: ['credential']
+}
+export const icsExportSchema = z.object({
+  sources: z.array(z.enum(ICS_SOURCES)).min(1).max(ICS_SOURCES.length)
+})
+export type IcsExportInput = z.infer<typeof icsExportSchema>
+/** A saved file: where, and how many events it holds. */
+export interface IcsExportResult {
+  path: string
+  count: number
+}
+
+/**
  * Colours of the items other modules put on the calendar: one per legend entry, pairwise distinct.
  * A test-task deadline is part of the interview stage and shares its colour (one «Співбесіда» in the legend).
  */
@@ -103,6 +128,18 @@ export interface CalendarItem {
   done: boolean
   /** Where clicking the item leads (overrides the ref route). */
   route?: string
+}
+
+/** What each kind of calendar item is called (legend, the .ics categories). */
+export const CALENDAR_SOURCE_LABEL: Record<CalendarItem['source'], string> = {
+  event: 'Подія',
+  card: 'Дедлайн картки',
+  payment: 'Оплата',
+  project: 'Дедлайн проєкту',
+  interview: 'Співбесіда',
+  subscription: 'Підписка',
+  followup: 'Нагадати про себе',
+  credential: 'Термін доступу'
 }
 
 /** Where a calendar item leads: its own `route` wins over the record route (calendar, home agenda, weekly review). */

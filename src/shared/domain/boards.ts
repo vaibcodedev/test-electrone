@@ -66,6 +66,28 @@ export interface BoardColumn {
   position: number
 }
 
+/** ISO weekdays of a weekly repeat: 1 = понеділок … 7 = неділя. */
+export const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const
+
+/**
+ * How a card repeats: once it lands in a «Готово» column, the next card of the series is created. A monthly repeat
+ * keeps the intended day of the month (`day`, 1–31): «31-го» goes 31 січня → 28 лютого → 31 березня. Main fills it
+ * from the deadline (or today) and resets it when the deadline is moved to another day.
+ */
+export const cardRepeatSchema = z.discriminatedUnion('freq', [
+  z.object({ freq: z.literal('daily') }),
+  z.object({
+    freq: z.literal('weekly'),
+    days: z
+      .array(z.number().int().min(1).max(7))
+      .min(1)
+      .max(7)
+  }),
+  z.object({ freq: z.literal('monthly'), day: z.number().int().min(1).max(31).optional() })
+])
+export type CardRepeat = z.infer<typeof cardRepeatSchema>
+export type RepeatFreq = CardRepeat['freq']
+
 export const cardInputSchema = z.object({
   boardId: idSchema,
   columnId: idSchema,
@@ -73,6 +95,7 @@ export const cardInputSchema = z.object({
   description: z.string().max(MAX.article).default(''),
   priority: z.enum(PRIORITIES).default('none'),
   dueAt: timestampSchema.nullable().default(null),
+  repeat: cardRepeatSchema.nullable().default(null),
   ...withTagIds
 })
 export const cardPatchSchema = patchOf(cardInputSchema.omit({ boardId: true }))
@@ -88,8 +111,23 @@ export interface Card extends EntityBase, WithTags {
   dueAt: number | null
   position: number
   completedAt: number | null
+  /** null — the card doesn't repeat. */
+  repeat: CardRepeat | null
+  /** The next card of the series, once it was created (a card spawns one successor at most). */
+  repeatNextId: string | null
   checklistTotal: number
   checklistDone: number
+}
+
+/**
+ * What a move into «Готово» did to repeating cards. Optional on purpose: an older main returns nothing, and the
+ * renderer reads `outcome?.spawned`.
+ */
+export interface CardRepeatOutcome {
+  /** The next cards of their series, created by this move. */
+  spawned?: { id: string; title: string; dueAt: number }[]
+  /** Titles of repeating cards whose next card wasn't created: the board has no column that isn't «Готово». */
+  blocked?: string[]
 }
 
 export interface ChecklistEntry {
@@ -104,6 +142,8 @@ export interface CardDetails extends Card {
   checklist: ChecklistEntry[]
   boardTitle: string
   columnTitle: string
+  /** Set by `cards.update` when the change of column moved the card into «Готово». */
+  repeatOutcome?: CardRepeatOutcome
 }
 
 export interface BoardDetails {

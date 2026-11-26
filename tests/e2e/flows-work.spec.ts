@@ -1,4 +1,7 @@
 import type { Locator, Page } from '@playwright/test'
+import { mkdtempSync, readFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import { DAY, expect, test, uid } from './fixtures'
 
 /**
@@ -295,5 +298,120 @@ test.describe('конвертації', () => {
     const templateId = await openParam(win)
     expect(templateId).toBeTruthy()
     expect((await rpc('templates.get', templateId)).body).toBe(cover)
+  })
+})
+
+test.describe('повторювані картки', () => {
+  test('правило в картці → позначка на дошці → «Готово» створює наступну, тост відкриває її', async ({
+    vault
+  }) => {
+    const { win, rpc, go } = vault
+    const title = `Звіт ${uid()}`
+    const board = await rpc('boards.create', { title: `Повтори ${uid()}` })
+    const { columns } = await rpc('boards.details', board.id)
+    const done = columns.find((c: { isDone: boolean }) => c.isDone)
+    const card = await rpc('cards.create', { boardId: board.id, columnId: columns[1].id, title })
+
+    // The rule is set in the card sheet, in «Редагувати».
+    await go(`/boards/${board.id}?card=${card.id}`)
+    const sheet = win.getByRole('dialog')
+    await sheet.getByRole('button', { name: 'Редагувати' }).click()
+    await sheet.getByRole('combobox', { name: 'Повторення' }).click()
+    await win.getByRole('option', { name: 'Щотижня' }).click()
+    const days = sheet.getByRole('toolbar', { name: 'Дні тижня' })
+    // Starts on the deadline's (here today's) weekday; Monday is added.
+    await expect(days.locator('[aria-pressed="true"]')).toHaveCount(1)
+    await days.getByRole('button', { name: 'понеділок' }).click()
+    await expect
+      .poll(async () => (await rpc('cards.get', card.id)).repeat?.days?.includes(1))
+      .toBe(true)
+    await sheet.getByRole('button', { name: 'Зберегти' }).click()
+    await expect(sheet.locator('[data-detail-mode]').first()).toHaveAttribute('data-detail-mode', 'view')
+    // View mode shows the rule read-only: only the chosen days stay.
+    await expect(sheet.getByRole('combobox', { name: 'Повторення' })).toBeDisabled()
+    await win.keyboard.press('Escape')
+    await expect(sheet).toBeHidden()
+
+    // The tile says it repeats; «Перемістити в… → Готово» closes it and the next one appears.
+    const tile = win.locator('[aria-roledescription="sortable"]').filter({ hasText: title })
+    await expect(tile.getByText('Повторюється:', { exact: false })).toHaveCount(1)
+    await tile.click({ button: 'right' })
+    await win.getByRole('menuitem', { name: 'Перемістити в…' }).click()
+    await win.getByRole('menuitem', { name: done.title }).click()
+    const toast = win.locator('[data-sonner-toast]').filter({ hasText: 'Наступна картка' })
+    await expect(toast).toBeVisible()
+    const cards = (await rpc('boards.details', board.id)).cards.filter(
+      (c: { title: string }) => c.title === title
+    )
+    expect(cards).toHaveLength(2)
+    const next = cards.find((c: { id: string }) => c.id !== card.id)
+    expect(next.columnId).toBe(columns[0].id)
+    expect(next.repeat.freq).toBe('weekly')
+    await toast.getByRole('button', { name: 'Відкрити' }).click()
+    await expect
+      .poll(() => win.evaluate(() => new URLSearchParams(location.hash.split('?')[1] ?? '').get('card')))
+      .toBe(next.id)
+    await win.keyboard.press('Escape')
+
+    // Back and into «Готово» again: no second next card.
+    await rpc('cards.move', { cardId: card.id, columnId: columns[1].id, index: 0 })
+    await rpc('cards.move', { cardId: card.id, columnId: done.id, index: 0 })
+    expect(
+      (await rpc('boards.details', board.id)).cards.filter((c: { title: string }) => c.title === title)
+    ).toHaveLength(2)
+    await rpc('boards.remove', board.id)
+  })
+})
+
+test.describe('експорт календаря', () => {
+  test('«Експорт у .ics» → вибір джерел → файл .ics з подією й без вимкнених джерел', async ({ vault }) => {
+    const { win, rpc, go, app } = vault
+    const file = join(mkdtempSync(join(tmpdir(), 'vault-ics-')), 'calendar.ics')
+    const token = uid()
+    const start = new Date()
+    start.setDate(start.getDate() + 3)
+    start.setHours(11, 0, 0, 0)
+    const event = await rpc('events.create', {
+      title: `Планування ${token}`,
+      startAt: start.getTime(),
+      recurrence: 'weekly'
+    })
+    const board = await rpc('boards.create', { title: `Дошка ${token}` })
+    const { columns } = await rpc('boards.details', board.id)
+    await rpc('cards.create', {
+      boardId: board.id,
+      columnId: columns[0].id,
+      title: `Дедлайн ${token}`,
+      dueAt: start.getTime()
+    })
+    await app.evaluate(({ dialog }, path) => {
+      const g = globalThis as unknown as { __vaultIcsSave?: unknown }
+      g.__vaultIcsSave ??= dialog.showSaveDialog
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as typeof dialog.showSaveDialog
+    }, file)
+    try {
+      await go('/calendar')
+      await win.getByRole('button', { name: 'Експорт у .ics' }).click()
+      const dialog = win.getByRole('dialog', { name: 'Експорт календаря' })
+      await expect(dialog).toBeVisible()
+      await dialog.getByLabel('Дедлайни карток').click()
+      await dialog.getByRole('button', { name: 'Зберегти файл' }).click()
+      await expect(dialog).toBeHidden()
+      await expect(
+        win.locator('[data-sonner-toast]').filter({ hasText: 'Календар збережено' })
+      ).toBeVisible()
+      const text = readFileSync(file, 'utf8')
+      expect(text.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true)
+      expect(text).toContain(`UID:event-${event.id}@vault`)
+      expect(text).toContain('RRULE:FREQ=WEEKLY')
+      expect(text).not.toContain(`Дедлайн ${token}`)
+    } finally {
+      await app.evaluate(({ dialog }) => {
+        const g = globalThis as unknown as { __vaultIcsSave?: typeof dialog.showSaveDialog }
+        if (g.__vaultIcsSave) dialog.showSaveDialog = g.__vaultIcsSave
+      })
+      await rpc('events.remove', event.id)
+      await rpc('boards.remove', board.id)
+    }
   })
 })

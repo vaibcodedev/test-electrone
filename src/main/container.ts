@@ -2,7 +2,7 @@
  * Composition root: builds every service once and wires them by constructor injection.
  * No module reaches for globals — swapping an implementation means changing only this file.
  */
-import { app, clipboard, net, session } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, net, session } from 'electron'
 import { dirname, join } from 'path'
 import { log, logFilePath } from './core/logger'
 import { openPathOrThrow } from './core/open-path'
@@ -29,6 +29,7 @@ import { BackupService } from './services/backup-service'
 import { StorageService } from './services/storage-service'
 import { storageLayout } from './services/storage-usage'
 import { ExportService } from './services/export-service'
+import { CalendarExportService } from './services/calendar-export'
 import { DashboardService } from './services/dashboard-service'
 import { QuickAddService } from './services/quick-add-service'
 import { ReminderService } from './services/reminder-service'
@@ -148,6 +149,17 @@ export class Container {
   readonly backup: BackupService
   readonly storage: StorageService
   readonly exporter = new ExportService(this.db, this.paths, this.registry, this.tags, this.links)
+  readonly calendarExport = new CalendarExportService(this.calendar, async (name) => {
+    const res = await dialog.showSaveDialog(
+      BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0],
+      {
+        title: 'Експорт календаря',
+        defaultPath: join(app.getPath('documents'), name),
+        filters: [{ name: 'Календар iCalendar', extensions: ['ics'] }]
+      }
+    )
+    return res.canceled || !res.filePath ? null : res.filePath
+  })
   readonly dashboard = new DashboardService(this.db, this.registry, this.pins, {
     boards: this.boards,
     calendar: this.calendar,
@@ -461,7 +473,7 @@ export class Container {
       bookmarks: this.knowledge.bookmarksApi(),
       knowledge: this.knowledge.knowledgeApi(),
       english: this.english.api(),
-      events: this.calendar.api(),
+      events: { ...this.calendar.api(), ...this.calendarExport.api() },
       notes: this.knowledge.notesApi(),
       platforms: this.freelance.platformsApi(),
       proposals: this.freelance.proposalsApi(),

@@ -189,7 +189,50 @@ export class CalendarModule {
     return items.sort((a, b) => a.startAt - b.startAt)
   }
 
-  api(): EventsApi {
+  /**
+   * What the .ics export takes. `own` — the events Vault shows as its own, whole (their repeat becomes an RRULE).
+   * `items` — everything else placed on the calendar in [from, to] (events another module owns, like interview
+   * stages, and the providers' items), each with a uid that stays the same between exports: a one-off event of
+   * another module keeps its uid when it is moved.
+   */
+  exportData(
+    from: number,
+    to: number
+  ): { own: CalendarEvent[]; items: { item: CalendarItem; uid: string }[] } {
+    const own: CalendarEvent[] = []
+    const items: { item: CalendarItem; uid: string }[] = []
+    for (const e of this.repo.listWhere([this.descriptor.aliveWhere], [asc(events.startAt)])) {
+      const extra = e.sourceType ? (this.decorators.get(e.sourceType)?.(e) ?? null) : null
+      if (!extra || (extra.source ?? 'event') === 'event') {
+        own.push(e)
+        continue
+      }
+      for (const start of occurrences(e, from, to)) {
+        items.push({
+          uid: e.recurrence === 'none' ? `event-${e.id}` : `event-${e.id}-${start}`,
+          item: {
+            key: `event:${e.id}:${start}`,
+            source: 'event',
+            ref: { type: 'event', id: e.id },
+            title: e.title,
+            startAt: start,
+            endAt: e.endAt ? start + (e.endAt - e.startAt) : null,
+            allDay: e.allDay,
+            color: e.color,
+            done: false,
+            ...extra
+          }
+        })
+      }
+    }
+    for (const provider of this.providers) {
+      for (const item of provider(from, to)) items.push({ item, uid: item.key.replace(/:/g, '-') })
+    }
+    return { own, items }
+  }
+
+  /** Everything but «Експорт .ics», which needs a save dialog (services/calendar-export, wired in container.ts). */
+  api(): Omit<EventsApi, 'exportIcs'> {
     const repo = this.repo
     return {
       list: async (query) => {

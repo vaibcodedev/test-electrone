@@ -14,6 +14,7 @@ import {
   type BoardColumn,
   type BoardSummary,
   type Card,
+  type CardRepeatOutcome,
   type ChecklistEntry,
   type DueCard
 } from '@shared/domain/boards'
@@ -27,6 +28,7 @@ import type { EntityDescriptor } from '../core/registry'
 import { excerpt, newId, now, NotFoundError, startOfDay, UserError } from '../core/util'
 import { nextPosition, reorder } from '../core/ordering'
 import { idArg, orderedIds, splitTags, updateArgs, type ModuleContext } from './context'
+import { nextRepeatDue, normalizeRepeat, parseRepeat, repeatAfterEdit } from './card-repeat'
 
 type BoardRow = typeof boards.$inferSelect
 type CardRow = typeof cards.$inferSelect
@@ -79,7 +81,10 @@ export class BoardsModule {
       // Cards of a board in the trash stay deletedAt = null; this hides them from feeds, pins, links, search.
       aliveWhere: CARD_ON_LIVE_BOARD,
       parentHint: 'Спершу відновіть дошку, до якої належить ця картка',
-      onRestore: (r) => this.reattachCard(r as CardRow)
+      onRestore: (r) => this.reattachCard(r as CardRow),
+      // «Скасувати» after a move into «Готово» brings the card back, but the next card of its series stays made:
+      // keeping the mark means moving it into «Готово» again creates no second one.
+      systemFields: ['repeatNextId']
     }
     this.descriptors = [boardDescriptor, cardDescriptor]
     this.boardRepo = new SoftRepository<BoardRow, Board>(m.repo, boardDescriptor, (r, tags) => ({
@@ -89,6 +94,7 @@ export class BoardsModule {
     this.cardRepo = new SoftRepository<CardRow, Card>(m.repo, cardDescriptor, (r, tags) => ({
       ...r,
       priority: r.priority as Card['priority'],
+      repeat: parseRepeat(r.repeat),
       tags,
       checklistTotal: 0,
       checklistDone: 0
@@ -274,9 +280,12 @@ export class BoardsModule {
   createCard(input: z.input<typeof cardInputSchema>): Card {
     const [data, tagIds] = splitTags(cardInputSchema.parse(input))
     const col = this.column(data.columnId)
+    // Created right in «Готово» it is simply done: the next card comes only from a move into «Готово».
     const card = this.cardRepo.insert(
       {
         ...data,
+        repeat: normalizeRepeat(data.repeat, data.dueAt, now()),
+        repeatNextId: null,
         boardId: col.boardId,
         position: this.nextCardPosition(data.columnId),
         completedAt: col.isDone ? now() : null
@@ -287,11 +296,70 @@ export class BoardsModule {
     return card
   }
 
-  moveCard(input: z.input<typeof cardMoveSchema>): void {
+  /**
+   * The next card of a repeating series, when `card` has just been moved by the person from a column that isn't
+   * «Готово» into one that is. Once per card (repeatNextId): back and into «Готово» again makes no second one, even
+   * if the first was changed or deleted since. Goes to the end of the board's first column that isn't «Готово»;
+   * `skipColumn` is the one being deleted. Runs inside the caller's transaction.
+   */
+  private spawnNext(
+    card: CardRow,
+    boardId: string,
+    out: CardRepeatOutcome,
+    skipColumn?: string
+  ): void {
+    const rule = parseRepeat(card.repeat)
+    if (!rule || card.repeatNextId) return
+    const target = this.columns(boardId).find((c) => !c.isDone && c.id !== skipColumn)
+    if (!target) {
+      // Said in a toast; the card keeps no mark, so the series goes on once a column like that exists.
+      ;(out.blocked ??= []).push(card.title)
+      return
+    }
+    const dueAt = nextRepeatDue(rule, card.dueAt, now())
+    const tagIds = (this.m.repo.tags.forMany('card', [card.id]).get(card.id) ?? []).map((t) => t.id)
+    const next = this.cardRepo.insert(
+      {
+        boardId,
+        columnId: target.id,
+        title: card.title,
+        description: card.description,
+        priority: card.priority,
+        dueAt,
+        repeat: rule,
+        repeatNextId: null,
+        position: this.nextCardPosition(target.id),
+        completedAt: null
+      },
+      tagIds
+    )
+    for (const entry of this.checklist(card.id)) {
+      this.db
+        .insert(cardChecklist)
+        .values({
+          id: newId(),
+          cardId: next.id,
+          text: entry.text,
+          done: false,
+          position: entry.position
+        })
+        .run()
+    }
+    this.db.update(cards).set({ repeatNextId: next.id }).where(eq(cards.id, card.id)).run()
+    ;(out.spawned ??= []).push({ id: next.id, title: next.title, dueAt })
+  }
+
+  moveCard(input: z.input<typeof cardMoveSchema>): CardRepeatOutcome {
     const { cardId, columnId, index } = cardMoveSchema.parse(input)
-    const card = this.cardRepo.rowOrThrow(cardId)
-    const target = this.column(columnId)
+    const out: CardRepeatOutcome = {}
     this.m.db.tx(() => {
+      const card = this.cardRepo.rowOrThrow(cardId)
+      const target = this.column(columnId)
+      const from = this.db
+        .select({ isDone: boardColumns.isDone })
+        .from(boardColumns)
+        .where(eq(boardColumns.id, card.columnId))
+        .get()
       const siblings = this.db
         .select({ id: cards.id })
         .from(cards)
@@ -323,8 +391,10 @@ export class BoardsModule {
         })
         .where(eq(cards.id, cardId))
         .run()
+      if (movedColumn && target.isDone && !from?.isDone) this.spawnNext(card, target.boardId, out)
+      this.boardRepo.touch(target.boardId)
     })
-    this.boardRepo.touch(target.boardId)
+    return out
   }
 
   checklist(cardId: string): ChecklistEntry[] {
@@ -466,11 +536,13 @@ export class BoardsModule {
         if (target && (target.id === id || target.boardId !== col.boardId)) {
           throw new UserError('Картки можна перенести лише в іншу колонку цієї дошки')
         }
+        const out: CardRepeatOutcome = {}
         this.m.db.tx(() => {
-          const ids = this.db
-            .select({ id: cards.id })
+          const moved = this.db
+            .select()
             .from(cards)
             .where(and(eq(cards.columnId, id), isNull(cards.deletedAt)))
+            .orderBy(asc(cards.position))
             .all()
           if (target) {
             this.db
@@ -481,12 +553,17 @@ export class BoardsModule {
               })
               .where(eq(cards.columnId, id))
               .run()
+            // «Перенести й видалити» into «Готово» closes the cards like a move does: repeating ones get their next.
+            if (target.isDone && !col.isDone) {
+              for (const card of moved) this.spawnNext(card, col.boardId, out, id)
+            }
           } else {
-            for (const c of ids) this.cardRepo.softDelete(c.id)
+            for (const c of moved) this.cardRepo.softDelete(c.id)
           }
           this.db.delete(boardColumns).where(eq(boardColumns.id, id)).run()
         })
         this.boardRepo.touch(col.boardId)
+        return out
       },
       reorderColumns: async (args) => {
         const { boardId, ids } = z.object({ boardId: idArg, ids: orderedIds }).parse(args)
@@ -517,17 +594,26 @@ export class BoardsModule {
       create: async (input) => this.createCard(input),
       update: async (args) => {
         const { id, patch } = updateArgs(cardPatchSchema).parse(args)
-        const [data, tagIds] = splitTags(patch)
-        if (data.columnId) {
+        const [{ columnId, ...data }, tagIds] = splitTags(patch)
+        // Fields first, then the column: a deadline or rule changed in the same patch goes into the next card.
+        const [card, repeatOutcome] = this.m.db.tx(() => {
           const current = this.cardRepo.rowOrThrow(id)
-          if (current.columnId !== data.columnId) {
-            this.moveCard({ cardId: id, columnId: data.columnId, index: 1_000_000 })
+          if (data.repeat !== undefined || data.dueAt !== undefined) {
+            data.repeat = repeatAfterEdit(
+              { repeat: parseRepeat(current.repeat), dueAt: current.dueAt },
+              data,
+              now()
+            )
           }
-          delete data.columnId
-        }
-        const card = this.cardRepo.patch(id, data, tagIds)
-        this.boardRepo.touch(card.boardId)
-        return (await getDetails(id)) ?? card
+          const card = this.cardRepo.patch(id, data, tagIds)
+          const out =
+            columnId && current.columnId !== columnId
+              ? this.moveCard({ cardId: id, columnId, index: 1_000_000 })
+              : undefined
+          this.boardRepo.touch(card.boardId)
+          return [card, out] as const
+        })
+        return { ...((await getDetails(id)) ?? card), ...(repeatOutcome ? { repeatOutcome } : {}) }
       },
       remove: async (id) => this.cardRepo.softDelete(idArg.parse(id)),
       move: async (input) => this.moveCard(input),

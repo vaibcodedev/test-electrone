@@ -1,5 +1,7 @@
-import type { CalendarItem } from '@shared/domain/calendar'
+import { CALENDAR_SOURCE_LABEL, type CalendarItem } from '@shared/domain/calendar'
 import { dayKey } from '@/lib/format'
+
+export const SOURCE_LABEL = CALENDAR_SOURCE_LABEL
 
 /**
  * Fallback colours (chart tokens, contrast-checked). Payments, projects, subscriptions, interviews and follow-ups
@@ -14,17 +16,6 @@ const SOURCE_COLOR: Record<CalendarItem['source'], string> = {
   subscription: 'var(--chart-3)',
   followup: 'var(--muted-foreground)',
   credential: 'var(--chart-2)'
-}
-
-export const SOURCE_LABEL: Record<CalendarItem['source'], string> = {
-  event: 'Подія',
-  card: 'Дедлайн картки',
-  payment: 'Оплата',
-  project: 'Дедлайн проєкту',
-  interview: 'Співбесіда',
-  subscription: 'Підписка',
-  followup: 'Нагадати про себе',
-  credential: 'Термін доступу'
 }
 
 export function itemColor(item: CalendarItem): string {

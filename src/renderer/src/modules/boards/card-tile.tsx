@@ -1,7 +1,7 @@
 import { forwardRef, type HTMLAttributes } from 'react'
 import { format } from 'date-fns'
-import { CalendarClock, CircleAlert, ListChecks } from 'lucide-react'
-import type { Card } from '@shared/domain/boards'
+import { CalendarClock, CircleAlert, ListChecks, Repeat } from 'lucide-react'
+import type { Card, CardRepeat } from '@shared/domain/boards'
 import { fmtDay, mdPreview } from '@/lib/format'
 import { TagList } from '@/components/common/tags'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,31 @@ import { Card as UiCard } from '@/components/ui/card'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { hasTime, isOverdue } from './use-card-param'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { repeatText, WEEKDAY_SHORT } from './repeat'
+
+/** The repeat of a card in a few letters: «щодня», «пн, ср», «31-го». */
+function repeatShort(rule: CardRepeat): string {
+  if (rule.freq === 'daily') return 'щодня'
+  if (rule.freq === 'monthly') return rule.day ? `${rule.day}-го` : 'щомісяця'
+  return rule.days.length === 7
+    ? 'щодня'
+    : rule.days.map((d) => WEEKDAY_SHORT[d - 1].toLowerCase()).join(', ')
+}
+
+/** A repeating card's mark: the next card comes when this one reaches «Готово». */
+export function RepeatChip({ rule, className }: { rule: CardRepeat; className?: string }) {
+  return (
+    <Badge
+      variant="outline"
+      title={`Повторюється: ${repeatText(rule).toLowerCase()}`}
+      className={cn('h-5 px-2 text-meta text-muted-foreground', className)}
+    >
+      <Repeat aria-hidden />
+      <span className="sr-only">Повторюється: </span>
+      {repeatShort(rule)}
+    </Badge>
+  )
+}
 
 export function DueChip({
   dueAt,
@@ -86,9 +111,10 @@ export const CardTile = forwardRef<
         </p>
       )}
       {card.tags.length > 0 && <TagList tags={card.tags} max={3} className="mt-2" />}
-      {(card.dueAt || card.checklistTotal > 0) && (
+      {(card.dueAt || card.checklistTotal > 0 || card.repeat) && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {card.dueAt && <DueChip dueAt={card.dueAt} done={done} />}
+          {card.repeat && <RepeatChip rule={card.repeat} />}
           {card.checklistTotal > 0 && (
             <Badge
               variant={card.checklistDone === card.checklistTotal ? 'success' : 'soft'}

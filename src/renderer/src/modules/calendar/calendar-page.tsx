@@ -9,7 +9,7 @@ import {
   startOfMonth,
   startOfWeek
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react'
 import { ENTITY_META } from '@shared/entity-types'
 import type { CalendarItem } from '@shared/domain/calendar'
 import { KEEP_PERIOD, useApi } from '@/lib/query'
@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { EventDialog } from './event-dialog'
+import { ExportIcsDialog } from './export-dialog'
 import { groupByDay, itemColor, SOURCE_LABEL } from './items'
 import { MonthView, WeekView } from './views'
 
@@ -35,6 +36,7 @@ export function CalendarPage() {
   const [cursor, setCursor] = useState(() => new Date())
   const [open, setOpen] = useOpenParam()
   const [newDate, setNewDate] = useState<Date | null>(null)
+  const [exporting, setExporting] = useState(false)
 
   const { from, to } = useMemo(() => {
     if (view === 'week') return { from: startOfWeek(cursor, WEEK), to: endOfWeek(cursor, WEEK) }
@@ -83,7 +85,9 @@ export function CalendarPage() {
       {/* data-slot: the global N presses the lime «Подія» here, like in any PageHeader. */}
       <header
         data-slot="page-header"
-        className="flex items-end justify-between gap-6 px-8 pt-7 pb-5"
+        // Wraps in a narrow window (960 px with the sidebar open, or next to the chat): the controls go under the
+        // title, right-aligned, instead of running past the page edge.
+        className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-8 pt-7 pb-5"
       >
         <div>
           <h1 className="font-display text-title">{title}</h1>
@@ -106,7 +110,7 @@ export function CalendarPage() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <Segmented<View>
             options={[
               { value: 'month', label: 'Місяць' },
@@ -151,6 +155,20 @@ export function CalendarPage() {
               <TooltipContent>Вперед · →</TooltipContent>
             </Tooltip>
           </ButtonGroup>
+          {/* An icon: with a text label the header ran past the page edge in a narrow window or next to the chat. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="soft"
+                size="icon"
+                aria-label="Експорт у .ics"
+                onClick={() => setExporting(true)}
+              >
+                <Download />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Експорт у .ics — для телефона чи іншого календаря</TooltipContent>
+          </Tooltip>
           <Button variant="lime" onClick={() => setNewDate(new Date())}>
             <Plus /> Подія
           </Button>
@@ -178,6 +196,7 @@ export function CalendarPage() {
         )}
       </div>
 
+      <ExportIcsDialog open={exporting} onOpenChange={setExporting} />
       <EventDialog open={!!newDate} onOpenChange={(o) => !o && setNewDate(null)} date={newDate} />
       <EventDialog
         open={!!open && !!openEvent}

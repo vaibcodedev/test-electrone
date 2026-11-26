@@ -48,6 +48,7 @@ import {
 } from '@/components/ui/input-group'
 import { CardTile } from './card-tile'
 import { ColumnHeader } from './column-header'
+import { useRepeatToast } from './repeat'
 import { SORTABLE_TRANSITION, dropAnimation } from '@/lib/motion'
 
 type Layout = Record<string, string[]>
@@ -75,7 +76,8 @@ function SortableCard({
     id: card.id,
     transition: SORTABLE_TRANSITION
   })
-  const move = useApiMutation('cards', 'move')
+  const notifyRepeat = useRepeatToast()
+  const move = useApiMutation('cards', 'move', { onSuccess: notifyRepeat })
   const remove = useApiMutation('cards', 'remove', { successMessage: 'Картку переміщено в кошик' })
   // Right-click menu: the quick way to move or delete without opening the card.
   return (
@@ -344,7 +346,12 @@ export function KanbanView({
   // Column whose «Додати картку» field is open; N opens the first one (the board has no lime header button).
   const [quickAdd, setQuickAdd] = useState<string | null>(null)
   useHotkey('n', () => setQuickAdd(details.columns[0]?.id ?? null))
-  const move = useApiMutation('cards', 'move', { onError: () => setLayout(buildLayout(details)) })
+  const notifyRepeat = useRepeatToast()
+  // Into «Готово» a repeating card gets its next one: the toast names its date and opens it.
+  const move = useApiMutation('cards', 'move', {
+    onSuccess: notifyRepeat,
+    onError: () => setLayout(buildLayout(details))
+  })
 
   // Fresh server data replaces the local layout, but never mid-drag, and not on the drop itself: the old data
   // would snap the card back until the move's refetch lands. Synced during render (no effect, no extra paint).

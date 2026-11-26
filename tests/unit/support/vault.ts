@@ -19,6 +19,7 @@ import { SecretBox } from '@main/services/secret-box'
 import { TrashService } from '@main/services/trash-service'
 import { RevisionService } from '@main/services/revision-service'
 import { ImportService } from '@main/services/import-service'
+import { CalendarExportService } from '@main/services/calendar-export'
 import { BoardsModule } from '@main/modules/boards'
 import { CrmModule } from '@main/modules/crm'
 import { CalendarModule } from '@main/modules/calendar'
@@ -61,6 +62,9 @@ export class Vault {
   readonly boards: BoardsModule
   readonly crm: CrmModule
   readonly calendar: CalendarModule
+  /** «Експорт .ics»; the save dialog answers `savePath` (null — cancelled). */
+  readonly calendarExport: CalendarExportService
+  savePath: string | null = null
   readonly jobs: JobsModule
   readonly media: MediaModule
   readonly api: Api
@@ -84,6 +88,7 @@ export class Vault {
     this.boards = new BoardsModule(m)
     this.crm = new CrmModule(m)
     this.calendar = new CalendarModule(m)
+    this.calendarExport = new CalendarExportService(this.calendar, async () => this.savePath)
     this.jobs = new JobsModule(m, this.calendar)
     this.media = new MediaModule(m)
     const english = new EnglishModule(m)
@@ -116,7 +121,7 @@ export class Vault {
       cards: this.boards.cardsApi(),
       projects: this.crm.projectsApi(),
       time: this.crm.timeApi(),
-      events: this.calendar.api(),
+      events: { ...this.calendar.api(), ...this.calendarExport.api() },
       jobs: this.jobs.api(),
       components: this.media.componentsApi(),
       moodboards: this.media.moodboardsApi(),

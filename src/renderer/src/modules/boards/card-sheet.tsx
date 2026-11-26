@@ -54,6 +54,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { DueChip } from './card-tile'
+import { RepeatField } from './repeat-field'
+import { useRepeatToast } from './repeat'
 
 const LIMITS = limitsOf(cardInputSchema)
 const ENTRY_MAX = limitsOf(cardCheckInputSchema).text
@@ -170,7 +172,11 @@ function CardEditor({
   onClose: () => void
   modeRef?: RefObject<DetailMode | null>
 }) {
-  const update = useApiMutation('cards', 'update')
+  const notifyRepeat = useRepeatToast()
+  // A change of column into «Готово» may create the next card of a repeating series: said in a toast.
+  const update = useApiMutation('cards', 'update', {
+    onSuccess: (res) => notifyRepeat(res?.repeatOutcome)
+  })
   // Closes after the request: not if another card was opened meanwhile.
   const stillOpen = useStillCurrent(card.id)
   const remove = useApiMutation('cards', 'remove', {
@@ -274,6 +280,11 @@ function CardEditor({
                 </Field>
               )
             )}
+            <RepeatField
+              value={card.repeat ?? null}
+              dueAt={card.dueAt}
+              onChange={(repeat) => patch({ repeat })}
+            />
           </div>
           {!mode.editing && sparse && (
             <p className="mt-5 text-body text-muted-foreground">

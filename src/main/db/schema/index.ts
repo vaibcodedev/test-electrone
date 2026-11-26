@@ -15,6 +15,7 @@ import {
   text,
   uniqueIndex
 } from 'drizzle-orm/sqlite-core'
+import type { CardRepeat } from '../../../shared/domain/boards'
 
 const base = {
   id: text().primaryKey(),
@@ -147,7 +148,11 @@ export const cards = sqliteTable(
     priority: text().notNull().default('none'),
     dueAt: integer(),
     position: real().notNull(),
-    completedAt: integer()
+    completedAt: integer(),
+    /** Repeat rule (CardRepeat); null — the card doesn't repeat. */
+    repeat: text({ mode: 'json' }).$type<CardRepeat>(),
+    /** The next card of the series, created when this one reached «Готово» — at most one per card. */
+    repeatNextId: text()
   },
   (t) => [index('cards_board_idx').on(t.boardId, t.columnId), index('cards_due_idx').on(t.dueAt)]
 )

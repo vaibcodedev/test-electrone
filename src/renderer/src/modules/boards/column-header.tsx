@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { plural } from '@/lib/format'
 import { Field } from '@/components/common/page'
+import { useRepeatToast } from './repeat'
 
 /** Column title with rename / "done column" toggle / delete (with choice where cards go). */
 export function ColumnHeader({ column, count, columns }: { column: BoardColumn; count: number; columns: BoardColumn[] }) {
@@ -30,7 +31,11 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
   // Computed on render: a column added after mount, or the chosen one deleted meanwhile, can't leave a stale target.
   const moveTo = others.some((c) => c.id === target) ? target : (others[0]?.id ?? '')
   const update = useApiMutation('boards', 'updateColumn')
-  const remove = useApiMutation('boards', 'removeColumn', { successMessage: 'Колонку видалено' })
+  const notifyRepeat = useRepeatToast()
+  const remove = useApiMutation('boards', 'removeColumn', {
+    successMessage: 'Колонку видалено',
+    onSuccess: notifyRepeat
+  })
 
   const removeColumn = (moveCardsTo: string | null): void => {
     remove.mutate({ id: column.id, moveCardsTo })
