@@ -20,6 +20,9 @@ import {
   ItemMedia,
   ItemTitle
 } from '@/components/ui/item'
+import type { TrashItem } from '@shared/domain/system'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { trashMenu } from '@/features/record-menu/trash-menu'
 
 const rowKey = (item: { type: string; id: string }): string => `${item.type}:${item.id}`
 const records = (n: number): string => `${n} ${plural(n, ['запис', 'записи', 'записів'])}`
@@ -67,6 +70,26 @@ export function TrashPage(): ReactElement {
     emptied.current = false
     requestAnimationFrame(focusHeading)
   }, [total])
+
+  const doRestore = (item: TrashItem): void => {
+    const key = rowKey(item)
+    restore.mutate(
+      { type: item.type, id: item.id },
+      {
+        onSuccess: () => {
+          focusAfter(key)
+          toast.success(`Відновлено: «${shortTitle(item.title)}»`, {
+            action: {
+              label: 'Відкрити',
+              onClick: () => navigate(ENTITY_META[item.type].route(item.id))
+            }
+          })
+        }
+      }
+    )
+  }
+  const doPurge = (item: TrashItem): void =>
+    purge.mutate({ type: item.type, id: item.id }, { onSuccess: () => focusAfter(rowKey(item)) })
 
   return (
     <Page>
@@ -124,6 +147,8 @@ export function TrashPage(): ReactElement {
             const Icon = ENTITY_ICON[item.type]
             const key = rowKey(item)
             return (
+              // Right click: the same two actions (the buttons stay visible, so no «⋯»).
+              <RecordMenu asChild def={trashMenu} record={item} ctx={{ restore: doRestore, purge: doPurge }}>
               <Item variant="muted" size="sm" data-trash-row={key}>
                 <ItemMedia variant="icon" className="size-9 bg-card">
                   <Icon />
@@ -143,22 +168,7 @@ export function TrashPage(): ReactElement {
                     size="sm"
                     data-restore
                     disabled={restore.isPending}
-                    onClick={() =>
-                      restore.mutate(
-                        { type: item.type, id: item.id },
-                        {
-                          onSuccess: () => {
-                            focusAfter(key)
-                            toast.success(`Відновлено: «${shortTitle(item.title)}»`, {
-                              action: {
-                                label: 'Відкрити',
-                                onClick: () => navigate(ENTITY_META[item.type].route(item.id))
-                              }
-                            })
-                          }
-                        }
-                      )
-                    }
+                    onClick={() => doRestore(item)}
                   >
                     <RotateCcw /> Відновити
                   </Button>
@@ -166,12 +176,7 @@ export function TrashPage(): ReactElement {
                     title="Видалити назавжди?"
                     description={`«${shortTitle(item.title)}» буде видалено без можливості відновлення.`}
                     confirmLabel="Видалити назавжди"
-                    onConfirm={() =>
-                      purge.mutate(
-                        { type: item.type, id: item.id },
-                        { onSuccess: () => focusAfter(key) }
-                      )
-                    }
+                    onConfirm={() => doPurge(item)}
                   >
                     <IconAction label="Видалити назавжди" className="hover:text-destructive">
                       <Trash2 />
@@ -179,6 +184,7 @@ export function TrashPage(): ReactElement {
                   </Confirm>
                 </ItemActions>
               </Item>
+              </RecordMenu>
             )
           }}
         />

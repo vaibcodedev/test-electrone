@@ -201,3 +201,99 @@ test('snippets: «Копіювати код» from the card menu copies and coun
   await expect.poll(() => readClipboard(vault)).toBe(code)
   await expect.poll(async () => (await rpc('snippets.get', s.id)).copyCount).toBe(1)
 })
+
+test('kanban: the card menu moves it and toggles nothing it shouldn’t; «⋯» doesn’t start a drag', async ({
+  vault
+}) => {
+  const { win, rpc, go } = vault
+  const board = await rpc('boards.create', { title: `Меню дошки ${uid()}` })
+  const details = await rpc('boards.details', board.id)
+  const [first, second] = details.columns
+  const title = `Картка ${uid()}`
+  const card = await rpc('cards.create', { boardId: board.id, columnId: first.id, title })
+  await go(`/boards/${board.id}`)
+  const tile = area(win, title)
+  await tile.hover()
+  await tile.getByRole('button', { name: `Дії: ${title}` }).click()
+  await item(win, 'Пріоритет').hover()
+  await win.getByRole('menuitemcheckbox', { name: 'Високий' }).click()
+  await expect.poll(async () => (await rpc('cards.get', card.id))?.priority).toBe('high')
+  await tile.click({ button: 'right' })
+  await item(win, 'Перемістити в').hover()
+  await expect(win.getByRole('menuitemcheckbox', { name: first.title })).toHaveAttribute(
+    'aria-checked',
+    'true'
+  )
+  await win.getByRole('menuitemcheckbox', { name: second.title }).click()
+  await expect.poll(async () => (await rpc('cards.get', card.id))?.columnId).toBe(second.id)
+})
+
+test('fixes: «Вирішено» is an on/off item with ✓; entity rows: «Зняти цю мітку» with «Скасувати»', async ({
+  vault
+}) => {
+  const { win, rpc, go } = vault
+  const title = `Помилка ${uid()}`
+  const fix = await rpc('fixes.create', { title, resolved: false })
+  await go('/fixes')
+  const row = area(win, title)
+  await row.click({ button: 'right' })
+  const resolved = win.getByRole('menuitemcheckbox', { name: 'Вирішено' })
+  await expect(resolved).toHaveAttribute('aria-checked', 'false')
+  await resolved.click()
+  await expect.poll(async () => (await rpc('fixes.get', fix.id))?.resolved).toBe(true)
+
+  const tag = await rpc('tags.create', { name: `зняти-${uid()}`, color: '#4f7cff' })
+  await rpc('fixes.update', { id: fix.id, patch: { tagIds: [tag.id] } })
+  await go(`/tags?tag=${tag.id}`)
+  const entity = area(win, title)
+  await entity.click({ button: 'right' })
+  await item(win, 'Зняти цю мітку').click()
+  await expect.poll(async () => (await rpc('fixes.get', fix.id))?.tags.length).toBe(0)
+  await win
+    .locator('[data-sonner-toast]')
+    .filter({ hasText: 'Мітку знято' })
+    .getByRole('button', { name: 'Скасувати' })
+    .click()
+  await expect
+    .poll(async () => (await rpc('fixes.get', fix.id))?.tags.map((t: { id: string }) => t.id))
+    .toEqual([tag.id])
+})
+
+test('trash: «Видалити назавжди…» asks first; dev project: «Копіювати шлях»', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const title = `Сміття ${uid()}`
+  const note = await rpc('notes.create', { title })
+  await rpc('notes.remove', note.id)
+  await go('/trash')
+  const row = area(win, title)
+  await row.click({ button: 'right' })
+  await item(win, 'Видалити назавжди…').click()
+  const ask = win.getByRole('alertdialog', { name: 'Видалити назавжди?' })
+  await expect(ask).toBeVisible()
+  await ask.getByRole('button', { name: 'Видалити назавжди' }).click()
+  await expect(row).toHaveCount(0)
+  // No pointer-events left on <body> by the menu + dialog pair.
+  await expect
+    .poll(() => win.evaluate(() => getComputedStyle(document.body).pointerEvents))
+    .not.toBe('none')
+
+  const projects = await rpc('devProjects.list')
+  await go('/dev')
+  const card = area(win, projects[0].name)
+  await card.click({ button: 'right', position: { x: 200, y: 60 } })
+  await item(win, 'Копіювати шлях').click()
+  await expect.poll(() => readClipboard(vault)).toBe(projects[0].path)
+})
+
+test('gallery: «Копіювати зображення» puts a PNG on the clipboard', async ({ vault }) => {
+  const { win, go } = vault
+  await go('/designs')
+  const tile = area(win, 'Иконка Vault')
+  await tile.click({ button: 'right' })
+  await item(win, 'Копіювати зображення').click()
+  await expect(win.getByText('Зображення скопійовано')).toBeVisible()
+  const formats = await vault.app.evaluate(async ({ clipboard }) =>
+    (await clipboard.read()).flatMap((i) => i.types)
+  )
+  expect(formats).toContain('image/png')
+})

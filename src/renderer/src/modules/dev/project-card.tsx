@@ -38,6 +38,8 @@ import {
 import { Toggle } from '@/components/ui/toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { defaultScript, EDITOR_LABEL } from './dev-shared'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
+import { devProjectMenu } from './menu'
 
 /** ↑/↓ commit counter with the meaning spelled out in a tooltip. */
 function CommitsBadge({
@@ -81,6 +83,7 @@ export function ProjectCard({
   const scripts = Object.keys(p.scripts)
 
   return (
+    <RecordMenu def={devProjectMenu} record={p} ctx={{ onOpen }} className="h-full">
     <Card className={cn('h-full gap-3', !p.exists && 'opacity-60')}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-lead text-foreground">
@@ -101,7 +104,7 @@ export function ProjectCard({
         <CardDescription className="truncate text-meta" title={p.path}>
           {p.exists ? p.path : `Папку не знайдено: ${p.path}`}
         </CardDescription>
-        <CardAction>
+        <CardAction className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <Toggle
@@ -116,6 +119,8 @@ export function ProjectCard({
             </TooltipTrigger>
             <TooltipContent>{p.favorite ? 'Прибрати з обраного' : 'В обране'}</TooltipContent>
           </Tooltip>
+          {/* The card itself is no button, so «⋯» can sit in its header, beside the star. */}
+          <RecordMenuButton className="size-8" />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-3">
@@ -278,5 +283,6 @@ export function ProjectCard({
         </div>
       </CardContent>
     </Card>
+    </RecordMenu>
   )
 }

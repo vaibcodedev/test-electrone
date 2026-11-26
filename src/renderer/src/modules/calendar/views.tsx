@@ -13,6 +13,8 @@ import { Card } from '@/components/ui/card'
 import { IconAction } from '@/components/common/icon-action'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { itemColor, timeOnDay } from './items'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { calendarDayMenu, calendarItemMenu } from './menu'
 
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 /** Month cell geometry (px) for the «how many lines fit» count: padding, day header, one item line, gap. */
@@ -46,29 +48,31 @@ function ItemChip({
 }) {
   const time = timeOnDay(item, day).short
   return (
-    <Button
-      variant="ghost"
-      size="xs"
-      onClick={(e) => {
-        e.stopPropagation()
-        onOpen(item)
-      }}
-      // main already starts the title with its type («Підписка: …»); the bar colour and the legend say it too.
-      title={item.title}
-      className={cn(
-        'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card active:translate-y-0',
-        (item.done || dim) && 'text-muted-foreground',
-        item.done && 'line-through'
-      )}
-    >
-      {/* The legend's outline: a lime «Подія» bar is invisible on card in the light theme without it. */}
-      <span
-        className="h-3 w-1 shrink-0 rounded-full ring-1 ring-foreground/20"
-        style={{ background: itemColor(item) }}
-      />
-      {time && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
-      <span className="truncate">{item.title}</span>
-    </Button>
+    <RecordMenu asChild def={calendarItemMenu} record={item} ctx={{ onOpen: () => onOpen(item) }}>
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={(e) => {
+          e.stopPropagation()
+          onOpen(item)
+        }}
+        // main already starts the title with its type («Підписка: …»); the bar colour and the legend say it too.
+        title={item.title}
+        className={cn(
+          'h-auto w-full justify-start gap-1.5 rounded-lg px-1.5 py-0.5 text-meta leading-tight font-normal hover:bg-card active:translate-y-0',
+          (item.done || dim) && 'text-muted-foreground',
+          item.done && 'line-through'
+        )}
+      >
+        {/* The legend's outline: a lime «Подія» bar is invisible on card in the light theme without it. */}
+        <span
+          className="h-3 w-1 shrink-0 rounded-full ring-1 ring-foreground/20"
+          style={{ background: itemColor(item) }}
+        />
+        {time && <span className="shrink-0 text-muted-foreground tabular-nums">{time}</span>}
+        <span className="truncate">{item.title}</span>
+      </Button>
+    </RecordMenu>
   )
 }
 
@@ -149,7 +153,7 @@ export function MonthView({
           const items = byDay.get(dayKey(day)) ?? []
           const inMonth = isSameMonth(day, cursor)
           const today = isToday(day)
-          return (
+          const cell = (
             <Card
               key={day.toISOString()}
               onClick={onDayClick && (() => onDayClick(day))}
@@ -213,6 +217,20 @@ export function MonthView({
               })()}
             </Card>
           )
+          // Right click on the day itself (not on an item in it): «Нова подія».
+          return onDayClick ? (
+            <RecordMenu
+              asChild
+              key={day.toISOString()}
+              def={calendarDayMenu}
+              record={day}
+              ctx={{ onNew: () => onDayClick(day) }}
+            >
+              {cell}
+            </RecordMenu>
+          ) : (
+            cell
+          )
         })}
       </div>
     </div>
@@ -264,34 +282,41 @@ export function WeekView({
             </div>
             <div className="mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto scrollbar-gutter-auto">
               {items.map((item) => (
-                <Button
+                <RecordMenu
+                  asChild
                   key={item.key}
-                  variant="ghost"
-                  title={item.title}
-                  onClick={() => onItemClick(item)}
-                  className={cn(
-                    // Full column width, a calm radius, bar + time + title: reads like an agenda row.
-                    'relative h-auto w-full flex-col items-start gap-0.5 rounded-xl bg-card py-2 pr-3 pl-5 text-left font-normal text-foreground whitespace-normal wrap-anywhere hover:bg-(--tile-hover) hover:text-foreground',
-                    item.done && 'opacity-60'
-                  )}
+                  def={calendarItemMenu}
+                  record={item}
+                  ctx={{ onOpen: () => onItemClick(item) }}
                 >
-                  {/* A real bar, not an inset shadow: on a rounded item the shadow bent into a crescent. */}
-                  <span
-                    className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full ring-1 ring-foreground/20"
-                    style={{ background: itemColor(item) }}
-                  />
-                  <span className="text-meta text-muted-foreground tabular-nums">
-                    {timeOnDay(item, day).long}
-                  </span>
-                  <span
+                  <Button
+                    variant="ghost"
+                    title={item.title}
+                    onClick={() => onItemClick(item)}
                     className={cn(
-                      'line-clamp-3 text-caption leading-snug font-medium',
-                      item.done && 'line-through'
+                      // Full column width, a calm radius, bar + time + title: reads like an agenda row.
+                      'relative h-auto w-full flex-col items-start gap-0.5 rounded-xl bg-card py-2 pr-3 pl-5 text-left font-normal text-foreground whitespace-normal wrap-anywhere hover:bg-(--tile-hover) hover:text-foreground',
+                      item.done && 'opacity-60'
                     )}
                   >
-                    {item.title}
-                  </span>
-                </Button>
+                    {/* A real bar, not an inset shadow: on a rounded item the shadow bent into a crescent. */}
+                    <span
+                      className="absolute top-2.5 bottom-2.5 left-2 w-1 rounded-full ring-1 ring-foreground/20"
+                      style={{ background: itemColor(item) }}
+                    />
+                    <span className="text-meta text-muted-foreground tabular-nums">
+                      {timeOnDay(item, day).long}
+                    </span>
+                    <span
+                      className={cn(
+                        'line-clamp-3 text-caption leading-snug font-medium',
+                        item.done && 'line-through'
+                      )}
+                    >
+                      {item.title}
+                    </span>
+                  </Button>
+                </RecordMenu>
               ))}
               <Button
                 variant="ghost"
