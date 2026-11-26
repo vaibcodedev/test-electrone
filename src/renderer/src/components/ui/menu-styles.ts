@@ -11,7 +11,7 @@ export const MENU_SURFACE = 'rounded-xl border bg-popover p-1.5 text-popover-for
 export const SUBMENU_OFFSET = { sideOffset: 8, alignOffset: -7 } as const
 
 const ROW =
-  "relative flex min-h-8 cursor-default items-center gap-2.5 rounded-md py-1.5 text-body outline-hidden select-none focus:bg-foreground/9 focus:text-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+  "relative flex min-h-8 cursor-pointer items-center gap-2.5 rounded-md py-1.5 text-body outline-hidden select-none focus:bg-foreground/9 focus:text-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
 
 const MUTED_ICONS = "[&_svg:not([class*='text-'])]:text-muted-foreground"
 
