@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 import { MAX } from '@shared/domain/limits'
 import { Flame, Lightbulb, Plus, SquareKanban } from 'lucide-react'
 import { IDEA_STATUSES, type Idea, type IdeaStatus } from '@shared/domain/ideas'
@@ -22,6 +22,8 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from '
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { IDEA_STATUS_BADGE, IDEA_STATUS_LABEL, IMPACT_LABEL } from './labels'
 import { IdeaDetail } from './idea-detail'
+import { ideaMenu } from './menu'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
 import { noResultsHint, presentChips } from '../claude/chips'
 
 function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
@@ -80,9 +82,26 @@ function NewIdeaInput({ onCreated }: { onCreated: (id: string) => void }) {
 /** Badges in the active (ink) row take an ink tint, like TagList chips. */
 const ON_INK = 'in-data-active:bg-ink-foreground/12 in-data-active:text-ink-foreground'
 
-function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onClick: () => void }) {
+function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onClick: () => void }): ReactElement {
   return (
-    <ListItem active={active} onClick={onClick}>
+    <RecordMenu def={ideaMenu} record={idea} ctx={{ onOpen: onClick }}>
+      {/* pr-10: the «⋯» has its own room in the corner, over nothing of the row. */}
+      <ListItem
+        active={active}
+        onClick={onClick}
+        // Still the hovered row while the pointer is on its «⋯».
+        className={cn('pr-10', !active && 'group-hover/record-menu:bg-(--tile-hover)')}
+      >
+        <IdeaRowBody idea={idea} active={active} />
+      </ListItem>
+      <RecordMenuButton onInk={active} className="absolute top-2 right-2" />
+    </RecordMenu>
+  )
+}
+
+function IdeaRowBody({ idea, active }: { idea: Idea; active: boolean }): ReactElement {
+  return (
+    <>
       <div className="flex items-start gap-2">
         <span className="flex min-w-0 flex-1 items-start gap-1.5">
           <span className="line-clamp-2 min-w-0 text-body leading-snug font-medium">{idea.title}</span>
@@ -112,7 +131,7 @@ function IdeaRow({ idea, active, onClick }: { idea: Idea; active: boolean; onCli
         </span>
       </div>
       {idea.tags.length > 0 && <TagList tags={idea.tags} className="mt-1.5" max={3} />}
-    </ListItem>
+    </>
   )
 }
 

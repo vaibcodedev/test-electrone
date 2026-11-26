@@ -34,6 +34,8 @@ import {
   TextareaBlock
 } from '../claude/editor-kit'
 import { CopyJsonButton, ImportButton } from '@/components/common/import-dialog'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
+import { snippetMenu } from './menu'
 
 /**
  * Language dot colour: chart tokens only — status colours (destructive, warn…) would read as a state
@@ -168,6 +170,7 @@ function SnippetCard({
   const hasCode = !!item.code.trim()
   const description = mdPreview(item.description)
   return (
+    <RecordMenu def={snippetMenu} record={item} ctx={{ onOpen }} className="h-full">
     <Card
       {...clickableProps(onOpen)}
       aria-current={active || undefined}
@@ -175,7 +178,8 @@ function SnippetCard({
       // drawn inside: `outline-none` would set the outline style to none for the focus-visible state too.
       className={cn('h-full min-w-0 gap-3 py-4', active ? 'bg-ink text-ink-foreground focus-visible:-outline-offset-2' : 'tile')}
     >
-      <CardHeader className="gap-1 px-4">
+      {/* pr-10: room for the «⋯» in the corner (it sits beside the card, not inside its button). */}
+      <CardHeader className="gap-1 pr-10 pl-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="truncate text-body font-semibold">{item.title}</span>
@@ -228,6 +232,8 @@ function SnippetCard({
         )}
       </CardFooter>
     </Card>
+    <RecordMenuButton onInk={active} className="absolute top-3 right-3" />
+    </RecordMenu>
   )
 }
 
