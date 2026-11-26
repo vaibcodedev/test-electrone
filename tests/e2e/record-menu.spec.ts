@@ -48,7 +48,7 @@ test('ideas: right click and «⋯» give the same menu; status submenu, keyboar
     'Статус',
     'Важливість',
     '—',
-    'Закріпити на головній',
+    'Закріпити',
     'В обране',
     'Копіювати посилання',
     '—',
@@ -150,13 +150,13 @@ test('ideas: pins and tags from the menu; a pinned idea offers «Відкріп�
   await go('/ideas')
   const row = area(win, title)
   await row.click({ button: 'right' })
-  await item(win, 'Закріпити на головній').click()
+  await item(win, 'Закріпити').click()
   await expect
     .poll(async () => (await rpc('pins.state', { type: 'idea', id: idea.id })).pin)
     .toBe(true)
 
   await row.click({ button: 'right' })
-  await expect(item(win, 'Відкріпити з головної')).toBeVisible()
+  await expect(item(win, 'Відкріпити')).toBeVisible()
   await item(win, 'Мітки').hover()
   await win.getByRole('menuitemcheckbox', { name: tagName }).click()
   await expect
@@ -191,7 +191,7 @@ test('snippets: «Копіювати код» from the card menu copies and coun
     '—',
     'Мова',
     '—',
-    'Закріпити на головній',
+    'Закріпити',
     'В обране',
     'Копіювати посилання',
     '—',

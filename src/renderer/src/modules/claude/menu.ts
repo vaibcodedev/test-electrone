@@ -1,4 +1,4 @@
-import { Copy, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Copy, ThumbsUp } from 'lucide-react'
 import type { ClaudeItem, ClaudeKind, ClaudePatch } from '@shared/domain/claude'
 import { useApiMutation } from '@/lib/query'
 import { copyText } from '@/components/common/copy-button'
@@ -38,14 +38,7 @@ export const claudeMenu = defineRecordMenu<ClaudeItem, { onOpen: () => void }>({
           }
       ],
       state: [
-        prompt &&
-          (i.works
-            ? {
-                label: 'Зняти позначку «працює»',
-                icon: ThumbsDown,
-                run: () => save({ works: false })
-              }
-            : { label: 'Позначити «працює»', icon: ThumbsUp, run: () => save({ works: true }) }),
+        prompt && { label: 'Працює', icon: ThumbsUp, on: i.works, run: () => save({ works: !i.works }) },
         useTagsSubmenu(i.tags, (tagIds) => save({ tagIds }))
       ],
       danger: [useTrashItem('claude', ref, `${TRASHED[i.kind]} переміщено в кошик`)]

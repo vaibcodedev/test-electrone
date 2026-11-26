@@ -32,7 +32,7 @@ export const libraryMenu = defineRecordMenu<Library, { onOpen: () => void }>({
       open: [
         useOpenItem(ref, onOpen),
         !!l.installCmd.trim() && {
-          label: 'Копіювати команду встановлення',
+          label: 'Копіювати команду',
           icon: Copy,
           run: () => void copyText(l.installCmd, 'Команду скопійовано')
         },

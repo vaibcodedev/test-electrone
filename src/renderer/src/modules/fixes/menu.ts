@@ -1,4 +1,4 @@
-import { CircleCheck, CircleDashed } from 'lucide-react'
+import { CircleCheck } from 'lucide-react'
 import type { Fix, FixPatch } from '@shared/domain/fixes'
 import { useApiMutation } from '@/lib/query'
 import { defineRecordMenu } from '@/features/record-menu/model'
@@ -15,17 +15,7 @@ export const fixMenu = defineRecordMenu<Fix, { onOpen: () => void }>({
     return {
       open: [useOpenItem(ref, onOpen)],
       state: [
-        f.resolved
-          ? {
-              label: 'Позначити невирішеною',
-              icon: CircleDashed,
-              run: () => save({ resolved: false })
-            }
-          : {
-              label: 'Позначити вирішеною',
-              icon: CircleCheck,
-              run: () => save({ resolved: true })
-            },
+        { label: 'Вирішено', icon: CircleCheck, on: f.resolved, run: () => save({ resolved: !f.resolved }) },
         useTagsSubmenu(f.tags, (tagIds) => save({ tagIds }))
       ],
       danger: [useTrashItem('fixes', ref, 'Помилку переміщено в кошик')]

@@ -22,6 +22,14 @@ export const MENU_SUB_TRIGGER = `${ROW} ${MUTED_ICONS} px-2.5 data-inset:pl-9 da
 /** Checkbox and radio items: the mark sits where other items keep their icon. */
 export const MENU_CHOICE_ITEM = `${ROW} pr-2.5 pl-9`
 
+/**
+ * An on/off state («Працює», «Вирішено»): the state's own icon where items keep theirs, ✓ at the end while it is
+ * on (`mark="end"` on a checkbox item).
+ */
+export const MENU_TOGGLE_ITEM = `${ROW} ${MUTED_ICONS} px-2.5`
+
+export const MENU_TOGGLE_MARK = 'pointer-events-none ml-auto flex size-4 items-center justify-center'
+
 export const MENU_CHOICE_MARK =
   'pointer-events-none absolute left-2.5 flex size-4 items-center justify-center'
 

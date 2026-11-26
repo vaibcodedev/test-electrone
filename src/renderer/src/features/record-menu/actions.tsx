@@ -154,7 +154,7 @@ export function useSharedItems(ref: EntityRef | null, title: string, pins: boole
   return [
     // Shown once the state is known: a label that flips a moment later would be the wrong one to click.
     isPinned !== undefined && {
-      label: isPinned ? 'Відкріпити з головної' : 'Закріпити на головній',
+      label: isPinned ? 'Відкріпити' : 'Закріпити',
       icon: isPinned ? PinOff : Pin,
       run: () => toggle.mutate({ ref, kind: 'pin' })
     },

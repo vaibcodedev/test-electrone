@@ -47,7 +47,7 @@ export const entityMenu = defineRecordMenu<EntitySummary, EntityMenuContext | un
       state: [
         !!linkId && { label: 'Прибрати зв’язок', icon: Unlink, run: () => unlink.mutate(linkId) },
         tag && {
-          label: `Зняти мітку «${tag.name}»`,
+          label: 'Зняти цю мітку',
           icon: TagIcon,
           run: () => untag.mutate({ tagId: tag.id, ref, on: false })
         }

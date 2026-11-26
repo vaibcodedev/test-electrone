@@ -14,6 +14,8 @@ import {
   MENU_SHORTCUT,
   MENU_SUB_TRIGGER,
   MENU_SURFACE,
+  MENU_TOGGLE_ITEM,
+  MENU_TOGGLE_MARK,
   SUBMENU_OFFSET
 } from './menu-styles'
 import { OVERLAY_COLLISION } from './collision'
@@ -114,21 +116,30 @@ function DropdownMenuCheckboxItem({
   className,
   children,
   checked,
+  mark = 'start',
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem> & {
+  /**
+   * `start` — a choice among values: ✓ where the icon would be. `end` — an on/off state with its own icon
+   * (children start with it): ✓ at the end of the row while it is on.
+   */
+  mark?: 'start' | 'end'
+}) {
+  const indicator = (
+    <DropdownMenuPrimitive.ItemIndicator>
+      <CheckIcon className="size-4" />
+    </DropdownMenuPrimitive.ItemIndicator>
+  )
   return (
     <DropdownMenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
-      className={cn(MENU_CHOICE_ITEM, className)}
+      className={cn(mark === 'end' ? MENU_TOGGLE_ITEM : MENU_CHOICE_ITEM, className)}
       checked={checked}
       {...props}
     >
-      <span className={MENU_CHOICE_MARK}>
-        <DropdownMenuPrimitive.ItemIndicator>
-          <CheckIcon className="size-4" />
-        </DropdownMenuPrimitive.ItemIndicator>
-      </span>
+      {mark === 'start' && <span className={MENU_CHOICE_MARK}>{indicator}</span>}
       {children}
+      {mark === 'end' && <span className={MENU_TOGGLE_MARK}>{indicator}</span>}
     </DropdownMenuPrimitive.CheckboxItem>
   )
 }

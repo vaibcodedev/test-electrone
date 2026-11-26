@@ -23,6 +23,11 @@ export interface MenuItemSpec {
   destructive?: boolean
   /** A choice in a submenu: true marks the current value (✓), false — another value. */
   checked?: boolean
+  /**
+   * An on/off state («Працює», «Вирішено»): the label names the state and never changes, ✓ at the end while it
+   * is on (menuitemcheckbox). Not «Позначити…» / «Зняти позначку…».
+   */
+  on?: boolean
   confirm?: ConfirmSpec
   /** Runs after the menu has closed (a dialog it opens gets focus, not the fading menu). */
   run: () => unknown
