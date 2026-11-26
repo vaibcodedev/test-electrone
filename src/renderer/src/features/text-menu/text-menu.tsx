@@ -30,6 +30,7 @@ import {
 import {
   codeBlockText,
   editorAt,
+  focusField,
   giveBackFocus,
   holdFocus,
   snapshotFocus,
@@ -154,6 +155,7 @@ export function TextMenu(): ReactElement {
       const groups = textMenuGroups(req, { codeBlock: codeText !== null, mac: MAC })
       if (!groups.length) return
       if (active.current) finish(active.current)
+      if (req.editable) focusField(target, view)
       const snapshot = snapshotFocus()
       const next: Session = {
         req,
@@ -203,7 +205,8 @@ export function TextMenu(): ReactElement {
         className="min-w-56"
         // Focus goes back in finish(), right when the menu closes; Radix would do it again after the fade-out.
         onCloseAutoFocus={(e) => e.preventDefault()}
-        onPointerDownOutside={() => swallowNextPress()}
+        // A left click outside only closes the menu. A right click goes on to open the menu where it landed.
+        onPointerDownOutside={(e) => e.detail.originalEvent.button === 0 && swallowNextPress()}
       >
         {session.groups.map((group, i) => (
           <Fragment key={group[0]?.key ?? i}>

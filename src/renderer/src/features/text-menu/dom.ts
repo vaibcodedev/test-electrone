@@ -83,6 +83,20 @@ export function codeBlockText(target: Element, view: EditorView | null): string 
   return null
 }
 
+/**
+ * The field the menu was asked for has focus. It always has after a right click on it — except a right click
+ * outside an open menu: that press landed on the menu's overlay, Chromium still asks for the field under it, but
+ * focus went nowhere. The editing commands act on the focused field, so it gets focus here.
+ */
+export function focusField(target: Element, view: EditorView | null): void {
+  if (view && view.dom.contains(target)) {
+    if (!view.hasFocus) view.focus()
+    return
+  }
+  const field = target.closest(EDITABLE)
+  if (field instanceof HTMLElement && document.activeElement !== field) field.focus({ preventScroll: true })
+}
+
 /** What has focus and what is selected when the menu opens, to give back when it closes. */
 export interface FocusSnapshot {
   el: HTMLElement | null

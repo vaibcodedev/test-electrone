@@ -112,6 +112,24 @@ test('an input in a sheet: Shift+F10 and Esc give focus and the selection back; 
   await expect(name).toHaveValue('Перший другий')
   await expect(name).toBeFocused()
   expect(await fieldSelection(name)).toEqual([13, 13])
+  // A right click on another field while the menu is open: the menu moves there, and so does focus (the
+  // commands act on the focused field).
+  const fee = sheet.getByRole('textbox', { name: 'Комісія платформи' })
+  // Measured first: an open menu hides the page from the accessibility tree, and getByRole with it.
+  const feeBox = (await fee.boundingBox())!
+  await name.click({ button: 'right', position: { x: 30, y: 10 } })
+  await expect(menu(win)).toBeVisible()
+  await win.waitForTimeout(150)
+  const feeY = feeBox.y + feeBox.height / 2
+  await win.mouse.click(feeBox.x + 20, feeY, { button: 'right' })
+  await expect
+    .poll(async () => Math.abs(((await menu(win).boundingBox())?.y ?? -100) - feeY))
+    .toBeLessThan(8)
+  await expect(menu(win)).toHaveCount(1)
+  await win.keyboard.press('Escape')
+  await expect(menu(win)).toHaveCount(0)
+  await expect(fee).toBeFocused()
+
   // The sheet never noticed: still editing, the autosave has the pasted text.
   await expect(mode).toHaveAttribute('data-detail-mode', 'edit')
   await expect.poll(async () => (await rpc('proposals.get', proposal.id)).jobTitle).toBe('Перший другий')
