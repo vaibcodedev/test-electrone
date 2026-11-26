@@ -104,11 +104,15 @@ describe('«/» commands', () => {
     expect(ids('щось інше')).toEqual([])
   })
 
-  it('opens only on a / at the start of a line, before a short query', () => {
+  it('opens on a / at the start of a line or after a space, before a short query', () => {
     expect(findSlashTrigger('/')).toEqual({ start: 0, query: '' })
     expect(findSlashTrigger('  /чек')).toEqual({ start: 2, query: 'чек' })
     expect(findSlashTrigger('/посилання на')).toEqual({ start: 0, query: 'посилання на' })
-    expect(findSlashTrigger('текст /')).toBeNull()
+    expect(findSlashTrigger('текст /')).toEqual({ start: 6, query: '' })
+    expect(findSlashTrigger('слово '.repeat(80) + '/спи')).toEqual({ start: 480, query: 'спи' })
+    expect(findSlashTrigger('текст/')).toBeNull()
+    expect(findSlashTrigger('https://')).toBeNull()
+    expect(findSlashTrigger('так / ')).toBeNull()
     expect(findSlashTrigger('/usr/bin')).toBeNull()
     expect(findSlashTrigger('/a  b')).toBeNull()
     expect(findSlashTrigger('/' + 'a'.repeat(40))).toBeNull()
@@ -121,6 +125,14 @@ describe('«/» commands', () => {
     const from = line.from + findSlashTrigger(line.text.slice(0, caret - line.from))!.start
     return show(state.update(slashCommandEdit(state, id, from, caret)).state)
   }
+
+  it('after some text a block starts on a new line, a record link stays in place', () => {
+    expect(apply('Текст /спи|', 'list')).toBe('Текст\n- |')
+    expect(apply('Текст /заг| далі', 'h1')).toBe('Текст\n# | далі')
+    expect(apply('Текст /|', 'code')).toBe('Текст\n```\n|\n```')
+    expect(apply('Текст /|', 'divider')).toBe('Текст\n\n---\n|')
+    expect(apply('Див. /зап|', 'link')).toBe('Див. [[|')
+  })
 
   it('replaces /запит with the block’s Markdown and leaves the rest of the line after it', () => {
     expect(apply('/заг|', 'h1')).toBe('# |')

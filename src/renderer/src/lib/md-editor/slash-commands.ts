@@ -1,7 +1,7 @@
 import { EditorSelection, type EditorState, type TransactionSpec } from '@codemirror/state'
 
 /**
- * The «/» menu of a Markdown field (Notion): a `/` at the start of a line opens a list of blocks, what follows it
+ * The «/» menu of a Markdown field (Notion): a `/` at the start of a line or after a space opens a list of blocks, what follows it
  * filters the list, the chosen block replaces `/запит` with its Markdown.
  */
 export type SlashCommandId =
@@ -93,16 +93,19 @@ export function filterSlashCommands(query: string): SlashCommand[] {
     .map((x) => x.c)
 }
 
+/** Words joined by single spaces (a word can't contain one, so the match can't backtrack between splits). */
+const SLASH_QUERY = /^(?:[^\s/\[\]`|]+(?: [^\s/\[\]`|]+){0,3} ?)?$/u
+
 /**
- * The `/запит` being typed at the start of a line (only spaces before it), from the line's text up to the caret;
- * `start` is where the `/` is. A path (`/usr/bin`), a second space in a row or a long run of text is not a query.
+ * The `/запит` being typed at the start of a line or after a space, from the line's text up to the caret; `start`
+ * is where the `/` is. A slash glued to text (`usr/bin`, `https://`), a second space in a row or a long run of
+ * text is not a query. The line before the `/` may be of any length: a paragraph is one line.
  */
 export function findSlashTrigger(lineBefore: string): { start: number; query: string } | null {
-  if (lineBefore.length > 64) return null
-  // Words joined by single spaces (a word can't contain one, so the match can't backtrack between splits).
-  const m = /^([ \t]*)\/((?:[^\s/\\[\]`|]+(?: [^\s/\\[\]`|]+){0,3} ?)?)$/u.exec(lineBefore)
-  if (!m || m[2].length > 30) return null
-  return { start: m[1].length, query: m[2] }
+  const start = lineBefore.lastIndexOf('/')
+  if (start < 0 || (start > 0 && !/[ \t]/.test(lineBefore[start - 1]))) return null
+  const query = lineBefore.slice(start + 1)
+  return query.length <= 30 && SLASH_QUERY.test(query) ? { start, query } : null
 }
 
 const TABLE_HEAD = 'Колонка 1'
@@ -122,9 +125,15 @@ export function slashCommandEdit(
 ): TransactionSpec {
   const line = state.doc.lineAt(from)
   const rest = state.sliceDoc(to, line.to)
-  const prefix = (insert: string): TransactionSpec => ({
-    changes: { from, to, insert },
-    selection: EditorSelection.cursor(from + insert.length)
+  // Typed after some text: a block can't start in the middle of a line, so it goes onto a new one (the space
+  // before the `/` goes away). A record link is inline and stays where it was typed.
+  const head = state.sliceDoc(line.from, from)
+  const midLine = head.trim() !== ''
+  const start = midLine && id !== 'link' ? line.from + head.trimEnd().length : from
+  const lead = midLine && id !== 'link' ? '\n' : ''
+  const prefix = (marker: string): TransactionSpec => ({
+    changes: { from: start, to, insert: lead + marker },
+    selection: EditorSelection.cursor(start + lead.length + marker.length)
   })
   const textAbove = line.number > 1 && /\S/.test(state.doc.line(line.number - 1).text)
   const textBelow = line.number < state.doc.lines && /\S/.test(state.doc.line(line.number + 1).text)
@@ -145,23 +154,23 @@ export function slashCommandEdit(
       return prefix('[[')
     case 'code': {
       // The rest of the line goes into the block: it is what the person meant to put there.
-      const insert = '```\n' + rest + '\n```'
+      const insert = lead + '```\n' + rest + '\n```'
       return {
-        changes: { from, to: line.to, insert },
-        selection: EditorSelection.cursor(from + 4 + rest.length)
+        changes: { from: start, to: line.to, insert },
+        selection: EditorSelection.cursor(start + lead.length + 4 + rest.length)
       }
     }
     case 'table':
     case 'divider': {
       const block = id === 'table' ? TABLE : '---'
-      const before = textAbove ? '\n' : ''
+      const before = midLine ? '\n\n' : textAbove ? '\n' : ''
       const after = rest.trim() ? `\n\n${rest.trimStart()}` : textBelow ? '\n' : ''
       // After a divider the caret goes on to a line of its own; in a table it selects the first header.
       const tail = id === 'divider' && !after ? '\n' : ''
       const insert = before + block + after + tail
-      const at = from + before.length
+      const at = start + before.length
       return {
-        changes: { from, to: line.to, insert },
+        changes: { from: start, to: line.to, insert },
         selection:
           id === 'table'
             ? EditorSelection.range(at + 2, at + 2 + TABLE_HEAD.length)

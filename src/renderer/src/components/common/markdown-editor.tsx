@@ -50,7 +50,7 @@ export interface MarkdownEditorHandle {
  * The text editor of a Markdown field (CodeMirror 6; shadcn has no editor): controlled `value` + `onChange`,
  * `maxLength`, a placeholder, grows with the text like a Textarea and is framed like one. Inside:
  * - record links `[Назва](vault:…)` show as chips with the record's current title (lib/md-editor/link-chips.ts);
- * - `/` at the start of a line opens the block menu, `[[` the record menu (lib/md-editor/menu.ts);
+ * - `/` at the start of a line or after a space opens the block menu, `[[` the record menu (lib/md-editor/menu.ts);
  * - lists continue on Enter, Tab nests an item, Ctrl+B / Ctrl+I / Ctrl+K wrap the selection (smart-keys.ts);
  * - a quiet footer line inside the frame says so («[[ — посилання на запис · / — меню блоків») while the text has
  *   focus. Its height is always reserved, so it never covers the text, shifts the layout or leaves the field.

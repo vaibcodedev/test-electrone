@@ -87,3 +87,26 @@ test('a record link is one chip with the current title: Backspace removes it who
   await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
   await expect(win.getByRole('alertdialog')).toHaveCount(0)
 })
+
+test('«/» after some text opens the menu too, and the block starts on a new line', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const body = 'слово '.repeat(60)
+  const note = await rpc('notes.create', { title: `Слеш у тексті ${uid()}`, body })
+  await go(`/notes?open=${note.id}`)
+  await win.locator('[data-edit-detail]').click()
+  await expect(pane(win)).toHaveAttribute('data-detail-mode', 'edit')
+  const text = textOf(win)
+  await text.click()
+  await win.keyboard.press('Control+End')
+  await win.mouse.move(1, 1)
+  await win.keyboard.type('/спи')
+  const menu = win.getByRole('listbox', { name: 'Блоки для вставки' })
+  await expect(menu.getByRole('option', { name: /Список/ }).first()).toBeVisible()
+  await win.keyboard.press('Enter')
+  await win.keyboard.type('пункт')
+  await pane(win).locator('[data-save]').click()
+  await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
+  await expect
+    .poll(async () => (await rpc<{ body: string }>('notes.get', note.id)).body)
+    .toBe(`${body.trimEnd()}\n- пункт`)
+})
