@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+import { ChartColumn } from 'lucide-react'
 import { useState } from 'react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
@@ -68,8 +70,9 @@ export function StatsTab({ platform }: { platform: Platform }) {
     label: format(parseISO(w.week), 'd MMM', { locale: LOCALE }).replace('.', '')
   }))
 
+  // min-h-full without data: the empty state is centred under the period switch.
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cn('flex flex-col gap-4', t.sent === 0 && 'min-h-full')}>
       <div className="flex items-center justify-between">
         <Segmented
           className="w-fit"
@@ -86,6 +89,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
 
       {t.sent === 0 ? (
         <EmptyState
+          icon={ChartColumn}
           title="За цей період відгуків немає"
           hint="Статистика з’явиться, коли ви надішлете кілька відгуків."
         />

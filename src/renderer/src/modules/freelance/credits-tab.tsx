@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Coins } from 'lucide-react'
 import {
   CREDIT_KINDS,
   creditTxInputSchema,
@@ -214,6 +214,7 @@ export function CreditsTab({ platform }: { platform: Platform }) {
 
       {txs.length === 0 ? (
         <EmptyState
+          icon={Coins}
           title="Поповнень поки немає"
           hint="Запишіть першу купівлю, щоб бачити ціну одного контракту."
           cta={{

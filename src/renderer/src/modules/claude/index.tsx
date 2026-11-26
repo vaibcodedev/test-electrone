@@ -293,6 +293,7 @@ export function ClaudePage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           chips={
             kindChips.length > 0 && (
               <FilterChips allLabel="Усе" value={kind} onChange={setKind} options={kindChips} />

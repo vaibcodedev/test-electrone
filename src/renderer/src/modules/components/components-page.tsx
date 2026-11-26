@@ -181,6 +181,7 @@ export function ComponentsPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           trailing={
             <>
               <FavoriteFilter type="component" value={favorite} onChange={setFavorite} />

@@ -44,8 +44,10 @@ type View = 'kanban' | 'list'
 
 function NewApplicationButton({
   onCreated,
-  variant = 'lime'
+  variant = 'lime',
+  label = 'Вакансія'
 }: {
+  label?: string
   onCreated: (a: Application) => void
   variant?: 'lime' | 'soft'
 }): ReactElement {
@@ -83,7 +85,7 @@ function NewApplicationButton({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant={variant}>
-          <Plus /> Вакансія
+          <Plus /> {label}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-105 rounded-2xl p-4">
@@ -223,6 +225,8 @@ export function ApplicationsPage(): ReactElement {
   const isLoading = view === 'kanban' ? kanban.isLoading : paged.isLoading
   const total = view === 'kanban' ? list.length : paged.items.length
   const filtered = !!(search || boardId || companyId || resumeId || tagId || favorite)
+  // No vacancies at all, not «the filters hide them»: no filter row, and the empty state of the section.
+  const emptyBase = !isLoading && total === 0 && !filtered
   // What is really narrowing the list, for the «Нічого не знайдено» hint.
   const conditions = [
     search.trim() && `за запитом «${search.trim()}»`,
@@ -265,6 +269,7 @@ export function ApplicationsPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={emptyBase}
           chips={
             // No «Djinni 0 · DOU 0» row above an empty base.
             boardChips.length > 0 &&
@@ -320,13 +325,19 @@ export function ApplicationsPage(): ReactElement {
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 px-8 pb-6">
         <FollowUpBanner onOpen={setOpenId} />
-        <div className="min-h-0 flex-1">
-          {!isLoading && total === 0 && !filtered ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {emptyBase ? (
             <EmptyState
               icon={FileUser}
               title="Вакансій поки немає"
               hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які майданчики й версії резюме дають відповіді."
-              action={<NewApplicationButton variant="soft" onCreated={(a) => setOpenId(a.id)} />}
+              action={
+                <NewApplicationButton
+                  variant="soft"
+                  label="Додати вакансію"
+                  onCreated={(a) => setOpenId(a.id)}
+                />
+              }
             />
           ) : !isLoading && total === 0 ? (
             // Not empty columns «0 / Перетягніть сюди картку»: the vacancies exist, the filters hide them.

@@ -220,6 +220,7 @@ export function FixesPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           chips={
             stateChips.length > 0 && (
               <FilterChips

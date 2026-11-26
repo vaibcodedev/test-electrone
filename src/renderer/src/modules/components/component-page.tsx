@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { ArrowLeft, Info, Sparkles } from 'lucide-react'
+import { ArrowLeft, Info, Sparkles, SearchX } from 'lucide-react'
 import {
   COMPONENT_LANGUAGES,
   componentInputSchema,
@@ -208,6 +208,7 @@ export function ComponentPage(): ReactElement {
   if (!data)
     return (
       <EmptyState
+        icon={SearchX}
         title="Компонент не знайдено"
         hint="Можливо, він у кошику."
         cta={{

@@ -357,6 +357,7 @@ export function QuestionsPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filters.length && list.showEmpty && !list.items.length}
           chips={
             // An empty bank has nothing to filter by: no «Усі» chip over the empty state.
             (total > 0 || term || tagId || favorite) && (

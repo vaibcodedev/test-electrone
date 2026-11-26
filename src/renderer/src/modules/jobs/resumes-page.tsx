@@ -249,7 +249,15 @@ export function ResumesPage(): ReactElement {
         }
       />
       <PageBody>
-        <div {...props} className={cn('flex flex-col gap-3 rounded-3xl transition-colors', isOver && 'bg-lime-soft')}>
+        <div
+          {...props}
+          className={cn(
+            'flex flex-col gap-3 rounded-3xl transition-colors',
+            // The empty state is centred in the whole body, and the whole body takes a dropped file.
+            !isLoading && !resumes.length && 'min-h-full',
+            isOver && 'bg-lime-soft'
+          )}
+        >
           {isLoading ? (
             <Delayed delay={150}>
               <div className="grid grid-cols-2 gap-3">

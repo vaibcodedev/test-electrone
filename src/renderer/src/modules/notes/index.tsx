@@ -160,6 +160,7 @@ export function NotesPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           chips={
             folderChips.length > 0 && (
               <FilterChips allLabel="Усі" value={folder} onChange={setFolder} options={folderChips} />

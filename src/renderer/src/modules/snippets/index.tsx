@@ -300,6 +300,7 @@ export function SnippetsPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           chips={
             languageChips.length > 0 && (
               <FilterChips allLabel="Усі мови" value={language} onChange={setLanguage} options={languageChips} />

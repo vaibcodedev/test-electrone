@@ -12,6 +12,7 @@ import { installErrorReporting } from '@/lib/error-reporting'
 import { configureZod } from '@shared/zod-locale'
 import { applyProfileMarker } from '@/lib/profile'
 import { installScrollActivity } from '@/lib/scroll-activity'
+import { dismissSplashWhenReady } from '@/lib/splash'
 
 installErrorReporting()
 // Validation messages in Ukrainian (import previews, client-side checks).
@@ -38,3 +39,4 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>
 )
+dismissSplashWhenReady(queryClient)

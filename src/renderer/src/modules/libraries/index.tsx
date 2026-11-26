@@ -328,6 +328,7 @@ export function LibrariesPage(): ReactElement {
         }
       >
         <FilterBar
+          emptyBase={!search && !filtered && list.showEmpty && !list.items.length}
           chips={
             statusChips.length > 0 && (
               <FilterChips allLabel="Усі" value={status} onChange={setStatus} options={statusChips} />

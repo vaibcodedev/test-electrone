@@ -11,8 +11,166 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: vault-file: https:; media-src 'self' blob: vault-file:; font-src 'self' data:; connect-src 'self' vault-file: ws://localhost:* http://localhost:*; frame-src 'self' vault-file:; object-src 'none'; base-uri 'none'; form-action 'none'"
     />
+    <!--
+      Startup screen: static markup, so it is on the first frame, before the bundle runs. lib/splash.ts removes
+      it when the first screen and its data are ready. Colours are copies of --frame / --lime (globals.css);
+      prefers-color-scheme already follows the saved theme (nativeTheme.themeSource is set before the window).
+    -->
+    <style>
+      #splash {
+        --splash-bg: #d9ddd3;
+        --splash-text: #14160f;
+        --splash-muted: #4b5044;
+        --splash-dial: rgb(20 22 15 / 0.28);
+        --splash-needle: #55700a;
+        position: fixed;
+        inset: 0;
+        z-index: 2147483000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: var(--splash-bg);
+        color: var(--splash-text);
+        font-family: 'Onest Variable', ui-sans-serif, system-ui, sans-serif;
+        /* The window can be moved while it loads. */
+        -webkit-app-region: drag;
+        user-select: none;
+        transition: opacity 0.28s ease;
+      }
+      html[data-profile='sandbox'] #splash {
+        --splash-bg: #e6dbc0;
+      }
+      @media (prefers-color-scheme: dark) {
+        #splash {
+          --splash-bg: #0e0f11;
+          --splash-text: #f3f4f1;
+          --splash-muted: #b2b4ba;
+          --splash-dial: rgb(255 255 255 / 0.22);
+          --splash-needle: #d8f74a;
+        }
+        html[data-profile='sandbox'] #splash {
+          --splash-bg: #120e06;
+        }
+      }
+      #splash[data-leaving] {
+        opacity: 0;
+        pointer-events: none;
+        -webkit-app-region: no-drag;
+      }
+      #splash svg {
+        width: 132px;
+        height: 132px;
+        transition: transform 0.28s ease;
+      }
+      #splash[data-leaving] svg {
+        transform: scale(1.06);
+      }
+      #splash circle,
+      #splash path {
+        fill: none;
+        transform-origin: 66px 66px;
+      }
+      /* The dial of a safe lock: the ticks stand still, the lime arc turns to one «number» after another. */
+      #splash .ticks {
+        stroke: var(--splash-dial);
+        stroke-width: 6;
+        stroke-dasharray: 1.5 8.1556;
+      }
+      #splash .needle {
+        stroke: var(--splash-needle);
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-dasharray: 48 338.42;
+        animation: splash-dial 2.4s cubic-bezier(0.65, 0, 0.25, 1) infinite;
+      }
+      #splash .disc {
+        fill: #d4f542;
+        animation: splash-disc 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+      }
+      #splash .mark {
+        stroke: #14160f;
+        stroke-width: 11;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 100;
+        animation: splash-mark 0.5s 0.16s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+      }
+      #splash .name {
+        margin: 12px 0 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      /* Shown only when the start takes long: a quick one has no text to flash. */
+      #splash .note {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--splash-muted);
+        animation: splash-note 0.4s 1.4s ease backwards;
+      }
+      @keyframes splash-dial {
+        0% {
+          transform: rotate(-90deg);
+        }
+        35% {
+          transform: rotate(150deg);
+        }
+        65% {
+          transform: rotate(60deg);
+        }
+        100% {
+          transform: rotate(270deg);
+        }
+      }
+      @keyframes splash-disc {
+        from {
+          opacity: 0;
+          transform: scale(0.82);
+        }
+      }
+      @keyframes splash-mark {
+        from {
+          stroke-dashoffset: 100;
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+      }
+      @keyframes splash-note {
+        from {
+          opacity: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #splash,
+        #splash svg {
+          transition: none;
+        }
+        #splash .needle,
+        #splash .disc,
+        #splash .mark {
+          animation: none;
+        }
+        #splash .needle {
+          transform: rotate(-90deg);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="splash" role="status">
+      <svg viewBox="0 0 132 132" aria-hidden="true">
+        <circle class="ticks" cx="66" cy="66" r="61.5" />
+        <circle class="needle" cx="66" cy="66" r="61.5" />
+        <circle class="disc" cx="66" cy="66" r="46" />
+        <path class="mark" pathLength="100" d="M45 47 L66 88 L87 47" />
+      </svg>
+      <p class="name">Vault</p>
+      <p class="note">Відкриваємо ваші дані…</p>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

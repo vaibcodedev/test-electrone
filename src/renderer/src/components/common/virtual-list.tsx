@@ -199,7 +199,8 @@ export function VirtualList<T>({
     )
   if (!items.length && !hasMore)
     return (
-      <div className={cn('min-h-0 flex-1 overflow-y-auto', className)}>
+      // A flex column, so the empty state takes the free height and sits in the middle of it.
+      <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto', className)}>
         {error ? <ListError onRetry={onRetry} /> : empty}
       </div>
     )
@@ -350,7 +351,8 @@ export function VirtualGrid<T>({
     )
   if (!items.length && !hasMore)
     return (
-      <div className={cn('min-h-0 flex-1 overflow-y-auto', className)}>
+      // A flex column, so the empty state takes the free height and sits in the middle of it.
+      <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto', className)}>
         {error ? <ListError onRetry={onRetry} /> : empty}
       </div>
     )

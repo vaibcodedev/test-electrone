@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ArrowLeft, ArrowUpRight, Plus, RotateCcw, Rocket, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Plus, RotateCcw, Rocket, X, SearchX } from 'lucide-react'
 import { checklistInputSchema, type ChecklistPatch } from '@shared/domain/checklists'
 import { limitsOf } from '@/lib/limits'
 import { useApi, useApiMutation } from '@/lib/query'
@@ -101,6 +101,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
   if (!data) {
     return (
       <EmptyState
+        icon={SearchX}
         title="Чек-лист не знайдено"
         hint="Можливо, він у кошику."
         cta={{ label: 'До чек-листів', onClick: () => navigate('/checklists') }}

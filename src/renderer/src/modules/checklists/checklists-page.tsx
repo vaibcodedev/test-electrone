@@ -186,12 +186,15 @@ export function ChecklistsPage() {
               onChange={(v) => setParams(v === 'run' ? { tab: 'runs' } : {}, { replace: true })}
             />
           }
+          // Nothing to search in a tab without records; the tabs themselves stay.
           trailing={
-            <>
-              <FavoriteFilter type="checklist" value={favorite} onChange={setFavorite} />
-              <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" />
-            </>
+            (search || filtered || counts?.[tab] !== 0) && (
+              <>
+                <FavoriteFilter type="checklist" value={favorite} onChange={setFavorite} />
+                <TagFilter value={tagId} onChange={setTagId} />
+                <SearchInput value={search} onChange={setSearch} placeholder="Пошук чек-листів" />
+              </>
+            )
           }
         />
       </PageHeader>

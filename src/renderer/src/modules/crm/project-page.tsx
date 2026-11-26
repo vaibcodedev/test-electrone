@@ -1,6 +1,6 @@
 import { useId, type ReactElement } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, SearchX } from 'lucide-react'
 import { PROJECT_STATUSES, projectInputSchema, type ProjectPatch } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { RecordMode, useRecordMode } from '@/components/common/detail-mode'
@@ -59,6 +59,7 @@ export function ProjectPage(): ReactElement {
   if (!data || !p) {
     return (
       <EmptyState
+        icon={SearchX}
         title="Проєкт не знайдено"
         hint="Можливо, він у кошику."
         cta={{

@@ -85,9 +85,21 @@ export function PageHeader({
   )
 }
 
-/** Scrollable page body inside the main panel. */
+/**
+ * Scrollable page body inside the main panel. With an empty state as its child it becomes a flex column, so the
+ * state takes the free height and is centred in it (docs/design-system.md → Пустые состояния).
+ */
 export function PageBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('min-h-0 flex-1 overflow-y-auto px-8 pb-8', className)}>{children}</div>
+  return (
+    <div
+      className={cn(
+        'min-h-0 flex-1 overflow-y-auto px-8 pb-8 has-[>[data-slot=empty]]:flex has-[>[data-slot=empty]]:flex-col',
+        className
+      )}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function Page({ children, className }: { children: ReactNode; className?: string }) {
@@ -328,19 +340,23 @@ export function FilterChips<T extends string>({
 /**
  * The filter row of a list page, always in the same order: chips on the left (wrap if needed), then on the
  * right `trailing` — TagFilter and SearchInput (w-72); `secondary` goes on a second line. «/» finds the
- * search in the same place on every screen.
+ * search in the same place on every screen. `emptyBase` — the section has no records at all (not «nothing
+ * matches»): there is nothing to filter or search, so the row is not drawn and every empty page looks the same.
  */
 export function FilterBar({
   chips,
   trailing,
   secondary,
-  className
+  className,
+  emptyBase
 }: {
+  emptyBase?: boolean
   chips?: ReactNode
   trailing?: ReactNode
   secondary?: ReactNode
   className?: string
-}): ReactElement {
+}): ReactElement | null {
+  if (emptyBase) return null
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       {/* The row itself does not wrap: chips wrap in their own column, the search stays right on the first line. */}

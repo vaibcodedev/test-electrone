@@ -335,7 +335,7 @@ export function CompaniesPage(): ReactElement {
           </Button>
         }
       >
-        <FilterBar trailing={<SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" />} />
+        <FilterBar emptyBase={!search && !debounced && list.showEmpty && !list.items.length} trailing={<SearchInput value={search} onChange={setSearch} placeholder="Назва, стек, нотатки" />} />
       </PageHeader>
       <div className="flex min-h-0 flex-1 px-8 pb-6">
         <MasterDetail

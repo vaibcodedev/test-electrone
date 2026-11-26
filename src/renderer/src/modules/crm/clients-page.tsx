@@ -146,12 +146,18 @@ export function ClientsPage(): ReactElement {
               )}
             </>
           }
+          // Nothing to search in a tab without records; the tabs themselves stay.
           trailing={
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder={tab === 'clients' ? 'Знайти клієнта' : 'Знайти проєкт'}
-            />
+            (search ||
+              filtered ||
+              !(tab === 'clients' ? clientList : projectList).showEmpty ||
+              (tab === 'clients' ? clients : projects).length > 0) && (
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder={tab === 'clients' ? 'Знайти клієнта' : 'Знайти проєкт'}
+              />
+            )
           }
           secondary={
             // No row of status chips over the empty state of a base without projects.

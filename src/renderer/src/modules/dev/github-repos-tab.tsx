@@ -106,6 +106,7 @@ export function ReposTab(): ReactElement | null {
           />
         ) : (
           <EmptyState
+            icon={FolderGit2}
             title="Репозиторіїв немає"
             hint="Перевірте, що токен має доступ до потрібних репозиторіїв."
           />

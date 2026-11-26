@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Archive, ArchiveRestore, Handshake } from 'lucide-react'
+import { Archive, ArchiveRestore, Handshake, SearchX } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { Button } from '@/components/ui/button'
@@ -120,7 +120,7 @@ export function PlatformPage() {
   }
   if (!platform)
     return (
-      <EmptyState title="Платформу не знайдено" hint="Можливо, вона в архіві або її видалено." />
+      <EmptyState icon={SearchX} title="Платформу не знайдено" hint="Можливо, вона в архіві або її видалено." />
     )
 
   const tabs: { value: Tab; label: string }[] = [
@@ -201,7 +201,10 @@ export function PlatformPage() {
           <TabsContent value="proposals" className="h-full">
             <ProposalsTab platform={platform} onNew={() => setNewOpen(true)} />
           </TabsContent>
-          <TabsContent value="contracts" className="h-full overflow-y-auto">
+          <TabsContent
+            value="contracts"
+            className="h-full overflow-y-auto has-[>[data-slot=empty]]:flex has-[>[data-slot=empty]]:flex-col"
+          >
             <ContractsTab platform={platform} />
           </TabsContent>
           {platform.creditsName && (

@@ -100,7 +100,12 @@ export function TagsPage(): ReactElement {
         subtitle="Спільні для всіх розділів: одна мітка «shopify» знайде ідеї, сніпети, дизайни й помилки."
       />
       <PageBody>
-        <div className="grid grid-cols-[minmax(280px,360px)_minmax(0,1fr)] items-start gap-3">
+        <div
+          className={cn(
+            'grid grid-cols-[minmax(280px,360px)_minmax(0,1fr)] items-start gap-3',
+            !current && 'min-h-full'
+          )}
+        >
           <Card className="gap-3">
             <CardContent className="flex flex-col gap-3">
               <form ref={attach} onSubmit={(e) => gate(e, () => void submit())}>
@@ -179,7 +184,8 @@ export function TagsPage(): ReactElement {
             </CardContent>
           </Card>
 
-          <Card className="gap-4">
+          {/* With nothing picked the card takes the full height: its empty state sits in the middle of the page. */}
+          <Card className={cn('gap-4', !current && 'self-stretch')}>
             {noTags ? (
               <EmptyState
                 icon={Tags}

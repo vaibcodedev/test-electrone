@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { ArrowLeft, Plus, SearchX } from 'lucide-react'
 import { clientInputSchema, type ClientPatch } from '@shared/domain/crm'
 import { useApi, useApiMutation } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
@@ -59,6 +59,7 @@ export function ClientPage(): ReactElement {
   if (!data || !c) {
     return (
       <EmptyState
+        icon={SearchX}
         title="Клієнта не знайдено"
         hint="Можливо, він у кошику."
         cta={{ label: 'До клієнтів', icon: ArrowLeft, onClick: () => navigate('/clients') }}

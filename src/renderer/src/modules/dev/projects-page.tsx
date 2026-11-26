@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react'
-import { FolderGit2, FolderInput, FolderPlus, FolderSearch } from 'lucide-react'
+import { FolderGit2, FolderInput, FolderPlus, FolderSearch, Star } from 'lucide-react'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useMainEvent } from '@/hooks/use-main-events'
 import { useDroppedFiles } from '@/hooks/use-file-drop'
@@ -100,6 +100,7 @@ export function DevProjectsPage(): ReactElement {
       ) : filtered.length === 0 ? (
         only === 'favorite' && !search.trim() ? (
           <EmptyState
+            icon={Star}
             title="Обраних поки немає"
             hint="Натисніть зірочку на картці проєкту — він з’явиться тут."
           />
