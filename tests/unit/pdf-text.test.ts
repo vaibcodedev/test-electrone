@@ -54,6 +54,11 @@ describe('passage', () => {
     expect(passage('Договір про Співпрацю', ['співпр'])).toBe('Договір про \u0001Співпрацю\u0002')
   })
 
+  it('finds an accented match far into a long text', () => {
+    const text = `${'İstanbul lead '.repeat(2000)}the Zürich office ${'tail '.repeat(50)}`
+    expect(passage(text, ['zurich'])).toContain('the \u0001Zürich\u0002 office')
+  })
+
   it('without a match: the beginning of the text', () => {
     expect(passage('one two three', ['zzz'])).toBe('one two three')
   })
