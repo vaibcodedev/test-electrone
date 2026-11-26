@@ -137,6 +137,8 @@ import type {
 } from './domain/bookmarks'
 import type {
   EnglishStats,
+  WordImportInput,
+  WordImportResult,
   ReviewGrade,
   Word,
   WordInput,
@@ -495,8 +497,12 @@ export interface BookmarksApi extends CrudApi<
 }
 
 export interface EnglishApi extends CrudApi<Word, WordInput, WordPatch, WordListQuery> {
-  /** Words due for review now, oldest first. */
+  /** Today's session: due reviews (up to the daily cap), then new entries up to what is left of the goal. */
   queue(limit?: number): Promise<Word[]>
+  /** New entries beyond today's goal, oldest first — «Ще N нових» after the goal is reached. */
+  moreNew(limit?: number): Promise<Word[]>
+  /** Rows from a CSV / TSV / Anki file: duplicates and invalid rows are skipped; `dryRun` only counts. */
+  importWords(input: WordImportInput): Promise<WordImportResult>
   /** Words not due yet, hardest and soonest first — for practice beyond the daily norm. */
   practiceExtra(limit?: number): Promise<Word[]>
   review(args: { id: string; grade: ReviewGrade; extra?: boolean }): Promise<Word>

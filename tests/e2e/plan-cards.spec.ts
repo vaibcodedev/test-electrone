@@ -6,13 +6,15 @@ test('plan lines become cards once, and the plan links to them', async ({ vault 
   const { win, rpc, go } = vault
   const tag = uid()
   const board = await rpc('boards.create', { title: `План ${tag}` })
-  await go('/review')
   const create = win.getByRole('button', { name: 'Створити картки', exact: true })
   const { weekStart } = await rpc('review.get', {})
   await rpc('review.saveNotes', {
     weekStart,
     plan: `- [ ] Перша ${tag}\n- [ ] Друга ${tag}\n- [ ] Третя ${tag}`
   })
+  // A write made past the renderer leaves its cache as it was: reload to read the saved plan.
+  await win.reload()
+  await go('/review')
   await create.click()
   const dialog = win.getByRole('dialog', { name: 'Картки з плану' })
   await expect(dialog.getByRole('checkbox')).toHaveCount(3)

@@ -13,6 +13,7 @@ import {
   type AiUsage
 } from '@shared/domain/ai'
 import { z } from 'zod'
+import { ENGLISH_NEW_PER_DAY, ENGLISH_REVIEWS_PER_DAY } from '@shared/domain/english'
 import { log } from './logger'
 import { retryBusy } from './util'
 
@@ -98,7 +99,11 @@ export const DEFAULT_SETTINGS: Settings = {
   captureEnabled: true,
   capturePort: 47219,
   hiddenNavHubs: [],
-  hiddenNavItems: []
+  hiddenNavItems: [],
+  englishNewPerDay: ENGLISH_NEW_PER_DAY.default,
+  englishReviewsPerDay: ENGLISH_REVIEWS_PER_DAY.default,
+  englishAccent: 'en-US',
+  englishAutoplay: false
 }
 
 const DEFAULTS: ConfigShape = {

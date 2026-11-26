@@ -10,10 +10,16 @@ const hashPath = (win: Page): Promise<string> =>
   win.evaluate(() => location.hash.slice(1).split('?')[0])
 const mode = (win: Page): Locator => win.locator('[data-detail-mode]').first()
 
-/** Answers every word due today except `keep` («Згадали»), so a session holds only the test's words. */
+/**
+ * Answers every entry due today except `keep` («Згадали»), so a session holds only the test's words. The daily goal
+ * is lifted first: with the default 10 new words a day, the seeded words would use it up before the test's ones.
+ */
 async function answerDueExcept(rpc: Rpc, keep: string[]): Promise<void> {
-  const due: { id: string }[] = await rpc('english.queue', 500)
-  for (const w of due) if (!keep.includes(w.id)) await rpc('english.review', { id: w.id, grade: 2 })
+  await rpc('settings.update', { englishNewPerDay: 200, englishReviewsPerDay: 1000 })
+  const fresh: { id: string }[] = await rpc('english.list', { stage: 'new', limit: 500 })
+  const due: { id: string }[] = await rpc('english.queue')
+  for (const w of [...fresh, ...due])
+    if (!keep.includes(w.id)) await rpc('english.review', { id: w.id, grade: 2 })
 }
 
 /**
@@ -146,7 +152,7 @@ test.describe('чек-лист: шаблон → прогін', () => {
 })
 
 test.describe('англійська: слово → тренування', () => {
-  test('додати слово → «Повторити» → «Легко» → стадія «Вчу», повторення не сьогодні', async ({
+  test('додати слово → «Тренуватися» → «Легко» → стадія «Вчу», повторення не сьогодні', async ({
     vault
   }) => {
     test.setTimeout(120_000)
@@ -174,7 +180,8 @@ test.describe('англійська: слово → тренування', () =>
     // Only this word is due today (the seeded ones are answered via RPC), so the session is just it.
     await answerDueExcept(rpc, [created.id])
     await go('/english')
-    await win.getByRole('button', { name: 'Повторити 1' }).click()
+    await expect(win.getByText('Ще 1 картка у тренуванні')).toBeVisible()
+    await win.getByRole('button', { name: 'Тренуватися' }).click()
     await expect.poll(() => hashPath(win)).toBe('/english/review')
     // The dictionary stays on screen until the review chunk loads: wait for the card itself.
     await expect(win.getByRole('button', { name: 'Показати відповідь' })).toBeVisible()
@@ -221,7 +228,8 @@ test.describe('англійська: слово → тренування', () =>
       words.map((w) => w.id)
     )
     await go('/english')
-    await win.getByRole('button', { name: 'Повторити 3' }).click()
+    await expect(win.getByText('Ще 3 картки у тренуванні')).toBeVisible()
+    await win.getByRole('button', { name: 'Тренуватися' }).click()
     await expect.poll(() => hashPath(win)).toBe('/english/review')
 
     const shown: string[] = []
@@ -259,5 +267,90 @@ test.describe('англійська: слово → тренування', () =>
       'true'
     )
     expect((await rpc('english.stats')).total).toBe(before)
+  })
+
+  test('імпорт CSV: колонки, дублікати, «Імпортувати N слів»', async ({ vault }) => {
+    const { win, rpc, go } = vault
+    const token = uid()
+    await rpc('english.create', { term: `deploy${token}`, translation: 'розгорнути' })
+    await go('/english')
+    await win.getByRole('button', { name: 'Імпорт' }).click()
+    await win.getByRole('menuitem', { name: 'З CSV або Anki…' }).click()
+    const dialog = win.getByRole('dialog', { name: 'Імпорт слів з файлу' })
+    await dialog.locator('input[type="file"]').setInputFiles({
+      name: 'words.csv',
+      mimeType: 'text/csv',
+      buffer: Buffer.from(
+        [
+          'word;translation;example',
+          `Deploy${token};розгорнути;`,
+          `rollout${token};викатка;"We ship a staged rollout"`,
+          `merge${token};злити;Merge it`
+        ].join('\n')
+      )
+    })
+    await expect(dialog.getByRole('combobox', { name: 'Слово' })).toContainText('word')
+    await expect(dialog.getByRole('cell', { name: `rollout${token}` })).toBeVisible()
+    await expect(dialog.getByText('Нових: 2 · дублікати: 1')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Імпортувати 2 слова' }).click()
+    await expect(win.getByText('Імпортовано 2 слова').first()).toBeVisible()
+    const added = (await rpc('english.list', { search: token })) as {
+      term: string
+      example: string
+    }[]
+    expect(added.map((w) => w.term).sort()).toEqual([
+      `deploy${token}`,
+      `merge${token}`,
+      `rollout${token}`
+    ])
+    expect(added.find((w) => w.term === `rollout${token}`)?.example).toBe(
+      'We ship a staged rollout'
+    )
+  })
+
+  test('правило граматики → картка «заповни пропуск» → «Правильно» → оцінка', async ({ vault }) => {
+    test.setTimeout(90_000)
+    const { win, rpc, go } = vault
+    const name = `Past Simple ${uid()}`
+    await go('/english')
+    await win.locator('[data-slot="page-header"]').getByRole('button', { name: 'Правило' }).click()
+    const dialog = win.getByRole('dialog', { name: 'Нове правило' })
+    await dialog.getByRole('textbox', { name: 'Назва' }).fill(name)
+    await dialog.getByRole('textbox', { name: 'Правило' }).fill('Завершена дія в минулому')
+    await dialog.getByRole('textbox', { name: 'Приклади' }).fill('Yesterday I [went|go] home.')
+    await expect(dialog.getByText('1 картка «заповни пропуск» для тренування')).toBeVisible()
+    await dialog.getByRole('button', { name: 'Створити правило' }).click()
+    await expect(win.getByText('Правило створено').first()).toBeVisible()
+    const [rule] = (await rpc('english.list', { kind: 'rule', search: name })) as { id: string }[]
+
+    // The «Граматика» filter shows rules only; the row reads the example as a sentence, without the brackets.
+    await win.getByRole('combobox', { name: 'Тип' }).click()
+    await win.getByRole('option', { name: 'Граматика' }).click()
+    await win.locator('[data-page-search]').fill(name)
+    await expect(win.getByRole('button').filter({ hasText: name }).first()).toContainText(
+      '«Yesterday I went home.»'
+    )
+    expect(
+      (await rpc('english.list', { kind: 'rule', search: 'Yesterday' })).length
+    ).toBeGreaterThan(0)
+
+    await answerDueExcept(rpc, [rule.id])
+    await go('/english')
+    await win.getByRole('button', { name: 'Тренуватися' }).click()
+    await expect.poll(() => hashPath(win)).toBe('/english/review')
+    await expect(win.getByText(`Граматика · ${name}`)).toBeVisible()
+    await expect(win.getByText('(go)')).toBeVisible()
+    const answer = win.getByRole('textbox', { name: 'Відповідь' })
+    await expect(answer).toBeFocused()
+    await answer.fill('Went')
+    await answer.press('Enter')
+    await expect(win.getByText('Правильно', { exact: true })).toBeVisible()
+    await expect(win.getByText('Завершена дія в минулому')).toBeVisible()
+    await expect(win.getByText('Як далося правило?')).toBeVisible()
+    await win.keyboard.press('3')
+    await expect(win.getByText('Сесію завершено')).toBeVisible()
+    expect(((await rpc('english.get', rule.id)) as { stage: string }).stage).toBe('learning')
+    const stats = await rpc('english.stats')
+    expect(stats.today.newDone).toBeGreaterThanOrEqual(1)
   })
 })

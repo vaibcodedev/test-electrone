@@ -125,7 +125,10 @@ export class Container {
   readonly media = new MediaModule(this.moduleCtx)
   readonly crm = new CrmModule(this.moduleCtx, new SecretClipboard(clipboard))
   readonly checklists = new ChecklistsModule(this.moduleCtx)
-  readonly english = new EnglishModule(this.moduleCtx)
+  readonly english = new EnglishModule(this.moduleCtx, () => ({
+    newPerDay: this.config.settings.englishNewPerDay,
+    reviewsPerDay: this.config.settings.englishReviewsPerDay
+  }))
   readonly calendar = new CalendarModule(this.moduleCtx)
   readonly freelance = new FreelanceModule(this.moduleCtx, this.crm)
   readonly finance = new FinanceModule(this.moduleCtx, this.freelance)

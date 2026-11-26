@@ -1,6 +1,10 @@
-import type { ReactElement } from 'react'
-import { PartyPopper } from 'lucide-react'
+import { useRef, useState, type ReactElement } from 'react'
+import { CircleCheck, CircleX, PartyPopper } from 'lucide-react'
 import type { ReviewGrade, Word } from '@shared/domain/english'
+import { isGapAnswer, type GapCard } from '@shared/english-gaps'
+import { Input } from '@/components/ui/input'
+import { SpeakButton } from './speak-button'
+import type { Pronounce } from './use-pronounce'
 import { plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/common/page'
@@ -61,11 +65,13 @@ const GRADES: {
 export function ReviewCard({
   word,
   revealed,
-  onReveal
+  onReveal,
+  pronounce
 }: {
   word: Word
   revealed: boolean
   onReveal: () => void
+  pronounce: Pronounce
 }): ReactElement {
   return (
     <Card
@@ -85,7 +91,12 @@ export function ReviewCard({
           {word.context}
         </Badge>
       )}
-      <div className="font-display max-w-full text-display">{word.term}</div>
+      <div className="flex max-w-full items-center gap-2">
+        <div className="font-display min-w-0 text-display">{word.term}</div>
+        {word.kind !== 'rule' && (
+          <SpeakButton text={word.term} shortcut="R" pronounce={pronounce} />
+        )}
+      </div>
       {word.transcription && (
         <div className="text-lead text-muted-foreground">{word.transcription}</div>
       )}
@@ -124,21 +135,28 @@ export function ReviewCard({
 export function GradeButtons({
   revealed,
   busy,
-  onGrade
+  onGrade,
+  rule = false
 }: {
   revealed: boolean
   busy: boolean
   onGrade: (g: ReviewGrade) => void
+  /** A grammar card: the hint and the question speak of the gap, not of a translation. */
+  rule?: boolean
 }): ReactElement {
   if (!revealed)
     return (
       <div className="flex h-16 items-center justify-center text-caption text-muted-foreground">
-        Згадайте переклад, відкрийте відповідь і оцініть, наскільки легко він дався
+        {rule
+          ? 'Впишіть пропущене й натисніть Enter — тоді оцініть, наскільки легко далося'
+          : 'Згадайте переклад, відкрийте відповідь і оцініть, наскільки легко він дався'}
       </div>
     )
   return (
     <div className="flex animate-enter flex-col gap-2">
-      <div className="text-center text-body font-medium">Як ви згадали переклад?</div>
+      <div className="text-center text-body font-medium">
+        {rule ? 'Як далося правило?' : 'Як ви згадали переклад?'}
+      </div>
       <div className="grid grid-cols-4 gap-2">
         {GRADES.map((g) => (
           <Button
@@ -200,13 +218,28 @@ export function SessionSummary({
 /** Practice beyond the norm (doesn't shift the schedule) and the way back. */
 export function PracticeMore({
   onStart,
+  onMoreNew,
+  newCount,
   onExit
 }: {
   onStart: (limit: number) => void
+  /** Offered while the dictionary still has new entries beyond today's goal. */
+  onMoreNew: (limit: number) => void
+  newCount: number
   onExit: () => void
 }): ReactElement {
   return (
     <div className="mt-6 flex flex-col items-center gap-3">
+      {newCount > 0 && (
+        <>
+          <span className="text-caption text-muted-foreground">
+            Ціль на сьогодні виконано, а нових слів у словнику ще {newCount}
+          </span>
+          <Button variant="soft" onClick={() => onMoreNew(5)}>
+            Ще {Math.min(5, newCount)} {plural(Math.min(5, newCount), ['нове', 'нові', 'нових'])}
+          </Button>
+        </>
+      )}
       <span className="text-caption text-muted-foreground">
         Потренуватися понад норму — розклад повторень не збиватиметься
       </span>
@@ -225,5 +258,114 @@ export function PracticeMore({
         Повернутися до словника
       </Button>
     </div>
+  )
+}
+
+/**
+ * A grammar card: the sentence with a gap (and its hint), the answer typed in, Enter checks. After that the gap is
+ * filled — green when it matched, otherwise the right answer next to what was typed — and the rule is shown.
+ */
+export function GapReviewCard({
+  rule,
+  card,
+  revealed,
+  onReveal,
+  pronounce
+}: {
+  rule: Word
+  card: GapCard
+  revealed: boolean
+  onReveal: () => void
+  pronounce: Pronounce
+}): ReactElement {
+  const [typed, setTyped] = useState('')
+  const input = useRef<HTMLInputElement>(null)
+  const right = isGapAnswer(card, typed)
+  const reveal = (): void => {
+    // Out of the field: the grade keys 1–4 don't work while typing.
+    input.current?.blur()
+    onReveal()
+  }
+  return (
+    <Card className="min-h-85 items-center justify-center gap-4 rounded-3xl px-10 py-12 text-center ring-1 ring-foreground/8 wrap-anywhere">
+      <Badge
+        variant="soft"
+        truncate
+        className="max-w-full text-caption font-normal text-muted-foreground"
+      >
+        Граматика · {rule.term}
+      </Badge>
+      <div className="font-display max-w-2xl text-headline leading-snug">
+        {card.before}
+        {revealed ? (
+          <span
+            className={cn(
+              'font-semibold underline underline-offset-6',
+              right ? 'text-success' : 'text-foreground'
+            )}
+          >
+            {card.answers[0]}
+          </span>
+        ) : (
+          <span className="inline-block min-w-24 border-b-2 border-foreground/40 px-1 text-muted-foreground">
+            {card.hint ? `(${card.hint})` : '\u00a0'}
+          </span>
+        )}
+        {card.after}
+      </div>
+      {revealed ? (
+        <div className="selectable flex max-w-xl animate-enter flex-col items-center gap-2.5">
+          {typed.trim() && (
+            <div
+              className={cn(
+                'flex items-center gap-1.5 text-body font-medium',
+                right ? 'text-success' : 'text-destructive'
+              )}
+            >
+              {right ? <CircleCheck className="size-4" /> : <CircleX className="size-4" />}
+              {right ? 'Правильно' : `Ви написали: ${typed.trim()}`}
+            </div>
+          )}
+          {card.answers.length > 1 && (
+            <div className="text-caption text-muted-foreground">
+              Також правильно: {card.answers.slice(1).join(', ')}
+            </div>
+          )}
+          {rule.translation && (
+            <div className="text-body whitespace-pre-line text-muted-foreground">
+              {rule.translation}
+            </div>
+          )}
+          <SpeakButton text={card.sentence} shortcut="R" pronounce={pronounce} />
+        </div>
+      ) : (
+        <form
+          className="mt-2 flex w-full max-w-sm flex-col items-center gap-2.5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            reveal()
+          }}
+        >
+          <Input
+            ref={input}
+            autoFocus
+            value={typed}
+            maxLength={200}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder="Що пропущено?"
+            aria-label="Відповідь"
+            autoComplete="off"
+            spellCheck={false}
+            className="text-center"
+          />
+          <Button type="submit" variant="lime" size="lg">
+            Перевірити
+          </Button>
+          <span className="flex items-center gap-1.5 text-caption text-muted-foreground">
+            або <Kbd>Enter</Kbd>
+          </span>
+        </form>
+      )}
+    </Card>
   )
 }

@@ -34,6 +34,8 @@ export interface ReviewSession {
   extra: boolean
   grade: (g: ReviewGrade) => Promise<void>
   startExtra: (limit: number) => Promise<void>
+  /** New entries beyond today's goal: an ordinary session (it moves the schedule, unlike `startExtra`). */
+  startMoreNew: (limit: number) => Promise<void>
 }
 
 /**
@@ -47,7 +49,7 @@ export function useReviewSession(): ReviewSession {
     isFetchedAfterMount,
     error,
     refetch
-  } = useApi('english', 'queue', 50, {
+  } = useApi('english', 'queue', undefined, {
     staleTime: Infinity,
     refetchOnMount: 'always'
   })
@@ -71,14 +73,18 @@ export function useReviewSession(): ReviewSession {
   const total = queue?.length ?? 0
   const finished = queue !== null && index >= total
 
-  const startExtra = async (limit: number): Promise<void> => {
+  const start = async (
+    load: () => Promise<Word[]>,
+    extra: boolean,
+    none: string
+  ): Promise<void> => {
     try {
-      const words = await api.english.practiceExtra(limit)
+      const words = await load()
       if (!words.length) {
-        toast.info('Більше слів для тренування немає — додайте нові у словник')
+        toast.info(none)
         return
       }
-      setSession({ words, unique: words.length, extra: true })
+      setSession({ words, unique: words.length, extra })
       setIndex(0)
       setRevealed(false)
       setResults(NO_RESULTS)
@@ -86,6 +92,14 @@ export function useReviewSession(): ReviewSession {
       toast.error((e as Error).message)
     }
   }
+  const startExtra = (limit: number): Promise<void> =>
+    start(
+      () => api.english.practiceExtra(limit),
+      true,
+      'Більше слів для тренування немає — додайте нові у словник'
+    )
+  const startMoreNew = (limit: number): Promise<void> =>
+    start(() => api.english.moreNew(limit), false, 'Нових слів більше немає — додайте їх у словник')
 
   const grade = async (g: ReviewGrade): Promise<void> => {
     if (!current || !queue || !revealed || busy) return
@@ -120,6 +134,7 @@ export function useReviewSession(): ReviewSession {
     uniqueTotal: session?.unique ?? queue?.length ?? 0,
     extra,
     grade,
-    startExtra
+    startExtra,
+    startMoreNew
   }
 }
