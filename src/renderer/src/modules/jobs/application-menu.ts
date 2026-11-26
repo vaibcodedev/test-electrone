@@ -14,6 +14,7 @@ import {
   useTagsSubmenu,
   useTrashItem
 } from '@/features/record-menu/actions'
+import { promptAfterStatusChange } from './schedule-stage'
 
 /** A vacancy's right click (list rows): the post, the status. */
 export const applicationMenu = defineRecordMenu<Application, { onOpen: () => void }>({
@@ -36,7 +37,12 @@ export const applicationMenu = defineRecordMenu<Application, { onOpen: () => voi
           APPLICATION_STATUSES,
           a.status,
           (s) => APPLICATION_STATUS_LABEL[s],
-          (status) => save({ status })
+          (status) => {
+            save({ status })
+            // As the editor's select and the board's drag: «Співбесіда» / «Тестове» with nothing in the calendar
+            // offers to plan it (only where a page with that dialog is open).
+            promptAfterStatusChange(a, status)
+          }
         ),
         useTagsSubmenu(a.tags, (tagIds) => save({ tagIds }))
       ],

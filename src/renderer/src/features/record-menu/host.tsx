@@ -194,6 +194,10 @@ export function RecordMenuHost(): ReactElement {
             key={req.seq}
             ref={content}
             {...{ [RECORD_MENU_CONTENT]: '' }}
+            // Rendered here, away from the React tree of the row it serves: an open sheet, dialog or popover around
+            // the row must take a press or focus in this menu as its own, not as one outside it (it closed, and a
+            // sheet in «Редагувати» asked «Зберегти зміни?»). The text menu does the same.
+            layerBranch
             loop
             side="bottom"
             align={req.align}

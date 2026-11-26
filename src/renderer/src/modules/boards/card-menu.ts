@@ -29,7 +29,10 @@ export const cardMenu = defineRecordMenu<Card, { onOpen: () => void; columns: Bo
     const ref = { type: 'card' as const, id: c.id }
     const notifyRepeat = useRepeatToast()
     const move = useApiMutation('cards', 'move', { onSuccess: notifyRepeat })
-    const update = useApiMutation('cards', 'update')
+    // As the card sheet: a change that closes a repeating card says so (and offers the next one).
+    const update = useApiMutation('cards', 'update', {
+      onSuccess: (res) => notifyRepeat(res?.repeatOutcome)
+    })
     const patch = (p: CardPatch): void => update.mutate({ id: c.id, patch: p })
     const due = (label: string, days: number): MenuItemSpec => {
       const at = dueIn(days, c.dueAt)

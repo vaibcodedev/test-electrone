@@ -297,3 +297,117 @@ test('gallery: «Копіювати зображення» puts a PNG on the cli
   )
   expect(formats).toContain('image/png')
 })
+
+test('inside a card sheet: menu clicks keep the sheet (view, edit, a confirm on top)', async ({
+  vault
+}) => {
+  const { win, rpc, go } = vault
+  const board = await rpc('boards.create', { title: `Шторка ${uid()}` })
+  const details = await rpc('boards.details', board.id)
+  const card = await rpc('cards.create', {
+    boardId: board.id,
+    columnId: details.columns[0].id,
+    title: `Картка ${uid()}`
+  })
+  const linked = await rpc('ideas.create', { title: `Пов’язана ${uid()}` })
+  await rpc('links.create', { fromType: 'card', fromId: card.id, toType: 'idea', toId: linked.id })
+  await win.evaluate(async (id) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = await (window as any).vault.rpc('files.add', {
+      ref: { type: 'card', id },
+      source: {
+        kind: 'bytes',
+        name: 'нотатки.txt',
+        mime: 'text/plain',
+        data: new TextEncoder().encode('текст')
+      }
+    })
+    if (!r.ok) throw new Error(r.error)
+  }, card.id)
+  await go(`/boards/${board.id}?card=${card.id}`)
+  const sheet = win.getByRole('dialog').filter({ has: win.locator('[data-detail-mode]') })
+  await expect(sheet).toBeVisible()
+  const linkRow = sheet.locator('[data-record-menu]').filter({ hasText: linked.title })
+
+  // Reading: «Закріпити» from the link row's menu pins the linked idea, the sheet stays.
+  await linkRow.click({ button: 'right' })
+  await item(win, 'Закріпити').click()
+  await expect
+    .poll(async () => (await rpc('pins.state', { type: 'idea', id: linked.id })).pin)
+    .toBe(true)
+  await expect(sheet).toBeVisible()
+
+  // Editing: a menu click doesn't count as leaving the sheet (no «Зберегти зміни?»).
+  await sheet.locator('[data-edit-detail]').click()
+  const mode = sheet.locator('[data-detail-mode]').first()
+  await expect(mode).toHaveAttribute('data-detail-mode', 'edit')
+  await linkRow.click({ button: 'right' })
+  await item(win, 'Копіювати посилання').click()
+  await expect.poll(() => readClipboard(vault)).toBe(`[${linked.title}](vault:idea/${linked.id})`)
+  await expect(sheet).toBeVisible()
+  await expect(mode).toHaveAttribute('data-detail-mode', 'edit')
+  await expect(win.getByRole('alertdialog')).toHaveCount(0)
+
+  // A confirm over the sheet: one question, «Скасувати» leaves the sheet as it was.
+  const fileRow = sheet.locator('[data-record-menu]').filter({ hasText: 'нотатки.txt' })
+  await fileRow.click({ button: 'right' })
+  await item(win, 'Видалити файл…').click()
+  const ask = win.getByRole('alertdialog')
+  await expect(ask).toHaveCount(1)
+  await ask.getByRole('button', { name: 'Скасувати' }).click()
+  await expect(ask).toHaveCount(0)
+  await expect(sheet).toBeVisible()
+  await expect(mode).toHaveAttribute('data-detail-mode', 'edit')
+  expect(await rpc('files.list', { type: 'card', id: card.id })).toHaveLength(1)
+})
+
+test('calendar: a chip’s menu inside «ще N» keeps the popover', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const token = uid()
+  const day = new Date()
+  day.setHours(8, 0, 0, 0)
+  for (let i = 0; i < 9; i++)
+    await rpc('events.create', {
+      title: `Подія ${token} ${i}`,
+      startAt: day.getTime() + i * 3_600_000
+    })
+  await go('/calendar')
+  const more = win.getByRole('button', { name: /^ще \d+$/ }).first()
+  await more.click()
+  const popover = win.locator('[data-slot="popover-content"]')
+  await expect(popover).toBeVisible()
+  const chip = popover.getByRole('button', { name: new RegExp(`Подія ${token} 8`) })
+  await chip.click({ button: 'right' })
+  await expect(menu(win)).toBeVisible()
+  await expect(popover).toBeVisible()
+  await win.keyboard.press('Escape')
+  await expect(menu(win)).toHaveCount(0)
+  await expect(popover).toBeVisible()
+  await chip.click({ button: 'right' })
+  await item(win, 'Відкрити').click()
+  await expect.poll(() => win.evaluate(() => location.hash)).toContain('open=')
+})
+
+test('vacancies: «Співбесіда» from the menu offers to plan it, as the editor and the board do', async ({
+  vault
+}) => {
+  const { win, rpc, go } = vault
+  const title = `Вакансія ${uid()}`
+  const a = await rpc('jobs.create', { title })
+  await go('/jobs/applications')
+  await win.getByLabel('Список', { exact: true }).click()
+  try {
+    const row = area(win, title)
+    await row.click({ button: 'right' })
+    await item(win, 'Статус').hover()
+    await win.getByRole('menuitemcheckbox', { name: 'Співбесіда' }).click()
+    const plan = win.getByRole('dialog', { name: 'Запланувати співбесіду' })
+    await expect(plan).toBeVisible()
+    await plan.getByRole('button', { name: 'Пізніше' }).click()
+    await expect(plan).toHaveCount(0)
+    await expect.poll(async () => (await rpc('jobs.get', a.id))?.status).toBe('interview')
+  } finally {
+    // The view is remembered for the whole run: the next tests expect the board.
+    await win.getByLabel('Канбан', { exact: true }).click()
+  }
+})
