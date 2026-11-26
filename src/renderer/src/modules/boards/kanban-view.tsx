@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { MoveRight, Plus, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
+import { ArrowRight, Check, Plus, SquareArrowOutUpRight, Trash2 } from 'lucide-react'
 import type { BoardColumn, BoardDetails, Card } from '@shared/domain/boards'
 import { useApiMutation } from '@/lib/query'
 import { useHotkey } from '@/hooks/use-hotkey'
@@ -109,7 +109,7 @@ function SortableCard({
         </ContextMenuItem>
         <ContextMenuSub>
           <ContextMenuSubTrigger>
-            <MoveRight /> Перемістити в…
+            <ArrowRight /> Перемістити в…
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="w-48">
             {columns.map((c) => (
@@ -118,7 +118,8 @@ function SortableCard({
                 disabled={c.id === card.columnId}
                 onSelect={() => move.mutate({ cardId: card.id, columnId: c.id, index: 0 })}
               >
-                {c.title}
+                <span className="truncate">{c.title}</span>
+                {c.id === card.columnId && <Check className="ml-auto" aria-label="Поточна колонка" />}
               </ContextMenuItem>
             ))}
           </ContextMenuSubContent>

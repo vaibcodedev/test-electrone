@@ -95,7 +95,7 @@ export function ColumnHeader({ column, count, columns }: { column: BoardColumn; 
             <MoreHorizontal />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+        <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onSelect={() => setEditing(true)}>
             <Pencil /> Перейменувати
           </DropdownMenuItem>

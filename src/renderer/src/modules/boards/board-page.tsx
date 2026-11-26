@@ -164,7 +164,7 @@ function BoardHeader({ board }: { board: Board }) {
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52 rounded-2xl">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem
               disabled={mode.editing}
               onSelect={() => update.mutate({ id: board.id, patch: { archived: !board.archived } })}
