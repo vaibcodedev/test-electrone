@@ -411,3 +411,49 @@ test('vacancies: «Співбесіда» from the menu offers to plan it, as th
     await win.getByLabel('Канбан', { exact: true }).click()
   }
 })
+
+test('only one submenu is open: moving to a sibling row or a plain row closes the other', async ({
+  vault
+}) => {
+  const { win, rpc, go } = vault
+  const title = `Підменю ${uid()}`
+  await rpc('ideas.create', { title })
+  await go('/ideas')
+  const box = (await area(win, title).boundingBox())!
+  await win.mouse.click(box.x + 40, box.y + 20, { button: 'right' })
+  await expect(menu(win)).toBeVisible()
+  const submenus = win.locator('[data-slot="dropdown-menu-sub-content"][data-state="open"]')
+
+  await item(win, 'Статус').hover()
+  await expect(submenus).toHaveCount(1)
+  await item(win, 'Важливість').hover()
+  // The pointer may cross the first submenu's grace area: a second move settles it on the row.
+  await item(win, 'Важливість').hover({ position: { x: 20, y: 10 } })
+  await expect(item(win, 'Важливість')).toHaveAttribute('aria-expanded', 'true')
+  await expect(submenus).toHaveCount(1)
+  await expect(item(win, 'Статус')).toHaveAttribute('aria-expanded', 'false')
+
+  await item(win, 'Закріпити').hover()
+  await item(win, 'Закріпити').hover({ position: { x: 20, y: 10 } })
+  await expect(submenus).toHaveCount(0)
+  await expect(menu(win)).toBeVisible()
+
+  // The keyboard too: → opens, ← closes, and the next one opens alone.
+  await item(win, 'Статус').focus()
+  await win.keyboard.press('ArrowRight')
+  await expect(submenus).toHaveCount(1)
+  await win.keyboard.press('ArrowLeft')
+  await win.keyboard.press('ArrowDown')
+  await win.keyboard.press('ArrowRight')
+  await expect(submenus).toHaveCount(1)
+  await win.keyboard.press('Escape')
+  await expect(menu(win)).toHaveCount(0)
+
+  // A click away closes the whole menu, an open submenu included.
+  await win.mouse.click(box.x + 40, box.y + 20, { button: 'right' })
+  await item(win, 'Статус').hover()
+  await expect(submenus).toHaveCount(1)
+  await win.mouse.click(box.x + box.width - 60, box.y + box.height + 220)
+  await expect(menu(win)).toHaveCount(0)
+  await expect(submenus).toHaveCount(0)
+})

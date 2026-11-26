@@ -211,8 +211,60 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<'spa
   )
 }
 
-function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+/** Closes the submenu this content belongs to. */
+const SubCloseContext = React.createContext<(() => void) | null>(null)
+
+function DropdownMenuSub({
+  open: openProp,
+  defaultOpen = false,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+  const [own, setOwn] = React.useState(defaultOpen)
+  const change = React.useRef(onOpenChange)
+  React.useEffect(() => {
+    change.current = onOpenChange
+  })
+  const setOpen = React.useCallback((next: boolean) => {
+    setOwn(next)
+    change.current?.(next)
+  }, [])
+  const close = React.useCallback(() => setOpen(false), [setOpen])
+  return (
+    <SubCloseContext.Provider value={close}>
+      <DropdownMenuPrimitive.Sub
+        data-slot="dropdown-menu-sub"
+        open={openProp ?? own}
+        onOpenChange={setOpen}
+        {...props}
+      />
+    </SubCloseContext.Provider>
+  )
+}
+
+/**
+ * Radix closes a submenu when focus leaves it, but ignores focus that stays inside a layer branch — and a
+ * `layerBranch` menu is a branch as a whole, its own rows included: two submenus stayed open side by side. So the
+ * same rule is applied here: focus back in the parent menu, anywhere but on the row that opened this one, closes it.
+ * (While the pointer travels to the submenu, Radix moves no focus, so the diagonal path still works.)
+ */
+function useCloseOnParentFocus(): (node: HTMLElement | null) => void {
+  const close = React.useContext(SubCloseContext)
+  const [node, setNode] = React.useState<HTMLElement | null>(null)
+  React.useEffect(() => {
+    if (!node || !close) return
+    const trigger = document.getElementById(node.getAttribute('aria-labelledby') ?? '')
+    const parent = trigger?.closest('[role="menu"]')
+    if (!parent) return
+    const onFocus = (e: FocusEvent): void => {
+      const target = e.target
+      if (!(target instanceof Element) || target === trigger) return
+      if (target.closest('[role="menu"]') === parent) close()
+    }
+    document.addEventListener('focusin', onFocus)
+    return () => document.removeEventListener('focusin', onFocus)
+  }, [node, close])
+  return setNode
 }
 
 function DropdownMenuSubTrigger({
@@ -238,10 +290,21 @@ function DropdownMenuSubTrigger({
 
 function DropdownMenuSubContent({
   className,
+  ref,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  const watch = useCloseOnParentFocus()
+  const attach = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      watch(node)
+      if (typeof ref === 'function') ref(node)
+      else if (ref) ref.current = node
+    },
+    [watch, ref]
+  )
   return (
     <DropdownMenuPrimitive.SubContent
+      ref={attach}
       {...SUBMENU_OFFSET}
       data-slot="dropdown-menu-sub-content"
       className={cn(
