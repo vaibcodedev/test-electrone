@@ -332,12 +332,12 @@ test.describe('повторювані картки', () => {
     await win.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
 
-    // The tile says it repeats; «Перемістити в… → Готово» closes it and the next one appears.
+    // The tile says it repeats; «Перемістити в → Готово» closes it and the next one appears.
     const tile = win.locator('[aria-roledescription="sortable"]').filter({ hasText: title })
     await expect(tile.getByText('Повторюється:', { exact: false })).toHaveCount(1)
     await tile.click({ button: 'right' })
-    await win.getByRole('menuitem', { name: 'Перемістити в…' }).click()
-    await win.getByRole('menuitem', { name: done.title }).click()
+    await win.getByRole('menuitem', { name: 'Перемістити в' }).click()
+    await win.getByRole('menuitemcheckbox', { name: done.title }).click()
     const toast = win.locator('[data-sonner-toast]').filter({ hasText: 'Наступна картка' })
     await expect(toast).toBeVisible()
     const cards = (await rpc('boards.details', board.id)).cards.filter(

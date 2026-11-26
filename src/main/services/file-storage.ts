@@ -1,4 +1,4 @@
-import { clipboard, nativeImage } from 'electron'
+import { clipboard, ClipboardItem, nativeImage } from 'electron'
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, extname, join, normalize, relative, sep } from 'path'
 import type { ClipboardImage, FileSource } from '@shared/domain/designs'
@@ -184,6 +184,21 @@ export class FileStorage {
     if (data.byteLength > MAX_SIZE) throw new UserError('Картинка в буфері більша за 300 МБ')
     const size = nativeImage.createFromBuffer(Buffer.from(data)).getSize()
     return { data, mime, width: size.width || null, height: size.height || null }
+  }
+
+  /**
+   * «Копіювати зображення»: a stored picture (only inside the files folder: resolve() refuses anything else) goes
+   * to the clipboard as PNG — what other apps paste. Electron 44: the async W3C-style clipboard.
+   */
+  async copyImage(relPath: string): Promise<void> {
+    const abs = this.resolve(relPath)
+    if (!existsSync(abs) || !statSync(abs).isFile())
+      throw new UserError('Файлу вже немає — можливо, його видалено або перейменовано')
+    if (!mimeOf(abs).startsWith('image/')) throw new UserError('Це не зображення')
+    const image = nativeImage.createFromPath(abs)
+    if (image.isEmpty()) throw new UserError('Це зображення не вдається скопіювати — відкрийте його й скопіюйте там')
+    const png = image.toPNG()
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
   }
 
   async clipboardHasImage(): Promise<boolean> {

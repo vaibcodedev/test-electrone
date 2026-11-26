@@ -108,6 +108,7 @@ export class AttachmentService {
           throw new UserError('Файлу вже немає — можливо, його видалено або перейменовано')
         shell.showItemInFolder(abs)
       },
+      copyImage: async (path) => this.storage.copyImage(z.string().min(1).max(1000).parse(path)),
       clipboardHasImage: async () => this.storage.clipboardHasImage(),
       clipboardImage: async () => this.storage.clipboardImage()
     }

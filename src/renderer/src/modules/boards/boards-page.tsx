@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 import { FavoriteMark } from '@/components/common/favorite-mark'
 import { freshOnOpen } from '@/components/common/fresh-on-open'
+import { bindMenu, RecordMenuTile } from '@/features/record-menu/record-menu'
+import { boardMenu } from './board-menu'
 
 const LIMITS = limitsOf(boardInputSchema)
 const REQUIRED = requiredOf(boardInputSchema)
@@ -82,6 +84,7 @@ const CreateBoardDialog = freshOnOpen(CreateBoardDialogForm)
 function BoardTile({ board }: { board: BoardSummary }) {
   const marked = board.overdueCount > 0 || board.archived || board.tags.length > 0
   return (
+    <RecordMenuTile menu={bindMenu(boardMenu, board)} buttonClassName="absolute top-4 right-4">
     <Card
       className={cn(
         // The overlay link takes the focus, so the tile draws the same inner ring that `tile` gives on focus-visible.
@@ -95,7 +98,7 @@ function BoardTile({ board }: { board: BoardSummary }) {
         aria-label={board.title}
       />
       {/* The title is always first, so titles of one row line up whatever badges a board has. */}
-      <div className="flex min-w-0 items-start gap-1.5">
+      <div className="flex min-w-0 items-start gap-1.5 pr-7">
         <CardTitle
           title={board.title}
           className="font-display line-clamp-2 min-w-0 text-stat-sm leading-tight font-normal text-foreground"
@@ -136,6 +139,7 @@ function BoardTile({ board }: { board: BoardSummary }) {
         </div>
       </div>
     </Card>
+    </RecordMenuTile>
   )
 }
 

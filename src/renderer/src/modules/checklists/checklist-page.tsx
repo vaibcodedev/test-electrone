@@ -31,7 +31,7 @@ import { ItemRow } from './item-row'
 import { AddItem } from './add-item'
 import { SectionTitle } from './section-title'
 import { RunProgress } from './run-progress'
-import { ITEM_LIMITS, NO_SECTION, useChecklistOrder } from './use-checklist-order'
+import { checklistJson, ITEM_LIMITS, NO_SECTION, useChecklistOrder } from './use-checklist-order'
 
 const LIMITS = limitsOf(checklistInputSchema)
 
@@ -164,14 +164,7 @@ function ChecklistView({ id }: { id: string }): ReactElement {
                     )}
                     <CopyJsonButton
                       what="Чек-лист"
-                      getData={() => ({
-                        title: data.title,
-                        description: data.description,
-                        sections: groups.map(([section, list]) => ({
-                          title: section,
-                          items: list.map((i) => (i.hint ? { text: i.text, hint: i.hint } : i.text))
-                        }))
-                      })}
+                      getData={() => checklistJson(data.title, data.description, items)}
                     />
                   </>
                 }

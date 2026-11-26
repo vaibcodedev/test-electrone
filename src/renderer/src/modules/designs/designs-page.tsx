@@ -38,6 +38,8 @@ import { useImportPreview } from './use-import-preview'
 import { isMediaFile } from './media'
 import { usePaletteBackfill } from './use-palette-backfill'
 import { noResultsHint } from '@/components/common/filter-helpers'
+import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
+import { designMenu } from './menu'
 
 /** Hex → [r, g, b]. */
 function rgb(hex: string): [number, number, number] {
@@ -197,7 +199,12 @@ export function DesignsPage(): ReactElement | null {
       loadingMore={list.loadingMore}
       onLoadMore={list.loadMore}
       renderItem={(d) => (
-        <div className="group/design relative">
+        <RecordMenu
+          def={designMenu}
+          record={d}
+          ctx={{ onOpen: () => setOpen(d.id) }}
+          className="group/design"
+        >
           <Card
             {...clickableProps(() => setOpen(d.id))}
             // A surface frame around every image: dark screenshots on a dark page still read as separate tiles.
@@ -225,7 +232,7 @@ export function DesignsPage(): ReactElement | null {
           </Card>
           {/* Next to the card, not in it: a button inside the role=button tile would be nested controls. Over the
             picture's corner (tile 24 − 6 frame = picture 18; 12px in clears its curve), shown on hover and focus. */}
-          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-focus-within/design:opacity-100 group-hover/design:opacity-100">
+          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-focus-within/design:opacity-100 group-hover/design:opacity-100 has-aria-expanded:opacity-100">
             {d.imagePath && (
               <IconAction
                 label="Показати в папці"
@@ -245,8 +252,10 @@ export function DesignsPage(): ReactElement | null {
             >
               <Trash2 />
             </IconAction>
+            {/* The rest of the design's actions (copy the picture, moodboards, pins): the same menu as a right click. */}
+            <RecordMenuButton alwaysVisible className="size-8 bg-card text-foreground shadow-sm hover:bg-card" />
           </div>
-        </div>
+        </RecordMenu>
       )}
     />
   )

@@ -9,17 +9,33 @@ import { Empty, EmptyDescription } from '@/components/ui/empty'
 import { DueChip } from './card-tile'
 import { PRIORITY_DOT, PRIORITY_LABEL } from './labels'
 import { FavoriteMark } from '@/components/common/favorite-mark'
+import { RecordMenu } from '@/features/record-menu/record-menu'
+import { cardMenu } from './card-menu'
 
 /** Cards as table rows (shadcn Table), grouped by column. */
-export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpenCard: (id: string) => void }) {
+export function ListView({
+  details,
+  onOpenCard
+}: {
+  details: BoardDetails
+  onOpenCard: (id: string) => void
+}) {
   return (
     <div className="h-full overflow-y-auto px-8 pb-8">
       <div className="flex flex-col gap-6">
         {details.columns.map((col) => {
-          const cards = details.cards.filter((c) => c.columnId === col.id).sort((a, b) => a.position - b.position)
+          const cards = details.cards
+            .filter((c) => c.columnId === col.id)
+            .sort((a, b) => a.position - b.position)
           return (
             <section key={col.id} className="flex flex-col gap-2">
-              <SectionLabel action={<span className="text-caption text-muted-foreground tabular-nums">{cards.length}</span>}>
+              <SectionLabel
+                action={
+                  <span className="text-caption text-muted-foreground tabular-nums">
+                    {cards.length}
+                  </span>
+                }
+              >
                 <span className="text-body text-foreground">{col.title}</span>
               </SectionLabel>
               {cards.length === 0 ? (
@@ -31,39 +47,54 @@ export function ListView({ details, onOpenCard }: { details: BoardDetails; onOpe
                   <Table>
                     <TableBody>
                       {cards.map((c) => (
-                        <TableRow
+                        // A table row can't hold a «⋯» beside it: right click (Shift+F10) only.
+                        <RecordMenu
+                          asChild
                           key={c.id}
-                          {...clickableProps(() => onOpenCard(c.id))}
-                          className="border-border hover:bg-(--tile-hover)"
+                          def={cardMenu}
+                          record={c}
+                          ctx={{ onOpen: () => onOpenCard(c.id), columns: details.columns }}
                         >
-                          <TableCell className="w-6 pl-4">
-                            <span
-                              title={PRIORITY_LABEL[c.priority]}
-                              className={cn('block size-2 rounded-full', PRIORITY_DOT[c.priority])}
-                            />
-                          </TableCell>
-                          <TableCell
-                            className={cn('w-full max-w-0 text-body', col.isDone && 'text-muted-foreground line-through')}
+                          <TableRow
+                            {...clickableProps(() => onOpenCard(c.id))}
+                            className="border-border hover:bg-(--tile-hover)"
                           >
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <span className="truncate">{c.title}</span>
-                              <FavoriteMark entity={{ type: 'card', id: c.id }} />
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <TagList tags={c.tags} max={2} className="flex-nowrap" />
-                          </TableCell>
-                          <TableCell className="text-meta text-muted-foreground tabular-nums">
-                            {c.checklistTotal > 0 && (
-                              <span className="inline-flex items-center gap-1">
-                                <ListChecks className="size-3.5" /> {c.checklistDone}/{c.checklistTotal}
+                            <TableCell className="w-6 pl-4">
+                              <span
+                                title={PRIORITY_LABEL[c.priority]}
+                                className={cn(
+                                  'block size-2 rounded-full',
+                                  PRIORITY_DOT[c.priority]
+                                )}
+                              />
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                'w-full max-w-0 text-body',
+                                col.isDone && 'text-muted-foreground line-through'
+                              )}
+                            >
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <span className="truncate">{c.title}</span>
+                                <FavoriteMark entity={{ type: 'card', id: c.id }} />
                               </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="pr-4 text-right">
-                            {c.dueAt && <DueChip dueAt={c.dueAt} done={col.isDone} />}
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                            <TableCell>
+                              <TagList tags={c.tags} max={2} className="flex-nowrap" />
+                            </TableCell>
+                            <TableCell className="text-meta text-muted-foreground tabular-nums">
+                              {c.checklistTotal > 0 && (
+                                <span className="inline-flex items-center gap-1">
+                                  <ListChecks className="size-3.5" /> {c.checklistDone}/
+                                  {c.checklistTotal}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="pr-4 text-right">
+                              {c.dueAt && <DueChip dueAt={c.dueAt} done={col.isDone} />}
+                            </TableCell>
+                          </TableRow>
+                        </RecordMenu>
                       ))}
                     </TableBody>
                   </Table>
