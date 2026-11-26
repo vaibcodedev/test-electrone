@@ -5,18 +5,7 @@
 ## Обязательные правила работы
 
 1. **Документация только актуальная.** Перед использованием любого API библиотеки (Electron, electron-vite, electron-builder, electron-updater, Drizzle, better-sqlite3, React 19, React Router 8, TanStack Query, Zustand, Tailwind v4, shadcn, dnd-kit, CodeMirror, zod 4…) — сверяйся через **Context7** (`resolve-library-id` → `query-docs`). Версии в проекте свежие (Electron 44, Vite 8, TS 5.9, zod 4), память может врать — пример: в Electron 44 `clipboard` асинхронный (W3C API), `clipboard.readImage()` нет.
-2. **Скилы — использовать все подходящие**, не изобретать процесс заново:
-   - **`shadcn` (скил shadcn/ui) — обязательно** при любой работе с компонентами интерфейса: выбор компонента, добавление (`npx shadcn@latest add`), композиция, варианты и темизация. Лежит в репозитории: `.agents/skills/shadcn` (для Claude Code подключён ссылкой `.claude/skills/shadcn`; если ссылки нет — `New-Item -ItemType Junction -Path .claude\skills\shadcn -Target <корень>\.agents\skills\shadcn`). Агенту без доступа к скилу — прочитать `.agents/skills/shadcn/SKILL.md` и `rules/*.md` перед UI-правками;
-   - `frontend-design` — перед любой новой/переделываемой UI-частью;
-   - `ui-design-review:ui-review` / `ui-design-review:ui-polish` — ревью и полировка экранов по скриншотам;
-   - `design:accessibility-review` — контраст, фокус, клавиатура;
-   - `design:ux-copy` — тексты кнопок, пустые состояния, ошибки;
-   - `engineering:architecture` / `engineering:system-design` — новые подсистемы, модель данных;
-   - `engineering:debug` — при багах; `engineering:testing-strategy`, `e2e-test-generator:*` — тесты;
-   - `code-review`, `simplify`, `security-review` — после крупных изменений;
-   - `engineering:deploy-checklist` — перед релизом; `run` — запуск приложения и проверка вживую;
-   - `dataviz` — перед любыми графиками/диаграммами.
-   Если для задачи нет скила — поищи и предложи пользователю установить плагин/скил.
+2. **Инструменты — по надобности:** подходящий задаче скил, плагин или MCP использовать (таблица в «Инструменты: что для чего»), а не изобретать процесс заново; без нужды не запускать — они стоят токенов. **`shadcn` обязателен** при любой работе с компонентами интерфейса. Нет подходящего — поищи и предложи пользователю установить.
 3. **SOLID по-реактовски, без FSD:**
    - S — компонент делает одно; логика данных в хуках (`useApi`, `useAutosave`…), разметка в компонентах; модули бэкенда разделены по ответственности (репозиторий / сервис / API-фабрика).
    - O — сквозные фичи (поиск, метки, связи, закрепы, корзина, экспорт) работают через реестр `EntityRegistry`: новый модуль = новый `EntityDescriptor`, без правок сквозного кода.
@@ -28,6 +17,30 @@
 6. Проверка перед сдачей: `npm run build` (typecheck + сборка) без ошибок, `npm test` (unit) и e2e затронутых спеков (Electron + Playwright) зелёные; полный `npm run test:e2e` — после крупных переделок общих механизмов. Для правок только документации и правил сборка и тесты не нужны. Визуальная проверка UI скриншотами (`npm run snap`). Собирать только через npm-скрипты (`scripts/electron-vite.mjs`), не `npx electron-vite` напрямую: на Windows путь `c:\…` vs `C:\…` даёт две копии React и пустое окно.
 7. **Делегируй по силе задачи** — раздел «Делегирование агентам» ниже. Действует для любой модели, на которой запущена сессия.
 8. **Записывай нужные правила сам** — раздел «Запись правил» ниже. Договорённость, оставшаяся только в переписке, в новом чате потеряется.
+
+## Инструменты: что для чего
+
+Плагины пользователя (`claude plugin list`; новый плагин — дописать строку сюда). Всё берётся, когда задача этого требует.
+
+| Когда | Что использовать |
+|---|---|
+| API библиотеки, фреймворка, CLI | **Context7** (MCP, `resolve-library-id` → `query-docs`), правило 1 |
+| Компоненты интерфейса | `shadcn` — **обязательно**. Лежит в репозитории: `.agents/skills/shadcn` (для Claude Code — ссылка `.claude/skills/shadcn`; если нет — `New-Item -ItemType Junction -Path .claude\skills\shadcn -Target <корень>\.agents\skills\shadcn`). Агенту без скила — прочитать `SKILL.md` и `rules/*.md` перед UI-правками |
+| Новая или переделываемая UI-часть | `frontend-design` |
+| Ревью и полировка экрана по скриншотам; как делают другие | плагин `ui-design-review` (`ui-review`, `ui-polish`, `ui-compare`) |
+| Доступность; тексты кнопок, пустые состояния, ошибки; критика дизайна; система стилей | плагин `design` (`accessibility-review`, `ux-copy`, `design-critique`, `design-system`) |
+| Новая подсистема, модель данных; баг; стратегия тестов; перед релизом; техдолг; документация | плагин `engineering` (`architecture` / `system-design`, `debug`, `testing-strategy`, `deploy-checklist`, `tech-debt`, `documentation`) |
+| E2e-тесты | `e2e-test-generator` (`e2e-map`, `e2e-write`) |
+| Ревью после крупных изменений | встроенный `/code-review` (текущий дифф); `simplify` — упрощение; `security-review` — IPC, секреты, CSP. `/code-review ultra` платный, запускает только пользователь |
+| Ревью pull request | `code-review@claude-plugins-official` — только по просьбе и при наличии PR: **пишет комментарий в PR** на GitHub. `code-review-plugin` — запасной: отчёт по диффу или фрагменту без публикации |
+| Запустить приложение, проверить вживую | `run`; браузерные страницы — `playwright` (само приложение проверяется Playwright через `scripts/` и `tests/e2e`) |
+| Графики и диаграммы | `dataviz` — перед любым графиком |
+| Живее и естественнее переписать готовый текст | `humanize-writing` |
+| Растр → SVG, правка цветов и фона SVG | `svg-vectorizer` |
+| Не относится к этому проекту (мобильные приложения, видео) | `mobile-app-design`, `mobile-design-system`, `remotion` — только по прямой просьбе |
+| Интеграция с терминалом Warp | `warp` — только уведомления, вызывать нечего |
+
+`/ship` и `/steward` запускает только пользователь. Инструменты, которые отправляют что-то наружу (комментарии, публикации), — только по просьбе. Команды `/…` (в том числе `/plugin`) работают внутри Claude Code; в PowerShell плагины ставятся `claude plugin install <имя>`.
 
 ## Делегирование агентам
 
