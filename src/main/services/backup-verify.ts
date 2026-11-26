@@ -30,6 +30,19 @@ export class BackupCheckError extends Error {
 
 const fileFact = (bytes: Uint8Array): string => `${bytes.length}:${crc32(bytes)}`
 
+/**
+ * The snapshot is a WAL database: opening it (read-only too) leaves «-wal» / «-shm» next to it. Removed with it,
+ * or every backup left two files in the temp folder.
+ */
+export function removeSidecars(file: string): void {
+  for (const suffix of ['-wal', '-shm']) rmSync(file + suffix, { force: true })
+}
+
+export function removeDatabaseFiles(file: string): void {
+  rmSync(file, { force: true })
+  removeSidecars(file)
+}
+
 /** Opens the database read-only, checks it and counts the rows of every table. */
 export function databaseRows(file: string): Record<string, number> {
   const db = new Database(file, { readonly: true, fileMustExist: true })
@@ -64,7 +77,11 @@ export async function readBackupFacts(bytes: Uint8Array, tmpDir: string): Promis
   try {
     archive = await unzipAsync(bytes)
   } catch (e) {
-    throw new BackupCheckError(`not a readable zip: ${(e as Error).message}`)
+    // fflate's own errors (numeric code) say the archive is broken; anything else (no memory) means the check
+    // could not run, which is not the same as a failed one.
+    if (typeof (e as { code?: unknown }).code === 'number')
+      throw new BackupCheckError(`not a readable zip: ${(e as Error).message}`)
+    throw e
   }
   let manifest: unknown
   try {
@@ -83,9 +100,12 @@ export async function readBackupFacts(bytes: Uint8Array, tmpDir: string): Promis
     return { rows: databaseRows(probe), files: filesFacts(archive) }
   } catch (e) {
     if (e instanceof BackupCheckError) throw e
-    throw new BackupCheckError(`database does not open: ${(e as Error).message}`)
+    // SQLite's verdict on the file (SQLITE_CORRUPT, SQLITE_NOTADB…) fails the check; a disk error doesn't.
+    if (String((e as { code?: unknown }).code ?? '').startsWith('SQLITE_'))
+      throw new BackupCheckError(`database does not open: ${(e as Error).message}`)
+    throw e
   } finally {
-    rmSync(probe, { force: true })
+    removeDatabaseFiles(probe)
   }
 }
 

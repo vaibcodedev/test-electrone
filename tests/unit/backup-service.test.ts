@@ -49,6 +49,48 @@ vi.mock('electron', async () => {
   }
 })
 vi.mock('@main/core/logger', async () => (await import('./support/electron-mock')).loggerMock)
+/** The live database's snapshot fails quick_check (as a corrupt vault.db would). */
+const flags = vi.hoisted(() => ({ snapshotBroken: false }))
+vi.mock('@main/services/backup-verify', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@main/services/backup-verify')>()
+  return {
+    ...real,
+    databaseRows: (file: string) => {
+      if (flags.snapshotBroken) throw new real.BackupCheckError('quick_check: database disk image is malformed')
+      return real.databaseRows(file)
+    }
+  }
+})
+
+/** Every read of a file under `prefix` goes through `fn` (the real fs/promises.readFile otherwise). */
+function hookReadFile(prefix: string, fn: (real: () => Promise<unknown>) => Promise<unknown>): () => void {
+  const realRead = fsp.readFile
+  fsp.readFile = (async (p: Parameters<typeof fsp.readFile>[0], ...rest: unknown[]) => {
+    const real = (): Promise<unknown> => (realRead as (...a: unknown[]) => Promise<unknown>)(p, ...rest)
+    return String(p).startsWith(prefix) ? fn(real) : real()
+  }) as typeof fsp.readFile
+  syncBuiltinESMExports()
+  return () => {
+    fsp.readFile = realRead
+    syncBuiltinESMExports()
+  }
+}
+
+/** readFileSync of the new backups (not `except`) throws or returns what `fn` gives. */
+function hookReadFileSync(dir: string, except: string[], fn: () => Buffer): () => void {
+  const realRead = fs.readFileSync
+  fs.readFileSync = ((p: fs.PathOrFileDescriptor, ...rest: unknown[]) =>
+    String(p).startsWith(dir) && String(p).endsWith('.vaultbak') && !except.includes(String(p))
+      ? fn()
+      : (realRead as (...a: unknown[]) => unknown)(p, ...rest)) as typeof fs.readFileSync
+  syncBuiltinESMExports()
+  return () => {
+    fs.readFileSync = realRead
+    syncBuiltinESMExports()
+  }
+}
+
+const nextSecond = (): Promise<void> => new Promise((r) => setTimeout(r, 1100)) // names are stamped to the second
 
 let v: Vault
 let paths: AppPaths
@@ -174,21 +216,86 @@ describe('a new backup is checked before rotation', () => {
   it('a backup that does not read back is removed and the older ones stay', async () => {
     config.updateSettings({ backupKeep: 1 })
     const first = (await backups.create({ saveAs: false }))!.path
-    await new Promise((r) => setTimeout(r, 1100)) // a new name (stamped to the second)
+    await nextSecond()
     // The disk returns garbage for the new file: the check fails.
-    const realRead = fs.readFileSync
-    fs.readFileSync = ((p: fs.PathOrFileDescriptor, ...rest: unknown[]) =>
-      String(p).startsWith(paths.backupsDir) && String(p).endsWith('.vaultbak') && String(p) !== first
-        ? Buffer.from('broken')
-        : (realRead as (...a: unknown[]) => unknown)(p, ...rest)) as typeof fs.readFileSync
-    syncBuiltinESMExports()
+    const restore = hookReadFileSync(paths.backupsDir, [first], () => Buffer.from('broken'))
     try {
       await expect(backups.create({ saveAs: false })).rejects.toThrow(/не пройшов перевірку/)
     } finally {
-      fs.readFileSync = realRead
-      syncBuiltinESMExports()
+      restore()
     }
     expect(backups.list().map((b) => b.path)).toEqual([first])
+  })
+
+  it('a backup that cannot be read back (over 2 GiB) is kept unchecked and never rotates a checked one out', async () => {
+    config.updateSettings({ backupKeep: 1 })
+    const first = (await backups.create({ saveAs: false }))!.path
+    await nextSecond()
+    const restore = hookReadFileSync(paths.backupsDir, [first], () => {
+      throw Object.assign(new RangeError('File size (2147484672) is greater than 2 GiB'), {
+        code: 'ERR_FS_FILE_TOO_LARGE'
+      })
+    })
+    let big: string
+    try {
+      big = (await backups.create({ saveAs: false }))!.fileName
+    } finally {
+      restore()
+    }
+    expect(big).toMatch(/^vault-unchecked-/)
+    expect(backups.list().map((b) => b.fileName).sort()).toEqual([basename(first), big].sort())
+    // The next checked backup rotates only the checked group.
+    await nextSecond()
+    const third = (await backups.create({ saveAs: false }))!.fileName
+    expect(backups.list().map((b) => b.fileName).sort()).toEqual([big, third].sort())
+  })
+
+  it('leaves no «-wal» / «-shm» of the snapshot or the check in the temp folder', async () => {
+    await backups.create({ saveAs: false })
+    expect(readdirSync(paths.tmpDir).filter((f) => /-(wal|shm)$/.test(f))).toEqual([])
+  })
+})
+
+describe('a corrupt live database', () => {
+  afterEach(() => {
+    flags.snapshotBroken = false
+  })
+
+  it('does not block a restore: the safety copy is kept unchecked', async () => {
+    const file = await backupWithOneBoard()
+    flags.snapshotBroken = true
+    await expect(backups.restore(file)).resolves.toBe(true)
+    flags.snapshotBroken = false
+    expect(boardTitles()).toEqual(['З бекапу'])
+    expect(backups.list().some((b) => b.fileName.startsWith('vault-pre-restore-unchecked-'))).toBe(true)
+  })
+
+  it('a regular backup is refused and the older ones stay', async () => {
+    await backups.create({ saveAs: false })
+    flags.snapshotBroken = true
+    await expect(backups.create({ saveAs: false })).rejects.toThrow(/База даних не пройшла перевірку/)
+    expect(backups.list()).toHaveLength(1)
+  })
+
+  it('unchecked safety copies never push the checked ones out', async () => {
+    const t0 = Date.now() - 60 * 60_000
+    const put = (name: string, minutesAgo: number): void => {
+      const abs = join(paths.backupsDir, name)
+      writeFileSync(abs, 'x')
+      const t = new Date(t0 - minutesAgo * 60_000)
+      utimesSync(abs, t, t)
+    }
+    for (let i = 1; i <= 4; i++) put(`vault-pre-restore-2026-01-0${i}_00-00-00.vaultbak`, 10 - i)
+    for (let i = 5; i <= 6; i++) put(`vault-pre-restore-unchecked-2026-01-0${i}_00-00-00.vaultbak`, 10 - i)
+    await backups.create({ saveAs: false }) // rotates
+    const pre = backups.list().map((b) => b.fileName).filter((f) => f.startsWith('vault-pre-restore-')).sort()
+    expect(pre).toEqual([
+      'vault-pre-restore-2026-01-02_00-00-00.vaultbak',
+      'vault-pre-restore-2026-01-03_00-00-00.vaultbak',
+      'vault-pre-restore-2026-01-04_00-00-00.vaultbak',
+      'vault-pre-restore-unchecked-2026-01-05_00-00-00.vaultbak',
+      'vault-pre-restore-unchecked-2026-01-06_00-00-00.vaultbak'
+    ])
   })
 })
 
@@ -288,6 +395,62 @@ describe('«Папка для копій»', () => {
     const sandbox = new BackupService(v.db, paths, config, v.search, new EventBus(), { folderCopies: false })
     await expect(sandbox.chooseFolder()).rejects.toThrow(/тестовому режимі/)
     expect(sandbox.folderInfo().enabled).toBe(false)
+  })
+
+  it('a folder changed mid-copy: the new one gets the copy, the old one loses nothing', async () => {
+    const id = 'abcdef01'
+    config.updateBackupFolder({ machineId: id })
+    const olds = [1, 2, 3].map((d) => `vault-test-pc-${id}-2026-01-0${d}_10-00-00.vaultbak`)
+    olds.forEach((f) => writeFileSync(join(folder, f), 'old'))
+    config.updateSettings({ backupFolderKeep: 1 })
+    await backups.create({ saveAs: false }) // no folder yet
+    const second = mkdtempSync(join(tmpdir(), 'vault-folder2-'))
+    // The copy into the first folder waits on reading the local backup while the person picks another folder.
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const restore = hookReadFile(paths.backupsDir, async (real) => {
+      await gate
+      return real()
+    })
+    try {
+      await backups.useFolder(folder)
+      await backups.useFolder(second)
+      release()
+      await backups.syncFolder('auto')
+    } finally {
+      restore()
+    }
+    expect(readdirSync(second).filter((f) => f.endsWith('.vaultbak'))).toHaveLength(1)
+    expect(backups.folderInfo()).toMatchObject({ path: second, lastError: null })
+    for (const f of olds) expect(existsSync(join(folder, f))).toBe(true)
+    rmSync(second, { recursive: true, force: true })
+  })
+
+  it('a local backup that vanished mid-copy is not reported as an unavailable folder', async () => {
+    await backups.create({ saveAs: false })
+    const restore = hookReadFile(paths.backupsDir, async () => {
+      throw Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' })
+    })
+    try {
+      await backups.useFolder(folder)
+      await backups.syncFolder('auto')
+    } finally {
+      restore()
+    }
+    expect(backups.folderInfo().lastError).toBeNull()
+    expect(toasts).toEqual([])
+  })
+
+  it('a copy already in the folder is checked: a broken one is written again', async () => {
+    config.updateBackupFolder({ machineId: 'abcdef01' })
+    const entry = (await backups.create({ saveAs: false }))!
+    const stamp = entry.fileName.slice('vault-'.length, -'.vaultbak'.length)
+    const name = `vault-test-pc-abcdef01-${stamp}.vaultbak`
+    writeFileSync(join(folder, name), 'left by a quit before the check')
+    await backups.useFolder(folder)
+    await backups.syncFolder('auto')
+    expect((await readBackupFacts(readFileSync(join(folder, name)), paths.tmpDir)).rows).toBeTruthy()
+    expect(backups.folderInfo().lastError).toBeNull()
   })
 
   it('«Не копіювати» stops the copies and leaves the old ones in place', async () => {

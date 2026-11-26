@@ -42,6 +42,8 @@ import {
   filesFacts,
   MANIFEST,
   readBackupFacts,
+  removeDatabaseFiles,
+  removeSidecars,
   verifyBackup,
   type BackupFacts
 } from './backup-verify'
@@ -61,6 +63,20 @@ import {
 
 /** A regular backup in Vault's own folder (not «pre-restore»): the one «Папка для копій» receives. */
 const REGULAR = new RegExp(`^vault-(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2})\\.${BACKUP_EXT}$`)
+/** In the name of a backup whose read-back check could not run (or the safety copy that failed it). */
+const UNCHECKED = 'unchecked-'
+const UNCHECKED_REGULAR = new RegExp(`^vault-${UNCHECKED}\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.${BACKUP_EXT}$`)
+const UNCHECKED_NOT_COPIED =
+  'Найновіший бекап не вдалося перевірити (найчастіше — файл більший за 2 ГБ), тому в папку його не скопійовано. У папці лишаються попередні перевірені копії.'
+
+/** Reading Vault's own backup failed (not the folder): `code` of the cause, ENOENT when it was removed meanwhile. */
+class LocalSourceError extends Error {
+  readonly code: string
+  constructor(readonly cause: unknown) {
+    super(`reading the local backup failed: ${(cause as Error)?.message ?? String(cause)}`)
+    this.code = (cause as NodeJS.ErrnoException | undefined)?.code ?? ''
+  }
+}
 /** Safety copies made right before a restore («vault-pre-restore-…»): the newest few are enough. */
 const PRE_RESTORE_KEEP = 3
 /** «Сховище → Видалити старі» keeps only the newest safety copy: they are the largest files (with all files). */
@@ -111,6 +127,8 @@ export class BackupService {
   private folderFailNotifiedDay: string | null = null
   /** The copy to the folder in progress: one at a time, a second call waits for it. */
   private folderJob: Promise<void> | null = null
+  /** Asked for while a job ran: one more run after it (the strongest trigger wins). */
+  private folderRerun: 'manual' | 'auto' | null = null
   /** Facts of the newest regular backup, so its folder copy is checked against the snapshot it came from. */
   private factsOf: { fileName: string; facts: BackupFacts } | null = null
 
@@ -142,8 +160,12 @@ export class BackupService {
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`
   }
 
-  /** Builds the backup archive bytes and the facts its copies are checked against (rows per table, files). */
-  async build(): Promise<{ bytes: Uint8Array; facts: BackupFacts }> {
+  /**
+   * Builds the backup archive bytes and the facts its copies are checked against (rows per table, files).
+   * `strict: false` (the safety copy before a restore): a snapshot that fails the check is still archived, with
+   * `facts: null` — a restore must never be blocked, least of all when the live database is the broken one.
+   */
+  async build(strict = true): Promise<{ bytes: Uint8Array; facts: BackupFacts | null }> {
     const tmpDb = join(this.paths.tmpDir, `backup-${Date.now()}.db`)
     try {
       await this.ctx.backupTo(tmpDb)
@@ -162,19 +184,19 @@ export class BackupService {
       for (const [name, value] of Object.entries(entries))
         files[name] = Array.isArray(value) ? (value[0] as Uint8Array) : (value as Uint8Array)
       // Counted on the snapshot itself: a broken live database fails here, before any old copy is rotated out.
-      let rows: BackupFacts['rows']
+      let facts: BackupFacts | null = null
       try {
-        rows = databaseRows(tmpDb)
+        facts = { rows: databaseRows(tmpDb), files: filesFacts(files) }
       } catch (e) {
         log.error('[backup] the database snapshot failed the check', e)
-        throw new UserError(
-          `База даних не пройшла перевірку — бекап не зроблено, попередні копії не змінено. Подробиці — у журналі: ${LOG_HINT}.`
-        )
+        if (strict)
+          throw new UserError(
+            `База даних не пройшла перевірку — бекап не зроблено, попередні копії не змінено. Подробиці — у журналі: ${LOG_HINT}.`
+          )
       }
-      const facts: BackupFacts = { rows, files: filesFacts(files) }
       return { bytes: await zipAsync(entries, { level: 6 }), facts }
     } finally {
-      rmSync(tmpDb, { force: true })
+      removeDatabaseFiles(tmpDb)
     }
   }
 
@@ -189,8 +211,11 @@ export class BackupService {
     if (this.running) throw new UserError('Бекап уже виконується')
     this.running = true
     let entry: BackupEntry
+    let verified = false
     try {
-      const fileName = `vault-${opts.label ? opts.label + '-' : ''}${this.stamp()}.${BACKUP_EXT}`
+      const stamp = this.stamp()
+      const label = opts.label ? `${opts.label}-` : ''
+      const fileName = `vault-${label}${stamp}.${BACKUP_EXT}`
       let target = join(this.paths.backupsDir, fileName)
       if (opts.saveAs) {
         const res = await dialog.showSaveDialog(this.parent(), {
@@ -201,12 +226,20 @@ export class BackupService {
         if (res.canceled || !res.filePath) return null
         target = res.filePath
       }
-      const facts = await this.writeArchive(target)
+      // The safety copy before a restore is kept whatever its check says: it must not stop the restore.
+      const safety = opts.label === 'pre-restore'
+      const facts = await this.writeArchive(target, !safety)
       // Read back from disk and checked before it may push an older copy out of the rotation.
-      await this.checkWritten(target, facts)
+      verified = !!facts && (await this.checkWritten(target, facts, safety))
+      if (!verified && !opts.saveAs) {
+        // Kept under its own name: an unchecked backup has its own rotation and never pushes a checked one out.
+        const unchecked = join(this.paths.backupsDir, `vault-${label}${UNCHECKED}${stamp}.${BACKUP_EXT}`)
+        renameSync(target, unchecked)
+        target = unchecked
+      }
       this.config.lastBackupAt = now()
       if (!opts.saveAs) this.prune()
-      if (!opts.saveAs && !opts.label) this.factsOf = { fileName, facts }
+      if (verified && !opts.saveAs && !opts.label) this.factsOf = { fileName, facts: facts! }
       const st = statSync(target)
       entry = {
         fileName: target.split(/[\\/]/).pop()!,
@@ -217,14 +250,19 @@ export class BackupService {
     } finally {
       this.running = false
     }
+    if (!verified && opts.label !== 'pre-restore')
+      this.bus.emit('toast', {
+        kind: 'error',
+        message: `Бекап збережено без перевірки: Vault не зміг прочитати його назад (найчастіше — файл більший за 2 ГБ; відновити з такого ця версія не зможе). Перевірені бекапи не видаляються. Подробиці — у журналі: ${LOG_HINT}.`
+      })
     // Not awaited: a slow cloud folder or an unplugged disk never holds the backup itself.
     if (!opts.saveAs && !opts.label) void this.syncFolder(trigger)
     return entry
   }
 
   /** Builds and writes the archive (aside, then renamed); the bytes go out of scope before the read-back. */
-  private async writeArchive(target: string): Promise<BackupFacts> {
-    const { bytes, facts } = await this.build()
+  private async writeArchive(target: string, strict: boolean): Promise<BackupFacts | null> {
+    const { bytes, facts } = await this.build(strict)
     mkdirSync(dirname(target), { recursive: true })
     // Written aside and renamed: a full disk or a quit mid-write leaves a «.part» (list() skips it),
     // not a truncated backup that looks fine and takes a rotation slot.
@@ -239,11 +277,24 @@ export class BackupService {
     return facts
   }
 
-  /** A backup that doesn't read back as its snapshot is removed: a bad copy is worse than none. */
-  private async checkWritten(target: string, facts: BackupFacts): Promise<void> {
+  /**
+   * true — read back from disk and equal to its snapshot. A backup that reads back wrong is removed (a bad copy is
+   * worse than none) and refused; the safety copy before a restore is kept instead. A check that cannot run (a
+   * file over 2 GiB, no memory, the file held by another program) is not a failed check: false, the file stays.
+   */
+  private async checkWritten(target: string, facts: BackupFacts, keepIfBad: boolean): Promise<boolean> {
     try {
       await verifyBackup(readFileSync(target), facts, this.paths.tmpDir)
+      return true
     } catch (e) {
+      if (!(e instanceof BackupCheckError)) {
+        log.warn('[backup] the new backup could not be checked, kept unchecked', target, e)
+        return false
+      }
+      if (keepIfBad) {
+        log.error('[backup] the safety copy failed the check, kept unchecked', target, e)
+        return false
+      }
       rmSync(target, { force: true })
       log.error('[backup] the new backup failed the check and was removed', target, e)
       throw new UserError(
@@ -253,19 +304,28 @@ export class BackupService {
   }
 
   /**
-   * Keeps the newest `backupKeep` regular backups and the 3 newest safety copies made before a restore.
-   * Also removes «.part» files a quit mid-write left behind (backups folder only, never a «Зберегти як…» folder).
+   * Backups in rotation groups: regular / safety copies before a restore, each checked / unchecked. An unchecked
+   * backup only ever pushes out an older unchecked one of its kind, never a checked one.
+   */
+  private rotationGroups(): { regular: BackupEntry[]; pre: BackupEntry[] }[] {
+    const all = this.list().filter((b) => b.fileName.startsWith('vault-'))
+    const unchecked = (b: BackupEntry): boolean => b.fileName.includes(`-${UNCHECKED}`)
+    const pre = (b: BackupEntry): boolean => b.fileName.startsWith('vault-pre-restore-')
+    return [false, true].map((u) => ({
+      regular: all.filter((b) => !pre(b) && unchecked(b) === u),
+      pre: all.filter((b) => pre(b) && unchecked(b) === u)
+    }))
+  }
+
+  /**
+   * Keeps the newest `backupKeep` regular backups and the 3 newest safety copies made before a restore (in each
+   * group, see rotationGroups). Also removes «.part» files a quit mid-write left behind (backups folder only, never a
+   * «Зберегти як…» folder).
    */
   private prune(): void {
-    const all = this.list()
-    const pre = all.filter((b) => b.fileName.includes('-pre-restore-'))
-    const auto = all.filter((b) => !b.fileName.includes('-pre-restore-'))
-    for (const b of [
-      ...auto.slice(this.config.settings.backupKeep),
-      ...pre.slice(PRE_RESTORE_KEEP)
-    ]) {
-      rmSync(b.path, { force: true })
-    }
+    for (const g of this.rotationGroups())
+      for (const b of [...g.regular.slice(this.config.settings.backupKeep), ...g.pre.slice(PRE_RESTORE_KEEP)])
+        rmSync(b.path, { force: true })
     for (const f of readdirSync(this.paths.backupsDir)) {
       if (!f.endsWith(`.${BACKUP_EXT}.part`)) continue
       const part = join(this.paths.backupsDir, f)
@@ -284,15 +344,12 @@ export class BackupService {
    * the database (insurance before migrations) and never files Vault did not write.
    */
   prunePlan(): { path: string; size: number }[] {
-    const all = this.list()
-    const pre = all.filter((b) => b.fileName.startsWith('vault-pre-restore-'))
-    const regular = all.filter(
-      (b) => b.fileName.startsWith('vault-') && !b.fileName.includes('-pre-restore-')
-    )
-    const plan = [
-      ...regular.slice(this.config.settings.backupKeep),
-      ...pre.slice(MANUAL_PRE_RESTORE_KEEP)
-    ].map((b) => ({ path: b.path, size: b.size }))
+    const plan = this.rotationGroups()
+      .flatMap((g) => [
+        ...g.regular.slice(this.config.settings.backupKeep),
+        ...g.pre.slice(MANUAL_PRE_RESTORE_KEEP)
+      ])
+      .map((b) => ({ path: b.path, size: b.size }))
     if (!existsSync(this.paths.backupsDir)) return plan
     for (const f of readdirSync(this.paths.backupsDir)) {
       if (!f.endsWith(`.${BACKUP_EXT}.part`)) continue
@@ -377,9 +434,10 @@ export class BackupService {
       const probe = new Database(candidate, { readonly: true, fileMustExist: true })
       const ok = probe.pragma('quick_check', { simple: true })
       probe.close()
+      removeSidecars(candidate)
       if (ok !== 'ok') throw new Error(String(ok))
     } catch (e) {
-      rmSync(candidate, { force: true })
+      removeDatabaseFiles(candidate)
       log.warn('[backup] the database in the backup failed the check', file, e)
       throw new UserError('База в бекапі пошкоджена — відновити з нього не вийде')
     }
@@ -592,42 +650,67 @@ export class BackupService {
 
   /**
    * Puts the newest regular backup into «Папка для копій», if it isn't there yet; never rejects. One job at a
-   * time: a call while one runs gets that job.
+   * time; a call while one runs is not dropped: the job runs once more afterwards (the folder may have changed, a
+   * newer backup appeared), with «manual» if any caller asked for it. The promise settles after that rerun.
    */
   syncFolder(trigger: 'manual' | 'auto'): Promise<void> {
     if (!this.opts.folderCopies || !this.config.backupFolder.path) return Promise.resolve()
-    this.folderJob ??= this.copyToFolder(trigger).finally(() => {
+    if (this.folderJob) {
+      this.folderRerun = this.folderRerun === 'manual' || trigger === 'manual' ? 'manual' : 'auto'
+      return this.folderJob
+    }
+    this.folderJob = this.runFolderJobs(trigger).finally(() => {
       this.folderJob = null
     })
     return this.folderJob
   }
 
+  private async runFolderJobs(first: 'manual' | 'auto'): Promise<void> {
+    let next: 'manual' | 'auto' | null = first
+    while (next) {
+      this.folderRerun = null
+      await this.copyToFolder(next)
+      next = this.folderRerun
+    }
+  }
+
   private async copyToFolder(trigger: 'manual' | 'auto'): Promise<void> {
     const dir = this.config.backupFolder.path
     if (!dir) return
-    const newest = this.list().find((b) => REGULAR.test(b.fileName))
+    const regular = this.list().filter((b) => REGULAR.test(b.fileName) || UNCHECKED_REGULAR.test(b.fileName))
+    const newest = regular.find((b) => REGULAR.test(b.fileName))
     const stamp = newest && REGULAR.exec(newest.fileName)![1]
+    // The folder may be changed or cleared while a copy runs: the result belongs to the folder it went to.
+    const stillThere = (): boolean => this.config.backupFolder.path === dir
+    // A newer backup that could not be checked is not copied: only checked copies go to the folder.
+    if (regular[0] && regular[0] !== newest) {
+      if (this.config.backupFolder.lastError?.message !== UNCHECKED_NOT_COPIED)
+        this.folderFailed(new UserError(UNCHECKED_NOT_COPIED), dir, trigger)
+      return
+    }
     if (!newest || !stamp || this.config.backupFolder.lastStamp === stamp) return
     const tag = this.machine()
     const name = copyName(tag, stamp)
-    // The folder may be changed or cleared while a copy runs: the result belongs to the folder it went to.
-    const stillThere = (): boolean => this.config.backupFolder.path === dir
     try {
       await assertUsableFolder(dir, this.vaultDirs())
-      if (!(await exists(join(dir, name)))) {
-        const expected = await this.factsFor(newest.fileName, newest.path)
-        await writeCopy(dir, name, await readFile(newest.path))
-        try {
-          // Read back from the folder itself: what a cloud client or a flaky disk actually kept.
-          await verifyBackup(await readFile(join(dir, name)), expected, this.paths.tmpDir)
-        } catch (e) {
-          await removeOwnCopy(dir, tag, name).catch((re) => log.warn('[backup] could not remove a bad copy', re))
-          throw e
-        }
-        // Only after a good copy: a failed one never pushes an older good copy out.
-        const removed = await rotateCopies(dir, tag, this.config.settings.backupFolderKeep)
-        if (removed.length) log.info('[backup] copies folder rotation removed', removed)
+      const expected = await this.fromLocal(() => this.factsFor(newest.fileName, newest.path))
+      // A copy already there (a quit between the rename and the check) is checked like a new one; a bad one goes.
+      if ((await exists(join(dir, name))) && !(await this.copyIsGood(dir, name, expected))) {
+        log.warn('[backup] an existing copy in the folder failed the check, writing it again', name)
+        await removeOwnCopy(dir, tag, name)
       }
+      if (!(await exists(join(dir, name)))) {
+        await writeCopy(dir, name, await this.fromLocal(() => readFile(newest.path)))
+        if (!(await this.copyIsGood(dir, name, expected))) {
+          await removeOwnCopy(dir, tag, name).catch((re) => log.warn('[backup] could not remove a bad copy', re))
+          throw new BackupCheckError(`the copy ${name} differs from its backup`)
+        }
+      }
+      // Changed or cleared meanwhile: the folder left behind keeps all its copies.
+      if (!stillThere()) return
+      // Only after a good copy: a failed one never pushes an older good copy out.
+      const removed = await rotateCopies(dir, tag, this.config.settings.backupFolderKeep)
+      if (removed.length) log.info('[backup] copies folder rotation removed', removed)
       if (!stillThere()) return
       this.config.updateBackupFolder({ lastOkAt: now(), lastStamp: stamp, lastError: null })
       this.folderFailNotifiedDay = null
@@ -635,10 +718,36 @@ export class BackupService {
       if (trigger === 'manual')
         this.bus.emit('toast', { kind: 'success', message: `Копію перевірено й збережено в папку ${basename(dir) || dir}` })
     } catch (e) {
-      if (stillThere()) this.folderFailed(e, dir, trigger)
+      // The local backup was removed meanwhile (a newer one pushed it out): that backup's own job copies the newer.
+      if (e instanceof LocalSourceError && e.code === 'ENOENT')
+        log.info('[backup] the local backup went away during the folder copy', newest.fileName)
+      else if (stillThere()) this.folderFailed(e, dir, trigger)
     } finally {
       // The settings page shows the result (the renderer refetches on this event).
       this.bus.emit('settings:changed', this.config.settings)
+    }
+  }
+
+  /** Read back from the folder itself: what a cloud client or a flaky disk actually kept. Folder errors propagate. */
+  private async copyIsGood(dir: string, name: string, expected: BackupFacts): Promise<boolean> {
+    try {
+      await verifyBackup(await readFile(join(dir, name)), expected, this.paths.tmpDir)
+      return true
+    } catch (e) {
+      if (e instanceof BackupCheckError) {
+        log.warn('[backup] copy check failed', name, e.detail)
+        return false
+      }
+      throw e
+    }
+  }
+
+  /** Reading Vault's own backup: its errors are not the folder's (an ENOENT here is no «папка недоступна»). */
+  private async fromLocal<T>(read: () => Promise<T>): Promise<T> {
+    try {
+      return await read()
+    } catch (e) {
+      throw new LocalSourceError(e)
     }
   }
 
@@ -652,7 +761,9 @@ export class BackupService {
     const message =
       e instanceof BackupCheckError
         ? 'Копія не пройшла перевірку й видалена, попередні копії не змінено. Подробиці — у журналі.'
-        : folderErrorMessage(e, dir)
+        : e instanceof LocalSourceError
+          ? 'Не вдалося прочитати бекап на цьому комп’ютері, щоб скопіювати його в папку. Подробиці — у журналі.'
+          : folderErrorMessage(e, dir)
     log.warn('[backup] copy to the folder failed', dir, e)
     this.config.updateBackupFolder({ lastError: { at: now(), message: message.slice(0, 1000) } })
     if (trigger === 'auto') {
