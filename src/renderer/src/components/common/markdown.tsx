@@ -17,6 +17,7 @@ import { MarkdownEditor, type MarkdownEditorHandle } from './markdown-editor'
 import { MarkdownCheatsheet } from './markdown-cheatsheet'
 import { useWikiLinkTargets } from '@/hooks/use-wiki-link-targets'
 import { WikiLink, WikiLinkTargets } from './wiki-link'
+import remarkBreaks from 'remark-breaks'
 
 /** Record links (`vault:note/<id>`) survive; everything else goes through react-markdown's safe-URL filter. */
 const urlTransform = (url: string): string => (parseVaultHref(url) ? url : defaultUrlTransform(url))
@@ -88,11 +89,12 @@ export function Markdown({
   className?: string
 }): ReactElement {
   const targets = useWikiLinkTargets(source)
+  console.log(source)
   return (
     <WikiLinkTargets value={targets}>
       <div className={cn('prose-vault wrap-anywhere', className)}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[[rehypeHighlight, { detect: true, ignoreMissing: true }]]}
           urlTransform={urlTransform}
           components={{
