@@ -92,7 +92,7 @@ export function ClientsPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Клієнти й контракти"
+        title="Клієнти й проєкти"
         subtitle={subtitle}
         actions={
           <>

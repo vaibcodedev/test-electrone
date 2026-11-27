@@ -294,7 +294,7 @@ export function FilterChips<T extends string>({
   className?: string
   size?: 'sm' | 'xs' | 'default'
   tone?: 'accent' | 'neutral'
-  /** Name of the group for screen readers («Майданчик», «Стадія»). */
+  /** Name of the group for screen readers («Сайт», «Стадія»). */
   label?: string
 }) {
   const itemClass = tone === 'neutral' ? NEUTRAL_CHIP : undefined

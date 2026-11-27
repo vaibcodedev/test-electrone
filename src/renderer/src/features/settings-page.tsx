@@ -173,8 +173,8 @@ export function SettingsPage(): ReactElement {
               )}
             </SettingsRow>
             <SettingsRow
-              label="Вечірнє нагадування про майданчики вакансій"
-              hint="Якщо сьогодні не позначено майданчики"
+              label="Вечірнє нагадування про сайти вакансій"
+              hint="Якщо сьогодні не позначено сайти"
             >
               {(id) => (
                 <Switch

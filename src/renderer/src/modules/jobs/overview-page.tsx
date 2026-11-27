@@ -42,11 +42,11 @@ export function JobsOverviewPage(): ReactElement {
     <Page>
       <PageHeader
         title="Пошук роботи"
-        subtitle="Майданчики на сьогодні, найближчі співбесіди й те, що час довести до кінця."
+        subtitle="Сайти на сьогодні, найближчі співбесіди й те, що час довести до кінця."
         actions={
           <>
             <Button variant="soft" onClick={() => navigate('/jobs/boards')}>
-              <Settings2 /> Майданчики
+              <Settings2 /> Сайти вакансій
             </Button>
             <Button variant="lime" onClick={() => navigate('/jobs/applications')}>
               Вакансії

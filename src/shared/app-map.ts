@@ -60,7 +60,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
   ),
   // Фриланс
   s('/freelance', 'Фриланс', 'Фриланс', 'платформи, відгуки, конекти', ['proposal']),
-  s('/clients', 'Клієнти й контракти', 'Фриланс', 'клієнти, проєкти, доступи, час, оплати', [
+  s('/clients', 'Клієнти й проєкти', 'Фриланс', 'клієнти, проєкти, доступи, час, оплати', [
     'client',
     'project'
   ]),
@@ -96,7 +96,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
   s('/jobs/interviews', 'Співбесіди', 'Пошук роботи', 'співбесіди за датою'),
   s('/jobs/companies', 'Компанії', 'Пошук роботи', 'компанії й нотатки', ['company']),
   s('/jobs/resumes', 'Резюме', 'Пошук роботи', 'версії резюме'),
-  s('/jobs/boards', 'Майданчики', 'Пошук роботи', 'сайти вакансій'),
+  s('/jobs/boards', 'Сайти вакансій', 'Пошук роботи', 'де шукати вакансії щодня'),
   s('/jobs/stats', 'Статистика', 'Пошук роботи', 'конверсія відгуків'),
   s(
     '/freelance/templates?situation=cover_letter',
@@ -120,7 +120,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
     ['idea'],
     'create_idea'
   ),
-  s('/dev', 'Мої проєкти', 'Розробка', 'локальні репозиторії, скрипти'),
+  s('/dev', 'Локальні проєкти', 'Розробка', 'локальні репозиторії, скрипти'),
   s('/dev/github', 'GitHub', 'Розробка', 'issues і коміти'),
   // База знань
   s('/knowledge', 'База знань', 'База знань', 'огляд бази знань'),
@@ -205,7 +205,7 @@ export function sectionAt(location: string): AppSection | null {
       base === '/' ? pathname === '/' : pathname === base || pathname.startsWith(`${base}/`)
     if (hit && (!best || base.length > best.path.length)) best = sec
   }
-  // A record page outside its section's route: client and project pages are «Клієнти й контракти».
+  // A record page outside its section's route: client and project pages are «Клієнти й проєкти».
   if (!best && /^\/projects\//.test(pathname))
     return APP_SECTIONS.find((x) => x.path === '/clients') ?? null
   if (!best && /^\/cards\//.test(pathname))

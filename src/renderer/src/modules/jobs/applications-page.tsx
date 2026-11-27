@@ -103,7 +103,7 @@ function NewApplicationButton({
           <Field label="Компанія">
             <CompanyCombobox value={company} onChange={setCompany} showLink={false} />
           </Field>
-          <Field label="Майданчик">
+          <Field label="Сайт">
             <Choice
               value={boardId}
               onChange={setBoardId}
@@ -128,7 +128,7 @@ function NewApplicationButton({
           </SubmitButton>
           <p className="text-caption text-muted-foreground">
             {title.trim()
-              ? 'Статус «Надіслано» і сьогоднішня дата — майданчик одразу зарахується в денну норму.'
+              ? 'Статус «Надіслано» і сьогоднішня дата — сайт одразу зарахується в денну норму.'
               : 'Вкажіть посаду, щоб додати'}
           </p>
         </form>
@@ -230,7 +230,7 @@ export function ApplicationsPage(): ReactElement {
   // What is really narrowing the list, for the «Нічого не знайдено» hint.
   const conditions = [
     search.trim() && `за запитом «${search.trim()}»`,
-    boardId && `на майданчику «${boards.find((b) => b.id === boardId)?.name ?? ''}»`,
+    boardId && `на сайті «${boards.find((b) => b.id === boardId)?.name ?? ''}»`,
     companyId && `у компанії «${companies.find((c) => c.id === companyId)?.name ?? ''}»`,
     resumeId && `із резюме «${resumes.find((r) => r.id === resumeId)?.title ?? ''}»`,
     tagId && 'з вибраною міткою',
@@ -278,8 +278,8 @@ export function ApplicationsPage(): ReactElement {
                 options={boardChips}
                 value={boardId}
                 onChange={setBoardId}
-                allLabel="Усі майданчики"
-                label="Майданчик"
+                allLabel="Усі сайти"
+                label="Сайт"
               />
             )
           }
@@ -330,7 +330,7 @@ export function ApplicationsPage(): ReactElement {
             <EmptyState
               icon={FileUser}
               title="Вакансій поки немає"
-              hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які майданчики й версії резюме дають відповіді."
+              hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які сайти й версії резюме дають відповіді."
               action={
                 <NewApplicationButton
                   variant="soft"

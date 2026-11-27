@@ -81,20 +81,20 @@ export function TodayCard({ today }: { today: DailyBoard[] }): ReactElement {
         <CardTitle>Сьогодні, {format(new Date(), 'd MMMM', { locale: LOCALE })}</CardTitle>
         <CardDescription>
           {expected.length === 0
-            ? 'Сьогодні на майданчиках вихідний.'
+            ? 'Сьогодні на сайтах вихідний.'
             : pending.length
               ? `Не позначено: ${pending.map((b) => b.name).join(', ')}`
-              : 'Усі майданчики на сьогодні закрито.'}
+              : 'Усі сайти на сьогодні закрито.'}
         </CardDescription>
       </CardHeader>
       <CardContent>
         {today.length === 0 ? (
           <EmptyState
-            title="Майданчиків поки немає"
+            title="Сайтів поки немає"
             hint="Додайте Djinni, DOU, LinkedIn і задайте норму відгуків на день."
             action={
               <Button variant="subtle" onClick={() => navigate('/jobs/boards')}>
-                Додати майданчик
+                Додати сайт
               </Button>
             }
             className="py-6"

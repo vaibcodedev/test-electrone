@@ -325,7 +325,7 @@ function Editor({
               onChange={({ companyId, companyName }) => patch({ companyId, companyName })}
             />
           </Field>
-          <Field label="Майданчик">
+          <Field label="Сайт">
             {/* Editor sits outside RecordMode, so it reads the mode itself; «Не вказано» isn't shown as a value. */}
             {mode.editing ? (
               <Choice

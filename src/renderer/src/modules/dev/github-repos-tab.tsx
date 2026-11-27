@@ -86,7 +86,7 @@ export function ReposTab(): ReactElement | null {
                   ) : (
                     <span
                       className="text-caption text-muted-foreground"
-                      title="Додайте папку репозиторію в «Мої проєкти» — зв’язок визначиться за git remote"
+                      title="Додайте папку репозиторію в «Локальні проєкти» — зв’язок визначиться за git remote"
                     >
                       немає папки
                     </span>

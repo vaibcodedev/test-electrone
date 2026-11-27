@@ -123,7 +123,7 @@ export const HUBS: NavHub[] = [
     overview: '/freelance',
     platforms: true,
     items: [
-      { path: '/clients', label: 'Клієнти й контракти', icon: Users, countOf: 'client' },
+      { path: '/clients', label: 'Клієнти й проєкти', icon: Users, countOf: 'client' },
       { path: '/freelance/templates', label: 'Шаблони', icon: MessageSquareQuote, countOf: 'template' },
       { path: '/freelance/portfolio', label: 'Портфоліо', icon: BriefcaseBusiness, countOf: 'case' },
       { path: '/freelance/flags', label: 'Червоні прапорці', icon: Flag, countOf: 'redflag' },
@@ -141,7 +141,7 @@ export const HUBS: NavHub[] = [
       { path: '/jobs/interviews', label: 'Співбесіди', icon: CalendarDays },
       { path: '/jobs/companies', label: 'Компанії', icon: Building2, countOf: 'company' },
       { path: '/jobs/resumes', label: 'Резюме', icon: FileText },
-      { path: '/jobs/boards', label: 'Майданчики', icon: Globe },
+      { path: '/jobs/boards', label: 'Сайти вакансій', icon: Globe },
       { path: '/jobs/stats', label: 'Статистика', icon: ChartColumn },
       { path: '/freelance/templates?situation=cover_letter', label: 'Шаблони листів', icon: MessageSquareQuote }
     ]
@@ -163,7 +163,7 @@ export const HUBS: NavHub[] = [
     icon: TerminalSquare,
     items: [
       { path: '/ideas', label: 'Ідеї', icon: Lightbulb, countOf: 'idea' },
-      { path: '/dev', label: 'Мої проєкти', icon: FolderGit2 },
+      { path: '/dev', label: 'Локальні проєкти', icon: FolderGit2 },
       { path: '/dev/github', label: 'GitHub', icon: GitBranch }
     ]
   },

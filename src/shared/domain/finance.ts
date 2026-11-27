@@ -66,7 +66,7 @@ export interface Subscription {
   ownExpense: boolean
   createdAt: number
   updatedAt: number
-  /** The access (Клієнти й контракти › Доступи) this subscription pays for; null — none. */
+  /** The access (Клієнти й проєкти › Доступи) this subscription pays for; null — none. */
   credential: SubscriptionCredential | null
 }
 

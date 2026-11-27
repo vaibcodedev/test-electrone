@@ -151,7 +151,7 @@ export class ReminderService {
     const pending = this.jobs.pendingToday()
     if (!pending.length) return
     this.notify(
-      'Пошук роботи: майданчики на сьогодні',
+      'Пошук роботи: сайти на сьогодні',
       `Не позначено: ${pending.map((b) => b.name).join(', ')}`,
       '/jobs'
     )

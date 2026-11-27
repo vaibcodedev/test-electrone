@@ -68,7 +68,7 @@ export const GO_TO: Record<string, { route: string; label: string }> = {
   n: { route: '/notes', label: 'Нотатки' },
   s: { route: '/snippets', label: 'Сніпети' },
   a: { route: '/claude', label: 'ШІ-база' },
-  d: { route: '/dev', label: 'Мої проєкти' },
+  d: { route: '/dev', label: 'Локальні проєкти' },
   e: { route: '/english', label: 'Англійська' },
   t: { route: '/trash', label: 'Кошик' }
 }

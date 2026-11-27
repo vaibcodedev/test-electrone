@@ -119,7 +119,7 @@ export class JobStatistics {
       totals: this.funnel('all', 'Усі', rows, interviewApps),
       byBoard: group(
         (r) => r.boardId ?? '—',
-        (k) => boardNames.get(k) ?? 'Без майданчика'
+        (k) => boardNames.get(k) ?? 'Без сайту'
       ),
       // An id of a resume/template deleted for good joins the «Без …» row instead of a second one.
       byResume: group(

@@ -50,7 +50,7 @@ export function JobStatsPage(): ReactElement {
     <Page>
       <PageHeader
         title="Статистика пошуку"
-        subtitle="Які майданчики, версії резюме й листи дають відповіді."
+        subtitle="Які сайти, версії резюме й листи дають відповіді."
         actions={<Segmented value={range} onChange={setRange} options={RANGES.map((r) => ({ value: r.value, label: r.label }))} />}
       />
       <PageBody>
@@ -110,7 +110,7 @@ export function JobStatsPage(): ReactElement {
                 </ChartContainer>
               </CardContent>
             </Card>
-            <FunnelTable title="За майданчиками" description="Де відгукуватися вигідніше" rows={data.byBoard} columns={COLUMNS} />
+            <FunnelTable title="За сайтами" description="Де відгукуватися вигідніше" rows={data.byBoard} columns={COLUMNS} />
             <FunnelTable title="За версіями резюме" description="Яка версія частіше отримує відповідь" rows={data.byResume} columns={COLUMNS} />
             <FunnelTable title="За шаблонами листів" description="Супровідні листи, які працюють" rows={data.byTemplate} columns={COLUMNS} />
             <Card>

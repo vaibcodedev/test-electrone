@@ -33,8 +33,8 @@ function describe(day: BoardDay, board: DailyBoard): string {
   const target = board.dailyTarget
   const parts = [`відгуків: ${day.applied}${target > 0 ? ` з ${target}` : ''}`]
   if (day.checked) parts.push('позначено вручну')
-  if (beforeBoard(day, board)) parts.push('майданчик ще не додано')
-  else if (!day.expected) parts.push('вихідний для майданчика')
+  if (beforeBoard(day, board)) parts.push('сайт ще не додано')
+  else if (!day.expected) parts.push('вихідний для сайту')
   else parts.push(day.done ? 'норму виконано' : 'не виконано')
   return parts.join(' · ')
 }

@@ -85,6 +85,8 @@ test.describe('меню: сховати розділи', () => {
 
   test('правий клік → «Сховати», «Повернути» не відкочує інші зміни', async ({ vault }) => {
     const { win, rpc } = vault
+    // «Розробка» is folded by default: opening the page unfolds it.
+    await vault.go('/ideas')
     const ideas = sidebar(win).getByRole('link', { name: /^Ідеї/ })
     await ideas.click({ button: 'right' })
     await win.getByRole('menuitem', { name: 'Сховати «Ідеї»' }).click()

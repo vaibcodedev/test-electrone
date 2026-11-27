@@ -31,7 +31,7 @@ export function useHubNav(hub: NavHub, pathname: string, search: string): HubNav
   // Items light up only in the hub that owns the location: cover-letter templates belong to «Пошук роботи»,
   // so «Фриланс → Шаблони» stays dim there although the pathname is the same.
   const matches = (path: string): boolean => activeHub && isAt(path, pathname, search)
-  // Only the most specific match is active: on /dev/github, «GitHub» — not «Мої проєкти» (/dev) too.
+  // Only the most specific match is active: on /dev/github, «GitHub» — not «Локальні проєкти» (/dev) too.
   const best = hub.items
     .map((i) => i.path)
     .filter(matches)

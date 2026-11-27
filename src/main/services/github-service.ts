@@ -249,7 +249,7 @@ export class GithubService {
     }
   }
 
-  /** `repoIndex`: owner/repo → local project id, to link GitHub repos with «Мої проєкти». */
+  /** `repoIndex`: owner/repo → local project id, to link GitHub repos with «Локальні проєкти». */
   api(repoIndex: () => Map<string, string>): GithubApi {
     return {
       status: async () => this.status(),

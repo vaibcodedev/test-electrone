@@ -50,7 +50,7 @@ const COLORS: readonly string[] = PALETTE
 function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }): ReactElement {
   const update = useApiMutation('jobs', 'updateBoard')
   // A board with applications is refused by main with a toast: it is switched off instead.
-  const remove = useApiMutation('jobs', 'removeBoard', { successMessage: 'Майданчик видалено' })
+  const remove = useApiMutation('jobs', 'removeBoard', { successMessage: 'Сайт видалено' })
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: board.id,
     transition: SORTABLE_TRANSITION
@@ -83,7 +83,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
           <Input
             key={`name-${board.id}-${board.name}`}
             defaultValue={board.name}
-            aria-label="Назва майданчика"
+            aria-label="Назва сайту"
             maxLength={LIMITS.name}
             className="font-display h-10 max-w-xs bg-transparent text-heading"
             onBlur={(e) =>
@@ -107,11 +107,11 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
             </label>
             <Confirm
               title={`Видалити «${board.name}»?`}
-              description="Майданчик без відгуків буде видалено. Відновити не можна."
+              description="Сайт без відгуків буде видалено. Відновити не можна."
               confirmLabel="Видалити"
               onConfirm={() => remove.mutate(board.id)}
             >
-              <IconAction label="Видалити майданчик">
+              <IconAction label="Видалити сайт">
                 <Trash2 />
               </IconAction>
             </Confirm>
@@ -161,7 +161,7 @@ function BoardCard({ board, stats }: { board: JobBoard; stats?: JobFunnelRow }):
               value={board.color}
               onChange={(c) => c && save({ color: c })}
               names={custom ? { [board.color!]: 'Поточний колір' } : undefined}
-              label="Колір майданчика"
+              label="Колір сайту"
             />
           </Field>
         </div>
@@ -181,10 +181,10 @@ export function JobBoardsPage(): ReactElement {
   const { data: stats } = useApi('jobs', 'stats', { from: 0 })
   const [name, setName] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
-  // The name is required: «Додати майданчик» is off while it is empty, Enter adds nothing (useFormGate).
+  // The name is required: «Додати сайт» is off while it is empty, Enter adds nothing (useFormGate).
   const { attach, reason, submit: gate } = useFormGate()
   const create = useApiMutation('jobs', 'createBoard', {
-    successMessage: 'Майданчик додано',
+    successMessage: 'Сайт додано',
     onSuccess: () => setName('')
   })
   const reorder = useApiMutation('jobs', 'reorderBoards')
@@ -214,8 +214,8 @@ export function JobBoardsPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Майданчики"
-        subtitle="Де шукати щодня. Норма зараховується за відгуками з майданчика; якщо вакансій немає — закрийте день позначкою на огляді."
+        title="Сайти вакансій"
+        subtitle="Де шукати щодня. Норма зараховується за відгуками з сайту; якщо вакансій немає — закрийте день позначкою на огляді."
         actions={
           <form
             ref={attach}
@@ -229,26 +229,26 @@ export function JobBoardsPage(): ReactElement {
           >
             <Input
               ref={nameRef}
-              // N puts the cursor here: «Додати майданчик» is off while the name is empty.
+              // N puts the cursor here: «Додати сайт» is off while the name is empty.
               data-page-new
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Новий майданчик, напр. Djinni"
-              aria-label="Назва нового майданчика"
+              placeholder="Новий сайт, напр. Djinni"
+              aria-label="Назва нового сайту"
               className="w-64"
               maxLength={LIMITS.name}
             />
             {/* Off with the reason while the name is empty; on, it says what comes after adding. */}
             {reason ? (
               <SubmitButton variant="lime" reason={reason}>
-                <Plus /> Додати майданчик
+                <Plus /> Додати сайт
               </SubmitButton>
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button type="submit" variant="lime" disabled={create.isPending}>
-                    <Plus /> Додати майданчик
+                    <Plus /> Додати сайт
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Посилання, норму й дні можна задати після додавання</TooltipContent>
@@ -260,7 +260,7 @@ export function JobBoardsPage(): ReactElement {
       <PageBody>
         <div className="flex w-full max-w-4xl flex-col gap-3">
           {query.failed ? (
-            <LoadError title="Не вдалося завантажити майданчики" onRetry={query.retry} />
+            <LoadError title="Не вдалося завантажити сайти" onRetry={query.retry} />
           ) : isLoading ? (
             <Delayed delay={150}>
               <div className="flex flex-col gap-3">
@@ -272,7 +272,7 @@ export function JobBoardsPage(): ReactElement {
           ) : boards.length === 0 ? (
             <EmptyState
               icon={Globe}
-              title="Майданчиків поки немає"
+              title="Сайтів поки немає"
               hint="Впишіть назву вгорі — Djinni, DOU, LinkedIn — і задайте норму відгуків на день."
             />
           ) : (
@@ -290,8 +290,8 @@ export function JobBoardsPage(): ReactElement {
             </DndContext>
           )}
           <p className="text-caption text-muted-foreground">
-            Норма 0 — просто зайти й перевірити. Вимкнений майданчик зникає з огляду, але його
-            історія й статистика зберігаються. Майданчик із відгуками не видаляється — вимкніть
+            Норма 0 — просто зайти й перевірити. Вимкнений сайт зникає з огляду, але його
+            історія й статистика зберігаються. Сайт із відгуками не видаляється — вимкніть
             його.
           </p>
         </div>

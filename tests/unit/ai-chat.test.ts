@@ -593,7 +593,7 @@ describe('the chat knows the app', () => {
     expect(sectionAt('/freelance/templates?situation=cover_letter')?.label).toBe('Шаблони листів')
     expect(sectionAt('/freelance/templates')?.label).toBe('Шаблони')
     expect(sectionAt('/notes?open=n1')?.label).toBe('Нотатки')
-    expect(sectionAt('/projects/p1')?.label).toBe('Клієнти й контракти')
+    expect(sectionAt('/projects/p1')?.label).toBe('Клієнти й проєкти')
     expect(sectionAt('/')?.label).toBe('Головна')
   })
 

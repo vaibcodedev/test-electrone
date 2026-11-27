@@ -114,7 +114,7 @@ export class JobBoards {
   remove(id: string): void {
     this.m.db.tx(() => {
       if (!this.db.select({ id: jobBoards.id }).from(jobBoards).where(eq(jobBoards.id, id)).get())
-        throw new NotFoundError('Майданчик', id)
+        throw new NotFoundError('Сайт', id)
       // Vacancies in the trash count too: restored, they would point at a board that no longer exists.
       if (
         this.db
@@ -125,7 +125,7 @@ export class JobBoards {
           .get()
       )
         throw new UserError(
-          'На майданчику вже є вакансії (можливо, у кошику) — вимкніть його замість видалення'
+          'На сайті вже є вакансії (можливо, у кошику) — вимкніть його замість видалення'
         )
       if (
         this.db
@@ -135,7 +135,7 @@ export class JobBoards {
           .limit(1)
           .get()
       )
-        throw new UserError('Майданчик уже має позначки днів — вимкніть його замість видалення')
+        throw new UserError('Сайт уже має позначки днів — вимкніть його замість видалення')
       this.db.delete(resumeBoards).where(eq(resumeBoards.boardId, id)).run()
       this.db.delete(jobBoards).where(eq(jobBoards.id, id)).run()
     })
@@ -173,7 +173,7 @@ export class JobBoards {
           .where(eq(jobBoards.id, id))
           .returning()
           .get()
-        if (!row) throw new NotFoundError('Майданчик', id)
+        if (!row) throw new NotFoundError('Сайт', id)
         return row
       },
       removeBoard: async (id) => this.remove(idArg.parse(id)),

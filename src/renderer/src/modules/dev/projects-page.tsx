@@ -130,7 +130,7 @@ export function DevProjectsPage(): ReactElement {
       <div {...drop.props} className="flex min-h-0 flex-1 flex-col">
         <DropOverlay show={drop.isOver} icon={FolderInput} label="Відпустіть, щоб додати проєкти" />
         <PageHeader
-          title="Мої проєкти"
+          title="Локальні проєкти"
           subtitle="Локальні репозиторії: відкрити в редакторі, запустити скрипт, переглянути лог."
           actions={
             <>

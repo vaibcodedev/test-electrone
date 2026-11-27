@@ -69,7 +69,7 @@ export function ApplicationList({
             <TableHead className={COL.status}>Статус</TableHead>
             <TableHead className={COL.next}>Наступний етап</TableHead>
             <TableHead className={COL.salary}>Зарплата</TableHead>
-            <TableHead className={COL.board}>Майданчик</TableHead>
+            <TableHead className={COL.board}>Сайт</TableHead>
             <TableHead className={cn(COL.applied, 'text-right')}>Надіслано</TableHead>
           </TableRow>
         </TableHeader>

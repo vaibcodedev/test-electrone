@@ -256,7 +256,7 @@ export class WeeklyReviewService {
           metric('bookmarksDone', 'Матеріалів опрацьовано')
         ]
       },
-      { id: 'code', title: 'Код', metrics: [metric('commits', 'Комітів у моїх проєктах')] }
+      { id: 'code', title: 'Код', metrics: [metric('commits', 'Комітів у локальних проєктах')] }
     ]
 
     const summaries = <T extends EntitySummary>(refs: T[]): T[] => refs.slice(0, 12)

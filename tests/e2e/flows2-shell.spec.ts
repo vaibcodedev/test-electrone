@@ -198,12 +198,12 @@ test.describe('Ctrl+K за текстом', () => {
 })
 
 test.describe('перетягування й прокрутка', () => {
-  test('«Мої проєкти»: папка над сторінкою — підказка «Відпустіть…»; не з диска — тост', async ({
+  test('«Локальні проєкти»: папка над сторінкою — підказка «Відпустіть…»; не з диска — тост', async ({
     vault
   }) => {
     const { win, go } = vault
     await go('/dev')
-    await expect(win.getByRole('heading', { name: 'Мої проєкти' })).toBeVisible()
+    await expect(win.getByRole('heading', { name: 'Локальні проєкти' })).toBeVisible()
     // A File made in the page has no path on disk, as a drag from a browser: the page asks for a folder.
     const target = win.locator('[data-slot="page-header"]').first()
     const dt = await win.evaluateHandle(() => {
