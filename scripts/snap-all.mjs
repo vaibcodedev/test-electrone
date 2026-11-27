@@ -100,7 +100,7 @@ for (const theme of THEMES) {
     if (ONLY.has('list')) {
       // «Налаштування → Меню»: the section with a group unfolded, and home / the sidebar with sections hidden.
       await go(ctx, '/settings#menu', 1100)
-      await ctx.win.getByRole('button', { name: 'Показати пункти розділу «Робота»' }).click().catch(() => {})
+      await ctx.win.getByRole('button', { name: 'Показати пункти розділу «Інструменти»' }).click().catch(() => {})
       await ctx.win.waitForTimeout(400)
       await shot(ctx, join(base, 'list'), 'settings_menu', `${theme} list /settings#menu`)
       await ctx.rpc('settings.update', { hiddenNavHubs: ['freelance', 'jobs', 'finance', 'knowledge'], hiddenNavItems: ['/calendar'] })

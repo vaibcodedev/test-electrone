@@ -37,7 +37,7 @@ test.describe('меню: сховати розділи', () => {
   test('пункт усередині групи: «Показано 2 з 3»; «Календар» угорі має свій перемикач', async ({ vault }) => {
     const { win, go } = vault
     await go('/settings#menu')
-    await menu(win).getByRole('button', { name: 'Показати пункти розділу «Робота»' }).click()
+    await menu(win).getByRole('button', { name: 'Показати пункти розділу «Інструменти»' }).click()
     await menu(win).getByRole('switch', { name: 'Показувати «Дошки» в меню' }).click()
     await expect(menu(win).getByText('Показано 2 з 3')).toBeVisible()
     await expect(sidebar(win).getByRole('link', { name: /^Дошки/ })).toHaveCount(0)
@@ -77,7 +77,7 @@ test.describe('меню: сховати розділи', () => {
     await showAll.click()
     await expect(showAll).toHaveCount(0)
     await expect(sidebar(win).getByRole('button', { name: 'Пошук роботи', exact: true })).toBeVisible()
-    await expect(menu(win).getByRole('switch', { name: 'Робота' })).toBeFocused()
+    await expect(menu(win).getByRole('switch', { name: 'Інструменти' })).toBeFocused()
     const s = await rpc('settings.get')
     expect(s.hiddenNavHubs).toEqual([])
     expect(s.hiddenNavItems).toEqual([])

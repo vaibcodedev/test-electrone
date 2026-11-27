@@ -264,7 +264,7 @@ test('«Меню»: вимкнений розділ згортається в б
       attributes: true
     })
   })
-  const toggle = win.getByRole('switch', { name: 'Робота', exact: true })
+  const toggle = win.getByRole('switch', { name: 'Інструменти', exact: true })
   await toggle.click()
   await expect(hubButton).toHaveCount(0)
   const seen = await win.evaluate(() => (window as unknown as { seen: string[] }).seen)

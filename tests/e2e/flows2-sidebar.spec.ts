@@ -54,10 +54,10 @@ test.describe('бічна панель: згортання', () => {
     await expect(win.getByRole('tooltip', { name: 'Головна' })).toBeVisible()
   })
 
-  test('меню групи «Робота» праворуч: перехід і поточний пункт', async ({ vault }) => {
+  test('меню групи «Інструменти» праворуч: перехід і поточний пункт', async ({ vault }) => {
     const { win } = vault
     await fold(win).click()
-    const work = column(win).getByRole('button', { name: 'Робота' })
+    const work = column(win).getByRole('button', { name: 'Інструменти' })
     await work.click()
     const flyout = win.getByRole('menu')
     await expect(flyout).toBeVisible()
@@ -97,7 +97,7 @@ test.describe('бічна панель: згортання', () => {
   test('клавіатура: Enter відкриває, Esc повертає фокус без тултипа', async ({ vault }) => {
     const { win } = vault
     await fold(win).click()
-    const work = column(win).getByRole('button', { name: 'Робота' })
+    const work = column(win).getByRole('button', { name: 'Інструменти' })
     await work.focus()
     await win.keyboard.press('Enter')
     await expect(win.getByRole('menu')).toBeVisible()
@@ -105,7 +105,7 @@ test.describe('бічна панель: згортання', () => {
     await win.keyboard.press('Escape')
     await expect(win.getByRole('menu')).toBeHidden()
     await expect(work).toBeFocused()
-    await expect(win.getByRole('tooltip', { name: 'Робота' })).toHaveCount(0)
+    await expect(win.getByRole('tooltip', { name: 'Інструменти' })).toHaveCount(0)
   })
 
   test('Ctrl+B при відкритому меню групи', async ({ vault }) => {

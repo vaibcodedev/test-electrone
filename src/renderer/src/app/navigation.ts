@@ -109,7 +109,7 @@ export const TOP_ITEMS: readonly NavItem[] = [CALENDAR, REVIEW]
 export const HUBS: NavHub[] = [
   {
     id: 'work',
-    title: 'Робота',
+    title: 'Інструменти',
     icon: SquareKanban,
     items: [
       { path: '/ideas', label: 'Ідеї', icon: Lightbulb, countOf: 'idea' },

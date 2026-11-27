@@ -41,11 +41,11 @@ export const APP_SECTIONS: readonly AppSection[] = [
     'create_event'
   ),
   s('/review', 'Підсумки тижня', null, 'що зроблено за тиждень'),
-  // Робота
+  // Інструменти
   s(
     '/ideas',
     'Ідеї',
-    'Робота',
+    'Інструменти',
     'ідеї зі статусом; ідею можна зробити дошкою',
     ['idea'],
     'create_idea'
@@ -53,7 +53,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
   s(
     '/boards',
     'Дошки',
-    'Робота',
+    'Інструменти',
     'канбан: колонки й картки-задачі',
     ['board', 'card'],
     'create_board'
@@ -61,7 +61,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
   s(
     '/checklists',
     'Чек-листи',
-    'Робота',
+    'Інструменти',
     'шаблони чек-листів (розділи, пункти) і прогони',
     ['checklist'],
     'create_checklist'

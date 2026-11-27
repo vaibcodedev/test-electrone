@@ -600,8 +600,8 @@ describe('the chat knows the app', () => {
   it('the system prompt carries the map, the current page and the rule against swapping types', () => {
     const now = new Date(2026, 10, 25, 14, 5).getTime()
     const prompt = chatSystem({ now, boards: [], contextType: null, page: '/checklists' })
-    expect(prompt).toContain('Робота › Чек-листи')
-    expect(prompt).toContain('The person is now on «Робота › Чек-листи» (/checklists)')
+    expect(prompt).toContain('Інструменти › Чек-листи')
+    expect(prompt).toContain('The person is now on «Інструменти › Чек-листи» (/checklists)')
     expect(prompt).toContain('- create_checklist {title')
     expect(prompt).toContain('«чек-лист» → create_checklist')
     expect(prompt).toContain('a checklist is not a note')
@@ -752,7 +752,7 @@ describe('the chat applies the edited action and brings a cancelled one back', (
         })
     )
     const c = await chat.send({ text: 'Додай шаблон чек-листа для лендингу', page: '/checklists' })
-    expect(request.mock.calls[0][0].system).toContain('The person is now on «Робота › Чек-листи»')
+    expect(request.mock.calls[0][0].system).toContain('The person is now on «Інструменти › Чек-листи»')
     const answer = c.messages[1]
     const [list, idea] = answer.actions
     const ref = { chatId: c.id, messageId: answer.id, actionId: list.id }

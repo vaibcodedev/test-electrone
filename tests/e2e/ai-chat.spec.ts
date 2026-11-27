@@ -201,7 +201,7 @@ test('a checklist template: the card sums it up, the preview shows it whole, «�
     const card = panel(win).locator('[data-ai-action="create_checklist"]')
     await expect(card).toContainText('Чек-лист · 12 пунктів у 4 розділах')
     await expect(card).toContainText(`Лендинг ${token}`)
-    expect(systems.at(-1)).toContain('The person is now on «Робота › Чек-листи»')
+    expect(systems.at(-1)).toContain('The person is now on «Інструменти › Чек-листи»')
     expect(systems.at(-1)).toContain('create_checklist')
 
     // «Переглянути»: every section and step, as the checklist page shows them.
