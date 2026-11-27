@@ -30,7 +30,6 @@ import { ItemDescription } from '@/components/ui/item'
 import {
   EmptyState,
   FilterBar,
-  FilterChips,
   Kbd,
   NoResults,
   Page,
@@ -58,12 +57,14 @@ import { bindMenu } from '@/features/record-menu/model'
 import { templateMenu } from './template-menu'
 import { TagDot } from '@/components/common/tags'
 import { PURPOSE_COLOR, PurposeBadge } from './purpose-badge'
+import { SituationFilter } from './situation-filter'
 import { SituationCombobox } from './situation-combobox'
 import {
   nextVersionName,
   removeVersionPatch,
   TemplateVersionsBar,
-  versionNames
+  versionNames,
+  versionSummary
 } from './template-versions'
 
 const TPL_L = limitsOf(templateInputSchema)
@@ -425,13 +426,13 @@ export function TemplatesPage() {
   )
   const situationOptions = [
     ...new Set<string>([...TEMPLATE_SITUATIONS, ...own, ...(situation ? [situation] : [])])
-  ].map((s) => ({ value: s, label: situationLabel(s), count: counts.get(s) ?? 0 }))
+  ].map((s) => ({ value: s, count: counts.get(s) ?? 0 }))
   // Templates without «Для чого» come only from a main older than the field (dev before a restart): it ignores the
   // direction too, so the switch would show zeros and filter nothing — it is not offered then.
   const directions = all.some((t) => t.purpose)
   const directionCount = (d: TemplateDirection): number =>
     all.filter((t) => purposeFits(t.purpose, d)).length
-  // A situation with no templates in the new direction goes with it: its chip would not be offered there.
+  // A situation with no templates in the new direction goes with it: the filter would not offer it there.
   const setDirection = (d: TemplateDirection | undefined): void =>
     setFilter({
       purpose: d ?? null,
@@ -456,9 +457,10 @@ export function TemplatesPage() {
         {/* Nothing to filter or search on an empty base: the row comes with the first template. */}
         {(all.length > 0 || search || situation || direction) && (
           <FilterBar
-            // Two steps, two rows: first for what, then the situation chips of that direction.
+            // Two steps in one row: first for what, then the situation of that direction.
             chips={
-              (directions || direction) && (
+              <>
+              {(directions || direction) && (
                 <Segmented
                   label="Для чого"
                   value={direction ?? ALL_DIRECTIONS}
@@ -479,16 +481,13 @@ export function TemplatesPage() {
                     }))
                   ]}
                 />
-              )
-            }
-            secondary={
-              <FilterChips
-                label="Ситуація"
-                allLabel="Усі ситуації"
+              )}
+              <SituationFilter
                 value={situation}
+                options={situationOptions.filter((o) => o.count > 0 || o.value === situation)}
                 onChange={setSituation}
-                options={situationOptions}
               />
+              </>
             }
             trailing={
               <SearchInput value={search} onChange={setSearch} placeholder="Шукати в шаблонах" />
@@ -574,13 +573,13 @@ export function TemplatesPage() {
                             {situationLabel(t.situation)}
                           </ItemDescription>
                         )}
-                        {/* Several text versions: their names, compact («Українська · English»). */}
+                        {/* Several text versions: their names («Українська · English») or, for many, the count. */}
                         {versionNames(templateVersions(t)) && (
                           <ItemDescription
-                            className="min-w-0 truncate text-meta"
+                            className="shrink-0 text-meta"
                             title={versionNames(templateVersions(t)) ?? undefined}
                           >
-                            {versionNames(templateVersions(t))}
+                            {versionSummary(templateVersions(t))}
                           </ItemDescription>
                         )}
                       </div>

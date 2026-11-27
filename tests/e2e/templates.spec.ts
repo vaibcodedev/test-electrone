@@ -74,7 +74,7 @@ test.describe('template record: «Для чого» and the situation are edits 
     await expect.poll(async () => (await rpc('templates.get', t.id)).situation).toBe('proposal')
   })
 
-  test('a new own situation is saved by «Зберегти» and offered as a chip', async ({ vault }) => {
+  test('a new own situation is saved by «Зберегти» and offered by the filter', async ({ vault }) => {
     const { win, rpc } = vault
     const t = await openInEdit(vault, { situation: 'other', purpose: 'jobs' })
     const own = `Відповідь на відмову ${uid()}`
@@ -85,9 +85,9 @@ test.describe('template record: «Для чого» and the situation are edits 
     await save(win).click()
     await expect(pane(win)).toHaveAttribute('data-detail-mode', 'view')
     expect((await rpc('templates.get', t.id)).situation).toBe(own)
-    await expect(
-      win.getByRole('radiogroup', { name: 'Ситуація' }).getByRole('radio', { name: new RegExp(`^${own}`) })
-    ).toBeVisible()
+    await win.getByRole('button', { name: 'Усі ситуації' }).click()
+    await expect(win.getByRole('option', { name: new RegExp(`^${own}`) })).toBeVisible()
+    await win.keyboard.press('Escape')
   })
 })
 

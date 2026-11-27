@@ -10,6 +10,7 @@ import {
 import { MAX } from '@shared/domain/limits'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/common/page'
+import { plural } from '@/lib/format'
 import { Combobox } from '@/components/common/combobox'
 import { Confirm } from '@/components/common/confirm'
 import { DisabledHint } from '@/components/common/disabled-hint'
@@ -46,6 +47,11 @@ export function removeVersionPatch(all: VersionView[], i: number): TemplatePatch
 /** The version names of a template in a row («Українська · English»); null while there is only one. */
 export function versionNames(all: VersionView[]): string | null {
   return all.length > 1 ? all.map((v) => versionLabel(v.name)).join(' · ') : null
+}
+
+/** The same for a list row: names while they are few, then the count, so they don't squeeze out the situation. */
+export function versionSummary(all: VersionView[]): string | null {
+  return all.length > 3 ? `${all.length} ${plural(all.length, ['версія', 'версії', 'версій'])}` : versionNames(all)
 }
 
 /**
@@ -120,7 +126,8 @@ export function TemplateVersionsBar({
             <Segmented
               label="Версія тексту"
               size="xs"
-              className="data-[variant=segment]:flex-wrap"
+              // Eight long names wrap: a pill track of several rows became a big oval, so the radius is a block's.
+              className="data-[variant=segment]:flex-wrap data-[variant=segment]:rounded-xl"
               value={String(active)}
               onChange={(v) => onActive(Number(v))}
               options={all.map((v, i) => ({ value: String(i), label: versionLabel(v.name) }))}
