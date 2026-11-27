@@ -1,6 +1,5 @@
 import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
-import { ChartColumn } from 'lucide-react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { JobFunnelRow } from '@shared/domain/jobs'
@@ -66,7 +65,7 @@ export function JobStatsPage(): ReactElement {
           </Delayed>
         ) : data.totals.applied === 0 ? (
           <EmptyState
-            icon={ChartColumn}
+            illustration="chart"
             title="За період відгуків немає"
             hint="Додавайте вакансії зі статусом «Надіслано» — тут з’явиться воронка."
             cta={{ label: 'До вакансій', onClick: () => navigate('/jobs/applications') }}

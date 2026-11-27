@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { useSearchParams } from 'react-router'
-import { ArrowRight, Copy, MessageSquareQuote, Plus } from 'lucide-react'
+import { ArrowRight, Copy, Plus } from 'lucide-react'
 import {
   isBuiltinSituation,
   PURPOSE_LABEL,
@@ -521,7 +521,7 @@ export function TemplatesPage() {
                   />
                 ) : (
                   <EmptyState
-                    icon={MessageSquareQuote}
+                    illustration="chat-text"
                     title="Шаблонів поки немає"
                     hint="Збережіть вдалий відгук чи відповідь клієнтові, щоб не писати його заново."
                     cta={{ label: 'Додати шаблон', icon: Plus, onClick: add }}

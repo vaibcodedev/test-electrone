@@ -1,6 +1,6 @@
 import { useEffect, type ReactElement } from 'react'
 import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router'
-import { RotateCcw, SearchX, TriangleAlert } from 'lucide-react'
+import { RotateCcw, TriangleAlert } from 'lucide-react'
 import { reportError } from '@/lib/error-reporting'
 import { api } from '@/lib/api'
 import { EmptyState } from '@/components/common/page'
@@ -30,7 +30,7 @@ export function NotFoundPage(): ReactElement {
   return (
     <div className="grid h-full place-items-center p-8">
       <EmptyState
-        icon={SearchX}
+        illustration="map-pin" illustrationSize="lg"
         title="Такої сторінки немає"
         hint="Можливо, посилання застаріло або запис видалено."
         action={

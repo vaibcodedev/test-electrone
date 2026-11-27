@@ -7,6 +7,7 @@ import type { DueCard } from '@shared/domain/boards'
 import { LOCALE, capitalize, plural } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { SegmentBar } from '@/components/common/page'
+import { Illustration } from '@/components/common/illustration'
 import { PRIORITY_DOT } from '@/modules/boards/labels'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -35,7 +36,9 @@ export function TodayCard({
   const [todayStart] = useState(() => new Date().setHours(0, 0, 0, 0))
   const navigate = useNavigate()
   return (
-    <Card className={cn('min-h-75 gap-0 bg-ink p-6 text-ink-foreground', className)}>
+    <Card
+      className={cn('@container relative min-h-75 gap-0 bg-ink p-6 text-ink-foreground', className)}
+    >
       <div className="flex items-center justify-between text-caption text-ink-muted">
         <span>{capitalize(format(new Date(), 'EEEE, d MMMM', { locale: LOCALE }))}</span>
         {all.length > 0 && (
@@ -115,6 +118,14 @@ export function TodayCard({
         <p className="mt-4 max-w-sm text-body text-ink-muted">
           Поставте дедлайн картці на дошці — вона з’явиться тут у потрібний день.
         </p>
+      )}
+      {/* The hero picture of a calm day; a narrow card has no room beside the text. */}
+      {!open.length && (
+        <Illustration
+          name={all.length ? 'trophy' : 'tea-cup'}
+          size="hero"
+          className="absolute right-6 bottom-6 @max-md:hidden"
+        />
       )}
     </Card>
   )

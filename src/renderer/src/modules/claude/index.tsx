@@ -324,7 +324,7 @@ export function ClaudePage(): ReactElement {
                   />
                 ) : (
                   <EmptyState
-                    icon={Sparkles}
+                    illustration="star"
                     title="У ШІ-базі поки порожньо"
                     hint="Зберігайте промти, що спрацювали, і нотатки про роботу з ШІ."
                     cta={{ label: 'Створити запис', icon: Plus, onClick: () => void createNew() }}

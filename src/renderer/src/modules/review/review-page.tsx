@@ -38,6 +38,7 @@ import { useHotkey } from '@/hooks/use-hotkey'
 import { useNavVisibility } from '@/hooks/use-nav-visibility'
 import { cn } from '@/lib/utils'
 import { Page, PageBody, PageHeader } from '@/components/common/page'
+import { Illustration } from '@/components/common/illustration'
 import { EntityRow } from '@/components/common/entity-link'
 import { MarkdownField } from '@/components/common/markdown'
 import { Button } from '@/components/ui/button'
@@ -434,15 +435,18 @@ export function ReviewPage() {
       />
       <PageBody>
         <div className="stagger grid grid-cols-12 gap-3">
-          <div className="col-span-12 pb-2">
-            <h2 className="font-display max-w-[28ch] text-title leading-[1.08] text-balance">
-              {title}
-            </h2>
-            {quiet && (
-              <p className="mt-2 text-caption text-muted-foreground">
-                Цифри збираються із закритих карток, відгуків, нотаток і повторень за тиждень.
-              </p>
-            )}
+          <div className="col-span-12 flex items-start justify-between gap-6 pb-2">
+            <div className="min-w-0">
+              <h2 className="font-display max-w-[28ch] text-title leading-[1.08] text-balance">
+                {title}
+              </h2>
+              {quiet && (
+                <p className="mt-2 text-caption text-muted-foreground">
+                  Цифри збираються із закритих карток, відгуків, нотаток і повторень за тиждень.
+                </p>
+              )}
+            </div>
+            {quiet && <Illustration name="moon" className="mr-2" />}
           </div>
 
           {filled.length > 0 && (

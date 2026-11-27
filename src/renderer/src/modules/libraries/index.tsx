@@ -466,7 +466,7 @@ export function LibrariesPage(): ReactElement {
                   />
                 ) : (
                   <EmptyState
-                    icon={Package}
+                    illustration="cube"
                     title="Бібліотек поки немає"
                     hint="Збережіть пакет, який сподобався, з командою встановлення й посиланнями."
                     cta={{

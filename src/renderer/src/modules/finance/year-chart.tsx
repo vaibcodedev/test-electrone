@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactElement } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
-import { ChartColumn } from 'lucide-react'
 import type { Currency } from '@shared/domain/crm'
 import type { MoneyByCurrency } from '@shared/domain/finance'
 import { useApi } from '@/lib/query'
@@ -164,7 +163,7 @@ export function YearChart({ month }: { month: string }): ReactElement {
             </BarChart>
           </ChartContainer>
         ) : (
-          <CardState icon={ChartColumn} text="Графік з’явиться після першої оплати або витрати" />
+          <CardState illustration="wallet" text="Графік з’явиться після першої оплати або витрати" />
         )}
       </CardContent>
     </Card>

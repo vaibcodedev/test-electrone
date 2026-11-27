@@ -137,7 +137,7 @@ export function TrashPage(): ReactElement {
           empty={
             !isLoading && (
               <EmptyState
-                icon={Trash2}
+                illustration="trash-can"
                 title="Кошик порожній"
                 hint="Усе, що ви видаляєте, потрапляє сюди на 30 днів."
               />

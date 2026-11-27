@@ -414,7 +414,7 @@ export function QuestionsPage(): ReactElement {
                   <NoResults icon={MessageCircleQuestion} hint={`Питань ${filters.join(' і ')} немає.`} onReset={resetFilters} />
                 ) : (
                   <EmptyState
-                    icon={MessageCircleQuestion}
+                    illustration="chat"
                     title="Питань поки немає"
                     hint="Додайте питання, яке поставили на співбесіді, і свою відповідь на нього."
                     cta={{ label: 'Додати питання', icon: Plus, onClick: add }}

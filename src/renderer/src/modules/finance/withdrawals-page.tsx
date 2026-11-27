@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { ArrowDownToLine, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import type { Withdrawal } from '@shared/domain/finance'
 import { KEEP_PERIOD, useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
 import { LoadError } from '@/features/route-error'
@@ -78,7 +78,7 @@ export function WithdrawalsPage(): ReactElement {
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={ArrowDownToLine}
+            illustration="money"
             title={noneInMonth(month, 'виплат')}
             hint="Запишіть виплату, щоб бачити, скільки грошей ще лежить на платформі й скільки з’їли комісії та курс."
             cta={{ label: 'Додати виплату', icon: Plus, onClick: () => dialog.openWith(null) }}

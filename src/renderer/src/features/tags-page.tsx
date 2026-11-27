@@ -192,7 +192,7 @@ export function TagsPage(): ReactElement {
           <Card className={cn('gap-4', !current && 'self-stretch')}>
             {noTags ? (
               <EmptyState
-                icon={Tags}
+                illustration="pin"
                 title="Міток ще немає"
                 hint="Створіть першу ліворуч або прямо в записі — вона з’явиться в усіх розділах."
                 className="py-10"

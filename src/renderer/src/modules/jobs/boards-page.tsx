@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, Trash2, Globe } from 'lucide-react'
+import { GripVertical, Plus, Trash2 } from 'lucide-react'
 import { jobBoardInputSchema, type JobBoard, type JobFunnelRow } from '@shared/domain/jobs'
 import { PALETTE } from '@shared/colors'
 import { limitsOf, rangesOf } from '@/lib/limits'
@@ -271,7 +271,7 @@ export function JobBoardsPage(): ReactElement {
             </Delayed>
           ) : boards.length === 0 ? (
             <EmptyState
-              icon={Globe}
+              illustration="explorer"
               title="Сайтів поки немає"
               hint="Впишіть назву вгорі — Djinni, DOU, LinkedIn — і задайте норму відгуків на день."
             />

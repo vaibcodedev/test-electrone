@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactElement, ReactNode } from 'react'
 import { StatTile } from '@/components/common/stat-tile'
+import { Illustration, type IllustrationName } from '@/components/common/illustration'
 import { MoneyLines } from '@/components/common/money-value'
 import { Link, useLocation } from 'react-router'
 import { Check, ChevronLeft, ChevronRight, Plus, type LucideIcon } from 'lucide-react'
@@ -134,8 +135,11 @@ export function CardState({
   text,
   action,
   done,
-  icon: Icon = Plus
+  icon: Icon = Plus,
+  illustration
 }: {
+  /** A 3D picture instead of the circle — only on the main tile of the screen. */
+  illustration?: IllustrationName
   text: string
   action?: ReactNode
   done?: boolean
@@ -144,14 +148,18 @@ export function CardState({
 }): ReactElement {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-2 text-center">
-      <span
-        className={cn(
-          'grid size-9 place-items-center rounded-full',
-          done ? 'bg-success/15 text-success' : 'bg-foreground/7 text-muted-foreground'
-        )}
-      >
-        {done ? <Check className="size-4" /> : <Icon className="size-4" />}
-      </span>
+      {illustration ? (
+        <Illustration name={illustration} />
+      ) : (
+        <span
+          className={cn(
+            'grid size-9 place-items-center rounded-full',
+            done ? 'bg-success/15 text-success' : 'bg-foreground/7 text-muted-foreground'
+          )}
+        >
+          {done ? <Check className="size-4" /> : <Icon className="size-4" />}
+        </span>
+      )}
       <p className="max-w-64 text-body text-muted-foreground">{text}</p>
       {action}
     </div>

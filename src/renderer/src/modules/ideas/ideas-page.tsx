@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react'
 import { MAX } from '@shared/domain/limits'
-import { Flame, Lightbulb, Plus, SquareKanban } from 'lucide-react'
+import { Flame, Plus, SquareKanban } from 'lucide-react'
 import { IDEA_STATUSES, type Idea, type IdeaStatus } from '@shared/domain/ideas'
 import { useApi, useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
 import { RecordLoadError } from '@/components/common/record-load-error'
@@ -199,7 +199,7 @@ export function IdeasPage() {
                       <NoResults hint={noResultsHint(q, !!(status || tagId || favorite))} onReset={resetFilters} />
                     ) : (
                       <EmptyState
-                        icon={Lightbulb}
+                        illustration="bulb"
                         title="Ідей поки немає"
                         hint={
                           <>

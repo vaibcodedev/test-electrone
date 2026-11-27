@@ -176,7 +176,7 @@ export function BookmarksPage(): ReactElement | null {
                   />
                 ) : (
                   <EmptyState
-                    icon={BookmarkIcon}
+                    illustration="bookmark"
                     title="Закладок поки немає"
                     cta={{
                       label: 'Додати закладку',

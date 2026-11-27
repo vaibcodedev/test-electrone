@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react'
-import { Flag, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { redFlagInputSchema, type RedFlag, type RedFlagPatch } from '@shared/domain/freelance'
 import { useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
 import { RecordLoadError } from '@/components/common/record-load-error'
@@ -247,7 +247,7 @@ export function RedFlagsPage() {
                   />
                 ) : (
                   <EmptyState
-                    icon={Flag}
+                    illustration="flag"
                     title="Прапорців поки немає"
                     hint="Запишіть ознаку проблемного клієнта, щойно на неї натрапите. Самому клієнтові можна поставити статус «Не працювати»."
                     cta={{ label: 'Додати прапорець', icon: Plus, onClick: add }}

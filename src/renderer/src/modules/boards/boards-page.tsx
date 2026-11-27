@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { Plus, SquareKanban } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { boardInputSchema, type BoardSummary } from '@shared/domain/boards'
 import { limitsOf, requiredOf } from '@/lib/limits'
 import { useApiMutation, useInfiniteApi } from '@/lib/query'
@@ -172,7 +172,7 @@ export function BoardsPage() {
           empty={
             !page.isLoading && (
               <EmptyState
-                icon={SquareKanban}
+                illustration="copy"
                 title="Дошок поки немає"
                 hint="Створіть дошку вручну або перетворіть ідею на дошку однією кнопкою."
                 cta={{ label: 'Нова дошка', icon: Plus, onClick: () => setCreating(true) }}

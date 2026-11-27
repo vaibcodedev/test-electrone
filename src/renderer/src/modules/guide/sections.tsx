@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { IllustrationName } from '@/components/common/illustration'
 import {
   GraduationCap,
   CalendarCheck,
@@ -47,6 +48,8 @@ interface GuideSection {
   icon: LucideIcon
   /** Where «Відкрити розділ» leads. */
   route?: string
+  /** A 3D picture beside the section text (docs/design-system.md → Иллюстрации). */
+  illustration?: IllustrationName
   body: ReactNode
 }
 
@@ -56,6 +59,7 @@ export function sections(faq: ReactNode): GuideSection[] {
       id: 'start',
       title: 'Як почати',
       icon: Rocket,
+      illustration: 'rocket',
       route: '/settings#you',
       body: (
         <>

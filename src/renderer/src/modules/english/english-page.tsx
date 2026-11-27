@@ -254,7 +254,7 @@ export function EnglishPage(): ReactElement {
                   />
                 ) : (
                   <EmptyState
-                    icon={Languages}
+                    illustration="chat-bubble"
                     title="Словник порожній"
                     hint="Додайте слово з робочого листування у формі вище — воно одразу потрапить у повторення."
                   />

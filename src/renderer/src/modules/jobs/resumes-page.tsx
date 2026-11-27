@@ -271,7 +271,7 @@ export function ResumesPage(): ReactElement {
             </Delayed>
           ) : resumes.length === 0 ? (
             <EmptyState
-              icon={FileText}
+              illustration="file"
               title="Резюме поки немає"
               hint="Перетягніть PDF або DOCX сюди, вставте через Ctrl+V або натисніть «Завантажити версію»."
               cta={{ label: 'Завантажити версію', icon: Upload, onClick: picker.open }}

@@ -316,7 +316,7 @@ export function DesignsPage(): ReactElement | null {
               />
             ) : (
               <EmptyState
-                icon={Image}
+                illustration="picture"
                 title="Галерея порожня"
                 hint="Скриншоти сайтів, лендингів і магазинів — щоб брати з них кольори й ідеї."
                 // A file picker, not a plain click: hence `action` with the picker button, soft like any cta.

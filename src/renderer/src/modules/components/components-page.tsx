@@ -222,7 +222,7 @@ export function ComponentsPage(): ReactElement {
               <NoResults icon={Component} hint={noResultsHint(q, !!(tagId || favorite))} onReset={resetFilters} />
             ) : (
               <EmptyState
-                icon={Component}
+                illustration="puzzle"
                 title="Компонентів поки немає"
                 hint="Збережіть кнопку, картку чи цілий блок — прев’ю збереться просто в застосунку."
                 cta={{ label: 'Створити компонент', icon: Plus, onClick: () => void createNew() }}

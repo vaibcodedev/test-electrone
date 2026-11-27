@@ -143,7 +143,7 @@ export function InterviewsPage(): ReactElement {
           </Delayed>
         ) : upcoming.length === 0 && past.length === 0 && undated.length === 0 ? (
           <EmptyState
-            icon={CalendarDays}
+            illustration="headphone"
             title="Співбесід поки немає"
             hint="Відкрийте вакансію й додайте етап — скринінг, технічну співбесіду чи тестове."
             cta={{ label: 'До вакансій', onClick: () => navigate('/jobs/applications') }}

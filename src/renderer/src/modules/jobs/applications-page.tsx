@@ -328,7 +328,7 @@ export function ApplicationsPage(): ReactElement {
         <div className="flex min-h-0 flex-1 flex-col">
           {emptyBase ? (
             <EmptyState
-              icon={FileUser}
+              illustration="file-text"
               title="Вакансій поки немає"
               hint="Додавайте кожну вакансію, на яку відгукнулися: так видно, які сайти й версії резюме дають відповіді."
               action={

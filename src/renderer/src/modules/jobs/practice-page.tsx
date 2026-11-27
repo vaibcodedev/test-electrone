@@ -275,7 +275,7 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
             />
           ) : (
             <EmptyState
-              icon={MessageCircleQuestion}
+              illustration="chat"
               title="Питань поки немає"
               hint="Додайте питання зі співбесіди й свою відповідь — і тренуйтеся тут."
               cta={{ label: 'До списку питань', icon: ArrowLeft, onClick: exit }}

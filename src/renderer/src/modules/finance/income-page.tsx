@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowRight, TrendingUp } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { KEEP_PERIOD, useInPlaceApi } from '@/lib/query'
 import { LoadError } from '@/features/route-error'
 import { fmtDayFull, fmtMoney, fmtPercent } from '@/lib/format'
@@ -74,7 +74,7 @@ export function IncomePage(): ReactElement {
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState
-            icon={TrendingUp}
+            illustration="money-bag"
             title={noneInMonth(month, 'оплат')}
             hint="Оплати позначаються в контракті. Позначте оплату там — вона з’явиться тут разом із комісією."
           />

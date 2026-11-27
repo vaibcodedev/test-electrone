@@ -96,7 +96,7 @@ export function DevProjectsPage(): ReactElement {
       ) : projects.length === 0 ? (
         // «Додати проєкт» (lime, N) is in the header: the empty state offers the other way in.
         <EmptyState
-          icon={FolderGit2}
+          illustration="computer"
           title="Додайте свої проєкти"
           hint="Вкажіть папку, де лежать усі репозиторії, або перетягніть її сюди — Vault знайде package.json і .git, покаже гілку й запустить dev-сервер."
           cta={{ label: 'Імпорт із папки', icon: FolderSearch, onClick: () => void importFolder() }}

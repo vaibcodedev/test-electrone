@@ -424,7 +424,7 @@ export function PortfolioPage() {
                   />
                 ) : (
                   <EmptyState
-                    icon={BriefcaseBusiness}
+                    illustration="travel"
                     title="Кейсів поки немає"
                     hint="Додайте завершений проєкт — знадобиться для відгуків і профілю."
                     cta={{ label: 'Додати кейс', icon: Plus, onClick: add }}

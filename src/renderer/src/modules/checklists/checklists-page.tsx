@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
-import { ListChecks, Plus, Rocket } from 'lucide-react'
+import { Plus, Rocket } from 'lucide-react'
 import type { Checklist } from '@shared/domain/checklists'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { useDebounced } from '@/hooks/use-debounced'
@@ -235,7 +235,7 @@ export function ChecklistsPage() {
               />
             ) : tab === 'template' ? (
               <EmptyState
-                icon={ListChecks}
+                illustration="tick"
                 title="Шаблонів поки немає"
                 hint="Створіть шаблон — список кроків, який ви повторюєте від проєкту до проєкту."
                 cta={{
@@ -247,7 +247,7 @@ export function ChecklistsPage() {
               />
             ) : (
               <EmptyState
-                icon={ListChecks}
+                illustration="tick"
                 title="Прогонів поки немає"
                 hint="Відкрийте шаблон і натисніть «Запустити» — з’явиться прогін, у якому можна ставити галочки."
                 cta={{ label: 'До шаблонів', onClick: () => setParams({}, { replace: true }) }}

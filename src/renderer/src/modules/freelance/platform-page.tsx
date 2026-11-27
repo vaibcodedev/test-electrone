@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import { Archive, ArchiveRestore, Handshake, SearchX } from 'lucide-react'
+import { Archive, ArchiveRestore, SearchX } from 'lucide-react'
 import type { Platform } from '@shared/domain/freelance'
 import { useApiMutation, useInfiniteApi, useInPlaceApi } from '@/lib/query'
 import { LoadError } from '@/features/route-error'
@@ -37,7 +37,7 @@ function ContractsTab({ platform }: { platform: Platform }) {
   if (!isLoading && projects.length === 0) {
     return (
       <EmptyState
-        icon={Handshake}
+        illustration="thumb-up"
         title="Контрактів поки немає"
         hint="Відкрийте виграний відгук і натисніть «Контракт» — клієнт і проєкт з’являться тут і в «Клієнтах і проєктах»."
       />

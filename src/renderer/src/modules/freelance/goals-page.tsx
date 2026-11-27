@@ -1,5 +1,5 @@
 import { useState, type ReactElement } from 'react'
-import { MoreHorizontal, Pause, Pencil, Play, Plus, Target, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pause, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import {
   GOAL_METRICS,
   GOAL_PERIODS,
@@ -285,7 +285,7 @@ export function GoalsPage() {
           <LoadError title="Не вдалося завантажити цілі" onRetry={query.retry} />
         ) : !isLoading && goals.length === 0 ? (
           <EmptyState
-            icon={Target}
+            illustration="target"
             title="Цілей поки немає"
             hint="Наприклад: 10 відгуків на тиждень або 3 000 USD на руки за місяць."
             cta={{ label: 'Поставити ціль', icon: Plus, onClick: () => setCreateOpen(true) }}

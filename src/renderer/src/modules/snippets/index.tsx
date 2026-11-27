@@ -407,7 +407,7 @@ export function SnippetsPage(): ReactElement {
                   />
                 ) : (
                   <EmptyState
-                    icon={CodeXml}
+                    illustration="scissor"
                     title="Сніпетів поки немає"
                     hint="Збережіть шматок коду, який пишете вже не вперше."
                     cta={{ label: 'Створити сніпет', icon: Plus, onClick: () => void createNew() }}

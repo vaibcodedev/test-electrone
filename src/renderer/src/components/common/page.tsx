@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { fmtNumber } from '@/lib/format'
 import { overLimitText } from '@/lib/limits'
 import { useReadOnly } from './detail-mode'
+import { Illustration, type IllustrationName, type IllustrationSize } from './illustration'
 import {
   Empty,
   EmptyContent,
@@ -115,6 +116,8 @@ export function Page({ children, className }: { children: ReactNode; className?:
  */
 export function EmptyState({
   icon: Icon,
+  illustration,
+  illustrationSize,
   title,
   hint,
   action,
@@ -122,6 +125,9 @@ export function EmptyState({
   className
 }: {
   icon?: LucideIcon
+  /** A 3D picture instead of the icon circle (docs/design-system.md → Иллюстрации). */
+  illustration?: IllustrationName
+  illustrationSize?: IllustrationSize
   title: string
   hint?: ReactNode
   action?: ReactNode
@@ -140,11 +146,17 @@ export function EmptyState({
   return (
     <Empty className={cn('py-14', className)}>
       <EmptyHeader>
-        {Icon && (
-          // A tint, not bg-surface: the circle stays visible on card and inside a surface card alike.
-          <EmptyMedia variant="icon" className="size-14 rounded-full bg-foreground/7">
-            <Icon className="size-6 text-muted-foreground" />
+        {illustration ? (
+          <EmptyMedia>
+            <Illustration name={illustration} size={illustrationSize} />
           </EmptyMedia>
+        ) : (
+          Icon && (
+            // A tint, not bg-surface: the circle stays visible on card and inside a surface card alike.
+            <EmptyMedia variant="icon" className="size-14 rounded-full bg-foreground/7">
+              <Icon className="size-6 text-muted-foreground" />
+            </EmptyMedia>
+          )
         )}
         <EmptyTitle className="text-lead font-medium">{title}</EmptyTitle>
         {hint && <EmptyDescription className="text-body">{hint}</EmptyDescription>}

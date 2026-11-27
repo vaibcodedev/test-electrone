@@ -1,7 +1,7 @@
 import { useEffect, useMemo, type ReactElement } from 'react'
 import { gapCards, pickGapCard } from '@shared/english-gaps'
 import { useNavigate } from 'react-router'
-import { ArrowLeft, Languages, Plus } from 'lucide-react'
+import { ArrowLeft, Plus } from 'lucide-react'
 import { invalidateAll, useApi } from '@/lib/query'
 import { useHotkey } from '@/hooks/use-hotkey'
 import { EmptyState, SegmentBar } from '@/components/common/page'
@@ -80,7 +80,7 @@ export function ReviewPage(): ReactElement {
   if (stats.total === 0) {
     body = (
       <EmptyState
-        icon={Languages}
+        illustration="chat-bubble"
         title="Словник порожній"
         hint="Додайте перше слово — воно одразу потрапить у повторення."
         // The only action on this screen, so it is the lime one.

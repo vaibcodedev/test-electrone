@@ -269,7 +269,7 @@ export function FixesPage(): ReactElement {
                   />
                 ) : (
                   <EmptyState
-                    icon={Bug}
+                    illustration="tool"
                     title="Помилок поки немає"
                     hint="Запишіть наступну помилку разом із рішенням, і пошук знайде її за півроку."
                     cta={{ label: 'Записати помилку', icon: Plus, onClick: () => void createNew() }}

@@ -1,5 +1,4 @@
 import { cn } from '@/lib/utils'
-import { ChartColumn } from 'lucide-react'
 import { useState } from 'react'
 import { format, parseISO, startOfDay, subDays } from 'date-fns'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
@@ -93,7 +92,7 @@ export function StatsTab({ platform }: { platform: Platform }) {
 
       {t.sent === 0 ? (
         <EmptyState
-          icon={ChartColumn}
+          illustration="chart"
           title="За цей період відгуків немає"
           hint="Статистика з’явиться, коли ви надішлете кілька відгуків."
         />

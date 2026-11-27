@@ -196,7 +196,7 @@ export function NotesPage(): ReactElement {
                   <NoResults icon={NotebookPen} hint={noResultsHint(q, !!(tagId || folder || favorite))} onReset={resetFilters} />
                 ) : (
                   <EmptyState
-                    icon={NotebookPen}
+                    illustration="notebook"
                     title="Нотаток поки немає"
                     hint="Створіть першу нотатку — розкласти по теках можна потім."
                     cta={{ label: 'Створити нотатку', icon: Plus, onClick: () => void createNew() }}

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactElement } from 'react'
 import { useResetOnOpen } from '@/hooks/use-open-session'
 import { useNavigate } from 'react-router'
-import { Award, BellRing, Kanban, List, Plus, Send } from 'lucide-react'
+import { Award, BellRing, Kanban, List, Plus } from 'lucide-react'
 import { proposalInputSchema, type Platform, type Proposal } from '@shared/domain/freelance'
 import { useApi, useApiMutation, useInfiniteApi } from '@/lib/query'
 import { limitsOf } from '@/lib/limits'
@@ -260,7 +260,7 @@ export function ProposalsTab({
       <div className="flex min-h-0 flex-1 flex-col">
         {emptyBase ? (
           <EmptyState
-            icon={Send}
+            illustration="mail"
             title="Відгуків поки немає"
             hint="Додавайте кожен відгук — так стане видно, які завдання й тексти приносять контракти."
             cta={{ label: 'Додати відгук', icon: Plus, onClick: onNew }}

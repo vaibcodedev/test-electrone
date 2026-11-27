@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Page, PageHeader } from '@/components/common/page'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Illustration } from '@/components/common/illustration'
 import { Item, ItemContent, ItemGroup, ItemTitle } from '@/components/ui/item'
 import { FAQ } from './faq-data'
 import { FaqList } from './faq'
@@ -106,7 +107,18 @@ export function GuidePage(): ReactElement {
                       </Button>
                     )}
                   </div>
-                  {s.body}
+                  {s.illustration ? (
+                    <div className="@container">
+                      <Illustration
+                        name={s.illustration}
+                        size="lg"
+                        className="float-right ml-4 @max-lg:hidden"
+                      />
+                      <div className="flex flex-col gap-4">{s.body}</div>
+                    </div>
+                  ) : (
+                    s.body
+                  )}
                 </CardContent>
               </Card>
             ))}

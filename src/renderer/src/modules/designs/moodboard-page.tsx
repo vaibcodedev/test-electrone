@@ -500,7 +500,7 @@ function Board({ board }: { board: MoodboardDetails }): ReactElement | null {
                 {empty ? (
                   <div style={mainStyle}>
                     <EmptyState
-                      icon={LayoutGrid}
+                      illustration="paint-kit"
                       title="Добірка порожня"
                       hint="Додайте дизайни з галереї або перетягніть картинки просто сюди."
                       cta={{

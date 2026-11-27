@@ -196,7 +196,7 @@ export function ClientsPage(): ReactElement {
                 noResults(UserRound)
               ) : (
                 <EmptyState
-                  icon={UserRound}
+                  illustration="boy"
                   title="Клієнтів поки немає"
                   hint="Додайте клієнта — до нього прив’яжуться проєкти, доступи й оплати."
                   cta={{ label: 'Додати клієнта', icon: Plus, onClick: () => setClientOpen(true) }}
@@ -221,7 +221,7 @@ export function ClientsPage(): ReactElement {
                 noResults(Briefcase)
               ) : (
                 <EmptyState
-                  icon={Briefcase}
+                  illustration="new-folder"
                   title="Проєктів поки немає"
                   hint="Проєкт зберігає оплати, доступи, посилання на стенди й облік часу."
                   cta={{
