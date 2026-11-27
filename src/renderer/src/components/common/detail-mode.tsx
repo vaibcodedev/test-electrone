@@ -48,7 +48,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
-import { useUi } from '@/stores/ui-store'
+import { useUi, type CloseAsk } from '@/stores/ui-store'
 import { DisabledHint } from './disabled-hint'
 
 /**
@@ -109,6 +109,20 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
     })
   }, [id, type, session])
   const view = useSyncExternalStore(session.subscribe, session.getView)
+  // «Зберегти зміни?» belongs to this editor: asked only while it is mounted (the answer to «anything changed?»
+  // comes from main, and the page may be left meanwhile — the question then stayed over the next page), and taken
+  // down with it (its answers would act on a record nobody sees any more).
+  const mounted = useRef(false)
+  const asked = useRef<CloseAsk | null>(null)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      const ui = useUi.getState()
+      if (asked.current && ui.closeAsk === asked.current) ui.askClose(null)
+      asked.current = null
+    }
+  }, [])
   useEffect(() => {
     if (!editing) return
     session.start()
@@ -225,6 +239,12 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
             }
           )
         : Promise.resolve(false)
+    /** Puts up «Зберегти зміни?» (CloseConfirmHost) — unless this editor is gone by the time it is known. */
+    const askClose = (q: CloseAsk): void => {
+      if (!mounted.current) return
+      asked.current = q
+      useUi.getState().askClose(q)
+    }
     /** Leave editing (Esc): asks only when something actually changed. */
     const exit = (close?: () => void): void => {
       void hasChanges().then((changed) => {
@@ -240,14 +260,13 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
             }
           })
         }
-        // A variable, not a literal: `fresh` changes the dialog's description (CloseConfirmHost).
-        const ask = {
+        // `fresh` changes the dialog's description (CloseConfirmHost).
+        askClose({
           keep: () => void save(),
           discard: () => void cancel?.(close),
           fresh,
           blocked: blocked()
-        }
-        useUi.getState().askClose(ask)
+        })
       })
     }
     const confirmClose = (close: () => void): void => {
@@ -260,14 +279,13 @@ export function useRecordMode(id: string, type?: EntityType): DetailMode {
           if (fresh) void dropDraft().then((gone) => gone && toast('Запис не створено'))
           return close()
         }
-        const ask = {
+        askClose({
           // A rejected field or a failed revert keeps the record open, so the typed text isn't lost.
           keep: () => void save().then((ok) => ok && close()),
           discard: () => void cancel?.().then((ok) => ok && close()),
           fresh,
           blocked: blocked()
-        }
-        useUi.getState().askClose(ask)
+        })
       })
     }
     const record = type ? { id, type } : undefined

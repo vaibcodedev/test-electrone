@@ -37,6 +37,26 @@ test.describe('view → «Редагувати» → Esc → «Зберегти 
     await expect(win.getByRole('heading', { name: idea.title })).toBeVisible()
   })
 
+  // Esc asks main whether anything changed. A page left before the answer came still got the question — over the
+  // next page, its answers acting on a record nobody saw any more (it blocked the next e2e test's clicks).
+  test('Esc, then leaving the page before the answer: no question over the next page', async ({
+    vault
+  }) => {
+    const { win } = vault
+    await openIdeaInEdit(vault)
+    await titleField(win).fill(`Пішли ${uid()}`)
+    // Esc in the field and away in the same moment, as the next step of a script (or a quick hand) does.
+    await titleField(win).evaluate((el) => {
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+      )
+      location.hash = '#/'
+    })
+    await expect.poll(() => win.evaluate(() => location.hash)).toBe('#/')
+    await win.waitForTimeout(1500)
+    await expect(win.getByRole('alertdialog')).toHaveCount(0)
+  })
+
   test('«Зберегти» in the dialog persists the title', async ({ vault }) => {
     const { win, rpc } = vault
     const idea = await openIdeaInEdit(vault)
