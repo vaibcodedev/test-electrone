@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useId,
+  useLayoutEffect,
   useRef,
   type ComponentProps,
   type MouseEvent,
@@ -14,7 +15,13 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { RecordMenuBinding, RecordMenuDef } from './model'
-import { isMenuOpenFor, openRecordMenu, useMenuOpenFor, type MenuAnchor } from './store'
+import {
+  isMenuOpenFor,
+  openRecordMenu,
+  syncRecordMenu,
+  useMenuOpenFor,
+  type MenuAnchor
+} from './store'
 
 interface AreaContext {
   key: string
@@ -62,6 +69,8 @@ export function RecordMenu<T, C = undefined>({
   children: ReactNode
 } & Omit<ComponentProps<'div'>, 'children' | 'onContextMenu'>): ReactElement {
   const key = useId()
+  // An open menu follows the record as this row shows it now (a save that lands while it is open).
+  useLayoutEffect(() => syncRecordMenu(key, def, record, ctx))
   const value: AreaContext = {
     key,
     title: () => def.title(record),

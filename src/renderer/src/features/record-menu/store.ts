@@ -47,6 +47,36 @@ export function openRecordMenu(req: Omit<MenuRequest, 'seq'>): void {
   emit()
 }
 
+/** Which record it is, as far as the declaration can tell: its entity, else its `id`; null — no way to tell. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function identityOf(def: RecordMenuDef<any, any>, record: unknown): string | null {
+  const ref = def.entity?.(record)
+  if (ref) return `${ref.type}/${ref.id}`
+  const id = (record as { id?: unknown } | null | undefined)?.id
+  return typeof id === 'string' || typeof id === 'number' ? String(id) : null
+}
+
+/**
+ * The trigger rendered again while its menu is open (the list refetched after a save): the menu takes the record
+ * as the row shows it now — labels, ✓ and what the actions act on. Only while it is open: closing, the request
+ * keeps the last record for the exit animation, even when the row is already gone (trashed, scrolled out of a
+ * virtual list). A trigger that now shows another record (a row reused for another one) leaves the menu as it was.
+ */
+export function syncRecordMenu(
+  key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  def: RecordMenuDef<any, any>,
+  record: unknown,
+  ctx: unknown
+): void {
+  const r = request
+  if (!r || openKey !== key || r.key !== key || r.def !== def) return
+  if (r.record === record && r.ctx === ctx) return
+  if (identityOf(def, r.record) !== identityOf(def, record)) return
+  request = { ...r, record, ctx }
+  emit()
+}
+
 /** The host's side: the menu closed (it keeps the request for the exit animation). */
 export function markRecordMenuClosed(closedSeq: number): void {
   // A newer request (another record's menu) is already open: its trigger stays «expanded».

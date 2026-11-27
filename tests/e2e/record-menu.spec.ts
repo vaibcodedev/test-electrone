@@ -261,6 +261,30 @@ test('fixes: «Вирішено» is an on/off item with ✓; entity rows: «З�
     .toEqual([tag.id])
 })
 
+// The menu opened at the same instant as a save: once the list has the new state, so does the open menu — its
+// name, its ✓ and what its action does (it used to keep the record as the row showed it on the right click).
+test('an open menu follows a save that lands meanwhile: name, ✓ and the action', async ({ vault }) => {
+  const { win, rpc, go } = vault
+  const title = `Свіже ${uid()}`
+  const fix = await rpc('fixes.create', { title, resolved: false })
+  await go('/fixes')
+  const row = area(win, title)
+  await row.click({ button: 'right' })
+  const resolved = win.getByRole('menuitemcheckbox', { name: 'Вирішено' })
+  await expect(resolved).toHaveAttribute('aria-checked', 'false')
+
+  // Saved elsewhere while the menu is open (a sheet's autosave, another window): every list refetches.
+  const renamed = `${title} нове`
+  await rpc('fixes.update', { id: fix.id, patch: { title: renamed, resolved: true } })
+  await expect(row).toContainText(renamed)
+  await expect(menu(win)).toHaveAttribute('aria-label', `Дії: ${renamed}`)
+  await expect(resolved).toHaveAttribute('aria-checked', 'true')
+  // The action acts on the state shown: «Вирішено» is turned off, not set again.
+  await resolved.click()
+  await expect(menu(win)).toHaveCount(0)
+  await expect.poll(async () => (await rpc('fixes.get', fix.id))?.resolved).toBe(false)
+})
+
 test('trash: «Видалити назавжди…» asks first; dev project: «Копіювати шлях»', async ({ vault }) => {
   const { win, rpc, go } = vault
   const title = `Сміття ${uid()}`

@@ -116,8 +116,9 @@ function Body({
  * The record menu of the whole window (right click on a record and its «⋯», features/record-menu/record-menu.tsx).
  * One DropdownMenu hanging from the point or the button: its root stays mounted, so Radix knows whether the
  * keyboard opened it (Shift+F10, Enter on «⋯» → the first item gets focus). The request is kept through the exit
- * animation, even when the row itself is already gone (trashed, scrolled out of a virtual list).
- * Mounted inside the router: actions navigate.
+ * animation, even when the row itself is already gone (trashed, scrolled out of a virtual list). While it is
+ * open, the row's next render renews the request's record (store.ts, syncRecordMenu): a save that lands meanwhile
+ * shows up in the menu. Mounted inside the router: actions navigate.
  */
 export function RecordMenuHost(): ReactElement {
   const req = useMenuRequest()
@@ -161,7 +162,9 @@ export function RecordMenuHost(): ReactElement {
     setOpenSeq(req.seq)
   }, [req])
 
-  const session = useMemo<MenuSession | null>(() => (req ? { origin: req.origin } : null), [req])
+  // By the origin, not the request: the open menu's request is renewed when its row shows a fresher record.
+  const origin = req?.origin
+  const session = useMemo<MenuSession | null>(() => (origin ? { origin } : null), [origin])
 
   // The person scrolls the page under an open menu (wheel, touchpad): the menu would float away from its record,
   // so it closes. Not on any `scroll` event: a virtual list adjusting its own offset as rows are measured closed
