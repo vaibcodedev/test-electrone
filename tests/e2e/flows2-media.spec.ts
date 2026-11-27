@@ -584,10 +584,14 @@ test.describe('ряд добірок', () => {
     await win.waitForTimeout(300)
     await expect.poll(() => hashPath(win)).toBe('/designs')
 
-    const before = await left()
+    // The wheel from a known place. After a drag the row coasts as far as the pointer's last speed says, and the
+    // speed of synthetic moves is their timing (it differed run to run: 558 / 743 px of 1546). At the row's end
+    // the wheel rightly goes to the page — and the row didn't move.
+    await row.evaluate((el) => el.scrollTo({ left: 0, behavior: 'instant' }))
+    await expect.poll(left).toBe(0)
     await win.mouse.move(box.x + box.width / 2, y)
     await win.mouse.wheel(0, 300)
-    await expect.poll(left).toBeGreaterThan(before)
+    await expect.poll(left).toBeGreaterThan(0)
   })
 })
 
