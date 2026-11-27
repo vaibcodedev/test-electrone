@@ -90,7 +90,7 @@ export function EntityRow({
     <RecordMenu def={entityMenu} record={item} ctx={{ onOpen, ...menu }} className={className}>
       {row}
       {trailing === undefined && (
-        <RecordMenuButton className="absolute top-1/2 right-2.5 -mt-3" />
+        <RecordMenuButton onHover className="absolute top-1/2 right-2.5 -mt-3" />
       )}
     </RecordMenu>
   )

@@ -574,7 +574,7 @@ export function ListItem({
     // h-full: a grid card (align top) stretches to its cell through the area.
     <RecordMenu def={menu.def} record={menu.record} ctx={menu.ctx} className="h-full">
       {row}
-      <RecordMenuButton onInk={active} className="absolute top-2 right-2" />
+      <RecordMenuButton onHover onInk={active} className="absolute top-2 right-2" />
     </RecordMenu>
   )
 }

@@ -32,7 +32,7 @@ import { aiActionSchema, withEdits } from '@shared/domain/ai-actions'
 import { APP_SECTIONS, appMapPrompt, sectionAt } from '@shared/app-map'
 import { checklistItemInputSchema } from '@shared/domain/checklists'
 import { fieldMax, MAX } from '@shared/domain/limits'
-import { GUIDE, HOME, HUBS, REVIEW } from '@/app/navigation'
+import { GUIDE, HOME, HUBS, TOP_ITEMS } from '@/app/navigation'
 import { recordFromLocation } from '@/features/ai-chat/context'
 import { openVault, type Vault } from './support/vault'
 
@@ -569,7 +569,7 @@ describe('the chat knows the app', () => {
   it('every menu item has its entry in the map, with the label the sidebar shows', () => {
     const menu = [
       HOME,
-      REVIEW,
+      ...TOP_ITEMS,
       GUIDE,
       ...HUBS.flatMap((h) => [
         ...(h.overview ? [{ path: h.overview, label: h.title }] : []),

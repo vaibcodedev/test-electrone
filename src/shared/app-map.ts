@@ -32,6 +32,14 @@ const s = (
 
 export const APP_SECTIONS: readonly AppSection[] = [
   s('/', 'Головна', null, 'задачі й події дня, закріплене'),
+  s(
+    '/calendar',
+    'Календар',
+    null,
+    'події, дедлайни, оплати, співбесіди',
+    ['event'],
+    'create_event'
+  ),
   s('/review', 'Підсумки тижня', null, 'що зроблено за тиждень'),
   // Робота
   s(
@@ -49,14 +57,6 @@ export const APP_SECTIONS: readonly AppSection[] = [
     'канбан: колонки й картки-задачі',
     ['board', 'card'],
     'create_board'
-  ),
-  s(
-    '/calendar',
-    'Календар',
-    'Робота',
-    'події, дедлайни, оплати, співбесіди',
-    ['event'],
-    'create_event'
   ),
   s(
     '/checklists',

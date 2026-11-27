@@ -96,8 +96,15 @@ export interface NavHub {
 }
 
 export const HOME: NavItem = { path: '/', label: 'Головна', icon: House }
+export const CALENDAR: NavItem = { path: '/calendar', label: 'Календар', icon: CalendarDays }
 export const REVIEW: NavItem = { path: '/review', label: 'Підсумки тижня', icon: CalendarCheck }
 export const GUIDE: NavItem = { path: '/guide', label: 'Гайд', icon: BookOpen }
+
+/**
+ * Cross-cutting sections under «Головна», outside any hub, in menu order. Each has its own switch in
+ * «Налаштування → Меню».
+ */
+export const TOP_ITEMS: readonly NavItem[] = [CALENDAR, REVIEW]
 
 export const HUBS: NavHub[] = [
   {
@@ -107,7 +114,6 @@ export const HUBS: NavHub[] = [
     items: [
       { path: '/ideas', label: 'Ідеї', icon: Lightbulb, countOf: 'idea' },
       { path: '/boards', label: 'Дошки', icon: SquareKanban, countOf: 'board' },
-      { path: '/calendar', label: 'Календар', icon: CalendarDays },
       { path: '/checklists', label: 'Чек-листи', icon: ListChecks, countOf: 'checklist' }
     ]
   },
@@ -195,14 +201,14 @@ export const HUBS: NavHub[] = [
 export const ALWAYS_SHOWN: readonly string[] = ['/', GUIDE.path, '/tags', '/trash', '/settings']
 
 /**
- * Flat list for the command palette and Alt+1…9, in sidebar order: Головна, Підсумки, each hub (overview,
+ * Flat list for the command palette and Alt+1…9, in sidebar order: Головна, the top items, each hub (overview,
  * then sections), and the guide last — in the sidebar it is a footer icon, so Alt+3 must not open it.
  * Takes the hubs that are shown (useNavVisibility), so the numbers follow the menu the user sees.
  */
-export function navOrder(hubs: NavHub[] = HUBS, showReview = true): NavItem[] {
+export function navOrder(hubs: NavHub[] = HUBS, top: readonly NavItem[] = TOP_ITEMS): NavItem[] {
   return [
     HOME,
-    ...(showReview ? [REVIEW] : []),
+    ...top,
     ...hubs.flatMap((h) => [
       ...(h.overview ? [{ path: h.overview, label: `${h.title}: огляд`, icon: h.icon }] : []),
       ...h.items

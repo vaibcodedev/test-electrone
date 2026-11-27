@@ -4,7 +4,7 @@ import {
   type Settings,
   type SettingsPatch
 } from '@shared/domain/system'
-import { ALWAYS_SHOWN, HUBS, REVIEW, hubOf, isAt, type NavHub } from './navigation'
+import { ALWAYS_SHOWN, HUBS, TOP_ITEMS, hubOf, isAt, type NavHub } from './navigation'
 
 /**
  * «Налаштування → Меню»: which sidebar groups and items are switched off. Pure functions (no React), so the
@@ -24,8 +24,9 @@ export type NavPlace = { hub: NavHubId } | { item: string }
 
 type NavPatch = Pick<SettingsPatch, 'hiddenNavHubs' | 'hiddenNavItems'>
 
+const TOP_PATHS = new Set<string>(TOP_ITEMS.map((i) => i.path))
 const KNOWN_ITEMS = new Set<string>([
-  REVIEW.path,
+  ...TOP_PATHS,
   ...HUBS.flatMap((h) => h.items.map((i) => i.path))
 ])
 const KNOWN_HUBS = new Set<string>(NAV_HUB_IDS)
@@ -65,9 +66,9 @@ function ownerHub(path: string): NavHub | undefined {
   return HUBS.find((h) => h.items.some((i) => i.path === path))
 }
 
-/** An item is shown when its hub and the item are both on. «/review» has its own switch; unknown paths are shown. */
+/** An item is shown when its hub and the item are both on. A top item has only its own switch; unknown paths are shown. */
 export function isItemShown(prefs: NavPrefs, path: string): boolean {
-  if (path === REVIEW.path) return !prefs.hiddenItems.includes(REVIEW.path)
+  if (TOP_PATHS.has(path)) return !prefs.hiddenItems.includes(path)
   if (ALWAYS_SHOWN.includes(path)) return true
   const overviewOf = HUBS.find((h) => h.overview === path)
   if (overviewOf) return isHubShown(prefs, overviewOf.id)
@@ -99,7 +100,8 @@ export function placeOf(route: string): NavPlace | undefined {
   const search = q < 0 ? '' : noHash.slice(q + 1)
   const owner = ROUTE_OWNERS.find(([prefix]) => pathname.startsWith(prefix))
   if (owner) return owner[1]
-  if (isAt(REVIEW.path, pathname)) return { item: REVIEW.path }
+  const top = TOP_ITEMS.find((i) => isAt(i.path, pathname))
+  if (top) return { item: top.path }
   const hubId = hubOf(pathname, search)
   const hub = HUBS.find((h) => h.id === hubId)
   if (!hub) return undefined
@@ -183,7 +185,7 @@ export function canHideHub(prefs: NavPrefs, id: NavHubId): boolean {
 
 /** false for the last shown item of the last shown hub; the last item of another hub hides that hub instead. */
 export function canHideItem(prefs: NavPrefs, path: string): boolean {
-  if (path === REVIEW.path) return true
+  if (TOP_PATHS.has(path)) return true
   return strictHubs(apply(prefs, itemPatch(prefs, path, false)), HUBS).length > 0
 }
 

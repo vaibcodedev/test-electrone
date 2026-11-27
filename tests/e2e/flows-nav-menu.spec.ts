@@ -34,12 +34,14 @@ test.describe('меню: сховати розділи', () => {
     await expect.poll(() => hashPath(win)).toBe('/clients')
   })
 
-  test('пункт усередині групи: «Показано 3 з 4»', async ({ vault }) => {
+  test('пункт усередині групи: «Показано 2 з 3»; «Календар» угорі має свій перемикач', async ({ vault }) => {
     const { win, go } = vault
     await go('/settings#menu')
     await menu(win).getByRole('button', { name: 'Показати пункти розділу «Робота»' }).click()
-    await menu(win).getByRole('switch', { name: 'Показувати «Календар» в меню' }).click()
-    await expect(menu(win).getByText('Показано 3 з 4')).toBeVisible()
+    await menu(win).getByRole('switch', { name: 'Показувати «Дошки» в меню' }).click()
+    await expect(menu(win).getByText('Показано 2 з 3')).toBeVisible()
+    await expect(sidebar(win).getByRole('link', { name: /^Дошки/ })).toHaveCount(0)
+    await menu(win).getByRole('switch', { name: 'Календар', exact: true }).click()
     await expect(sidebar(win).getByRole('link', { name: /^Календар/ })).toHaveCount(0)
   })
 
@@ -47,7 +49,7 @@ test.describe('меню: сховати розділи', () => {
     const { win, go, rpc, rpcRaw } = vault
     await rpc('settings.update', { hiddenNavHubs: ['freelance', 'jobs', 'finance', 'knowledge'] })
     await go('/')
-    await win.keyboard.press('Alt+3')
+    await win.keyboard.press('Alt+4')
     await expect.poll(() => hashPath(win)).toBe('/ideas')
     await win.keyboard.press('Alt+7')
     await expect.poll(() => hashPath(win)).toBe('/dev')

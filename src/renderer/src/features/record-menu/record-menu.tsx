@@ -110,19 +110,20 @@ export function RecordMenu<T, C = undefined>({
 
 /**
  * «⋯» of a row or tile: the same menu as the right click. A sibling of the row's own button or link (never
- * inside it), absolutely placed by `className`; the row keeps room for it (no content under it). Shown on hover,
- * on keyboard focus anywhere in the row and while its menu is open.
+ * inside it), absolutely placed by `className`; the row keeps room for it (no content under it). On a card or tile
+ * it is always there, muted; in a dense list (`onHover`) it shows on hover, on keyboard focus anywhere in the row
+ * and while its menu is open.
  */
 export function RecordMenuButton({
   className,
   onInk,
-  alwaysVisible
+  onHover
 }: {
   className?: string
   /** On an ink (selected) row. */
   onInk?: boolean
-  /** Always shown (a row without hover, a touch screen…). */
-  alwaysVisible?: boolean
+  /** A row of a dense list: hidden until hover or focus, so a column of «⋯» doesn't become noise. */
+  onHover?: boolean
 }): ReactElement | null {
   const area = useContext(Area)
   const expanded = useMenuOpenFor(area?.key ?? '')
@@ -143,7 +144,7 @@ export function RecordMenuButton({
           data-record-menu-button=""
           className={cn(
             'z-10 [&_svg]:size-4',
-            !alwaysVisible &&
+            onHover &&
               'opacity-0 transition-opacity group-focus-within/record-menu:opacity-100 group-hover/record-menu:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100',
             onInk
               ? 'text-ink-foreground hover:bg-ink-foreground/12 aria-expanded:bg-ink-foreground/12'
@@ -181,24 +182,27 @@ export function RecordMenuButton({
 /**
  * A tile or card with the record menu: right click anywhere on it, «⋯» in its top right corner (the tile keeps
  * room for it: `pr-10` on its first line). The tile itself stays the clickable element; «⋯» is its sibling.
+ * `onHover` — the same wrapper around a list row.
  */
 export function RecordMenuTile({
   menu,
   onInk,
   className = 'h-full',
   buttonClassName = 'absolute top-3 right-3',
+  onHover,
   children
 }: {
   menu: RecordMenuBinding
   onInk?: boolean
   className?: string
   buttonClassName?: string
+  onHover?: boolean
   children: ReactNode
 }): ReactElement {
   return (
     <RecordMenu def={menu.def} record={menu.record} ctx={menu.ctx} className={className}>
       {children}
-      <RecordMenuButton onInk={onInk} className={buttonClassName} />
+      <RecordMenuButton onInk={onInk} onHover={onHover} className={buttonClassName} />
     </RecordMenu>
   )
 }

@@ -165,7 +165,7 @@ export function ProjectRow({
   const overdue = live && daysLeft !== null && daysLeft < 0
   const soon = live && daysLeft !== null && daysLeft >= 0 && daysLeft <= 3
   return (
-    <RecordMenuTile menu={bindMenu(projectMenu, project)} className="" buttonClassName="absolute top-1/2 right-4 -mt-3">
+    <RecordMenuTile menu={bindMenu(projectMenu, project)} onHover className="" buttonClassName="absolute top-1/2 right-4 -mt-3">
     <Item asChild variant="muted" size="sm" className="group-hover/record-menu:bg-(--tile-hover)">
       <button
         type="button"

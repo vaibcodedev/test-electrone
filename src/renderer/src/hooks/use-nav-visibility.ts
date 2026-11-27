@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { REVIEW, navOrder, type NavHub, type NavItem } from '@/app/navigation'
+import { TOP_ITEMS, navOrder, type NavHub, type NavItem } from '@/app/navigation'
 import {
   SHOW_ALL,
   hiddenCount,
@@ -19,7 +19,8 @@ export interface NavVisibility {
   hubs: NavHub[]
   /** Palette «Розділи» and Alt+1…9, in the order the sidebar shows them. */
   order: NavItem[]
-  showReview: boolean
+  /** Shown items above the hubs («Календар», «Підсумки тижня»). */
+  topItems: NavItem[]
   /** A place or an item path. */
   isShown: (place: NavPlace | string) => boolean
   isRouteShown: (route: string) => boolean
@@ -44,8 +45,8 @@ export function useNavVisibility(): NavVisibility {
     [hubsHidden, itemsHidden]
   )
   const hubs = useMemo(() => visibleHubs(prefs), [prefs])
-  const showReview = isItemShown(prefs, REVIEW.path)
-  const order = useMemo(() => navOrder(hubs, showReview), [hubs, showReview])
+  const topItems = useMemo(() => TOP_ITEMS.filter((i) => isItemShown(prefs, i.path)), [prefs])
+  const order = useMemo(() => navOrder(hubs, topItems), [hubs, topItems])
   const isShown = useCallback(
     (place: NavPlace | string) =>
       typeof place === 'string' ? isItemShown(prefs, place) : isPlaceShown(prefs, place),
@@ -56,7 +57,7 @@ export function useNavVisibility(): NavVisibility {
     prefs,
     hubs,
     order,
-    showReview,
+    topItems,
     isShown,
     isRouteShown: routeShown,
     hiddenCount: hiddenCount(prefs)

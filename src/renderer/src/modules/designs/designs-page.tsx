@@ -253,7 +253,7 @@ export function DesignsPage(): ReactElement | null {
               <Trash2 />
             </IconAction>
             {/* The rest of the design's actions (copy the picture, moodboards, pins): the same menu as a right click. */}
-            <RecordMenuButton alwaysVisible className="size-8 bg-card text-foreground shadow-sm hover:bg-card" />
+            <RecordMenuButton className="size-8 bg-card text-foreground shadow-sm hover:bg-card" />
           </div>
         </RecordMenu>
       )}

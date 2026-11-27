@@ -62,7 +62,7 @@ test.describe('бічна панель: згортання', () => {
     const flyout = win.getByRole('menu')
     await expect(flyout).toBeVisible()
     await expect(work).toHaveAttribute('aria-expanded', 'true')
-    for (const name of [/^Ідеї/, /^Дошки/, /^Календар/, /^Чек-листи/])
+    for (const name of [/^Ідеї/, /^Дошки/, /^Чек-листи/])
       await expect(flyout.getByRole('menuitem', { name })).toBeVisible()
     await flyout.getByRole('menuitem', { name: /^Ідеї/ }).click()
     await expect.poll(() => hashPath(win)).toBe('/ideas')

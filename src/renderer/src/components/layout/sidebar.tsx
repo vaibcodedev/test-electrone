@@ -1,7 +1,7 @@
 import { useEffect, type ReactElement } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { Settings, Tags, Trash2 } from 'lucide-react'
-import { GUIDE, HOME, REVIEW, hubOf } from '@/app/navigation'
+import { GUIDE, HOME, hubOf, isAt, type NavItem } from '@/app/navigation'
 import { cn } from '@/lib/utils'
 import { useUi } from '@/stores/ui-store'
 import { useNavVisibility } from '@/hooks/use-nav-visibility'
@@ -24,8 +24,7 @@ import { SidebarIdentity } from './sidebar-identity'
 import { UpdateBanner } from './update-banner'
 import { SandboxCard } from './sandbox-card'
 
-const REVIEW_ONLY = [REVIEW]
-const NONE: (typeof REVIEW)[] = []
+const topKey = (item: NavItem): string => item.path
 const hubKey = (hub: { id: string }): string => hub.id
 
 const FOOTER = [
@@ -49,10 +48,10 @@ export function AppSidebar(): ReactElement {
   const collapsed = state === 'collapsed'
   const trashBump = useUi((s) => s.trashBump)
   const setHubOpen = useUi((s) => s.setHubOpen)
-  const { hubs, showReview } = useNavVisibility()
+  const { hubs, topItems } = useNavVisibility()
   const current = hubOf(pathname, search)
   const hubEntries = usePresenceList(hubs, hubKey)
-  const review = usePresenceList(showReview ? REVIEW_ONLY : NONE, (r) => r.path)
+  const top = usePresenceList(topItems, topKey)
 
   // Opening a page from search/links expands its hub.
   useEffect(() => {
@@ -81,17 +80,17 @@ export function AppSidebar(): ReactElement {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {review.map((entry) => (
+              {top.map((entry) => (
                 <SidebarMenuItem key={entry.key} {...presenceProps(entry)}>
-                  <NavHideMenu place={{ item: REVIEW.path }} label={REVIEW.label}>
+                  <NavHideMenu place={{ item: entry.item.path }} label={entry.item.label}>
                     <SidebarMenuButton
                       asChild
-                      isActive={pathname.startsWith('/review')}
-                      tooltip={REVIEW.label}
+                      isActive={isAt(entry.item.path, pathname)}
+                      tooltip={entry.item.label}
                     >
-                      <NavLink to={REVIEW.path}>
-                        <REVIEW.icon />
-                        <span>{REVIEW.label}</span>
+                      <NavLink to={entry.item.path}>
+                        <entry.item.icon />
+                        <span>{entry.item.label}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </NavHideMenu>

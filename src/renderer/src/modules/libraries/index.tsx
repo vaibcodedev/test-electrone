@@ -307,7 +307,7 @@ function LibraryCard({
   const menu = bindMenu(libraryMenu, lib, { onOpen })
   if (compact) {
     return (
-      <RecordMenuTile menu={menu} onInk={active} buttonClassName="absolute top-1/2 right-3 -mt-3">
+      <RecordMenuTile menu={menu} onHover onInk={active} buttonClassName="absolute top-1/2 right-3 -mt-3">
         <Card
           {...clickableProps(onOpen)}
           aria-current={active || undefined}

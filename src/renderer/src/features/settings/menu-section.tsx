@@ -2,7 +2,7 @@ import { useId, useRef, useState, type ReactElement, type Ref } from 'react'
 import { ChevronRight, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import type { NavHubId } from '@shared/domain/system'
-import { HUBS, REVIEW, type NavHub } from '@/app/navigation'
+import { HUBS, TOP_ITEMS, type NavHub } from '@/app/navigation'
 import { canHideHub, isHubShown, isItemShown, type NavPrefs } from '@/app/nav-visibility'
 import { useNavPrefs } from '@/hooks/use-nav-prefs'
 import { useNavVisibility } from '@/hooks/use-nav-visibility'
@@ -171,15 +171,17 @@ export function MenuSection(): ReactElement {
         ) : undefined
       }
     >
-      <SettingsRow label="Підсумки тижня" hint="Пункт під «Головною»">
-        {(id) => (
-          <Switch
-            id={id}
-            checked={isItemShown(prefs, REVIEW.path)}
-            onCheckedChange={(v) => setItemShown(REVIEW.path, v)}
-          />
-        )}
-      </SettingsRow>
+      {TOP_ITEMS.map((item) => (
+        <SettingsRow key={item.path} label={item.label} hint="Пункт під «Головною»">
+          {(id) => (
+            <Switch
+              id={id}
+              checked={isItemShown(prefs, item.path)}
+              onCheckedChange={(v) => setItemShown(item.path, v)}
+            />
+          )}
+        </SettingsRow>
+      ))}
       <ItemGroup className="gap-2">
         {HUBS.map((hub, i) => (
           <HubRow

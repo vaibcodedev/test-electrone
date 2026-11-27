@@ -38,8 +38,8 @@ describe('visibleHubs', () => {
 
   it('drops a hidden hub and hidden items', () => {
     expect(ids(prefs(['jobs']))).not.toContain('jobs')
-    const work = visibleHubs(prefs([], ['/calendar'])).find((h) => h.id === 'work')
-    expect(work?.items.map((i) => i.path)).toEqual(['/ideas', '/boards', '/checklists'])
+    const work = visibleHubs(prefs([], ['/boards'])).find((h) => h.id === 'work')
+    expect(work?.items.map((i) => i.path)).toEqual(['/ideas', '/checklists'])
   })
 
   it('a hub with all its items hidden is hidden too', () => {
@@ -73,10 +73,10 @@ describe('navOrder (palette and Alt+1…9)', () => {
     const order = navOrder(visibleHubs(ONLY_WORK_DEV_INSPIRATION)).map((i) => i.path)
     expect(order).toEqual([
       '/',
+      '/calendar',
       '/review',
       '/ideas',
       '/boards',
-      '/calendar',
       '/checklists',
       '/dev',
       '/dev/github',
@@ -84,12 +84,12 @@ describe('navOrder (palette and Alt+1…9)', () => {
       '/jobs/questions',
       '/guide'
     ])
-    expect(order[3 - 1]).toBe('/ideas')
+    expect(order[4 - 1]).toBe('/ideas')
     expect(order[7 - 1]).toBe('/dev')
   })
 
-  it('without «Підсумки тижня» Alt+2 opens Ідеї', () => {
-    const order = navOrder(visibleHubs(ONLY_WORK_DEV_INSPIRATION), false).map((i) => i.path)
+  it('without the top items Alt+2 opens Ідеї', () => {
+    const order = navOrder(visibleHubs(ONLY_WORK_DEV_INSPIRATION), []).map((i) => i.path)
     expect(order[2 - 1]).toBe('/ideas')
   })
 })
@@ -128,6 +128,7 @@ describe('patches and limits', () => {
     // In another hub the last item just takes its hub along.
     expect(canHideItem(prefs([], ['/dev']), '/dev/github')).toBe(true)
     expect(canHideItem(one, '/review')).toBe(true)
+    expect(canHideItem(one, '/calendar')).toBe(true)
   })
 
   it('main refuses a patch hiding every hub', () => {
