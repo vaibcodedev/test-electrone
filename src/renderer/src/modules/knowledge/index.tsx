@@ -101,7 +101,8 @@ const SECTIONS: {
   }
 ]
 
-const KNOWLEDGE_TYPES = new Set<EntityType>(SECTIONS.map((s) => s.type))
+// «Добірки» have no tile of their own: they live inside «Галерея».
+const KNOWLEDGE_TYPES = new Set<EntityType>([...SECTIONS.map((s) => s.type), 'moodboard'])
 
 /** Section tiles: count + name, one neutral `tile` each. `counts` is undefined while the dashboard loads. */
 function SectionCards({
@@ -307,8 +308,8 @@ export function KnowledgeOverviewPage(): ReactElement {
           !counts
             ? undefined
             : total
-              ? `${total} ${plural(total, ['запис', 'записи', 'записів'])} — нотатки, промти, код і рішення в одному місці.`
-              : 'Нотатки, промти, код і рішення в одному місці.'
+              ? `${total} ${plural(total, ['запис', 'записи', 'записів'])} — нотатки, код, фікси й матеріали в одному місці.`
+              : 'Нотатки, код, фікси й матеріали в одному місці.'
         }
       />
       <PageBody>

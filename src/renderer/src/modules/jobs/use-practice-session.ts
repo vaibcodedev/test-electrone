@@ -78,7 +78,7 @@ export function usePracticeSession({
     try {
       const list = await api.jobs.practiceExtra({ limit, category, group, excludeIds: exclude.slice(-1000) })
       if (!list.length) {
-        toast.info('Більше питань немає — додайте нові в банк')
+        toast.info('Більше питань немає — додайте нові')
         setQueue((q) => q ?? [])
         return
       }

@@ -270,14 +270,14 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
             <EmptyState
               icon={MessageCircleQuestion}
               title="У цій категорії питань немає"
-              hint="Виберіть іншу категорію або додайте питання в банк."
+              hint="Виберіть іншу категорію або додайте нові питання."
               cta={{ label: 'Усі питання', onClick: () => onFilter({ group: undefined, category: undefined }) }}
             />
           ) : (
             <EmptyState
               icon={MessageCircleQuestion}
               title="Питань поки немає"
-              hint="Додайте питання зі співбесіди й свою відповідь у банк — і тренуйтеся тут."
+              hint="Додайте питання зі співбесіди й свою відповідь — і тренуйтеся тут."
               cta={{ label: 'До списку питань', icon: ArrowLeft, onClick: exit }}
             />
           )

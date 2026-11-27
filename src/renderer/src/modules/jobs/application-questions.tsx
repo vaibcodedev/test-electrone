@@ -46,7 +46,7 @@ export function AskedQuestions({
   const [text, setText] = useState('')
   const [category, setCategory] = useState<QuestionCategory>('technical')
   const create = useApiMutation('jobs', 'createQuestion', {
-    successMessage: 'Питання в банку — допишіть відповідь',
+    successMessage: 'Питання збережено — допишіть відповідь',
     onSuccess: () => setText('')
   })
   // `questions` is query data (stable between renders), as usePresenceList needs.
