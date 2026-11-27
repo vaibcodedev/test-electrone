@@ -89,7 +89,6 @@ export function Markdown({
   className?: string
 }): ReactElement {
   const targets = useWikiLinkTargets(source)
-  console.log(source)
   return (
     <WikiLinkTargets value={targets}>
       <div className={cn('prose-vault wrap-anywhere', className)}>
