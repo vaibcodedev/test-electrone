@@ -201,8 +201,8 @@ function ChecklistView({ id }: { id: string }): ReactElement {
                 <div className="mt-8 flex flex-col gap-7">
                   {groups.map(([section, list]) => (
                     <section key={section || NO_SECTION}>
-                      <div className="mb-1.5 flex items-baseline justify-between px-2">
-                        <SectionTitle section={section} items={list} />
+                      <div className="mb-1.5 flex items-baseline justify-between py-2 pr-2">
+                        <SectionTitle className="pr-1 pl-0" section={section} items={list} />
                         {isRun && (
                           <span className="text-caption text-muted-foreground tabular-nums">
                             {list.filter((i) => i.done).length} з {list.length}

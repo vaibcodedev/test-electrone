@@ -15,11 +15,13 @@ import { ITEM_LIMITS, NO_SECTION } from './use-checklist-order'
 export function SectionTitle({
   section,
   items,
-  onRename
+  onRename,
+  className
 }: {
   section: string
   items?: ChecklistItem[]
   onRename?: (next: string) => void
+  className?: string
 }): ReactElement {
   const readOnly = useReadOnly()
   const commit = async (next: string): Promise<void> => {
@@ -36,7 +38,12 @@ export function SectionTitle({
       toast.error((e as Error).message)
     }
   }
-  if (readOnly) return <h2 className="font-display px-1 text-heading">{section || NO_SECTION}</h2>
+  if (readOnly)
+    return (
+      <h2 className={`font-display px-1 text-heading ${className || ''}`}>
+        {section || NO_SECTION}
+      </h2>
+    )
   return (
     <InlineText
       value={section}
