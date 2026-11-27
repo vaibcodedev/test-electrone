@@ -199,50 +199,50 @@ export function MoodboardTile({
   return (
     // Right click only: the strip's tiles are narrow, a «⋯» would cover the title.
     <RecordMenu asChild def={moodboardMenu} record={board} ctx={{ onOpen: open }}>
-    <Card
-      {...clickableProps(open)}
-      className={cn(
-        'tile gap-1.5 rounded-2xl p-1.5 text-left',
-        // One width for every tile in the strip: a narrower empty tile cut its own title to «Но…».
-        layout === 'grid' ? 'size-full' : 'w-44 shrink-0'
-      )}
-    >
-      {empty ? (
-        <div
-          className="grid aspect-video place-items-center rounded-xl bg-foreground/5"
-          style={tint}
-        >
-          <LayoutGrid className="size-4 text-muted-foreground" aria-hidden />
-        </div>
-      ) : (
-        <div className="grid aspect-video grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
-          {cells.map((p, i) =>
-            p ? (
-              <DesignMedia key={i} path={p} className="size-full object-cover" />
-            ) : (
-              <div key={i} className="size-full bg-card" style={tint} />
-            )
-          )}
-        </div>
-      )}
-      {/* Title on its own line, the count under it: side by side the count took the title's room. */}
-      <div className="flex min-w-0 flex-col px-1.5 pb-0.5">
-        <span className="flex min-w-0 items-center gap-1.5">
-          {board.favorite && (
-            <>
-              <Star className="size-3.5 shrink-0 fill-current text-warn" aria-hidden />
-              <span className="sr-only">В обраному</span>
-            </>
-          )}
-          <span className="min-w-0 truncate text-body font-semibold" title={board.title}>
-            {board.title}
+      <Card
+        {...clickableProps(open)}
+        className={cn(
+          'tile gap-1.5 rounded-2xl p-1.5 text-left',
+          // One width for every tile in the strip: a narrower empty tile cut its own title to «Но…».
+          layout === 'grid' ? 'size-full' : 'w-44 shrink-0'
+        )}
+      >
+        {empty ? (
+          <div
+            className="grid aspect-video place-items-center rounded-xl bg-foreground/5"
+            style={tint}
+          >
+            <LayoutGrid className="size-4 text-muted-foreground" aria-hidden />
+          </div>
+        ) : (
+          <div className="grid aspect-video grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden rounded-xl">
+            {cells.map((p, i) =>
+              p ? (
+                <DesignMedia key={i} path={p} className="size-full object-cover" />
+              ) : (
+                <div key={i} className="size-full bg-card" style={tint} />
+              )
+            )}
+          </div>
+        )}
+        {/* Title on its own line, the count under it: side by side the count took the title's room. */}
+        <div className="flex min-w-0 flex-col px-1.5 pb-0.5">
+          <span className="flex min-w-0 items-center gap-1.5">
+            {board.favorite && (
+              <>
+                <Star className="size-3.5 shrink-0 fill-current text-warn" aria-hidden />
+                <span className="sr-only">В обраному</span>
+              </>
+            )}
+            <span className="min-w-0 truncate text-body font-semibold" title={board.title}>
+              {board.title}
+            </span>
           </span>
-        </span>
-        <span className="text-meta text-muted-foreground">
-          {empty ? 'Порожня' : designCount(board.itemCount)}
-        </span>
-      </div>
-    </Card>
+          <span className="text-meta text-muted-foreground">
+            {empty ? 'Порожня' : designCount(board.itemCount)}
+          </span>
+        </div>
+      </Card>
     </RecordMenu>
   )
 }

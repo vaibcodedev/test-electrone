@@ -195,7 +195,11 @@ function SnippetCard({
   const hasCode = !!item.code.trim()
   const description = mdPreview(item.description)
   return (
-    <RecordMenuTile menu={bindMenu(snippetMenu, item, { onOpen })} onInk={active}>
+    <RecordMenuTile
+      menu={bindMenu(snippetMenu, item, { onOpen })}
+      onInk={active}
+      buttonClassName="absolute top-[13px] right-3"
+    >
       <Card
         {...clickableProps(onOpen)}
         aria-current={active || undefined}
