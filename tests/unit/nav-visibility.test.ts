@@ -39,11 +39,11 @@ describe('visibleHubs', () => {
   it('drops a hidden hub and hidden items', () => {
     expect(ids(prefs(['jobs']))).not.toContain('jobs')
     const work = visibleHubs(prefs([], ['/boards'])).find((h) => h.id === 'work')
-    expect(work?.items.map((i) => i.path)).toEqual(['/ideas', '/checklists'])
+    expect(work?.items.map((i) => i.path)).toEqual(['/checklists'])
   })
 
   it('a hub with all its items hidden is hidden too', () => {
-    expect(ids(prefs([], ['/dev', '/dev/github']))).not.toContain('dev')
+    expect(ids(prefs([], ['/ideas', '/dev', '/dev/github']))).not.toContain('dev')
   })
 
   it('everything hidden (hand-edited config) shows everything', () => {
@@ -75,28 +75,28 @@ describe('navOrder (palette and Alt+1…9)', () => {
       '/',
       '/calendar',
       '/review',
-      '/ideas',
       '/boards',
       '/checklists',
+      '/ideas',
       '/dev',
       '/dev/github',
       '/english',
       '/jobs/questions',
       '/guide'
     ])
-    expect(order[4 - 1]).toBe('/ideas')
+    expect(order[4 - 1]).toBe('/boards')
     expect(order[7 - 1]).toBe('/dev')
   })
 
-  it('without the top items Alt+2 opens Ідеї', () => {
+  it('without the top items Alt+2 opens Дошки', () => {
     const order = navOrder(visibleHubs(ONLY_WORK_DEV_INSPIRATION), []).map((i) => i.path)
-    expect(order[2 - 1]).toBe('/ideas')
+    expect(order[2 - 1]).toBe('/boards')
   })
 })
 
 describe('patches and limits', () => {
   it('hiding the last shown item of a hub hides the hub instead', () => {
-    const p = prefs([], ['/dev'])
+    const p = prefs([], ['/ideas', '/dev'])
     expect(itemPatch(p, '/dev/github', false)).toEqual({ hiddenNavHubs: ['dev'] })
   })
 
@@ -124,7 +124,7 @@ describe('patches and limits', () => {
     const one = prefs(NAV_HUB_IDS.filter((id) => id !== 'dev'))
     expect(canHideHub(one, 'dev')).toBe(false)
     expect(canHideHub(SHOW_ALL, 'dev')).toBe(true)
-    expect(canHideItem(prefs(one.hiddenHubs, ['/dev']), '/dev/github')).toBe(false)
+    expect(canHideItem(prefs(one.hiddenHubs, ['/ideas', '/dev']), '/dev/github')).toBe(false)
     // In another hub the last item just takes its hub along.
     expect(canHideItem(prefs([], ['/dev']), '/dev/github')).toBe(true)
     expect(canHideItem(one, '/review')).toBe(true)
@@ -142,7 +142,7 @@ describe('placeOf / isRouteShown', () => {
     expect(isRouteShown(prefs([], ['/boards']), '/cards/x')).toBe(false)
     expect(isRouteShown(prefs(['freelance']), '/projects/x')).toBe(false)
     expect(isRouteShown(prefs(['freelance']), '/freelance/p/x')).toBe(false)
-    expect(isRouteShown(prefs(['work']), '/ideas?open=1')).toBe(false)
+    expect(isRouteShown(prefs(['dev']), '/ideas?open=1')).toBe(false)
   })
 
   it('pages outside the menu are always shown', () => {

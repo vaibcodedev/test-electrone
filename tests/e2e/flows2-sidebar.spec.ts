@@ -62,14 +62,14 @@ test.describe('бічна панель: згортання', () => {
     const flyout = win.getByRole('menu')
     await expect(flyout).toBeVisible()
     await expect(work).toHaveAttribute('aria-expanded', 'true')
-    for (const name of [/^Ідеї/, /^Дошки/, /^Чек-листи/])
+    for (const name of [/^Дошки/, /^Чек-листи/])
       await expect(flyout.getByRole('menuitem', { name })).toBeVisible()
-    await flyout.getByRole('menuitem', { name: /^Ідеї/ }).click()
-    await expect.poll(() => hashPath(win)).toBe('/ideas')
+    await flyout.getByRole('menuitem', { name: /^Дошки/ }).click()
+    await expect.poll(() => hashPath(win)).toBe('/boards')
     await expect(flyout).toBeHidden()
     await expect(work).toHaveAttribute('data-active', 'true')
     await work.click()
-    await expect(win.getByRole('menuitem', { name: /^Ідеї/ })).toHaveAttribute(
+    await expect(win.getByRole('menuitem', { name: /^Дошки/ })).toHaveAttribute(
       'aria-current',
       'page'
     )

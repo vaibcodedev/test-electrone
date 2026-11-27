@@ -112,7 +112,6 @@ export const HUBS: NavHub[] = [
     title: 'Інструменти',
     icon: SquareKanban,
     items: [
-      { path: '/ideas', label: 'Ідеї', icon: Lightbulb, countOf: 'idea' },
       { path: '/boards', label: 'Дошки', icon: SquareKanban, countOf: 'board' },
       { path: '/checklists', label: 'Чек-листи', icon: ListChecks, countOf: 'checklist' }
     ]
@@ -163,6 +162,7 @@ export const HUBS: NavHub[] = [
     title: 'Розробка',
     icon: TerminalSquare,
     items: [
+      { path: '/ideas', label: 'Ідеї', icon: Lightbulb, countOf: 'idea' },
       { path: '/dev', label: 'Мої проєкти', icon: FolderGit2 },
       { path: '/dev/github', label: 'GitHub', icon: GitBranch }
     ]
