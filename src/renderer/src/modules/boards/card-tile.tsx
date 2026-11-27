@@ -22,7 +22,13 @@ function repeatShort(rule: CardRepeat): string {
 }
 
 /** A repeating card's mark: the next card comes when this one reaches «Готово». */
-export function RepeatChip({ rule, className }: { rule: CardRepeat; className?: string }) {
+export function RepeatChip({
+  rule,
+  className
+}: {
+  rule: CardRepeat
+  className?: string
+}): React.JSX.Element {
   return (
     <Badge
       variant="outline"
@@ -44,7 +50,7 @@ export function DueChip({
   dueAt: number
   done: boolean
   className?: string
-}) {
+}): React.JSX.Element {
   const late = isOverdue(dueAt, done)
   const when = hasTime(dueAt) ? `${fmtDay(dueAt)} о ${format(dueAt, 'HH:mm')}` : fmtDay(dueAt)
   // Overdue is said in words and by the icon too, not by the red colour alone (WCAG 1.4.1). The words go
@@ -101,12 +107,7 @@ export const CardTile = forwardRef<
         <FavoriteMark entity={{ type: 'card', id: card.id }} className="mt-0.5" />
       </div>
       {card.description.trim() && (
-        <p
-          className={cn(
-            'mt-1 line-clamp-2 text-caption text-muted-foreground',
-            card.priority !== 'none' && 'pl-4'
-          )}
-        >
+        <p className={cn('mt-1 line-clamp-2 text-caption text-muted-foreground')}>
           {mdPreview(card.description)}
         </p>
       )}
