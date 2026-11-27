@@ -1,5 +1,14 @@
 import { toast } from 'sonner'
-import { Copy, ExternalLink, KeyRound, Pencil, ShieldCheck, Terminal, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  ExternalLink,
+  KeyRound,
+  Pencil,
+  ShieldCheck,
+  SquareTerminal,
+  Terminal,
+  Trash2
+} from 'lucide-react'
 import { sshCommand, type Credential } from '@shared/domain/credentials'
 import { api } from '@/lib/api'
 import { useApiMutation } from '@/lib/query'
@@ -8,6 +17,7 @@ import { reportError } from '@/lib/error-reporting'
 import { copyText } from '@/components/common/copy-button'
 import { defineRecordMenu } from '@/features/record-menu/model'
 import { copySecret } from './copy-secret'
+import { openSshTerminal } from './open-ssh'
 
 /** The 2FA code only when chosen: main computes it, the key never leaves main. */
 async function copyTotp(id: string): Promise<void> {
@@ -52,6 +62,12 @@ export const credentialMenu = defineRecordMenu<
           icon: ShieldCheck,
           run: () => void copyTotp(c.id)
         },
+        c.kind === 'server' &&
+          !!c.fields.host && {
+            label: 'Відкрити в терміналі',
+            icon: SquareTerminal,
+            run: () => void openSshTerminal(c.id)
+          },
         c.kind === 'server' &&
           !!c.fields.host && {
             label: 'Копіювати команду SSH',

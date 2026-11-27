@@ -40,6 +40,8 @@ test.describe('доступи: сервер → команда SSH → опла�
     // The password never comes to the page: dots until «Показати».
     await expect(card).not.toContainText(`pw-${token}`)
 
+    // Shown next to the command; never clicked here — it would open a real terminal window.
+    await expect(card.getByRole('button', { name: 'Відкрити в терміналі' })).toBeEnabled()
     await card.getByRole('button', { name: 'Скопіювати команду SSH' }).click()
     await expect(win.getByText('Команду SSH скопійовано').first()).toBeVisible()
     const copied = await app.evaluate(async ({ clipboard }) => clipboard.readText())

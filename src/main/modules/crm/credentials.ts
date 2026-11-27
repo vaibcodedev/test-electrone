@@ -29,6 +29,7 @@ import type { Orm } from '../../db/client'
 import { addDays, newId, now, NotFoundError, UserError } from '../../core/util'
 import { totp } from '../../core/totp'
 import type { SecretClipboard } from '../../services/secret-clipboard'
+import type { SshLauncher } from '../../system/ssh-terminal'
 import { idArg, type ModuleContext } from '../context'
 import type { CredentialRow } from './shared'
 
@@ -75,12 +76,14 @@ const TERM_REMINDERS = [14, 3, 0] as const
  * Logins of a client or project, by kind. The main secret (`secret`) and the extra ones (`secrets`) are encrypted
  * (SecretBox); list / details return only which ones are stored. A secret leaves main only through «Показати»
  * (reveal); «Скопіювати» puts it on the clipboard right here and clears it after 30 s; the 2FA key never leaves —
- * only its current code does.
+ * only its current code does. «Відкрити в терміналі» hands the terminal only the server's host, port, login and key
+ * file path read here from the record — never a secret.
  */
 export class Credentials {
   constructor(
     private readonly m: ModuleContext,
-    private readonly clipboard?: SecretClipboard
+    private readonly clipboard?: SecretClipboard,
+    private readonly terminal?: SshLauncher
   ) {}
 
   private get db(): Orm {
@@ -392,6 +395,20 @@ export class Credentials {
         const params = parseOtpSecret(this.secretsOf(row).totp ?? '')
         if (!params) throw new UserError('Для цього доступу 2FA не налаштовано')
         return totp(params)
+      },
+      openSsh: async (id) => {
+        const row = this.find(idArg.parse(id))
+        if (row.kind !== 'server')
+          throw new UserError('Відкрити в терміналі можна лише доступ типу «Сервер»')
+        if (!this.terminal) throw new UserError('Термінал зараз недоступний')
+        // Only what the stored record says, read here — the renderer sends nothing but the id.
+        const c = this.toCredential(row, new Map())
+        await this.terminal.open({
+          host: c.fields.host,
+          port: c.fields.port,
+          login: c.login,
+          keyPath: c.fields.keyPath
+        })
       },
       setPayment: async (args) => {
         const { id, subscriptionId } = z

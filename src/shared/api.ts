@@ -432,6 +432,11 @@ export interface CredentialsApi {
   copy(arg: CredentialCopy): Promise<void>
   /** The current 2FA code and when it expires — never the key. */
   totp(id: string): Promise<{ code: string; expiresAt: number; period: number }>
+  /**
+   * «Відкрити в терміналі» for a server: main reads host, port, login and key file from the record, checks them
+   * and opens a terminal window with ssh (Windows only). The password is typed there — no secret is passed.
+   */
+  openSsh(id: string): Promise<void>
   /** Links the Finance subscription that pays for it; null unlinks (the subscription stays in Finance). */
   setPayment(args: { id: string; subscriptionId: string | null }): Promise<Credential>
 }

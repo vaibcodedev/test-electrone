@@ -20,6 +20,7 @@ import { SoftRepository } from '../../core/soft-repository'
 import type { EntityDescriptor } from '../../core/registry'
 import type { ModuleContext } from '../context'
 import type { SecretClipboard } from '../../services/secret-clipboard'
+import type { SshLauncher } from '../../system/ssh-terminal'
 import { Clients } from './clients'
 import { Credentials } from './credentials'
 import { Payments } from './payments'
@@ -39,12 +40,16 @@ export class CrmModule {
   private readonly clients: Clients
   private readonly projects: Projects
 
-  /** `clipboard` — where «Скопіювати» puts a secret (cleared after 30 s); tests may leave it out. */
+  /**
+   * `clipboard` — where «Скопіювати» puts a secret (cleared after 30 s); `terminal` — opens ssh for «Відкрити в
+   * терміналі». Tests may leave both out.
+   */
   constructor(
     private readonly m: ModuleContext,
-    clipboard?: SecretClipboard
+    clipboard?: SecretClipboard,
+    terminal?: SshLauncher
   ) {
-    this.credentials = new Credentials(m, clipboard)
+    this.credentials = new Credentials(m, clipboard, terminal)
     // Accesses are found through their owner: names, hosts and services join its text, secrets never do.
     const client: EntityDescriptor = {
       type: 'client',

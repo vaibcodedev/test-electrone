@@ -7,6 +7,7 @@ import {
   EyeOff,
   Pencil,
   ShieldCheck,
+  SquareTerminal,
   Terminal,
   Trash2
 } from 'lucide-react'
@@ -53,6 +54,7 @@ import { useInlineForm } from './inline-form'
 import { RecordMenu, RecordMenuButton } from '@/features/record-menu/record-menu'
 import { credentialMenu } from './credential-menu'
 import { copySecret } from './copy-secret'
+import { openSshTerminal } from './open-ssh'
 
 /** «Показати» shows a secret this long, then hides it again. */
 const REVEAL_MS = 10_000
@@ -330,18 +332,39 @@ function TermBadge({ item }: { item: Credential }): ReactElement | null {
   )
 }
 
+/** «Відкрити в терміналі»: main opens ssh in a terminal window; a second click while it starts does nothing. */
+function OpenSshButton({ id }: { id: string }): ReactElement {
+  const [opening, setOpening] = useState(false)
+  const open = async (): Promise<void> => {
+    setOpening(true)
+    try {
+      await openSshTerminal(id)
+    } finally {
+      setOpening(false)
+    }
+  }
+  return (
+    <Button variant="soft" size="xs" disabled={opening} onClick={() => void open()}>
+      <SquareTerminal /> Відкрити в терміналі
+    </Button>
+  )
+}
+
 /** The kind's quick actions: the SSH command, the DB string (with the password from the menu), the site. */
 function QuickActions({ item }: { item: Credential }): ReactElement | null {
   const site = (item.kind === 'account' || item.kind === 'hosting') && item.url
   if (item.kind === 'server' && item.fields.host)
     return (
-      <Button
-        variant="soft"
-        size="xs"
-        onClick={() => void copyText(sshCommand(item), 'Команду SSH скопійовано')}
-      >
-        <Terminal /> Скопіювати команду SSH
-      </Button>
+      <>
+        <OpenSshButton id={item.id} />
+        <Button
+          variant="soft"
+          size="xs"
+          onClick={() => void copyText(sshCommand(item), 'Команду SSH скопійовано')}
+        >
+          <Terminal /> Скопіювати команду SSH
+        </Button>
+      </>
     )
   if (item.kind === 'database' && item.fields.host)
     return (
