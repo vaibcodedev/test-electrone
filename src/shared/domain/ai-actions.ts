@@ -27,8 +27,10 @@ import { questionInputSchema } from './jobs'
 import {
   caseInputSchema,
   redFlagInputSchema,
+  TEMPLATE_PURPOSES,
   TEMPLATE_SITUATIONS,
-  templateInputSchema
+  templateInputSchema,
+  templateSituationSchema
 } from './freelance'
 import { componentInputSchema } from './components'
 import { tagInputSchema } from './system'
@@ -125,10 +127,12 @@ const createQuestion = questionInputSchema
     difficulty: questionInputSchema.shape.difficulty.catch(2)
   })
 const createTemplate = templateInputSchema
-  .pick({ title: true, trigger: true, body: true, note: true, niche: true })
+  .pick({ title: true, trigger: true, body: true, note: true })
   .extend({
     ...type('create_template'),
-    situation: z.enum(TEMPLATE_SITUATIONS).catch('other').default('proposal')
+    // A built-in key, a built-in label or the person's own short text (main maps labels to keys).
+    situation: templateSituationSchema.catch('other').default('proposal'),
+    purpose: z.enum(TEMPLATE_PURPOSES).optional().catch(undefined)
   })
 const createRedflag = redFlagInputSchema
   .pick({ title: true, signs: true, action: true })
@@ -345,7 +349,7 @@ export const AI_ACTIONS: Record<AiActionType, AiActionMeta> = {
   },
   create_template: {
     entity: 'template',
-    fields: `{title, situation: ${TEMPLATE_SITUATIONS.join('|')}, body: text with {variables}, trigger?: when to use, note?}`,
+    fields: `{title, situation: ${TEMPLATE_SITUATIONS.join('|')} or the person's own short situation in Ukrainian («Привітання HR»), purpose?: freelance|jobs|any (left out — from a built-in situation, «any» for an own one), body: text with {variables}, trigger?: when to use, note?}`,
     edit: [
       TITLE,
       f('trigger', 'Коли використовувати', 'text'),

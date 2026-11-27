@@ -19,11 +19,14 @@ import {
   platformInputSchema,
   PROPOSAL_STATUS_LABEL,
   redFlagInputSchema,
-  SITUATION_LABEL,
+  situationLabel,
   templateInputSchema,
+  templateVersions,
+  versionLabel,
   type BidType,
   type ProposalStatus,
-  type TemplateSituation
+  type TemplatePurpose,
+  withPurpose
 } from '@shared/domain/freelance'
 import { messageTemplates, platforms, portfolioCases, proposals, redFlags } from '../../db/schema'
 import type { Orm } from '../../db/client'
@@ -41,7 +44,7 @@ import { casesApi, redFlagsApi, type CaseRepo, type RedFlagRepo } from './portfo
 import { Proposals } from './proposals'
 import { ProposalStats } from './stats'
 import { Templates } from './templates'
-import { type ProposalRepo, type TemplateRepo } from './shared'
+import { type ProposalRepo, type TemplateRepo, type TemplateRow } from './shared'
 
 export class FreelanceModule {
   readonly descriptors: EntityDescriptor[]
@@ -74,17 +77,26 @@ export class FreelanceModule {
     const template: EntityDescriptor = {
       type: 'template',
       table: messageTemplates,
+      // Every version is searchable; an old «Тип завдання» too (the column is kept, nothing edits it now).
       searchDoc: (r) => ({
         title: r.title,
-        body: `${r.trigger}\n${r.body}\n${r.note}\n${r.niche}`
+        body: [r.trigger, r.body, ...r.versions.flatMap((v) => [v.name, v.body]), r.note, r.niche].join('\n')
       }),
       summary: (r) => ({
         title: r.title,
-        subtitle: SITUATION_LABEL[r.situation as TemplateSituation]
+        subtitle: situationLabel(r.situation)
       }),
       // copyCount is a system field and copying bumps updatedAt: a used template never counts as a draft.
-      draft: { titleField: 'title', contentFields: ['trigger', 'body', 'note', 'niche'] },
-      systemFields: ['copyCount']
+      draft: {
+        titleField: 'title',
+        contentFields: ['trigger', 'body', 'bodyName', 'versions', 'note', 'niche']
+      },
+      systemFields: ['copyCount'],
+      // The versions as readable sections (the frontmatter keeps them as JSON for a re-import).
+      exportBody: (r) =>
+        (r as TemplateRow).versions.length
+          ? templateVersions(r as TemplateRow).flatMap((v) => [`## Версія: ${versionLabel(v.name)}`, '', v.body, ''])
+          : []
     }
     const portfolioCase: EntityDescriptor = {
       type: 'case',
@@ -127,7 +139,7 @@ export class FreelanceModule {
     }))
     const templateRepo: TemplateRepo = new SoftRepository(m.repo, template, (r, tags) => ({
       ...r,
-      situation: r.situation as TemplateSituation,
+      purpose: r.purpose as TemplatePurpose,
       tags
     }))
     this.caseRepo = new SoftRepository(m.repo, portfolioCase, (r, tags) => ({ ...r, tags }))
@@ -172,7 +184,11 @@ export class FreelanceModule {
           .run()
       })
       for (const t of FREELANCE_SEED.templates)
-        this.templates.repo.insert({ ...templateInputSchema.parse(t), copyCount: 0 })
+        this.templates.repo.insert({
+          ...withPurpose(templateInputSchema.parse(t)),
+          niche: '',
+          copyCount: 0
+        })
       for (const f of FREELANCE_SEED.redFlags) this.flagRepo.insert(redFlagInputSchema.parse(f))
     })
   }

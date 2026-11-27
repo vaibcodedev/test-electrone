@@ -16,6 +16,7 @@ import {
   uniqueIndex
 } from 'drizzle-orm/sqlite-core'
 import type { CardRepeat } from '../../../shared/domain/boards'
+import type { TemplateVersion } from '../../../shared/domain/freelance'
 
 const base = {
   id: text().primaryKey(),
@@ -570,10 +571,17 @@ export const creditTxs = sqliteTable(
 export const messageTemplates = sqliteTable('message_templates', {
   ...base,
   situation: text().notNull().default('proposal'),
+  /** «Для чого»: freelance / jobs / any. The app always writes it (derived from the situation when not given). */
+  purpose: text().notNull().default('any'),
   title: text().notNull(),
   trigger: text().notNull().default(''),
   body: text().notNull().default(''),
+  /** Name of the first version (`body`); empty — «Основна». */
+  bodyName: text().notNull().default(''),
+  /** Further text versions: [{ name, body }] (translations, a short variant). */
+  versions: text({ mode: 'json' }).$type<TemplateVersion[]>().notNull().default([]),
   note: text().notNull().default(''),
+  /** «Тип завдання» from before: no longer edited, kept for search and export. */
   niche: text().notNull().default(''),
   copyCount: integer().notNull().default(0)
 })

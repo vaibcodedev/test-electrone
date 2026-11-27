@@ -18,7 +18,12 @@ import {
 import type { AiActionPreview } from '@shared/domain/ai-chat'
 import type { EventInput } from '@shared/domain/calendar'
 import { CLAUDE_KIND_LABEL } from '@shared/domain/claude'
-import { SITUATION_LABEL } from '@shared/domain/freelance'
+import {
+  builtinSituationOf,
+  PURPOSE_LABEL,
+  situationLabel,
+  withPurpose
+} from '@shared/domain/freelance'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
 import { fmtWhen } from '@shared/dates'
 import { MAX } from '@shared/domain/limits'
@@ -333,15 +338,23 @@ const DEFS: { [K in AiActionType]: ActionDef<K> } = {
     }
   },
   create_template: {
-    prepare: (a) => ({ fields: fact('Ситуація', SITUATION_LABEL[a.situation]) }),
+    prepare: (a) => {
+      const { purpose } = withPurpose({
+        situation: builtinSituationOf(a.situation) ?? a.situation,
+        purpose: a.purpose
+      })
+      return {
+        fields: [...fact('Ситуація', situationLabel(a.situation)), ...fact('Для чого', PURPOSE_LABEL[purpose])]
+      }
+    },
     apply: async (a, { deps }) => {
       const r = await deps.api.templates.create({
         title: a.title,
         situation: a.situation,
+        purpose: a.purpose,
         trigger: a.trigger,
         body: a.body,
-        note: a.note,
-        niche: a.niche
+        note: a.note
       })
       return created('template', r.id, r.title)
     }

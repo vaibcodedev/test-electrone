@@ -115,10 +115,12 @@ export const IMPORT_DEFS: Record<ImportKind, ImportKindDef> = {
     label: 'шаблони повідомлень',
     forms: ['шаблон', 'шаблони', 'шаблонів'],
     hint: 'Шаблони відгуків і відповідей клієнтам; {змінні} заповнюються під час копіювання.',
-    schema: arrayPayload(templateInputSchema.pick({ situation: true, title: true, trigger: true, body: true, note: true, niche: true })),
-    example: [{ situation: 'follow_up', title: 'Нагадування через 3 дні', trigger: 'Клієнт мовчить після відгуку', body: 'Hi {name}, just following up on my proposal…', note: 'Не частіше раз на тиждень' }],
+    schema: arrayPayload(templateInputSchema.pick({ situation: true, purpose: true, title: true, trigger: true, body: true, bodyName: true, versions: true, note: true })),
+    example: [{ situation: 'follow_up', purpose: 'freelance', title: 'Нагадування через 3 дні', trigger: 'Клієнт мовчить після відгуку', body: 'Hi {name}, just following up on my proposal…', bodyName: 'English', versions: [{ name: 'Українська', body: 'Вітаю, {name}! Нагадую про мій відгук…' }], note: 'Не частіше раз на тиждень' }],
     rules: [
-      'situation: proposal | first_message | estimate | tz_questions | revisions | follow_up | small_talk | closing | cover_letter | recruiter | thank_you | other',
+      'situation: proposal | first_message | estimate | tz_questions | revisions | follow_up | small_talk | closing | cover_letter | recruiter | thank_you | other — або своя коротка ситуація українською («Привітання HR»)',
+      'purpose (для чого): freelance | jobs | any; без нього — за ситуацією (свої ситуації — any)',
+      'body — перша версія тексту, bodyName — її назва (необов’язково); versions — інші версії [{name, body}] (переклади, коротка версія), до 7, назви в шаблоні не повторюються',
       'body — текст повідомлення (зазвичай англійською), note — підказка українською'
     ],
     preview: titles<{ title: string }>((t) => t.title)

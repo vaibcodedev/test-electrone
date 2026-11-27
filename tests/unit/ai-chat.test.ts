@@ -625,7 +625,8 @@ describe('actions for every content section', () => {
         actions: [
           { type: 'create_checklist', title: 'Лендинг', sections },
           { type: 'create_word', term: 'rollout', translation: 'викатка', kind: 'slang' },
-          { type: 'create_template', title: 'Відгук', body: 'Hi {client}', situation: 'nonsense' },
+          // Any short text is an own situation now; an empty one is not and falls back.
+          { type: 'create_template', title: 'Відгук', body: 'Hi {client}', situation: '  ' },
           { type: 'create_payment', amount: 100 },
           { type: 'create_checklist', title: 'Порожній', sections: [] }
         ]

@@ -1,8 +1,5 @@
 import type { GoalMetric, GoalPeriod } from '@shared/domain/freelance'
 
-/** One map for main (search subtitles) and the page. */
-export { SITUATION_LABEL } from '@shared/domain/freelance'
-
 export const GOAL_METRIC_LABEL: Record<GoalMetric, string> = {
   net_income: 'Чистий дохід',
   proposals: 'Відгуки',

@@ -78,6 +78,20 @@
       "when": 1795765828101,
       "tag": "0010_pdf_retry",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795786741470,
+      "tag": "0011_template_purpose",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795788245010,
+      "tag": "0012_template_versions",
+      "breakpoints": true
     }
   ]
 }

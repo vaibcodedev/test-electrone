@@ -669,3 +669,12 @@ body:has([data-detail-mode='edit'])
 [data-detail-mode='view'] [data-slot='toggle-group-item'] {
   flex: none;
 }
+/* A switch of what is shown, not a value of the record (a template's text versions): it works while reading. It sits
+   in EditableScope (not disabled) inside [data-view-live]; here it gets back its own look and every option. */
+[data-detail-mode='view'] [data-view-live] :is([data-slot='toggle-group'], [data-slot='toggle-group-item']) {
+  display: revert-layer;
+  background: revert-layer;
+  padding: revert-layer;
+  width: revert-layer;
+  flex: revert-layer;
+}

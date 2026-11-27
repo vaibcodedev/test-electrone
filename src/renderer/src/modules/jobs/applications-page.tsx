@@ -157,7 +157,7 @@ function FollowUpBanner({ onOpen }: { onOpen: (id: string) => void }): ReactElem
           <Button
             variant="subtle"
             size="sm"
-            onClick={() => navigate('/freelance/templates?situation=follow_up')}
+            onClick={() => navigate('/freelance/templates?purpose=jobs&situation=follow_up')}
           >
             Шаблони нагадувань
           </Button>

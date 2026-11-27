@@ -2,6 +2,7 @@ import { useId, useState, type ReactElement, type RefObject } from 'react'
 import { toast } from 'sonner'
 import { FileText, FileUser, X } from 'lucide-react'
 import { APPLICATION_STATUSES, WORK_FORMATS, applicationInputSchema, type ApplicationDetails, type ApplicationPatch } from '@shared/domain/jobs'
+import { templateVersions, versionLabel } from '@shared/domain/freelance'
 import { limitsOf, rangesOf } from '@/lib/limits'
 import { useApi, useApiMutation, useInPlaceApi } from '@/lib/query'
 import { RecordLoadError } from '@/components/common/record-load-error'
@@ -100,13 +101,17 @@ function SalaryFields({
 }
 
 function CoverTemplatePicker({ application: a, patch }: { application: ApplicationDetails; patch: (p: ApplicationPatch) => void }): ReactElement {
-  const { data: letters = [] } = useApi('templates', 'list', { situation: 'cover_letter' })
+  const { data: letters = [] } = useApi('templates', 'list', { situation: 'cover_letter', purpose: 'jobs' })
   const mark = useApiMutation('templates', 'markCopied', { silent: true, onError: (e) => reportError(e) })
   const [selected, setSelected] = useState<string | null>(a.templateId)
   const tpl = letters.find((t) => t.id === selected)
+  // Text versions of the chosen letter (translations…): the first unless another is picked; nothing remembered.
+  const versions = tpl ? templateVersions(tpl) : []
+  const [version, setVersion] = useState(0)
+  const text = versions[Math.min(version, versions.length - 1)]?.body ?? ''
   const insert = (): void => {
     if (!tpl) return
-    patch({ coverLetter: tpl.body, templateId: tpl.id })
+    patch({ coverLetter: text, templateId: tpl.id })
     mark.mutate(tpl.id)
     toast.success('Шаблон вставлено — замініть {змінні}')
   }
@@ -124,6 +129,7 @@ function CoverTemplatePicker({ application: a, patch }: { application: Applicati
           value={selected}
           onChange={(v) => {
             setSelected(v)
+            setVersion(0)
             patch({ templateId: v })
           }}
           none="Без шаблону"
@@ -131,6 +137,15 @@ function CoverTemplatePicker({ application: a, patch }: { application: Applicati
           options={letters.map((t) => ({ value: t.id, label: t.title }))}
         />
       </Field>
+      {versions.length > 1 && (
+        <Field label="Версія" className="w-40 shrink-0">
+          <Choice
+            value={String(Math.min(version, versions.length - 1))}
+            onChange={(v) => setVersion(Number(v ?? 0))}
+            options={versions.map((v, i) => ({ value: String(i), label: versionLabel(v.name) }))}
+          />
+        </Field>
+      )}
       {a.coverLetter.trim() ? (
         <Confirm title="Замінити текст листа?" description="Поточний текст буде замінено шаблоном." confirmLabel="Замінити" onConfirm={insert}>
           {button}

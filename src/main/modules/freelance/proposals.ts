@@ -204,11 +204,14 @@ export class Proposals {
         if (!p.coverLetter.trim()) throw new UserError('У відгуку немає тексту')
         const t = this.templates.repo.insert({
           situation: 'proposal',
+          purpose: 'freelance',
           title: p.niche ? `${p.niche}: ${p.jobTitle}`.slice(0, MAX.title) : p.jobTitle.slice(0, MAX.title),
           trigger: '',
           body: p.coverLetter,
+          bodyName: '',
+          versions: [],
           note: '',
-          niche: p.niche,
+          niche: '',
           copyCount: 0
         })
         return this.templates.withStats([t])[0]

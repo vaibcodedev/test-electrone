@@ -294,16 +294,147 @@ export const SITUATION_LABEL: Record<TemplateSituation, string> = {
   other: 'Інше'
 }
 
+/**
+ * A template's situation: a built-in key (`TEMPLATE_SITUATIONS`) or the person's own text («Привітання HR»). Stored
+ * as typed; main maps a built-in label («відгук») to its key and a case-only variant of an own one to its spelling.
+ */
+export const templateSituationSchema = z.string().trim().min(1).max(MAX.label)
+
+export function isBuiltinSituation(s: string): s is TemplateSituation {
+  return (TEMPLATE_SITUATIONS as readonly string[]).includes(s)
+}
+
+
+/** The built-in situation a typed text means — its key or its label in any case — or null for an own one. */
+export function builtinSituationOf(text: string): TemplateSituation | null {
+  const t = text.trim().toLocaleLowerCase('uk')
+  return (
+    TEMPLATE_SITUATIONS.find(
+      (s) => s === t || SITUATION_LABEL[s].toLocaleLowerCase('uk') === t
+    ) ?? null
+  )
+}
+
+/**
+ * What the UI writes for a situation: the built-in label (also for a label typed in another case, as the chat ШІ
+ * may send it), or the person's own text as it is. Never undefined, unlike `SITUATION_LABEL[x]`.
+ */
+export function situationLabel(s: string): string {
+  const builtin = isBuiltinSituation(s) ? s : builtinSituationOf(s)
+  return builtin ? SITUATION_LABEL[builtin] : s
+}
+
+/**
+ * «Для чого» a template is: freelance (proposals, clients), job search (applications, recruiters) or both. A
+ * filter on the «Шаблони» page and in the pickers; «Будь-де» templates show up under either direction.
+ */
+export const TEMPLATE_PURPOSES = ['freelance', 'jobs', 'any'] as const
+export type TemplatePurpose = (typeof TEMPLATE_PURPOSES)[number]
+/** Directions of the page filter (and of the pickers): «Будь-де» is not one, it belongs to both. */
+export const TEMPLATE_DIRECTIONS = ['freelance', 'jobs'] as const satisfies readonly TemplatePurpose[]
+export type TemplateDirection = (typeof TEMPLATE_DIRECTIONS)[number]
+
+export const PURPOSE_LABEL: Record<TemplatePurpose, string> = {
+  freelance: 'Фриланс',
+  jobs: 'Вакансії',
+  any: 'Будь-де'
+}
+
+/**
+ * The purpose a template gets when none is given (a new one, an old JSON import, a seed) — and the one the 0011
+ * migration gave the templates that existed before the field. Keep in sync with `0011_template_purpose.sql`.
+ */
+export const SITUATION_PURPOSE: Record<TemplateSituation, TemplatePurpose> = {
+  proposal: 'freelance',
+  first_message: 'any',
+  estimate: 'freelance',
+  tz_questions: 'freelance',
+  revisions: 'freelance',
+  follow_up: 'any',
+  small_talk: 'freelance',
+  closing: 'freelance',
+  cover_letter: 'jobs',
+  recruiter: 'jobs',
+  thank_you: 'jobs',
+  other: 'any'
+}
+
+/** The template belongs to the direction: its own purpose or «Будь-де». */
+export function purposeFits(purpose: TemplatePurpose, direction: TemplateDirection): boolean {
+  return purpose === direction || purpose === 'any'
+}
+
+/** The purpose a situation implies: built-in ones by `SITUATION_PURPOSE`, an own one is never guessed — «Будь-де». */
+export function purposeOfSituation(s: string): TemplatePurpose {
+  return isBuiltinSituation(s) ? SITUATION_PURPOSE[s] : 'any'
+}
+
+/** A template input with its purpose filled in: the given one, or derived from the situation (create, seeds). */
+export function withPurpose<T extends { situation: string; purpose?: TemplatePurpose }>(
+  t: T
+): T & { purpose: TemplatePurpose } {
+  return { ...t, purpose: t.purpose ?? purposeOfSituation(t.situation) }
+}
+
+/* ── Text versions of a template (translations, a short variant…) ── */
+
+/** All versions of one template, the first (`body`) included: enough for uk / ru / en and a few variants. */
+export const TEMPLATE_VERSIONS_MAX = 8
+/** Quick names offered for a version; any own name can be typed instead. */
+export const VERSION_NAME_PRESETS = ['Українська', 'Русский', 'English'] as const
+/** What an unnamed first version (every template from before versions) is called: never guessed from the text. */
+export const DEFAULT_VERSION_NAME = 'Основна'
+
+/** A further version: its own name and text (the first one is the template's `bodyName` + `body`). */
+export const templateVersionSchema = z.object({
+  name: z.string().trim().min(1).max(MAX.label),
+  body: z.string().max(MAX.letter).default('')
+})
+export type TemplateVersion = z.output<typeof templateVersionSchema>
+
+/** How a version is called in the UI. */
+export function versionLabel(name: string): string {
+  return name.trim() || DEFAULT_VERSION_NAME
+}
+
+/** Every version of a template in order, the first (`body`) included. */
+export function templateVersions(t: {
+  bodyName?: string
+  body: string
+  versions?: TemplateVersion[]
+}): { name: string; body: string }[] {
+  return [{ name: t.bodyName ?? '', body: t.body }, ...(t.versions ?? [])]
+}
+
+/** A name used twice in one template (in any case), as the UI shows it; null when all differ. */
+export function duplicateVersionName(names: string[]): string | null {
+  const seen = new Set<string>()
+  for (const n of names) {
+    const label = versionLabel(n)
+    const key = label.toLocaleLowerCase('uk')
+    if (seen.has(key)) return label
+    seen.add(key)
+  }
+  return null
+}
+
 export const templateInputSchema = z.object({
-  situation: z.enum(TEMPLATE_SITUATIONS).default('proposal'),
+  /** A built-in key or the person's own text (`templateSituationSchema`). */
+  situation: templateSituationSchema.default('proposal'),
+  /** «Для чого». Left out — derived from the situation (`SITUATION_PURPOSE`) on create; a patch never resets it. */
+  purpose: z.enum(TEMPLATE_PURPOSES).optional(),
   title: z.string().trim().min(1).max(MAX.title),
   /** What the client says / when to use it (for small talk: the client's phrase). */
   trigger: z.string().max(MAX.short).default(''),
-  /** Template text; {variables} are filled in when copying. */
+  /** Template text — the first version; {variables} are filled in when copying. */
   body: z.string().max(MAX.letter).default(''),
+  /** Name of the first version («Українська»…); empty — «Основна». */
+  bodyName: z.string().trim().max(MAX.label).default(''),
+  /** Further versions after the first. Names are unique per template (checked by main, `duplicateVersionName`). */
+  versions: z.array(templateVersionSchema).max(TEMPLATE_VERSIONS_MAX - 1).default([]),
   /** Native-language note: what it means / when not to use. */
   note: z.string().max(MAX.note).default(''),
-  niche: z.string().max(MAX.label).default(''),
+  // No «Тип завдання» any more: the `niche` column keeps old values (search, export), nothing writes it.
   ...withTagIds
 })
 export const templatePatchSchema = patchOf(templateInputSchema)
@@ -311,12 +442,15 @@ export type TemplateInput = z.input<typeof templateInputSchema>
 export type TemplatePatch = z.input<typeof templatePatchSchema>
 
 export interface MessageTemplate extends EntityBase, WithTags {
-  situation: TemplateSituation
+  /** A built-in `TemplateSituation` or the person's own text: show it through `situationLabel`. */
+  situation: string
+  purpose: TemplatePurpose
   title: string
   trigger: string
   body: string
+  bodyName: string
+  versions: TemplateVersion[]
   note: string
-  niche: string
   copyCount: number
   /** Proposals that used it, and how they went. */
   usedIn: number

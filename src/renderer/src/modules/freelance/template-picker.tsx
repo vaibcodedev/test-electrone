@@ -2,7 +2,7 @@ import { useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { FileText } from 'lucide-react'
-import type { Proposal, ProposalPatch } from '@shared/domain/freelance'
+import { templateVersions, type Proposal, type ProposalPatch } from '@shared/domain/freelance'
 import { useApi, useApiMutation } from '@/lib/query'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/common/page'
@@ -20,7 +20,10 @@ export function TemplatePicker({
   patch: (p: ProposalPatch) => void
 }): ReactElement {
   const navigate = useNavigate()
-  const { data: templates = [], isLoading } = useApi('templates', 'list', { situation: 'proposal' })
+  const { data: templates = [], isLoading } = useApi('templates', 'list', {
+    situation: 'proposal',
+    purpose: 'freelance'
+  })
   const markCopied = useApiMutation('templates', 'markCopied')
   const [selected, setSelected] = useState<string | null>(proposal.templateId)
   const [filling, setFilling] = useState(false)
@@ -42,7 +45,7 @@ export function TemplatePicker({
     return (
       <p className="text-body text-muted-foreground">
         Шаблонів відгуків ще немає.{' '}
-        <Button variant="link" onClick={() => navigate('/freelance/templates?situation=proposal')}>
+        <Button variant="link" onClick={() => navigate('/freelance/templates?purpose=freelance&situation=proposal')}>
           Створити шаблон
         </Button>
       </p>
@@ -56,6 +59,8 @@ export function TemplatePicker({
           heading="Вставити шаблон"
           title={tpl.title}
           body={tpl.body}
+          // Several text versions (translations): the dialog lets you pick one, the first is shown first.
+          versions={templateVersions(tpl)}
           submitLabel="Вставити у відгук"
           onSubmit={write}
           initial={

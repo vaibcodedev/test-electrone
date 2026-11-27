@@ -227,9 +227,9 @@ import type {
   RedFlagInput,
   RedFlagPatch,
   StatsQuery,
+  TemplateDirection,
   TemplateInput,
-  TemplatePatch,
-  TemplateSituation
+  TemplatePatch
 } from './domain/freelance'
 import type {
   Expense,
@@ -561,9 +561,11 @@ export interface TemplatesApi extends CrudApi<
   MessageTemplate,
   TemplateInput,
   TemplatePatch,
-  { situation?: TemplateSituation; search?: string; tagId?: string }
+  { situation?: string; purpose?: TemplateDirection; search?: string; tagId?: string }
 > {
   markCopied(id: string): Promise<void>
+  /** The person's own situations that live templates use (built-in keys left out), alphabetically. */
+  situations(): Promise<string[]>
 }
 
 export type CasesApi = CrudApi<

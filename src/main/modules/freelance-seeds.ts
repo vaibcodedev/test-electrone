@@ -50,7 +50,6 @@ export const FREELANCE_SEED: {
       trigger: 'Базовий відгук на будь-яку вакансію',
       body: 'Hi {client},\n\nI read your post about {task}. The key part for you seems to be {main_goal} — I have done exactly this for {similar_project}.\n\nHow I would approach it:\n1. {step_1}\n2. {step_2}\n3. {step_3}\n\nI can start {start_date} and deliver the first version in {timeline}.\n\nOne question to make sure I estimate correctly: {question}\n\nBest,\n{my_name}',
       note: 'Перші два рядки видно в прев’ю — там має бути задача клієнта, а не «Hello, I am a developer with 5 years…».',
-      niche: ''
     },
     {
       situation: 'first_message',
@@ -58,7 +57,6 @@ export const FREELANCE_SEED: {
       trigger: 'Клієнт відповів на відгук',
       body: 'Hi {client}, thanks for getting back to me!\n\nTo give you an accurate plan, could you share:\n- {question_1}\n- {question_2}\n\nIf it is easier, I am happy to jump on a short call — {my_availability}.',
       note: '',
-      niche: ''
     },
     {
       situation: 'estimate',
@@ -66,7 +64,6 @@ export const FREELANCE_SEED: {
       trigger: 'How long will it take? / What is your estimate?',
       body: 'Based on what we discussed, here is my estimate:\n\n- {part_1}: {hours_1}h\n- {part_2}: {hours_2}h\n- Testing & fixes: {hours_3}h\n\nTotal: {total} ({timeline}). This includes {included}. Anything outside this scope I will flag before starting.',
       note: 'Завжди закладай час на тести й правки окремим рядком.',
-      niche: ''
     },
     {
       situation: 'tz_questions',
@@ -74,7 +71,6 @@ export const FREELANCE_SEED: {
       trigger: 'ТЗ розмите',
       body: 'Before I start, a few questions so nothing gets lost:\n1. Do you have designs (Figma) or should I propose the layout?\n2. Which devices/browsers matter most?\n3. Is there an existing codebase or are we starting fresh?\n4. What does "done" look like for you?\n5. Who will give feedback and how quickly?',
       note: '',
-      niche: ''
     },
     {
       situation: 'revisions',
@@ -82,7 +78,6 @@ export const FREELANCE_SEED: {
       trigger: 'Клієнт просить те, чого не було в задачі',
       body: 'Happy to add this! It was not part of the original scope, so it would take about {hours} more hours ({price}). Should I go ahead, or would you prefer to keep it for the next milestone?',
       note: 'Ввічливо, але завжди називай ціну додаткової роботи.',
-      niche: ''
     },
     {
       situation: 'follow_up',
@@ -90,7 +85,6 @@ export const FREELANCE_SEED: {
       trigger: 'Клієнт не відповідає',
       body: 'Hi {client}, just checking in on {task}. I am still available and can start {start_date}. If the project is on hold, no worries — let me know if anything changes.',
       note: 'Одне нагадування, не більше.',
-      niche: ''
     },
     {
       situation: 'small_talk',
@@ -98,7 +92,6 @@ export const FREELANCE_SEED: {
       trigger: 'How are you doing? / How is it going?',
       body: 'Doing great, thanks! Busy week, but in a good way. How about you?',
       note: 'Коротка відповідь + зустрічне питання, далі одразу до справи.',
-      niche: ''
     },
     {
       situation: 'small_talk',
@@ -106,7 +99,6 @@ export const FREELANCE_SEED: {
       trigger: 'Have a nice weekend / How was your weekend?',
       body: 'Thanks, it was relaxing! Hope yours was good too. Ready to get back to {task}.',
       note: '',
-      niche: ''
     },
     {
       situation: 'small_talk',
@@ -114,7 +106,6 @@ export const FREELANCE_SEED: {
       trigger: 'Відповів із запізненням',
       body: 'Sorry for the delayed reply — I wanted to check this properly before answering. Here is what I found: {answer}',
       note: '',
-      niche: ''
     },
     {
       situation: 'closing',
@@ -122,7 +113,6 @@ export const FREELANCE_SEED: {
       trigger: 'Проєкт завершено',
       body: 'Everything is delivered: {summary}. Thanks a lot for working with me! If you are happy with the result, I would really appreciate a short review on {platform} — it helps a lot. And of course, I am here if you need anything else.',
       note: '',
-      niche: ''
     }
   ],
   redFlags: [

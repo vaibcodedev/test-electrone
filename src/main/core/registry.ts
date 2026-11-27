@@ -92,7 +92,13 @@ export function isDraft(d: EntityDescriptor, row: AnyRow): boolean {
   if (row.createdAt !== row.updatedAt) return false
   const empty = d.draft.contentFields.every((f) => {
     const v = row[f]
-    return v === null || v === undefined || (typeof v === 'string' && !v.trim())
+    // A JSON list column (a template's text versions) is empty as [].
+    return (
+      v === null ||
+      v === undefined ||
+      (typeof v === 'string' && !v.trim()) ||
+      (Array.isArray(v) && v.length === 0)
+    )
   })
   return empty && !d.draft.hasChildren?.(row.id)
 }

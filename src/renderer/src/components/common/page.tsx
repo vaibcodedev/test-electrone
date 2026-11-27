@@ -382,13 +382,16 @@ export function Segmented<T extends string>({
   value,
   onChange,
   className,
-  size = 'sm'
+  size = 'sm',
+  label
 }: {
   options: { value: T; label: ReactNode; title?: string; count?: number }[]
   value: T
   onChange: (value: T) => void
   className?: string
   size?: 'sm' | 'xs' | 'default'
+  /** Name of the group for screen readers («Для чого»). */
+  label?: string
 }) {
   return (
     <ToggleGroup
@@ -398,6 +401,7 @@ export function Segmented<T extends string>({
       value={value}
       onValueChange={(v) => v && onChange(v as T)}
       className={className}
+      aria-label={label}
     >
       {options.map((o) => {
         const item = (

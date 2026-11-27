@@ -3,7 +3,7 @@ import { useApi } from '@/lib/query'
 import { Combobox } from '@/components/common/combobox'
 
 /**
- * Task type (proposal, template, case): the common Combobox with suggestions from previous proposals and
+ * Task type (proposal, case): the common Combobox with suggestions from previous proposals and
  * «Створити «…»» for a new one. The current value is always among the options — Combobox takes the
  * label from there.
  */

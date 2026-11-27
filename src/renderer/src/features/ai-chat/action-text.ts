@@ -13,7 +13,7 @@ import {
 } from '@shared/domain/ai-actions'
 import type { AiActionPreview } from '@shared/domain/ai-chat'
 import { CLAUDE_KIND_LABEL } from '@shared/domain/claude'
-import { SITUATION_LABEL } from '@shared/domain/freelance'
+import { situationLabel } from '@shared/domain/freelance'
 import { fmtDayFull, fmtDayTime, fmtNumber, hostOf, mdPreview, plural } from '@/lib/format'
 
 /* ───────────── The person's edits («Змінити») ───────────── */
@@ -117,7 +117,7 @@ export function summaryOf(action: AiAction, preview: AiActionPreview): string {
     case 'create_library':
       return action.purpose
     case 'create_template':
-      return SITUATION_LABEL[action.situation]
+      return situationLabel(action.situation)
     case 'create_claude':
       return `${CLAUDE_KIND_LABEL[action.kind]} · ${count(words(action.content), WORDS)}`
     case 'create_idea':

@@ -130,7 +130,7 @@ function StaleBanner({ platformId, onOpen }: { platformId: string; onOpen: (id: 
           <Button
             variant="subtle"
             size="sm"
-            onClick={() => navigate('/freelance/templates?situation=follow_up')}
+            onClick={() => navigate('/freelance/templates?purpose=freelance&situation=follow_up')}
           >
             Шаблони нагадувань
           </Button>

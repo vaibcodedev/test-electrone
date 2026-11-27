@@ -191,7 +191,7 @@ export function FollowUpsCard({ followUps }: { followUps: JobsOverview['followUp
         <CardTitle>Нагадати про себе</CardTitle>
         <CardDescription>Настав час нагадування або немає відповіді тиждень.</CardDescription>
         <CardAction>
-          <Button variant="subtle" size="xs" onClick={() => navigate('/freelance/templates?situation=follow_up')}>
+          <Button variant="subtle" size="xs" onClick={() => navigate('/freelance/templates?purpose=jobs&situation=follow_up')}>
             Шаблони нагадувань
           </Button>
         </CardAction>
