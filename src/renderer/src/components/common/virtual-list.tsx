@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -7,6 +8,8 @@ import {
   type ReactElement,
   type ReactNode
 } from 'react'
+import { flushSync } from 'react-dom'
+import { DetailShownContext } from './detail-shown'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { RotateCcw, TriangleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -248,6 +251,7 @@ export function VirtualGrid<T>({
   getKey,
   renderItem,
   minColumnWidth = 240,
+  stackBesideDetail,
   rowHeight = 240,
   gap = 12,
   className,
@@ -264,6 +268,8 @@ export function VirtualGrid<T>({
   getKey: (item: T) => string
   renderItem: (item: T, index: number) => ReactNode
   minColumnWidth?: number
+  /** One column while a record pane stands beside the grid (inside MasterDetail). */
+  stackBesideDetail?: boolean
   /** Estimated row height (rows are measured after render). */
   rowHeight?: number
   gap?: number
@@ -276,7 +282,10 @@ export function VirtualGrid<T>({
   // The scroll container appears only after the first page (a skeleton is shown before): a plain ref +
   // effect ran while it was missing and never observed it, so every grid stayed at the initial 3 columns.
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
-  const [columns, setColumns] = useState(3)
+  const [fitting, setColumns] = useState(3)
+  const detailShown = useContext(DetailShownContext)
+  const stacked = !!stackBesideDetail && detailShown
+  const columns = stacked ? 1 : fitting
   const fit = useCallback(
     (width: number) => setColumns(Math.max(1, Math.floor((width + gap) / (minColumnWidth + gap)))),
     [gap, minColumnWidth]
@@ -296,7 +305,9 @@ export function VirtualGrid<T>({
 
   useEffect(() => {
     if (!scrollEl) return
-    const ro = new ResizeObserver(([entry]) => fit(entry.contentRect.width))
+    // flushSync: the new width is on screen already — a later render painted a frame with the old column count
+    // (one card across the whole page when the record pane closed).
+    const ro = new ResizeObserver(([entry]) => flushSync(() => fit(entry.contentRect.width)))
     ro.observe(scrollEl)
     return () => ro.disconnect()
   }, [scrollEl, fit])
@@ -339,7 +350,9 @@ export function VirtualGrid<T>({
             className="grid"
             style={{
               gap,
-              gridTemplateColumns: `repeat(auto-fill, minmax(min(${minColumnWidth}px, 100%), 1fr))`
+              gridTemplateColumns: stacked
+                ? 'minmax(0, 1fr)'
+                : `repeat(auto-fill, minmax(min(${minColumnWidth}px, 100%), 1fr))`
             }}
           >
             {Array.from({ length: 8 }, (_, i) => (

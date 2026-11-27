@@ -237,7 +237,8 @@ export function EnglishPage(): ReactElement {
               items={list.items}
               loading={list.isLoading}
               getKey={(w) => w.id}
-              minColumnWidth={open ? 10_000 : 260}
+              minColumnWidth={260}
+              stackBesideDetail
               rowHeight={96}
               gap={6}
               hasMore={list.hasMore}

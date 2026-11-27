@@ -16,6 +16,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { ENTITY_META, type EntityType } from '@shared/entity-types'
+import { Button } from '@/components/ui/button'
 import { quickAddSchema, searchQuerySchema, type SearchHit } from '@shared/domain/system'
 import {
   CommandDialog,
@@ -579,11 +580,22 @@ export function CommandPalette(): ReactElement {
 
         {!placesFirst && placeGroups}
       </CommandList>
-      {!query && (
-        <p className="border-t px-4 py-2 text-caption text-muted-foreground">
-          Фільтр за типом: «{SEARCH_PREFIX.snippet}:» сніпети, «{SEARCH_PREFIX.note}:» нотатки. Усі
-          префікси — «{PREFIX_HELP}».
-        </p>
+      {/* Always there (the list of prefixes aside): with a filter typed, «what else is there?» had no answer. */}
+      {!help && (
+        <div className="flex items-center gap-3 border-t px-4 py-2 text-caption text-muted-foreground">
+          <p className="min-w-0 flex-1 truncate">
+            {type
+              ? `Шукаємо лише: ${ENTITY_META[type].plural}`
+              : `Фільтр за типом: «${SEARCH_PREFIX.snippet}:» сніпети, «${SEARCH_PREFIX.note}:» нотатки`}
+          </p>
+          <Button
+            variant="link"
+            className="h-auto shrink-0 p-0 text-caption"
+            onClick={() => applyFilter(PREFIX_HELP)}
+          >
+            Усі фільтри ({PREFIX_HELP})
+          </Button>
+        </div>
       )}
     </CommandDialog>
   )

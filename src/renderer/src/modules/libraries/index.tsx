@@ -439,7 +439,8 @@ export function LibrariesPage(): ReactElement {
               items={list.items}
               loading={list.isLoading}
               getKey={(l) => l.id}
-              minColumnWidth={openId ? 10_000 : 300}
+              minColumnWidth={300}
+              stackBesideDetail
               rowHeight={openId ? 52 : 200}
               gap={8}
               hasMore={list.hasMore}

@@ -38,6 +38,7 @@ import {
   type DetailMode
 } from './detail-mode'
 import { PinButtons } from './pin-buttons'
+import { DetailShownContext } from './detail-shown'
 import { TagsSection } from './tags'
 import { LinksPanel } from './links-panel'
 import { MentionsPanel } from './mentions-panel'
@@ -133,7 +134,7 @@ export function MasterDetail({
         maxSize={shown ? '60%' : undefined}
         className={cn('flex min-h-0 flex-col p-1', shown && 'pr-2.5')}
       >
-        {list}
+        <DetailShownContext.Provider value={!!shown}>{list}</DetailShownContext.Provider>
       </ResizablePanel>
       {shown && (
         <>

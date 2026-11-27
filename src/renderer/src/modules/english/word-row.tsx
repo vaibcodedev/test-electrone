@@ -45,10 +45,6 @@ export function WordRow({
         {w.transcription && (
           <span className={cn('truncate text-caption', muted)}>{w.transcription}</span>
         )}
-        {/* Most entries are words: only the other kinds are marked. */}
-        {showKind && w.kind !== 'word' && (
-          <span className={cn('ml-auto shrink-0 text-meta', muted)}>{KIND_LABEL[w.kind]}</span>
-        )}
       </div>
       {w.translation ? (
         <div
@@ -69,12 +65,19 @@ export function WordRow({
         <div className={cn('mt-1.5 truncate text-caption italic', muted)}>«{example}»</div>
       )}
       {/* Quiet text, no badge: a warm badge on every row was louder than the word itself. */}
-      <div className={cn('mt-auto flex items-center gap-3 pt-2.5 text-meta', muted)}>
-        <span className="flex items-center gap-1.5">
+      {/* -mr-7 takes back the room the card keeps for «⋯» (pr-10): that button is only at the top. */}
+      <div className={cn('mt-auto -mr-7 flex items-center gap-3 pt-2.5 text-meta', muted)}>
+        <span className="flex shrink-0 items-center gap-1.5">
           <span className={cn('size-2 rounded-full', STAGE_COLOR[w.stage])} />
           {STAGE_LABEL_ONE[w.stage]}
         </span>
-        <span>{rule && !hasGaps(w.example) ? 'немає пропусків — не в тренуванні' : due}</span>
+        <span className="min-w-0 truncate">
+          {rule && !hasGaps(w.example) ? 'не в тренуванні' : due}
+        </span>
+        {/* Most entries are words: only the other kinds are marked. */}
+        {showKind && w.kind !== 'word' && (
+          <span className="ml-auto shrink-0">{KIND_LABEL[w.kind]}</span>
+        )}
       </div>
     </ListItem>
   )

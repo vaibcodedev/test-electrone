@@ -379,7 +379,8 @@ export function SnippetsPage(): ReactElement {
               items={list.items}
               loading={list.isLoading}
               getKey={(s) => s.id}
-              minColumnWidth={openId ? 10_000 : 380}
+              minColumnWidth={380}
+              stackBesideDetail
               // Estimates only (rows are measured): compact card with a description line, full card.
               rowHeight={openId ? 112 : 290}
               gap={8}
