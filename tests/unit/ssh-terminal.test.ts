@@ -1,18 +1,33 @@
 /**
  * «Відкрити в терміналі»: the allow-lists for host, login, port and key file (hostile input included), ssh's argument
- * list, the PowerShell literals, and the launcher with an injected spawner — no test ever starts a process or
- * connects anywhere. The access passes only host, port, login and key path, never a secret.
+ * list, the PowerShell literals, the disk checks (app execution aliases, timeouts) and the launcher with an injected
+ * spawner — no test ever starts a process or connects anywhere. The access passes only host, port, login and key
+ * path, never a secret.
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import {
   checkSshTarget,
   encodePs,
   findSsh,
+  isRegularFile,
+  pathEntryExists,
   psLiteral,
   sessionScript,
   sshArgs,
   SSH_ERRORS,
   SshTerminal,
+  withTimeout,
   type SpawnRequest,
   type SshLauncher,
   type SshTargetInput
@@ -30,7 +45,7 @@ const PS = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 const WT = 'C:\\Users\\o\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe'
 const ENV = { SystemRoot: 'C:\\Windows', LOCALAPPDATA: 'C:\\Users\\o\\AppData\\Local', PATH: '' }
 const files = new Set([KEY, SSH, PS])
-const isFile = (p: string): boolean => files.has(p)
+const isFile = async (p: string): Promise<boolean> => files.has(p)
 
 const target = (over: Partial<SshTargetInput> = {}): SshTargetInput => ({
   host: 'example.com',
@@ -40,10 +55,10 @@ const target = (over: Partial<SshTargetInput> = {}): SshTargetInput => ({
   ...over
 })
 
-function refused(over: Partial<SshTargetInput>, message: string): void {
+async function refused(over: Partial<SshTargetInput>, message: string): Promise<void> {
   let error: unknown
   try {
-    checkSshTarget(target(over), isFile)
+    await checkSshTarget(target(over), isFile)
   } catch (e) {
     error = e
   }
@@ -54,29 +69,30 @@ function refused(over: Partial<SshTargetInput>, message: string): void {
 const decode = (b64: string): string => Buffer.from(b64, 'base64').toString('utf16le')
 
 describe('the target is checked by allow-lists', () => {
-  it('takes plain hosts, IPs, logins, ports and key paths', () => {
-    expect(checkSshTarget(target(), isFile)).toEqual({
+  it('takes plain hosts, IPs, logins, ports and key paths', async () => {
+    expect(await checkSshTarget(target(), isFile)).toEqual({
       host: 'example.com',
       port: 22,
       login: 'deploy',
       keyPath: ''
     })
-    expect(checkSshTarget(target({ host: '10.0.0.5', port: 2222, login: '' }), isFile)).toEqual({
-      host: '10.0.0.5',
-      port: 2222,
-      login: '',
-      keyPath: ''
-    })
-    expect(checkSshTarget(target({ host: '[2001:db8::1]' }), isFile).host).toBe('2001:db8::1')
-    expect(checkSshTarget(target({ host: 'my_box' }), isFile).host).toBe('my_box')
-    expect(checkSshTarget(target({ login: 'me@corp.example' }), isFile).login).toBe(
+    expect(
+      await checkSshTarget(target({ host: '10.0.0.5', port: 2222, login: '' }), isFile)
+    ).toEqual({ host: '10.0.0.5', port: 2222, login: '', keyPath: '' })
+    expect((await checkSshTarget(target({ host: '[2001:db8::1]' }), isFile)).host).toBe(
+      '2001:db8::1'
+    )
+    expect((await checkSshTarget(target({ host: 'my_box' }), isFile)).host).toBe('my_box')
+    expect((await checkSshTarget(target({ login: 'me@corp.example' }), isFile)).login).toBe(
       'me@corp.example'
     )
     // A Cyrillic folder with a space is fine; `/` is read as `\`.
-    expect(checkSshTarget(target({ keyPath: KEY.replace(/\\/g, '/') }), isFile).keyPath).toBe(KEY)
+    expect(
+      (await checkSshTarget(target({ keyPath: KEY.replace(/\\/g, '/') }), isFile)).keyPath
+    ).toBe(KEY)
   })
 
-  it('refuses hosts that ssh, a shell or wt.exe could read as something else', () => {
+  it('refuses hosts that ssh, a shell or wt.exe could read as something else', async () => {
     for (const host of [
       '-oProxyCommand=calc.exe',
       '-J evil',
@@ -104,11 +120,11 @@ describe('the target is checked by allow-lists', () => {
       'a'.repeat(254),
       42
     ])
-      refused({ host }, SSH_ERRORS.host)
-    refused({ host: '  ' }, 'Вкажіть хост сервера — поле «Хост».')
+      await refused({ host }, SSH_ERRORS.host)
+    await refused({ host: '  ' }, 'Вкажіть хост сервера — поле «Хост».')
   })
 
-  it('refuses logins that could become an option or break quoting', () => {
+  it('refuses logins that could become an option or break quoting', async () => {
     for (const login of [
       '-oProxyCommand=calc',
       '-l',
@@ -126,15 +142,15 @@ describe('the target is checked by allow-lists', () => {
       'a'.repeat(129),
       7
     ])
-      refused({ login }, SSH_ERRORS.login)
+      await refused({ login }, SSH_ERRORS.login)
   })
 
-  it('takes only an integer port 1…65535', () => {
+  it('takes only an integer port 1…65535', async () => {
     for (const port of [0, -1, 65_536, 22.5, '22', Number.NaN, Infinity])
-      refused({ port }, SSH_ERRORS.port)
+      await refused({ port }, SSH_ERRORS.port)
   })
 
-  it('takes only an absolute, existing key file without special characters', () => {
+  it('takes only an absolute, existing key file without special characters', async () => {
     for (const keyPath of [
       'id_rsa',
       '.ssh\\id_rsa',
@@ -158,8 +174,8 @@ describe('the target is checked by allow-lists', () => {
       `C:\\${'a'.repeat(500)}`,
       5
     ])
-      refused({ keyPath }, SSH_ERRORS.keyPath)
-    refused({ keyPath: 'C:\\nowhere\\id_rsa' }, SSH_ERRORS.keyMissing)
+      await refused({ keyPath }, SSH_ERRORS.keyPath)
+    await refused({ keyPath: 'C:\\nowhere\\id_rsa' }, SSH_ERRORS.keyMissing)
   })
 })
 
@@ -189,7 +205,7 @@ describe('ssh arguments and the PowerShell script', () => {
     expect(psLiteral('$(calc) `x` "y"')).toBe('\'$(calc) `x` "y"\'')
   })
 
-  it('the script splats the arguments as literals and waits for Enter after a failure', () => {
+  it('the script splats the arguments as literals and waits for Enter only after ssh’s own error', () => {
     const script = sessionScript(
       SSH,
       sshArgs({ host: 'example.com', port: 22, login: 'deploy', keyPath: KEY })
@@ -198,23 +214,107 @@ describe('ssh arguments and the PowerShell script', () => {
       `$sshArgs = @('-p', '22', '-l', 'deploy', '-i', '${KEY}', '--', 'example.com')`
     )
     expect(script).toContain(`& '${SSH}' @sshArgs`)
-    expect(script).toContain('Read-Host')
+    // 255 — ssh itself failed; any other code is the remote shell's status after a normal session.
+    expect(script).toContain('if ($LASTEXITCODE -eq 255) { $failed = $true }')
+    expect(script).not.toContain('-ne 0')
+    expect(script).toMatch(/catch \{[^}]*\$failed = \$true/)
+    expect(script).toMatch(/if \(\$failed\) \{[^}]*Read-Host/)
     expect(decode(encodePs(script))).toBe(script)
   })
 
-  it('finds OpenSSH from Windows first, then a plain path on PATH', () => {
-    expect(findSsh(ENV, isFile)).toBe(SSH)
+  it('finds OpenSSH from Windows first, then a plain path on PATH', async () => {
+    expect(await findSsh(ENV, isFile)).toBe(SSH)
     const git = 'C:\\Program Files\\Git\\usr\\bin\\ssh.exe'
-    const only = (p: string): boolean => p === git
+    const only = async (p: string): Promise<boolean> => p === git
     expect(
-      findSsh({ ...ENV, PATH: 'relative;C:\\a&b;C:\\Program Files\\Git\\usr\\bin' }, only)
+      await findSsh({ ...ENV, PATH: 'relative;C:\\a&b;C:\\Program Files\\Git\\usr\\bin' }, only)
     ).toBe(git)
-    expect(findSsh({ ...ENV, PATH: '%X%\\bin' }, () => false)).toBeNull()
+    expect(await findSsh({ ...ENV, PATH: '%X%\\bin' }, async () => false)).toBeNull()
+  })
+})
+
+describe('disk checks (the real implementations)', () => {
+  let dir = ''
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'vault-ssh-'))
+  })
+  afterAll(() => rmSync(dir, { recursive: true, force: true }))
+
+  /** A link stat() cannot follow — what an app execution alias such as wt.exe looks like to Node. */
+  function danglingLink(name: string): string {
+    const gone = join(dir, `${name}-target`)
+    mkdirSync(gone)
+    const link = join(dir, name)
+    symlinkSync(gone, link, 'junction')
+    rmSync(gone, { recursive: true })
+    return link
+  }
+
+  it('a regular file is a file; a folder, a missing path or a broken link is not', async () => {
+    const file = join(dir, 'id_ed25519')
+    writeFileSync(file, '')
+    expect(await isRegularFile(file)).toBe(true)
+    expect(await isRegularFile(dir)).toBe(false)
+    expect(await isRegularFile(join(dir, 'nope'))).toBe(false)
+    expect(await isRegularFile(danglingLink('broken'))).toBe(false)
+  })
+
+  it('a link that stat cannot read still exists (lstat), unlike existsSync', async () => {
+    const link = danglingLink('alias.exe')
+    expect(existsSync(link)).toBe(false)
+    expect(await pathEntryExists(link)).toBe(true)
+    expect(await pathEntryExists(join(dir, 'nope.exe'))).toBe(false)
+  })
+
+  it('a real app execution alias of this machine exists, when there is one', async () => {
+    const apps = join(process.env.LOCALAPPDATA ?? '', 'Microsoft', 'WindowsApps')
+    const alias = existsSync(apps) ? readdirSync(apps).find((n) => n.endsWith('.exe')) : undefined
+    if (!alias) return
+    expect(existsSync(join(apps, alias))).toBe(false)
+    expect(await pathEntryExists(join(apps, alias))).toBe(true)
+  })
+
+  it('a check that hangs (a dead mapped drive) gives up after the timeout', async () => {
+    const never = new Promise<boolean>(() => undefined)
+    expect(await withTimeout(never, 20, false)).toBe(false)
+    expect(await withTimeout(Promise.reject(new Error('EIO')), 1000, false)).toBe(false)
+    expect(await withTimeout(Promise.resolve(true), 1000, false)).toBe(true)
+  })
+
+  it('the launcher’s default checks find wt.exe behind an alias-like link', async () => {
+    const win = join(dir, 'Windows')
+    const ssh = join(win, 'System32', 'OpenSSH', 'ssh.exe')
+    const ps = join(win, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    for (const f of [ssh, ps]) {
+      mkdirSync(join(f, '..'), { recursive: true })
+      writeFileSync(f, '')
+    }
+    const local = join(dir, 'Local')
+    const apps = join(local, 'Microsoft', 'WindowsApps')
+    mkdirSync(apps, { recursive: true })
+    const gone = join(dir, 'wt-target')
+    mkdirSync(gone)
+    symlinkSync(gone, join(apps, 'wt.exe'), 'junction')
+    rmSync(gone, { recursive: true })
+
+    const calls: SpawnRequest[] = []
+    // Only the spawner is faked: isFile / exists are the real defaults.
+    const term = new SshTerminal({
+      platform: 'win32',
+      env: { SystemRoot: win, LOCALAPPDATA: local, PATH: '' },
+      spawn: async (req) => {
+        calls.push(req)
+        return null
+      }
+    })
+    await term.open(target())
+    expect(calls).toHaveLength(1)
+    expect(calls[0].file).toBe(join(apps, 'wt.exe'))
+    expect(calls[0].args.slice(0, 3)).toEqual(['new-tab', '--', ps])
   })
 })
 
 describe('the launcher (injected spawner — nothing is started)', () => {
-  type Call = SpawnRequest
   function launcher(
     opts: {
       platform?: NodeJS.Platform
@@ -222,14 +322,14 @@ describe('the launcher (injected spawner — nothing is started)', () => {
       files?: Set<string>
       spawn?: (req: SpawnRequest) => Promise<number | null>
     } = {}
-  ): { term: SshTerminal; calls: Call[] } {
-    const calls: Call[] = []
+  ): { term: SshTerminal; calls: SpawnRequest[] } {
+    const calls: SpawnRequest[] = []
     const have = opts.files ?? files
     const term = new SshTerminal({
       platform: opts.platform ?? 'win32',
       env: ENV,
-      isFile: (p) => have.has(p),
-      exists: (p) => p === WT && opts.wt !== false,
+      isFile: async (p) => have.has(p),
+      exists: async (p) => p === WT && opts.wt !== false,
       spawn: async (req) => {
         calls.push(req)
         return opts.spawn ? opts.spawn(req) : req.waitExit ? 0 : null
@@ -284,7 +384,7 @@ describe('the launcher (injected spawner — nothing is started)', () => {
     }
   })
 
-  it('a failed helper or spawn is a clear error, not a silent nothing', async () => {
+  it('a failed, broken or unconfirmed helper is an error, never a success', async () => {
     const exit1 = launcher({ wt: false, spawn: async () => 1 })
     await expect(exit1.term.open(target())).rejects.toThrow('Не вдалося відкрити термінал')
     const broken = launcher({
@@ -294,6 +394,9 @@ describe('the launcher (injected spawner — nothing is started)', () => {
       }
     })
     await expect(broken.term.open(target())).rejects.toThrow('Не вдалося відкрити термінал')
+    // The helper did not finish in time: the window is not confirmed, so «Термінал відкрито» must not show.
+    const silent = launcher({ wt: false, spawn: async () => null })
+    await expect(silent.term.open(target())).rejects.toThrow(UserError)
   })
 
   it('refuses before starting anything: hostile input, no OpenSSH, not Windows', async () => {
@@ -352,7 +455,7 @@ describe('openSsh on a stored access', () => {
       platform: 'win32',
       env: ENV,
       isFile,
-      exists: () => true,
+      exists: async () => true,
       spawn: async (req) => {
         calls.push(req)
         return null

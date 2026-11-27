@@ -12,7 +12,7 @@
  * new console window. On a failed ssh the script waits for Enter, so the error stays readable.
  */
 import { spawn } from 'child_process'
-import { statSync, existsSync } from 'fs'
+import { lstat, stat } from 'fs/promises'
 import { isIP } from 'net'
 import { win32 } from 'path'
 import { SSH_DEFAULT_PORT } from '@shared/domain/credentials'
@@ -53,10 +53,10 @@ export type Spawner = (req: SpawnRequest) => Promise<number | null>
 export interface SshTerminalDeps {
   platform: NodeJS.Platform
   env: NodeJS.ProcessEnv
-  /** A regular file exists at this absolute path. */
-  isFile(path: string): boolean
-  /** Something exists at this path (wt.exe is an app execution alias, not a regular file). */
-  exists(path: string): boolean
+  /** A regular file exists at this absolute path (false when the disk does not answer in time). */
+  isFile(path: string): Promise<boolean>
+  /** Something exists at this path, links included (wt.exe is an app execution alias, not a regular file). */
+  exists(path: string): Promise<boolean>
   spawn: Spawner
 }
 
@@ -113,25 +113,29 @@ function checkPort(raw: unknown): number {
   return raw
 }
 
-function checkKeyPath(raw: unknown, isFile: (p: string) => boolean): string {
+async function checkKeyPath(
+  raw: unknown,
+  isFile: (p: string) => Promise<boolean>
+): Promise<string> {
   if (raw === null || raw === undefined) return ''
   if (typeof raw !== 'string') throw new UserError(SSH_ERRORS.keyPath)
   // `C:/Users/…` is the same path; Windows takes either separator.
   const v = raw.trim().replace(/\//g, '\\')
   if (!v) return ''
   if (!isSafeWindowsPath(v)) throw new UserError(SSH_ERRORS.keyPath)
-  if (!isFile(v)) throw new UserError(SSH_ERRORS.keyMissing)
+  if (!(await isFile(v))) throw new UserError(SSH_ERRORS.keyMissing)
   return v
 }
 
 /** Checks every part of the target; a UserError names the field to fix. */
-export function checkSshTarget(t: SshTargetInput, isFile: (p: string) => boolean): SshTarget {
-  return {
-    host: checkHost(t.host),
-    port: checkPort(t.port),
-    login: checkLogin(t.login),
-    keyPath: checkKeyPath(t.keyPath, isFile)
-  }
+export async function checkSshTarget(
+  t: SshTargetInput,
+  isFile: (p: string) => Promise<boolean>
+): Promise<SshTarget> {
+  const host = checkHost(t.host)
+  const port = checkPort(t.port)
+  const login = checkLogin(t.login)
+  return { host, port, login, keyPath: await checkKeyPath(t.keyPath, isFile) }
 }
 
 /**
@@ -164,21 +168,26 @@ export function encodePs(script: string): string {
   return Buffer.from(script, 'utf16le').toString('base64')
 }
 
-/** Runs ssh with the arguments as literals; after a failure waits for Enter so the message can be read. */
+/**
+ * Runs ssh with the arguments as literals. ssh exits with the remote shell's status after a normal session, and
+ * with 255 on its own errors (no connection, refused key, wrong host key): only 255 or a failed start keep the window
+ * open until Enter, so the message can be read.
+ */
 export function sessionScript(sshPath: string, args: string[]): string {
   return [
     "$Host.UI.RawUI.WindowTitle = 'Vault · SSH'",
     `$sshArgs = @(${args.map(psLiteral).join(', ')})`,
+    '$failed = $false',
     'try {',
     `  & ${psLiteral(sshPath)} @sshArgs`,
-    '  $code = $LASTEXITCODE',
+    '  if ($LASTEXITCODE -eq 255) { $failed = $true }',
     '} catch {',
     '  Write-Host $_.Exception.Message -ForegroundColor Red',
-    '  $code = 1',
+    '  $failed = $true',
     '}',
-    'if ($code -ne 0) {',
+    'if ($failed) {',
     "  Write-Host ''",
-    "  Write-Host ('SSH завершився з помилкою (код ' + $code + ').') -ForegroundColor Yellow",
+    "  Write-Host 'Не вдалося підключитися — причину видно вище.' -ForegroundColor Yellow",
     "  Read-Host 'Натисніть Enter, щоб закрити вікно' | Out-Null",
     '}'
   ].join('\n')
@@ -219,8 +228,14 @@ export function wtPath(env: NodeJS.ProcessEnv): string | null {
   return isSafeWindowsPath(local) ? win32.join(local, 'Microsoft', 'WindowsApps', 'wt.exe') : null
 }
 
-/** OpenSSH from Windows first, then ssh.exe on PATH (Git, Scoop…); only plain absolute paths. */
-export function findSsh(env: NodeJS.ProcessEnv, isFile: (p: string) => boolean): string | null {
+/**
+ * OpenSSH from Windows first, then ssh.exe on PATH (Git, Scoop…); only plain absolute paths. All are checked at
+ * once, so a dead network drive on PATH costs one timeout, not one per entry.
+ */
+export async function findSsh(
+  env: NodeJS.ProcessEnv,
+  isFile: (p: string) => Promise<boolean>
+): Promise<string | null> {
   const pathVar = env.PATH ?? env.Path ?? ''
   const candidates = [
     win32.join(systemRoot(env), 'System32', 'OpenSSH', 'ssh.exe'),
@@ -229,13 +244,56 @@ export function findSsh(env: NodeJS.ProcessEnv, isFile: (p: string) => boolean):
       .map((d) => d.trim())
       .filter(Boolean)
       .map((d) => win32.join(d, 'ssh.exe'))
-  ]
-  return candidates.find((p) => isSafeWindowsPath(p) && isFile(p)) ?? null
+  ].filter(isSafeWindowsPath)
+  const found = await Promise.all(candidates.map((p) => isFile(p)))
+  return candidates[found.indexOf(true)] ?? null
 }
+
+/* ───────────── Disk checks ───────────── */
+
+/** How long a file check may take: a dead mapped drive must not hold «Відкрити в терміналі» for long. */
+export const FS_TIMEOUT_MS = 1500
+
+/** `work`, or `fallback` when it fails or takes longer than `ms`. */
+export function withTimeout<T>(work: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms)
+    timer.unref?.()
+    work.then(
+      (v) => {
+        clearTimeout(timer)
+        resolve(v)
+      },
+      () => {
+        clearTimeout(timer)
+        resolve(fallback)
+      }
+    )
+  })
+}
+
+/** A regular file is there (async: the main process never waits on a slow disk). */
+export const isRegularFile = (p: string, ms = FS_TIMEOUT_MS): Promise<boolean> =>
+  withTimeout(
+    stat(p).then((s) => s.isFile()),
+    ms,
+    false
+  )
+
+/**
+ * Something is at the path, the link itself counts. wt.exe in WindowsApps is an app execution alias: `stat` and
+ * `existsSync` fail on it (EACCES), `lstat` reads it.
+ */
+export const pathEntryExists = (p: string, ms = FS_TIMEOUT_MS): Promise<boolean> =>
+  withTimeout(
+    lstat(p).then(() => true),
+    ms,
+    false
+  )
 
 /* ───────────── Launching ───────────── */
 
-/** Exit code of the hidden helper, or null when it took too long to tell (the window may still open). */
+/** Exit code of the hidden helper, or null when it took too long to tell. */
 const HELPER_TIMEOUT_MS = 20_000
 
 /** No shell, the arguments as an array (Node quotes each one for CreateProcess). */
@@ -267,14 +325,6 @@ export const spawnProcess: Spawner = (req) =>
     })
   })
 
-const isRegularFile = (p: string): boolean => {
-  try {
-    return statSync(p).isFile()
-  } catch {
-    return false
-  }
-}
-
 const errCode = (e: unknown): string =>
   (e as NodeJS.ErrnoException)?.code ?? (e as Error)?.message ?? String(e)
 
@@ -285,8 +335,8 @@ export class SshTerminal implements SshLauncher {
     this.deps = {
       platform: deps.platform ?? process.platform,
       env: deps.env ?? process.env,
-      isFile: deps.isFile ?? isRegularFile,
-      exists: deps.exists ?? existsSync,
+      isFile: deps.isFile ?? ((p) => isRegularFile(p)),
+      exists: deps.exists ?? ((p) => pathEntryExists(p)),
       spawn: deps.spawn ?? spawnProcess
     }
   }
@@ -297,21 +347,21 @@ export class SshTerminal implements SshLauncher {
       throw new UserError(
         'Відкрити в терміналі поки можна лише у Windows. Скопіюйте команду SSH і запустіть її у своєму терміналі.'
       )
-    const target = checkSshTarget(input, isFile)
-    const ssh = findSsh(env, isFile)
+    const target = await checkSshTarget(input, isFile)
+    const ssh = await findSsh(env, isFile)
     if (!ssh)
       throw new UserError(
         'Не знайдено клієнт OpenSSH (ssh.exe). Встановіть його: Параметри Windows › Додаткові компоненти › «Клієнт OpenSSH» — і спробуйте ще раз.'
       )
     const powershell = powershellPath(env)
-    if (!isFile(powershell))
+    if (!(await isFile(powershell)))
       throw new UserError(
         'Не знайдено Windows PowerShell — без нього Vault не може відкрити термінал.'
       )
     const session = sessionArgs(sessionScript(ssh, sshArgs(target)))
 
     const wt = wtPath(env)
-    if (wt && exists(wt)) {
+    if (wt && (await exists(wt))) {
       try {
         // `--` ends wt's own options; everything after it is fixed words, system paths and base64.
         await this.deps.spawn({
@@ -345,11 +395,17 @@ export class SshTerminal implements SshLauncher {
       log.error(`[ssh] powershell.exe did not start: ${errCode(e)}`)
       throw new UserError('Не вдалося відкрити термінал. Подробиці — у журналі.')
     }
-    if (code !== null && code !== 0) {
+    if (code === null) {
+      // Unconfirmed is not success: the window may still appear, but the person must not be told it did.
+      log.warn('[ssh] the PowerShell helper did not finish in time')
+      throw new UserError(
+        'Термінал не відповів вчасно. Якщо вікно так і не з’явилося, спробуйте ще раз.'
+      )
+    }
+    if (code !== 0) {
       log.error(`[ssh] Start-Process failed, exit code ${code}`)
       throw new UserError('Не вдалося відкрити термінал. Подробиці — у журналі.')
     }
-    if (code === null) log.warn('[ssh] the PowerShell helper did not finish in time')
     log.info('[ssh] terminal opened in a PowerShell window')
   }
 }

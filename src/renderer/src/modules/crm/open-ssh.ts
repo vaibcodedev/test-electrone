@@ -2,11 +2,16 @@ import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { reportError } from '@/lib/error-reporting'
 
+/** Accesses whose terminal is starting: a repeated click (card or menu) waits instead of opening a second window. */
+const opening = new Set<string>()
+
 /**
  * «Відкрити в терміналі»: only the id goes to main — it reads the server from the record, checks it and opens ssh in
  * a terminal window. The password is typed there; nothing secret passes through here.
  */
 export async function openSshTerminal(id: string): Promise<void> {
+  if (opening.has(id)) return
+  opening.add(id)
   try {
     await api.credentials.openSsh(id)
     toast.success('Термінал відкрито', {
@@ -15,5 +20,7 @@ export async function openSshTerminal(id: string): Promise<void> {
   } catch (e) {
     toast.error((e as Error).message || 'Не вдалося відкрити термінал. Спробуйте ще раз.')
     reportError(e, 'credential:open-ssh')
+  } finally {
+    opening.delete(id)
   }
 }
