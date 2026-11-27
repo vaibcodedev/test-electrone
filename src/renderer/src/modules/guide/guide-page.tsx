@@ -54,7 +54,8 @@ export function GuidePage(): ReactElement {
         {/* The contents list shows its scrollbar while hovered (the app-wide rule shows it only while scrolling):
             a long list you point at should say that it scrolls. */}
         <nav
-          className="w-56 shrink-0 overflow-y-auto pb-8 hover:[&::-webkit-scrollbar-thumb]:bg-foreground/20"
+          data-scroll-hover
+          className="w-56 shrink-0 overflow-y-auto pb-8"
           aria-label="Зміст"
         >
           <ItemGroup className="gap-0.5">

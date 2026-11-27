@@ -6,6 +6,7 @@ import { useFormGate } from '@/hooks/use-form-gate'
 import { FormAttemptContext } from '@/components/ui/field-control'
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -89,14 +90,14 @@ export function FormDialog({
   const blocked = invalid || !!gateReason || unchanged || pending
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn('sm:max-w-130', className)}>
+      <DialogContent className={cn('flex flex-col overflow-hidden sm:max-w-130', className)}>
         <DialogHeader>
           <DialogTitle className="font-display text-heading">{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <form
           ref={attach}
-          className="group/form flex flex-col gap-6"
+          className="group/form flex min-h-0 flex-col gap-6"
           onSubmit={(e) =>
             submit(e, () => {
               if (!blocked) void onSubmit()
@@ -104,7 +105,9 @@ export function FormDialog({
           }
         >
           <FormAttemptContext.Provider value={attempted}>
-            <FieldGroup className="gap-4">{children}</FieldGroup>
+            <DialogBody>
+              <FieldGroup className="gap-4">{children}</FieldGroup>
+            </DialogBody>
           </FormAttemptContext.Provider>
           <DialogFooter>
             {/* Always mounted: a live region that appears together with its text is not announced. */}

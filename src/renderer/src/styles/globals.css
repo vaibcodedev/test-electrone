@@ -373,7 +373,8 @@
     background-clip: content-box;
     min-height: 32px;
   }
-  [data-scrolling]::-webkit-scrollbar-thumb {
+  [data-scrolling]::-webkit-scrollbar-thumb,
+  [data-hovered]::-webkit-scrollbar-thumb {
     background-color: color-mix(in oklab, var(--foreground) 20%, transparent);
   }
   ::-webkit-scrollbar-thumb:hover,

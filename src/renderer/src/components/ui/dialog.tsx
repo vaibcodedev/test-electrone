@@ -3,6 +3,7 @@
 import * as React from "react"
 import { EditableScope } from "@/components/common/detail-mode-context"
 import { cn } from "@/lib/utils"
+import { DIALOG_MAX_HEIGHT } from "@/components/ui/dialog-styles"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
@@ -68,8 +69,10 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-scroll-hover
         className={cn(
-          "fixed top-[50%] left-[50%] z-50 grid w-full grid-cols-[minmax(0,1fr)] max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-3xl border bg-card p-6 shadow-lg duration-200 ease-soft data-[state=closed]:duration-150 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "fixed top-[50%] left-[50%] z-50 grid w-full grid-cols-[minmax(0,1fr)] max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-y-auto scrollbar-gutter-auto rounded-3xl border bg-card p-6 shadow-lg duration-200 ease-soft data-[state=closed]:duration-150 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          DIALOG_MAX_HEIGHT,
           className
         )}
         {...props}
@@ -94,6 +97,24 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      {...props}
+    />
+  )
+}
+
+/**
+ * The scrolling middle of a tall dialog: the header and the footer stay in place. The content around it is a
+ * column (`flex flex-col`). The negative margins give focus rings room inside the scroll area.
+ */
+function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-body"
+      data-scroll-hover
+      className={cn(
+        "-mx-6 -my-1 min-h-0 overflow-y-auto px-6 py-1 scrollbar-gutter-auto",
+        className
+      )}
       {...props}
     />
   )
@@ -154,6 +175,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,

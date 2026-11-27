@@ -4,6 +4,15 @@
  * do pass the document on the way down, so every scroll area is covered without wiring each one.
  */
 export function installScrollActivity(idleMs = 900): void {
+  // `data-scroll-hover` areas also show the thumb while the pointer is over them. Marked from here, not with CSS
+  // `:hover`: Chromium doesn't repaint a scrollbar when only its owner's hover state changes. Neither event
+  // bubbles, but the capturing document listener gets one for every element entered or left.
+  const hover = (e: Event): void => {
+    if (e.target instanceof Element && e.target.hasAttribute('data-scroll-hover'))
+      e.target.toggleAttribute('data-hovered', e.type === 'pointerenter')
+  }
+  document.addEventListener('pointerenter', hover, true)
+  document.addEventListener('pointerleave', hover, true)
   const timers = new WeakMap<Element, number>()
   document.addEventListener(
     'scroll',

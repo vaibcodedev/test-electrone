@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -135,7 +136,7 @@ export function ImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Імпорт з JSON — {def.label}</DialogTitle>
           <DialogDescription>
@@ -144,7 +145,8 @@ export function ImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap gap-2">
+        <DialogBody className="flex flex-col gap-4">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Button
             variant="subtle"
             size="sm"
@@ -164,7 +166,7 @@ export function ImportDialog({
           </Button>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as 'text' | 'file')} className="gap-3">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as 'text' | 'file')} className="shrink-0 gap-3">
           <TabsList className="w-fit">
             <TabsTrigger value="text">Текст</TabsTrigger>
             <TabsTrigger value="file">Файл</TabsTrigger>
@@ -181,7 +183,7 @@ export function ImportDialog({
               // The same 2 MB as a file: a pasted text is no smaller a risk.
               maxLength={MAX_FILE_BYTES}
               aria-invalid={parsed?.ok === false || undefined}
-              className="min-h-48 font-mono text-caption"
+              className="max-h-[max(12rem,30vh)] min-h-48 font-mono text-caption"
             />
           </TabsContent>
           <TabsContent value="file">
@@ -216,7 +218,7 @@ export function ImportDialog({
 
         {parsed?.ok === false && <p className="text-caption text-destructive">{parsed.error}</p>}
         {parsed?.ok && (
-          <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
+          <div className="flex shrink-0 flex-col gap-2 rounded-2xl bg-surface p-3">
             <div className="text-body font-semibold">
               Готово до імпорту: {parsed.count} {plural(parsed.count, def.forms)}
             </div>
@@ -232,6 +234,7 @@ export function ImportDialog({
             </div>
           </div>
         )}
+        </DialogBody>
 
         <DialogFooter>
           <Button variant="soft" onClick={close}>

@@ -11,6 +11,7 @@ import { limitsOf, requiredOf } from '@/lib/limits'
 import { useApiMutation } from '@/lib/query'
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -192,7 +193,7 @@ function EventDialogForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Never taller than the window: the fields scroll, the footer with «Зберегти» stays in view. */}
-      <DialogContent className="max-h-[calc(100vh-2rem)] grid-rows-[auto_minmax(0,1fr)] rounded-3xl p-6 sm:max-w-135">
+      <DialogContent className="grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl p-6 sm:max-w-135">
         <DialogHeader>
           <DialogTitle className="font-display text-heading">
             {event ? 'Подія' : 'Нова подія'}
@@ -200,9 +201,8 @@ function EventDialogForm({
         </DialogHeader>
         <form ref={attach} className="flex min-h-0 flex-col" onSubmit={(e) => submit(e, save)}>
           <FormAttemptContext.Provider value={attempted}>
-            {/* Only the fields scroll; the footer sits below them, outside the scroll area.
-              gutter auto: the global stable gutter made the right margin 40px against 30px on the left. */}
-            <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-1 scrollbar-gutter-auto">
+            {/* Only the fields scroll; the footer sits below them, outside the scroll area. */}
+            <DialogBody className="my-0 flex flex-1 flex-col gap-4">
               {linked ? (
                 // The owning module controls the title: plain text, not a field that takes the cursor but no typing.
                 <Field label="Назва">
@@ -361,7 +361,7 @@ function EventDialogForm({
                   className="max-h-none"
                 />
               </Field>
-            </div>
+            </DialogBody>
             <DialogFooter className="items-center gap-2 pt-3 sm:justify-between">
               {/* An event of a vacancy stage is removed with the stage, not here (main refuses it). */}
               {event && !linked ? (
