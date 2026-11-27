@@ -335,11 +335,11 @@ function CoverlessPreview({ c }: { c: PortfolioCase }): ReactElement {
     return (
       <div className="flex size-full items-center justify-center gap-1.5 p-3 text-caption text-muted-foreground">
         <BriefcaseBusiness className="size-3.5 shrink-0" />
-        Немає опису й скриншота
+        Немає опису й скріншота
       </div>
     )
   return (
-    <div className="flex size-full flex-col items-start gap-2 p-3">
+    <div className="flex size-full flex-col items-center justify-center gap-2 p-3">
       <div className="rounded-xl bg-foreground/[0.07] p-2 text-muted-foreground">
         <BriefcaseBusiness className="size-4" />
       </div>
@@ -437,48 +437,48 @@ export function PortfolioPage() {
                   menu={bindMenu(caseMenu, c, { onOpen: () => setOpen(c.id) })}
                   buttonClassName="absolute right-3 bottom-3"
                 >
-                <Card
-                  {...clickableProps(() => setOpen(c.id))}
-                  className={cn(
-                    // Same tile language as Галерея: a surface frame, so a dark cover never melts into the page.
-                    // rounded-2xl (24) = the cover's 18 + the 6px frame (concentric corners, as in Галерея).
-                    'tile h-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5',
-                    c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
-                  )}
-                >
-                  <div className="aspect-16/10 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 ring-inset">
-                    {c.coverPath ? (
-                      <img
-                        src={thumbUrl(c.coverPath)}
-                        alt=""
-                        decoding="async"
-                        className="size-full object-cover object-top"
-                      />
-                    ) : (
-                      // No screenshot: the case's own words instead of an empty frame on every tile.
-                      <CoverlessPreview c={c} />
+                  <Card
+                    {...clickableProps(() => setOpen(c.id))}
+                    className={cn(
+                      // Same tile language as Галерея: a surface frame, so a dark cover never melts into the page.
+                      // rounded-2xl (24) = the cover's 18 + the 6px frame (concentric corners, as in Галерея).
+                      'tile h-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5',
+                      c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
                     )}
-                  </div>
-                  <CardContent className="flex flex-1 flex-col gap-1.5 px-2.5 pt-3 pb-1.5">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <span className="truncate text-body font-semibold">{c.title}</span>
-                      <FavoriteMark entity={{ type: 'case', id: c.id }} />
-                    </div>
-                    {/* Reserved line: cards stay the same height with or without niche/stack. */}
-                    <div className="flex h-6 min-w-0 items-center gap-1.5 pr-7">
-                      {c.niche && (
-                        <Badge variant="soft" truncate>
-                          {c.niche}
-                        </Badge>
-                      )}
-                      {c.stack && (
-                        <span className="min-w-0 truncate text-meta text-muted-foreground">
-                          {c.stack}
-                        </span>
+                  >
+                    <div className="aspect-16/10 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 ring-inset">
+                      {c.coverPath ? (
+                        <img
+                          src={thumbUrl(c.coverPath)}
+                          alt=""
+                          decoding="async"
+                          className="size-full object-cover object-top"
+                        />
+                      ) : (
+                        // No screenshot: the case's own words instead of an empty frame on every tile.
+                        <CoverlessPreview c={c} />
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                    <CardContent className="flex flex-1 flex-col gap-1.5 px-2.5 pt-3 pb-1.5">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-body font-semibold">{c.title}</span>
+                        <FavoriteMark entity={{ type: 'case', id: c.id }} />
+                      </div>
+                      {/* Reserved line: cards stay the same height with or without niche/stack. */}
+                      <div className="flex h-6 min-w-0 items-center gap-1.5 pr-7">
+                        {c.niche && (
+                          <Badge variant="soft" truncate>
+                            {c.niche}
+                          </Badge>
+                        )}
+                        {c.stack && (
+                          <span className="min-w-0 truncate text-meta text-muted-foreground">
+                            {c.stack}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 </RecordMenuTile>
               )}
             />
