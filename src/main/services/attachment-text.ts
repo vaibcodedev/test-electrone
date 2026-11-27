@@ -8,6 +8,9 @@ import { passage } from './pdf-text/passage'
 /** Files whose text is read for search. */
 export const PDF_MIME = 'application/pdf'
 
+/** Reads of one file at most: a `failed` one is tried again at the next starts, a broken file not forever. */
+const MAX_ATTEMPTS = 3
+
 /** A file of a record that matched a query, best first (the file index's bm25). */
 export interface FileHit {
   type: EntityType
@@ -37,7 +40,7 @@ interface AttachmentFacts {
 /**
  * Extracted text of attached files: table `attachment_texts` and its FTS5 index `file_index` (migration 0009,
  * deliberately outside the drizzle schema — derived data, not part of the JSON export). A row per processed file,
- * whatever came of it. Triggers keep the index in step, including the ON DELETE CASCADE from `attachments`, so a
+ * whatever came of it, with the number of reads. Triggers keep the index in step, including the ON DELETE CASCADE from `attachments`, so a
  * removed file or a purged record leaves nothing searchable behind.
  */
 export class AttachmentTextStore implements FileTextSource {
@@ -97,22 +100,30 @@ export class AttachmentTextStore implements FileTextSource {
       .get(id) as AttachmentFacts | undefined
   }
 
-  has(id: string): boolean {
+  /** True once the file needs no more reading: it has an outcome that another try would not change. */
+  settled(id: string): boolean {
     return !!this.ctx.sqlite
-      .prepare('SELECT 1 FROM attachment_texts WHERE attachment_id = ?')
-      .get(id)
+      .prepare(
+        `SELECT 1 FROM attachment_texts
+          WHERE attachment_id = ? AND (status <> 'failed' OR attempts >= ?)`
+      )
+      .get(id, MAX_ATTEMPTS)
   }
 
-  /** PDFs not processed yet (newest first): attached before this version, or left by a quit mid-queue. */
-  missing(): string[] {
+  /**
+   * PDFs to read: first those not processed yet (attached before this version, or left by a quit mid-queue),
+   * then the failed ones with tries left; newest first in each.
+   */
+  pending(): string[] {
     const rows = this.ctx.sqlite
       .prepare(
         `SELECT a.id AS id FROM attachments a
            LEFT JOIN attachment_texts t ON t.attachment_id = a.id
-          WHERE t.attachment_id IS NULL AND a.mime = ?
-          ORDER BY a.created_at DESC`
+          WHERE a.mime = ?
+            AND (t.attachment_id IS NULL OR (t.status = 'failed' AND t.attempts < ?))
+          ORDER BY t.attachment_id IS NOT NULL, a.created_at DESC`
       )
-      .all(PDF_MIME) as { id: string }[]
+      .all(PDF_MIME, MAX_ATTEMPTS) as { id: string }[]
     return rows.map((r) => r.id)
   }
 
@@ -128,7 +139,7 @@ export class AttachmentTextStore implements FileTextSource {
         .prepare(
           `INSERT INTO attachment_texts (attachment_id, status, text, extracted_at) VALUES (?, ?, ?, ?)
            ON CONFLICT(attachment_id) DO UPDATE SET status = excluded.status, text = excluded.text,
-             extracted_at = excluded.extracted_at`
+             extracted_at = excluded.extracted_at, attempts = attempts + 1`
         )
         .run(id, result.status, result.status === 'ok' ? result.text : '', now())
       return true
@@ -148,7 +159,8 @@ export type ExtractFile = (
 /**
  * Brings the text of attached PDFs into global search. Files are read one at a time, in the background, off the
  * main thread: attaching never waits for it and never fails because of it. A bad file (broken, password,
- * scan, too big) is recorded with its status and logged without its text; it is not retried at every start.
+ * scan, too big) is recorded with its status and logged without its text; only a `failed` read is tried again, at a
+ * later start and a limited number of times.
  */
 export class AttachmentTextIndexer {
   private readonly queue = new Set<string>()
@@ -175,9 +187,9 @@ export class AttachmentTextIndexer {
     this.pump()
   }
 
-  /** Every PDF without a result yet (startup, after a backup restore). Returns how many were queued. */
+  /** Every PDF still to be read (startup, after a backup restore). Returns how many were queued. */
   backfill(): number {
-    const ids = this.deps.store.missing()
+    const ids = this.deps.store.pending()
     for (const id of ids) this.queue.add(id)
     if (ids.length) {
       log.info(`[file-text] ${ids.length} PDF file(s) queued for search`)
@@ -237,7 +249,7 @@ export class AttachmentTextIndexer {
     const db = this.currentDb()
     if (!db) return
     const a = store.attachment(id)
-    if (!a || a.mime !== PDF_MIME || store.has(id)) return
+    if (!a || a.mime !== PDF_MIME || store.settled(id)) return
     let result: PdfTextResult & { aborted?: boolean }
     if (a.size > this.deps.maxBytes) result = { status: 'too-large', text: '' }
     else {

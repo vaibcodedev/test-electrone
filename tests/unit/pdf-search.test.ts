@@ -231,7 +231,7 @@ describe('PDF text in global search', () => {
     expect(v.fileTextIndexer.backfill()).toBe(0) // processed files are not read again
   })
 
-  it('broken, scanned and non-PDF files attach fine, quietly, and are not retried', async () => {
+  it('broken, scanned and non-PDF files attach fine and quietly', async () => {
     const warn = vi.spyOn(log, 'warn')
     const info = vi.spyOn(log, 'info')
     const id = await board()
@@ -242,9 +242,45 @@ describe('PDF text in global search', () => {
     expect(status(broken)).toBe('failed')
     expect(status(scan)).toBe('empty')
     expect(status(txt)).toBeUndefined()
-    expect(v.fileTextIndexer.backfill()).toBe(0)
     expect(JSON.stringify([...warn.mock.calls, ...info.mock.calls])).not.toContain('secretword')
     expect(v.m.attachments.list({ type: 'board', id })).toHaveLength(3)
+  })
+
+  it('a failed read is tried again at later starts, three reads in all; a scan is not', async () => {
+    const id = await board()
+    const usual = v.extractPdf
+    let reads = 0
+    v.extractPdf = async () => {
+      reads++
+      return { status: 'failed', text: '', error: 'timeout' }
+    }
+    const a = await attach(id, 'slow.pdf', makePdf([['okapi']]))
+    await v.fileTextIndexer.idle()
+    expect(status(a)).toBe('failed')
+    for (const queued of [1, 1, 0]) {
+      expect(v.fileTextIndexer.backfill()).toBe(queued)
+      await v.fileTextIndexer.idle()
+    }
+    expect(reads).toBe(3)
+
+    v.extractPdf = usual
+    await attach(id, 'scan.pdf', makePdf([[]]))
+    await v.fileTextIndexer.idle()
+    expect(v.fileTextIndexer.backfill()).toBe(0)
+  })
+
+  it('a PDF that failed once is found after a successful retry', async () => {
+    const id = await board()
+    const usual = v.extractPdf
+    v.extractPdf = async () => ({ status: 'failed', text: '', error: 'timeout' })
+    const a = await attach(id, 'x.pdf', makePdf([['okapi']]))
+    await v.fileTextIndexer.idle()
+    v.extractPdf = usual
+    expect(v.fileTextIndexer.backfill()).toBe(1)
+    await v.fileTextIndexer.idle()
+    expect(status(a)).toBe('ok')
+    expect(found('okapi')).toEqual([id])
+    expect(v.fileTextIndexer.backfill()).toBe(0)
   })
 
   it('an extractor that throws never breaks attaching', async () => {
@@ -268,9 +304,10 @@ describe('updating a base from before PDF search', () => {
       const journal = JSON.parse(readFileSync(journalFile, 'utf8')) as {
         entries: { tag: string }[]
       }
-      journal.entries = journal.entries.filter((e) => e.tag !== '0009_pdf_search')
+      journal.entries = journal.entries.filter((e) => e.tag < '0009')
       writeFileSync(journalFile, JSON.stringify(journal))
       rmSync(join(oldMigrations, '0009_pdf_search.sql'))
+      rmSync(join(oldMigrations, '0010_pdf_retry.sql'))
 
       const file = join(dir, 'vault.db')
       const old = new DbContext(file, oldMigrations)
@@ -301,7 +338,7 @@ describe('updating a base from before PDF search', () => {
         // The record index is untouched (no rebuild at the first start after the update).
         expect(db.sqlite.prepare('SELECT count(*) AS c FROM search_index').get()).toEqual({ c: 1 })
         const store = new AttachmentTextStore(db)
-        expect(store.missing()).toEqual(['a1'])
+        expect(store.pending()).toEqual(['a1'])
         expect(store.ensureIndex()).toBe(false)
       } finally {
         db.close()
