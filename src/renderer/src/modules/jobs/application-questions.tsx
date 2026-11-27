@@ -64,7 +64,7 @@ export function AskedQuestions({
         action={
           // → is an in-app move.
           <Button variant="outline" size="xs" onClick={() => navigate('/jobs/questions')}>
-            Банк питань <ArrowRight />
+            Усі питання <ArrowRight />
           </Button>
         }
       >
@@ -106,7 +106,7 @@ export function AskedQuestions({
           htmlFor={fieldId}
           hint={
             <>
-              <Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> — додати в банк
+              <Kbd>Ctrl</Kbd>+<Kbd>Enter</Kbd> — додати питання
             </>
           }
         >
@@ -139,7 +139,7 @@ export function AskedQuestions({
           />
           <div className="flex-1" />
           <Button size="sm" variant="soft" disabled={!text.trim() || create.isPending} onClick={submit}>
-            <Plus /> У банк питань
+            <Plus /> Додати питання
           </Button>
         </div>
       </div>

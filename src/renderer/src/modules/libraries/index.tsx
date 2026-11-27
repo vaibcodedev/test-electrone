@@ -395,7 +395,7 @@ export function LibrariesPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="JS-бібліотеки"
+        title="Бібліотеки"
         subtitle="Що використовую, що хочу спробувати й як це встановити."
         actions={
           <>

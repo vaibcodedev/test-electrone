@@ -136,7 +136,6 @@ export const HUBS: NavHub[] = [
       { path: '/jobs/interviews', label: 'Співбесіди', icon: CalendarDays },
       { path: '/jobs/companies', label: 'Компанії', icon: Building2, countOf: 'company' },
       { path: '/jobs/resumes', label: 'Резюме', icon: FileText },
-      { path: '/jobs/questions', label: 'Питання й тренажер', icon: MessageCircleQuestion, countOf: 'question' },
       { path: '/jobs/boards', label: 'Майданчики', icon: Globe },
       { path: '/jobs/stats', label: 'Статистика', icon: ChartColumn },
       { path: '/freelance/templates?situation=cover_letter', label: 'Шаблони листів', icon: MessageSquareQuote }
@@ -164,26 +163,27 @@ export const HUBS: NavHub[] = [
   },
   {
     id: 'knowledge',
-    title: 'Знання',
+    title: 'База знань',
     icon: Library,
     overview: '/knowledge',
     items: [
       { path: '/notes', label: 'Нотатки', icon: NotebookPen, countOf: 'note' },
-      { path: '/claude', label: 'Claude', icon: Sparkles, countOf: 'claude' },
+      { path: '/claude', label: 'ШІ-база', icon: Sparkles, countOf: 'claude' },
       { path: '/snippets', label: 'Сніпети', icon: CodeXml, countOf: 'snippet' },
       { path: '/components', label: 'Компоненти', icon: Component, countOf: 'component' },
-      { path: '/libraries', label: 'JS-бібліотеки', icon: Package, countOf: 'library' },
-      { path: '/fixes', label: 'Помилки й рішення', icon: Bug, countOf: 'fix' }
+      { path: '/libraries', label: 'Бібліотеки', icon: Package, countOf: 'library' },
+      { path: '/fixes', label: 'Фікси', icon: Bug, countOf: 'fix' },
+      { path: '/designs', label: 'Галерея', icon: Image, countOf: 'design' },
+      { path: '/bookmarks', label: 'Закладки', icon: Bookmark, countOf: 'bookmark' }
     ]
   },
   {
     id: 'inspiration',
-    title: 'Натхнення й навчання',
+    title: 'Навчання',
     icon: GraduationCap,
     items: [
-      { path: '/designs', label: 'Галерея', icon: Image, countOf: 'design' },
-      { path: '/bookmarks', label: 'Закладки', icon: Bookmark, countOf: 'bookmark' },
-      { path: '/english', label: 'Англійська', icon: Languages, countOf: 'word' }
+      { path: '/english', label: 'Англійська', icon: Languages, countOf: 'word' },
+      { path: '/jobs/questions', label: 'Підготовка до співбесід', icon: MessageCircleQuestion, countOf: 'question' }
     ]
   }
 ]
@@ -238,12 +238,19 @@ export function isAt(path: string, pathname: string, search = ''): boolean {
 export function hubOf(pathname: string, search = ''): NavHubId | undefined {
   const byQuery = HUBS.find((h) => h.items.some((i) => i.path.includes('?') && isAt(i.path, pathname, search)))
   if (byQuery) return byQuery.id
-  if (pathname.startsWith('/jobs')) return 'jobs'
-  if (pathname.startsWith('/dev')) return 'dev'
-  if (pathname.startsWith('/freelance') || pathname.startsWith('/clients') || pathname.startsWith('/projects')) return 'freelance'
+  // The menu decides: the most specific item wins over a path prefix («/jobs/questions» is in «Навчання»).
+  let best: { id: NavHubId; length: number } | undefined
   for (const h of HUBS) {
-    if (h.overview && pathname === h.overview) return h.id
-    if (h.items.some((i) => pathname === i.path || pathname.startsWith(i.path + '/'))) return h.id
+    for (const i of h.items) {
+      if (!i.path.includes('?') && isAt(i.path, pathname) && i.path.length > (best?.length ?? 0))
+        best = { id: h.id, length: i.path.length }
+    }
   }
+  if (best) return best.id
+  const overview = HUBS.find((h) => h.overview === pathname)
+  if (overview) return overview.id
+  // Pages without a menu item of their own.
+  if (pathname.startsWith('/jobs')) return 'jobs'
+  if (pathname.startsWith('/freelance') || pathname.startsWith('/projects')) return 'freelance'
   return undefined
 }

@@ -447,7 +447,7 @@ describe('CaptureServer: the new targets over HTTP', () => {
     const note = await post({ target: 'note', url: 'https://x.dev/a', title: 'A', selection: 'B' })
     expect(note.json).toMatchObject({ type: 'note', section: 'Нотатки' })
     const fix = await post({ target: 'fix', url: 'https://x.dev/a', title: 'E', selection: 'boom' })
-    expect(fix.json).toMatchObject({ type: 'fix', section: 'Помилки й рішення' })
+    expect(fix.json).toMatchObject({ type: 'fix', section: 'Фікси' })
     expect(created.fixes).toHaveBeenLastCalledWith(expect.objectContaining({ resolved: false }))
   })
 

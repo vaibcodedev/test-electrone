@@ -1,4 +1,4 @@
-/** Knowledge hub overview: summary per section + what needs attention. */
+/** «База знань» hub overview: summary per section + what needs attention. */
 import type { ReactElement, ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowUpRight, Bug, Copy, Package, Plus } from 'lucide-react'
@@ -52,7 +52,7 @@ const SECTIONS: {
   },
   {
     type: 'claude',
-    label: 'Claude',
+    label: 'ШІ-база',
     path: '/claude',
     color: '#c98af0',
     hint: 'Промти й вдалі відповіді'
@@ -73,17 +73,31 @@ const SECTIONS: {
   },
   {
     type: 'library',
-    label: 'JS-бібліотеки',
+    label: 'Бібліотеки',
     path: '/libraries',
     color: '#f5a524',
     hint: 'Пакети з нотатками'
   },
   {
     type: 'fix',
-    label: 'Помилки й рішення',
+    label: 'Фікси',
     path: '/fixes',
     color: '#f06b6b',
     hint: 'Помилка → як вирішили'
+  },
+  {
+    type: 'design',
+    label: 'Галерея',
+    path: '/designs',
+    color: '#c98af0',
+    hint: 'Скриншоти й добірки'
+  },
+  {
+    type: 'bookmark',
+    label: 'Закладки',
+    path: '/bookmarks',
+    color: '#9a9f93',
+    hint: 'Статті, відео, курси'
   }
 ]
 
@@ -97,7 +111,7 @@ function SectionCards({
 }): ReactElement {
   const navigate = useNavigate()
   return (
-    <div className="stagger grid grid-cols-3 gap-3 xl:grid-cols-6">
+    <div className="stagger grid grid-cols-4 gap-3">
       {SECTIONS.map((s) => {
         const Icon = ENTITY_ICON[s.type]
         const count = counts?.[s.type] ?? 0
@@ -275,7 +289,7 @@ export function KnowledgeOverviewPage(): ReactElement {
   const allResolved = !!fixCounts.data && fixCounts.data.open === 0 && fixCounts.data.resolved > 0
 
   if (!dash.data && dash.isError)
-    return <LoadError title="Не вдалося завантажити «Знання»" onRetry={() => void dash.refetch()} />
+    return <LoadError title="Не вдалося завантажити «Базу знань»" onRetry={() => void dash.refetch()} />
 
   const newNote = (): void => {
     if (createNote.isPending) return
@@ -288,7 +302,7 @@ export function KnowledgeOverviewPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Знання"
+        title="База знань"
         subtitle={
           !counts
             ? undefined
@@ -320,7 +334,7 @@ export function KnowledgeOverviewPage(): ReactElement {
                 <NoRows query={recentQuery}>
                   <div className="flex flex-col items-start gap-3">
                     <CardEmptyText>
-                      Тут з’являться останні змінені записи з усіх розділів знань.
+                      Тут з’являться останні змінені записи з усіх розділів бази знань.
                     </CardEmptyText>
                     {counts && total === 0 && (
                       <Button

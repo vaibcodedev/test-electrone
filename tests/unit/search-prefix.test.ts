@@ -33,7 +33,7 @@ describe('search prefixes', () => {
   it('suggests filters by prefix and by section name', () => {
     expect(suggestPrefixes('сн')[0]).toBe('snippet')
     expect(suggestPrefixes('Сніп')).toEqual(['snippet'])
-    expect(suggestPrefixes('питань')).toEqual(['question'])
+    expect(suggestPrefixes('питання')).toEqual(['question'])
     expect(suggestPrefixes('пр')[0]).toBe('project')
     expect(suggestPrefixes('с')).toEqual([])
     expect(suggestPrefixes('zzz')).toEqual([])

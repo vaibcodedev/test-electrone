@@ -48,7 +48,7 @@ function ExtraPractice({ busy, onStart }: { busy: boolean; onStart: (limit: numb
 function BackToBank({ onClick }: { onClick: () => void }): ReactElement {
   return (
     <Button variant="soft" className="mt-3" onClick={onClick}>
-      <ArrowLeft /> До банку питань
+      <ArrowLeft /> До списку питань
     </Button>
   )
 }
@@ -150,7 +150,7 @@ function PracticeCard({
             {question.answer.trim() ? (
               <Markdown source={question.answer} className="rounded-2xl bg-card p-5" />
             ) : (
-              <p className="text-center text-body text-muted-foreground">Відповіді поки немає — допишіть її в банку питань.</p>
+              <p className="text-center text-body text-muted-foreground">Відповіді поки немає — допишіть її в списку питань.</p>
             )}
           </div>
         ) : (
@@ -278,7 +278,7 @@ function PracticeSessionView({ filter, onFilter }: { filter: Filter; onFilter: (
               icon={MessageCircleQuestion}
               title="Питань поки немає"
               hint="Додайте питання зі співбесіди й свою відповідь у банк — і тренуйтеся тут."
-              cta={{ label: 'До банку питань', icon: ArrowLeft, onClick: exit }}
+              cta={{ label: 'До списку питань', icon: ArrowLeft, onClick: exit }}
             />
           )
         ) : s.queue?.length === 0 ? (

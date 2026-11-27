@@ -74,8 +74,8 @@ const KIND_LABEL: Record<ClaudeKind, string> = {
 
 /** What each kind is for — shown under the type picker so the choice is obvious. */
 const KIND_HINT: Record<ClaudeKind, string> = {
-  note: 'Думка чи спостереження про роботу з Claude.',
-  branch: 'Гілка роботи: завдання, git-гілка чи сесія Claude — де зупинилися й що далі.',
+  note: 'Думка чи спостереження про роботу з ШІ.',
+  branch: 'Гілка роботи: завдання, git-гілка чи сесія з ШІ — де зупинилися й що далі.',
   skill: 'Скіл Claude Code: що вміє, коли викликати, як встановити.',
   plugin: 'Плагін або MCP-сервер: навіщо потрібен і як підключити.',
   guide: 'Покрокова інструкція, яку варто повторити.',
@@ -251,7 +251,7 @@ export function ClaudePage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Claude"
+        title="ШІ-база"
         subtitle="Нотатки, гілки, скіли, плагіни, гайди та промти, що спрацювали."
         actions={
           // Split button: the main part creates the filtered kind (N presses it: it comes first), the arrow any kind.
@@ -294,7 +294,7 @@ export function ClaudePage(): ReactElement {
             <>
               <FavoriteFilter type="claude" value={favorite} onChange={setFavorite} />
               <TagFilter value={tagId} onChange={setTagId} />
-              <SearchInput value={search} onChange={setSearch} placeholder="Шукати в Claude" />
+              <SearchInput value={search} onChange={setSearch} placeholder="Шукати в ШІ-базі" />
             </>
           }
         />
@@ -325,8 +325,8 @@ export function ClaudePage(): ReactElement {
                 ) : (
                   <EmptyState
                     icon={Sparkles}
-                    title="Записів про Claude поки немає"
-                    hint="Зберігайте промти, що спрацювали, і нотатки про роботу з Claude."
+                    title="У ШІ-базі поки порожньо"
+                    hint="Зберігайте промти, що спрацювали, і нотатки про роботу з ШІ."
                     cta={{ label: 'Створити запис', icon: Plus, onClick: () => void createNew() }}
                   />
                 ))

@@ -114,7 +114,7 @@ test.describe('меню: сховати розділи', () => {
       .toEqual(['finance', 'freelance', 'jobs'])
   })
 
-  test('сховані «Знання»: у швидкому додаванні немає «Сніпет»', async ({ vault }) => {
+  test('сховані «База знань»: у швидкому додаванні немає «Сніпет»', async ({ vault }) => {
     const { win, rpc, go } = vault
     await rpc('settings.update', { hiddenNavHubs: ['knowledge'] })
     await go('/')

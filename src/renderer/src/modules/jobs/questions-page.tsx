@@ -317,7 +317,7 @@ export function QuestionsPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Питання до співбесіди"
+        title="Підготовка до співбесід"
         subtitle="Записуйте питання з реальних співбесід і свої найкращі відповіді — тренажер нагадає повторити."
         actions={
           <>

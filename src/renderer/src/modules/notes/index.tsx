@@ -153,7 +153,7 @@ export function NotesPage(): ReactElement {
     <Page>
       <PageHeader
         title="Нотатки"
-        subtitle="Усе, що не про Claude: домовленості, процеси, чернетки думок."
+        subtitle="Усе, що не про ШІ: домовленості, процеси, чернетки думок."
         actions={
           <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>
             <Plus /> Нотатка

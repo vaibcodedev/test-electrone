@@ -111,7 +111,7 @@ test.describe('бічна панель: згортання', () => {
   test('Ctrl+B при відкритому меню групи', async ({ vault }) => {
     const { win } = vault
     await fold(win).click()
-    await column(win).getByRole('button', { name: 'Знання' }).click()
+    await column(win).getByRole('button', { name: 'База знань' }).click()
     await expect(win.getByRole('menu')).toBeVisible()
     await win.keyboard.press('Control+b')
     await expect(column(win)).toHaveAttribute('data-state', 'expanded')
@@ -172,7 +172,7 @@ test.describe('бічна панель: згортання', () => {
     try {
       await resize(960, 640)
       await fold(win).click()
-      const last = column(win).getByRole('button', { name: 'Натхнення й навчання' })
+      const last = column(win).getByRole('button', { name: 'Навчання' })
       await last.focus()
       await expect(last).toBeInViewport()
     } finally {

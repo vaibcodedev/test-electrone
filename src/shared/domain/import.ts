@@ -151,7 +151,7 @@ export const IMPORT_DEFS: Record<ImportKind, ImportKindDef> = {
     preview: titles<{ title: string }>((b) => b.title)
   },
   library: {
-    label: 'JS-бібліотеки',
+    label: 'Бібліотеки',
     forms: ['бібліотека', 'бібліотеки', 'бібліотек'],
     hint: 'Бібліотеки з призначенням, командою встановлення й посиланнями.',
     schema: arrayPayload(

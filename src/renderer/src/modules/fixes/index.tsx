@@ -212,7 +212,7 @@ export function FixesPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Помилки й рішення"
+        title="Фікси"
         subtitle="Що зламалося і як це виправити — щоб удруге не шукати."
         actions={
           <Button variant="lime" onClick={() => void createNew()} disabled={create.isPending}>

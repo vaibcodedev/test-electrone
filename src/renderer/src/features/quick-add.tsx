@@ -31,7 +31,7 @@ const QUICK_LIMITS = limitsOf(quickAddSchema)
 const TARGET_LABEL: Record<QuickAddTarget, string> = {
   idea: 'Ідея',
   card: 'Завдання',
-  claude: 'Claude',
+  claude: 'ШІ-база',
   snippet: 'Сніпет',
   bookmark: 'Закладка',
   word: 'Слово',
@@ -47,7 +47,7 @@ const TYPE_CHIP = 'on:bg-foreground/12 on:text-foreground on:font-medium on:focu
 const PLACEHOLDER: Record<QuickAddTarget, string> = {
   idea: 'Що спало на думку?',
   card: 'Завдання в першу колонку дошки',
-  claude: 'Промт або нотатка для Claude',
+  claude: 'Промт або нотатка про ШІ',
   snippet: 'Назва сніпета, код — з другого рядка',
   bookmark: 'Посилання або назва статті',
   word: 'deploy — розгорнути',
@@ -96,10 +96,10 @@ export function QuickAddForm({
         onSuccess: (created) => {
           const route = ENTITY_META[created.type].route(created.id)
           const title = shortTitle(created.title)
-          // Same word as the chip it went with («Завдання», not «Картка»); «Claude» is a place, not a record.
+          // Same word as the chip it went with («Завдання», not «Картка»); «ШІ-база» is a place, not a record.
           toast.success(
             target === 'claude'
-              ? `Додано в Claude: ${title}`
+              ? `Додано в ШІ-базу: ${title}`
               : `Додано: ${TARGET_LABEL[target]} — ${title}`,
             onOpen ? { action: { label: 'Відкрити', onClick: () => onOpen(route) } } : undefined
           )

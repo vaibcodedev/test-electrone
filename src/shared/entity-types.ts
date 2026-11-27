@@ -43,8 +43,8 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   idea: { label: 'Ідея', plural: 'Ідеї', route: (id) => `/ideas?open=${id}` },
   board: { label: 'Дошка', plural: 'Дошки', route: (id) => `/boards/${id}` },
   card: { label: 'Картка', plural: 'Картки', route: (id) => `/cards/${id}` },
-  claude: { label: 'Claude', plural: 'Claude', route: (id) => `/claude?open=${id}` },
-  library: { label: 'Бібліотека', plural: 'JS-бібліотеки', route: (id) => `/libraries?open=${id}` },
+  claude: { label: 'ШІ-база', plural: 'ШІ-база', route: (id) => `/claude?open=${id}` },
+  library: { label: 'Бібліотека', plural: 'Бібліотеки', route: (id) => `/libraries?open=${id}` },
   component: { label: 'Компонент', plural: 'Компоненти', route: (id) => `/components/${id}` },
   design: { label: 'Дизайн', plural: 'Галерея', route: (id) => `/designs?open=${id}` },
   moodboard: { label: 'Добірка', plural: 'Добірки', route: (id) => `/designs/boards/${id}` },
@@ -52,7 +52,7 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   client: { label: 'Клієнт', plural: 'Клієнти', route: (id) => `/clients/${id}` },
   project: { label: 'Проєкт', plural: 'Проєкти', route: (id) => `/projects/${id}` },
   checklist: { label: 'Чек-лист', plural: 'Чек-листи', route: (id) => `/checklists/${id}` },
-  fix: { label: 'Помилка', plural: 'Помилки й рішення', route: (id) => `/fixes?open=${id}` },
+  fix: { label: 'Помилка', plural: 'Фікси', route: (id) => `/fixes?open=${id}` },
   bookmark: { label: 'Закладка', plural: 'Закладки', route: (id) => `/bookmarks?open=${id}` },
   word: { label: 'Слово', plural: 'Англійська', route: (id) => `/english?open=${id}` },
   event: { label: 'Подія', plural: 'Календар', route: (id) => `/calendar?open=${id}` },
@@ -63,7 +63,7 @@ export const ENTITY_META: Record<EntityType, EntityTypeMeta> = {
   redflag: { label: 'Червоний прапорець', plural: 'Червоні прапорці', route: (id) => `/freelance/flags?open=${id}` },
   application: { label: 'Вакансія', plural: 'Вакансії', route: (id) => `/jobs/applications?open=${id}` },
   company: { label: 'Компанія', plural: 'Компанії', route: (id) => `/jobs/companies?open=${id}` },
-  question: { label: 'Питання', plural: 'Банк питань', route: (id) => `/jobs/questions?open=${id}` }
+  question: { label: 'Питання', plural: 'Питання до співбесід', route: (id) => `/jobs/questions?open=${id}` }
 }
 
 /**

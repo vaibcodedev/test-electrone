@@ -72,7 +72,7 @@ export function JobsOverviewPage(): ReactElement {
             <Counter
               label="Питань до повторення"
               value={data.questionsDue}
-              hint={data.questionsDue ? 'Почати тренування' : 'Банк питань'}
+              hint={data.questionsDue ? 'Почати тренування' : 'Усі питання'}
               onClick={() => navigate(data.questionsDue ? '/jobs/questions/practice' : '/jobs/questions')}
             />
           </div>

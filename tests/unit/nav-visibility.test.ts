@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { NAV_HUB_IDS, hidesEveryHub } from '@shared/domain/system'
 import type { WeekSnapshot } from '@shared/domain/review'
-import { HUBS, navOrder } from '@/app/navigation'
+import { HUBS, hubOf, navOrder } from '@/app/navigation'
 import {
   SHOW_ALL,
   canHideHub,
@@ -56,6 +56,18 @@ describe('visibleHubs', () => {
   })
 })
 
+describe('hubOf', () => {
+  it('the menu wins over a path prefix', () => {
+    expect(hubOf('/jobs/questions')).toBe('inspiration')
+    expect(hubOf('/jobs/questions/practice')).toBe('inspiration')
+    expect(hubOf('/jobs/applications')).toBe('jobs')
+    expect(hubOf('/designs/boards/x')).toBe('knowledge')
+    expect(hubOf('/bookmarks')).toBe('knowledge')
+    expect(hubOf('/dev/github')).toBe('dev')
+    expect(hubOf('/projects/x')).toBe('freelance')
+  })
+})
+
 describe('navOrder (palette and Alt+1…9)', () => {
   it('follows the menu the user sees', () => {
     const order = navOrder(visibleHubs(ONLY_WORK_DEV_INSPIRATION)).map((i) => i.path)
@@ -68,9 +80,8 @@ describe('navOrder (palette and Alt+1…9)', () => {
       '/checklists',
       '/dev',
       '/dev/github',
-      '/designs',
-      '/bookmarks',
       '/english',
+      '/jobs/questions',
       '/guide'
     ])
     expect(order[3 - 1]).toBe('/ideas')
