@@ -113,7 +113,8 @@ export const HUBS: NavHub[] = [
     icon: SquareKanban,
     items: [
       { path: '/boards', label: 'Дошки', icon: SquareKanban, countOf: 'board' },
-      { path: '/checklists', label: 'Чек-листи', icon: ListChecks, countOf: 'checklist' }
+      { path: '/checklists', label: 'Чек-листи', icon: ListChecks, countOf: 'checklist' },
+      { path: '/freelance/templates', label: 'Шаблони', icon: MessageSquareQuote, countOf: 'template' }
     ]
   },
   {
@@ -124,7 +125,6 @@ export const HUBS: NavHub[] = [
     platforms: true,
     items: [
       { path: '/clients', label: 'Клієнти й проєкти', icon: Users, countOf: 'client' },
-      { path: '/freelance/templates', label: 'Шаблони', icon: MessageSquareQuote, countOf: 'template' },
       { path: '/freelance/portfolio', label: 'Портфоліо', icon: BriefcaseBusiness, countOf: 'case' },
       { path: '/freelance/flags', label: 'Червоні прапорці', icon: Flag, countOf: 'redflag' },
       { path: '/freelance/goals', label: 'Цілі', icon: Target },
@@ -142,8 +142,7 @@ export const HUBS: NavHub[] = [
       { path: '/jobs/companies', label: 'Компанії', icon: Building2, countOf: 'company' },
       { path: '/jobs/resumes', label: 'Резюме', icon: FileText },
       { path: '/jobs/boards', label: 'Сайти вакансій', icon: Globe },
-      { path: '/jobs/stats', label: 'Статистика', icon: ChartColumn },
-      { path: '/freelance/templates?situation=cover_letter', label: 'Шаблони листів', icon: MessageSquareQuote }
+      { path: '/jobs/stats', label: 'Статистика', icon: ChartColumn }
     ]
   },
   {
@@ -154,7 +153,7 @@ export const HUBS: NavHub[] = [
     items: [
       { path: '/finance/income', label: 'Доходи', icon: TrendingUp },
       { path: '/finance/expenses', label: 'Підписки й витрати', icon: Receipt },
-      { path: '/finance/withdrawals', label: 'Виведення', icon: ArrowDownToLine }
+      { path: '/finance/withdrawals', label: 'Виплати з платформ', icon: ArrowDownToLine }
     ]
   },
   {
@@ -189,7 +188,7 @@ export const HUBS: NavHub[] = [
     icon: GraduationCap,
     items: [
       { path: '/english', label: 'Англійська', icon: Languages, countOf: 'word' },
-      { path: '/jobs/questions', label: 'Підготовка до співбесід', icon: MessageCircleQuestion, countOf: 'question' }
+      { path: '/jobs/questions', label: 'До співбесід', icon: MessageCircleQuestion, countOf: 'question' }
     ]
   }
 ]
@@ -228,27 +227,18 @@ export const QUICK_ADD_PLACE: Record<QuickAddTarget, string> = {
   event: '/calendar'
 }
 
-/**
- * Is the location at this nav path? A path with a query («/freelance/templates?situation=cover_letter»)
- * matches only when those params are in `search`; a plain path also matches its sub-pages.
- */
-export function isAt(path: string, pathname: string, search = ''): boolean {
-  const [base, query] = path.split('?')
-  if (!query) return pathname === base || pathname.startsWith(base + '/')
-  if (pathname !== base) return false
-  const have = new URLSearchParams(search)
-  return [...new URLSearchParams(query)].every(([k, v]) => have.get(k) === v)
+/** Is the location at this nav path? A path also matches its sub-pages. */
+export function isAt(path: string, pathname: string): boolean {
+  return pathname === path || pathname.startsWith(path + '/')
 }
 
-/** Hub that owns a location (for auto-expanding the sidebar). Items with a query win over plain paths. */
-export function hubOf(pathname: string, search = ''): NavHubId | undefined {
-  const byQuery = HUBS.find((h) => h.items.some((i) => i.path.includes('?') && isAt(i.path, pathname, search)))
-  if (byQuery) return byQuery.id
+/** Hub that owns a location (for auto-expanding the sidebar). */
+export function hubOf(pathname: string): NavHubId | undefined {
   // The menu decides: the most specific item wins over a path prefix («/jobs/questions» is in «Навчання»).
   let best: { id: NavHubId; length: number } | undefined
   for (const h of HUBS) {
     for (const i of h.items) {
-      if (!i.path.includes('?') && isAt(i.path, pathname) && i.path.length > (best?.length ?? 0))
+      if (isAt(i.path, pathname) && i.path.length > (best?.length ?? 0))
         best = { id: h.id, length: i.path.length }
     }
   }

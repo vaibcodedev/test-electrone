@@ -553,7 +553,7 @@ export class FinanceModule {
       updateWithdrawal: async (args) => {
         const { id, patch } = updateArgs(withdrawalPatchSchema).parse(args)
         const cur = this.db.select().from(withdrawals).where(eq(withdrawals.id, id)).get()
-        if (!cur) throw new NotFoundError('Виведення', id)
+        if (!cur) throw new NotFoundError('Виплата', id)
         const next = { ...cur, ...patch }
         // null = the field was cleared → auto; undefined = untouched → recompute only when inputs changed.
         const recompute =

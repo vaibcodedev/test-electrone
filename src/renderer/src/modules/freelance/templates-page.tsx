@@ -263,7 +263,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
 
 export function TemplatesPage() {
   const [open, setOpen] = useOpenParam()
-  // In the URL: the sidebar and the job pages link to «?situation=cover_letter» and the like.
+  // In the URL: other pages link to «?situation=follow_up» and the like.
   const [params, setParams] = useSearchParams()
   const raw = params.get('situation')
   const situation = TEMPLATE_SITUATIONS.includes(raw as TemplateSituation)
@@ -310,7 +310,7 @@ export function TemplatesPage() {
       {copying && <CopyTemplateDialog template={copying} open={copyOpen} onOpenChange={setCopyOpen} />}
       <PageHeader
         title="Шаблони"
-        subtitle="Готові відповіді для відгуків і листування з клієнтами."
+        subtitle="Готові тексти для замовлень і вакансій: відгуки, листи, відповіді."
         actions={
           <>
             <ImportButton kind="template" onImported={(id) => id && setOpen(id)} />

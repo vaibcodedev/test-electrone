@@ -89,25 +89,22 @@ export const ROUTE_OWNERS: [prefix: string, place: NavPlace][] = [
 ]
 
 /**
- * Owner of a route («/freelance/templates?open=x», ENTITY_META routes carry a query): pathname and search
- * are split at the first «?», then hubOf() and the most specific item of that hub. undefined — not a module
- * page (/settings, /tags, /).
+ * Owner of a route («/freelance/templates?open=x», ENTITY_META routes carry a query, which is dropped): hubOf()
+ * and the most specific item of that hub. undefined — not a module page (/settings, /tags, /).
  */
 export function placeOf(route: string): NavPlace | undefined {
   const noHash = route.split('#')[0]
-  const q = noHash.indexOf('?')
-  const pathname = q < 0 ? noHash : noHash.slice(0, q)
-  const search = q < 0 ? '' : noHash.slice(q + 1)
+  const [pathname] = noHash.split('?')
   const owner = ROUTE_OWNERS.find(([prefix]) => pathname.startsWith(prefix))
   if (owner) return owner[1]
   const top = TOP_ITEMS.find((i) => isAt(i.path, pathname))
   if (top) return { item: top.path }
-  const hubId = hubOf(pathname, search)
+  const hubId = hubOf(pathname)
   const hub = HUBS.find((h) => h.id === hubId)
   if (!hub) return undefined
   const best = hub.items
     .map((i) => i.path)
-    .filter((p) => isAt(p, pathname, search))
+    .filter((p) => isAt(p, pathname))
     .sort((a, b) => b.length - a.length)[0]
   return best ? { item: best } : { hub: hub.id }
 }

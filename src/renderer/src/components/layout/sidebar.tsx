@@ -43,13 +43,13 @@ const FOOTER = [
  * away (usePresenceList), so the eye follows what moved.
  */
 export function AppSidebar(): ReactElement {
-  const { pathname, search } = useLocation()
+  const { pathname } = useLocation()
   const { state } = useSidebar()
   const collapsed = state === 'collapsed'
   const trashBump = useUi((s) => s.trashBump)
   const setHubOpen = useUi((s) => s.setHubOpen)
   const { hubs, topItems } = useNavVisibility()
-  const current = hubOf(pathname, search)
+  const current = hubOf(pathname)
   const hubEntries = usePresenceList(hubs, hubKey)
   const top = usePresenceList(topItems, topKey)
 
@@ -99,14 +99,13 @@ export function AppSidebar(): ReactElement {
               {hubEntries.map(({ item: hub, ...entry }) =>
                 collapsed ? (
                   entry.leaving ? null : (
-                    <HubFlyout key={hub.id} hub={hub} pathname={pathname} search={search} />
+                    <HubFlyout key={hub.id} hub={hub} pathname={pathname} />
                   )
                 ) : (
                   <HubGroup
                     key={hub.id}
                     hub={hub}
                     pathname={pathname}
-                    search={search}
                     presence={presenceProps({ ...entry, item: hub })}
                   />
                 )

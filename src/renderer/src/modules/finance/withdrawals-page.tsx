@@ -41,7 +41,7 @@ export function WithdrawalsPage(): ReactElement {
   const { data: rows } = query
   const { data: platformList = [] } = useApi('platforms', 'list', { includeArchived: true })
   const remove = useApiMutation('finance', 'removeWithdrawal', {
-    successMessage: 'Виведення видалено'
+    successMessage: 'Виплату видалено'
   })
   const dialog = useEditDialog<Withdrawal>()
   const platformName = new Map(platformList.map((p) => [p.id, p.name]))
@@ -57,13 +57,13 @@ export function WithdrawalsPage(): ReactElement {
   return (
     <Page>
       <PageHeader
-        title="Виведення"
+        title="Виплати з платформ"
         subtitle="Гроші, виведені з платформ, і скільки надійшло на картку."
         actions={
           <>
             <MonthSwitcher month={month} onChange={setMonth} />
             <Button variant="lime" onClick={() => dialog.openWith(null)}>
-              <Plus /> Додати виведення
+              <Plus /> Додати виплату
             </Button>
           </>
         }
@@ -73,15 +73,15 @@ export function WithdrawalsPage(): ReactElement {
       {/* Tabs of the finance hub share the shell key (handle.hub), so only the body fades in on a tab switch. */}
       <PageBody className="animate-page">
         {query.failed ? (
-          <LoadError title="Не вдалося завантажити виведення" onRetry={query.retry} />
+          <LoadError title="Не вдалося завантажити виплати" onRetry={query.retry} />
         ) : !rows ? (
           <Skeleton className="h-64 rounded-3xl" />
         ) : rows.length === 0 ? (
           <EmptyState
             icon={ArrowDownToLine}
-            title={noneInMonth(month, 'виведень')}
-            hint="Запишіть виведення, щоб бачити, скільки грошей ще лежить на платформі й скільки з’їли комісії та курс."
-            cta={{ label: 'Додати виведення', icon: Plus, onClick: () => dialog.openWith(null) }}
+            title={noneInMonth(month, 'виплат')}
+            hint="Запишіть виплату, щоб бачити, скільки грошей ще лежить на платформі й скільки з’їли комісії та курс."
+            cta={{ label: 'Додати виплату', icon: Plus, onClick: () => dialog.openWith(null) }}
           />
         ) : (
           <div className="flex flex-col gap-3">
@@ -91,10 +91,10 @@ export function WithdrawalsPage(): ReactElement {
                 <MoneyStatTile
                   label="Виведено"
                   value={totals.amount}
-                  empty={noneInTile(month, 'виведень')}
+                  empty={noneInTile(month, 'виплат')}
                 />
                 <MoneyStatTile
-                  label="Комісії за виведення"
+                  label="Комісії за виплати"
                   value={totals.fee}
                   empty="без комісій"
                 />
@@ -132,12 +132,12 @@ export function WithdrawalsPage(): ReactElement {
                         asChild
                         key={w.id}
                         def={financeRowMenu}
-                        record={{ title: 'Виведення' }}
+                        record={{ title: 'Виплата' }}
                         ctx={{
                           onEdit: () => dialog.openWith(w),
                           onRemove: () => remove.mutate(w.id),
                           removeConfirm: {
-                            title: 'Видалити виведення?',
+                            title: 'Видалити виплату?',
                             description: 'Запис буде видалено без можливості відновлення.',
                             confirmLabel: 'Видалити'
                           }
@@ -197,12 +197,12 @@ export function WithdrawalsPage(): ReactElement {
                                 <Pencil />
                               </IconAction>
                               <Confirm
-                                title="Видалити виведення?"
+                                title="Видалити виплату?"
                                 description="Запис буде видалено без можливості відновлення."
                                 onConfirm={() => remove.mutate(w.id)}
                               >
                                 <IconAction
-                                  label="Видалити виведення"
+                                  label="Видалити виплату"
                                   className="text-muted-foreground hover:text-destructive"
                                 >
                                   <Trash2 />

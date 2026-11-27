@@ -58,20 +58,20 @@ export const APP_SECTIONS: readonly AppSection[] = [
     ['checklist'],
     'create_checklist'
   ),
+  s(
+    '/freelance/templates',
+    'Шаблони',
+    'Інструменти',
+    'шаблони для замовлень і вакансій з {змінними}',
+    ['template'],
+    'create_template'
+  ),
   // Фриланс
   s('/freelance', 'Фриланс', 'Фриланс', 'платформи, відгуки, конекти', ['proposal']),
   s('/clients', 'Клієнти й проєкти', 'Фриланс', 'клієнти, проєкти, доступи, час, оплати', [
     'client',
     'project'
   ]),
-  s(
-    '/freelance/templates',
-    'Шаблони',
-    'Фриланс',
-    'шаблони відгуків і листів з {змінними}',
-    ['template'],
-    'create_template'
-  ),
   s(
     '/freelance/portfolio',
     'Портфоліо',
@@ -98,19 +98,11 @@ export const APP_SECTIONS: readonly AppSection[] = [
   s('/jobs/resumes', 'Резюме', 'Пошук роботи', 'версії резюме'),
   s('/jobs/boards', 'Сайти вакансій', 'Пошук роботи', 'де шукати вакансії щодня'),
   s('/jobs/stats', 'Статистика', 'Пошук роботи', 'конверсія відгуків'),
-  s(
-    '/freelance/templates?situation=cover_letter',
-    'Шаблони листів',
-    'Пошук роботи',
-    'шаблони супровідних листів',
-    ['template'],
-    'create_template'
-  ),
   // Фінанси
   s('/finance', 'Фінанси', 'Фінанси', 'доходи й витрати за місяць'),
   s('/finance/income', 'Доходи', 'Фінанси', 'надходження'),
   s('/finance/expenses', 'Підписки й витрати', 'Фінанси', 'підписки й витрати'),
-  s('/finance/withdrawals', 'Виведення', 'Фінанси', 'виведення з платформ'),
+  s('/finance/withdrawals', 'Виплати з платформ', 'Фінанси', 'перекази з платформ на картку'),
   // Розробка
   s(
     '/ideas',
@@ -157,7 +149,7 @@ export const APP_SECTIONS: readonly AppSection[] = [
   ),
   s(
     '/jobs/questions',
-    'Підготовка до співбесід',
+    'До співбесід',
     'Навчання',
     'питання зі співбесід, відповіді, тренажер',
     ['question'],
@@ -177,7 +169,7 @@ export const APP_HELP = [
   'Сховати розділ: правий клік по пункту меню → «Сховати…» або Налаштування → Меню.',
   'Бекап: Налаштування → Бекап (автоматичний щодня й «Зробити зараз»); експорт у Markdown/JSON: Налаштування → Експорт; де лежать дані: Налаштування → Дані.',
   'Видалене лежить у Кошику 30 днів. Мітки — у записі в режимі «Редагувати», керування — сторінка «Мітки».',
-  'Імпорт з JSON — кнопка в розділах Чек-листи, Англійська, Сніпети, Шаблони, Ідеї, Закладки, Бібліотеки, Підготовка до співбесід.',
+  'Імпорт з JSON — кнопка в розділах Чек-листи, Англійська, Сніпети, Шаблони, Ідеї, Закладки, Бібліотеки, До співбесід.',
   'ШІ: Налаштування → Штучний інтелект; тестовий режим з окремими даними: Налаштування → Тестовий режим.'
 ].join('\n')
 
@@ -187,20 +179,14 @@ export function sectionPath(sec: AppSection): string {
 }
 
 /**
- * The section of a location (pathname + search): an entry with a query wins when its params are there, then the
- * longest matching path (a record page belongs to its section: /boards/<id> → Дошки).
+ * The section of a location (a query is ignored): the longest matching path (a record page belongs to its
+ * section: /boards/<id> → Дошки).
  */
 export function sectionAt(location: string): AppSection | null {
-  const [pathname, search = ''] = location.split('?')
-  const have = new URLSearchParams(search)
+  const [pathname] = location.split('?')
   let best: AppSection | null = null
   for (const sec of APP_SECTIONS) {
-    const [base, query] = sec.path.split('?')
-    if (query) {
-      const all = [...new URLSearchParams(query)].every(([k, v]) => have.get(k) === v)
-      if (pathname === base && all) return sec
-      continue
-    }
+    const base = sec.path
     const hit =
       base === '/' ? pathname === '/' : pathname === base || pathname.startsWith(`${base}/`)
     if (hit && (!best || base.length > best.path.length)) best = sec

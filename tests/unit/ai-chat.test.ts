@@ -590,7 +590,7 @@ describe('the chat knows the app', () => {
     expect(appMapPrompt().length).toBeLessThan(2400)
     expect(sectionAt('/checklists')?.action).toBe('create_checklist')
     expect(sectionAt('/checklists/abc')?.label).toBe('Чек-листи')
-    expect(sectionAt('/freelance/templates?situation=cover_letter')?.label).toBe('Шаблони листів')
+    expect(sectionAt('/freelance/templates?situation=cover_letter')?.label).toBe('Шаблони')
     expect(sectionAt('/freelance/templates')?.label).toBe('Шаблони')
     expect(sectionAt('/notes?open=n1')?.label).toBe('Нотатки')
     expect(sectionAt('/projects/p1')?.label).toBe('Клієнти й проєкти')

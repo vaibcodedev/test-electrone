@@ -282,7 +282,7 @@ export function calculateRate(i: RateCalcInput): RateCalcResult {
       { label: 'На руки', amount: r(i.targetNet) },
       { label: 'Витрати', amount: r(i.monthlyExpenses) },
       { label: 'Податки', amount: r(beforeTax - neededOnHand) },
-      { label: 'Виведення', amount: r(beforeWithdraw - beforeTax) },
+      { label: 'Виплата', amount: r(beforeWithdraw - beforeTax) },
       { label: 'Комісія платформи', amount: r(grossNeeded - beforeWithdraw) }
     ]
   }

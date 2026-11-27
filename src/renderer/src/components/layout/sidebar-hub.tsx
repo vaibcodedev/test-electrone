@@ -42,7 +42,6 @@ interface HubProps {
   /** The hub with its shown items only (useNavVisibility). */
   hub: NavHub
   pathname: string
-  search: string
 }
 
 const itemKey = (item: NavHub['items'][number]): string => item.path
@@ -70,15 +69,14 @@ function HubIcon({
 }
 
 /** Expanded sidebar: one collapsible hub (shadcn Collapsible + SidebarMenuSub). */
-export function HubGroup({ hub, pathname, search, presence }: HubGroupProps): ReactElement {
+export function HubGroup({ hub, pathname, presence }: HubGroupProps): ReactElement {
   const navigate = useNavigate()
   const open = useUi((s) => s.openHubs[hub.id] ?? false)
   const setHubOpen = useUi((s) => s.setHubOpen)
   const setPlatformDialog = useUi((s) => s.setPlatformDialogOpen)
   const { activeHub, atOverview, isActive, current, platforms, archivedCount } = useHubNav(
     hub,
-    pathname,
-    search
+    pathname
   )
   // Sections switched off in «Меню» fold away instead of vanishing.
   const items = usePresenceList(hub.items, itemKey)
@@ -218,12 +216,11 @@ export function HubGroup({ hub, pathname, search, presence }: HubGroupProps): Re
  * (shadcn sidebar-07). Radix lets the tooltip's slot props override the menu trigger's `data-state`, so
  * «menu open» is styled and tested by `aria-expanded`, never by `data-state` of this button.
  */
-export function HubFlyout({ hub, pathname, search }: HubProps): ReactElement {
+export function HubFlyout({ hub, pathname }: HubProps): ReactElement {
   const setPlatformDialog = useUi((s) => s.setPlatformDialogOpen)
   const { activeHub, atOverview, current, platforms, archivedCount } = useHubNav(
     hub,
-    pathname,
-    search
+    pathname
   )
   const [menu, setMenu] = useState(false)
   const [tip, setTip] = useState(false)

@@ -85,10 +85,10 @@ export function WithdrawalDialog({
   const [at, setAt] = useState<number | null>(w?.at ?? defaultAt)
   const [note, setNote] = useState(w?.note ?? '')
   const create = useApiMutation('finance', 'createWithdrawal', {
-    successMessage: 'Виведення додано'
+    successMessage: 'Виплату додано'
   })
   const update = useApiMutation('finance', 'updateWithdrawal', {
-    successMessage: 'Виведення збережено'
+    successMessage: 'Виплату збережено'
   })
 
   const sameCurrency = currency === receivedCurrency
@@ -118,9 +118,9 @@ export function WithdrawalDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={w ? 'Виведення' : 'Нове виведення'}
+      title={w ? 'Виплата' : 'Нова виплата'}
       description="Скільки виведено з платформи, скільки пішло на комісію і скільки реально надійшло."
-      submitLabel={w ? 'Зберегти' : 'Додати виведення'}
+      submitLabel={w ? 'Зберегти' : 'Додати виплату'}
       invalid={!(payload.amount > 0) || rateBad || feeBad || fields.invalid}
       pending={create.isPending || update.isPending}
       values={w ? payload : undefined}
@@ -171,18 +171,18 @@ export function WithdrawalDialog({
         />
         <NumberField
           id={`${id}-fee`}
-          label="Комісія за виведення"
+          label="Комісія за виплату"
           live
           {...WD_R.fee}
           value={fee}
           onCommit={setFee}
           onValidityChange={fields.report('fee')}
-          error={feeBad ? 'Комісія більша за суму виведення' : undefined}
+          error={feeBad ? 'Комісія більша за суму виплати' : undefined}
         />
         <Field label="Валюта" htmlFor={`${id}-currency`}>
           <CurrencySelect
             id={`${id}-currency`}
-            aria-label="Валюта виведення"
+            aria-label="Валюта виплати"
             value={currency}
             onChange={setCurrencyPick}
           />
@@ -211,7 +211,7 @@ export function WithdrawalDialog({
               hasAmount && rate === 1
                 ? `Курс 1:1 для ${currency} → ${receivedCurrency} — перевірте`
                 : ratePick === undefined && lastRate !== undefined
-                  ? 'Як у минулому виведенні'
+                  ? 'Як у минулій виплаті'
                   : undefined
             }
           />

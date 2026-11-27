@@ -162,7 +162,7 @@ const FINANCE_LINKS = [
   { to: '/finance', label: 'Огляд' },
   { to: '/finance/income', label: 'Доходи' },
   { to: '/finance/expenses', label: 'Підписки й витрати' },
-  { to: '/finance/withdrawals', label: 'Виведення' }
+  { to: '/finance/withdrawals', label: 'Виплати з платформ' }
 ]
 
 /**

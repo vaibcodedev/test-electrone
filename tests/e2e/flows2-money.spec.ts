@@ -85,7 +85,7 @@ test.describe('фінанси: підписка → оплата', () => {
 })
 
 test.describe('фінанси: виведення', () => {
-  test('«Додати виведення» з платформи: комісія й курс → «Надійде ≈» → рядок і менший баланс', async ({
+  test('«Додати виплату» з платформи: комісія й курс → «Надійде ≈» → рядок і менший баланс', async ({
     vault
   }) => {
     test.setTimeout(90_000)
@@ -105,23 +105,23 @@ test.describe('фінанси: виведення', () => {
     await go('/finance/withdrawals')
     await win
       .locator('[data-slot="page-header"]')
-      .getByRole('button', { name: 'Додати виведення' })
+      .getByRole('button', { name: 'Додати виплату' })
       .click()
-    const dialog = win.getByRole('dialog', { name: 'Нове виведення' })
-    const submit = dialog.getByRole('button', { name: 'Додати виведення' })
+    const dialog = win.getByRole('dialog', { name: 'Нова виплата' })
+    const submit = dialog.getByRole('button', { name: 'Додати виплату' })
     // «Звідки» defaults to the platform with the most money.
     await expect(dialog.getByLabel('Звідки')).toContainText(rich.name)
     await expect(submit).toBeDisabled()
 
     await dialog.getByLabel('Сума', { exact: true }).fill(String(amount))
     // A fee above the amount is a typo: said at the field, the button stays off.
-    await dialog.getByLabel('Комісія за виведення').fill(String(amount + 5))
-    await dialog.getByLabel('Комісія за виведення').blur()
-    await expect(dialog.getByText('Комісія більша за суму виведення')).toBeVisible()
+    await dialog.getByLabel('Комісія за виплату').fill(String(amount + 5))
+    await dialog.getByLabel('Комісія за виплату').blur()
+    await expect(dialog.getByText('Комісія більша за суму виплати')).toBeVisible()
     await expect(submit).toBeDisabled()
-    await dialog.getByLabel('Комісія за виведення').fill('2')
-    await dialog.getByLabel('Комісія за виведення').blur()
-    await expect(dialog.getByText('Комісія більша за суму виведення')).toBeHidden()
+    await dialog.getByLabel('Комісія за виплату').fill('2')
+    await dialog.getByLabel('Комісія за виплату').blur()
+    await expect(dialog.getByText('Комісія більша за суму виплати')).toBeHidden()
 
     // USD → UAH: a new withdrawal never starts from a made-up rate 1 (last real rate or empty); 41 gives (amount − 2) × 41.
     const rate = dialog.getByLabel(/^Курс: 1 /)
@@ -133,7 +133,7 @@ test.describe('фінанси: виведення', () => {
     await dialog.getByLabel('Спосіб').fill(method)
     await expect(submit).toBeEnabled()
     await submit.click()
-    await expect(win.getByText('Виведення додано').first()).toBeVisible()
+    await expect(win.getByText('Виплату додано').first()).toBeVisible()
     await expect(dialog).toBeHidden()
 
     const row = win.getByRole('row').filter({ hasText: method })
@@ -151,12 +151,12 @@ test.describe('фінанси: виведення', () => {
     })
 
     // Remove: asks, then the balance comes back.
-    await row.getByRole('button', { name: 'Видалити виведення' }).click()
+    await row.getByRole('button', { name: 'Видалити виплату' }).click()
     await win
-      .getByRole('alertdialog', { name: 'Видалити виведення?' })
+      .getByRole('alertdialog', { name: 'Видалити виплату?' })
       .getByRole('button', { name: /Видалити/ })
       .click()
-    await expect(win.getByText('Виведення видалено').first()).toBeVisible()
+    await expect(win.getByText('Виплату видалено').first()).toBeVisible()
     await expect(row).toHaveCount(0)
     await expect.poll(() => balanceOf(rich.platformId)).toBeCloseTo(before, 2)
   })

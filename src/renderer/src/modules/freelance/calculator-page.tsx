@@ -137,7 +137,7 @@ export function CalculatorPage() {
                   />
                   <NumberField
                     id="rc-wd"
-                    label="Комісія виведення"
+                    label="Комісія за виплату"
                     unit="%"
                     value={shown(input.withdrawalFeePercent)}
                     onCommit={(n) => set('withdrawalFeePercent', n ?? 0)}

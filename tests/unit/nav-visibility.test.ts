@@ -39,7 +39,7 @@ describe('visibleHubs', () => {
   it('drops a hidden hub and hidden items', () => {
     expect(ids(prefs(['jobs']))).not.toContain('jobs')
     const work = visibleHubs(prefs([], ['/boards'])).find((h) => h.id === 'work')
-    expect(work?.items.map((i) => i.path)).toEqual(['/checklists'])
+    expect(work?.items.map((i) => i.path)).toEqual(['/checklists', '/freelance/templates'])
   })
 
   it('a hub with all its items hidden is hidden too', () => {
@@ -64,6 +64,7 @@ describe('hubOf', () => {
     expect(hubOf('/designs/boards/x')).toBe('knowledge')
     expect(hubOf('/bookmarks')).toBe('knowledge')
     expect(hubOf('/dev/github')).toBe('dev')
+    expect(hubOf('/freelance/templates')).toBe('work')
     expect(hubOf('/projects/x')).toBe('freelance')
   })
 })
@@ -77,6 +78,7 @@ describe('navOrder (palette and Alt+1…9)', () => {
       '/review',
       '/boards',
       '/checklists',
+      '/freelance/templates',
       '/ideas',
       '/dev',
       '/dev/github',
@@ -85,7 +87,7 @@ describe('navOrder (palette and Alt+1…9)', () => {
       '/guide'
     ])
     expect(order[4 - 1]).toBe('/boards')
-    expect(order[7 - 1]).toBe('/dev')
+    expect(order[8 - 1]).toBe('/dev')
   })
 
   it('without the top items Alt+2 opens Дошки', () => {
@@ -152,9 +154,9 @@ describe('placeOf / isRouteShown', () => {
     expect(isRouteShown(all, '/')).toBe(true)
   })
 
-  it('splits the query: cover-letter templates belong to «Пошук роботи»', () => {
+  it('ignores the query: any template filter belongs to «Шаблони»', () => {
     expect(placeOf('/freelance/templates?situation=cover_letter')).toEqual({
-      item: '/freelance/templates?situation=cover_letter'
+      item: '/freelance/templates'
     })
     expect(placeOf('/freelance/templates?open=x')).toEqual({ item: '/freelance/templates' })
     expect(placeOf('/dev/github')).toEqual({ item: '/dev/github' })

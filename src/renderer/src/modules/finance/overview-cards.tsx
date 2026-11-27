@@ -160,7 +160,7 @@ export function PlatformBalances({ month }: { month: string }): ReactElement {
                 size="xs"
                 onClick={() => navigate(`/finance/withdrawals?month=${month}`)}
               >
-                Виведення
+                Виплати
               </Button>
             </CardAction>
           </>

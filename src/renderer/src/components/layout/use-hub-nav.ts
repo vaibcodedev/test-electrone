@@ -16,7 +16,7 @@ export interface HubNav {
 }
 
 /** Where the location is inside one hub — shared by the expanded group and the folded flyout. */
-export function useHubNav(hub: NavHub, pathname: string, search: string): HubNav {
+export function useHubNav(hub: NavHub, pathname: string): HubNav {
   const { data: platforms = [] } = useApi('platforms', 'list', undefined, {
     enabled: !!hub.platforms
   })
@@ -27,10 +27,9 @@ export function useHubNav(hub: NavHub, pathname: string, search: string): HubNav
     { includeArchived: true },
     { enabled: !!hub.platforms }
   )
-  const activeHub = hubOf(pathname, search) === hub.id
-  // Items light up only in the hub that owns the location: cover-letter templates belong to «Пошук роботи»,
-  // so «Фриланс → Шаблони» stays dim there although the pathname is the same.
-  const matches = (path: string): boolean => activeHub && isAt(path, pathname, search)
+  const activeHub = hubOf(pathname) === hub.id
+  // Items light up only in the hub that owns the location.
+  const matches = (path: string): boolean => activeHub && isAt(path, pathname)
   // Only the most specific match is active: on /dev/github, «GitHub» — not «Локальні проєкти» (/dev) too.
   const best = hub.items
     .map((i) => i.path)
@@ -41,8 +40,7 @@ export function useHubNav(hub: NavHub, pathname: string, search: string): HubNav
     activeHub,
     atOverview: !!hub.overview && pathname === hub.overview,
     isActive,
-    // Plain Link + explicit aria-current: NavLink marks by pathname alone, so on cover-letter templates both
-    // «Фриланс → Шаблони» and «Пошук роботи → Шаблони листів» were the current page for a screen reader.
+    // Plain Link + explicit aria-current: only the most specific item is the current page for a screen reader.
     current: (path) => (isActive(path) ? 'page' : undefined),
     platforms,
     archivedCount: allPlatforms.length - platforms.length
