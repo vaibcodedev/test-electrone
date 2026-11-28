@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'fs'
+import { join, resolve } from 'path'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
@@ -36,5 +38,23 @@ describe('formatError', () => {
     expect(formatError(e).error).not.toContain('3f2a')
     expect(e.id).toBe('3f2a-uuid')
     expect(new NotFoundError('Колонка', '1').message).toBe('Колонка: запис не знайдено — можливо, його видалено')
+  })
+  // A read taken for a write: its own answer sent data:changed, every active query was fetched again, this one
+  // too, and so on without end (templates.situations re-rendered the open template dozens of times a second).
+  it('no method the renderer reads through a query counts as a write', () => {
+    const root = resolve('src/renderer/src')
+    const calls = new Set<string>()
+    for (const file of readdirSync(root, { recursive: true, encoding: 'utf-8' })) {
+      if (!/\.tsx?$/.test(file)) continue
+      const source = readFileSync(join(root, file), 'utf-8')
+      for (const m of source.matchAll(/use(?:InPlace|Infinite)?Api\(\s*'(\w+)',\s*'(\w+)'/g))
+        calls.add(`${m[1]}.${m[2]}`)
+    }
+    expect(calls.size).toBeGreaterThan(50)
+    const asWrites = [...calls].filter((call) => {
+      const [ns, method] = call.split('.')
+      return changedTypes(ns, method, undefined) !== undefined
+    })
+    expect(asWrites).toEqual([])
   })
 })

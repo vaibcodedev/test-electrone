@@ -55,7 +55,7 @@ const NS_TYPES: Partial<Record<keyof Api, EntityType[]>> = {
   ]
 }
 const READ_METHODS =
-  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|folderCounts|mostCopied|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|findCompany|counts|count|questionCounts|resumes|questions|question|topics|practiceQueue|practiceExtra|snapshot|changed|runs|logs|repos|issues|commits|pickFolder|scan)$/
+  /^(list|get|details|due|feed|queue|stats|palette|overview|running|reveal|state|query|recent|info|status|dashboard|niches|stale|summary|progress|folders|folderCounts|mostCopied|month|income|subscriptions|subscriptionMonth|expenses|withdrawals|boards|daily|followUps|upcoming|pastStages|companies|company|findCompany|counts|count|questionCounts|resumes|questions|question|topics|practiceQueue|practiceExtra|snapshot|changed|runs|logs|repos|issues|commits|pickFolder|scan|situations)$/
 
 /** Entity types a successful `ns.method` call changed (→ `data:changed` to every window), or undefined. */
 export function changedTypes(ns: string, method: string, data: unknown): EntityType[] | undefined {
