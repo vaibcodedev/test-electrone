@@ -28,7 +28,7 @@ import { PlatformSettingsTab } from './platform-settings-tab'
 
 type Tab = 'proposals' | 'contracts' | 'credits' | 'stats' | 'settings'
 
-function ContractsTab({ platform }: { platform: Platform }) {
+function ContractsTab({ platform }: { platform: Platform }): React.ReactElement {
   const navigate = useNavigate()
   // Paged table: 100 contracts at a time, «Показати ще» below.
   const page = useInfiniteApi('projects', 'list', { platformId: platform.id })
@@ -99,7 +99,7 @@ function ContractsTab({ platform }: { platform: Platform }) {
 }
 
 /** `/freelance/p/:platformId` — one platform with its proposals, contracts, credits, stats and settings. */
-export function PlatformPage() {
+export function PlatformPage(): React.ReactElement {
   const { platformId = '' } = useParams()
   const [params, setParams] = useSearchParams()
   const record = useInPlaceApi('platforms', 'get', platformId, { enabled: !!platformId })
