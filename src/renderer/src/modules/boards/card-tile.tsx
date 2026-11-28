@@ -28,7 +28,7 @@ export function RepeatChip({
 }: {
   rule: CardRepeat
   className?: string
-}): React.JSX.Element {
+}): React.ReactElement {
   return (
     <Badge
       variant="outline"
@@ -50,7 +50,7 @@ export function DueChip({
   dueAt: number
   done: boolean
   className?: string
-}): React.JSX.Element {
+}): React.ReactElement {
   const late = isOverdue(dueAt, done)
   const when = hasTime(dueAt) ? `${fmtDay(dueAt)} о ${format(dueAt, 'HH:mm')}` : fmtDay(dueAt)
   // Overdue is said in words and by the icon too, not by the red colour alone (WCAG 1.4.1). The words go

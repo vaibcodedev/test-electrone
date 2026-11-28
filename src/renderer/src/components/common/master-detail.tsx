@@ -95,7 +95,7 @@ export function MasterDetail({
   /** Default width of the list pane when detail is open. */
   listSize?: string
   className?: string
-}): React.JSX.Element {
+}): React.ReactElement {
   const [open] = useOpenParam()
   // Pages that load the opened record (useApi get) pass null for a frame while switching A → B: keep A until B
   // arrives, or the pane vanished and the list jumped to full width. Not when A itself is gone (deleted while
@@ -178,7 +178,7 @@ export function InlineTitle({
   invalid?: boolean
   /** id of the text that explains the error (the FieldError under the title): read out with the field. */
   describedBy?: string
-}): React.JSX.Element {
+}): React.ReactElement {
   const readOnly = useReadOnly()
   const { fresh } = useDetailMode()
   const field = useRef<HTMLTextAreaElement>(null)
@@ -301,7 +301,7 @@ export function DetailPane({
   footer?: ReactNode
   /** In a Dialog or Sheet: the overlay reads the mode through it (guardSheet — Esc leaves editing first). */
   modeRef?: RefObject<DetailMode | null>
-}): React.JSX.Element {
+}): React.ReactElement {
   const leaving = useUi((s) => !!s.leaving[entity.id])
   const setLeaving = useUi((s) => s.setLeaving)
   // View first; a record created a moment ago opens straight in edit mode. Snapshot → «Скасувати».
@@ -500,7 +500,7 @@ export function EntityAside({
   updatedAt?: number
   files?: boolean
   children?: ReactNode
-}): React.JSX.Element {
+}): React.ReactElement {
   // A record nobody changed since creating it shows one date, not two identical lines.
   const edited = updatedAt && (!createdAt || updatedAt - createdAt > 60_000) ? updatedAt : undefined
   return (
@@ -543,7 +543,7 @@ export function ListItem({
    */
   align?: 'center' | 'top'
   menu?: RecordMenuBinding
-}): React.JSX.Element {
+}): React.ReactElement {
   const top = align === 'top'
   const row = (
     <Item

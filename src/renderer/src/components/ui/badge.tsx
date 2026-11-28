@@ -42,7 +42,7 @@ function Badge({
      * A leading icon stays outside the text span, so it keeps its size and gap and is never cut off.
      */
     truncate?: boolean
-  }) {
+  }): React.ReactElement {
   const Comp = asChild ? Slot.Root : 'span'
   if (!truncate || asChild) {
     return (

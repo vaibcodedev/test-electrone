@@ -198,7 +198,7 @@ function CaseProject({
   )
 }
 
-function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }): React.JSX.Element {
+function CaseDetail({ c, onClose }: { c: PortfolioCase; onClose: () => void }): React.ReactElement {
   const update = useApiMutation('cases', 'update')
   const remove = useApiMutation('cases', 'remove', { successMessage: 'Кейс переміщено в кошик' })
   const save = (patch: CasePatch): void => update.mutate({ id: c.id, patch })
@@ -348,7 +348,7 @@ function CoverlessPreview({ c }: { c: PortfolioCase }): ReactElement {
   )
 }
 
-export function PortfolioPage(): React.JSX.Element {
+export function PortfolioPage(): React.ReactElement {
   const [open, setOpen] = useOpenParam()
   const [search, setSearch] = useState('')
   const [niche, setNiche] = useState<string | undefined>()
