@@ -467,7 +467,13 @@ export function PortfolioPage(): React.ReactElement {
                       {/* Reserved line: cards stay the same height with or without niche/stack. */}
                       <div className="flex h-6 min-w-0 items-center gap-1.5 pr-7">
                         {c.niche && (
-                          <Badge variant="soft" className="min-w-12" truncate>
+                          // The stack gives way first: shrinking together left the type as «тип…».
+                          <Badge
+                            variant="soft"
+                            truncate
+                            className={cn('shrink-0', c.stack && 'max-w-3/5')}
+                            title={`Тип завдання: ${c.niche}`}
+                          >
                             {c.niche}
                           </Badge>
                         )}

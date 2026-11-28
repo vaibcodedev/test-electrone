@@ -228,7 +228,7 @@ function TemplateDetail({
 }: {
   t: MessageTemplate
   onClose: () => void
-}): React.JSX.Element {
+}): React.ReactElement {
   const update = useApiMutation('templates', 'update')
   const remove = useApiMutation('templates', 'remove', {
     successMessage: 'Шаблон переміщено в кошик'
@@ -365,7 +365,7 @@ function TemplateDetail({
   )
 }
 
-export function TemplatesPage(): React.JSX.Element {
+export function TemplatesPage(): React.ReactElement {
   const [open, setOpen] = useOpenParam()
   // In the URL: other pages link to «?purpose=jobs&situation=follow_up» and the like.
   const [params, setParams] = useSearchParams()
@@ -580,18 +580,28 @@ export function TemplatesPage(): React.JSX.Element {
                         <PurposeBadge purpose={t.purpose} onInk={t.id === open} />
                         {/* With a situation filter on, the situation would only repeat the chip. */}
                         {!situation && (
-                          <ItemDescription className="min-w-0 truncate text-meta">
+                          <Badge
+                            variant="soft"
+                            truncate
+                            className={cn(
+                              'max-w-40',
+                              t.id === open && 'bg-ink-foreground/12 text-ink-foreground'
+                            )}
+                          >
                             {situationLabel(t.situation)}
-                          </ItemDescription>
+                          </Badge>
                         )}
                         {/* Several text versions: their names («Українська · English») or, for many, the count. */}
                         {versionNames(templateVersions(t)) && (
-                          <ItemDescription
-                            className="shrink-0 text-meta"
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              t.id === open && 'bg-ink-foreground/12 text-ink-foreground'
+                            )}
                             title={versionNames(templateVersions(t)) ?? undefined}
                           >
                             {versionSummary(templateVersions(t))}
-                          </ItemDescription>
+                          </Badge>
                         )}
                       </div>
                     </div>
