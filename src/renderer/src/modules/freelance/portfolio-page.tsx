@@ -442,8 +442,8 @@ export function PortfolioPage(): React.JSX.Element {
                     className={cn(
                       // Same tile language as Галерея: a surface frame, so a dark cover never melts into the page.
                       // rounded-2xl (24) = the cover's 18 + the 6px frame (concentric corners, as in Галерея).
-                      'tile h-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5',
-                      c.id === open && 'outline-2 -outline-offset-2 outline-foreground/40'
+                      'tile h-full gap-0 overflow-hidden rounded-2xl bg-surface p-1.5 outline-2 -outline-offset-2 outline-foreground/0',
+                      c.id === open && 'outline-foreground/40'
                     )}
                   >
                     <div className="aspect-16/10 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/8 ring-inset">
@@ -467,7 +467,7 @@ export function PortfolioPage(): React.JSX.Element {
                       {/* Reserved line: cards stay the same height with or without niche/stack. */}
                       <div className="flex h-6 min-w-0 items-center gap-1.5 pr-7">
                         {c.niche && (
-                          <Badge variant="soft" truncate>
+                          <Badge variant="soft" className="min-w-12" truncate>
                             {c.niche}
                           </Badge>
                         )}

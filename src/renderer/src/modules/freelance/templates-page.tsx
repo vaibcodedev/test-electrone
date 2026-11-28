@@ -222,7 +222,13 @@ function TemplateVariables({ body }: { body: string }): ReactElement | null {
   )
 }
 
-function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => void }) {
+function TemplateDetail({
+  t,
+  onClose
+}: {
+  t: MessageTemplate
+  onClose: () => void
+}): React.JSX.Element {
   const update = useApiMutation('templates', 'update')
   const remove = useApiMutation('templates', 'remove', {
     successMessage: 'Шаблон переміщено в кошик'
@@ -359,7 +365,7 @@ function TemplateDetail({ t, onClose }: { t: MessageTemplate; onClose: () => voi
   )
 }
 
-export function TemplatesPage() {
+export function TemplatesPage(): React.JSX.Element {
   const [open, setOpen] = useOpenParam()
   // In the URL: other pages link to «?purpose=jobs&situation=follow_up» and the like.
   const [params, setParams] = useSearchParams()
@@ -367,7 +373,10 @@ export function TemplatesPage() {
   const direction = TEMPLATE_DIRECTIONS.find((d) => d === rawPurpose)
   // A built-in key or the person's own situation, as stored.
   const situation = params.get('situation')?.trim() || undefined
-  const setFilter = (next: { purpose?: TemplateDirection | null; situation?: string | null }): void =>
+  const setFilter = (next: {
+    purpose?: TemplateDirection | null
+    situation?: string | null
+  }): void =>
     setParams(
       (prev) => {
         const p = new URLSearchParams(prev)
@@ -441,7 +450,9 @@ export function TemplatesPage() {
 
   return (
     <Page>
-      {copying && <CopyTemplateDialog template={copying} open={copyOpen} onOpenChange={setCopyOpen} />}
+      {copying && (
+        <CopyTemplateDialog template={copying} open={copyOpen} onOpenChange={setCopyOpen} />
+      )}
       <PageHeader
         title="Шаблони"
         subtitle="Готові тексти для замовлень і вакансій: відгуки, листи, відповіді."
@@ -460,33 +471,33 @@ export function TemplatesPage() {
             // Two steps in one row: first for what, then the situation of that direction.
             chips={
               <>
-              {(directions || direction) && (
-                <Segmented
-                  label="Для чого"
-                  value={direction ?? ALL_DIRECTIONS}
-                  onChange={(v) =>
-                    setDirection(v === ALL_DIRECTIONS ? undefined : (v as TemplateDirection))
-                  }
-                  options={[
-                    { value: ALL_DIRECTIONS, label: 'Усі', count: all.length },
-                    ...TEMPLATE_DIRECTIONS.map((d) => ({
-                      value: d,
-                      label: (
-                        <>
-                          <TagDot color={PURPOSE_COLOR[d]} />
-                          {PURPOSE_LABEL[d]}
-                        </>
-                      ),
-                      count: directionCount(d)
-                    }))
-                  ]}
+                {(directions || direction) && (
+                  <Segmented
+                    label="Для чого"
+                    value={direction ?? ALL_DIRECTIONS}
+                    onChange={(v) =>
+                      setDirection(v === ALL_DIRECTIONS ? undefined : (v as TemplateDirection))
+                    }
+                    options={[
+                      { value: ALL_DIRECTIONS, label: 'Усі', count: all.length },
+                      ...TEMPLATE_DIRECTIONS.map((d) => ({
+                        value: d,
+                        label: (
+                          <>
+                            <TagDot color={PURPOSE_COLOR[d]} />
+                            {PURPOSE_LABEL[d]}
+                          </>
+                        ),
+                        count: directionCount(d)
+                      }))
+                    ]}
+                  />
+                )}
+                <SituationFilter
+                  value={situation}
+                  options={situationOptions.filter((o) => o.count > 0 || o.value === situation)}
+                  onChange={setSituation}
                 />
-              )}
-              <SituationFilter
-                value={situation}
-                options={situationOptions.filter((o) => o.count > 0 || o.value === situation)}
-                onChange={setSituation}
-              />
               </>
             }
             trailing={
